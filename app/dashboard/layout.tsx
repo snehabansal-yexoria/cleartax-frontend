@@ -105,6 +105,8 @@ export default function DashboardLayout({
                 <a href="/dashboard/admin">Admin Panel</a>
                 <br />
                 <br />
+
+                <a href="/dashboard/admin/invite">Invite User</a>
               </>
             )}
 
