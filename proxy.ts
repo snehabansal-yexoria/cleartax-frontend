@@ -7,7 +7,7 @@ interface TokenPayload {
   "custom:role"?: string;
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 🔥 Skip public routes
@@ -57,7 +57,7 @@ export function middleware(req: NextRequest) {
 
     return NextResponse.next();
   } catch (error) {
-    console.error("Middleware error:", error);
+    console.error("Proxy error:", error);
 
     return NextResponse.redirect(new URL("/login", req.url));
   }
