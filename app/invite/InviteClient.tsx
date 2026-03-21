@@ -1,13 +1,15 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-export default function InvitePage() {
+export default function InviteClient({
+  email,
+  role,
+}: {
+  email: string;
+  role: string;
+}) {
   const router = useRouter();
-  const params = useSearchParams();
-
-  const email = params.get("email") || "";
-  const role = params.get("role") || "client";
 
   function goToLogin() {
     alert(

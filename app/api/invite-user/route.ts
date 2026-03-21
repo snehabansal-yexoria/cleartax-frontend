@@ -21,6 +21,13 @@ export async function POST(req: Request) {
     const token = authHeader.split(" ")[1];
     const decoded = await verifyToken(token);
 
+    if (!decoded || !decoded.sub) {
+      return NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 },
+      );
+    }
+
     const body = await req.json();
     const { email, role, organization_id } = body;
 
