@@ -198,9 +198,9 @@ p.darkBg {
   line-height: 140%;
   letter-spacing: 0em;
   vertical-align: middle;
-  text-transform: capitalize;
   color: #717182;
   border-radius: 6px;
+  text-transform: none;
 }
 .login-form-wrap {
   display: flex;

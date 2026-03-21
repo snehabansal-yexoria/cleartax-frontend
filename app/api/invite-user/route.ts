@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       UserAttributes: [
         { Name: "email", Value: email },
         { Name: "email_verified", Value: "true" },
+        { Name: "custom:role", Value: role.toLowerCase() },
       ],
     });
 

@@ -64,8 +64,10 @@ export default function LoginComponent({
       if (result.type === "SUCCESS") {
         const token = result.idToken;
         const decoded: TokenPayload = jwtDecode(token);
+        console.log(decoded);
 
-        const role = decoded["custom:role"] || "client";
+        const role = (decoded["custom:role"] || "client").toLowerCase();
+        console.log(role);
 
         // 🔥 ROLE CHECK
         if (!allowedRoles.includes(role)) {
