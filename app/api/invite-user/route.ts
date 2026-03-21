@@ -20,7 +20,6 @@ export async function POST(req: Request) {
 
     const token = authHeader.split(" ")[1];
     const decoded = await verifyToken(token);
-    console.log(decoded);
 
     const body = await req.json();
     const { email, role, organization_id } = body;
