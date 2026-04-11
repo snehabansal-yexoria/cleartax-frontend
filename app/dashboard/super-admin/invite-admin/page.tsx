@@ -116,8 +116,8 @@ export default function InviteAdminPage() {
           style={{ width: "100%", padding: "8px" }}
         >
           <option value="admin">Admin</option>
-          {/* <option value="accountant">Accountant</option> */}
-          {/* <option value="client">Client</option> */}
+          <option value="accountant">Accountant</option>
+          <option value="client">Client</option>
         </select>
 
         <br />
