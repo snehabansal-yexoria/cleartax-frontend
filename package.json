@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1006.0",
+    "@aws-sdk/client-sts": "^3.1028.0",
+    "@aws-sdk/rds-signer": "^3.1028.0",
     "amazon-cognito-identity-js": "^6.3.16",
     "crypto": "^1.0.1",
     "jose": "^6.2.1",
