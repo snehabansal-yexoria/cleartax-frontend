@@ -10,6 +10,18 @@ const client = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
 
+async function getUserColumns() {
+  const result = await pool.query(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_name = 'users'
+       AND column_name = ANY($1::text[])`,
+    [["invited_by", "full_name", "phone_number"]],
+  );
+
+  return new Set(result.rows.map((row) => String(row.column_name)));
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -29,7 +41,8 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { email, role, organization_id } = body;
+    const { email, role, organization_id, full_name, phone_number } = body;
+    const requestedRole = String(role || "").toLowerCase();
 
     // 🔥 STEP 1: Get logged-in user
     const userResult = await pool.query(
@@ -42,11 +55,25 @@ export async function POST(req: Request) {
     }
 
     const currentUser = userResult.rows[0];
+    const inviterRole = String(currentUser.role || "").toUpperCase();
+
+    const allowedInvites: Record<string, string[]> = {
+      SUPER_ADMIN: ["admin"],
+      ADMIN: ["accountant", "client"],
+      ACCOUNTANT: ["client"],
+    };
+
+    if (!allowedInvites[inviterRole]?.includes(requestedRole)) {
+      return NextResponse.json(
+        { error: "You are not allowed to invite this role" },
+        { status: 403 },
+      );
+    }
 
     // 🔥 STEP 2: Determine organization
     let finalOrgId = organization_id;
 
-    if (currentUser.role === "ADMIN") {
+    if (inviterRole === "ADMIN" || inviterRole === "ACCOUNTANT") {
       finalOrgId = currentUser.organization_id;
     }
 
@@ -68,7 +95,7 @@ export async function POST(req: Request) {
       UserAttributes: [
         { Name: "email", Value: email },
         { Name: "email_verified", Value: "true" },
-        { Name: "custom:role", Value: role.toLowerCase() },
+        { Name: "custom:role", Value: requestedRole },
       ],
     });
 
@@ -79,23 +106,72 @@ export async function POST(req: Request) {
     )?.Value;
 
     // 🔥 STEP 4: Save in DB
-    await pool.query(
-      `INSERT INTO users (cognito_user_id, email, role, organization_id, status)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [cognitoSub, email, role.toUpperCase(), finalOrgId, "INVITED"],
-    );
+    const userColumns = await getUserColumns();
+
+    if (
+      userColumns.has("invited_by") ||
+      userColumns.has("full_name") ||
+      userColumns.has("phone_number")
+    ) {
+      const insertColumns = [
+        "cognito_user_id",
+        "email",
+        "role",
+        "organization_id",
+        "status",
+      ];
+      const insertValues = [
+        cognitoSub,
+        email,
+        requestedRole.toUpperCase(),
+        finalOrgId,
+        "INVITED",
+      ];
+
+      if (userColumns.has("invited_by")) {
+        insertColumns.push("invited_by");
+        insertValues.push(currentUser.id);
+      }
+
+      if (userColumns.has("full_name")) {
+        insertColumns.push("full_name");
+        insertValues.push(full_name || null);
+      }
+
+      if (userColumns.has("phone_number")) {
+        insertColumns.push("phone_number");
+        insertValues.push(phone_number || null);
+      }
+
+      const placeholders = insertValues.map((_, index) => `$${index + 1}`);
+
+      await pool.query(
+        `INSERT INTO users (${insertColumns.join(", ")})
+         VALUES (${placeholders.join(", ")})`,
+        insertValues,
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO users (cognito_user_id, email, role, organization_id, status)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [cognitoSub, email, requestedRole.toUpperCase(), finalOrgId, "INVITED"],
+      );
+    }
 
     return NextResponse.json({
       success: true,
       temporaryPassword: tempPassword,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Invite error:", error);
+
+    const details =
+      error instanceof Error ? error.message : "Unexpected server error";
 
     return NextResponse.json(
       {
         error: "Database error",
-        details: error.message,
+        details,
       },
       { status: 500 },
     );
