@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSession } from "../../../../src/lib/session";
 
@@ -44,7 +44,7 @@ function formatJoinedDate(value: string | null) {
   }).format(new Date(value));
 }
 
-export default function AccountantClientsPage() {
+function AccountantClientsContent() {
   const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState<ClientTab>("all");
   const [allClients, setAllClients] = useState<ClientRecord[]>([]);
@@ -436,5 +436,24 @@ export default function AccountantClientsPage() {
         </div>
       )}
     </section>
+  );
+}
+
+export default function AccountantClientsPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="accountant-clients-page">
+          <div className="accountant-clients-topbar">
+            <div>
+              <h1>All Clients</h1>
+              <p>Manage and view all your property clients</p>
+            </div>
+          </div>
+        </section>
+      }
+    >
+      <AccountantClientsContent />
+    </Suspense>
   );
 }
