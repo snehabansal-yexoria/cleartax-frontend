@@ -1,17 +1,5 @@
-import Link from "next/link";
+import LoginRoleSelector from "../components/LoginRoleSelector";
 
 export default function LoginSelector() {
-  return (
-    <div style={{ margin: "100px" }}>
-      <h2>Select Login</h2>
-
-      <Link href="/login/super-admin">Super Admin</Link>
-      <br />
-
-      <Link href="/login/admin">Admin</Link>
-      <br />
-
-      <Link href="/login/user">User</Link>
-    </div>
-  );
+  return <LoginRoleSelector />;
 }

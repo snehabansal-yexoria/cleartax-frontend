@@ -1,5 +1,5 @@
-import Image from "next/image";
+import LoginRoleSelector from "./components/LoginRoleSelector";
 
 export default function Home() {
-  return <div>Hello</div>;
+  return <LoginRoleSelector />;
 }
