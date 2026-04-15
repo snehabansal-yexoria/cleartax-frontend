@@ -1,7 +1,9 @@
 "use client";
 
+import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { PortalDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -37,6 +39,7 @@ export default function AdminPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [invitedUsers, setInvitedUsers] = useState<InvitedUser[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const accountantCount = useMemo(
     () => invitedUsers.filter((user) => user.role === "accountant").length,
@@ -84,6 +87,8 @@ export default function AdminPage() {
         }
       } catch (error) {
         console.error("Failed to load admin dashboard:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -91,7 +96,12 @@ export default function AdminPage() {
   }, []);
 
   return (
-    <section className="portal-page">
+    <Skeleton
+      name="admin-dashboard"
+      loading={isLoading}
+      fallback={<PortalDashboardSkeleton />}
+    >
+      <section className="portal-page">
       <div className="portal-page-header">
         <div>
           <p className="portal-kicker">Admin Workspace</p>
@@ -161,6 +171,7 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
-    </section>
+      </section>
+    </Skeleton>
   );
 }

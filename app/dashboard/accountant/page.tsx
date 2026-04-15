@@ -1,7 +1,9 @@
 "use client";
 
+import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -133,6 +135,7 @@ const activities = [
 export default function AccountantPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadOrganization() {
@@ -159,6 +162,8 @@ export default function AccountantPage() {
         setOrganizationName(data.organization?.name || "");
       } catch (error) {
         console.error("Failed to load organization:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -166,98 +171,103 @@ export default function AccountantPage() {
   }, []);
 
   return (
-    <section className="accountant-dashboard">
-      <div className="accountant-summary-grid">
-        {summaryCards.map((card) => (
-          <article
-            key={card.title}
-            className={`accountant-summary-card accountant-summary-card-${card.tone}`}
-          >
-            <div>
-              <p className="accountant-eyebrow">{card.title}</p>
-              <h2>{card.value}</h2>
-              <span>{card.change}</span>
-            </div>
+    <Skeleton
+      name="accountant-dashboard"
+      loading={isLoading}
+      fallback={<AccountantDashboardSkeleton />}
+    >
+      <section className="accountant-dashboard">
+        <div className="accountant-summary-grid">
+          {summaryCards.map((card) => (
+            <article
+              key={card.title}
+              className={`accountant-summary-card accountant-summary-card-${card.tone}`}
+            >
+              <div>
+                <p className="accountant-eyebrow">{card.title}</p>
+                <h2>{card.value}</h2>
+                <span>{card.change}</span>
+              </div>
 
-            {card.actionHref ? (
-              <Link href={card.actionHref} className="accountant-primary-cta">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
-                {card.actionLabel}
-              </Link>
-            ) : (
-              <div className="accountant-summary-icon">{card.icon}</div>
-            )}
-          </article>
-        ))}
-      </div>
+              {card.actionHref ? (
+                <Link href={card.actionHref} className="accountant-primary-cta">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  {card.actionLabel}
+                </Link>
+              ) : (
+                <div className="accountant-summary-icon">{card.icon}</div>
+              )}
+            </article>
+          ))}
+        </div>
 
-      <div className="accountant-content-grid">
-        <section className="accountant-clients-panel">
-          <div className="accountant-panel-header">
-            <div>
-              <h3>Client Management</h3>
-              <p>
-                {organizationName
-                  ? `Manage clients for ${organizationName}`
-                  : "Manage your portfolio clients"}
-              </p>
-            </div>
+        <div className="accountant-content-grid">
+          <section className="accountant-clients-panel">
+            <div className="accountant-panel-header">
+              <div>
+                <h3>Client Management</h3>
+                <p>
+                  {organizationName
+                    ? `Manage clients for ${organizationName}`
+                    : "Manage your portfolio clients"}
+                </p>
+              </div>
 
-            <div className="accountant-view-toggle">
-              <button
-                type="button"
-                className={viewMode === "card" ? "is-active" : ""}
-                onClick={() => setViewMode("card")}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="4" width="7" height="7" rx="1.2" />
-                  <rect x="14" y="4" width="7" height="7" rx="1.2" />
-                  <rect x="3" y="13" width="7" height="7" rx="1.2" />
-                  <rect x="14" y="13" width="7" height="7" rx="1.2" />
-                </svg>
-                Card View
-              </button>
-              <button
-                type="button"
-                className={viewMode === "list" ? "is-active" : ""}
-                onClick={() => setViewMode("list")}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8 6h13" />
-                  <path d="M8 12h13" />
-                  <path d="M8 18h13" />
-                  <circle cx="4" cy="6" r="1" />
-                  <circle cx="4" cy="12" r="1" />
-                  <circle cx="4" cy="18" r="1" />
-                </svg>
-                List View
-              </button>
-            </div>
-          </div>
-
-          {viewMode === "card" ? (
-            <div className="accountant-client-grid">
-              {clients.map((client) => (
-                <article
-                  key={client.email}
-                  className="accountant-client-card"
-                  style={{
-                    backgroundImage: `linear-gradient(180deg, rgba(11, 17, 44, 0.02) 18%, rgba(11, 17, 44, 0.82) 100%), url(${client.image})`,
-                  }}
+              <div className="accountant-view-toggle">
+                <button
+                  type="button"
+                  className={viewMode === "card" ? "is-active" : ""}
+                  onClick={() => setViewMode("card")}
                 >
-                  <div className="accountant-client-copy">
-                    <h4>{client.name}</h4>
-                    <p>{client.email}</p>
-                    <span>{client.properties}</span>
-                  </div>
-                </article>
-              ))}
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4" width="7" height="7" rx="1.2" />
+                    <rect x="14" y="4" width="7" height="7" rx="1.2" />
+                    <rect x="3" y="13" width="7" height="7" rx="1.2" />
+                    <rect x="14" y="13" width="7" height="7" rx="1.2" />
+                  </svg>
+                  Card View
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "list" ? "is-active" : ""}
+                  onClick={() => setViewMode("list")}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 6h13" />
+                    <path d="M8 12h13" />
+                    <path d="M8 18h13" />
+                    <circle cx="4" cy="6" r="1" />
+                    <circle cx="4" cy="12" r="1" />
+                    <circle cx="4" cy="18" r="1" />
+                  </svg>
+                  List View
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="accountant-client-list">
+
+            {viewMode === "card" ? (
+              <div className="accountant-client-grid">
+                {clients.map((client) => (
+                  <article
+                    key={client.email}
+                    className="accountant-client-card"
+                    style={{
+                      backgroundImage: `linear-gradient(180deg, rgba(11, 17, 44, 0.02) 18%, rgba(11, 17, 44, 0.82) 100%), url(${client.image})`,
+                    }}
+                  >
+                    <div className="accountant-client-copy">
+                      <h4>{client.name}</h4>
+                      <p>{client.email}</p>
+                      <span>{client.properties}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="accountant-client-list">
               {clients.map((client, index) => (
                 <article key={client.email} className="accountant-client-list-row">
                   <div className="accountant-client-list-main">
@@ -288,11 +298,11 @@ export default function AccountantPage() {
                   </div>
                 </article>
               ))}
-            </div>
-          )}
-        </section>
+              </div>
+            )}
+          </section>
 
-        <aside className="accountant-activity-panel">
+          <aside className="accountant-activity-panel">
           <div className="accountant-panel-header">
             <div>
               <h3>Recent Activity</h3>
@@ -330,8 +340,9 @@ export default function AccountantPage() {
           <button type="button" className="accountant-secondary-cta">
             View All Activity
           </button>
-        </aside>
-      </div>
-    </section>
+          </aside>
+        </div>
+      </section>
+    </Skeleton>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
+import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { PortalDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -43,6 +45,7 @@ export default function SuperAdminPage() {
     clients: 0,
     organizations: 0,
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   const activeOrganizations = useMemo(
     () =>
@@ -77,6 +80,8 @@ export default function SuperAdminPage() {
         setSummary(data.summary);
       } catch (error) {
         console.error("Failed to load super admin dashboard:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -84,7 +89,12 @@ export default function SuperAdminPage() {
   }, []);
 
   return (
-    <section className="portal-page">
+    <Skeleton
+      name="super-admin-dashboard"
+      loading={isLoading}
+      fallback={<PortalDashboardSkeleton />}
+    >
+      <section className="portal-page">
       <div className="portal-page-header">
         <div>
           <p className="portal-kicker">Platform Overview</p>
@@ -163,6 +173,7 @@ export default function SuperAdminPage() {
           ))}
         </div>
       </div>
-    </section>
+      </section>
+    </Skeleton>
   );
 }

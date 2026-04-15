@@ -1,7 +1,9 @@
 "use client";
 
+import { Skeleton } from "boneyard-js/react";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { AccountantClientsSkeleton } from "../../../components/PortalSkeletons";
 import { getSession } from "../../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -55,6 +57,7 @@ function AccountantClientsContent() {
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [inviteForm, setInviteForm] = useState({
     fullName: "",
     email: "",
@@ -99,6 +102,8 @@ function AccountantClientsContent() {
         }
       } catch (error) {
         console.error("Failed to load clients:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -182,7 +187,12 @@ function AccountantClientsContent() {
   }
 
   return (
-    <section className="accountant-clients-page">
+    <Skeleton
+      name="accountant-clients"
+      loading={isLoading}
+      fallback={<AccountantClientsSkeleton />}
+    >
+      <section className="accountant-clients-page">
       <div className="accountant-clients-topbar">
         <div>
           <h1>All Clients</h1>
@@ -435,7 +445,8 @@ function AccountantClientsContent() {
           </aside>
         </div>
       )}
-    </section>
+      </section>
+    </Skeleton>
   );
 }
 

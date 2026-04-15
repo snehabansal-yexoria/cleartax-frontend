@@ -1,7 +1,9 @@
 "use client";
 
+import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { AccountantAccountSkeleton } from "../../../components/PortalSkeletons";
 import { getSession } from "../../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -48,6 +50,7 @@ export default function AccountantAccountPage() {
   const [email, setEmail] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadProfile() {
@@ -89,6 +92,8 @@ export default function AccountantAccountPage() {
         }
       } catch (error) {
         console.error("Failed to load accountant profile:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -100,7 +105,12 @@ export default function AccountantAccountPage() {
   const adminName = formatDisplayName(adminEmail || "Michael Roberts");
 
   return (
-    <section className="accountant-account-page">
+    <Skeleton
+      name="accountant-account"
+      loading={isLoading}
+      fallback={<AccountantAccountSkeleton />}
+    >
+      <section className="accountant-account-page">
       <Link href="/dashboard/accountant" className="accountant-back-link">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m15 6-6 6 6 6" />
@@ -235,6 +245,7 @@ export default function AccountantAccountPage() {
           </button>
         </aside>
       </div>
-    </section>
+      </section>
+    </Skeleton>
   );
 }
