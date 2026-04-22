@@ -46,9 +46,12 @@ export default function LoginComponent({
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [requireNewPassword, setRequireNewPassword] = useState(false);
   const [user, setUser] = useState<CognitoUser | null>(null);
@@ -268,13 +271,22 @@ export default function LoginComponent({
                     </div>
                     <div className="login-element">
                       <label htmlFor="password">Password</label>
-                      <input
-                        type="password"
-                        placeholder="Enter your password"
-                        id="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
+                      <div className="login-password-field">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          id="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="login-password-toggle"
+                          onClick={() => setShowPassword((current) => !current)}
+                        >
+                          {showPassword ? "Hide" : "View"}
+                        </button>
+                      </div>
                     </div>
                     <div className="login-submit">
                       <button onClick={handleLogin} disabled={loading}>
@@ -297,23 +309,45 @@ export default function LoginComponent({
                     </div>
                     <div className="login-element">
                       <label htmlFor="new_password">New Password</label>
-                      <input
-                        type="password"
-                        id="new_password"
-                        placeholder="New password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                      />
+                      <div className="login-password-field">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          id="new_password"
+                          placeholder="New password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="login-password-toggle"
+                          onClick={() =>
+                            setShowNewPassword((current) => !current)
+                          }
+                        >
+                          {showNewPassword ? "Hide" : "View"}
+                        </button>
+                      </div>
                     </div>
                     <div className="login-element">
                       <label htmlFor="confirm_password">Confirm Password</label>
-                      <input
-                        type="password"
-                        id="confirm_password"
-                        placeholder="Confirm password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
+                      <div className="login-password-field">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          id="confirm_password"
+                          placeholder="Confirm password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="login-password-toggle"
+                          onClick={() =>
+                            setShowConfirmPassword((current) => !current)
+                          }
+                        >
+                          {showConfirmPassword ? "Hide" : "View"}
+                        </button>
+                      </div>
                     </div>
                     <div className="login-submit">
                       <button onClick={handleSetNewPassword} disabled={loading}>

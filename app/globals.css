@@ -201,6 +201,26 @@ p.darkBg {
   color: #717182;
   border-radius: 6px;
   text-transform: none;
+  width: 100%;
+}
+
+.login-password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.login-password-field input {
+  width: 100%;
+  padding-right: 92px;
+}
+.login-password-toggle {
+  position: absolute;
+  right: 14px;
+  border: 0;
+  background: transparent;
+  color: #2f3c82;
+  font-weight: 700;
+  cursor: pointer;
 }
 .login-form-wrap {
   display: flex;
@@ -362,7 +382,11 @@ p.darkBg {
   justify-content: center;
   padding: 40px 20px;
   background:
-    radial-gradient(circle at top left, rgba(244, 161, 23, 0.18), transparent 28%),
+    radial-gradient(
+      circle at top left,
+      rgba(244, 161, 23, 0.18),
+      transparent 28%
+    ),
     linear-gradient(180deg, #f8faff 0%, #eef2fb 100%);
 }
 
@@ -595,6 +619,14 @@ p.darkBg {
   transform: translateY(-1px);
 }
 
+.portal-primary-link:disabled,
+.portal-secondary-link:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .portal-code-block {
   margin: 0;
   padding: 16px 18px;
@@ -618,9 +650,41 @@ p.darkBg {
   max-width: 100%;
 }
 
+.portal-file-input {
+  color: #677590;
+  font-weight: 600;
+}
+
+.portal-file-input::file-selector-button {
+  margin-right: 12px;
+  padding: 0.8rem 1rem;
+  border: 1px solid #d6deef;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7ff 100%);
+  color: #2f3c82;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+  box-shadow: 0 12px 24px rgba(47, 59, 130, 0.08);
+}
+
+.portal-file-input:hover::file-selector-button {
+  transform: translateY(-1px);
+  border-color: #b9c7ee;
+  box-shadow: 0 16px 28px rgba(47, 59, 130, 0.12);
+}
+
 .portal-upload-filename {
   color: #677590;
   font-weight: 600;
+}
+
+.portal-upload-success {
+  color: #188b5a;
+  font-weight: 700;
 }
 
 .portal-summary-grid {
@@ -733,7 +797,10 @@ p.darkBg {
 
 .portal-list-head-admin,
 .portal-list-row-admin {
-  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.2fr) minmax(180px, 1fr) 140px;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.2fr) minmax(
+      180px,
+      1fr
+    ) 140px;
 }
 
 .portal-list-row,
@@ -1145,7 +1212,9 @@ p.darkBg {
 }
 
 .accountant-mobile-nav-list .accountant-nav-icon,
-.accountant-mobile-nav-list .accountant-nav-item.is-active .accountant-nav-icon {
+.accountant-mobile-nav-list
+  .accountant-nav-item.is-active
+  .accountant-nav-icon {
   width: 22px;
   height: 22px;
   border-radius: 0;

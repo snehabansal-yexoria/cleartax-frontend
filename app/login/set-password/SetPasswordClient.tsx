@@ -10,6 +10,8 @@ export default function SetPasswordClient({ email }: { email: string }) {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSetPassword = async () => {
@@ -70,22 +72,40 @@ export default function SetPasswordClient({ email }: { email: string }) {
 
       <p>{email}</p>
 
-      <input
-        type="password"
-        placeholder="New password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <div className="login-password-field">
+        <input
+          type={showPassword ? "text" : "password"}
+          placeholder="New password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button
+          type="button"
+          className="login-password-toggle"
+          onClick={() => setShowPassword((current) => !current)}
+        >
+          {showPassword ? "Hide" : "View"}
+        </button>
+      </div>
 
       <br />
       <br />
 
-      <input
-        type="password"
-        placeholder="Confirm password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-      />
+      <div className="login-password-field">
+        <input
+          type={showConfirmPassword ? "text" : "password"}
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+        <button
+          type="button"
+          className="login-password-toggle"
+          onClick={() => setShowConfirmPassword((current) => !current)}
+        >
+          {showConfirmPassword ? "Hide" : "View"}
+        </button>
+      </div>
 
       <br />
       <br />

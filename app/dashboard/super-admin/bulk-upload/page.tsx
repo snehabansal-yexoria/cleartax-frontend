@@ -25,6 +25,7 @@ export default function SuperAdminBulkUploadPage() {
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BulkResult[]>([]);
+  const [uploadMessage, setUploadMessage] = useState("");
 
   const hasRows = rows.length > 0;
   const template = useMemo(
@@ -50,6 +51,7 @@ export default function SuperAdminBulkUploadPage() {
     setRows(parseCsv(text));
     setFileName(file.name);
     setResults([]);
+    setUploadMessage("");
   }
 
   async function handleUpload() {
@@ -80,6 +82,9 @@ export default function SuperAdminBulkUploadPage() {
       }
 
       setResults(data.results || []);
+      setUploadMessage(
+        `${data.successful || 0} of ${data.total || rows.length} invites processed successfully`,
+      );
     } catch (error) {
       console.error("Bulk upload error:", error);
       alert("Something went wrong during bulk upload.");
@@ -120,7 +125,12 @@ export default function SuperAdminBulkUploadPage() {
         <pre className="portal-code-block">{template}</pre>
 
         <div className="portal-upload-actions">
-          <input type="file" accept=".csv" onChange={handleFileChange} />
+          <input
+            className="portal-file-input"
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+          />
           {fileName && (
             <span className="portal-upload-filename">{fileName}</span>
           )}
@@ -132,6 +142,9 @@ export default function SuperAdminBulkUploadPage() {
           >
             {loading ? "Uploading..." : "Upload CSV"}
           </button>
+          {uploadMessage && (
+            <span className="portal-upload-success">{uploadMessage}</span>
+          )}
         </div>
       </div>
 
