@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
@@ -25,7 +25,14 @@ interface OrganizationResponse {
   } | null;
 }
 
-const accountantMenuItems = [
+type PortalMenuItem = {
+  id: string;
+  href?: string;
+  label: string;
+  icon: ReactNode;
+};
+
+const accountantMenuItems: PortalMenuItem[] = [
   {
     id: "dashboard",
     href: "/dashboard/accountant",
@@ -99,6 +106,102 @@ const accountantMenuItems = [
   },
 ];
 
+const adminMenuItems: PortalMenuItem[] = [
+  {
+    id: "dashboard",
+    href: "/dashboard/admin",
+    label: "Dashboard",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+  },
+  {
+    id: "invite",
+    href: "/dashboard/admin/invite",
+    label: "Invite User",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+        <circle cx="9.5" cy="7" r="4" />
+        <path d="M19 8v6" />
+        <path d="M16 11h6" />
+      </svg>
+    ),
+  },
+  {
+    id: "bulk-upload",
+    href: "/dashboard/admin/bulk-upload",
+    label: "Bulk Upload",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 16V6" />
+        <path d="m7.5 10.5 4.5-4.5 4.5 4.5" />
+        <path d="M5 18h14" />
+      </svg>
+    ),
+  },
+];
+
+const superAdminMenuItems: PortalMenuItem[] = [
+  {
+    id: "dashboard",
+    href: "/dashboard/super-admin",
+    label: "Dashboard",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+  },
+  {
+    id: "invite",
+    href: "/dashboard/super-admin/invite-admin",
+    label: "Invite Admin",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+        <circle cx="9.5" cy="7" r="4" />
+        <path d="M19 8v6" />
+        <path d="M16 11h6" />
+      </svg>
+    ),
+  },
+  {
+    id: "bulk-upload",
+    href: "/dashboard/super-admin/bulk-upload",
+    label: "Bulk Upload",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 16V6" />
+        <path d="m7.5 10.5 4.5-4.5 4.5 4.5" />
+        <path d="M5 18h14" />
+      </svg>
+    ),
+  },
+  {
+    id: "organization",
+    href: "/dashboard/super-admin/create-organization",
+    label: "Organization",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="7" height="16" rx="1.5" />
+        <rect x="13" y="8" width="7" height="12" rx="1.5" />
+        <path d="M7.5 8h0.01" />
+        <path d="M7.5 12h0.01" />
+        <path d="M7.5 16h0.01" />
+      </svg>
+    ),
+  },
+];
+
 export default function DashboardLayout({
   children,
 }: {
@@ -133,6 +236,13 @@ export default function DashboardLayout({
         const userRole = decoded["custom:role"] || "client";
 
         setRole(userRole);
+
+        await fetch("/api/invitations/accept", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() => undefined);
 
         if (userRole === "admin" || userRole === "accountant") {
           const orgResponse = await fetch("/api/users/me/organization", {
@@ -179,9 +289,30 @@ export default function DashboardLayout({
 
   const initials = getInitials(email);
 
-  function renderAccountantMenuItem(item: (typeof accountantMenuItems)[number]) {
+  const portalMenuItems =
+    role === "super_admin"
+      ? superAdminMenuItems
+      : role === "admin"
+        ? adminMenuItems
+        : accountantMenuItems;
+
+  const portalTitle =
+    role === "super_admin"
+      ? "Super Admin Control"
+      : role === "admin"
+        ? organizationName || "Admin Workspace"
+        : organizationName || "Accountant Dashboard";
+
+  const portalSubtitle =
+    role === "super_admin"
+      ? email || "Platform oversight"
+      : email || "Account access";
+
+  function renderPortalMenuItem(item: PortalMenuItem) {
     const isActive = item.href
-      ? item.href === "/dashboard/accountant"
+      ? item.href === "/dashboard/accountant" ||
+        item.href === "/dashboard/admin" ||
+        item.href === "/dashboard/super-admin"
         ? pathname === item.href
         : pathname.startsWith(item.href)
       : false;
@@ -214,7 +345,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (role === "accountant") {
+  if (role === "accountant" || role === "admin" || role === "super_admin") {
     return (
       <div className="accountant-shell">
         <aside className="accountant-sidebar">
@@ -236,7 +367,7 @@ export default function DashboardLayout({
             </div>
 
             <nav className="accountant-nav">
-              {accountantMenuItems.map(renderAccountantMenuItem)}
+              {portalMenuItems.map(renderPortalMenuItem)}
             </nav>
           </div>
 
@@ -245,8 +376,14 @@ export default function DashboardLayout({
               {initials}
             </div>
             <div className="accountant-profile-copy">
-              <strong>Accountant Portal</strong>
-              <span>{organizationName || email || "Account access"}</span>
+              <strong>
+                {role === "super_admin"
+                  ? "Super Admin Portal"
+                  : role === "admin"
+                    ? "Admin Portal"
+                    : "Accountant Portal"}
+              </strong>
+              <span>{portalSubtitle}</span>
             </div>
           </div>
         </aside>
@@ -302,22 +439,37 @@ export default function DashboardLayout({
                   aria-expanded={isAccountMenuOpen}
                 >
                   <div className="accountant-header-copy">
-                    <strong>{organizationName || "Accountant Dashboard"}</strong>
-                    <span>{email || "Account Manager"}</span>
+                    <strong>{portalTitle}</strong>
+                    <span>{portalSubtitle}</span>
                   </div>
                   <div className="accountant-avatar">{initials}</div>
                 </button>
 
                 {isAccountMenuOpen && (
                   <div className="accountant-profile-menu" role="menu">
-                    <Link
-                      href="/dashboard/accountant/account"
-                      className="accountant-profile-menu-item"
-                      role="menuitem"
-                      onClick={() => setIsAccountMenuOpen(false)}
-                    >
-                      Account
-                    </Link>
+                    {role === "accountant" ? (
+                      <Link
+                        href="/dashboard/accountant/account"
+                        className="accountant-profile-menu-item"
+                        role="menuitem"
+                        onClick={() => setIsAccountMenuOpen(false)}
+                      >
+                        Account
+                      </Link>
+                    ) : (
+                      <Link
+                        href={
+                          role === "super_admin"
+                            ? "/dashboard/super-admin"
+                            : "/dashboard/admin"
+                        }
+                        className="accountant-profile-menu-item"
+                        role="menuitem"
+                        onClick={() => setIsAccountMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
+                    )}
                     <button
                       type="button"
                       onClick={handleLogout}
@@ -360,7 +512,13 @@ export default function DashboardLayout({
               <div className="accountant-mobile-nav-header">
                 <div>
                   <strong>Clear Portfolio</strong>
-                  <span>{organizationName || "Accountant Portal"}</span>
+                  <span>
+                    {role === "super_admin"
+                      ? "Super Admin Portal"
+                      : role === "admin"
+                        ? "Admin Portal"
+                        : organizationName || "Accountant Portal"}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -375,7 +533,7 @@ export default function DashboardLayout({
               </div>
 
               <nav className="accountant-mobile-nav-list">
-                {accountantMenuItems.map(renderAccountantMenuItem)}
+                {portalMenuItems.map(renderPortalMenuItem)}
               </nav>
             </aside>
           </div>
@@ -422,6 +580,10 @@ export default function DashboardLayout({
                 <br />
                 <br />
 
+                <a href="/dashboard/super-admin/bulk-upload">Bulk Upload</a>
+                <br />
+                <br />
+
                 <a href="/dashboard/super-admin/create-organization">
                   Create Organization
                 </a>
@@ -435,6 +597,10 @@ export default function DashboardLayout({
                 <br />
 
                 <a href="/dashboard/admin/invite">Invite User</a>
+                <br />
+                <br />
+
+                <a href="/dashboard/admin/bulk-upload">Bulk Upload</a>
               </>
             )}
             {role === "accountant" && (

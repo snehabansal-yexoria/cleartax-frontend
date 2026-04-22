@@ -3,6 +3,17 @@
 import { useState, useEffect } from "react";
 import { getSession } from "../../../../src/lib/session";
 
+interface SessionWithIdToken {
+  getIdToken(): {
+    getJwtToken(): string;
+  };
+}
+
+interface OrganizationOption {
+  id: string;
+  name: string;
+}
+
 export default function InviteAdminPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("admin");
@@ -11,14 +22,14 @@ export default function InviteAdminPage() {
   const [loading, setLoading] = useState(false);
 
   // 🔥 NEW STATE
-  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationOption[]>([]);
   const [selectedOrg, setSelectedOrg] = useState("");
 
   // 🔥 FETCH ORGANIZATIONS
   useEffect(() => {
     async function fetchOrganizations() {
       try {
-        const session: any = await getSession();
+        const session = (await getSession()) as SessionWithIdToken | null;
 
         if (!session) return;
 
@@ -44,7 +55,7 @@ export default function InviteAdminPage() {
     try {
       setLoading(true);
 
-      const session: any = await getSession();
+      const session = (await getSession()) as SessionWithIdToken | null;
 
       if (!session) {
         alert("Session expired. Please login again.");

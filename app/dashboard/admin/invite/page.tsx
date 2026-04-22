@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { getSession } from "../../../../src/lib/session";
+import { getSession } from "@/src/lib/session";
+
+interface SessionWithIdToken {
+  getIdToken(): {
+    getJwtToken(): string;
+  };
+}
 
 export default function InviteUserByAdmin() {
   const [email, setEmail] = useState("");
@@ -14,7 +20,7 @@ export default function InviteUserByAdmin() {
     try {
       setLoading(true);
 
-      const session: any = await getSession();
+      const session = (await getSession()) as SessionWithIdToken | null;
 
       if (!session) {
         alert("Session expired. Please login again.");

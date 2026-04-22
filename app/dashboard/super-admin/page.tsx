@@ -110,6 +110,12 @@ export default function SuperAdminPage() {
             Create Organization
           </Link>
           <Link
+            href="/dashboard/super-admin/bulk-upload"
+            className="portal-secondary-link"
+          >
+            Bulk Upload
+          </Link>
+          <Link
             href="/dashboard/super-admin/invite-admin"
             className="portal-primary-link"
           >

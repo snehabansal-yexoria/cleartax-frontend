@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/src/lib/verifyToken";
-import { pool } from "@/src/lib/db";
+import {
+  findDirectoryUserByIdentity,
+  getOrganizationById,
+  type VerifiedTokenLike,
+} from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -11,7 +15,7 @@ export async function GET(req: Request) {
     }
 
     const token = authHeader.split(" ")[1];
-    const decoded = await verifyToken(token);
+    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -20,24 +24,24 @@ export async function GET(req: Request) {
       );
     }
 
-    const result = await pool.query(
-      `SELECT o.id, o.name
-       FROM users u
-       LEFT JOIN organizations o ON o.id = u.organization_id
-       WHERE u.cognito_user_id = $1`,
-      [decoded.sub],
-    );
+    const currentUser = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
+    });
 
-    if (result.rows.length === 0) {
+    if (!currentUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    if (!currentUser.orgId) {
+      return NextResponse.json({ organization: null });
+    }
+
+    const organization = await getOrganizationById(currentUser.orgId);
+
     return NextResponse.json({
-      organization: result.rows[0].id
-        ? {
-            id: result.rows[0].id,
-            name: result.rows[0].name,
-          }
+      organization: organization?.id
+        ? { id: organization.id, name: organization.name }
         : null,
     });
   } catch (error) {

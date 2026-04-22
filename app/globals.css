@@ -595,6 +595,34 @@ p.darkBg {
   transform: translateY(-1px);
 }
 
+.portal-code-block {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  border-radius: 18px;
+  background: #0f172a;
+  color: #dbeafe;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.portal-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.portal-upload-actions input[type="file"] {
+  max-width: 100%;
+}
+
+.portal-upload-filename {
+  color: #677590;
+  font-weight: 600;
+}
+
 .portal-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1142,6 +1170,8 @@ p.darkBg {
   border: 1px solid rgba(200, 209, 235, 0.8);
   box-shadow: 0 14px 36px rgba(61, 72, 125, 0.08);
   backdrop-filter: blur(14px);
+  position: relative;
+  z-index: 30;
 }
 
 .accountant-search {
@@ -1206,6 +1236,7 @@ p.darkBg {
   gap: 12px;
   padding-left: 10px;
   border-left: 1px solid #e2e7f4;
+  z-index: 40;
 }
 
 .accountant-profile-trigger {
@@ -1247,7 +1278,7 @@ p.darkBg {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  z-index: 20;
+  z-index: 100;
 }
 
 .accountant-profile-menu-item {

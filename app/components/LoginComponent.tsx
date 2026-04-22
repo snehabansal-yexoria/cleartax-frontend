@@ -20,6 +20,23 @@ interface TokenPayload {
   "custom:role"?: string;
 }
 
+interface NewPasswordResult {
+  type: "NEW_PASSWORD_REQUIRED";
+  user: CognitoUser;
+  userAttributes?: Record<string, string>;
+}
+
+interface LoginSuccessResult {
+  type: "SUCCESS";
+  idToken: string;
+}
+
+type LoginResult = NewPasswordResult | LoginSuccessResult;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function LoginComponent({
   allowedRoles,
 }: {
@@ -35,7 +52,7 @@ export default function LoginComponent({
 
   const [requireNewPassword, setRequireNewPassword] = useState(false);
   const [user, setUser] = useState<CognitoUser | null>(null);
-  const [attributes, setAttributes] = useState<any>({});
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,14 +62,14 @@ export default function LoginComponent({
     setLoading(true);
 
     try {
-      const result: any = await login(email, password);
+      const result = (await login(email, password)) as LoginResult;
 
       // 🔥 Handle first login
       if (result.type === "NEW_PASSWORD_REQUIRED") {
         setUser(result.user);
         console.log("User attributes:", result.user);
 
-        const requiredAttributes: any = {};
+        const requiredAttributes: Record<string, string> = {};
         requiredAttributes.name = email;
 
         setAttributes(requiredAttributes);
@@ -66,6 +83,13 @@ export default function LoginComponent({
         const token = result.idToken;
         const decoded: TokenPayload = jwtDecode(token);
         console.log(decoded);
+
+        await fetch("/api/invitations/accept", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() => undefined);
 
         const role = (decoded["custom:role"] || "client").toLowerCase();
         console.log(role);
@@ -91,8 +115,8 @@ export default function LoginComponent({
           router.replace("/dashboard/client");
         }
       }
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Login failed"));
     }
 
     setLoading(false);
@@ -110,12 +134,28 @@ export default function LoginComponent({
     setError("");
 
     try {
-      await completeNewPassword(user, newPassword, attributes);
+      const result = await completeNewPassword(user, newPassword, attributes);
+      const idToken =
+        typeof result === "object" &&
+        result !== null &&
+        "getIdToken" in result &&
+        typeof result.getIdToken === "function"
+          ? result.getIdToken().getJwtToken()
+          : "";
+
+      if (idToken) {
+        await fetch("/api/invitations/accept", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+      }
 
       alert("Password updated successfully. Please login again.");
       setRequireNewPassword(false);
-    } catch (err: any) {
-      setError(err.message || "Password update failed");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Password update failed"));
     }
 
     setLoading(false);

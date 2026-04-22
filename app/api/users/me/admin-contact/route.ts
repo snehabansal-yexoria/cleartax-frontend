@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { pool } from "../../../../../src/lib/db";
-
-async function hasInvitedByColumn() {
-  const result = await pool.query(
-    `SELECT 1
-     FROM information_schema.columns
-     WHERE table_name = 'users' AND column_name = 'invited_by'
-     LIMIT 1`,
-  );
-
-  return result.rows.length > 0;
-}
+import { getCoreRoleId } from "../../../../../src/lib/coreApi";
+import {
+  findDirectoryUserByIdentity,
+  listDirectoryUsers,
+  type VerifiedTokenLike,
+} from "../../../../../src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -22,7 +16,7 @@ export async function GET(req: Request) {
     }
 
     const token = authHeader.split(" ")[1];
-    const decoded = await verifyToken(token);
+    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -31,38 +25,38 @@ export async function GET(req: Request) {
       );
     }
 
-    const supportsInvitedBy = await hasInvitedByColumn();
+    const currentUser = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
+    });
 
-    const query = supportsInvitedBy
-      ? `SELECT
-           inviter.email,
-           inviter.role,
-           inviter.id
-         FROM users u
-         LEFT JOIN users inviter ON inviter.id = u.invited_by
-         WHERE u.cognito_user_id = $1
-         LIMIT 1`
-      : `SELECT
-           admin_user.email,
-           admin_user.role,
-           admin_user.id
-         FROM users u
-         LEFT JOIN users admin_user
-           ON admin_user.organization_id = u.organization_id
-          AND admin_user.role = 'ADMIN'
-         WHERE u.cognito_user_id = $1
-         ORDER BY admin_user.id ASC
-         LIMIT 1`;
-
-    const result = await pool.query(query, [decoded.sub]);
-
-    if (result.rows.length === 0) {
+    if (!currentUser) {
       return NextResponse.json({ adminContact: null });
     }
 
-    const adminContact = result.rows[0];
+    if (!currentUser.orgId) {
+      return NextResponse.json({ adminContact: null });
+    }
 
-    if (!adminContact?.email) {
+    const adminRoleId = getCoreRoleId("admin");
+
+    if (!adminRoleId) {
+      return NextResponse.json(
+        { error: "Admin role is not configured" },
+        { status: 500 },
+      );
+    }
+
+    const adminUsers = await listDirectoryUsers({
+      orgId: currentUser.orgId,
+      roleIds: [adminRoleId],
+    });
+
+    const adminContact = adminUsers.find(
+      (user) => user.email.toLowerCase() !== currentUser.email.toLowerCase(),
+    );
+
+    if (!adminContact) {
       return NextResponse.json({ adminContact: null });
     }
 

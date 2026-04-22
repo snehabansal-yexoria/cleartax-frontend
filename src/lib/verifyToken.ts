@@ -13,6 +13,7 @@ export async function verifyToken(token: string) {
   try {
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
+      audience: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
     });
 
     return payload;

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { completeNewPassword } from "../../../src/lib/auth";
 import { CognitoUser } from "amazon-cognito-identity-js";
 import { userPool } from "../../../src/lib/cognito";
 
@@ -31,7 +30,24 @@ export default function SetPasswordClient({ email }: { email: string }) {
         password,
         {},
         {
-          onSuccess: () => {
+          onSuccess: async (result) => {
+            const idToken =
+              typeof result === "object" &&
+              result !== null &&
+              "getIdToken" in result &&
+              typeof result.getIdToken === "function"
+                ? result.getIdToken().getJwtToken()
+                : "";
+
+            if (idToken) {
+              await fetch("/api/invitations/accept", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${idToken}`,
+                },
+              }).catch(() => undefined);
+            }
+
             alert("Password set successfully");
             router.push("/login");
           },

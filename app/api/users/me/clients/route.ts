@@ -1,25 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { pool } from "../../../../../src/lib/db";
-
-type UserColumn = "invited_by" | "full_name" | "phone_number" | "created_at";
-
-async function getUserColumns() {
-  const result = await pool.query(
-    `SELECT column_name
-     FROM information_schema.columns
-     WHERE table_name = 'users'
-       AND column_name = ANY($1::text[])`,
-    [["invited_by", "full_name", "phone_number", "created_at"]],
-  );
-
-  return new Set(result.rows.map((row) => String(row.column_name))) as Set<UserColumn>;
-}
-
-function formatDisplayName(email: string) {
-  const localPart = (email.split("@")[0] || "client").replace(/[._-]/g, " ");
-  return localPart.replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+import { getCoreRoleId } from "../../../../../src/lib/coreApi";
+import {
+  findDirectoryUserByIdentity,
+  listDirectoryUsers,
+  type VerifiedTokenLike,
+} from "../../../../../src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -30,7 +16,7 @@ export async function GET(req: Request) {
     }
 
     const token = authHeader.split(" ")[1];
-    const decoded = await verifyToken(token);
+    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -39,16 +25,15 @@ export async function GET(req: Request) {
       );
     }
 
-    const requesterResult = await pool.query(
-      "SELECT id, role, organization_id FROM users WHERE cognito_user_id = $1",
-      [decoded.sub],
-    );
+    const requester = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
+    });
 
-    if (requesterResult.rows.length === 0) {
+    if (!requester) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const requester = requesterResult.rows[0];
     const requesterRole = String(requester.role || "").toUpperCase();
 
     if (!["ADMIN", "ACCOUNTANT"].includes(requesterRole)) {
@@ -58,69 +43,42 @@ export async function GET(req: Request) {
       );
     }
 
-    if (!requester.organization_id) {
+    if (!requester.orgId) {
       return NextResponse.json({ clients: [] });
     }
 
     const scope = new URL(req.url).searchParams.get("scope") === "mine"
       ? "mine"
       : "all";
+    const clientRoleId = getCoreRoleId("client");
 
-    const userColumns = await getUserColumns();
-    const fullNameSelect = userColumns.has("full_name")
-      ? "client_user.full_name"
-      : "NULL::text AS full_name";
-    const phoneSelect = userColumns.has("phone_number")
-      ? "client_user.phone_number"
-      : "NULL::text AS phone_number";
-    const invitedByJoin = userColumns.has("invited_by")
-      ? "LEFT JOIN users inviter_user ON inviter_user.id = client_user.invited_by"
-      : "";
-    const inviterWhere =
-      scope === "mine" && userColumns.has("invited_by")
-        ? "AND client_user.invited_by = $2"
-        : "";
-    const createdAtSelect = userColumns.has("created_at")
-      ? "client_user.created_at"
-      : "NULL::timestamp AS created_at";
-    const params =
-      scope === "mine" && userColumns.has("invited_by")
-        ? [requester.organization_id, requester.id]
-        : [requester.organization_id];
+    if (!clientRoleId) {
+      return NextResponse.json(
+        { error: "Client role is not configured" },
+        { status: 500 },
+      );
+    }
 
-    const result = await pool.query(
-      `SELECT
-         client_user.id,
-         client_user.email,
-         client_user.status,
-         ${fullNameSelect},
-         ${phoneSelect},
-         ${createdAtSelect},
-         ${
-           userColumns.has("invited_by")
-             ? "inviter_user.email AS invited_by_email,"
-             : "NULL::text AS invited_by_email,"
-         }
-         client_user.organization_id
-       FROM users client_user
-       ${invitedByJoin}
-       WHERE client_user.role = 'CLIENT'
-         AND client_user.organization_id = $1
-         ${inviterWhere}
-       ORDER BY client_user.id DESC`,
-      params,
-    );
+    const clients = await listDirectoryUsers({
+      orgId: requester.orgId,
+      roleIds: [clientRoleId],
+    });
 
     return NextResponse.json({
-      clients: result.rows.map((row) => ({
-        id: row.id,
-        email: row.email,
-        status: row.status,
-        name: row.full_name || formatDisplayName(String(row.email || "")),
-        phoneNumber: row.phone_number || "",
-        invitedByEmail: row.invited_by_email || "",
-        joinedAt: row.created_at || null,
-      })),
+      clients: clients
+        .filter(
+          (user) =>
+            scope !== "mine" || !user.invitedBy || user.invitedBy === requester.id,
+        )
+        .map((user) => ({
+          id: user.id,
+          email: user.email,
+          status: user.status,
+          name: user.fullName,
+          phoneNumber: user.phoneNumber || "",
+          invitedByEmail: user.invitedByEmail || "",
+          joinedAt: user.createdAt,
+        })),
     });
   } catch (error) {
     console.error("Fetch clients error:", error);

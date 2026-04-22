@@ -4,7 +4,7 @@ import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PortalDashboardSkeleton } from "../../components/PortalSkeletons";
-import { getSession } from "../../../src/lib/session";
+import { getSession } from "@/src/lib/session";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -102,75 +102,88 @@ export default function AdminPage() {
       fallback={<PortalDashboardSkeleton />}
     >
       <section className="portal-page">
-      <div className="portal-page-header">
-        <div>
-          <p className="portal-kicker">Admin Workspace</p>
-          <h1>{organizationName || "Organization Overview"}</h1>
-          <p>Manage your invited users and track onboarding progress.</p>
-        </div>
-
-        <Link href="/dashboard/admin/invite" className="portal-primary-link">
-          Invite User
-        </Link>
-      </div>
-
-      <div className="portal-summary-grid">
-        <article className="portal-summary-card portal-summary-card-blue">
-          <span>Pending Invites</span>
-          <strong>{pendingCount}</strong>
-          <p>Users who still need to activate their account.</p>
-        </article>
-        <article className="portal-summary-card portal-summary-card-gold">
-          <span>Accountants</span>
-          <strong>{accountantCount}</strong>
-          <p>Finance team members active in this organization.</p>
-        </article>
-        <article className="portal-summary-card">
-          <span>Clients</span>
-          <strong>{clientCount}</strong>
-          <p>All invited clients currently attached to your organization.</p>
-        </article>
-      </div>
-
-      <div className="portal-list-card">
-        <div className="portal-list-header">
+        <div className="portal-page-header">
           <div>
-            <h2>Invited Users</h2>
-            <p>Organization-scoped list of accountants and clients.</p>
-          </div>
-          <span className="portal-list-count">{invitedUsers.length} users</span>
-        </div>
-
-        <div className="portal-list-table">
-          <div className="portal-list-head">
-            <div>Name</div>
-            <div>Email</div>
-            <div>Role</div>
-            <div>Status</div>
+            <p className="portal-kicker">Admin Workspace</p>
+            <h1>{organizationName || "Organization Overview"}</h1>
+            <p>Manage your invited users and track onboarding progress.</p>
           </div>
 
-          {invitedUsers.map((user) => (
-            <article key={user.id} className="portal-list-row">
-              <div>
-                <strong>{user.name}</strong>
-              </div>
-              <div>{user.email}</div>
-              <div>
-                <span className="portal-badge">{user.role}</span>
-              </div>
-              <div>
-                <span
-                  className={`portal-status${
-                    user.status === "INVITED" ? " is-pending" : ""
-                  }`}
-                >
-                  {user.status}
-                </span>
-              </div>
-            </article>
-          ))}
+          <div className="portal-header-actions">
+            <Link
+              href="/dashboard/admin/bulk-upload"
+              className="portal-secondary-link"
+            >
+              Bulk Upload
+            </Link>
+            <Link
+              href="/dashboard/admin/invite"
+              className="portal-primary-link"
+            >
+              Invite User
+            </Link>
+          </div>
         </div>
-      </div>
+
+        <div className="portal-summary-grid">
+          <article className="portal-summary-card portal-summary-card-blue">
+            <span>Pending Invites</span>
+            <strong>{pendingCount}</strong>
+            <p>Users who still need to activate their account.</p>
+          </article>
+          <article className="portal-summary-card portal-summary-card-gold">
+            <span>Accountants</span>
+            <strong>{accountantCount}</strong>
+            <p>Finance team members active in this organization.</p>
+          </article>
+          <article className="portal-summary-card">
+            <span>Clients</span>
+            <strong>{clientCount}</strong>
+            <p>All invited clients currently attached to your organization.</p>
+          </article>
+        </div>
+
+        <div className="portal-list-card">
+          <div className="portal-list-header">
+            <div>
+              <h2>Invited Users</h2>
+              <p>Organization-scoped list of accountants and clients.</p>
+            </div>
+            <span className="portal-list-count">
+              {invitedUsers.length} users
+            </span>
+          </div>
+
+          <div className="portal-list-table">
+            <div className="portal-list-head">
+              <div>Name</div>
+              <div>Email</div>
+              <div>Role</div>
+              <div>Status</div>
+            </div>
+
+            {invitedUsers.map((user) => (
+              <article key={user.id} className="portal-list-row">
+                <div>
+                  <strong>{user.name}</strong>
+                </div>
+                <div>{user.email}</div>
+                <div>
+                  <span className="portal-badge">{user.role}</span>
+                </div>
+                <div>
+                  <span
+                    className={`portal-status${
+                      user.status === "INVITED" ? " is-pending" : ""
+                    }`}
+                  >
+                    {user.status}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
       </section>
     </Skeleton>
   );
