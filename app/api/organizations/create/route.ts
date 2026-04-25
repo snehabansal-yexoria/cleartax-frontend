@@ -54,6 +54,8 @@ export async function POST(req: Request) {
       );
     }
 
+    const accessToken = getCoreApiBearerFromRequest(req, idToken);
+
     const organization = await createCoreOrganization(accessToken, {
       org_name: orgName,
       org_email: orgEmail,
@@ -83,4 +85,3 @@ export async function POST(req: Request) {
     );
   }
 }
-    const accessToken = getCoreApiBearerFromRequest(req, idToken);

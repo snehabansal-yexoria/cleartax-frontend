@@ -127,10 +127,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
+    const body = (await req.json()) as { clientIds?: unknown };
     const clientIds = Array.isArray(body.clientIds)
       ? body.clientIds
-          .map((value) => String(value || "").trim())
+          .map((value: unknown) => String(value || "").trim())
           .filter(Boolean)
       : [];
 

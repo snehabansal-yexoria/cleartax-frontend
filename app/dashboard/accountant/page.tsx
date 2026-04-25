@@ -177,6 +177,25 @@ export default function AccountantPage() {
   ).length;
 
   const visibleClients = clients.length > 0 ? clients.slice(0, 6) : [];
+  const dashboardClients =
+    visibleClients.length > 0
+      ? visibleClients.map((client, index) => ({
+          name: client.name || client.email,
+          email: client.email,
+          properties: client.phoneNumber || "Client Portfolio",
+          image: placeholderClients[index % placeholderClients.length].image,
+          status: ["PENDING", "INVITED"].includes(
+            String(client.status || "").toUpperCase(),
+          )
+            ? "Invited"
+            : client.status || "Active",
+          lastUpdate: client.joinedAt ? "Joined" : "Recently",
+        }))
+      : placeholderClients.map((client, index) => ({
+          ...client,
+          status: index % 2 === 0 ? "Active" : "Reviewing",
+          lastUpdate: `${index + 1}h ago`,
+        }));
 
   const summaryCards = [
     {
@@ -289,7 +308,7 @@ export default function AccountantPage() {
 
             {viewMode === "card" ? (
               <div className="accountant-client-grid">
-                {(visibleClients.length > 0 ? visibleClients : placeholderClients).map((client) => (
+                {dashboardClients.map((client) => (
                   <article
                     key={client.email}
                     className="accountant-client-card"
@@ -307,36 +326,45 @@ export default function AccountantPage() {
               </div>
             ) : (
               <div className="accountant-client-list">
-              {(visibleClients.length > 0 ? visibleClients : placeholderClients).map((client, index) => (
-                <article key={client.email} className="accountant-client-list-row">
-                  <div className="accountant-client-list-main">
-                    <div
-                      className="accountant-client-list-image"
-                      aria-hidden="true"
-                      style={{ backgroundImage: `url(${client.image})` }}
-                    />
-                    <div className="accountant-client-list-copy">
-                      <h4>{client.name}</h4>
-                      <p>{client.email}</p>
+                {dashboardClients.map((client) => (
+                  <article
+                    key={client.email}
+                    className="accountant-client-list-row"
+                  >
+                    <div className="accountant-client-list-main">
+                      <div
+                        className="accountant-client-list-image"
+                        aria-hidden="true"
+                        style={{ backgroundImage: `url(${client.image})` }}
+                      />
+                      <div className="accountant-client-list-copy">
+                        <h4>{client.name}</h4>
+                        <p>{client.email}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="accountant-client-list-meta">
-                    <span className="accountant-client-list-label">Portfolio</span>
-                    <strong>{client.properties}</strong>
-                  </div>
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Portfolio
+                      </span>
+                      <strong>{client.properties}</strong>
+                    </div>
 
-                  <div className="accountant-client-list-meta">
-                    <span className="accountant-client-list-label">Status</span>
-                    <strong>{index % 2 === 0 ? "Active" : "Reviewing"}</strong>
-                  </div>
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Status
+                      </span>
+                      <strong>{client.status}</strong>
+                    </div>
 
-                  <div className="accountant-client-list-meta">
-                    <span className="accountant-client-list-label">Last Update</span>
-                    <strong>{index + 1}h ago</strong>
-                  </div>
-                </article>
-              ))}
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Last Update
+                      </span>
+                      <strong>{client.lastUpdate}</strong>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
           </section>

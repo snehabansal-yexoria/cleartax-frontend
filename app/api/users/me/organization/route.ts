@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     const organization = await getOrganizationById(currentUser.orgId);
 
     return NextResponse.json({
-      organization: organization.id
+      organization: organization?.id
         ? { id: organization.id, name: organization.name }
         : null,
     });
