@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../src/lib/verifyToken";
-import { pool } from "../../../../src/lib/db";
+import {
+  createCoreOrganization,
+  getCoreApiBearerFromRequest,
+} from "../../../../src/lib/coreApi";
 
 export async function POST(req: Request) {
   try {
@@ -10,8 +13,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = await verifyToken(token);
+    const idToken = authHeader.split(" ")[1];
+    const decoded = await verifyToken(idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -51,111 +54,25 @@ export async function POST(req: Request) {
       );
     }
 
-    const creatorEmail = typeof decoded.email === "string" ? decoded.email : "";
-    let createdBy: string | null = null;
-
-    if (creatorEmail) {
-      const creatorResult = await pool.query(
-        `SELECT id
-         FROM users
-         WHERE lower(email) = lower($1)
-         LIMIT 1`,
-        [creatorEmail],
-      );
-
-      createdBy = creatorResult.rows[0]?.id ?? null;
-    }
-
-    const organizationResult = await pool.query(
-      `INSERT INTO organisation (
-         org_name,
-         org_email,
-         tenant_code,
-         contact_number,
-         address_line1,
-         city,
-         state,
-         country,
-         postal_code,
-         subscription_plan,
-         max_users_allowed,
-         created_by,
-         updated_by
-       ) VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12
-       )
-       RETURNING
-         id,
-         org_name,
-         org_email,
-         tenant_code,
-         contact_number,
-         address_line1,
-         address_line2,
-         city,
-         state,
-         country,
-         postal_code,
-         subscription_plan,
-         max_users_allowed,
-         is_active,
-         is_verified,
-         created_at,
-         updated_at`,
-      [
-        orgName,
-        orgEmail,
-        tenantCode,
-        contactNumber || null,
-        addressLine1,
-        city,
-        state,
-        country,
-        postalCode,
-        subscriptionPlan,
-        maxUsersAllowed,
-        createdBy,
-      ],
-    );
-
-    const organization = organizationResult.rows[0];
+    const organization = await createCoreOrganization(accessToken, {
+      org_name: orgName,
+      org_email: orgEmail,
+      tenant_code: tenantCode,
+      contact_number: contactNumber,
+      address_line1: addressLine1,
+      city,
+      state,
+      country,
+      postal_code: postalCode,
+      subscription_plan: subscriptionPlan,
+      max_users_allowed: maxUsersAllowed,
+    });
 
     return NextResponse.json({
       success: true,
-      organization: {
-        id: organization.id,
-        name: organization.org_name,
-        org_name: organization.org_name,
-        org_email: organization.org_email,
-        tenant_code: organization.tenant_code,
-        contact_number: organization.contact_number,
-        address_line1: organization.address_line1,
-        address_line2: organization.address_line2,
-        city: organization.city,
-        state: organization.state,
-        country: organization.country,
-        postal_code: organization.postal_code,
-        subscription_plan: organization.subscription_plan,
-        max_users_allowed: organization.max_users_allowed,
-        is_active: organization.is_active,
-        is_verified: organization.is_verified,
-        created_at: organization.created_at,
-        updated_at: organization.updated_at,
-      },
+      organization,
     });
   } catch (error: unknown) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "23505"
-    ) {
-      return NextResponse.json(
-        { error: "Organization name, email, or tenant code already exists" },
-        { status: 409 },
-      );
-    }
-
     console.error(error);
     return NextResponse.json(
       {
@@ -166,3 +83,4 @@ export async function POST(req: Request) {
     );
   }
 }
+    const accessToken = getCoreApiBearerFromRequest(req, idToken);

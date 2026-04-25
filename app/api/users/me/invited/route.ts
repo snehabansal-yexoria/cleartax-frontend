@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../src/lib/verifyToken";
 import { getCoreRoleId } from "../../../../../src/lib/coreApi";
-import { backfillAcceptedInvitationByEmail } from "../../../../../src/lib/invitations";
 import {
   findDirectoryUserByIdentity,
   listDirectoryUsers,
-  type VerifiedTokenLike,
 } from "../../../../../src/lib/userDirectory";
 
 export async function GET(req: Request) {
@@ -16,8 +14,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
+    const idToken = authHeader.split(" ")[1];
+    const decoded = await verifyToken(idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -26,7 +24,18 @@ export async function GET(req: Request) {
       );
     }
 
-    const requesterRole = String(decoded["custom:role"] || "").toUpperCase();
+    const tokenRole = String(decoded["custom:role"] || "").toUpperCase();
+    const requester = await findDirectoryUserByIdentity({
+      id: String(decoded.sub || ""),
+      email: String(decoded.email || ""),
+    });
+
+    if (!requester && tokenRole !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const requesterRole =
+      tokenRole || String(requester?.role || "").toUpperCase();
 
     if (!["SUPER_ADMIN", "ADMIN"].includes(requesterRole)) {
       return NextResponse.json(
@@ -35,53 +44,20 @@ export async function GET(req: Request) {
       );
     }
 
-    const requester =
-      requesterRole === "SUPER_ADMIN"
-        ? await findDirectoryUserByIdentity({
-            id: decoded.sub,
-            email: decoded.email,
-          })
-        : await findDirectoryUserByIdentity({
-            id: decoded.sub,
-            email: decoded.email,
-          });
-
-    if (requesterRole === "ADMIN" && !requester?.orgId) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
     const adminRoleId = getCoreRoleId("admin");
     const accountantRoleId = getCoreRoleId("accountant");
     const clientRoleId = getCoreRoleId("client");
 
-    const roleIds =
-      requesterRole === "SUPER_ADMIN"
-        ? [adminRoleId]
-        : [accountantRoleId, clientRoleId];
-
-    if (roleIds.some((value) => !value)) {
-      return NextResponse.json(
-        { error: "Role mapping is not configured" },
-        { status: 500 },
-      );
-    }
-
-    const filteredUsers = await listDirectoryUsers({
-      orgId: requesterRole === "ADMIN" ? requester?.orgId : undefined,
-      roleIds: roleIds as number[],
-    });
-
-    await Promise.all(
-      filteredUsers
-        .filter((user) => ["PENDING", "INVITED"].includes(user.status))
-        .map(async (user) => {
-          const wasBackfilled = await backfillAcceptedInvitationByEmail(user.email);
-
-          if (wasBackfilled) {
-            user.status = "ACCEPTED";
-          }
-        }),
-    );
+    const filteredUsers = requesterRole === "SUPER_ADMIN"
+      ? await listDirectoryUsers({
+          roleIds: adminRoleId ? [adminRoleId] : [],
+        })
+      : await listDirectoryUsers({
+          orgId: requester?.orgId || "",
+          roleIds: [accountantRoleId, clientRoleId].filter(
+            (value): value is number => value !== null,
+          ),
+        });
 
     const normalizedUsers = filteredUsers.map((user) => ({
       id: user.id,
@@ -111,20 +87,8 @@ export async function GET(req: Request) {
             ).size
           : requester?.orgId
             ? 1
-          : 0,
+            : 0,
     };
-
-    console.log(
-      "Invited users response:",
-      JSON.stringify(
-        {
-          summary,
-          users: normalizedUsers,
-        },
-        null,
-        2,
-      ),
-    );
 
     return NextResponse.json({
       summary,

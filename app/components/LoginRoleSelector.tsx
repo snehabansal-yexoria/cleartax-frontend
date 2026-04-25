@@ -3,31 +3,39 @@ import Link from "next/link";
 const loginRoles = [
   {
     href: "/login/super-admin",
+    signupHref: "/signup/super-admin",
     title: "Super Admin",
     description: "Manage organizations, onboard admins, and monitor platform access.",
     accentClass: "login-role-card-gold",
   },
   {
     href: "/login/admin",
+    signupHref: "/signup/admin",
     title: "Admin",
     description: "Invite accountants and clients while managing one organization.",
     accentClass: "login-role-card-blue",
   },
   {
     href: "/login/accountant",
+    signupHref: "/signup/accountant",
     title: "Accountant",
     description: "Track clients, send invitations, and manage onboarding activity.",
     accentClass: "login-role-card-ice",
   },
   {
     href: "/login/user",
+    signupHref: "/signup/user",
     title: "Client",
     description: "Access your portfolio workspace, documents, and registration flow.",
     accentClass: "login-role-card-plain",
   },
 ];
 
-export default function LoginRoleSelector() {
+export default function LoginRoleSelector({
+  mode = "login",
+}: {
+  mode?: "login" | "signup";
+}) {
   return (
     <section
       style={{
@@ -133,7 +141,9 @@ export default function LoginRoleSelector() {
                 letterSpacing: "-0.05em",
               }}
             >
-              Sign in to the right workspace
+              {mode === "signup"
+                ? "Create the right workspace account"
+                : "Sign in to the right workspace"}
             </h1>
             <p
               style={{
@@ -143,8 +153,9 @@ export default function LoginRoleSelector() {
                 maxWidth: "58ch",
               }}
             >
-              Pick the portal that matches your role so you land directly in the
-              right dashboard and onboarding flow.
+              {mode === "signup"
+                ? "Pick the role you want to register so we can collect the right onboarding details before your first login."
+                : "Pick the portal that matches your role so you land directly in the right dashboard and onboarding flow."}
             </p>
           </div>
         </div>
@@ -158,8 +169,8 @@ export default function LoginRoleSelector() {
         >
           {loginRoles.map((role) => (
             <Link
-              key={role.href}
-              href={role.href}
+              key={`${mode}-${role.href}`}
+              href={mode === "signup" ? role.signupHref : role.href}
               className={role.accentClass}
               style={{
                 display: "block",
@@ -215,7 +226,7 @@ export default function LoginRoleSelector() {
                     color: "#5d6787",
                   }}
                 >
-                  Open
+                  {mode === "signup" ? "Sign Up" : "Open"}
                 </span>
               </div>
               <h2

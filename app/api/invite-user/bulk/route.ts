@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { getCoreApiBearerFromRequest } from "@/src/lib/coreApi";
 import { verifyToken } from "@/src/lib/verifyToken";
-import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
-import { pool } from "@/src/lib/db";
+import {
+  findOrganizationIdByNameOrId,
+  inviteUser,
+  type InviteVerifiedToken,
+} from "@/src/lib/invitations";
 
 type BulkInviteRow = {
   email?: string;
@@ -34,6 +38,7 @@ export async function POST(req: Request) {
     const inviterRole = String(decoded["custom:role"] || "")
       .trim()
       .toUpperCase();
+    const apiToken = getCoreApiBearerFromRequest(req, "");
     const body = await req.json();
     const rows = Array.isArray(body.rows) ? (body.rows as BulkInviteRow[]) : [];
 
@@ -72,20 +77,14 @@ export async function POST(req: Request) {
             throw new Error("organization and admin_email are required");
           }
 
-          const organizationResult = await pool.query(
-            `SELECT id
-             FROM organisation
-             WHERE id::text = $1
-                OR lower(org_name) = lower($1)
-             LIMIT 1`,
-            [organizationValue],
+          organizationId = await findOrganizationIdByNameOrId(
+            apiToken,
+            organizationValue,
           );
 
-          if (!organizationResult.rows[0]?.id) {
+          if (!organizationId) {
             throw new Error(`Organization not found: ${organizationValue}`);
           }
-
-          organizationId = organizationResult.rows[0].id as string;
         } else if (inviterRole === "ADMIN") {
           email = String(row.email || "").trim();
           requestedRole = String(row.role || "")
@@ -108,6 +107,7 @@ export async function POST(req: Request) {
 
         const result = await inviteUser({
           inviter: decoded,
+          apiToken,
           email,
           requestedRole,
           organizationId,

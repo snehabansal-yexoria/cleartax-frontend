@@ -1,51 +1,155 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { logout } from "../../../src/lib/logout";
+import { Skeleton } from "boneyard-js/react";
+import { useEffect, useState } from "react";
+import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
+import { getSession } from "../../../src/lib/session";
+
+interface SessionWithIdToken {
+  getIdToken(): {
+    getJwtToken(): string;
+  };
+}
+
+interface ClientContextResponse {
+  company: {
+    id: string;
+    name: string;
+  } | null;
+  managedBy: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}
 
 export default function ClientPage() {
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [companyName, setCompanyName] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [managerRole, setManagerRole] = useState("");
 
-  function handleLogout() {
-    logout();
-    router.replace("/login");
-  }
+  useEffect(() => {
+    async function loadClientContext() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+
+        if (!session) {
+          return;
+        }
+
+        const token = session.getIdToken().getJwtToken();
+        const res = await fetch("/api/users/me/client-context", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = (await res.json()) as ClientContextResponse;
+        setCompanyName(data.company?.name || "");
+        setManagerName(data.managedBy?.name || "");
+        setManagerEmail(data.managedBy?.email || "");
+        setManagerRole(data.managedBy?.role || "");
+      } catch (error) {
+        console.error("Failed to load client context:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadClientContext();
+  }, []);
 
   return (
-    <section className="portal-page">
-      <div className="portal-page-header">
-        <div>
-          <p className="portal-kicker">Client Workspace</p>
-          <h1>Client Panel</h1>
-          <p>View your property portfolio and financial data.</p>
+    <Skeleton
+      name="client-dashboard"
+      loading={isLoading}
+      fallback={<AccountantDashboardSkeleton />}
+    >
+      <section className="portal-page">
+        <div className="portal-page-header">
+          <div>
+            <p className="portal-kicker">Client Workspace</p>
+            <h1>Client Dashboard</h1>
+            <p>
+              {companyName
+                ? `Your portfolio is currently managed within ${companyName}.`
+                : "View your portfolio workspace and management details."}
+            </p>
+          </div>
+
+          <div className="portal-header-actions">
+            <button type="button" className="portal-primary-link" disabled>
+              Create Entity
+            </button>
+          </div>
         </div>
 
-        <button
-          type="button"
-          className="portal-secondary-link"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-      </div>
+        <div className="portal-summary-grid">
+          <article className="portal-summary-card portal-summary-card-blue">
+            <span>Managed Company</span>
+            <strong>{companyName || "Not linked"}</strong>
+            <p>
+              {companyName
+                ? "This is the organization currently servicing your account."
+                : "Your company assignment will appear here once linked."}
+            </p>
+          </article>
 
-      <div className="portal-summary-grid">
-        <article className="portal-summary-card portal-summary-card-blue">
-          <span>Portfolio Status</span>
-          <strong>Active</strong>
-          <p>Your workspace is ready for document review and updates.</p>
-        </article>
-        <article className="portal-summary-card portal-summary-card-gold">
-          <span>Documents</span>
-          <strong>12</strong>
-          <p>Recent files and uploaded statements available in your portal.</p>
-        </article>
-        <article className="portal-summary-card">
-          <span>Next Step</span>
-          <strong>Review</strong>
-          <p>Check your latest tasks, statements, and onboarding items.</p>
-        </article>
-      </div>
-    </section>
+          <article className="portal-summary-card portal-summary-card-gold">
+            <span>Managed By</span>
+            <strong>{managerName || "Pending"}</strong>
+            <p>
+              {managerEmail
+                ? `${managerRole || "account manager"} • ${managerEmail}`
+                : "We will show your assigned accountant or admin here."}
+            </p>
+          </article>
+
+          <article className="portal-summary-card">
+            <span>Next Step</span>
+            <strong>Entity Setup</strong>
+            <p>
+              The `Create Entity` button is ready in the UI and we can wire the
+              full flow next.
+            </p>
+          </article>
+        </div>
+
+        <div className="portal-list-card">
+          <div className="portal-list-header">
+            <div>
+              <h2>Account Overview</h2>
+              <p>
+                A quick snapshot of who manages your account and where your
+                workspace is anchored.
+              </p>
+            </div>
+          </div>
+
+          <div className="portal-list-table">
+            <div className="portal-list-head portal-list-head-admin">
+              <div>Company</div>
+              <div>Manager</div>
+              <div>Email</div>
+              <div>Role</div>
+            </div>
+
+            <article className="portal-list-row portal-list-row-admin">
+              <div>{companyName || "-"}</div>
+              <div>{managerName || "-"}</div>
+              <div>{managerEmail || "-"}</div>
+              <div>{managerRole || "-"}</div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </Skeleton>
   );
 }

@@ -222,6 +222,19 @@ p.darkBg {
   font-weight: 700;
   cursor: pointer;
 }
+.signup-icon-box {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fbb228 0%, #f4a117 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #24316e;
+  font-size: 1.15rem;
+  font-weight: 800;
+  box-shadow: 0 16px 30px rgba(244, 161, 23, 0.24);
+}
 .login-form-wrap {
   display: flex;
   flex-direction: column;
@@ -247,6 +260,38 @@ p.darkBg {
   cursor: pointer;
   transition: 0.4s all ease;
   border: 1px solid var(--primary);
+}
+.signup-login-link {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 0.96rem;
+}
+
+.signup-login-link a {
+  color: #2f3c82;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.signup-success-message {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #effcf4;
+  border: 1px solid #b7ebc6;
+  color: #1f6b46;
+  text-align: center;
+}
+
+.signup-success-message a {
+  display: inline-block;
+  margin-top: 10px;
+  color: #1f4f9d;
+  font-weight: 700;
+  text-decoration: none;
 }
 .login-submit button:hover {
   background-color: transparent;
@@ -684,6 +729,145 @@ p.darkBg {
 
 .portal-upload-success {
   color: #188b5a;
+  font-weight: 700;
+}
+
+.portal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(10px);
+}
+
+.portal-modal {
+  width: min(720px, 100%);
+  max-height: min(88vh, 860px);
+  overflow-y: auto;
+  border-radius: 28px;
+  border: 1px solid rgba(210, 217, 237, 0.88);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  box-shadow: 0 28px 80px rgba(17, 27, 68, 0.24);
+  padding: 24px;
+}
+
+.portal-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.portal-modal-header h2 {
+  color: #1f2d4f;
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.portal-modal-header p {
+  margin-top: 6px;
+  color: #7080a0;
+}
+
+.portal-modal-close {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d6deef;
+  border-radius: 14px;
+  background: #f8faff;
+  color: #586988;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.portal-modal-close:hover {
+  transform: translateY(-1px);
+  border-color: #c5d0ee;
+  background: #eef3ff;
+}
+
+.portal-modal-tabs {
+  display: inline-flex;
+  gap: 8px;
+  margin-top: 22px;
+  padding: 6px;
+  border-radius: 18px;
+  background: #eef2fb;
+}
+
+.portal-modal-tab {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #607192;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.portal-modal-tab.is-active {
+  background: #ffffff;
+  color: #2f3c82;
+  box-shadow: 0 12px 24px rgba(47, 59, 130, 0.08);
+}
+
+.portal-modal-section {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid #e1e7f5;
+  background: #f9fbff;
+}
+
+.portal-modal-help {
+  margin-bottom: 14px;
+  color: #6d7e9e;
+  line-height: 1.6;
+}
+
+.portal-modal-textarea {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid #d6deef;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 16px 18px;
+  color: #223056;
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.portal-modal-textarea:focus {
+  outline: none;
+  border-color: #8fa3df;
+  box-shadow: 0 0 0 4px rgba(78, 102, 195, 0.12);
+}
+
+.portal-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.portal-modal-error {
+  margin-top: 16px;
+  color: #c2405a;
   font-weight: 700;
 }
 
@@ -1593,6 +1777,12 @@ p.darkBg {
 }
 
 .accountant-client-table-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.accountant-client-table-placeholder {
+  display: inline-flex;
   width: 18px;
   height: 18px;
 }

@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { getCoreRoleId } from "../../../../../src/lib/coreApi";
 import {
   findDirectoryUserByIdentity,
   listDirectoryUsers,
-  type VerifiedTokenLike,
 } from "../../../../../src/lib/userDirectory";
 
 export async function GET(req: Request) {
@@ -15,8 +13,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
+    const idToken = authHeader.split(" ")[1];
+    const decoded = await verifyToken(idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -26,34 +24,24 @@ export async function GET(req: Request) {
     }
 
     const currentUser = await findDirectoryUserByIdentity({
-      id: decoded.sub,
-      email: decoded.email,
+      id: String(decoded.sub || ""),
+      email: String(decoded.email || ""),
     });
 
     if (!currentUser) {
       return NextResponse.json({ adminContact: null });
     }
 
-    if (!currentUser.orgId) {
-      return NextResponse.json({ adminContact: null });
-    }
-
-    const adminRoleId = getCoreRoleId("admin");
-
-    if (!adminRoleId) {
-      return NextResponse.json(
-        { error: "Admin role is not configured" },
-        { status: 500 },
-      );
-    }
-
-    const adminUsers = await listDirectoryUsers({
+    const users = await listDirectoryUsers({
       orgId: currentUser.orgId,
-      roleIds: [adminRoleId],
     });
 
-    const adminContact = adminUsers.find(
-      (user) => user.email.toLowerCase() !== currentUser.email.toLowerCase(),
+    const adminContact = users.find(
+      (user) =>
+        user.role === "admin" &&
+        user.orgId &&
+        user.orgId === currentUser.orgId &&
+        user.email.toLowerCase() !== currentUser.email.toLowerCase(),
     );
 
     if (!adminContact) {

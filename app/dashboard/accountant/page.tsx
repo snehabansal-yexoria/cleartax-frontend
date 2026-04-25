@@ -19,32 +19,19 @@ interface OrganizationResponse {
   } | null;
 }
 
-const summaryCards = [
-  {
-    title: "Invitation Pending",
-    value: "24",
-    change: "+12% from last month",
-    tone: "blue",
-    actionLabel: "Invite Client",
-    actionHref: "/dashboard/accountant/clients?invite=1",
-  },
-  {
-    title: "Registered Clients",
-    value: "186",
-    change: "+08% from last month",
-    tone: "gold",
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
-        <circle cx="9.5" cy="7" r="4" />
-        <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
-        <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
-      </svg>
-    ),
-  },
-];
+interface DashboardClient {
+  id: string;
+  email: string;
+  status: string;
+  name: string;
+  phoneNumber: string;
+  invitedByEmail: string;
+  joinedAt: string | null;
+  assignedAccountantId: string;
+  assignedAccountantName: string;
+}
 
-const clients = [
+const placeholderClients = [
   {
     name: "Michael Chen",
     email: "michael.chen@realestate.com",
@@ -136,9 +123,10 @@ export default function AccountantPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [isLoading, setIsLoading] = useState(true);
+  const [clients, setClients] = useState<DashboardClient[]>([]);
 
   useEffect(() => {
-    async function loadOrganization() {
+    async function loadDashboardData() {
       try {
         const session = (await getSession()) as SessionWithIdToken | null;
 
@@ -148,27 +136,78 @@ export default function AccountantPage() {
 
         const token = session.getIdToken().getJwtToken();
 
-        const res = await fetch("/api/users/me/organization", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const [orgRes, clientsRes] = await Promise.all([
+          fetch("/api/users/me/organization", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("/api/users/me/clients?scope=all", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+        ]);
 
-        if (!res.ok) {
-          return;
+        if (orgRes.ok) {
+          const data = (await orgRes.json()) as OrganizationResponse;
+          setOrganizationName(data.organization?.name || "");
         }
 
-        const data = (await res.json()) as OrganizationResponse;
-        setOrganizationName(data.organization?.name || "");
+        if (clientsRes.ok) {
+          const data = await clientsRes.json();
+          setClients(data.clients || []);
+        }
       } catch (error) {
-        console.error("Failed to load organization:", error);
+        console.error("Failed to load accountant dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadOrganization();
+    loadDashboardData();
   }, []);
+
+  const invitationPendingCount = clients.filter((client) =>
+    ["PENDING", "INVITED"].includes(String(client.status || "").toUpperCase()),
+  ).length;
+
+  const registeredClientsCount = clients.filter(
+    (client) => !["PENDING", "INVITED"].includes(String(client.status || "").toUpperCase()),
+  ).length;
+
+  const visibleClients = clients.length > 0 ? clients.slice(0, 6) : [];
+
+  const summaryCards = [
+    {
+      title: "Invitation Pending",
+      value: String(invitationPendingCount),
+      change:
+        invitationPendingCount === 1
+          ? "1 client has not completed onboarding"
+          : `${invitationPendingCount} clients have not completed onboarding`,
+      tone: "blue",
+      actionLabel: "Invite Client",
+      actionHref: "/dashboard/accountant/clients?invite=1",
+    },
+    {
+      title: "Registered Clients",
+      value: String(registeredClientsCount),
+      change:
+        registeredClientsCount === 1
+          ? "1 client is active in this organization"
+          : `${registeredClientsCount} clients are active in this organization`,
+      tone: "gold",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+          <circle cx="9.5" cy="7" r="4" />
+          <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
+          <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
+        </svg>
+      ),
+    },
+  ];
 
   return (
     <Skeleton
@@ -250,7 +289,7 @@ export default function AccountantPage() {
 
             {viewMode === "card" ? (
               <div className="accountant-client-grid">
-                {clients.map((client) => (
+                {(visibleClients.length > 0 ? visibleClients : placeholderClients).map((client) => (
                   <article
                     key={client.email}
                     className="accountant-client-card"
@@ -268,7 +307,7 @@ export default function AccountantPage() {
               </div>
             ) : (
               <div className="accountant-client-list">
-              {clients.map((client, index) => (
+              {(visibleClients.length > 0 ? visibleClients : placeholderClients).map((client, index) => (
                 <article key={client.email} className="accountant-client-list-row">
                   <div className="accountant-client-list-main">
                     <div

@@ -20,6 +20,8 @@ interface ClientRecord {
   phoneNumber: string;
   invitedByEmail: string;
   joinedAt: string | null;
+  assignedAccountantId: string;
+  assignedAccountantName: string;
 }
 
 type ClientTab = "all" | "mine";
@@ -58,6 +60,7 @@ function AccountantClientsContent() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isAssigningClients, setIsAssigningClients] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     fullName: "",
     email: "",
@@ -71,42 +74,42 @@ function AccountantClientsContent() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    async function loadClients() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
+  async function loadClients() {
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
 
-        if (!session) {
-          return;
-        }
-
-        const token = session.getIdToken().getJwtToken();
-
-        const [allRes, myRes] = await Promise.all([
-          fetch("/api/users/me/clients?scope=all", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=mine", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
-        if (allRes.ok) {
-          const data = await allRes.json();
-          setAllClients(data.clients || []);
-        }
-
-        if (myRes.ok) {
-          const data = await myRes.json();
-          setMyClients(data.clients || []);
-        }
-      } catch (error) {
-        console.error("Failed to load clients:", error);
-      } finally {
-        setIsLoading(false);
+      if (!session) {
+        return;
       }
-    }
 
+      const token = session.getIdToken().getJwtToken();
+
+      const [allRes, myRes] = await Promise.all([
+        fetch("/api/users/me/clients?scope=all", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/users/me/clients?scope=mine", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (allRes.ok) {
+        const data = await allRes.json();
+        setAllClients(data.clients || []);
+      }
+
+      if (myRes.ok) {
+        const data = await myRes.json();
+        setMyClients(data.clients || []);
+      }
+    } catch (error) {
+      console.error("Failed to load clients:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
     loadClients();
   }, []);
 
@@ -142,6 +145,46 @@ function AccountantClientsContent() {
     setTemporaryPassword("");
     setInviteSuccess(false);
     setInviteDrawerOpen(false);
+  }
+
+  async function handleAssignClients() {
+    try {
+      setIsAssigningClients(true);
+
+      const session = (await getSession()) as SessionWithIdToken | null;
+
+      if (!session) {
+        return;
+      }
+
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientIds: selectedClientIds,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Failed to move clients to My Clients");
+        return;
+      }
+
+      setSelectedClientIds([]);
+      setCurrentTab("mine");
+      await loadClients();
+    } catch (error) {
+      console.error("Assign clients error:", error);
+      alert("Something went wrong while assigning clients.");
+    } finally {
+      setIsAssigningClients(false);
+    }
   }
 
   async function handleInviteClient() {
@@ -257,10 +300,16 @@ function AccountantClientsContent() {
         </button>
       </div>
 
-      {selectedClientIds.length > 0 && (
+      {currentTab === "all" && selectedClientIds.length > 0 && (
         <div className="accountant-selection-banner">
           <span>{selectedClientIds.length} client selected</span>
-          <button type="button">Add to list</button>
+          <button
+            type="button"
+            onClick={handleAssignClients}
+            disabled={isAssigningClients}
+          >
+            {isAssigningClients ? "Adding..." : "Add to list"}
+          </button>
         </div>
       )}
 
@@ -277,11 +326,15 @@ function AccountantClientsContent() {
         {visibleClients.map((client) => (
           <article key={client.id} className="accountant-client-table-row">
             <div>
-              <input
-                type="checkbox"
-                checked={selectedClientIds.includes(client.id)}
-                onChange={() => toggleClientSelection(client.id)}
-              />
+              {currentTab === "all" ? (
+                <input
+                  type="checkbox"
+                  checked={selectedClientIds.includes(client.id)}
+                  onChange={() => toggleClientSelection(client.id)}
+                />
+              ) : (
+                <span className="accountant-client-table-placeholder" />
+              )}
             </div>
 
             <div className="accountant-client-cell accountant-client-cell-primary">
@@ -305,7 +358,11 @@ function AccountantClientsContent() {
             </div>
 
             <div className="accountant-client-cell">
-              <span>{client.invitedByEmail || "Organization Admin"}</span>
+              <span>
+                {client.assignedAccountantName
+                  ? `Managed by ${client.assignedAccountantName}`
+                  : client.invitedByEmail || "Organization Admin"}
+              </span>
             </div>
 
             <div className="accountant-client-cell">

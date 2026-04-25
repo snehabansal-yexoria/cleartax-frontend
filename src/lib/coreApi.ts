@@ -27,6 +27,28 @@ export type CoreOrganization = {
   tenantCode: string;
 };
 
+function parseCookieHeader(cookieHeader: string | null) {
+  const cookies = new Map<string, string>();
+
+  if (!cookieHeader) {
+    return cookies;
+  }
+
+  for (const part of cookieHeader.split(";")) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (!rawName) continue;
+    cookies.set(rawName, decodeURIComponent(rawValue.join("=")));
+  }
+
+  return cookies;
+}
+
+export function getCoreApiBearerFromRequest(req: Request, fallbackToken = "") {
+  const cookies = parseCookieHeader(req.headers.get("cookie"));
+  const accessToken = (cookies.get("accessToken") || "").trim();
+  return accessToken || fallbackToken;
+}
+
 function getCoreApiBaseUrl() {
   const baseUrl =
     process.env.CORE_API_BASE_URL || process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
@@ -38,11 +60,19 @@ function getCoreApiBaseUrl() {
   return baseUrl.replace(/\/+$/, "");
 }
 
+function getCoreApiKey() {
+  return (
+    process.env.CORE_API_KEY ||
+    process.env.NEXT_PUBLIC_CORE_API_KEY ||
+    process.env.CORE_API_X_API_KEY ||
+    ""
+  ).trim();
+}
+
 function getJsonArray(payload: unknown): RawRecord[] {
   if (Array.isArray(payload)) {
     return payload.filter(
-      (item): item is RawRecord =>
-        typeof item === "object" && item !== null,
+      (item): item is RawRecord => typeof item === "object" && item !== null,
     );
   }
 
@@ -62,8 +92,7 @@ function getJsonArray(payload: unknown): RawRecord[] {
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
       return candidate.filter(
-        (item): item is RawRecord =>
-          typeof item === "object" && item !== null,
+        (item): item is RawRecord => typeof item === "object" && item !== null,
       );
     }
   }
@@ -77,7 +106,12 @@ function getJsonObject(payload: unknown): RawRecord {
   }
 
   const record = payload as RawRecord;
-  const candidates = [record.data, record.item, record.user, record.organization];
+  const candidates = [
+    record.data,
+    record.item,
+    record.user,
+    record.organization,
+  ];
 
   for (const candidate of candidates) {
     if (typeof candidate === "object" && candidate !== null) {
@@ -94,7 +128,9 @@ function toStringValue(value: unknown) {
 
 function toNumberValue(value: unknown) {
   const asNumber =
-    typeof value === "number" ? value : Number.parseInt(toStringValue(value), 10);
+    typeof value === "number"
+      ? value
+      : Number.parseInt(toStringValue(value), 10);
   return Number.isNaN(asNumber) ? null : asNumber;
 }
 
@@ -135,8 +171,12 @@ export function normalizeCoreUser(raw: RawRecord): CoreUser {
     role: getRoleName(raw),
     roleId: toNumberValue(raw.role_id || raw.roleId),
     orgId: toStringValue(raw.org_id || raw.organization_id || raw.orgId),
-    status: toStringValue(raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE")),
-    phoneNumber: toStringValue(raw.phone || raw.phone_number || raw.phoneNumber),
+    status: toStringValue(
+      raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE"),
+    ),
+    phoneNumber: toStringValue(
+      raw.phone || raw.phone_number || raw.phoneNumber,
+    ),
     invitedBy: toStringValue(raw.invited_by || raw.invitedBy || raw.created_by),
   };
 }
@@ -162,6 +202,12 @@ export async function coreApiRequest<T = unknown>(
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const apiKey = getCoreApiKey();
+
+  if (apiKey) {
+    headers["x-api-key"] = apiKey;
+  }
+
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
@@ -177,13 +223,15 @@ export async function coreApiRequest<T = unknown>(
   const payload = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       `Core API ${method} ${path} failed: ${
         (payload as RawRecord | null)?.message ||
         (payload as RawRecord | null)?.error ||
         response.statusText
       }`,
-    );
+    ) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   return payload as T;
@@ -216,11 +264,15 @@ export async function listCoreUsers(token: string) {
   return getJsonArray(payload).map(normalizeCoreUser);
 }
 
-export async function createCoreUser(token: string, body: Record<string, unknown>) {
+export async function createCoreUser(
+  token: string,
+  body: Record<string, unknown>,
+) {
   const payload = await coreApiRequest("/users", {
     method: "POST",
     token,
     body,
   });
   return normalizeCoreUser(getJsonObject(payload));
+  console.log("Created user:", normalizeCoreUser(getJsonObject(payload)));
 }

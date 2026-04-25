@@ -9,11 +9,16 @@ import { logout } from "../../src/lib/logout";
 
 interface TokenPayload {
   email: string;
+  name?: string;
   "custom:role"?: string;
+  "custom:tenant_code"?: string;
 }
 
 interface SessionWithIdToken {
   getIdToken(): {
+    getJwtToken(): string;
+  };
+  getAccessToken(): {
     getJwtToken(): string;
   };
 }
@@ -202,6 +207,47 @@ const superAdminMenuItems: PortalMenuItem[] = [
   },
 ];
 
+const clientMenuItems: PortalMenuItem[] = [
+  {
+    id: "dashboard",
+    href: "/dashboard/client",
+    label: "Dashboard",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+  },
+  {
+    id: "entities",
+    label: "Entities",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="7" height="16" rx="1.5" />
+        <rect x="13" y="8" width="7" height="12" rx="1.5" />
+        <path d="M7.5 8h0.01" />
+        <path d="M7.5 12h0.01" />
+        <path d="M7.5 16h0.01" />
+      </svg>
+    ),
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="M9 13h6" />
+        <path d="M9 17h4" />
+      </svg>
+    ),
+  },
+];
+
 export default function DashboardLayout({
   children,
 }: {
@@ -227,7 +273,11 @@ export default function DashboardLayout({
         }
 
         const idToken = session.getIdToken();
+        const accessToken = session.getAccessToken().getJwtToken();
         const token = idToken.getJwtToken();
+
+        document.cookie = `idToken=${token}; path=/`;
+        document.cookie = `accessToken=${accessToken}; path=/`;
 
         const decoded: TokenPayload = jwtDecode(token);
 
@@ -237,6 +287,21 @@ export default function DashboardLayout({
 
         setRole(userRole);
 
+        if (userRole !== "super_admin") {
+          await fetch("/api/users/provision", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              accessToken,
+              fullName: decoded.name || "",
+              tenantCode: decoded["custom:tenant_code"] || "",
+            }),
+          }).catch(() => undefined);
+        }
+
         await fetch("/api/invitations/accept", {
           method: "POST",
           headers: {
@@ -244,7 +309,7 @@ export default function DashboardLayout({
           },
         }).catch(() => undefined);
 
-        if (userRole === "admin" || userRole === "accountant") {
+        if (userRole === "admin" || userRole === "accountant" || userRole === "client") {
           const orgResponse = await fetch("/api/users/me/organization", {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -294,14 +359,18 @@ export default function DashboardLayout({
       ? superAdminMenuItems
       : role === "admin"
         ? adminMenuItems
-        : accountantMenuItems;
+        : role === "client"
+          ? clientMenuItems
+          : accountantMenuItems;
 
   const portalTitle =
     role === "super_admin"
       ? "Super Admin Control"
       : role === "admin"
         ? organizationName || "Admin Workspace"
-        : organizationName || "Accountant Dashboard";
+        : role === "client"
+          ? organizationName || "Client Workspace"
+          : organizationName || "Accountant Dashboard";
 
   const portalSubtitle =
     role === "super_admin"
@@ -345,7 +414,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (role === "accountant" || role === "admin" || role === "super_admin") {
+  if (role === "accountant" || role === "admin" || role === "super_admin" || role === "client") {
     return (
       <div className="accountant-shell">
         <aside className="accountant-sidebar">
@@ -381,6 +450,8 @@ export default function DashboardLayout({
                   ? "Super Admin Portal"
                   : role === "admin"
                     ? "Admin Portal"
+                    : role === "client"
+                      ? "Client Portal"
                     : "Accountant Portal"}
               </strong>
               <span>{portalSubtitle}</span>
@@ -456,6 +527,15 @@ export default function DashboardLayout({
                       >
                         Account
                       </Link>
+                    ) : role === "client" ? (
+                      <Link
+                        href="/dashboard/client"
+                        className="accountant-profile-menu-item"
+                        role="menuitem"
+                        onClick={() => setIsAccountMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
                     ) : (
                       <Link
                         href={
@@ -517,6 +597,8 @@ export default function DashboardLayout({
                       ? "Super Admin Portal"
                       : role === "admin"
                         ? "Admin Portal"
+                        : role === "client"
+                          ? "Client Portal"
                         : organizationName || "Accountant Portal"}
                   </span>
                 </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSession } from "../../../../src/lib/session";
-import { parseCsv } from "../../../../src/lib/csv";
+import { parseCsv, parseFlexibleRows } from "../../../../src/lib/csv";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -20,12 +20,20 @@ interface BulkResult {
   error?: string;
 }
 
+type InputMode = "file" | "paste";
+
+const DEFAULT_HEADERS = ["role", "email", "full_name"];
+
 export default function AdminBulkUploadPage() {
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BulkResult[]>([]);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<InputMode>("file");
+  const [pastedValue, setPastedValue] = useState("");
+  const [modalError, setModalError] = useState("");
 
   const template = useMemo(
     () =>
@@ -37,20 +45,59 @@ export default function AdminBulkUploadPage() {
     [],
   );
 
+  function resetModalState() {
+    setFileName("");
+    setPastedValue("");
+    setModalError("");
+    setInputMode("file");
+  }
+
+  function openModal() {
+    resetModalState();
+    setIsModalOpen(true);
+  }
+
+  function closeModal() {
+    setIsModalOpen(false);
+    resetModalState();
+  }
+
+  function applyParsedRows(parsedRows: Record<string, string>[], nextFileName = "") {
+    setRows(parsedRows);
+    setFileName(nextFileName);
+    setResults([]);
+    setUploadMessage("");
+  }
+
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) {
-      setRows([]);
-      setFileName("");
       return;
     }
 
     const text = await file.text();
-    setRows(parseCsv(text));
-    setFileName(file.name);
-    setResults([]);
-    setUploadMessage("");
+    const parsedRows = parseCsv(text);
+
+    if (parsedRows.length === 0) {
+      setModalError("We could not find any rows in that CSV.");
+      return;
+    }
+
+    applyParsedRows(parsedRows, file.name);
+    closeModal();
+  }
+
+  function handlePasteImport() {
+    const parsedRows = parseFlexibleRows(pastedValue, DEFAULT_HEADERS);
+
+    if (parsedRows.length === 0) {
+      setModalError("Paste at least one valid row before importing.");
+      return;
+    }
+
+    applyParsedRows(parsedRows, "Pasted table");
+    closeModal();
   }
 
   async function handleUpload() {
@@ -98,7 +145,7 @@ export default function AdminBulkUploadPage() {
         <div>
           <p className="portal-kicker">Bulk Upload</p>
           <h1>Bulk Invite Users</h1>
-          <p>Upload accountants and clients in one CSV for your organization.</p>
+          <p>Upload accountants and clients in one batch for your organization.</p>
         </div>
 
         <Link href="/dashboard/admin" className="portal-secondary-link">
@@ -109,8 +156,8 @@ export default function AdminBulkUploadPage() {
       <div className="portal-list-card">
         <div className="portal-list-header">
           <div>
-            <h2>CSV Format</h2>
-            <p>Required columns: `role`, `email`. Optional: `full_name`.</p>
+            <h2>Import Users</h2>
+            <p>Choose a CSV from your device or paste rows directly into a modal.</p>
           </div>
           <span className="portal-list-count">{rows.length} rows</span>
         </div>
@@ -118,12 +165,9 @@ export default function AdminBulkUploadPage() {
         <pre className="portal-code-block">{template}</pre>
 
         <div className="portal-upload-actions">
-          <input
-            className="portal-file-input"
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-          />
+          <button type="button" className="portal-primary-link" onClick={openModal}>
+            Open Import Modal
+          </button>
           {fileName && <span className="portal-upload-filename">{fileName}</span>}
           <button
             type="button"
@@ -138,6 +182,97 @@ export default function AdminBulkUploadPage() {
           )}
         </div>
       </div>
+
+      {isModalOpen && (
+        <div className="portal-modal-backdrop" role="presentation" onClick={closeModal}>
+          <div
+            className="portal-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-bulk-upload-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="portal-modal-header">
+              <div>
+                <p className="portal-kicker">Bulk Upload</p>
+                <h2 id="admin-bulk-upload-title">Import Admin Users</h2>
+                <p>Use a CSV file or paste a table with role, email, and name.</p>
+              </div>
+              <button
+                type="button"
+                className="portal-modal-close"
+                onClick={closeModal}
+                aria-label="Close import modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="portal-modal-tabs">
+              <button
+                type="button"
+                className={`portal-modal-tab${inputMode === "file" ? " is-active" : ""}`}
+                onClick={() => {
+                  setInputMode("file");
+                  setModalError("");
+                }}
+              >
+                Choose File
+              </button>
+              <button
+                type="button"
+                className={`portal-modal-tab${inputMode === "paste" ? " is-active" : ""}`}
+                onClick={() => {
+                  setInputMode("paste");
+                  setModalError("");
+                }}
+              >
+                Paste Table
+              </button>
+            </div>
+
+            {inputMode === "file" ? (
+              <div className="portal-modal-section">
+                <p className="portal-modal-help">
+                  Upload a CSV with `role`, `email`, and optional `full_name`.
+                </p>
+                <input
+                  className="portal-file-input"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                />
+              </div>
+            ) : (
+              <div className="portal-modal-section">
+                <p className="portal-modal-help">
+                  Paste CSV, tab-separated data, or rows like `accountant
+                  jane@example.com Jane Doe`.
+                </p>
+                <textarea
+                  className="portal-modal-textarea"
+                  value={pastedValue}
+                  onChange={(event) => setPastedValue(event.target.value)}
+                  placeholder={template}
+                  rows={10}
+                />
+                <div className="portal-modal-actions">
+                  <button
+                    type="button"
+                    className="portal-primary-link"
+                    onClick={handlePasteImport}
+                    disabled={!pastedValue.trim()}
+                  >
+                    Import Pasted Rows
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {modalError && <p className="portal-modal-error">{modalError}</p>}
+          </div>
+        </div>
+      )}
 
       {rows.length > 0 && (
         <div className="portal-list-card">

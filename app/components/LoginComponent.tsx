@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
@@ -17,7 +18,9 @@ import realTime from "../../public/real-time.svg";
 
 interface TokenPayload {
   email: string;
+  name?: string;
   "custom:role"?: string;
+  "custom:tenant_code"?: string;
 }
 
 interface NewPasswordResult {
@@ -29,6 +32,7 @@ interface NewPasswordResult {
 interface LoginSuccessResult {
   type: "SUCCESS";
   idToken: string;
+  accessToken: string;
 }
 
 type LoginResult = NewPasswordResult | LoginSuccessResult;
@@ -83,14 +87,15 @@ export default function LoginComponent({
       }
 
       if (result.type === "SUCCESS") {
-        const token = result.idToken;
-        const decoded: TokenPayload = jwtDecode(token);
+        const idToken = result.idToken;
+        const accessToken = result.accessToken;
+        const decoded: TokenPayload = jwtDecode(idToken);
         console.log(decoded);
 
         await fetch("/api/invitations/accept", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${idToken}`,
           },
         }).catch(() => undefined);
 
@@ -105,7 +110,35 @@ export default function LoginComponent({
         }
 
         // 🔥 Save token
-        document.cookie = `idToken=${token}; path=/`;
+        document.cookie = `idToken=${idToken}; path=/`;
+        document.cookie = `accessToken=${accessToken}; path=/`;
+
+        if (role !== "super_admin") {
+          const provisionRes = await fetch("/api/users/provision", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              accessToken,
+              fullName: decoded.name || "",
+              tenantCode: decoded["custom:tenant_code"] || "",
+            }),
+          });
+
+          const provisionData = await provisionRes.json();
+
+          if (!provisionRes.ok) {
+            setError(
+              provisionData.error ||
+                provisionData.details ||
+                "Failed to provision your account",
+            );
+            setLoading(false);
+            return;
+          }
+        }
 
         // 🔥 Role-based redirect
         if (role === "super_admin") {
@@ -172,6 +205,12 @@ export default function LoginComponent({
     accountant: "Accountant",
     client: "Client",
   };
+  const signupHref =
+    role === "super_admin"
+      ? "/signup/super-admin"
+      : role === "client"
+        ? "/signup/user"
+        : `/signup/${role}`;
 
   return (
     <div className="loginSection">
@@ -292,6 +331,10 @@ export default function LoginComponent({
                       <button onClick={handleLogin} disabled={loading}>
                         {loading ? "Logging in..." : "Log In to Dashboard"}
                       </button>
+                    </div>
+                    <div className="signup-login-link">
+                      <span>Need a new account?</span>
+                      <Link href={signupHref}>Sign up</Link>
                     </div>
                   </div>
                 )}

@@ -21,6 +21,8 @@ export type DirectoryUser = {
   invitedByEmail: string;
   createdAt: string | null;
   phoneNumber: string;
+  assignedAccountantId: string;
+  assignedAccountantName: string;
 };
 
 type RawDirectoryRow = {
@@ -36,7 +38,24 @@ type RawDirectoryRow = {
   invited_by: string | null;
   invited_by_email: string | null;
   created_at: Date | string | null;
+  assigned_accountant_id: string | null;
+  assigned_accountant_name: string | null;
 };
+
+let assignedAccountantColumnEnsured = false;
+
+export async function ensureAssignedAccountantColumn() {
+  if (assignedAccountantColumnEnsured) {
+    return;
+  }
+
+  await pool.query(
+    `ALTER TABLE users
+     ADD COLUMN IF NOT EXISTS assigned_accountant_id VARCHAR(10)`,
+  );
+
+  assignedAccountantColumnEnsured = true;
+}
 
 function toRoleIdNumber(roleId: number | string | null) {
   if (typeof roleId === "number") {
@@ -89,6 +108,8 @@ function normalizeDirectoryUser(row: RawDirectoryRow): DirectoryUser {
     invitedByEmail: row.invited_by_email || "",
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
     phoneNumber: "",
+    assignedAccountantId: row.assigned_accountant_id || "",
+    assignedAccountantName: row.assigned_accountant_name || "",
   };
 }
 
@@ -96,6 +117,8 @@ export async function findDirectoryUserByIdentity(identity: {
   id?: string;
   email?: string;
 }) {
+  await ensureAssignedAccountantColumn();
+
   const email = String(identity.email || "").trim().toLowerCase();
   const id = String(identity.id || "").trim();
 
@@ -116,7 +139,9 @@ export async function findDirectoryUserByIdentity(identity: {
        m.status AS mapping_status,
        inv.invited_by,
        inviter.email AS invited_by_email,
-       COALESCE(inv.created_at, u.created_at) AS created_at
+       COALESCE(inv.created_at, u.created_at) AS created_at,
+       u.assigned_accountant_id,
+       accountant.full_name AS assigned_accountant_name
      FROM users u
      LEFT JOIN LATERAL (
        SELECT org_id, role_id, status, created_at
@@ -135,6 +160,7 @@ export async function findDirectoryUserByIdentity(identity: {
        LIMIT 1
      ) inv ON true
      LEFT JOIN users inviter ON inviter.id = inv.invited_by
+     LEFT JOIN users accountant ON accountant.id = u.assigned_accountant_id
      WHERE ($1 <> '' AND u.id = $1)
         OR ($2 <> '' AND lower(u.email) = $2)
      ORDER BY CASE WHEN u.id = $1 THEN 0 ELSE 1 END
@@ -150,6 +176,8 @@ export async function listDirectoryUsers(filter?: {
   orgId?: string;
   roleIds?: number[];
 }) {
+  await ensureAssignedAccountantColumn();
+
   const orgId = String(filter?.orgId || "").trim();
   const roleIds = (filter?.roleIds || []).filter(
     (value): value is number => Number.isFinite(value),
@@ -168,7 +196,9 @@ export async function listDirectoryUsers(filter?: {
        m.status AS mapping_status,
        inv.invited_by,
        inviter.email AS invited_by_email,
-       COALESCE(inv.created_at, u.created_at) AS created_at
+       COALESCE(inv.created_at, u.created_at) AS created_at,
+       u.assigned_accountant_id,
+       accountant.full_name AS assigned_accountant_name
      FROM users u
      JOIN org_user_mapping m ON m.user_id = u.id
      LEFT JOIN organisation o ON o.id = m.org_id
@@ -181,6 +211,7 @@ export async function listDirectoryUsers(filter?: {
        LIMIT 1
      ) inv ON true
      LEFT JOIN users inviter ON inviter.id = inv.invited_by
+     LEFT JOIN users accountant ON accountant.id = u.assigned_accountant_id
      WHERE ($1 = '' OR m.org_id = $1::uuid)
        AND (cardinality($2::bigint[]) = 0 OR m.role_id = ANY($2::bigint[]))
      ORDER BY COALESCE(inv.created_at, u.created_at) DESC NULLS LAST, u.email ASC`,
@@ -201,4 +232,29 @@ export async function getOrganizationById(orgId: string) {
 
   const row = result.rows[0];
   return row ? { id: row.id as string, name: row.org_name as string } : null;
+}
+
+export async function assignClientsToAccountant(params: {
+  clientIds: string[];
+  accountantId: string;
+  orgId: string;
+}) {
+  await ensureAssignedAccountantColumn();
+
+  if (params.clientIds.length === 0) {
+    return [];
+  }
+
+  const result = await pool.query<{ id: string; assigned_accountant_id: string | null }>(
+    `UPDATE users u
+     SET assigned_accountant_id = $2
+     FROM org_user_mapping m
+     WHERE u.id = ANY($1::varchar[])
+       AND m.user_id = u.id
+       AND m.org_id = $3::uuid
+     RETURNING u.id, u.assigned_accountant_id`,
+    [params.clientIds, params.accountantId, params.orgId],
+  );
+
+  return result.rows;
 }

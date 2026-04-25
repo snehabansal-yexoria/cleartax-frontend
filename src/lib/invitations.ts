@@ -2,11 +2,14 @@ import { randomBytes } from "crypto";
 import {
   AdminCreateUserCommand,
   CognitoIdentityProviderClient,
-  ListUsersCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import type { PoolClient, QueryResult } from "pg";
-import { getCoreRoleId } from "./coreApi";
-import { pool } from "./db";
+import {
+  createCoreUser,
+  getCoreOrganizationById,
+  getCoreRoleId,
+  listCoreOrganizations,
+} from "./coreApi";
+import { findDirectoryUserByIdentity } from "./userDirectory";
 
 export type InviteVerifiedToken = {
   sub?: string;
@@ -17,6 +20,7 @@ export type InviteVerifiedToken = {
 
 type InviteInput = {
   inviter: InviteVerifiedToken;
+  apiToken: string;
   email: string;
   requestedRole: string;
   organizationId?: string;
@@ -26,13 +30,6 @@ type InviteInput = {
 const client = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
-
-type Queryable = {
-  query: (
-    text: string,
-    params?: unknown[],
-  ) => Promise<QueryResult<{ id: string }>>;
-};
 
 function getDisplayName(value: string) {
   return value
@@ -50,198 +47,105 @@ function generateCognitoUsername(email: string) {
   return `${localPart || "user"}_${randomBytes(4).toString("hex")}`;
 }
 
-async function generateLocalUserId(db: Queryable | PoolClient = pool) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const candidate = randomBytes(5).toString("hex").toUpperCase();
-    const existingUser = await db.query(
-      `SELECT id
-       FROM users
-       WHERE id = $1
-       LIMIT 1`,
-      [candidate],
-    );
-
-    if (!existingUser.rows[0]?.id) {
-      return candidate;
-    }
-  }
-
-  throw new Error("Failed to generate a unique local user id");
+function makeHttpError(message: string, status: number) {
+  const error = new Error(message) as Error & { status?: number };
+  error.status = status;
+  return error;
 }
 
-async function ensureUserRecord(params: {
-  email: string;
-  fullName: string;
-}) {
-  const existingUser = await pool.query(
-    `SELECT id
-     FROM users
-     WHERE lower(email) = lower($1)
-     LIMIT 1`,
-    [params.email],
-  );
+async function resolveInviterOrgId(apiToken: string, inviterEmail: string) {
+  const inviter = await findDirectoryUserByIdentity({
+    email: inviterEmail,
+  }).catch(() => null);
 
-  if (existingUser.rows[0]?.id) {
-    await pool.query(
-      `UPDATE users
-       SET full_name = COALESCE(NULLIF($2, ''), full_name),
-           is_active = true
-       WHERE id = $1`,
-      [existingUser.rows[0].id, params.fullName],
-    );
-
-    return existingUser.rows[0].id as string;
+  if (inviter?.orgId) {
+    return inviter.orgId;
   }
 
-  const userId = await generateLocalUserId();
-
-  await pool.query(
-    `INSERT INTO users (id, email, full_name, is_active)
-     VALUES ($1, $2, $3, true)`,
-    [userId, params.email, params.fullName],
-  );
-
-  return userId;
+  return "";
 }
 
-async function getUserOrgId(userId: string) {
-  const mappingResult = await pool.query(
-    `SELECT org_id
-     FROM org_user_mapping
-     WHERE user_id = $1
-     ORDER BY created_at DESC NULLS LAST, id DESC
-     LIMIT 1`,
-    [userId],
-  );
-
-  return (mappingResult.rows[0]?.org_id as string | undefined) || "";
-}
-
-async function ensureInvitationRoleRecords() {
-  const roleMap = [
-    { id: getCoreRoleId("super_admin"), roleName: "super_admin" },
-    { id: getCoreRoleId("admin"), roleName: "admin" },
-    { id: getCoreRoleId("accountant"), roleName: "accountant" },
-    { id: getCoreRoleId("client"), roleName: "client" },
-  ].filter((role): role is { id: number; roleName: string } => Boolean(role.id));
-
-  for (const role of roleMap) {
-    await pool.query(
-      `INSERT INTO roles (id, role_name, description, is_system_role)
-       VALUES ($1, $2, $3, true)
-       ON CONFLICT (id) DO UPDATE
-       SET role_name = EXCLUDED.role_name,
-           description = EXCLUDED.description,
-           is_system_role = true,
-           updated_at = CURRENT_TIMESTAMP`,
-      [role.id, role.roleName, `${role.roleName} system role`],
-    );
+async function resolveOrganizationId(
+  apiToken: string,
+  inviterRole: string,
+  inviterEmail: string,
+  requestedOrganizationId: string,
+) {
+  if (inviterRole === "SUPER_ADMIN") {
+    return requestedOrganizationId;
   }
+
+  return resolveInviterOrgId(apiToken, inviterEmail);
 }
 
 export async function inviteUser(input: InviteInput) {
-  const dbClient = await pool.connect();
+  const inviterEmail = String(input.inviter.email || "").trim().toLowerCase();
+  const email = String(input.email || "").trim().toLowerCase();
+  const requestedRole = String(input.requestedRole || "").trim().toLowerCase();
+  const organizationId = String(input.organizationId || "").trim();
+  const fullName = String(input.fullName || "").trim();
+  const apiToken = String(input.apiToken || "").trim();
+
+  if (!input.inviter.sub || !inviterEmail) {
+    throw new Error("Invalid inviter token");
+  }
+
+  if (!apiToken) {
+    throw makeHttpError("Missing backend API token", 400);
+  }
+
+  if (!email || !requestedRole) {
+    throw new Error("Email and role are required");
+  }
+
+  const inviterRole = String(input.inviter["custom:role"] || "")
+    .trim()
+    .toUpperCase();
+
+  const allowedInvites: Record<string, string[]> = {
+    SUPER_ADMIN: ["admin"],
+    ADMIN: ["accountant", "client"],
+    ACCOUNTANT: ["client"],
+  };
+
+  if (!allowedInvites[inviterRole]?.includes(requestedRole)) {
+    throw makeHttpError("You are not allowed to invite this role", 403);
+  }
+
+  const finalOrgId = await resolveOrganizationId(
+    apiToken,
+    inviterRole,
+    inviterEmail,
+    organizationId,
+  );
+
+  if (!finalOrgId) {
+    throw makeHttpError("Organization is required", 400);
+  }
 
   try {
-    const inviterEmail = String(input.inviter.email || "").trim().toLowerCase();
-    const email = String(input.email || "").trim().toLowerCase();
-    const requestedRole = String(input.requestedRole || "").trim().toLowerCase();
-    const organizationId = String(input.organizationId || "").trim();
-    const fullName = String(input.fullName || "").trim();
+    await getCoreOrganizationById(apiToken, finalOrgId);
+  } catch (error) {
+    const status =
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof error.status === "number"
+        ? error.status
+        : 500;
 
-    if (!input.inviter.sub || !inviterEmail) {
-      throw new Error("Invalid inviter token");
+    if (status === 404 || status === 400) {
+      throw makeHttpError("Selected organization does not exist", 404);
     }
 
-    if (!email || !requestedRole) {
-      throw new Error("Email and role are required");
-    }
+    throw error;
+  }
 
-    const inviterRole = String(input.inviter["custom:role"] || "")
-      .trim()
-      .toUpperCase();
+  const tempPassword = `${Math.random().toString(36).slice(-8)}A1!`;
+  const cognitoUsername = generateCognitoUsername(email);
 
-    const allowedInvites: Record<string, string[]> = {
-      SUPER_ADMIN: ["admin"],
-      ADMIN: ["accountant", "client"],
-      ACCOUNTANT: ["client"],
-    };
-
-    if (!allowedInvites[inviterRole]?.includes(requestedRole)) {
-      const error = new Error("You are not allowed to invite this role");
-      (error as Error & { status?: number }).status = 403;
-      throw error;
-    }
-
-    await ensureInvitationRoleRecords();
-
-    const inviterUserId = await ensureUserRecord({
-      email: inviterEmail,
-      fullName:
-        String(input.inviter.name || "").trim() ||
-        getDisplayName(inviterEmail.split("@")[0] || "user"),
-    });
-
-    let finalOrgId = organizationId;
-
-    if (inviterRole === "ADMIN" || inviterRole === "ACCOUNTANT") {
-      finalOrgId = await getUserOrgId(inviterUserId);
-    }
-
-    if (!finalOrgId) {
-      const error = new Error("Organization is required");
-      (error as Error & { status?: number }).status = 400;
-      throw error;
-    }
-
-    const organizationResult = await pool.query(
-      `SELECT id
-       FROM organisation
-       WHERE id = $1
-       LIMIT 1`,
-      [finalOrgId],
-    );
-
-    if (!organizationResult.rows[0]?.id) {
-      const error = new Error("Selected organization does not exist");
-      (error as Error & { status?: number }).status = 404;
-      throw error;
-    }
-
-    const existingUser = await pool.query(
-      `SELECT id
-       FROM users
-       WHERE lower(email) = lower($1)
-       LIMIT 1`,
-      [email],
-    );
-
-    if (existingUser.rows[0]?.id) {
-      const error = new Error("A user with this email already exists");
-      (error as Error & { status?: number }).status = 409;
-      throw error;
-    }
-
-    const existingInvitation = await pool.query(
-      `SELECT id
-       FROM user_invitation
-       WHERE lower(email) = lower($1)
-         AND org_id = $2
-         AND status = 'pending'
-       LIMIT 1`,
-      [email, finalOrgId],
-    );
-
-    if (existingInvitation.rows[0]?.id) {
-      const error = new Error("A pending invitation already exists for this email");
-      (error as Error & { status?: number }).status = 409;
-      throw error;
-    }
-
-    const tempPassword = `${Math.random().toString(36).slice(-8)}A1!`;
-    const cognitoUsername = generateCognitoUsername(email);
-
-    const command = new AdminCreateUserCommand({
+  await client.send(
+    new AdminCreateUserCommand({
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
       Username: cognitoUsername,
       TemporaryPassword: tempPassword,
@@ -249,105 +153,73 @@ export async function inviteUser(input: InviteInput) {
       UserAttributes: [
         { Name: "email", Value: email },
         { Name: "email_verified", Value: "true" },
+        { Name: "name", Value: fullName || getDisplayName(email) },
         { Name: "custom:role", Value: requestedRole },
       ],
-    });
+    }),
+  );
 
-    await client.send(command);
+  const roleId = getCoreRoleId(requestedRole);
 
-    const roleId = getCoreRoleId(requestedRole);
+  if (!roleId) {
+    throw new Error(`Missing role mapping for ${requestedRole}`);
+  }
 
-    if (!roleId) {
-      throw new Error(`Missing role mapping for ${requestedRole}`);
-    }
+  const inviteeName = fullName || getDisplayName(email.split("@")[0] || requestedRole);
+  const createUserPayload = {
+    email,
+    full_name: inviteeName,
+    role_id: roleId,
+    org_id: finalOrgId,
+  };
 
-    const inviteeName =
-      fullName || getDisplayName(email.split("@")[0] || requestedRole);
-    const invitationToken = randomBytes(24).toString("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const inviteeUserId = await generateLocalUserId(dbClient);
+  console.log(
+    "Invite createCoreUser payload:",
+    JSON.stringify(createUserPayload, null, 2),
+  );
 
-    await dbClient.query("BEGIN");
-
-    await dbClient.query(
-      `INSERT INTO users (id, email, full_name, is_active)
-       VALUES ($1, $2, $3, true)`,
-      [inviteeUserId, email, inviteeName],
-    );
-
-    await dbClient.query(
-      `INSERT INTO org_user_mapping (org_id, user_id, role_id, status)
-       VALUES ($1, $2, $3, 'active')`,
-      [finalOrgId, inviteeUserId, roleId],
-    );
-
-    await dbClient.query(
-      `INSERT INTO user_invitation (
-         org_id,
-         email,
-         role_id,
-         invitation_token,
-         status,
-         expires_at,
-         invited_by
-       ) VALUES ($1, $2, $3, $4, 'pending', $5, $6)`,
-      [finalOrgId, email, roleId, invitationToken, expiresAt, inviterUserId],
-    );
-
-    await dbClient.query("COMMIT");
+  try {
+    const user = await createCoreUser(apiToken, createUserPayload);
 
     return {
       success: true,
       temporaryPassword: tempPassword,
-      userId: inviteeUserId,
+      userId: user.id,
       organizationId: finalOrgId,
     };
   } catch (error) {
-    await dbClient.query("ROLLBACK").catch(() => undefined);
+    const status =
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 409) {
+      throw makeHttpError("A user with this email already exists", 409);
+    }
+
     throw error;
-  } finally {
-    dbClient.release();
   }
 }
 
-export async function backfillAcceptedInvitationByEmail(email: string) {
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+export async function findOrganizationIdByNameOrId(
+  apiToken: string,
+  value: string,
+) {
+  const normalizedValue = String(value || "").trim();
 
-  if (!normalizedEmail) {
-    return false;
+  if (!normalizedValue) {
+    return "";
   }
 
-  const cognitoResult = await client.send(
-    new ListUsersCommand({
-      UserPoolId: process.env.COGNITO_USER_POOL_ID,
-      Filter: `email = "${normalizedEmail}"`,
-      Limit: 1,
-    }),
+  const organizations = await listCoreOrganizations(apiToken);
+  return (
+    organizations.find(
+      (organization) =>
+        organization.id === normalizedValue ||
+        organization.name.toLowerCase() === normalizedValue.toLowerCase(),
+    )?.id || ""
   );
-
-  const cognitoUser = cognitoResult.Users?.[0];
-  const userStatus = String(cognitoUser?.UserStatus || "").toUpperCase();
-
-  const acceptedStatuses = new Set([
-    "CONFIRMED",
-    "EXTERNAL_PROVIDER",
-    "ARCHIVED",
-    "COMPROMISED",
-    "UNKNOWN",
-  ]);
-
-  if (!acceptedStatuses.has(userStatus)) {
-    return false;
-  }
-
-  const updateResult = await pool.query(
-    `UPDATE user_invitation
-     SET status = 'accepted',
-         accepted_at = COALESCE(accepted_at, CURRENT_TIMESTAMP)
-     WHERE lower(email) = lower($1)
-       AND accepted_at IS NULL`,
-    [normalizedEmail],
-  );
-
-  return (updateResult.rowCount || 0) > 0;
 }

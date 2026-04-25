@@ -3,7 +3,6 @@ import { verifyToken } from "@/src/lib/verifyToken";
 import {
   findDirectoryUserByIdentity,
   getOrganizationById,
-  type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
@@ -14,8 +13,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
+    const idToken = authHeader.split(" ")[1];
+    const decoded = await verifyToken(idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -25,8 +24,8 @@ export async function GET(req: Request) {
     }
 
     const currentUser = await findDirectoryUserByIdentity({
-      id: decoded.sub,
-      email: decoded.email,
+      id: String(decoded.sub || ""),
+      email: String(decoded.email || ""),
     });
 
     if (!currentUser) {
@@ -40,7 +39,7 @@ export async function GET(req: Request) {
     const organization = await getOrganizationById(currentUser.orgId);
 
     return NextResponse.json({
-      organization: organization?.id
+      organization: organization.id
         ? { id: organization.id, name: organization.name }
         : null,
     });

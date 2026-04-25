@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCoreApiBearerFromRequest } from "@/src/lib/coreApi";
 import { verifyToken } from "@/src/lib/verifyToken";
 import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
 
@@ -20,10 +21,12 @@ export async function POST(req: Request) {
       );
     }
 
+    const apiToken = getCoreApiBearerFromRequest(req, "");
     const body = await req.json();
 
     const result = await inviteUser({
       inviter: decoded,
+      apiToken,
       email: String(body.email || ""),
       requestedRole: String(body.role || ""),
       organizationId: String(body.organization_id || ""),
