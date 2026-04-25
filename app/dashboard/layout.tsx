@@ -4,13 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
-import { jwtDecode } from "jwt-decode";
 import { logout } from "../../src/lib/logout";
-
-interface TokenPayload {
-  email: string;
-  "custom:role"?: string;
-}
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -18,11 +12,10 @@ interface SessionWithIdToken {
   };
 }
 
-interface OrganizationResponse {
-  organization: {
-    id: string;
-    name: string;
-  } | null;
+interface MeResponse {
+  email: string;
+  role: string;
+  orgName?: string;
 }
 
 type PortalMenuItem = {
@@ -229,33 +222,27 @@ export default function DashboardLayout({
         const idToken = session.getIdToken();
         const token = idToken.getJwtToken();
 
-        const decoded: TokenPayload = jwtDecode(token);
-
-        setEmail(decoded.email || "");
-
-        const userRole = decoded["custom:role"] || "client";
-
-        setRole(userRole);
-
         await fetch("/api/invitations/accept", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }).catch(() => undefined);
 
-        if (userRole === "admin" || userRole === "accountant") {
-          const orgResponse = await fetch("/api/users/me/organization", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const meResponse = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-          if (orgResponse.ok) {
-            const data = (await orgResponse.json()) as OrganizationResponse;
-            setOrganizationName(data.organization?.name || "");
-          }
+        if (!meResponse.ok) {
+          router.replace("/login");
+          return;
         }
+
+        const me = (await meResponse.json()) as MeResponse;
+
+        setEmail(me.email || "");
+        setRole((me.role || "").toLowerCase());
+        setOrganizationName(me.orgName || "");
+
+        document.cookie = `role=${(me.role || "").toLowerCase()}; path=/`;
       } catch (error) {
         console.error("Session error:", error);
         router.replace("/login");

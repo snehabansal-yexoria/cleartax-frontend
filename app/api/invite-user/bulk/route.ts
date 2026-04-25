@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyToken } from "@/src/lib/verifyToken";
 import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
 import { pool } from "@/src/lib/db";
+import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
 
 type BulkInviteRow = {
   email?: string;
@@ -31,9 +32,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const inviterRole = String(decoded["custom:role"] || "")
-      .trim()
-      .toUpperCase();
+    const inviter = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
+    });
+    const inviterRole = String(inviter?.role || "").toLowerCase();
     const body = await req.json();
     const rows = Array.isArray(body.rows) ? (body.rows as BulkInviteRow[]) : [];
 
@@ -61,7 +64,7 @@ export async function POST(req: Request) {
         let email = "";
         let requestedRole = "";
 
-        if (inviterRole === "SUPER_ADMIN") {
+        if (inviterRole === "super_admin") {
           const organizationValue = String(
             row.organization_id || row.organization || row.org_name || "",
           ).trim();
@@ -86,7 +89,7 @@ export async function POST(req: Request) {
           }
 
           organizationId = organizationResult.rows[0].id as string;
-        } else if (inviterRole === "ADMIN") {
+        } else if (inviterRole === "admin") {
           email = String(row.email || "").trim();
           requestedRole = String(row.role || "")
             .trim()
@@ -126,7 +129,7 @@ export async function POST(req: Request) {
           row: index + 2,
           email: String(row.admin_email || row.email || "").trim(),
           role:
-            inviterRole === "SUPER_ADMIN"
+            inviterRole === "super_admin"
               ? "admin"
               : String(row.role || "")
                   .trim()

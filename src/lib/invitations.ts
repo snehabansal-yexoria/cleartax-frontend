@@ -5,14 +5,14 @@ import {
   ListUsersCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import type { PoolClient, QueryResult } from "pg";
-import { getCoreRoleId } from "./coreApi";
 import { pool } from "./db";
+import { getRoleIdByName } from "./roles";
+import { findDirectoryUserByIdentity } from "./userDirectory";
 
 export type InviteVerifiedToken = {
   sub?: string;
   email?: string;
   name?: string;
-  "custom:role"?: string;
 };
 
 type InviteInput = {
@@ -117,28 +117,6 @@ async function getUserOrgId(userId: string) {
   return (mappingResult.rows[0]?.org_id as string | undefined) || "";
 }
 
-async function ensureInvitationRoleRecords() {
-  const roleMap = [
-    { id: getCoreRoleId("super_admin"), roleName: "super_admin" },
-    { id: getCoreRoleId("admin"), roleName: "admin" },
-    { id: getCoreRoleId("accountant"), roleName: "accountant" },
-    { id: getCoreRoleId("client"), roleName: "client" },
-  ].filter((role): role is { id: number; roleName: string } => Boolean(role.id));
-
-  for (const role of roleMap) {
-    await pool.query(
-      `INSERT INTO roles (id, role_name, description, is_system_role)
-       VALUES ($1, $2, $3, true)
-       ON CONFLICT (id) DO UPDATE
-       SET role_name = EXCLUDED.role_name,
-           description = EXCLUDED.description,
-           is_system_role = true,
-           updated_at = CURRENT_TIMESTAMP`,
-      [role.id, role.roleName, `${role.roleName} system role`],
-    );
-  }
-}
-
 export async function inviteUser(input: InviteInput) {
   const dbClient = await pool.connect();
 
@@ -157,14 +135,16 @@ export async function inviteUser(input: InviteInput) {
       throw new Error("Email and role are required");
     }
 
-    const inviterRole = String(input.inviter["custom:role"] || "")
-      .trim()
-      .toUpperCase();
+    const inviter = await findDirectoryUserByIdentity({
+      id: input.inviter.sub,
+      email: inviterEmail,
+    });
+    const inviterRole = String(inviter?.role || "").toLowerCase();
 
     const allowedInvites: Record<string, string[]> = {
-      SUPER_ADMIN: ["admin"],
-      ADMIN: ["accountant", "client"],
-      ACCOUNTANT: ["client"],
+      super_admin: ["admin"],
+      admin: ["accountant", "client"],
+      accountant: ["client"],
     };
 
     if (!allowedInvites[inviterRole]?.includes(requestedRole)) {
@@ -173,19 +153,19 @@ export async function inviteUser(input: InviteInput) {
       throw error;
     }
 
-    await ensureInvitationRoleRecords();
-
-    const inviterUserId = await ensureUserRecord({
-      email: inviterEmail,
-      fullName:
-        String(input.inviter.name || "").trim() ||
-        getDisplayName(inviterEmail.split("@")[0] || "user"),
-    });
+    const inviterUserId =
+      inviter?.id ||
+      (await ensureUserRecord({
+        email: inviterEmail,
+        fullName:
+          String(input.inviter.name || "").trim() ||
+          getDisplayName(inviterEmail.split("@")[0] || "user"),
+      }));
 
     let finalOrgId = organizationId;
 
-    if (inviterRole === "ADMIN" || inviterRole === "ACCOUNTANT") {
-      finalOrgId = await getUserOrgId(inviterUserId);
+    if (inviterRole === "admin" || inviterRole === "accountant") {
+      finalOrgId = inviter?.orgId || (await getUserOrgId(inviterUserId));
     }
 
     if (!finalOrgId) {
@@ -249,16 +229,15 @@ export async function inviteUser(input: InviteInput) {
       UserAttributes: [
         { Name: "email", Value: email },
         { Name: "email_verified", Value: "true" },
-        { Name: "custom:role", Value: requestedRole },
       ],
     });
 
     await client.send(command);
 
-    const roleId = getCoreRoleId(requestedRole);
+    const roleId = await getRoleIdByName(requestedRole);
 
     if (!roleId) {
-      throw new Error(`Missing role mapping for ${requestedRole}`);
+      throw new Error(`Role ${requestedRole} does not exist in the database`);
     }
 
     const inviteeName =

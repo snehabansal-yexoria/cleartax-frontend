@@ -1,11 +1,10 @@
-import { getCoreRoleId } from "./coreApi";
 import { pool } from "./db";
+import { getRoleNameById } from "./roles";
 
 export type VerifiedTokenLike = {
   sub?: string;
   email?: string;
   name?: string;
-  "custom:role"?: string;
 };
 
 export type DirectoryUser = {
@@ -51,32 +50,17 @@ function toRoleIdNumber(roleId: number | string | null) {
   return null;
 }
 
-function getRoleNameById(roleId: number | string | null) {
-  const normalizedRoleId = toRoleIdNumber(roleId);
-  const roleMap = {
-    super_admin: getCoreRoleId("super_admin"),
-    admin: getCoreRoleId("admin"),
-    accountant: getCoreRoleId("accountant"),
-    client: getCoreRoleId("client"),
-  };
-
-  return (
-    Object.entries(roleMap).find(([, value]) => value === normalizedRoleId)?.[0] ||
-    "unknown"
-  );
-}
-
 export function formatDisplayName(email: string) {
   const localPart = (email.split("@")[0] || "user").replace(/[._-]/g, " ");
   return localPart.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function normalizeDirectoryUser(row: RawDirectoryRow): DirectoryUser {
+async function normalizeDirectoryUser(row: RawDirectoryRow): Promise<DirectoryUser> {
   return {
     id: row.id,
     email: row.email,
     fullName: row.full_name || formatDisplayName(row.email || ""),
-    role: getRoleNameById(row.role_id),
+    role: await getRoleNameById(row.role_id),
     roleId: toRoleIdNumber(row.role_id),
     orgId: row.org_id || "",
     orgName: row.org_name || "",
@@ -143,7 +127,7 @@ export async function findDirectoryUserByIdentity(identity: {
   );
 
   const row = result.rows[0];
-  return row ? normalizeDirectoryUser(row) : null;
+  return row ? await normalizeDirectoryUser(row) : null;
 }
 
 export async function listDirectoryUsers(filter?: {
@@ -187,7 +171,7 @@ export async function listDirectoryUsers(filter?: {
     [orgId, roleIds],
   );
 
-  return result.rows.map(normalizeDirectoryUser);
+  return Promise.all(result.rows.map(normalizeDirectoryUser));
 }
 
 export async function getOrganizationById(orgId: string) {

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { getCoreRoleId } from "../../../../../src/lib/coreApi";
+import { verifyToken } from "@/src/lib/verifyToken";
+import { getRoleIdByName } from "@/src/lib/roles";
 import {
   findDirectoryUserByIdentity,
   listDirectoryUsers,
   type VerifiedTokenLike,
-} from "../../../../../src/lib/userDirectory";
+} from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -30,19 +30,15 @@ export async function GET(req: Request) {
       email: decoded.email,
     });
 
-    if (!currentUser) {
+    if (!currentUser || !currentUser.orgId) {
       return NextResponse.json({ adminContact: null });
     }
 
-    if (!currentUser.orgId) {
-      return NextResponse.json({ adminContact: null });
-    }
-
-    const adminRoleId = getCoreRoleId("admin");
+    const adminRoleId = await getRoleIdByName("admin");
 
     if (!adminRoleId) {
       return NextResponse.json(
-        { error: "Admin role is not configured" },
+        { error: "Admin role is missing in the database" },
         { status: 500 },
       );
     }

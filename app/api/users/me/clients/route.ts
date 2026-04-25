@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { getCoreRoleId } from "../../../../../src/lib/coreApi";
+import { verifyToken } from "@/src/lib/verifyToken";
+import { getRoleIdByName } from "@/src/lib/roles";
 import {
   findDirectoryUserByIdentity,
   listDirectoryUsers,
   type VerifiedTokenLike,
-} from "../../../../../src/lib/userDirectory";
+} from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -34,9 +34,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const requesterRole = String(requester.role || "").toUpperCase();
+    const requesterRole = requester.role.toLowerCase();
 
-    if (!["ADMIN", "ACCOUNTANT"].includes(requesterRole)) {
+    if (!["admin", "accountant"].includes(requesterRole)) {
       return NextResponse.json(
         { error: "You are not allowed to view clients" },
         { status: 403 },
@@ -50,11 +50,11 @@ export async function GET(req: Request) {
     const scope = new URL(req.url).searchParams.get("scope") === "mine"
       ? "mine"
       : "all";
-    const clientRoleId = getCoreRoleId("client");
+    const clientRoleId = await getRoleIdByName("client");
 
     if (!clientRoleId) {
       return NextResponse.json(
-        { error: "Client role is not configured" },
+        { error: "Client role is missing in the database" },
         { status: 500 },
       );
     }

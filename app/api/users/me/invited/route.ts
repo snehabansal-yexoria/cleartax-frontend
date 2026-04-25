@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { getCoreRoleId } from "../../../../../src/lib/coreApi";
-import { backfillAcceptedInvitationByEmail } from "../../../../../src/lib/invitations";
+import { verifyToken } from "@/src/lib/verifyToken";
+import { getRoleIdsByNames } from "@/src/lib/roles";
+import { backfillAcceptedInvitationByEmail } from "@/src/lib/invitations";
 import {
   findDirectoryUserByIdentity,
   listDirectoryUsers,
   type VerifiedTokenLike,
-} from "../../../../../src/lib/userDirectory";
+} from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -26,49 +26,44 @@ export async function GET(req: Request) {
       );
     }
 
-    const requesterRole = String(decoded["custom:role"] || "").toUpperCase();
+    const requester = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
+    });
 
-    if (!["SUPER_ADMIN", "ADMIN"].includes(requesterRole)) {
+    if (!requester) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const requesterRole = requester.role.toLowerCase();
+
+    if (!["super_admin", "admin"].includes(requesterRole)) {
       return NextResponse.json(
         { error: "You are not allowed to view invited users" },
         { status: 403 },
       );
     }
 
-    const requester =
-      requesterRole === "SUPER_ADMIN"
-        ? await findDirectoryUserByIdentity({
-            id: decoded.sub,
-            email: decoded.email,
-          })
-        : await findDirectoryUserByIdentity({
-            id: decoded.sub,
-            email: decoded.email,
-          });
-
-    if (requesterRole === "ADMIN" && !requester?.orgId) {
+    if (requesterRole === "admin" && !requester.orgId) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const adminRoleId = getCoreRoleId("admin");
-    const accountantRoleId = getCoreRoleId("accountant");
-    const clientRoleId = getCoreRoleId("client");
+    const roleNames =
+      requesterRole === "super_admin"
+        ? ["admin"]
+        : ["accountant", "client"];
+    const roleIds = await getRoleIdsByNames(roleNames);
 
-    const roleIds =
-      requesterRole === "SUPER_ADMIN"
-        ? [adminRoleId]
-        : [accountantRoleId, clientRoleId];
-
-    if (roleIds.some((value) => !value)) {
+    if (roleIds.length !== roleNames.length) {
       return NextResponse.json(
-        { error: "Role mapping is not configured" },
+        { error: "Role rows are missing in the database" },
         { status: 500 },
       );
     }
 
     const filteredUsers = await listDirectoryUsers({
-      orgId: requesterRole === "ADMIN" ? requester?.orgId : undefined,
-      roleIds: roleIds as number[],
+      orgId: requesterRole === "admin" ? requester.orgId : undefined,
+      roleIds,
     });
 
     await Promise.all(
@@ -103,28 +98,16 @@ export async function GET(req: Request) {
       accountants: normalizedUsers.filter((user) => user.role === "accountant").length,
       clients: normalizedUsers.filter((user) => user.role === "client").length,
       organizations:
-        requesterRole === "SUPER_ADMIN"
+        requesterRole === "super_admin"
           ? new Set(
               normalizedUsers
                 .map((user) => user.organizationName)
                 .filter(Boolean),
             ).size
-          : requester?.orgId
+          : requester.orgId
             ? 1
-          : 0,
+            : 0,
     };
-
-    console.log(
-      "Invited users response:",
-      JSON.stringify(
-        {
-          summary,
-          users: normalizedUsers,
-        },
-        null,
-        2,
-      ),
-    );
 
     return NextResponse.json({
       summary,

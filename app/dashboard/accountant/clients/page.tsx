@@ -1,6 +1,7 @@
 "use client";
 
 import { Skeleton } from "boneyard-js/react";
+import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AccountantClientsSkeleton } from "../../../components/PortalSkeletons";
@@ -289,7 +290,12 @@ function AccountantClientsContent() {
                 {getInitials(client.name)}
               </div>
               <div>
-                <strong>{client.name}</strong>
+                <Link
+                  href={`/dashboard/accountant/clients/${client.id}`}
+                  className="accountant-client-name-link"
+                >
+                  <strong>{client.name}</strong>
+                </Link>
                 <span>{client.phoneNumber || "+1 (555) 000-0000"}</span>
               </div>
             </div>

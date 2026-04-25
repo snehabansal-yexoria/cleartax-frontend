@@ -27,6 +27,34 @@ export type CoreOrganization = {
   tenantCode: string;
 };
 
+export type EntityType =
+  | "individual"
+  | "partnership"
+  | "company"
+  | "trust"
+  | "smsf";
+
+export type CoreBeneficiary = {
+  id?: number;
+  name: string;
+  userId?: string | null;
+  ownershipPercentage: number;
+  position?: number;
+};
+
+export type CoreEntity = {
+  id: string;
+  orgId: string;
+  entityType: EntityType;
+  name: string;
+  createdFor: string;
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  beneficiaries: CoreBeneficiary[];
+};
+
 function getCoreApiBaseUrl() {
   const baseUrl =
     process.env.CORE_API_BASE_URL || process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
@@ -98,33 +126,10 @@ function toNumberValue(value: unknown) {
   return Number.isNaN(asNumber) ? null : asNumber;
 }
 
-function getConfiguredRoleMap() {
-  return {
-    super_admin: Number(process.env.CORE_API_ROLE_ID_SUPER_ADMIN || 1),
-    admin: Number(process.env.CORE_API_ROLE_ID_ADMIN || 2),
-    accountant: Number(process.env.CORE_API_ROLE_ID_ACCOUNTANT || 3),
-    client: Number(process.env.CORE_API_ROLE_ID_CLIENT || 4),
-  };
-}
-
-export function getCoreRoleId(role: string) {
-  const roleMap = getConfiguredRoleMap();
-  return roleMap[role as keyof typeof roleMap] ?? null;
-}
-
 function getRoleName(raw: RawRecord) {
-  const directRole = toStringValue(raw.role || raw.role_name || raw.roleName)
+  return toStringValue(raw.role || raw.role_name || raw.roleName)
     .trim()
-    .toLowerCase();
-
-  if (directRole) {
-    return directRole;
-  }
-
-  const roleId = toNumberValue(raw.role_id || raw.roleId);
-  const roleMap = getConfiguredRoleMap();
-  const match = Object.entries(roleMap).find(([, value]) => value === roleId);
-  return match?.[0] || "unknown";
+    .toLowerCase() || "unknown";
 }
 
 export function normalizeCoreUser(raw: RawRecord): CoreUser {
@@ -223,4 +228,89 @@ export async function createCoreUser(token: string, body: Record<string, unknown
     body,
   });
   return normalizeCoreUser(getJsonObject(payload));
+}
+
+function normalizeBeneficiary(raw: RawRecord): CoreBeneficiary {
+  const userIdRaw = raw.user_id ?? raw.userId;
+  const pctRaw = raw.ownership_percentage ?? raw.ownershipPercentage;
+  const posRaw = raw.position;
+
+  return {
+    id:
+      typeof raw.id === "number"
+        ? raw.id
+        : typeof raw.id === "string"
+          ? Number.parseInt(raw.id, 10) || undefined
+          : undefined,
+    name: toStringValue(raw.name),
+    userId: userIdRaw == null ? null : toStringValue(userIdRaw) || null,
+    ownershipPercentage:
+      typeof pctRaw === "number"
+        ? pctRaw
+        : Number.parseFloat(toStringValue(pctRaw)) || 0,
+    position: typeof posRaw === "number" ? posRaw : undefined,
+  };
+}
+
+export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
+  const beneficiariesRaw = Array.isArray(raw.beneficiaries) ? raw.beneficiaries : [];
+
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityType: (toStringValue(raw.entity_type ?? raw.entityType).toLowerCase() ||
+      "individual") as EntityType,
+    name: toStringValue(raw.name),
+    createdFor: toStringValue(raw.created_for ?? raw.createdFor),
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy:
+      raw.updated_by == null && raw.updatedBy == null
+        ? null
+        : toStringValue(raw.updated_by ?? raw.updatedBy) || null,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    beneficiaries: beneficiariesRaw
+      .filter((b): b is RawRecord => typeof b === "object" && b !== null)
+      .map(normalizeBeneficiary),
+  };
+}
+
+export async function listCoreEntities(token: string, params?: { clientId?: string }) {
+  const query = params?.clientId ? `?client_id=${encodeURIComponent(params.clientId)}` : "";
+  const payload = await coreApiRequest(`/entities${query}`, { token });
+  return getJsonArray(payload).map(normalizeCoreEntity);
+}
+
+export async function getCoreEntity(token: string, id: string) {
+  const payload = await coreApiRequest(`/entities/${encodeURIComponent(id)}`, { token });
+  return normalizeCoreEntity(getJsonObject(payload));
+}
+
+export async function createCoreEntity(token: string, body: Record<string, unknown>) {
+  const payload = await coreApiRequest("/entities", {
+    method: "POST",
+    token,
+    body,
+  });
+  return normalizeCoreEntity(getJsonObject(payload));
+}
+
+export async function updateCoreEntity(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    token,
+    body,
+  });
+  return normalizeCoreEntity(getJsonObject(payload));
+}
+
+export async function deleteCoreEntity(token: string, id: string) {
+  await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
 }

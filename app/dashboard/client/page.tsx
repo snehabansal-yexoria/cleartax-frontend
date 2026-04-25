@@ -1,10 +1,71 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { logout } from "../../../src/lib/logout";
+import { useEffect, useState } from "react";
+import { logout } from "@/src/lib/logout";
+import { getSession } from "@/src/lib/session";
+import type { CoreEntity } from "@/src/lib/coreApi";
+
+interface SessionWithIdToken {
+  getIdToken(): {
+    getJwtToken(): string;
+  };
+}
+
+function titleCase(value: string) {
+  if (!value) return "";
+  return value
+    .split(/[_\s-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
 
 export default function ClientPage() {
   const router = useRouter();
+  const [entities, setEntities] = useState<CoreEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) {
+          router.replace("/login/user");
+          return;
+        }
+        const token = session.getIdToken().getJwtToken();
+
+        const res = await fetch("/api/entities", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+
+        if (res.ok) {
+          const data = (await res.json()) as { items?: CoreEntity[] };
+          setEntities(data.items || []);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setErrorMessage(data.error || "Failed to load your entities.");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load client entities:", error);
+          setErrorMessage("Unexpected error loading your workspace.");
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   function handleLogout() {
     logout();
@@ -16,36 +77,57 @@ export default function ClientPage() {
       <div className="portal-page-header">
         <div>
           <p className="portal-kicker">Client Workspace</p>
-          <h1>Client Panel</h1>
-          <p>View your property portfolio and financial data.</p>
+          <h1>Your Entities</h1>
+          <p>Register the legal structures that hold your properties.</p>
         </div>
 
-        <button
-          type="button"
-          className="portal-secondary-link"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
+        <div className="portal-page-actions">
+          <Link
+            href="/dashboard/client/entities/new"
+            className="entity-wizard-primary"
+          >
+            + Add Entity
+          </Link>
+          <button
+            type="button"
+            className="portal-secondary-link"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      <div className="portal-summary-grid">
-        <article className="portal-summary-card portal-summary-card-blue">
-          <span>Portfolio Status</span>
-          <strong>Active</strong>
-          <p>Your workspace is ready for document review and updates.</p>
-        </article>
-        <article className="portal-summary-card portal-summary-card-gold">
-          <span>Documents</span>
-          <strong>12</strong>
-          <p>Recent files and uploaded statements available in your portal.</p>
-        </article>
-        <article className="portal-summary-card">
-          <span>Next Step</span>
-          <strong>Review</strong>
-          <p>Check your latest tasks, statements, and onboarding items.</p>
-        </article>
-      </div>
+      {isLoading ? (
+        <p>Loading your entities…</p>
+      ) : errorMessage ? (
+        <p className="entity-wizard-error">{errorMessage}</p>
+      ) : entities.length === 0 ? (
+        <div className="client-detail-empty">
+          <p>
+            You haven&apos;t added any entities yet. Use <strong>Add Entity</strong>{" "}
+            to register your first Individual, Trust, Company or SMSF — then you
+            can map properties and transactions to it.
+          </p>
+        </div>
+      ) : (
+        <ul className="client-detail-entity-list">
+          {entities.map((entity) => (
+            <li key={entity.id} className="client-detail-entity-row">
+              <div>
+                <strong>{entity.name}</strong>
+                <span>{titleCase(entity.entityType)}</span>
+              </div>
+              <div className="client-detail-entity-meta">
+                <span>
+                  {entity.beneficiaries.length} beneficiar
+                  {entity.beneficiaries.length === 1 ? "y" : "ies"}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
