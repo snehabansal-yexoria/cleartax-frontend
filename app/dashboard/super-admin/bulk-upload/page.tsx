@@ -17,6 +17,7 @@ interface BulkResult {
   role: string;
   success: boolean;
   temporaryPassword?: string;
+  message?: string;
   error?: string;
 }
 
@@ -32,6 +33,7 @@ export default function SuperAdminBulkUploadPage() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>("file");
+  const [importSource, setImportSource] = useState<InputMode>("file");
   const [pastedValue, setPastedValue] = useState("");
   const [modalError, setModalError] = useState("");
 
@@ -62,9 +64,14 @@ export default function SuperAdminBulkUploadPage() {
     resetModalState();
   }
 
-  function applyParsedRows(parsedRows: Record<string, string>[], nextFileName = "") {
+  function applyParsedRows(
+    parsedRows: Record<string, string>[],
+    nextFileName = "",
+    nextImportSource: InputMode,
+  ) {
     setRows(parsedRows);
     setFileName(nextFileName);
+    setImportSource(nextImportSource);
     setResults([]);
     setUploadMessage("");
   }
@@ -84,7 +91,7 @@ export default function SuperAdminBulkUploadPage() {
       return;
     }
 
-    applyParsedRows(parsedRows, file.name);
+    applyParsedRows(parsedRows, file.name, "file");
     closeModal();
   }
 
@@ -96,7 +103,7 @@ export default function SuperAdminBulkUploadPage() {
       return;
     }
 
-    applyParsedRows(parsedRows, "Pasted table");
+    applyParsedRows(parsedRows, "Pasted table", "paste");
     closeModal();
   }
 
@@ -166,7 +173,7 @@ export default function SuperAdminBulkUploadPage() {
 
         <div className="portal-upload-actions">
           <button type="button" className="portal-primary-link" onClick={openModal}>
-            Open Import Modal
+            Import Users
           </button>
           {fileName && (
             <span className="portal-upload-filename">{fileName}</span>
@@ -177,7 +184,11 @@ export default function SuperAdminBulkUploadPage() {
             onClick={handleUpload}
             disabled={loading || rows.length === 0}
           >
-            {loading ? "Uploading..." : "Upload CSV"}
+            {loading
+              ? "Uploading..."
+              : importSource === "paste"
+                ? "Upload Table"
+                : "Upload CSV"}
           </button>
           {uploadMessage && (
             <span className="portal-upload-success">{uploadMessage}</span>
@@ -197,7 +208,7 @@ export default function SuperAdminBulkUploadPage() {
             <div className="portal-modal-header">
               <div>
                 <p className="portal-kicker">Bulk Upload</p>
-                <h2 id="super-admin-bulk-upload-title">Import Admin Invites</h2>
+                <h2 id="super-admin-bulk-upload-title">Import Users</h2>
                 <p>Use a CSV file or paste organization, email, and name rows.</p>
               </div>
               <button
@@ -346,7 +357,9 @@ export default function SuperAdminBulkUploadPage() {
                 </div>
                 <div>
                   {result.success
-                    ? `Temp password: ${result.temporaryPassword}`
+                    ? result.temporaryPassword
+                      ? `Temp password: ${result.temporaryPassword}`
+                      : result.message || "Already invited"
                     : result.error}
                 </div>
               </article>

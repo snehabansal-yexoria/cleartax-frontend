@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       role: string;
       success: boolean;
       temporaryPassword?: string;
+      message?: string;
       error?: string;
     }> = [];
 
@@ -120,6 +121,9 @@ export async function POST(req: Request) {
           role: requestedRole,
           success: true,
           temporaryPassword: result.temporaryPassword,
+          message: result.alreadyInvited
+            ? "User already invited in this organization"
+            : "Invite created successfully",
         });
       } catch (error) {
         results.push({

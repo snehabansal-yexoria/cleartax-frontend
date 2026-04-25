@@ -2,7 +2,7 @@
 
 import { Skeleton } from "boneyard-js/react";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AccountantClientsSkeleton } from "../../../components/PortalSkeletons";
 import { getSession } from "../../../../src/lib/session";
 
@@ -50,6 +50,7 @@ function formatJoinedDate(value: string | null) {
 
 function AccountantClientsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState<ClientTab>("all");
   const [allClients, setAllClients] = useState<ClientRecord[]>([]);
   const [myClients, setMyClients] = useState<ClientRecord[]>([]);
@@ -324,13 +325,24 @@ function AccountantClientsContent() {
         </div>
 
         {visibleClients.map((client) => (
-          <article key={client.id} className="accountant-client-table-row">
+          <article
+            key={client.id}
+            className={`accountant-client-table-row${
+              currentTab === "mine" ? " is-clickable" : ""
+            }`}
+            onClick={() => {
+              if (currentTab === "mine") {
+                router.push(`/dashboard/accountant/clients/${client.id}`);
+              }
+            }}
+          >
             <div>
               {currentTab === "all" ? (
                 <input
                   type="checkbox"
                   checked={selectedClientIds.includes(client.id)}
                   onChange={() => toggleClientSelection(client.id)}
+                  onClick={(event) => event.stopPropagation()}
                 />
               ) : (
                 <span className="accountant-client-table-placeholder" />
