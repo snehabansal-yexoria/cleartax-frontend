@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/src/lib/verifyToken";
 import {
-  findDirectoryUserByIdentity,
-  getOrganizationById,
-} from "@/src/lib/userDirectory";
+  getCoreApiBearerFromRequest,
+} from "@/src/lib/coreApi";
+import {
+  findApiDirectoryUserByIdentity,
+  getApiOrganizationById,
+} from "@/src/lib/coreUserDirectory";
+import { verifyToken } from "@/src/lib/verifyToken";
 
 export async function GET(req: Request) {
   try {
@@ -15,6 +18,7 @@ export async function GET(req: Request) {
 
     const idToken = authHeader.split(" ")[1];
     const decoded = await verifyToken(idToken);
+    const apiToken = getCoreApiBearerFromRequest(req, idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -23,7 +27,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const currentUser = await findDirectoryUserByIdentity({
+    const currentUser = await findApiDirectoryUserByIdentity(apiToken, {
       id: String(decoded.sub || ""),
       email: String(decoded.email || ""),
     });
@@ -36,7 +40,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ organization: null });
     }
 
-    const organization = await getOrganizationById(currentUser.orgId);
+    const organization =
+      currentUser.orgName
+        ? { id: currentUser.orgId, name: currentUser.orgName }
+        : await getApiOrganizationById(apiToken, currentUser.orgId);
 
     return NextResponse.json({
       organization: organization?.id

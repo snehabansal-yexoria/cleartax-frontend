@@ -15,9 +15,14 @@ export type CoreUser = {
   role: string;
   roleId: number | null;
   orgId: string;
+  orgName: string;
   status: string;
   phoneNumber: string;
   invitedBy: string;
+  invitedByEmail: string;
+  createdAt: string | null;
+  assignedAccountantId: string;
+  assignedAccountantName: string;
 };
 
 export type CoreOrganization = {
@@ -134,6 +139,31 @@ function toNumberValue(value: unknown) {
   return Number.isNaN(asNumber) ? null : asNumber;
 }
 
+function toBooleanValue(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalized = toStringValue(value).trim().toLowerCase();
+
+  if (["true", "1", "yes"].includes(normalized)) {
+    return true;
+  }
+
+  if (["false", "0", "no"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+function getNestedString(raw: RawRecord, key: string) {
+  const value = raw[key];
+  return typeof value === "object" && value !== null
+    ? toStringValue((value as RawRecord).name || (value as RawRecord).email)
+    : "";
+}
+
 function getConfiguredRoleMap() {
   return {
     super_admin: Number(process.env.CORE_API_ROLE_ID_SUPER_ADMIN || 1),
@@ -164,20 +194,84 @@ function getRoleName(raw: RawRecord) {
 }
 
 export function normalizeCoreUser(raw: RawRecord): CoreUser {
+  const organization = raw.organization || raw.organisation;
+  const inviter = raw.inviter || raw.invitedByUser || raw.createdByUser;
+  const assignedAccountant =
+    raw.assigned_accountant || raw.assignedAccountant || raw.accountant;
+  const isActive = toBooleanValue(
+    raw.is_active ?? raw.isActive ?? raw.active,
+  );
+  const status = toStringValue(raw.status || raw.user_status || raw.userStatus);
+
   return {
     id: toStringValue(raw.id || raw.user_id || raw.userId),
     email: toStringValue(raw.email),
     fullName: toStringValue(raw.full_name || raw.fullName),
     role: getRoleName(raw),
     roleId: toNumberValue(raw.role_id || raw.roleId),
-    orgId: toStringValue(raw.org_id || raw.organization_id || raw.orgId),
-    status: toStringValue(
-      raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE"),
-    ),
+    orgId:
+      toStringValue(
+        raw.org_id ||
+          raw.organization_id ||
+          raw.organisation_id ||
+          raw.orgId ||
+          raw.organizationId ||
+          raw.organisationId,
+      ) ||
+      (typeof organization === "object" && organization !== null
+        ? toStringValue(
+            (organization as RawRecord).id ||
+              (organization as RawRecord).org_id ||
+              (organization as RawRecord).orgId,
+          )
+        : ""),
+    orgName:
+      toStringValue(
+        raw.org_name ||
+          raw.orgName ||
+          raw.organization_name ||
+          raw.organisation_name,
+      ) ||
+      (typeof organization === "object" && organization !== null
+        ? toStringValue(
+            (organization as RawRecord).name ||
+              (organization as RawRecord).org_name ||
+              (organization as RawRecord).orgName,
+          )
+        : ""),
+    status: status || (isActive === false ? "INACTIVE" : "ACTIVE"),
     phoneNumber: toStringValue(
       raw.phone || raw.phone_number || raw.phoneNumber,
     ),
     invitedBy: toStringValue(raw.invited_by || raw.invitedBy || raw.created_by),
+    invitedByEmail:
+      toStringValue(
+        raw.invited_by_email || raw.invitedByEmail || raw.created_by_email,
+      ) ||
+      (typeof inviter === "object" && inviter !== null
+        ? toStringValue((inviter as RawRecord).email)
+        : getNestedString(raw, "inviter")),
+    createdAt: toStringValue(raw.created_at || raw.createdAt) || null,
+    assignedAccountantId: toStringValue(
+      raw.assigned_accountant_id ||
+        raw.assignedAccountantId ||
+        raw.accountant_id ||
+        raw.accountantId,
+    ),
+    assignedAccountantName:
+      toStringValue(
+        raw.assigned_accountant_name ||
+          raw.assignedAccountantName ||
+          raw.accountant_name ||
+          raw.accountantName,
+      ) ||
+      (typeof assignedAccountant === "object" && assignedAccountant !== null
+        ? toStringValue(
+            (assignedAccountant as RawRecord).full_name ||
+              (assignedAccountant as RawRecord).fullName ||
+              (assignedAccountant as RawRecord).name,
+          )
+        : ""),
   };
 }
 
@@ -274,5 +368,22 @@ export async function createCoreUser(
     body,
   });
   return normalizeCoreUser(getJsonObject(payload));
-  console.log("Created user:", normalizeCoreUser(getJsonObject(payload)));
+}
+
+export async function getCoreUserById(token: string, userId: string) {
+  const payload = await coreApiRequest(`/users/${userId}`, { token });
+  return normalizeCoreUser(getJsonObject(payload));
+}
+
+export async function updateCoreUser(
+  token: string,
+  userId: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(`/users/${userId}`, {
+    method: "PATCH",
+    token,
+    body,
+  });
+  return normalizeCoreUser(getJsonObject(payload));
 }

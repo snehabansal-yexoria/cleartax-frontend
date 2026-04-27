@@ -169,7 +169,9 @@ export default function SuperAdminPage() {
               <div>
                 <span
                   className={`portal-status${
-                    user.status === "INVITED" ? " is-pending" : ""
+                    ["INVITED", "PENDING"].includes(user.status)
+                      ? " is-pending"
+                      : ""
                   }`}
                 >
                   {user.status}

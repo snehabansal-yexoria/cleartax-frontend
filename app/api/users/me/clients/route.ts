@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../src/lib/verifyToken";
 import {
-  assignClientsToAccountant,
-  findDirectoryUserByIdentity,
-  listDirectoryUsers,
-} from "../../../../../src/lib/userDirectory";
+  getCoreApiBearerFromRequest,
+} from "../../../../../src/lib/coreApi";
+import {
+  getCognitoInviteStatusByEmail,
+  normalizeInviteStatus,
+} from "../../../../../src/lib/cognitoInviteStatus";
+import {
+  assignApiClientsToAccountant,
+  findApiDirectoryUserByIdentity,
+  listApiDirectoryUsers,
+} from "../../../../../src/lib/coreUserDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -16,6 +23,7 @@ export async function GET(req: Request) {
 
     const idToken = authHeader.split(" ")[1];
     const decoded = await verifyToken(idToken);
+    const apiToken = getCoreApiBearerFromRequest(req, idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -24,7 +32,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const requester = await findDirectoryUserByIdentity({
+    const requester = await findApiDirectoryUserByIdentity(apiToken, {
       id: String(decoded.sub || ""),
       email: String(decoded.email || ""),
     });
@@ -50,23 +58,33 @@ export async function GET(req: Request) {
       ? "mine"
       : "all";
 
-    const users = await listDirectoryUsers({
+    const users = await listApiDirectoryUsers(apiToken, {
       orgId: requester.orgId,
     });
+    const clients = users.filter(
+      (user) =>
+        user.role === "client" &&
+        user.orgId === requester.orgId &&
+        (scope !== "mine" || user.assignedAccountantId === requester.id),
+    );
+    const cognitoStatuses = new Map(
+      await Promise.all(
+        clients.map(async (user) => [
+          user.email,
+          await getCognitoInviteStatusByEmail(user.email),
+        ] as const),
+      ),
+    );
 
     return NextResponse.json({
-      clients: users
-        .filter(
-          (user) =>
-            user.role === "client" &&
-            user.orgId === requester.orgId &&
-            (scope !== "mine" ||
-              user.assignedAccountantId === requester.id),
-        )
+      clients: clients
         .map((user) => ({
           id: user.id,
           email: user.email,
-          status: user.status,
+          status: normalizeInviteStatus(
+            user.status,
+            cognitoStatuses.get(user.email) || "",
+          ),
           name: user.fullName,
           phoneNumber: user.phoneNumber || "",
           invitedByEmail: user.invitedByEmail || "",
@@ -94,6 +112,7 @@ export async function POST(req: Request) {
 
     const idToken = authHeader.split(" ")[1];
     const decoded = await verifyToken(idToken);
+    const apiToken = getCoreApiBearerFromRequest(req, idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -102,7 +121,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const requester = await findDirectoryUserByIdentity({
+    const requester = await findApiDirectoryUserByIdentity(apiToken, {
       id: String(decoded.sub || ""),
       email: String(decoded.email || ""),
     });
@@ -141,7 +160,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const orgUsers = await listDirectoryUsers({
+    const orgUsers = await listApiDirectoryUsers(apiToken, {
       orgId: requester.orgId,
     });
 
@@ -158,10 +177,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const assignments = await assignClientsToAccountant({
+    const assignments = await assignApiClientsToAccountant({
+      token: apiToken,
       clientIds: filteredClientIds,
       accountantId: requester.id,
-      orgId: requester.orgId,
+      accountantName: requester.fullName,
     });
 
     return NextResponse.json({

@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../src/lib/verifyToken";
-import { getCoreRoleId } from "../../../../../src/lib/coreApi";
 import {
-  findDirectoryUserByIdentity,
-  listDirectoryUsers,
-} from "../../../../../src/lib/userDirectory";
+  getCoreApiBearerFromRequest,
+  getCoreRoleId,
+  listCoreOrganizations,
+} from "../../../../../src/lib/coreApi";
+import {
+  getCognitoInviteStatusByEmail,
+  normalizeInviteStatus,
+} from "../../../../../src/lib/cognitoInviteStatus";
+import {
+  findApiDirectoryUserByIdentity,
+  listApiDirectoryUsers,
+} from "../../../../../src/lib/coreUserDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -16,6 +24,7 @@ export async function GET(req: Request) {
 
     const idToken = authHeader.split(" ")[1];
     const decoded = await verifyToken(idToken);
+    const apiToken = getCoreApiBearerFromRequest(req, idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -25,7 +34,7 @@ export async function GET(req: Request) {
     }
 
     const tokenRole = String(decoded["custom:role"] || "").toUpperCase();
-    const requester = await findDirectoryUserByIdentity({
+    const requester = await findApiDirectoryUserByIdentity(apiToken, {
       id: String(decoded.sub || ""),
       email: String(decoded.email || ""),
     });
@@ -49,23 +58,39 @@ export async function GET(req: Request) {
     const clientRoleId = getCoreRoleId("client");
 
     const filteredUsers = requesterRole === "SUPER_ADMIN"
-      ? await listDirectoryUsers({
+      ? await listApiDirectoryUsers(apiToken, {
           roleIds: adminRoleId ? [adminRoleId] : [],
         })
-      : await listDirectoryUsers({
+      : await listApiDirectoryUsers(apiToken, {
           orgId: requester?.orgId || "",
           roleIds: [accountantRoleId, clientRoleId].filter(
             (value): value is number => value !== null,
           ),
         });
 
+    const organizations = await listCoreOrganizations(apiToken).catch(() => []);
+    const organizationNameById = new Map(
+      organizations.map((organization) => [organization.id, organization.name]),
+    );
+    const cognitoStatuses = new Map(
+      await Promise.all(
+        filteredUsers.map(async (user) => [
+          user.email,
+          await getCognitoInviteStatusByEmail(user.email),
+        ] as const),
+      ),
+    );
+
     const normalizedUsers = filteredUsers.map((user) => ({
       id: user.id,
       email: user.email,
       role: user.role,
-      status: user.status || "INVITED",
+      status: normalizeInviteStatus(
+        user.status,
+        cognitoStatuses.get(user.email) || "",
+      ),
       name: user.fullName,
-      organizationName: user.orgName || "",
+      organizationName: user.orgName || organizationNameById.get(user.orgId) || "",
       invitedByEmail: user.invitedByEmail || "",
       createdAt: user.createdAt,
     }));

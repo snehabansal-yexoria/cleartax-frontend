@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../../src/lib/verifyToken";
 import {
-  findDirectoryUserByIdentity,
-  listDirectoryUsers,
-} from "../../../../../../src/lib/userDirectory";
+  getCoreApiBearerFromRequest,
+} from "../../../../../../src/lib/coreApi";
+import {
+  getCognitoInviteStatusByEmail,
+  normalizeInviteStatus,
+} from "../../../../../../src/lib/cognitoInviteStatus";
+import {
+  findApiDirectoryUserByIdentity,
+  listApiDirectoryUsers,
+} from "../../../../../../src/lib/coreUserDirectory";
 
 export async function GET(
   req: Request,
@@ -18,6 +25,7 @@ export async function GET(
 
     const idToken = authHeader.split(" ")[1];
     const decoded = await verifyToken(idToken);
+    const apiToken = getCoreApiBearerFromRequest(req, idToken);
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -26,7 +34,7 @@ export async function GET(
       );
     }
 
-    const requester = await findDirectoryUserByIdentity({
+    const requester = await findApiDirectoryUserByIdentity(apiToken, {
       id: String(decoded.sub || ""),
       email: String(decoded.email || ""),
     });
@@ -55,7 +63,7 @@ export async function GET(
       return NextResponse.json({ error: "Client id is required" }, { status: 400 });
     }
 
-    const users = await listDirectoryUsers({
+    const users = await listApiDirectoryUsers(apiToken, {
       orgId: requester.orgId,
     });
 
@@ -71,7 +79,10 @@ export async function GET(
       client: {
         id: client.id,
         email: client.email,
-        status: client.status,
+        status: normalizeInviteStatus(
+          client.status,
+          await getCognitoInviteStatusByEmail(client.email),
+        ),
         name: client.fullName,
         phoneNumber: client.phoneNumber || "",
         invitedByEmail: client.invitedByEmail || "",

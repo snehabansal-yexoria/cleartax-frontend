@@ -5,8 +5,8 @@ import {
   getCoreRoleId,
   listCoreOrganizations,
   listCoreUsers,
+  updateCoreUser,
 } from "@/src/lib/coreApi";
-import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
 import { verifyToken } from "@/src/lib/verifyToken";
 
 type ProvisionBody = {
@@ -77,26 +77,20 @@ export async function POST(req: Request) {
       });
     }
 
-    const existingDirectoryUser = await findDirectoryUserByIdentity({
-      id: String(decoded.sub || ""),
-      email: decoded.email,
-    }).catch(() => null);
-
-    if (existingDirectoryUser?.id) {
-      return NextResponse.json({
-        success: true,
-        created: false,
-        existing: true,
-        user: existingDirectoryUser,
-      });
-    }
-
     const existingUsers = await listCoreUsers(accessToken).catch(() => []);
     const existingUser = existingUsers.find(
       (user) => user.email.toLowerCase() === decoded.email?.toLowerCase(),
     );
 
     if (existingUser?.id) {
+      await updateCoreUser(accessToken, existingUser.id, {
+        is_active: true,
+      }).catch(() => null);
+
+      await updateCoreUser(accessToken, existingUser.id, {
+        status: "accepted",
+      }).catch(() => null);
+
       return NextResponse.json({
         success: true,
         created: false,
@@ -124,10 +118,13 @@ export async function POST(req: Request) {
         .toUpperCase();
 
       if (!tenantCode) {
-        return NextResponse.json(
-          { error: "Tenant code is required to provision this account" },
-          { status: 400 },
-        );
+        return NextResponse.json({
+          success: true,
+          created: false,
+          skipped: true,
+          reason:
+            "No tenant code was present on the token; existing invited users are resolved from the backend user directory.",
+        });
       }
 
       const organizations = await listCoreOrganizations(accessToken);
