@@ -179,15 +179,33 @@ export async function coreApiRequest<T = unknown>(
   });
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload: unknown = null;
+  let parseError: Error | null = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch (error) {
+      parseError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
 
   if (!response.ok) {
+    const upstreamMessage =
+      (payload as RawRecord | null)?.message ||
+      (payload as RawRecord | null)?.error;
+    const bodyExcerpt = parseError
+      ? text.slice(0, 200).replace(/\s+/g, " ").trim()
+      : "";
     throw new Error(
-      `Core API ${method} ${path} failed: ${
-        (payload as RawRecord | null)?.message ||
-        (payload as RawRecord | null)?.error ||
-        response.statusText
-      }`,
+      `Core API ${method} ${path} failed (${response.status} ${response.statusText})${
+        upstreamMessage ? `: ${upstreamMessage}` : ""
+      }${bodyExcerpt ? ` — body: ${bodyExcerpt}` : ""}`,
+    );
+  }
+
+  if (parseError) {
+    throw new Error(
+      `Core API ${method} ${path} returned non-JSON body (status ${response.status}): ${text.slice(0, 200)}`,
     );
   }
 
