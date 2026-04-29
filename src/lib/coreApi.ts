@@ -34,6 +34,8 @@ export type EntityType =
   | "trust"
   | "smsf";
 
+export type PropertyType = "residential" | "commercial" | "vacant_land";
+
 export type CoreBeneficiary = {
   id?: number;
   name: string;
@@ -53,6 +55,37 @@ export type CoreEntity = {
   createdAt: string;
   updatedAt: string;
   beneficiaries: CoreBeneficiary[];
+};
+
+export type CorePropertyOwner = {
+  id?: number;
+  entityBeneficiaryId?: number | null;
+  ownerName: string;
+  userId?: string | null;
+  ownershipPercentage: number;
+  position?: number;
+};
+
+export type CoreProperty = {
+  id: string;
+  orgId: string;
+  entityId: string;
+  createdFor: string;
+  name: string;
+  propertyType: PropertyType;
+  locationText: string;
+  estimatedMarketValue: number;
+  purchaseDate: string;
+  purchaseAmount: number;
+  hasDepreciationSchedule: boolean;
+  status: string;
+  imageUrl: string | null;
+  loanDetails: Record<string, unknown> | null;
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owners: CorePropertyOwner[];
 };
 
 function getCoreApiBaseUrl() {
@@ -124,6 +157,12 @@ function toNumberValue(value: unknown) {
   const asNumber =
     typeof value === "number" ? value : Number.parseInt(toStringValue(value), 10);
   return Number.isNaN(asNumber) ? null : asNumber;
+}
+
+function toFloatValue(value: unknown) {
+  const asNumber =
+    typeof value === "number" ? value : Number.parseFloat(toStringValue(value));
+  return Number.isNaN(asNumber) ? 0 : asNumber;
 }
 
 function getRoleName(raw: RawRecord) {
@@ -328,6 +367,127 @@ export async function updateCoreEntity(
 
 export async function deleteCoreEntity(token: string, id: string) {
   await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+function normalizePropertyOwner(raw: RawRecord): CorePropertyOwner {
+  const beneficiaryRaw = raw.entity_beneficiary_id ?? raw.entityBeneficiaryId;
+  const userIdRaw = raw.user_id ?? raw.userId;
+  const pctRaw = raw.ownership_percentage ?? raw.ownershipPercentage;
+  const posRaw = raw.position;
+
+  return {
+    id:
+      typeof raw.id === "number"
+        ? raw.id
+        : typeof raw.id === "string"
+          ? Number.parseInt(raw.id, 10) || undefined
+          : undefined,
+    entityBeneficiaryId:
+      beneficiaryRaw == null
+        ? null
+        : typeof beneficiaryRaw === "number"
+          ? beneficiaryRaw
+          : Number.parseInt(toStringValue(beneficiaryRaw), 10) || null,
+    ownerName: toStringValue(raw.owner_name ?? raw.ownerName),
+    userId: userIdRaw == null ? null : toStringValue(userIdRaw) || null,
+    ownershipPercentage: toFloatValue(pctRaw),
+    position: typeof posRaw === "number" ? posRaw : undefined,
+  };
+}
+
+export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
+  const ownersRaw = Array.isArray(raw.owners) ? raw.owners : [];
+  const loanRaw = raw.loan_details ?? raw.loanDetails;
+
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    createdFor: toStringValue(raw.created_for ?? raw.createdFor),
+    name: toStringValue(raw.name),
+    propertyType: (toStringValue(
+      raw.property_type ?? raw.propertyType,
+    ).toLowerCase() || "residential") as PropertyType,
+    locationText: toStringValue(raw.location_text ?? raw.locationText),
+    estimatedMarketValue: toFloatValue(
+      raw.estimated_market_value ?? raw.estimatedMarketValue,
+    ),
+    purchaseDate: toStringValue(raw.purchase_date ?? raw.purchaseDate),
+    purchaseAmount: toFloatValue(raw.purchase_amount ?? raw.purchaseAmount),
+    hasDepreciationSchedule: Boolean(
+      raw.has_depreciation_schedule ?? raw.hasDepreciationSchedule,
+    ),
+    status: toStringValue(raw.status),
+    imageUrl:
+      raw.image_url == null && raw.imageUrl == null
+        ? null
+        : toStringValue(raw.image_url ?? raw.imageUrl) || null,
+    loanDetails:
+      typeof loanRaw === "object" && loanRaw !== null && !Array.isArray(loanRaw)
+        ? (loanRaw as Record<string, unknown>)
+        : null,
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy:
+      raw.updated_by == null && raw.updatedBy == null
+        ? null
+        : toStringValue(raw.updated_by ?? raw.updatedBy) || null,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    owners: ownersRaw
+      .filter((owner): owner is RawRecord => typeof owner === "object" && owner !== null)
+      .map(normalizePropertyOwner),
+  };
+}
+
+export async function listCoreProperties(token: string, entityId: string) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/properties`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreProperty);
+}
+
+export async function getCoreProperty(token: string, id: string) {
+  const payload = await coreApiRequest(`/properties/${encodeURIComponent(id)}`, {
+    token,
+  });
+  return normalizeCoreProperty(getJsonObject(payload));
+}
+
+export async function createCoreProperty(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/properties`,
+    {
+      method: "POST",
+      token,
+      body,
+    },
+  );
+  return normalizeCoreProperty(getJsonObject(payload));
+}
+
+export async function updateCoreProperty(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(`/properties/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    token,
+    body,
+  });
+  return normalizeCoreProperty(getJsonObject(payload));
+}
+
+export async function deleteCoreProperty(token: string, id: string) {
+  await coreApiRequest(`/properties/${encodeURIComponent(id)}`, {
     method: "DELETE",
     token,
   });

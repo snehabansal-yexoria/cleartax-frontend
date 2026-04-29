@@ -115,7 +115,12 @@ export default function ClientPage() {
           {entities.map((entity) => (
             <li key={entity.id} className="client-detail-entity-row">
               <div>
-                <strong>{entity.name}</strong>
+                <Link
+                  href={`/dashboard/client/entities/${entity.id}`}
+                  className="client-detail-entity-link"
+                >
+                  <strong>{entity.name}</strong>
+                </Link>
                 <span>{titleCase(entity.entityType)}</span>
               </div>
               <div className="client-detail-entity-meta">
