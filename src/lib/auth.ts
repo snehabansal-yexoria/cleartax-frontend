@@ -48,7 +48,7 @@ export function login(email: string, password: string) {
 export function completeNewPassword(
   user: CognitoUser,
   newPassword: string,
-  attributes: any,
+  attributes: Record<string, string>,
 ) {
   return new Promise((resolve, reject) => {
     user.completeNewPasswordChallenge(newPassword, attributes, {

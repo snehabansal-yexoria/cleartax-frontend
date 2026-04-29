@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "boneyard-js/react";
+import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
 
@@ -161,9 +163,13 @@ export default function ClientDetailPage() {
 
   if (isLoading) {
     return (
-      <section className="client-detail-page client-portfolio-page">
-        <p>Loading client...</p>
-      </section>
+      <Skeleton
+        name="client-portfolio-page"
+        loading
+        fallback={<ClientPortfolioSkeleton />}
+      >
+        <ClientPortfolioSkeleton />
+      </Skeleton>
     );
   }
 

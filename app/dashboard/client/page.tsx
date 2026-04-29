@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Skeleton } from "boneyard-js/react";
+import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -73,66 +75,70 @@ export default function ClientPage() {
   }
 
   return (
-    <section className="portal-page">
-      <div className="portal-page-header">
-        <div>
-          <p className="portal-kicker">Client Workspace</p>
-          <h1>Your Entities</h1>
-          <p>Register the legal structures that hold your properties.</p>
+    <Skeleton
+      name="client-entities-page"
+      loading={isLoading}
+      fallback={<ClientEntitiesSkeleton />}
+    >
+      <section className="portal-page">
+        <div className="portal-page-header">
+          <div>
+            <p className="portal-kicker">Client Workspace</p>
+            <h1>Your Entities</h1>
+            <p>Register the legal structures that hold your properties.</p>
+          </div>
+
+          <div className="portal-page-actions">
+            <Link
+              href="/dashboard/client/entities/new"
+              className="entity-wizard-primary"
+            >
+              + Add Entity
+            </Link>
+            <button
+              type="button"
+              className="portal-secondary-link"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
-        <div className="portal-page-actions">
-          <Link
-            href="/dashboard/client/entities/new"
-            className="entity-wizard-primary"
-          >
-            + Add Entity
-          </Link>
-          <button
-            type="button"
-            className="portal-secondary-link"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p>Loading your entities…</p>
-      ) : errorMessage ? (
-        <p className="entity-wizard-error">{errorMessage}</p>
-      ) : entities.length === 0 ? (
-        <div className="client-detail-empty">
-          <p>
-            You haven&apos;t added any entities yet. Use <strong>Add Entity</strong>{" "}
-            to register your first Individual, Trust, Company or SMSF — then you
-            can map properties and transactions to it.
-          </p>
-        </div>
-      ) : (
-        <ul className="client-detail-entity-list">
-          {entities.map((entity) => (
-            <li key={entity.id} className="client-detail-entity-row">
-              <div>
-                <Link
-                  href={`/dashboard/client/entities/${entity.id}`}
-                  className="client-detail-entity-link"
-                >
-                  <strong>{entity.name}</strong>
-                </Link>
-                <span>{titleCase(entity.entityType)}</span>
-              </div>
-              <div className="client-detail-entity-meta">
-                <span>
-                  {entity.beneficiaries.length} beneficiar
-                  {entity.beneficiaries.length === 1 ? "y" : "ies"}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+        {errorMessage ? (
+          <p className="entity-wizard-error">{errorMessage}</p>
+        ) : entities.length === 0 ? (
+          <div className="client-detail-empty">
+            <p>
+              You haven&apos;t added any entities yet. Use <strong>Add Entity</strong>{" "}
+              to register your first Individual, Trust, Company or SMSF — then you
+              can map properties and transactions to it.
+            </p>
+          </div>
+        ) : (
+          <ul className="client-detail-entity-list">
+            {entities.map((entity) => (
+              <li key={entity.id} className="client-detail-entity-row">
+                <div>
+                  <Link
+                    href={`/dashboard/client/entities/${entity.id}`}
+                    className="client-detail-entity-link"
+                  >
+                    <strong>{entity.name}</strong>
+                  </Link>
+                  <span>{titleCase(entity.entityType)}</span>
+                </div>
+                <div className="client-detail-entity-meta">
+                  <span>
+                    {entity.beneficiaries.length} beneficiar
+                    {entity.beneficiaries.length === 1 ? "y" : "ies"}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </Skeleton>
   );
 }

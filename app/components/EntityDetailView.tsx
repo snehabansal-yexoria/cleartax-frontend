@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "boneyard-js/react";
+import { EntityDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
 
@@ -17,6 +19,7 @@ export type EntityDetailViewProps = {
   backHref: string;
   backLabel: string;
   addPropertyHref: string;
+  propertyDetailHrefBase: string;
 };
 
 type EntityTab = "properties" | "transactions" | "documents";
@@ -67,6 +70,7 @@ export default function EntityDetailView({
   backHref,
   backLabel,
   addPropertyHref,
+  propertyDetailHrefBase,
 }: EntityDetailViewProps) {
   const router = useRouter();
   const [entity, setEntity] = useState<CoreEntity | null>(null);
@@ -133,9 +137,13 @@ export default function EntityDetailView({
 
   if (isLoading) {
     return (
-      <section className="client-detail-page entity-detail-page">
-        <p>Loading entity...</p>
-      </section>
+      <Skeleton
+        name="entity-detail-page"
+        loading
+        fallback={<EntityDetailSkeleton />}
+      >
+        <EntityDetailSkeleton />
+      </Skeleton>
     );
   }
 
@@ -273,7 +281,12 @@ export default function EntityDetailView({
                 {properties.map((property) => (
                   <li key={property.id} className="entity-property-row">
                     <div className="entity-property-main">
-                      <strong>{property.name}</strong>
+                      <Link
+                        href={`${propertyDetailHrefBase}/${property.id}`}
+                        className="entity-property-title-link"
+                      >
+                        <strong>{property.name}</strong>
+                      </Link>
                       <span>
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11Z" />
@@ -299,9 +312,15 @@ export default function EntityDetailView({
                     <button type="button" className="entity-property-disabled-action">
                       + Add Transaction
                     </button>
-                    <svg className="entity-property-chevron" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="m9 6 6 6-6 6" />
-                    </svg>
+                    <Link
+                      href={`${propertyDetailHrefBase}/${property.id}`}
+                      className="entity-property-chevron-link"
+                      aria-label={`Open ${property.name}`}
+                    >
+                      <svg className="entity-property-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="m9 6 6 6-6 6" />
+                      </svg>
+                    </Link>
                   </li>
                 ))}
               </ul>

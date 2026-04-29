@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Skeleton } from "boneyard-js/react";
 import AddEntityWizard from "@/app/components/AddEntityWizard";
+import { EntityWizardSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 
 interface SessionWithIdToken {
@@ -59,9 +61,13 @@ export default function NewEntityForClientPage() {
 
   if (!isReady) {
     return (
-      <section className="entity-wizard">
-        <p>Loading…</p>
-      </section>
+      <Skeleton
+        name="accountant-add-entity-page"
+        loading
+        fallback={<EntityWizardSkeleton />}
+      >
+        <EntityWizardSkeleton />
+      </Skeleton>
     );
   }
 

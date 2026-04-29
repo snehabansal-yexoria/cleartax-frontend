@@ -14,6 +14,7 @@ export default function AccountantEntityDetailPage() {
       backHref={`/dashboard/accountant/clients/${clientId}`}
       backLabel="Client"
       addPropertyHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/new`}
+      propertyDetailHrefBase={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties`}
     />
   );
 }
