@@ -1,6 +1,6 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
-const region = process.env.AWS_REGION;
+const region = process.env.APP_REGION || process.env.AWS_REGION;
 const userPoolId = process.env.COGNITO_USER_POOL_ID;
 
 const JWKS = createRemoteJWKSet(

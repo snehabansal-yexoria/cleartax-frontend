@@ -23,8 +23,19 @@ type InviteInput = {
   fullName?: string;
 };
 
+const appAccessKeyId = process.env.APP_ACCESS_KEY_ID;
+const appSecretAccessKey = process.env.APP_SECRET_ACCESS_KEY;
+
 const client = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION,
+  region: process.env.APP_REGION || process.env.AWS_REGION,
+  ...(appAccessKeyId && appSecretAccessKey
+    ? {
+        credentials: {
+          accessKeyId: appAccessKeyId,
+          secretAccessKey: appSecretAccessKey,
+        },
+      }
+    : {}),
 });
 
 type Queryable = {

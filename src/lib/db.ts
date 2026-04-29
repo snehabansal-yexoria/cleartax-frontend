@@ -13,11 +13,21 @@ export const pool = new Pool({
   password: databasePassword
     ? databasePassword
     : async () => {
+        const appAccessKeyId = process.env.APP_ACCESS_KEY_ID;
+        const appSecretAccessKey = process.env.APP_SECRET_ACCESS_KEY;
         const signer = new Signer({
           hostname: databaseHost!,
           port: Number(process.env.DATABASE_PORT),
           username: databaseUser!,
-          region: process.env.AWS_REGION,
+          region: process.env.APP_REGION || process.env.AWS_REGION,
+          ...(appAccessKeyId && appSecretAccessKey
+            ? {
+                credentials: {
+                  accessKeyId: appAccessKeyId,
+                  secretAccessKey: appSecretAccessKey,
+                },
+              }
+            : {}),
         });
 
         return signer.getAuthToken();
