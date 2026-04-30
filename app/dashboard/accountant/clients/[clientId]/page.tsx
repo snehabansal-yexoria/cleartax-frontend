@@ -23,6 +23,7 @@ interface ClientDetail {
   joinedAt: string | null;
   assignedAccountantId: string;
   assignedAccountantName: string;
+  isDemo?: boolean;
 }
 
 type DetailTab =
@@ -30,6 +31,32 @@ type DetailTab =
   | "banking"
   | "transactions"
   | "documents";
+
+const demoEntities = [
+  {
+    id: "rodriguez-family-smsf",
+    name: "Rodriguez Family SMSF",
+    type: "Self Managed Super Fund",
+    ownership: "Micheal Chen 60%",
+    properties: 5,
+    transactions: 56,
+  },
+  {
+    id: "chen-property-trust",
+    name: "Chen Property Trust",
+    type: "Discretionary Trust",
+    ownership: "Micheal Chen 40%",
+    properties: 7,
+    transactions: 44,
+  },
+];
+
+const demoTransactions = [
+  ["Mar 1, 2024", "Rent", "Monthly rent - Unit A", "Russian Hill Duplex", "Rodriguez & Associates Holdings", "$8,500"],
+  ["Mar 1, 2024", "Rent", "Monthly rent - Unit B", "Russian Hill Duplex", "Rodriguez & Associates Holdings", "$7,800"],
+  ["Feb 20, 2024", "Maintenance", "Parking lot resurfacing", "Sunset Business Park", "Rodriguez & Associates Holdings", "$6,200"],
+  ["Feb 10, 2024", "Purchase", "Initial purchase", "Russian Hill Duplex", "Rodriguez & Associates Holdings", "$2,450,000"],
+];
 
 function getInitials(name: string) {
   const parts = name
@@ -62,6 +89,7 @@ export default function AccountantClientDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("entities");
+  const isDemoClient = client?.isDemo || client?.id === "demo-client-001";
 
   useEffect(() => {
     async function loadClient() {
@@ -190,7 +218,7 @@ export default function AccountantClientDetailPage() {
             </div>
             <div>
               <span>Total Entities</span>
-              <strong>0</strong>
+              <strong>{isDemoClient ? "2" : "0"}</strong>
             </div>
           </article>
 
@@ -203,7 +231,7 @@ export default function AccountantClientDetailPage() {
             </div>
             <div>
               <span>Total Properties</span>
-              <strong>0</strong>
+              <strong>{isDemoClient ? "12" : "0"}</strong>
             </div>
           </article>
 
@@ -216,7 +244,7 @@ export default function AccountantClientDetailPage() {
             </div>
             <div>
               <span>Total Transactions</span>
-              <strong>0</strong>
+              <strong>{isDemoClient ? "36" : "0"}</strong>
             </div>
           </article>
         </div>
@@ -253,38 +281,112 @@ export default function AccountantClientDetailPage() {
             </button>
           </div>
 
-          <div className="accountant-client-detail-empty">
-            <div className="accountant-client-detail-empty-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 3h7l5 5v13H7z" />
-                <path d="M14 3v5h5" />
-                <path d="M9 13h6" />
-                <path d="M9 17h6" />
-              </svg>
+          {isDemoClient && activeTab === "entities" ? (
+            <div className="accountant-client-detail-section">
+              <div className="accountant-client-detail-section-head">
+                <div>
+                  <h2>Entities & Ownership</h2>
+                  <p>Review the seeded entities for this demo client.</p>
+                </div>
+                <Link
+                  href={`/dashboard/accountant/clients/${clientId}/entities/new`}
+                  className="accountant-primary-cta"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  Add Entity
+                </Link>
+              </div>
+
+              <div className="accountant-demo-entity-grid">
+                {demoEntities.map((entity) => (
+                  <Link
+                    key={entity.id}
+                    href={`/dashboard/accountant/clients/${clientId}/entities/${entity.id}`}
+                    className="accountant-demo-entity-card"
+                  >
+                    <div>
+                      <span>{entity.type}</span>
+                      <h3>{entity.name}</h3>
+                      <p>{entity.ownership}</p>
+                    </div>
+                    <div className="accountant-demo-entity-metrics">
+                      <strong>{entity.properties} properties</strong>
+                      <strong>{entity.transactions} transactions</strong>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
-            <h2>{emptyState.title}</h2>
-            <p>{emptyState.description}</p>
-            {activeTab === "entities" ? (
-              <Link
-                href={`/dashboard/accountant/clients/${clientId}/entities/new`}
-                className="accountant-primary-cta"
-              >
+          ) : isDemoClient && activeTab === "transactions" ? (
+            <div className="accountant-client-detail-section">
+              <div className="accountant-client-detail-section-head">
+                <div>
+                  <h2>All Transactions</h2>
+                  <p>Total: <strong>08</strong> transactions</p>
+                </div>
+                <select aria-label="Filter transactions">
+                  <option>All Properties</option>
+                </select>
+              </div>
+
+              <div className="accountant-demo-transaction-table">
+                <div className="accountant-demo-transaction-head">
+                  <span>Date</span>
+                  <span>Category</span>
+                  <span>Description</span>
+                  <span>Property</span>
+                  <span>Entity</span>
+                  <span>Amount</span>
+                </div>
+                {demoTransactions.map((transaction) => (
+                  <div key={`${transaction[0]}-${transaction[2]}`} className="accountant-demo-transaction-row">
+                    <span>{transaction[0]}</span>
+                    <span><mark>{transaction[1]}</mark></span>
+                    <span>{transaction[2]}</span>
+                    <span>{transaction[3]}</span>
+                    <span>{transaction[4]}</span>
+                    <strong>{transaction[5]}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="accountant-client-detail-empty">
+              <div className="accountant-client-detail-empty-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
+                  <path d="M7 3h7l5 5v13H7z" />
+                  <path d="M14 3v5h5" />
+                  <path d="M9 13h6" />
+                  <path d="M9 17h6" />
                 </svg>
-                {emptyState.button}
-              </Link>
-            ) : (
-              <button type="button" className="accountant-primary-cta">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
-                {emptyState.button}
-              </button>
-            )}
-          </div>
+              </div>
+              <h2>{emptyState.title}</h2>
+              <p>{emptyState.description}</p>
+              {activeTab === "entities" ? (
+                <Link
+                  href={`/dashboard/accountant/clients/${clientId}/entities/new`}
+                  className="accountant-primary-cta"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  {emptyState.button}
+                </Link>
+              ) : (
+                <button type="button" className="accountant-primary-cta">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  {emptyState.button}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </Skeleton>

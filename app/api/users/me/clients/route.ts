@@ -12,6 +12,7 @@ import {
   findApiDirectoryUserByIdentity,
   listApiDirectoryUsers,
 } from "../../../../../src/lib/coreUserDirectory";
+import { getDemoClientRecord } from "../../../../../src/lib/demoAccountantData";
 
 export async function GET(req: Request) {
   try {
@@ -38,6 +39,25 @@ export async function GET(req: Request) {
     });
 
     if (!requester) {
+      const tokenRole = String(
+        decoded["custom:role"] || decoded.role || "",
+      ).toUpperCase();
+
+      if (tokenRole === "ACCOUNTANT") {
+        return NextResponse.json({
+          clients: [
+            {
+              ...getDemoClientRecord({
+                id: String(decoded.sub || "demo-accountant"),
+                email: String(decoded.email || ""),
+                name: String(decoded.name || decoded.email || "Demo Accountant"),
+              }),
+              isDemo: true,
+            },
+          ],
+        });
+      }
+
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -50,13 +70,20 @@ export async function GET(req: Request) {
       );
     }
 
-    if (!requester.orgId) {
-      return NextResponse.json({ clients: [] });
-    }
-
     const scope = new URL(req.url).searchParams.get("scope") === "mine"
       ? "mine"
       : "all";
+
+    const demoClient =
+      requesterRole === "ACCOUNTANT"
+        ? { ...getDemoClientRecord(requester), isDemo: true }
+        : null;
+
+    if (!requester.orgId) {
+      return NextResponse.json({
+        clients: demoClient ? [demoClient] : [],
+      });
+    }
 
     const users = await listApiDirectoryUsers(apiToken, {
       orgId: requester.orgId,
@@ -76,22 +103,34 @@ export async function GET(req: Request) {
       ),
     );
 
+    const clientRecords = clients.map((user) => ({
+      id: user.id,
+      email: user.email,
+      status: normalizeInviteStatus(
+        user.status,
+        cognitoStatuses.get(user.email) || "",
+      ),
+      name: user.fullName,
+      phoneNumber: user.phoneNumber || "",
+      invitedByEmail: user.invitedByEmail || "",
+      joinedAt: user.createdAt,
+      assignedAccountantId: user.assignedAccountantId || "",
+      assignedAccountantName: user.assignedAccountantName || "",
+      isDemo: false,
+    }));
+
+    if (
+      demoClient &&
+      !clientRecords.some(
+        (client) =>
+          client.id === demoClient.id || client.email === demoClient.email,
+      )
+    ) {
+      clientRecords.push(demoClient);
+    }
+
     return NextResponse.json({
-      clients: clients
-        .map((user) => ({
-          id: user.id,
-          email: user.email,
-          status: normalizeInviteStatus(
-            user.status,
-            cognitoStatuses.get(user.email) || "",
-          ),
-          name: user.fullName,
-          phoneNumber: user.phoneNumber || "",
-          invitedByEmail: user.invitedByEmail || "",
-          joinedAt: user.createdAt,
-          assignedAccountantId: user.assignedAccountantId || "",
-          assignedAccountantName: user.assignedAccountantName || "",
-        })),
+      clients: clientRecords,
     });
   } catch (error) {
     console.error("Fetch clients error:", error);

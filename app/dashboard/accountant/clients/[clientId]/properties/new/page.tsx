@@ -155,7 +155,7 @@ export default function AccountantAddPropertyPage() {
 
     const timer = window.setTimeout(() => {
       router.push(`/dashboard/accountant/clients/${clientId}`);
-    }, 1800);
+    }, 900);
 
     return () => window.clearTimeout(timer);
   }, [showSuccess, clientId, router]);
@@ -621,6 +621,7 @@ export default function AccountantAddPropertyPage() {
               <p>
                 Successfully added to the client ledger. All future
                 transactions can now be assigned here for easier reporting.
+                Returning to the client dashboard.
               </p>
             </div>
           </div>

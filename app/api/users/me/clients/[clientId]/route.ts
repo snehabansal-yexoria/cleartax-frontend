@@ -11,6 +11,7 @@ import {
   findApiDirectoryUserByIdentity,
   listApiDirectoryUsers,
 } from "../../../../../../src/lib/coreUserDirectory";
+import { getDemoClientRecord } from "../../../../../../src/lib/demoAccountantData";
 
 export async function GET(
   req: Request,
@@ -39,7 +40,32 @@ export async function GET(
       email: String(decoded.email || ""),
     });
 
+    const params = await context.params;
+    const clientId = String(params.clientId || "").trim();
+
+    if (!clientId) {
+      return NextResponse.json({ error: "Client id is required" }, { status: 400 });
+    }
+
     if (!requester) {
+      const tokenRole = String(
+        decoded["custom:role"] || decoded.role || "",
+      ).toUpperCase();
+      const demoClient = getDemoClientRecord({
+        id: String(decoded.sub || "demo-accountant"),
+        email: String(decoded.email || ""),
+        name: String(decoded.name || decoded.email || "Demo Accountant"),
+      });
+
+      if (tokenRole === "ACCOUNTANT" && clientId === demoClient.id) {
+        return NextResponse.json({
+          client: {
+            ...demoClient,
+            isDemo: true,
+          },
+        });
+      }
+
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -52,15 +78,19 @@ export async function GET(
       );
     }
 
-    if (!requester.orgId) {
-      return NextResponse.json({ error: "Organization missing" }, { status: 400 });
+    const demoClient = getDemoClientRecord(requester);
+
+    if (requesterRole === "ACCOUNTANT" && clientId === demoClient.id) {
+      return NextResponse.json({
+        client: {
+          ...demoClient,
+          isDemo: true,
+        },
+      });
     }
 
-    const params = await context.params;
-    const clientId = String(params.clientId || "").trim();
-
-    if (!clientId) {
-      return NextResponse.json({ error: "Client id is required" }, { status: 400 });
+    if (!requester.orgId) {
+      return NextResponse.json({ error: "Organization missing" }, { status: 400 });
     }
 
     const users = await listApiDirectoryUsers(apiToken, {

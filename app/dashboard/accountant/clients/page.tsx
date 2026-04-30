@@ -22,6 +22,7 @@ interface ClientRecord {
   joinedAt: string | null;
   assignedAccountantId: string;
   assignedAccountantName: string;
+  isDemo?: boolean;
 }
 
 type ClientTab = "all" | "mine";
@@ -341,6 +342,8 @@ function AccountantClientsContent() {
                 <input
                   type="checkbox"
                   checked={selectedClientIds.includes(client.id)}
+                  disabled={client.isDemo}
+                  title={client.isDemo ? "Demo client" : undefined}
                   onChange={() => toggleClientSelection(client.id)}
                   onClick={(event) => event.stopPropagation()}
                 />
