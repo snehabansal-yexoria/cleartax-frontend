@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../src/lib/verifyToken";
-import { pool } from "../../../../src/lib/db";
+import {
+  getCoreApiBearerFromRequest,
+  listCoreUsers,
+  updateCoreUser,
+} from "../../../../src/lib/coreApi";
 
 type VerifiedToken = {
   sub?: string;
@@ -17,6 +21,7 @@ export async function POST(req: Request) {
 
     const token = authHeader.split(" ")[1];
     const decoded = (await verifyToken(token)) as VerifiedToken | null;
+    const apiToken = getCoreApiBearerFromRequest(req, token);
 
     if (!decoded?.email) {
       return NextResponse.json(
@@ -25,19 +30,24 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await pool.query(
-      `UPDATE user_invitation
-       SET status = 'accepted',
-           accepted_at = COALESCE(accepted_at, CURRENT_TIMESTAMP)
-       WHERE lower(email) = lower($1)
-         AND accepted_at IS NULL
-       RETURNING id`,
-      [decoded.email],
+    const users = await listCoreUsers(apiToken).catch(() => []);
+    const currentUser = users.find(
+      (user) => user.email.toLowerCase() === decoded.email?.toLowerCase(),
     );
+
+    if (currentUser?.id) {
+      await updateCoreUser(apiToken, currentUser.id, {
+        is_active: true,
+      }).catch(() => null);
+
+      await updateCoreUser(apiToken, currentUser.id, {
+        status: "accepted",
+      }).catch(() => null);
+    }
 
     return NextResponse.json({
       success: true,
-      updated: result.rowCount || 0,
+      updated: currentUser?.id ? 1 : 0,
     });
   } catch (error) {
     console.error("Accept invitation error:", error);
