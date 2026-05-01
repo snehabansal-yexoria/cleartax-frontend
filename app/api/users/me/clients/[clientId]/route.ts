@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "../../../../../../src/lib/verifyToken";
-import {
-  getCoreApiBearerFromRequest,
-} from "../../../../../../src/lib/coreApi";
+import { getCoreApiBearerFromRequest } from "../../../../../../src/lib/coreApi";
 import {
   getCognitoInviteStatusByEmail,
   normalizeInviteStatus,
@@ -44,7 +42,10 @@ export async function GET(
     const clientId = String(params.clientId || "").trim();
 
     if (!clientId) {
-      return NextResponse.json({ error: "Client id is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Client id is required" },
+        { status: 400 },
+      );
     }
 
     if (!requester) {
@@ -90,7 +91,10 @@ export async function GET(
     }
 
     if (!requester.orgId) {
-      return NextResponse.json({ error: "Organization missing" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Organization missing" },
+        { status: 400 },
+      );
     }
 
     const users = await listApiDirectoryUsers(apiToken, {
