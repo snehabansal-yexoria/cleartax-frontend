@@ -113,7 +113,7 @@ async function normalizeDirectoryUser(
 export async function findDirectoryUserByIdentity(identity: {
   id?: string;
   email?: string;
-}) {
+}): Promise<DirectoryUser | null> {
   const email = String(identity.email || "")
     .trim()
     .toLowerCase();
@@ -172,7 +172,7 @@ export async function findDirectoryUserByIdentity(identity: {
 export async function listDirectoryUsers(filter?: {
   orgId?: string;
   roleIds?: number[];
-}) {
+}): Promise<DirectoryUser[]> {
   const orgId = String(filter?.orgId || "").trim();
   const roleIds = (filter?.roleIds || []).filter((value): value is number =>
     Number.isFinite(value),
