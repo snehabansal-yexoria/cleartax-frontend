@@ -66,13 +66,8 @@ export type AddEntityWizardProps = {
   backHref: string;
   onSuccessHref: string;
   addAnotherHref?: string;
+  defaultBeneficiaryName?: string;
 };
-
-const stepMeta = [
-  { title: "Choose Entity Type", subtitle: "Select the type of entity" },
-  { title: "Enter Entity Name", subtitle: "Name client entity" },
-  { title: "Add Beneficiaries", subtitle: "Define ownership structure" },
-];
 
 export default function AddEntityWizard({
   createdFor,
@@ -80,6 +75,7 @@ export default function AddEntityWizard({
   backHref,
   onSuccessHref,
   addAnotherHref,
+  defaultBeneficiaryName = "",
 }: AddEntityWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -101,13 +97,39 @@ export default function AddEntityWizard({
     [beneficiaries],
   );
 
-  const ownershipComplete = Math.abs(totalOwnership - 100) < 0.01;
+  const ownershipAboveZero = totalOwnership > 0;
+  const ownershipWithinLimit = totalOwnership <= 100;
+  const ownershipOverLimit = totalOwnership > 100;
+  const needsBeneficiaries =
+    entityType === "partnership" || entityType === "trust";
   const beneficiariesValid =
-    ownershipComplete &&
-    beneficiaries.every((row) => row.name.trim().length > 0);
+    !needsBeneficiaries ||
+    (ownershipAboveZero &&
+      ownershipWithinLimit &&
+      beneficiaries.every((row) => row.name.trim().length > 0));
 
   const selectedTypeLabel =
-    entityTypeOptions.find((option) => option.value === entityType)?.label ?? "";
+    entityTypeOptions.find((option) => option.value === entityType)?.label ??
+    "";
+  const beneficiaryNoun =
+    entityType === "partnership" ? "Partner" : "Beneficiary";
+  const beneficiaryNounPlural =
+    entityType === "partnership" ? "Partners" : "Beneficiaries";
+  const stepMeta = useMemo(
+    () => [
+      { title: "Choose Entity Type", subtitle: "Select the type of entity" },
+      { title: "Enter Entity Name", subtitle: "Name client entity" },
+      ...(needsBeneficiaries
+        ? [
+            {
+              title: `Add ${beneficiaryNounPlural}`,
+              subtitle: "Define ownership structure",
+            },
+          ]
+        : []),
+    ],
+    [beneficiaryNounPlural, needsBeneficiaries],
+  );
 
   function updateRow(uid: string, patch: Partial<BeneficiaryRow>) {
     setBeneficiaries((current) =>
@@ -146,21 +168,31 @@ export default function AddEntityWizard({
       }
       const token = session.getIdToken().getJwtToken();
 
+      const body: Record<string, unknown> = {
+        entity_type: entityType,
+        name: entityName.trim(),
+        created_for: createdFor,
+      };
+
+      body.beneficiaries = needsBeneficiaries
+        ? beneficiaries.map((row) => ({
+            name: row.name.trim(),
+            ownership_percentage: Number.parseFloat(row.percentage),
+          }))
+        : [
+            {
+              name: defaultBeneficiaryName.trim() || entityName.trim(),
+              ownership_percentage: 100,
+            },
+          ];
+
       const res = await fetch("/api/entities", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          entity_type: entityType,
-          name: entityName.trim(),
-          created_for: createdFor,
-          beneficiaries: beneficiaries.map((row) => ({
-            name: row.name.trim(),
-            ownership_percentage: Number.parseFloat(row.percentage),
-          })),
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -180,6 +212,15 @@ export default function AddEntityWizard({
   async function handleSave() {
     const entity = await submit();
     if (entity) setSaved(true);
+  }
+
+  function handleNameContinue() {
+    if (needsBeneficiaries) {
+      setStep(3);
+      return;
+    }
+
+    handleSave();
   }
 
   async function handleAddAnother() {
@@ -205,7 +246,11 @@ export default function AddEntityWizard({
         {stepMeta.map((meta, index) => {
           const position = (index + 1) as 1 | 2 | 3;
           const state =
-            step === position ? "current" : step > position ? "done" : "pending";
+            step === position
+              ? "current"
+              : step > position
+                ? "done"
+                : "pending";
           return (
             <Fragment key={meta.title}>
               <li className={`entity-wizard-step is-${state}`}>
@@ -304,10 +349,14 @@ export default function AddEntityWizard({
             <button
               type="button"
               className="entity-wizard-primary"
-              disabled={!entityName.trim()}
-              onClick={() => setStep(3)}
+              disabled={!entityName.trim() || isSaving}
+              onClick={handleNameContinue}
             >
-              Continue
+              {needsBeneficiaries
+                ? "Continue"
+                : isSaving
+                  ? "Saving..."
+                  : "Create Entity"}
             </button>
           </div>
         </div>
@@ -316,8 +365,11 @@ export default function AddEntityWizard({
       {step === 3 && (
         <div className="entity-wizard-card">
           <header>
-            <h2>Add Beneficiaries</h2>
-            <p>Define who benefits from this entity and their ownership percentages</p>
+            <h2>Add {beneficiaryNounPlural}</h2>
+            <p>
+              Define the {beneficiaryNoun.toLowerCase()} ownership percentages
+              for this entity
+            </p>
           </header>
 
           <div className="entity-beneficiary-list">
@@ -326,7 +378,7 @@ export default function AddEntityWizard({
                 <input
                   type="text"
                   className="entity-beneficiary-name"
-                  placeholder="Beneficiary name"
+                  placeholder={`${beneficiaryNoun} name`}
                   value={row.name}
                   onChange={(event) =>
                     updateRow(row.uid, { name: event.target.value })
@@ -368,18 +420,22 @@ export default function AddEntityWizard({
                 setBeneficiaries((current) => [...current, newBeneficiaryRow()])
               }
             >
-              + Add Another Beneficiary
+              + Add Another {beneficiaryNoun}
             </button>
           </div>
 
           <div
-            className={`entity-beneficiary-total${ownershipComplete ? " is-complete" : ""}`}
+            className={`entity-beneficiary-total${
+              ownershipAboveZero && ownershipWithinLimit ? " is-complete" : ""
+            }${ownershipOverLimit ? " is-over" : ""}`}
           >
             <span>Total Ownership:</span>
             <strong>{formatPercentage(totalOwnership)}</strong>
           </div>
 
-          {errorMessage && <p className="entity-wizard-error">{errorMessage}</p>}
+          {errorMessage && (
+            <p className="entity-wizard-error">{errorMessage}</p>
+          )}
 
           <div className="entity-wizard-footer">
             <button
@@ -419,8 +475,8 @@ export default function AddEntityWizard({
             <div className="entity-success-body">
               <strong>Entity Successfully Added !</strong>
               <p>
-                You&apos;ve successfully registered this entity. It&apos;s now ready
-                for property and transaction mapping.
+                You&apos;ve successfully registered this entity. It&apos;s now
+                ready for property and transaction mapping.
               </p>
             </div>
             <div className="entity-success-footer">

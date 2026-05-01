@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, completeNewPassword } from "../../src/lib/auth";
+import { normalizeRoleName } from "../../src/lib/roleNames";
 import { CognitoUser } from "amazon-cognito-identity-js";
 import Image from "next/image";
 import logo from "../../public/clear-tax.svg";
@@ -97,7 +98,7 @@ export default function LoginComponent({
         }
 
         const me = await meResponse.json();
-        const role = String(me.role || "").toLowerCase();
+        const role = normalizeRoleName(me.role);
 
         if (!allowedRoles.includes(role)) {
           setError("You are not allowed to login here");

@@ -16,6 +16,7 @@ interface SessionWithIdToken {
 export default function ClientAddEntityPage() {
   const router = useRouter();
   const [selfUserId, setSelfUserId] = useState<string | null>(null);
+  const [selfName, setSelfName] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -35,13 +36,18 @@ export default function ClientAddEntityPage() {
         router.replace("/login/user");
         return;
       }
-      const data = (await res.json()) as { id?: string };
+      const data = (await res.json()) as {
+        id?: string;
+        fullName?: string;
+        email?: string;
+      };
       if (cancelled) return;
       if (!data.id) {
         router.replace("/login/user");
         return;
       }
       setSelfUserId(data.id);
+      setSelfName(data.fullName || data.email || "Client");
     }
 
     resolveSelf();
@@ -68,6 +74,7 @@ export default function ClientAddEntityPage() {
       backLabel="My Workspace"
       backHref="/dashboard/client"
       onSuccessHref="/dashboard/client"
+      defaultBeneficiaryName={selfName}
     />
   );
 }

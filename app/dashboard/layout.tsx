@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
 import { logout } from "../../src/lib/logout";
+import { normalizeRoleName } from "../../src/lib/roleNames";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -239,10 +240,12 @@ export default function DashboardLayout({
         const me = (await meResponse.json()) as MeResponse;
 
         setEmail(me.email || "");
-        setRole((me.role || "").toLowerCase());
+        const roleName = normalizeRoleName(me.role);
+
+        setRole(roleName);
         setOrganizationName(me.orgName || "");
 
-        document.cookie = `role=${(me.role || "").toLowerCase()}; path=/`;
+        document.cookie = `role=${roleName}; path=/`;
       } catch (error) {
         console.error("Session error:", error);
         router.replace("/login");

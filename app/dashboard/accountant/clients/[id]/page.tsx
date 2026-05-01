@@ -100,27 +100,37 @@ export default function ClientDetailPage() {
         }
         const token = session.getIdToken().getJwtToken();
 
-        const [clientsRes, entitiesRes] = await Promise.all([
-          fetch("/api/users/me/clients?scope=all", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+        const clientsRes = await fetch("/api/users/me/clients?scope=mine", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (cancelled) return;
 
+        let canLoadClient = false;
         if (clientsRes.ok) {
           const data = (await clientsRes.json()) as { clients: ClientRecord[] };
           const match = (data.clients || []).find((c) => c.id === clientId) ?? null;
           setClient(match);
+          canLoadClient = Boolean(match);
           if (!match) {
-            setLoadError("We couldn't find this client in your organisation.");
+            setLoadError("Add this client to My Clients before opening their portfolio.");
           }
         } else {
           setLoadError("Failed to load client.");
         }
+
+        if (!canLoadClient) {
+          return;
+        }
+
+        const entitiesRes = await fetch(
+          `/api/entities?client_id=${encodeURIComponent(clientId)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (cancelled) return;
 
         if (entitiesRes.ok) {
           const data = (await entitiesRes.json()) as { items: CoreEntity[] };

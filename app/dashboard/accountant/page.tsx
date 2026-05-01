@@ -29,6 +29,15 @@ interface ClientRecord {
   joinedAt: string | null;
 }
 
+interface CurrentUserResponse {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+}
+
+const pendingStatuses = new Set(["invited", "pending"]);
+
 function getInitials(name: string) {
   const parts = name
     .split(" ")
@@ -51,6 +60,7 @@ function formatJoinedDate(value: string | null) {
 
 export default function AccountantPage() {
   const [organizationName, setOrganizationName] = useState("");
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [allClients, setAllClients] = useState<ClientRecord[]>([]);
   const [myClients, setMyClients] = useState<ClientRecord[]>([]);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
@@ -63,7 +73,10 @@ export default function AccountantPage() {
         if (!session) return;
 
         const token = session.getIdToken().getJwtToken();
-        const [orgRes, allRes, myRes] = await Promise.all([
+        const [meRes, orgRes, allRes, myRes] = await Promise.all([
+          fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           fetch("/api/users/me/organization", {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -75,6 +88,10 @@ export default function AccountantPage() {
           }),
         ]);
 
+        if (meRes.ok) {
+          const data = (await meRes.json()) as CurrentUserResponse;
+          setCurrentUserEmail(String(data.email || "").toLowerCase());
+        }
         if (orgRes.ok) {
           const data = (await orgRes.json()) as OrganizationResponse;
           setOrganizationName(data.organization?.name || "");
@@ -99,19 +116,26 @@ export default function AccountantPage() {
 
   const invitationPending = useMemo(
     () =>
-      allClients.filter(
-        (client) => client.status.toLowerCase() === "invited",
-      ).length,
-    [allClients],
+      allClients.filter((client) => {
+        const status = client.status.toLowerCase();
+        const invitedByEmail = client.invitedByEmail.toLowerCase();
+        return (
+          pendingStatuses.has(status) &&
+          (!currentUserEmail || invitedByEmail === currentUserEmail)
+        );
+      }).length,
+    [allClients, currentUserEmail],
   );
 
   const registeredClients = useMemo(
     () =>
-      allClients.filter(
-        (client) => client.status.toLowerCase() !== "invited",
+      myClients.filter(
+        (client) => !pendingStatuses.has(client.status.toLowerCase()),
       ).length,
-    [allClients],
+    [myClients],
   );
+
+  const managedClients = myClients;
 
   return (
     <Skeleton
@@ -125,11 +149,15 @@ export default function AccountantPage() {
             <div>
               <p className="accountant-eyebrow">Invitation Pending</p>
               <h2>{invitationPending}</h2>
-              <span>Clients still to accept their invite</span>
+              <span>
+                {invitationPending === 1
+                  ? "Client invited by you still to accept"
+                  : "Clients invited by you still to accept"}
+              </span>
             </div>
             <Link
               href="/dashboard/accountant/clients?invite=1"
-              className="accountant-primary-cta"
+              className="accountant-primary-cta accountant-summary-cta"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14" />
@@ -143,9 +171,7 @@ export default function AccountantPage() {
             <div>
               <p className="accountant-eyebrow">Registered Clients</p>
               <h2>{registeredClients}</h2>
-              <span>
-                {myClients.length} invited by you
-              </span>
+              <span>{myClients.length} added to your list</span>
             </div>
             <div className="accountant-summary-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -164,9 +190,11 @@ export default function AccountantPage() {
               <div>
                 <h3>Client Management</h3>
                 <p>
-                  {organizationName
-                    ? `Manage clients for ${organizationName}`
-                    : "Manage your portfolio clients"}
+                  {managedClients.length > 0
+                    ? organizationName
+                      ? `Manage your clients for ${organizationName}`
+                      : "Manage your portfolio clients"
+                    : "Add clients to your list to start managing their portfolios"}
                 </p>
               </div>
 
@@ -202,19 +230,19 @@ export default function AccountantPage() {
               </div>
             </div>
 
-            {allClients.length === 0 ? (
+            {managedClients.length === 0 ? (
               <div className="accountant-empty-state">
-                <p>
-                  No clients yet.{" "}
-                  <Link href="/dashboard/accountant/clients?invite=1">
-                    Invite your first client
-                  </Link>{" "}
-                  to get started.
-                </p>
+                <p>You have not added any clients to your list yet.</p>
+                <Link
+                  href="/dashboard/accountant/clients"
+                  className="accountant-empty-cta"
+                >
+                  Start adding clients to your list
+                </Link>
               </div>
             ) : viewMode === "card" ? (
               <div className="accountant-client-grid">
-                {allClients.map((client) => (
+                {managedClients.map((client) => (
                   <Link
                     key={client.id}
                     href={`/dashboard/accountant/clients/${client.id}`}
@@ -233,7 +261,7 @@ export default function AccountantPage() {
               </div>
             ) : (
               <div className="accountant-client-list">
-                {allClients.map((client) => (
+                {managedClients.map((client) => (
                   <Link
                     key={client.id}
                     href={`/dashboard/accountant/clients/${client.id}`}
@@ -250,18 +278,26 @@ export default function AccountantPage() {
                     </div>
 
                     <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">Status</span>
+                      <span className="accountant-client-list-label">
+                        Status
+                      </span>
                       <strong>{client.status || "Active"}</strong>
                     </div>
 
                     <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">Joined</span>
+                      <span className="accountant-client-list-label">
+                        Joined
+                      </span>
                       <strong>{formatJoinedDate(client.joinedAt)}</strong>
                     </div>
 
                     <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">Invited by</span>
-                      <strong>{client.invitedByEmail || "Organisation Admin"}</strong>
+                      <span className="accountant-client-list-label">
+                        Invited by
+                      </span>
+                      <strong>
+                        {client.invitedByEmail || "Organisation Admin"}
+                      </strong>
                     </div>
                   </Link>
                 ))}
@@ -279,8 +315,8 @@ export default function AccountantPage() {
 
             <div className="accountant-empty-state">
               <p>
-                No activity feed yet. Once we wire up the activity stream this is
-                where new documents, invites and entity changes will land.
+                No activity feed yet. Once we wire up the activity stream this
+                is where new documents, invites and entity changes will land.
               </p>
             </div>
           </aside>

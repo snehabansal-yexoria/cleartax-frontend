@@ -1,3 +1,5 @@
+import { normalizeRoleName } from "./roleNames";
+
 type CoreApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 type CoreApiRequestOptions = {
@@ -102,8 +104,7 @@ function getCoreApiBaseUrl() {
 function getJsonArray(payload: unknown): RawRecord[] {
   if (Array.isArray(payload)) {
     return payload.filter(
-      (item): item is RawRecord =>
-        typeof item === "object" && item !== null,
+      (item): item is RawRecord => typeof item === "object" && item !== null,
     );
   }
 
@@ -123,8 +124,7 @@ function getJsonArray(payload: unknown): RawRecord[] {
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
       return candidate.filter(
-        (item): item is RawRecord =>
-          typeof item === "object" && item !== null,
+        (item): item is RawRecord => typeof item === "object" && item !== null,
       );
     }
   }
@@ -138,7 +138,12 @@ function getJsonObject(payload: unknown): RawRecord {
   }
 
   const record = payload as RawRecord;
-  const candidates = [record.data, record.item, record.user, record.organization];
+  const candidates = [
+    record.data,
+    record.item,
+    record.user,
+    record.organization,
+  ];
 
   for (const candidate of candidates) {
     if (typeof candidate === "object" && candidate !== null) {
@@ -155,7 +160,9 @@ function toStringValue(value: unknown) {
 
 function toNumberValue(value: unknown) {
   const asNumber =
-    typeof value === "number" ? value : Number.parseInt(toStringValue(value), 10);
+    typeof value === "number"
+      ? value
+      : Number.parseInt(toStringValue(value), 10);
   return Number.isNaN(asNumber) ? null : asNumber;
 }
 
@@ -166,9 +173,7 @@ function toFloatValue(value: unknown) {
 }
 
 function getRoleName(raw: RawRecord) {
-  return toStringValue(raw.role || raw.role_name || raw.roleName)
-    .trim()
-    .toLowerCase() || "unknown";
+  return normalizeRoleName(raw.role || raw.role_name || raw.roleName);
 }
 
 export function normalizeCoreUser(raw: RawRecord): CoreUser {
@@ -179,8 +184,12 @@ export function normalizeCoreUser(raw: RawRecord): CoreUser {
     role: getRoleName(raw),
     roleId: toNumberValue(raw.role_id || raw.roleId),
     orgId: toStringValue(raw.org_id || raw.organization_id || raw.orgId),
-    status: toStringValue(raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE")),
-    phoneNumber: toStringValue(raw.phone || raw.phone_number || raw.phoneNumber),
+    status: toStringValue(
+      raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE"),
+    ),
+    phoneNumber: toStringValue(
+      raw.phone || raw.phone_number || raw.phoneNumber,
+    ),
     invitedBy: toStringValue(raw.invited_by || raw.invitedBy || raw.created_by),
   };
 }
@@ -278,7 +287,10 @@ export async function listCoreUsers(token: string) {
   return getJsonArray(payload).map(normalizeCoreUser);
 }
 
-export async function createCoreUser(token: string, body: Record<string, unknown>) {
+export async function createCoreUser(
+  token: string,
+  body: Record<string, unknown>,
+) {
   const payload = await coreApiRequest("/users", {
     method: "POST",
     token,
@@ -310,13 +322,16 @@ function normalizeBeneficiary(raw: RawRecord): CoreBeneficiary {
 }
 
 export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
-  const beneficiariesRaw = Array.isArray(raw.beneficiaries) ? raw.beneficiaries : [];
+  const beneficiariesRaw = Array.isArray(raw.beneficiaries)
+    ? raw.beneficiaries
+    : [];
 
   return {
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
-    entityType: (toStringValue(raw.entity_type ?? raw.entityType).toLowerCase() ||
-      "individual") as EntityType,
+    entityType: (toStringValue(
+      raw.entity_type ?? raw.entityType,
+    ).toLowerCase() || "individual") as EntityType,
     name: toStringValue(raw.name),
     createdFor: toStringValue(raw.created_for ?? raw.createdFor),
     createdBy: toStringValue(raw.created_by ?? raw.createdBy),
@@ -332,18 +347,28 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
   };
 }
 
-export async function listCoreEntities(token: string, params?: { clientId?: string }) {
-  const query = params?.clientId ? `?client_id=${encodeURIComponent(params.clientId)}` : "";
+export async function listCoreEntities(
+  token: string,
+  params?: { clientId?: string },
+) {
+  const query = params?.clientId
+    ? `?client_id=${encodeURIComponent(params.clientId)}`
+    : "";
   const payload = await coreApiRequest(`/entities${query}`, { token });
   return getJsonArray(payload).map(normalizeCoreEntity);
 }
 
 export async function getCoreEntity(token: string, id: string) {
-  const payload = await coreApiRequest(`/entities/${encodeURIComponent(id)}`, { token });
+  const payload = await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    token,
+  });
   return normalizeCoreEntity(getJsonObject(payload));
 }
 
-export async function createCoreEntity(token: string, body: Record<string, unknown>) {
+export async function createCoreEntity(
+  token: string,
+  body: Record<string, unknown>,
+) {
   const payload = await coreApiRequest("/entities", {
     method: "POST",
     token,
@@ -437,7 +462,10 @@ export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
     owners: ownersRaw
-      .filter((owner): owner is RawRecord => typeof owner === "object" && owner !== null)
+      .filter(
+        (owner): owner is RawRecord =>
+          typeof owner === "object" && owner !== null,
+      )
       .map(normalizePropertyOwner),
   };
 }
@@ -451,9 +479,12 @@ export async function listCoreProperties(token: string, entityId: string) {
 }
 
 export async function getCoreProperty(token: string, id: string) {
-  const payload = await coreApiRequest(`/properties/${encodeURIComponent(id)}`, {
-    token,
-  });
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(id)}`,
+    {
+      token,
+    },
+  );
   return normalizeCoreProperty(getJsonObject(payload));
 }
 
@@ -478,11 +509,14 @@ export async function updateCoreProperty(
   id: string,
   body: Record<string, unknown>,
 ) {
-  const payload = await coreApiRequest(`/properties/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    token,
-    body,
-  });
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      token,
+      body,
+    },
+  );
   return normalizeCoreProperty(getJsonObject(payload));
 }
 

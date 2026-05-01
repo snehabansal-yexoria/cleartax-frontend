@@ -78,6 +78,7 @@ export default function NewEntityForClientPage() {
       backHref={`/dashboard/accountant/clients/${clientId}`}
       onSuccessHref={`/dashboard/accountant/clients/${clientId}`}
       addAnotherHref={`/dashboard/accountant/clients/${clientId}/entities/new`}
+      defaultBeneficiaryName={clientName}
     />
   );
 }

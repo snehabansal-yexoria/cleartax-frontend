@@ -81,6 +81,11 @@ export default function AddPropertyWizard({
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [hasDepreciationSchedule, setHasDepreciationSchedule] = useState(false);
   const [status, setStatus] = useState("Listed for Sale");
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [availableForRentDate, setAvailableForRentDate] = useState("");
+  const [firstRentalIncomeDate, setFirstRentalIncomeDate] = useState("");
+  const [renovationStartDate, setRenovationStartDate] = useState("");
+  const [renovationEndDate, setRenovationEndDate] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [owners, setOwners] = useState<OwnerRow[]>(
     entity.beneficiaries
@@ -99,6 +104,14 @@ export default function AddPropertyWizard({
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [lastRequestPayload, setLastRequestPayload] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [lastResponsePayload, setLastResponsePayload] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   const totalOwnership = useMemo(
     () =>
@@ -109,18 +122,31 @@ export default function AddPropertyWizard({
     [owners],
   );
 
+  const statusDetailsValid =
+    status === "Available for Rent"
+      ? Boolean(availableForRentDate)
+      : status === "Rented"
+        ? Boolean(availableForRentDate && firstRentalIncomeDate)
+        : status === "Under Renovation"
+          ? Boolean(renovationStartDate)
+          : true;
+
   const propertyDetailsValid = Boolean(
     propertyName.trim() &&
-      propertyType &&
-      locationText.trim() &&
-      estimatedMarketValue.trim() &&
-      purchaseDate &&
-      purchaseAmount.trim() &&
-      status.trim(),
+    propertyType &&
+    locationText.trim() &&
+    estimatedMarketValue.trim() &&
+    purchaseDate &&
+    purchaseAmount.trim() &&
+    status.trim() &&
+    statusDetailsValid,
   );
 
-  const ownershipComplete = Math.abs(totalOwnership - 100) < 0.01;
-  const ownersValid = owners.length > 0 && ownershipComplete;
+  const ownershipAboveZero = totalOwnership > 0;
+  const ownershipWithinLimit = totalOwnership <= 100;
+  const ownershipOverLimit = totalOwnership > 100;
+  const ownersValid =
+    owners.length > 0 && ownershipAboveZero && ownershipWithinLimit;
 
   function updateOwner(entityBeneficiaryId: number, percentage: string) {
     setOwners((current) =>
@@ -130,6 +156,44 @@ export default function AddPropertyWizard({
           : owner,
       ),
     );
+  }
+
+  function selectStatus(nextStatus: string) {
+    setStatus(nextStatus);
+    setIsStatusOpen(false);
+    setAvailableForRentDate("");
+    setFirstRentalIncomeDate("");
+    setRenovationStartDate("");
+    setRenovationEndDate("");
+  }
+
+  function buildStatusDetails() {
+    if (status === "Available for Rent") {
+      return {
+        status,
+        available_for_rent_date: availableForRentDate,
+      };
+    }
+
+    if (status === "Rented") {
+      return {
+        status,
+        available_for_rent_date: availableForRentDate,
+        first_rental_income_date: firstRentalIncomeDate,
+      };
+    }
+
+    if (status === "Under Renovation") {
+      return {
+        status,
+        renovation_start_date: renovationStartDate,
+        ...(renovationEndDate
+          ? { renovation_end_date: renovationEndDate }
+          : {}),
+      };
+    }
+
+    return { status };
   }
 
   function buildLoanDetails() {
@@ -182,8 +246,13 @@ export default function AddPropertyWizard({
       };
 
       if (imageUrl.trim()) body.image_url = imageUrl.trim();
-      const loanDetails = buildLoanDetails();
-      if (loanDetails) body.loan_details = loanDetails;
+      const loanDetails = {
+        ...(buildLoanDetails() || {}),
+        property_status_details: buildStatusDetails(),
+      };
+      body.loan_details = loanDetails;
+      setLastRequestPayload(body);
+      setLastResponsePayload(null);
 
       const res = await fetch(`/api/entities/${entity.id}/properties`, {
         method: "POST",
@@ -196,13 +265,16 @@ export default function AddPropertyWizard({
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
+        setLastResponsePayload(payload as Record<string, unknown>);
         setErrorMessage(
           payload?.error || payload?.message || "Failed to save property.",
         );
         return null;
       }
 
-      return (await res.json()) as CoreProperty;
+      const payload = (await res.json()) as CoreProperty;
+      setLastResponsePayload(payload as unknown as Record<string, unknown>);
+      return payload;
     } finally {
       setIsSaving(false);
     }
@@ -228,7 +300,11 @@ export default function AddPropertyWizard({
         {stepMeta.map((meta, index) => {
           const position = (index + 1) as 1 | 2 | 3;
           const state =
-            step === position ? "current" : step > position ? "done" : "pending";
+            step === position
+              ? "current"
+              : step > position
+                ? "done"
+                : "pending";
           return (
             <Fragment key={meta.title}>
               <li className={`entity-wizard-step is-${state}`}>
@@ -274,7 +350,9 @@ export default function AddPropertyWizard({
           </div>
 
           <label className="entity-wizard-label">
-            Property Name <em>*</em>
+            <span>
+              Property Name <em>*</em>
+            </span>
             <input
               type="text"
               placeholder="e.g., Sunset District Residence"
@@ -285,7 +363,9 @@ export default function AddPropertyWizard({
 
           <div className="property-wizard-grid">
             <label className="entity-wizard-label">
-              Property Type <em>*</em>
+              <span>
+                Property Type <em>*</em>
+              </span>
               <select
                 value={propertyType}
                 onChange={(event) =>
@@ -301,7 +381,9 @@ export default function AddPropertyWizard({
             </label>
 
             <label className="entity-wizard-label">
-              Property Location <em>*</em>
+              <span>
+                Property Location <em>*</em>
+              </span>
               <input
                 type="text"
                 placeholder="Search location..."
@@ -311,27 +393,36 @@ export default function AddPropertyWizard({
             </label>
 
             <label className="entity-wizard-label">
-              Estimated Market Value <em>*</em>
+              <span>
+                Estimated Market Value <em>*</em>
+              </span>
               <input
                 type="number"
                 min="0"
                 placeholder="$ 0"
                 value={estimatedMarketValue}
-                onChange={(event) => setEstimatedMarketValue(event.target.value)}
+                onChange={(event) =>
+                  setEstimatedMarketValue(event.target.value)
+                }
               />
             </label>
 
             <label className="entity-wizard-label">
-              Purchase Date <em>*</em>
+              <span>
+                Purchase Date <em>*</em>
+              </span>
               <input
                 type="date"
+                className="property-date-input"
                 value={purchaseDate}
                 onChange={(event) => setPurchaseDate(event.target.value)}
               />
             </label>
 
             <label className="entity-wizard-label">
-              Property Purchase Amount <em>*</em>
+              <span>
+                Property Purchase Amount <em>*</em>
+              </span>
               <input
                 type="number"
                 min="0"
@@ -362,19 +453,114 @@ export default function AddPropertyWizard({
             </fieldset>
           </div>
 
-          <label className="entity-wizard-label">
-            Property Status <em>*</em>
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
+          <div className="entity-wizard-label">
+            <span id="property-status-label">
+              Property Status <em>*</em>
+            </span>
+            <div
+              className={`property-status-select${isStatusOpen ? " is-open" : ""}`}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  setIsStatusOpen(false);
+                }
+              }}
             >
-              {propertyStatusOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+              <button
+                type="button"
+                className="property-status-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={isStatusOpen}
+                aria-labelledby="property-status-label"
+                onClick={() => setIsStatusOpen((current) => !current)}
+              >
+                <span>{status}</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {isStatusOpen && (
+                <div className="property-status-menu" role="listbox">
+                  {propertyStatusOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      role="option"
+                      aria-selected={status === option}
+                      className={status === option ? "is-selected" : ""}
+                      onClick={() => selectStatus(option)}
+                    >
+                      <span>{option}</span>
+                      {status === option && (
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M5 12l4 4 10-10" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {(status === "Available for Rent" || status === "Rented") && (
+            <div className="property-status-details">
+              <label className="entity-wizard-label">
+                <span>
+                  Available for Rent Date <em>*</em>
+                </span>
+                <input
+                  type="date"
+                  className="property-date-input"
+                  value={availableForRentDate}
+                  onChange={(event) =>
+                    setAvailableForRentDate(event.target.value)
+                  }
+                />
+              </label>
+              {status === "Rented" && (
+                <label className="entity-wizard-label">
+                  <span>
+                    First Rental Income Date <em>*</em>
+                  </span>
+                  <input
+                    type="date"
+                    className="property-date-input"
+                    value={firstRentalIncomeDate}
+                    onChange={(event) =>
+                      setFirstRentalIncomeDate(event.target.value)
+                    }
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
+          {status === "Under Renovation" && (
+            <div className="property-status-details">
+              <label className="entity-wizard-label">
+                <span>
+                  Renovation Start Date <em>*</em>
+                </span>
+                <input
+                  type="date"
+                  className="property-date-input"
+                  value={renovationStartDate}
+                  onChange={(event) =>
+                    setRenovationStartDate(event.target.value)
+                  }
+                />
+              </label>
+              <label className="entity-wizard-label">
+                Renovation End Date <small>(Optional)</small>
+                <input
+                  type="date"
+                  className="property-date-input"
+                  value={renovationEndDate}
+                  onChange={(event) => setRenovationEndDate(event.target.value)}
+                />
+              </label>
+            </div>
+          )}
 
           <label className="entity-wizard-label">
             Property Image URL
@@ -423,7 +609,10 @@ export default function AddPropertyWizard({
           ) : (
             <div className="property-owner-list">
               {owners.map((owner) => (
-                <div key={owner.entityBeneficiaryId} className="property-owner-row">
+                <div
+                  key={owner.entityBeneficiaryId}
+                  className="property-owner-row"
+                >
                   <input value={owner.name} readOnly />
                   <div className="entity-beneficiary-pct">
                     <input
@@ -432,7 +621,10 @@ export default function AddPropertyWizard({
                       max="100"
                       value={owner.percentage}
                       onChange={(event) =>
-                        updateOwner(owner.entityBeneficiaryId, event.target.value)
+                        updateOwner(
+                          owner.entityBeneficiaryId,
+                          event.target.value,
+                        )
                       }
                     />
                     <span>%</span>
@@ -443,10 +635,14 @@ export default function AddPropertyWizard({
           )}
 
           <div
-            className={`entity-beneficiary-total ${ownershipComplete ? "is-complete" : ""}`}
+            className={`entity-beneficiary-total ${
+              ownershipAboveZero && ownershipWithinLimit ? "is-complete" : ""
+            }${ownershipOverLimit ? " is-over" : ""}`}
           >
             <span>Total Ownership</span>
-            <strong>{totalOwnership.toFixed(totalOwnership % 1 === 0 ? 0 : 2)}%</strong>
+            <strong>
+              {totalOwnership.toFixed(totalOwnership % 1 === 0 ? 0 : 2)}%
+            </strong>
           </div>
 
           <div className="entity-wizard-footer">
@@ -544,8 +740,9 @@ export default function AddPropertyWizard({
                 <dt>Type</dt>
                 <dd>
                   {
-                    propertyTypeOptions.find((option) => option.value === propertyType)
-                      ?.label
+                    propertyTypeOptions.find(
+                      (option) => option.value === propertyType,
+                    )?.label
                   }
                 </dd>
               </div>
@@ -560,7 +757,9 @@ export default function AddPropertyWizard({
             </dl>
           </div>
 
-          {errorMessage && <p className="entity-wizard-error">{errorMessage}</p>}
+          {errorMessage && (
+            <p className="entity-wizard-error">{errorMessage}</p>
+          )}
 
           <div className="entity-wizard-footer">
             <button
@@ -588,8 +787,25 @@ export default function AddPropertyWizard({
           <div className="entity-success-card">
             <span className="entity-success-eyebrow">Property Added</span>
             <div className="entity-success-body">
-              <strong>{propertyName} is now linked to {entity.name}.</strong>
+              <strong>
+                {propertyName} is now linked to {entity.name}.
+              </strong>
               <p>You can view it from the entity property list.</p>
+            </div>
+            <div className="property-payload-preview">
+              <details open>
+                <summary>Submitted payload</summary>
+                <pre>
+                  {JSON.stringify(
+                    {
+                      request: lastRequestPayload,
+                      response: lastResponsePayload,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </details>
             </div>
             <div className="entity-success-footer">
               <Link href={onSuccessHref} className="entity-wizard-primary">

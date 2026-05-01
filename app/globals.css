@@ -432,14 +432,13 @@ p.darkBg {
   align-items: end;
   padding-top: 22px;
   border-bottom: 1px solid #e4e7ef;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent 24.5%,
-      #e4e7ef 25%,
-      transparent 25.5%
-    );
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 24.5%,
+    #e4e7ef 25%,
+    transparent 25.5%
+  );
 }
 
 .skeleton-chart-axis {
@@ -910,10 +909,9 @@ p.darkBg {
 
 .portal-list-head-admin,
 .portal-list-row-admin {
-  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.2fr) minmax(
-      180px,
-      1fr
-    ) 140px;
+  grid-template-columns:
+    minmax(180px, 1.1fr) minmax(220px, 1.2fr) minmax(180px, 1fr)
+    140px;
 }
 
 .portal-list-row,
@@ -1701,6 +1699,26 @@ p.darkBg {
   border-bottom: 1px solid #edf1f7;
 }
 
+.accountant-client-table-row.is-muted {
+  background: #f5f7fb;
+  color: #98a2b3;
+}
+
+.accountant-client-table-row.is-muted .accountant-client-cell,
+.accountant-client-table-row.is-muted .accountant-client-name-link,
+.accountant-client-table-row.is-muted .accountant-client-status {
+  color: #98a2b3;
+}
+
+.accountant-client-table-row.is-muted .accountant-client-pill {
+  background: #e4e7ec;
+  color: #667085;
+}
+
+.accountant-client-table-row.is-assigned {
+  background: #f8fafc;
+}
+
 .accountant-client-table-row:last-child {
   border-bottom: none;
 }
@@ -1720,6 +1738,71 @@ p.darkBg {
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
+}
+
+.accountant-client-cell .accountant-assigned-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+}
+
+.accountant-info-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #98a2b3;
+  background: #ffffff;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: help;
+}
+
+.accountant-info-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  width: max-content;
+  max-width: 220px;
+  transform: translateX(-50%) translateY(4px);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.accountant-info-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #111827;
+  transform: translate(-50%, -4px) rotate(45deg);
+}
+
+.accountant-info-icon:hover .accountant-info-tooltip,
+.accountant-info-icon:focus-visible .accountant-info-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .accountant-client-cell-primary {
@@ -2299,8 +2382,13 @@ p.darkBg {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  min-width: 0;
   border: 1px solid rgba(197, 204, 233, 0.9);
   box-shadow: 0 12px 32px rgba(47, 58, 112, 0.08);
+}
+
+.accountant-summary-card > div {
+  min-width: 0;
 }
 
 .accountant-summary-card-blue {
@@ -2337,6 +2425,14 @@ p.darkBg {
   color: #62709a;
   font-family: "Inter", sans-serif;
   font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.accountant-summary-cta {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 12px 16px;
+  white-space: nowrap;
 }
 
 .accountant-summary-icon {
@@ -2457,8 +2553,8 @@ p.darkBg {
 
 .accountant-client-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 .accountant-client-list {
@@ -2469,13 +2565,28 @@ p.darkBg {
 
 .accountant-client-list-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) repeat(3, minmax(120px, 0.7fr));
-  gap: 18px;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(100px, 0.55fr) minmax(
+      120px,
+      0.65fr
+    ) minmax(140px, 0.8fr);
+  gap: 14px;
   align-items: center;
   padding: 16px 18px;
   border: 1px solid #e4e9f4;
   border-radius: 18px;
   background: linear-gradient(180deg, #fbfcff 0%, #f5f7fd 100%);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.accountant-client-list-row:hover {
+  border-color: #c5cce3;
+  box-shadow: 0 12px 26px rgba(47, 58, 112, 0.09);
+  transform: translateY(-1px);
 }
 
 .accountant-client-list-main {
@@ -2531,6 +2642,9 @@ p.darkBg {
   color: #2c395d;
   font-size: 0.98rem;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .accountant-client-card {
@@ -2735,7 +2849,10 @@ p.darkBg {
   }
 
   .accountant-client-list-row {
-    grid-template-columns: minmax(0, 1fr) repeat(2, minmax(120px, 0.8fr));
+    grid-template-columns: minmax(220px, 1.5fr) minmax(100px, 0.55fr) minmax(
+        120px,
+        0.65fr
+      ) minmax(140px, 0.8fr);
   }
 
   .accountant-account-grid {
@@ -2862,8 +2979,12 @@ p.darkBg {
     padding: 16px 18px;
   }
 
-  article.accountant-summary-card.accountant-summary-card-blue {
+  article.accountant-summary-card {
     flex-direction: column;
+  }
+
+  .accountant-summary-cta {
+    align-self: flex-start;
   }
 }
 
@@ -3156,7 +3277,9 @@ p.darkBg {
   background: #ffffff;
   border-radius: 18px;
   padding: 32px;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.06),
+    0 1px 2px rgba(16, 24, 40, 0.04);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -3194,7 +3317,10 @@ p.darkBg {
   background: #ffffff;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
   font-family: inherit;
 }
 
@@ -3434,6 +3560,12 @@ p.darkBg {
   color: #036b3c;
 }
 
+.entity-beneficiary-total.is-over {
+  background: #fef3f2;
+  border-color: #fda29b;
+  color: #b42318;
+}
+
 .entity-beneficiary-total strong {
   font-size: 15px;
   font-weight: 700;
@@ -3499,7 +3631,9 @@ p.darkBg {
   font-size: 14px;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .entity-wizard-secondary:hover:not(:disabled) {
@@ -3864,7 +3998,7 @@ p.darkBg {
 }
 
 .client-stat-icon {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   width: 46px;
@@ -4213,6 +4347,202 @@ p.darkBg {
   width: 18px;
   height: 18px;
   accent-color: var(--primary);
+}
+
+.property-status-select {
+  position: relative;
+}
+
+.property-status-trigger {
+  width: 100%;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+}
+
+.property-status-trigger:hover {
+  border-color: #98a2b3;
+  background: #fcfcfd;
+}
+
+.property-status-trigger svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: #667085;
+  transition: transform 140ms ease;
+}
+
+.property-status-select.is-open .property-status-trigger {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.12);
+}
+
+.property-status-select.is-open .property-status-trigger svg {
+  transform: rotate(180deg);
+}
+
+.property-status-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  overflow: hidden;
+  padding: 6px 16px;
+  border-radius: 12px;
+  border: 1px solid #d9e1ee;
+  background: #ffffff;
+  box-shadow:
+    0 20px 42px rgba(16, 24, 40, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+}
+
+.property-status-menu button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #d0d5dd;
+  background: transparent;
+  color: #101828;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.property-status-menu button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-status-menu button svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.property-status-menu button:last-child {
+  border-bottom: 0;
+}
+
+.property-status-menu button:hover,
+.property-status-menu button.is-selected {
+  color: var(--primary);
+}
+
+.property-status-menu button:hover {
+  background: #f8fafc;
+}
+
+.property-status-details {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.property-status-details small {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.property-payload-preview {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d0d5dd;
+  background: #f8fafc;
+  text-align: left;
+}
+
+.property-payload-preview details {
+  padding: 12px;
+}
+
+.property-payload-preview summary {
+  cursor: pointer;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.property-payload-preview pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #101828;
+  color: #f9fafb;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.property-date-input {
+  min-height: 46px;
+  color-scheme: light;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #d0d5dd, #e4e7ec) border-box;
+  cursor: pointer;
+}
+
+.property-date-input::-webkit-calendar-picker-indicator {
+  width: 18px;
+  height: 18px;
+  padding: 4px;
+  border-radius: 6px;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.property-date-input::-webkit-calendar-picker-indicator:hover {
+  background-color: #eef2ff;
+  opacity: 1;
+}
+
+.property-date-input::-webkit-datetime-edit {
+  color: #101828;
+}
+
+.property-date-input:invalid::-webkit-datetime-edit {
+  color: #98a2b3;
 }
 
 .property-owner-list {
@@ -4962,19 +5292,34 @@ p.darkBg {
    no longer render background images from the mock data. */
 .accountant-client-card-plain {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 12px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 14px;
   border: 1px solid #e4e7ef;
   background: #ffffff;
   color: var(--font-color);
   text-decoration: none;
-  min-height: 90px;
+  min-height: 118px;
+  box-shadow: 0 8px 20px rgba(47, 58, 112, 0.05);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
 }
 
 .accountant-client-card-plain:hover {
   border-color: #c0c6d6;
+  box-shadow: 0 14px 28px rgba(47, 58, 112, 0.09);
+  transform: translateY(-1px);
+}
+
+.accountant-client-card-plain .accountant-client-pill {
+  flex: 0 0 auto;
+}
+
+.accountant-client-card-plain .accountant-client-copy {
+  min-width: 0;
 }
 
 .accountant-client-card-plain .accountant-client-copy h4 {
@@ -4982,12 +5327,18 @@ p.darkBg {
   font-size: 15px;
   font-weight: 600;
   color: var(--font-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .accountant-client-card-plain .accountant-client-copy p {
   margin: 0 0 2px 0;
   color: #667085;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .accountant-client-card-plain .accountant-client-copy span {
@@ -5003,6 +5354,21 @@ p.darkBg {
 .accountant-client-name-link:hover strong {
   color: var(--primary);
   text-decoration: underline;
+}
+
+.accountant-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 14px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: #ffffff !important;
+  text-decoration: none;
+  font-weight: 700 !important;
+  box-shadow: 0 12px 24px rgba(47, 59, 130, 0.2);
 }
 
 .portal-page-actions {
