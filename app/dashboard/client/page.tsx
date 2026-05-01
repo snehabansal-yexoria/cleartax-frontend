@@ -1,9 +1,13 @@
 "use client";
 
-import { Skeleton } from "boneyard-js/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
-import { getSession } from "../../../src/lib/session";
+import { Skeleton } from "boneyard-js/react";
+import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import { logout } from "@/src/lib/logout";
+import { getSession } from "@/src/lib/session";
+import type { CoreEntity } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -11,144 +15,129 @@ interface SessionWithIdToken {
   };
 }
 
-interface ClientContextResponse {
-  company: {
-    id: string;
-    name: string;
-  } | null;
-  managedBy: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  } | null;
+function titleCase(value: string) {
+  if (!value) return "";
+  return value
+    .split(/[_\s-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }
 
 export default function ClientPage() {
+  const router = useRouter();
+  const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [companyName, setCompanyName] = useState("");
-  const [managerName, setManagerName] = useState("");
-  const [managerEmail, setManagerEmail] = useState("");
-  const [managerRole, setManagerRole] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    async function loadClientContext() {
+    let cancelled = false;
+
+    async function load() {
       try {
         const session = (await getSession()) as SessionWithIdToken | null;
-
         if (!session) {
+          router.replace("/login/user");
           return;
         }
-
         const token = session.getIdToken().getJwtToken();
-        const res = await fetch("/api/users/me/client-context", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+
+        const res = await fetch("/api/entities", {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        if (cancelled) return;
 
-        if (!res.ok) {
-          return;
+        if (res.ok) {
+          const data = (await res.json()) as { items?: CoreEntity[] };
+          setEntities(data.items || []);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setErrorMessage(data.error || "Failed to load your entities.");
         }
-
-        const data = (await res.json()) as ClientContextResponse;
-        setCompanyName(data.company?.name || "");
-        setManagerName(data.managedBy?.name || "");
-        setManagerEmail(data.managedBy?.email || "");
-        setManagerRole(data.managedBy?.role || "");
       } catch (error) {
-        console.error("Failed to load client context:", error);
+        if (!cancelled) {
+          console.error("Failed to load client entities:", error);
+          setErrorMessage("Unexpected error loading your workspace.");
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
-    loadClientContext();
-  }, []);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
 
   return (
     <Skeleton
-      name="client-dashboard"
+      name="client-entities-page"
       loading={isLoading}
-      fallback={<AccountantDashboardSkeleton />}
+      fallback={<ClientEntitiesSkeleton />}
     >
       <section className="portal-page">
         <div className="portal-page-header">
           <div>
             <p className="portal-kicker">Client Workspace</p>
-            <h1>Client Dashboard</h1>
-            <p>
-              {companyName
-                ? `Your portfolio is currently managed within ${companyName}.`
-                : "View your portfolio workspace and management details."}
-            </p>
+            <h1>Your Entities</h1>
+            <p>Register the legal structures that hold your properties.</p>
           </div>
 
-          <div className="portal-header-actions">
-            <button type="button" className="portal-primary-link" disabled>
-              Create Entity
+          <div className="portal-page-actions">
+            <Link
+              href="/dashboard/client/entities/new"
+              className="entity-wizard-primary"
+            >
+              + Add Entity
+            </Link>
+            <button
+              type="button"
+              className="portal-secondary-link"
+              onClick={handleLogout}
+            >
+              Logout
             </button>
           </div>
         </div>
 
-        <div className="portal-summary-grid">
-          <article className="portal-summary-card portal-summary-card-blue">
-            <span>Managed Company</span>
-            <strong>{companyName || "Not linked"}</strong>
+        {errorMessage ? (
+          <p className="entity-wizard-error">{errorMessage}</p>
+        ) : entities.length === 0 ? (
+          <div className="client-detail-empty">
             <p>
-              {companyName
-                ? "This is the organization currently servicing your account."
-                : "Your company assignment will appear here once linked."}
+              You haven&apos;t added any entities yet. Use <strong>Add Entity</strong>{" "}
+              to register your first Individual, Trust, Company or SMSF — then you
+              can map properties and transactions to it.
             </p>
-          </article>
-
-          <article className="portal-summary-card portal-summary-card-gold">
-            <span>Managed By</span>
-            <strong>{managerName || "Pending"}</strong>
-            <p>
-              {managerEmail
-                ? `${managerRole || "account manager"} • ${managerEmail}`
-                : "We will show your assigned accountant or admin here."}
-            </p>
-          </article>
-
-          <article className="portal-summary-card">
-            <span>Next Step</span>
-            <strong>Entity Setup</strong>
-            <p>
-              The `Create Entity` button is ready in the UI and we can wire the
-              full flow next.
-            </p>
-          </article>
-        </div>
-
-        <div className="portal-list-card">
-          <div className="portal-list-header">
-            <div>
-              <h2>Account Overview</h2>
-              <p>
-                A quick snapshot of who manages your account and where your
-                workspace is anchored.
-              </p>
-            </div>
           </div>
-
-          <div className="portal-list-table">
-            <div className="portal-list-head portal-list-head-admin">
-              <div>Company</div>
-              <div>Manager</div>
-              <div>Email</div>
-              <div>Role</div>
-            </div>
-
-            <article className="portal-list-row portal-list-row-admin">
-              <div>{companyName || "-"}</div>
-              <div>{managerName || "-"}</div>
-              <div>{managerEmail || "-"}</div>
-              <div>{managerRole || "-"}</div>
-            </article>
-          </div>
-        </div>
+        ) : (
+          <ul className="client-detail-entity-list">
+            {entities.map((entity) => (
+              <li key={entity.id} className="client-detail-entity-row">
+                <div>
+                  <Link
+                    href={`/dashboard/client/entities/${entity.id}`}
+                    className="client-detail-entity-link"
+                  >
+                    <strong>{entity.name}</strong>
+                  </Link>
+                  <span>{titleCase(entity.entityType)}</span>
+                </div>
+                <div className="client-detail-entity-meta">
+                  <span>
+                    {entity.beneficiaries.length} beneficiar
+                    {entity.beneficiaries.length === 1 ? "y" : "ies"}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </Skeleton>
   );

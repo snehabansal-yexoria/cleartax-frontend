@@ -1,3 +1,5 @@
+import { normalizeRoleName } from "./roleNames";
+
 type CoreApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 type CoreApiRequestOptions = {
@@ -15,14 +17,9 @@ export type CoreUser = {
   role: string;
   roleId: number | null;
   orgId: string;
-  orgName: string;
   status: string;
   phoneNumber: string;
   invitedBy: string;
-  invitedByEmail: string;
-  createdAt: string | null;
-  assignedAccountantId: string;
-  assignedAccountantName: string;
 };
 
 export type CoreOrganization = {
@@ -32,27 +29,66 @@ export type CoreOrganization = {
   tenantCode: string;
 };
 
-function parseCookieHeader(cookieHeader: string | null) {
-  const cookies = new Map<string, string>();
+export type EntityType =
+  | "individual"
+  | "partnership"
+  | "company"
+  | "trust"
+  | "smsf";
 
-  if (!cookieHeader) {
-    return cookies;
-  }
+export type PropertyType = "residential" | "commercial" | "vacant_land";
 
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValue] = part.trim().split("=");
-    if (!rawName) continue;
-    cookies.set(rawName, decodeURIComponent(rawValue.join("=")));
-  }
+export type CoreBeneficiary = {
+  id?: number;
+  name: string;
+  userId?: string | null;
+  ownershipPercentage: number;
+  position?: number;
+};
 
-  return cookies;
-}
+export type CoreEntity = {
+  id: string;
+  orgId: string;
+  entityType: EntityType;
+  name: string;
+  createdFor: string;
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  beneficiaries: CoreBeneficiary[];
+};
 
-export function getCoreApiBearerFromRequest(req: Request, fallbackToken = "") {
-  const cookies = parseCookieHeader(req.headers.get("cookie"));
-  const accessToken = (cookies.get("accessToken") || "").trim();
-  return accessToken || fallbackToken;
-}
+export type CorePropertyOwner = {
+  id?: number;
+  entityBeneficiaryId?: number | null;
+  ownerName: string;
+  userId?: string | null;
+  ownershipPercentage: number;
+  position?: number;
+};
+
+export type CoreProperty = {
+  id: string;
+  orgId: string;
+  entityId: string;
+  createdFor: string;
+  name: string;
+  propertyType: PropertyType;
+  locationText: string;
+  estimatedMarketValue: number;
+  purchaseDate: string;
+  purchaseAmount: number;
+  hasDepreciationSchedule: boolean;
+  status: string;
+  imageUrl: string | null;
+  loanDetails: Record<string, unknown> | null;
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owners: CorePropertyOwner[];
+};
 
 function getCoreApiBaseUrl() {
   const baseUrl =
@@ -63,15 +99,6 @@ function getCoreApiBaseUrl() {
   }
 
   return baseUrl.replace(/\/+$/, "");
-}
-
-function getCoreApiKey() {
-  return (
-    process.env.CORE_API_KEY ||
-    process.env.NEXT_PUBLIC_CORE_API_KEY ||
-    process.env.CORE_API_X_API_KEY ||
-    ""
-  ).trim();
 }
 
 function getJsonArray(payload: unknown): RawRecord[] {
@@ -139,139 +166,31 @@ function toNumberValue(value: unknown) {
   return Number.isNaN(asNumber) ? null : asNumber;
 }
 
-function toBooleanValue(value: unknown) {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  const normalized = toStringValue(value).trim().toLowerCase();
-
-  if (["true", "1", "yes"].includes(normalized)) {
-    return true;
-  }
-
-  if (["false", "0", "no"].includes(normalized)) {
-    return false;
-  }
-
-  return null;
-}
-
-function getNestedString(raw: RawRecord, key: string) {
-  const value = raw[key];
-  return typeof value === "object" && value !== null
-    ? toStringValue((value as RawRecord).name || (value as RawRecord).email)
-    : "";
-}
-
-function getConfiguredRoleMap() {
-  return {
-    super_admin: Number(process.env.CORE_API_ROLE_ID_SUPER_ADMIN || 1),
-    admin: Number(process.env.CORE_API_ROLE_ID_ADMIN || 2),
-    accountant: Number(process.env.CORE_API_ROLE_ID_ACCOUNTANT || 3),
-    client: Number(process.env.CORE_API_ROLE_ID_CLIENT || 4),
-  };
-}
-
-export function getCoreRoleId(role: string) {
-  const roleMap = getConfiguredRoleMap();
-  return roleMap[role as keyof typeof roleMap] ?? null;
+function toFloatValue(value: unknown) {
+  const asNumber =
+    typeof value === "number" ? value : Number.parseFloat(toStringValue(value));
+  return Number.isNaN(asNumber) ? 0 : asNumber;
 }
 
 function getRoleName(raw: RawRecord) {
-  const directRole = toStringValue(raw.role || raw.role_name || raw.roleName)
-    .trim()
-    .toLowerCase();
-
-  if (directRole) {
-    return directRole;
-  }
-
-  const roleId = toNumberValue(raw.role_id || raw.roleId);
-  const roleMap = getConfiguredRoleMap();
-  const match = Object.entries(roleMap).find(([, value]) => value === roleId);
-  return match?.[0] || "unknown";
+  return normalizeRoleName(raw.role || raw.role_name || raw.roleName);
 }
 
 export function normalizeCoreUser(raw: RawRecord): CoreUser {
-  const organization = raw.organization || raw.organisation;
-  const inviter = raw.inviter || raw.invitedByUser || raw.createdByUser;
-  const assignedAccountant =
-    raw.assigned_accountant || raw.assignedAccountant || raw.accountant;
-  const isActive = toBooleanValue(
-    raw.is_active ?? raw.isActive ?? raw.active,
-  );
-  const status = toStringValue(raw.status || raw.user_status || raw.userStatus);
-
   return {
     id: toStringValue(raw.id || raw.user_id || raw.userId),
     email: toStringValue(raw.email),
     fullName: toStringValue(raw.full_name || raw.fullName),
     role: getRoleName(raw),
     roleId: toNumberValue(raw.role_id || raw.roleId),
-    orgId:
-      toStringValue(
-        raw.org_id ||
-          raw.organization_id ||
-          raw.organisation_id ||
-          raw.orgId ||
-          raw.organizationId ||
-          raw.organisationId,
-      ) ||
-      (typeof organization === "object" && organization !== null
-        ? toStringValue(
-            (organization as RawRecord).id ||
-              (organization as RawRecord).org_id ||
-              (organization as RawRecord).orgId,
-          )
-        : ""),
-    orgName:
-      toStringValue(
-        raw.org_name ||
-          raw.orgName ||
-          raw.organization_name ||
-          raw.organisation_name,
-      ) ||
-      (typeof organization === "object" && organization !== null
-        ? toStringValue(
-            (organization as RawRecord).name ||
-              (organization as RawRecord).org_name ||
-              (organization as RawRecord).orgName,
-          )
-        : ""),
-    status: status || (isActive === false ? "INACTIVE" : "ACTIVE"),
+    orgId: toStringValue(raw.org_id || raw.organization_id || raw.orgId),
+    status: toStringValue(
+      raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE"),
+    ),
     phoneNumber: toStringValue(
       raw.phone || raw.phone_number || raw.phoneNumber,
     ),
     invitedBy: toStringValue(raw.invited_by || raw.invitedBy || raw.created_by),
-    invitedByEmail:
-      toStringValue(
-        raw.invited_by_email || raw.invitedByEmail || raw.created_by_email,
-      ) ||
-      (typeof inviter === "object" && inviter !== null
-        ? toStringValue((inviter as RawRecord).email)
-        : getNestedString(raw, "inviter")),
-    createdAt: toStringValue(raw.created_at || raw.createdAt) || null,
-    assignedAccountantId: toStringValue(
-      raw.assigned_accountant_id ||
-        raw.assignedAccountantId ||
-        raw.accountant_id ||
-        raw.accountantId,
-    ),
-    assignedAccountantName:
-      toStringValue(
-        raw.assigned_accountant_name ||
-          raw.assignedAccountantName ||
-          raw.accountant_name ||
-          raw.accountantName,
-      ) ||
-      (typeof assignedAccountant === "object" && assignedAccountant !== null
-        ? toStringValue(
-            (assignedAccountant as RawRecord).full_name ||
-              (assignedAccountant as RawRecord).fullName ||
-              (assignedAccountant as RawRecord).name,
-          )
-        : ""),
   };
 }
 
@@ -296,12 +215,6 @@ export async function coreApiRequest<T = unknown>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const apiKey = getCoreApiKey();
-
-  if (apiKey) {
-    headers["x-api-key"] = apiKey;
-  }
-
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
@@ -314,18 +227,34 @@ export async function coreApiRequest<T = unknown>(
   });
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload: unknown = null;
+  let parseError: Error | null = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch (error) {
+      parseError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
 
   if (!response.ok) {
-    const error = new Error(
-      `Core API ${method} ${path} failed: ${
-        (payload as RawRecord | null)?.message ||
-        (payload as RawRecord | null)?.error ||
-        response.statusText
-      }`,
-    ) as Error & { status?: number };
-    error.status = response.status;
-    throw error;
+    const upstreamMessage =
+      (payload as RawRecord | null)?.message ||
+      (payload as RawRecord | null)?.error;
+    const bodyExcerpt = parseError
+      ? text.slice(0, 200).replace(/\s+/g, " ").trim()
+      : "";
+    throw new Error(
+      `Core API ${method} ${path} failed (${response.status} ${response.statusText})${
+        upstreamMessage ? `: ${upstreamMessage}` : ""
+      }${bodyExcerpt ? ` — body: ${bodyExcerpt}` : ""}`,
+    );
+  }
+
+  if (parseError) {
+    throw new Error(
+      `Core API ${method} ${path} returned non-JSON body (status ${response.status}): ${text.slice(0, 200)}`,
+    );
   }
 
   return payload as T;
@@ -370,20 +299,230 @@ export async function createCoreUser(
   return normalizeCoreUser(getJsonObject(payload));
 }
 
-export async function getCoreUserById(token: string, userId: string) {
-  const payload = await coreApiRequest(`/users/${userId}`, { token });
-  return normalizeCoreUser(getJsonObject(payload));
+function normalizeBeneficiary(raw: RawRecord): CoreBeneficiary {
+  const userIdRaw = raw.user_id ?? raw.userId;
+  const pctRaw = raw.ownership_percentage ?? raw.ownershipPercentage;
+  const posRaw = raw.position;
+
+  return {
+    id:
+      typeof raw.id === "number"
+        ? raw.id
+        : typeof raw.id === "string"
+          ? Number.parseInt(raw.id, 10) || undefined
+          : undefined,
+    name: toStringValue(raw.name),
+    userId: userIdRaw == null ? null : toStringValue(userIdRaw) || null,
+    ownershipPercentage:
+      typeof pctRaw === "number"
+        ? pctRaw
+        : Number.parseFloat(toStringValue(pctRaw)) || 0,
+    position: typeof posRaw === "number" ? posRaw : undefined,
+  };
 }
 
-export async function updateCoreUser(
+export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
+  const beneficiariesRaw = Array.isArray(raw.beneficiaries)
+    ? raw.beneficiaries
+    : [];
+
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityType: (toStringValue(
+      raw.entity_type ?? raw.entityType,
+    ).toLowerCase() || "individual") as EntityType,
+    name: toStringValue(raw.name),
+    createdFor: toStringValue(raw.created_for ?? raw.createdFor),
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy:
+      raw.updated_by == null && raw.updatedBy == null
+        ? null
+        : toStringValue(raw.updated_by ?? raw.updatedBy) || null,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    beneficiaries: beneficiariesRaw
+      .filter((b): b is RawRecord => typeof b === "object" && b !== null)
+      .map(normalizeBeneficiary),
+  };
+}
+
+export async function listCoreEntities(
   token: string,
-  userId: string,
+  params?: { clientId?: string },
+) {
+  const query = params?.clientId
+    ? `?client_id=${encodeURIComponent(params.clientId)}`
+    : "";
+  const payload = await coreApiRequest(`/entities${query}`, { token });
+  return getJsonArray(payload).map(normalizeCoreEntity);
+}
+
+export async function getCoreEntity(token: string, id: string) {
+  const payload = await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    token,
+  });
+  return normalizeCoreEntity(getJsonObject(payload));
+}
+
+export async function createCoreEntity(
+  token: string,
   body: Record<string, unknown>,
 ) {
-  const payload = await coreApiRequest(`/users/${userId}`, {
+  const payload = await coreApiRequest("/entities", {
+    method: "POST",
+    token,
+    body,
+  });
+  return normalizeCoreEntity(getJsonObject(payload));
+}
+
+export async function updateCoreEntity(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
     method: "PATCH",
     token,
     body,
   });
-  return normalizeCoreUser(getJsonObject(payload));
+  return normalizeCoreEntity(getJsonObject(payload));
+}
+
+export async function deleteCoreEntity(token: string, id: string) {
+  await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+function normalizePropertyOwner(raw: RawRecord): CorePropertyOwner {
+  const beneficiaryRaw = raw.entity_beneficiary_id ?? raw.entityBeneficiaryId;
+  const userIdRaw = raw.user_id ?? raw.userId;
+  const pctRaw = raw.ownership_percentage ?? raw.ownershipPercentage;
+  const posRaw = raw.position;
+
+  return {
+    id:
+      typeof raw.id === "number"
+        ? raw.id
+        : typeof raw.id === "string"
+          ? Number.parseInt(raw.id, 10) || undefined
+          : undefined,
+    entityBeneficiaryId:
+      beneficiaryRaw == null
+        ? null
+        : typeof beneficiaryRaw === "number"
+          ? beneficiaryRaw
+          : Number.parseInt(toStringValue(beneficiaryRaw), 10) || null,
+    ownerName: toStringValue(raw.owner_name ?? raw.ownerName),
+    userId: userIdRaw == null ? null : toStringValue(userIdRaw) || null,
+    ownershipPercentage: toFloatValue(pctRaw),
+    position: typeof posRaw === "number" ? posRaw : undefined,
+  };
+}
+
+export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
+  const ownersRaw = Array.isArray(raw.owners) ? raw.owners : [];
+  const loanRaw = raw.loan_details ?? raw.loanDetails;
+
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    createdFor: toStringValue(raw.created_for ?? raw.createdFor),
+    name: toStringValue(raw.name),
+    propertyType: (toStringValue(
+      raw.property_type ?? raw.propertyType,
+    ).toLowerCase() || "residential") as PropertyType,
+    locationText: toStringValue(raw.location_text ?? raw.locationText),
+    estimatedMarketValue: toFloatValue(
+      raw.estimated_market_value ?? raw.estimatedMarketValue,
+    ),
+    purchaseDate: toStringValue(raw.purchase_date ?? raw.purchaseDate),
+    purchaseAmount: toFloatValue(raw.purchase_amount ?? raw.purchaseAmount),
+    hasDepreciationSchedule: Boolean(
+      raw.has_depreciation_schedule ?? raw.hasDepreciationSchedule,
+    ),
+    status: toStringValue(raw.status),
+    imageUrl:
+      raw.image_url == null && raw.imageUrl == null
+        ? null
+        : toStringValue(raw.image_url ?? raw.imageUrl) || null,
+    loanDetails:
+      typeof loanRaw === "object" && loanRaw !== null && !Array.isArray(loanRaw)
+        ? (loanRaw as Record<string, unknown>)
+        : null,
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy:
+      raw.updated_by == null && raw.updatedBy == null
+        ? null
+        : toStringValue(raw.updated_by ?? raw.updatedBy) || null,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    owners: ownersRaw
+      .filter(
+        (owner): owner is RawRecord =>
+          typeof owner === "object" && owner !== null,
+      )
+      .map(normalizePropertyOwner),
+  };
+}
+
+export async function listCoreProperties(token: string, entityId: string) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/properties`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreProperty);
+}
+
+export async function getCoreProperty(token: string, id: string) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(id)}`,
+    {
+      token,
+    },
+  );
+  return normalizeCoreProperty(getJsonObject(payload));
+}
+
+export async function createCoreProperty(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/properties`,
+    {
+      method: "POST",
+      token,
+      body,
+    },
+  );
+  return normalizeCoreProperty(getJsonObject(payload));
+}
+
+export async function updateCoreProperty(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      token,
+      body,
+    },
+  );
+  return normalizeCoreProperty(getJsonObject(payload));
+}
+
+export async function deleteCoreProperty(token: string, id: string) {
+  await coreApiRequest(`/properties/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
 }

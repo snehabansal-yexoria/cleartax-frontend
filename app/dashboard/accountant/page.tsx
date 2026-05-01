@@ -2,9 +2,9 @@
 
 import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
-import { getSession } from "../../../src/lib/session";
+import { getSession } from "@/src/lib/session";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -19,7 +19,7 @@ interface OrganizationResponse {
   } | null;
 }
 
-interface DashboardClient {
+interface ClientRecord {
   id: string;
   email: string;
   status: string;
@@ -27,206 +27,115 @@ interface DashboardClient {
   phoneNumber: string;
   invitedByEmail: string;
   joinedAt: string | null;
-  assignedAccountantId: string;
-  assignedAccountantName: string;
 }
 
-const placeholderClients = [
-  {
-    name: "Michael Chen",
-    email: "michael.chen@realestate.com",
-    properties: "12 Total Properties",
-    image:
-      "https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Emily Rodriguez",
-    email: "emily.r@propertygroup.io",
-    properties: "8 Total Properties",
-    image:
-      "https://images.unsplash.com/photo-1605146769289-440113cc3d00?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Charles Brown",
-    email: "charles.b87@gmail.com",
-    properties: "24 Total Properties",
-    image:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Jennifer Martinez",
-    email: "j.martinez@homesinvest.net",
-    properties: "6 Total Properties",
-    image:
-      "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Robert Thompson",
-    email: "rthompson@urbanrealty.com",
-    properties: "10 Total Properties",
-    image:
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Lucy Jackson",
-    email: "jackson.lucy@gmail.com",
-    properties: "8 Total Properties",
-    image:
-      "https://images.unsplash.com/photo-1448630360428-65456885c650?auto=format&fit=crop&w=900&q=80",
-  },
-];
+interface CurrentUserResponse {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+}
 
-const activities = [
-  {
-    day: "Today",
-    items: [
-      {
-        title: "Document Upload",
-        client: "Client #MC-2847",
-        time: "2 mins ago",
-        tone: "navy",
-      },
-      {
-        title: "Bank Connected",
-        client: "Client #ER-1523",
-        time: "15 mins ago",
-        tone: "gold",
-      },
-      {
-        title: "Task Completed",
-        client: "Client #DP-9241",
-        time: "1 hour ago",
-        tone: "green",
-      },
-    ],
-  },
-  {
-    day: "Yesterday",
-    items: [
-      {
-        title: "New Client Added",
-        client: "Client #JM-4762",
-        time: "2 hours ago",
-        tone: "violet",
-      },
-      {
-        title: "Statement Uploaded",
-        client: "Client #RT-3156",
-        time: "3 hours ago",
-        tone: "navy",
-      },
-    ],
-  },
-];
+const pendingStatuses = new Set(["invited", "pending"]);
+
+function getInitials(name: string) {
+  const parts = name
+    .split(" ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase() || "CL";
+}
+
+function formatJoinedDate(value: string | null) {
+  if (!value) return "Recently";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
 
 export default function AccountantPage() {
   const [organizationName, setOrganizationName] = useState("");
-  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [allClients, setAllClients] = useState<ClientRecord[]>([]);
+  const [myClients, setMyClients] = useState<ClientRecord[]>([]);
+  const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [isLoading, setIsLoading] = useState(true);
-  const [clients, setClients] = useState<DashboardClient[]>([]);
 
   useEffect(() => {
-    async function loadDashboardData() {
+    async function load() {
       try {
         const session = (await getSession()) as SessionWithIdToken | null;
-
-        if (!session) {
-          return;
-        }
+        if (!session) return;
 
         const token = session.getIdToken().getJwtToken();
-
-        const [orgRes, clientsRes] = await Promise.all([
+        const [meRes, orgRes, allRes, myRes] = await Promise.all([
+          fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           fetch("/api/users/me/organization", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }),
           fetch("/api/users/me/clients?scope=all", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("/api/users/me/clients?scope=mine", {
+            headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
 
+        if (meRes.ok) {
+          const data = (await meRes.json()) as CurrentUserResponse;
+          setCurrentUserEmail(String(data.email || "").toLowerCase());
+        }
         if (orgRes.ok) {
           const data = (await orgRes.json()) as OrganizationResponse;
           setOrganizationName(data.organization?.name || "");
         }
-
-        if (clientsRes.ok) {
-          const data = await clientsRes.json();
-          setClients(data.clients || []);
+        if (allRes.ok) {
+          const data = (await allRes.json()) as { clients?: ClientRecord[] };
+          setAllClients(data.clients || []);
+        }
+        if (myRes.ok) {
+          const data = (await myRes.json()) as { clients?: ClientRecord[] };
+          setMyClients(data.clients || []);
         }
       } catch (error) {
-        console.error("Failed to load accountant dashboard data:", error);
+        console.error("Failed to load dashboard:", error);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadDashboardData();
+    load();
   }, []);
 
-  const invitationPendingCount = clients.filter((client) =>
-    ["PENDING", "INVITED"].includes(String(client.status || "").toUpperCase()),
-  ).length;
+  const invitationPending = useMemo(
+    () =>
+      allClients.filter((client) => {
+        const status = client.status.toLowerCase();
+        const invitedByEmail = client.invitedByEmail.toLowerCase();
+        return (
+          pendingStatuses.has(status) &&
+          (!currentUserEmail || invitedByEmail === currentUserEmail)
+        );
+      }).length,
+    [allClients, currentUserEmail],
+  );
 
-  const registeredClientsCount = clients.filter(
-    (client) => !["PENDING", "INVITED"].includes(String(client.status || "").toUpperCase()),
-  ).length;
+  const registeredClients = useMemo(
+    () =>
+      myClients.filter(
+        (client) => !pendingStatuses.has(client.status.toLowerCase()),
+      ).length,
+    [myClients],
+  );
 
-  const visibleClients = clients.length > 0 ? clients.slice(0, 6) : [];
-  const dashboardClients =
-    visibleClients.length > 0
-      ? visibleClients.map((client, index) => ({
-          name: client.name || client.email,
-          email: client.email,
-          properties: client.phoneNumber || "Client Portfolio",
-          image: placeholderClients[index % placeholderClients.length].image,
-          status: ["PENDING", "INVITED"].includes(
-            String(client.status || "").toUpperCase(),
-          )
-            ? "Invited"
-            : client.status || "Active",
-          lastUpdate: client.joinedAt ? "Joined" : "Recently",
-        }))
-      : placeholderClients.map((client, index) => ({
-          ...client,
-          status: index % 2 === 0 ? "Active" : "Reviewing",
-          lastUpdate: `${index + 1}h ago`,
-        }));
-
-  const summaryCards = [
-    {
-      title: "Invitation Pending",
-      value: String(invitationPendingCount),
-      change:
-        invitationPendingCount === 1
-          ? "1 client has not completed onboarding"
-          : `${invitationPendingCount} clients have not completed onboarding`,
-      tone: "blue",
-      actionLabel: "Invite Client",
-      actionHref: "/dashboard/accountant/clients?invite=1",
-    },
-    {
-      title: "Registered Clients",
-      value: String(registeredClientsCount),
-      change:
-        registeredClientsCount === 1
-          ? "1 client is active in this organization"
-          : `${registeredClientsCount} clients are active in this organization`,
-      tone: "gold",
-      icon: (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
-          <circle cx="9.5" cy="7" r="4" />
-          <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
-          <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
-        </svg>
-      ),
-    },
-  ];
+  const managedClients = myClients;
 
   return (
     <Skeleton
@@ -236,30 +145,43 @@ export default function AccountantPage() {
     >
       <section className="accountant-dashboard">
         <div className="accountant-summary-grid">
-          {summaryCards.map((card) => (
-            <article
-              key={card.title}
-              className={`accountant-summary-card accountant-summary-card-${card.tone}`}
+          <article className="accountant-summary-card accountant-summary-card-blue">
+            <div>
+              <p className="accountant-eyebrow">Invitation Pending</p>
+              <h2>{invitationPending}</h2>
+              <span>
+                {invitationPending === 1
+                  ? "Client invited by you still to accept"
+                  : "Clients invited by you still to accept"}
+              </span>
+            </div>
+            <Link
+              href="/dashboard/accountant/clients?invite=1"
+              className="accountant-primary-cta accountant-summary-cta"
             >
-              <div>
-                <p className="accountant-eyebrow">{card.title}</p>
-                <h2>{card.value}</h2>
-                <span>{card.change}</span>
-              </div>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+              Invite Client
+            </Link>
+          </article>
 
-              {card.actionHref ? (
-                <Link href={card.actionHref} className="accountant-primary-cta">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 5v14" />
-                    <path d="M5 12h14" />
-                  </svg>
-                  {card.actionLabel}
-                </Link>
-              ) : (
-                <div className="accountant-summary-icon">{card.icon}</div>
-              )}
-            </article>
-          ))}
+          <article className="accountant-summary-card accountant-summary-card-gold">
+            <div>
+              <p className="accountant-eyebrow">Registered Clients</p>
+              <h2>{registeredClients}</h2>
+              <span>{myClients.length} added to your list</span>
+            </div>
+            <div className="accountant-summary-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+                <circle cx="9.5" cy="7" r="4" />
+                <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
+                <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
+              </svg>
+            </div>
+          </article>
         </div>
 
         <div className="accountant-content-grid">
@@ -268,9 +190,11 @@ export default function AccountantPage() {
               <div>
                 <h3>Client Management</h3>
                 <p>
-                  {organizationName
-                    ? `Manage clients for ${organizationName}`
-                    : "Manage your portfolio clients"}
+                  {managedClients.length > 0
+                    ? organizationName
+                      ? `Manage your clients for ${organizationName}`
+                      : "Manage your portfolio clients"
+                    : "Add clients to your list to start managing their portfolios"}
                 </p>
               </div>
 
@@ -306,37 +230,47 @@ export default function AccountantPage() {
               </div>
             </div>
 
-            {viewMode === "card" ? (
+            {managedClients.length === 0 ? (
+              <div className="accountant-empty-state">
+                <p>You have not added any clients to your list yet.</p>
+                <Link
+                  href="/dashboard/accountant/clients"
+                  className="accountant-empty-cta"
+                >
+                  Start adding clients to your list
+                </Link>
+              </div>
+            ) : viewMode === "card" ? (
               <div className="accountant-client-grid">
-                {dashboardClients.map((client) => (
-                  <article
-                    key={client.email}
-                    className="accountant-client-card"
-                    style={{
-                      backgroundImage: `linear-gradient(180deg, rgba(11, 17, 44, 0.02) 18%, rgba(11, 17, 44, 0.82) 100%), url(${client.image})`,
-                    }}
+                {managedClients.map((client) => (
+                  <Link
+                    key={client.id}
+                    href={`/dashboard/accountant/clients/${client.id}`}
+                    className="accountant-client-card accountant-client-card-plain"
                   >
+                    <div className="accountant-client-pill">
+                      {getInitials(client.name)}
+                    </div>
                     <div className="accountant-client-copy">
                       <h4>{client.name}</h4>
                       <p>{client.email}</p>
-                      <span>{client.properties}</span>
+                      <span>{client.phoneNumber || "No phone on file"}</span>
                     </div>
-                  </article>
+                  </Link>
                 ))}
               </div>
             ) : (
               <div className="accountant-client-list">
-                {dashboardClients.map((client) => (
-                  <article
-                    key={client.email}
+                {managedClients.map((client) => (
+                  <Link
+                    key={client.id}
+                    href={`/dashboard/accountant/clients/${client.id}`}
                     className="accountant-client-list-row"
                   >
                     <div className="accountant-client-list-main">
-                      <div
-                        className="accountant-client-list-image"
-                        aria-hidden="true"
-                        style={{ backgroundImage: `url(${client.image})` }}
-                      />
+                      <div className="accountant-client-pill">
+                        {getInitials(client.name)}
+                      </div>
                       <div className="accountant-client-list-copy">
                         <h4>{client.name}</h4>
                         <p>{client.email}</p>
@@ -345,68 +279,46 @@ export default function AccountantPage() {
 
                     <div className="accountant-client-list-meta">
                       <span className="accountant-client-list-label">
-                        Portfolio
-                      </span>
-                      <strong>{client.properties}</strong>
-                    </div>
-
-                    <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">
                         Status
                       </span>
-                      <strong>{client.status}</strong>
+                      <strong>{client.status || "Active"}</strong>
                     </div>
 
                     <div className="accountant-client-list-meta">
                       <span className="accountant-client-list-label">
-                        Last Update
+                        Joined
                       </span>
-                      <strong>{client.lastUpdate}</strong>
+                      <strong>{formatJoinedDate(client.joinedAt)}</strong>
                     </div>
-                  </article>
+
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Invited by
+                      </span>
+                      <strong>
+                        {client.invitedByEmail || "Organisation Admin"}
+                      </strong>
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
           </section>
 
           <aside className="accountant-activity-panel">
-          <div className="accountant-panel-header">
-            <div>
-              <h3>Recent Activity</h3>
-              <p>Latest updates and actions</p>
-            </div>
-          </div>
-
-          <div className="accountant-activity-list">
-            {activities.map((group) => (
-              <div key={group.day} className="accountant-activity-group">
-                <span className="accountant-activity-day">{group.day}</span>
-
-                {group.items.map((item) => (
-                  <div key={`${group.day}-${item.title}`} className="accountant-activity-item">
-                    <div className={`accountant-activity-icon tone-${item.tone}`}>
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="3.5" />
-                        <path d="M12 4v3" />
-                        <path d="M12 17v3" />
-                        <path d="M4 12h3" />
-                        <path d="M17 12h3" />
-                      </svg>
-                    </div>
-                    <div>
-                      <strong>{item.title}</strong>
-                      <p>{item.client}</p>
-                      <span>{item.time}</span>
-                    </div>
-                  </div>
-                ))}
+            <div className="accountant-panel-header">
+              <div>
+                <h3>Recent Activity</h3>
+                <p>Latest updates and actions</p>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <button type="button" className="accountant-secondary-cta">
-            View All Activity
-          </button>
+            <div className="accountant-empty-state">
+              <p>
+                No activity feed yet. Once we wire up the activity stream this
+                is where new documents, invites and entity changes will land.
+              </p>
+            </div>
           </aside>
         </div>
       </section>

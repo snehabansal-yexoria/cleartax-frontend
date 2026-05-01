@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../../../../src/lib/verifyToken";
+import { verifyToken } from "@/src/lib/verifyToken";
+import { getRoleIdByName } from "@/src/lib/roles";
 import {
-  getCoreApiBearerFromRequest,
-} from "../../../../../src/lib/coreApi";
-import {
-  findApiDirectoryUserByIdentity,
-  listApiDirectoryUsers,
-} from "../../../../../src/lib/coreUserDirectory";
+  findDirectoryUserByIdentity,
+  listDirectoryUsers,
+  type VerifiedTokenLike,
+} from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -16,9 +15,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const idToken = authHeader.split(" ")[1];
-    const decoded = await verifyToken(idToken);
-    const apiToken = getCoreApiBearerFromRequest(req, idToken);
+    const token = authHeader.split(" ")[1];
+    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -27,25 +25,31 @@ export async function GET(req: Request) {
       );
     }
 
-    const currentUser = await findApiDirectoryUserByIdentity(apiToken, {
-      id: String(decoded.sub || ""),
-      email: String(decoded.email || ""),
+    const currentUser = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
     });
 
-    if (!currentUser) {
+    if (!currentUser || !currentUser.orgId) {
       return NextResponse.json({ adminContact: null });
     }
 
-    const users = await listApiDirectoryUsers(apiToken, {
+    const adminRoleId = await getRoleIdByName("admin");
+
+    if (!adminRoleId) {
+      return NextResponse.json(
+        { error: "Admin role is missing in the database" },
+        { status: 500 },
+      );
+    }
+
+    const adminUsers = await listDirectoryUsers({
       orgId: currentUser.orgId,
+      roleIds: [adminRoleId],
     });
 
-    const adminContact = users.find(
-      (user) =>
-        user.role === "admin" &&
-        user.orgId &&
-        user.orgId === currentUser.orgId &&
-        user.email.toLowerCase() !== currentUser.email.toLowerCase(),
+    const adminContact = adminUsers.find(
+      (user) => user.email.toLowerCase() !== currentUser.email.toLowerCase(),
     );
 
     if (!adminContact) {

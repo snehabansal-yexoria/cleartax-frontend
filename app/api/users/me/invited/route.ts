@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../../../../src/lib/verifyToken";
+import { verifyToken } from "@/src/lib/verifyToken";
+import { getRoleIdsByNames } from "@/src/lib/roles";
+import { backfillAcceptedInvitationByEmail } from "@/src/lib/invitations";
 import {
-  getCoreApiBearerFromRequest,
-  getCoreRoleId,
-  listCoreOrganizations,
-} from "../../../../../src/lib/coreApi";
-import {
-  getCognitoInviteStatusByEmail,
-  normalizeInviteStatus,
-} from "../../../../../src/lib/cognitoInviteStatus";
-import {
-  findApiDirectoryUserByIdentity,
-  listApiDirectoryUsers,
-} from "../../../../../src/lib/coreUserDirectory";
+  findDirectoryUserByIdentity,
+  listDirectoryUsers,
+  type VerifiedTokenLike,
+} from "@/src/lib/userDirectory";
 
 export async function GET(req: Request) {
   try {
@@ -22,9 +16,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const idToken = authHeader.split(" ")[1];
-    const decoded = await verifyToken(idToken);
-    const apiToken = getCoreApiBearerFromRequest(req, idToken);
+    const token = authHeader.split(" ")[1];
+    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
 
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
@@ -33,64 +26,65 @@ export async function GET(req: Request) {
       );
     }
 
-    const tokenRole = String(decoded["custom:role"] || "").toUpperCase();
-    const requester = await findApiDirectoryUserByIdentity(apiToken, {
-      id: String(decoded.sub || ""),
-      email: String(decoded.email || ""),
+    const requester = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
     });
 
-    if (!requester && tokenRole !== "SUPER_ADMIN") {
+    if (!requester) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const requesterRole =
-      tokenRole || String(requester?.role || "").toUpperCase();
+    const requesterRole = requester.role.toLowerCase();
 
-    if (!["SUPER_ADMIN", "ADMIN"].includes(requesterRole)) {
+    if (!["super_admin", "admin"].includes(requesterRole)) {
       return NextResponse.json(
         { error: "You are not allowed to view invited users" },
         { status: 403 },
       );
     }
 
-    const adminRoleId = getCoreRoleId("admin");
-    const accountantRoleId = getCoreRoleId("accountant");
-    const clientRoleId = getCoreRoleId("client");
+    if (requesterRole === "admin" && !requester.orgId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-    const filteredUsers = requesterRole === "SUPER_ADMIN"
-      ? await listApiDirectoryUsers(apiToken, {
-          roleIds: adminRoleId ? [adminRoleId] : [],
-        })
-      : await listApiDirectoryUsers(apiToken, {
-          orgId: requester?.orgId || "",
-          roleIds: [accountantRoleId, clientRoleId].filter(
-            (value): value is number => value !== null,
-          ),
-        });
+    const roleNames =
+      requesterRole === "super_admin"
+        ? ["admin"]
+        : ["accountant", "client"];
+    const roleIds = await getRoleIdsByNames(roleNames);
 
-    const organizations = await listCoreOrganizations(apiToken).catch(() => []);
-    const organizationNameById = new Map(
-      organizations.map((organization) => [organization.id, organization.name]),
-    );
-    const cognitoStatuses = new Map(
-      await Promise.all(
-        filteredUsers.map(async (user) => [
-          user.email,
-          await getCognitoInviteStatusByEmail(user.email),
-        ] as const),
-      ),
+    if (roleIds.length !== roleNames.length) {
+      return NextResponse.json(
+        { error: "Role rows are missing in the database" },
+        { status: 500 },
+      );
+    }
+
+    const filteredUsers = await listDirectoryUsers({
+      orgId: requesterRole === "admin" ? requester.orgId : undefined,
+      roleIds,
+    });
+
+    await Promise.all(
+      filteredUsers
+        .filter((user) => ["PENDING", "INVITED"].includes(user.status))
+        .map(async (user) => {
+          const wasBackfilled = await backfillAcceptedInvitationByEmail(user.email);
+
+          if (wasBackfilled) {
+            user.status = "ACCEPTED";
+          }
+        }),
     );
 
     const normalizedUsers = filteredUsers.map((user) => ({
       id: user.id,
       email: user.email,
       role: user.role,
-      status: normalizeInviteStatus(
-        user.status,
-        cognitoStatuses.get(user.email) || "",
-      ),
+      status: user.status || "INVITED",
       name: user.fullName,
-      organizationName: user.orgName || organizationNameById.get(user.orgId) || "",
+      organizationName: user.orgName || "",
       invitedByEmail: user.invitedByEmail || "",
       createdAt: user.createdAt,
     }));
@@ -104,13 +98,13 @@ export async function GET(req: Request) {
       accountants: normalizedUsers.filter((user) => user.role === "accountant").length,
       clients: normalizedUsers.filter((user) => user.role === "client").length,
       organizations:
-        requesterRole === "SUPER_ADMIN"
+        requesterRole === "super_admin"
           ? new Set(
               normalizedUsers
                 .map((user) => user.organizationName)
                 .filter(Boolean),
             ).size
-          : requester?.orgId
+          : requester.orgId
             ? 1
             : 0,
     };

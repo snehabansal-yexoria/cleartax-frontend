@@ -1,3 +1,4 @@
+import type { CognitoUserSession } from "amazon-cognito-identity-js";
 import { userPool } from "./cognito";
 
 export function getCurrentUser() {
@@ -5,7 +6,7 @@ export function getCurrentUser() {
 }
 
 export function getSession() {
-  return new Promise((resolve, reject) => {
+  return new Promise<CognitoUserSession | null>((resolve, reject) => {
     const user = userPool.getCurrentUser();
 
     if (!user) {
@@ -13,7 +14,7 @@ export function getSession() {
       return;
     }
 
-    user.getSession((err: any, session: any) => {
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
       if (err) {
         reject(err);
         return;

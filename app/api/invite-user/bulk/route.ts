@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCoreApiBearerFromRequest } from "@/src/lib/coreApi";
 import { verifyToken } from "@/src/lib/verifyToken";
-import {
-  findOrganizationIdByNameOrId,
-  inviteUser,
-  type InviteVerifiedToken,
-} from "@/src/lib/invitations";
+import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
+import { pool } from "@/src/lib/db";
+import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
 
 type BulkInviteRow = {
   email?: string;
@@ -35,10 +32,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const inviterRole = String(decoded["custom:role"] || "")
-      .trim()
-      .toUpperCase();
-    const apiToken = getCoreApiBearerFromRequest(req, "");
+    const inviter = await findDirectoryUserByIdentity({
+      id: decoded.sub,
+      email: decoded.email,
+    });
+    const inviterRole = String(inviter?.role || "").toLowerCase();
     const body = await req.json();
     const rows = Array.isArray(body.rows) ? (body.rows as BulkInviteRow[]) : [];
 
@@ -55,7 +53,6 @@ export async function POST(req: Request) {
       role: string;
       success: boolean;
       temporaryPassword?: string;
-      message?: string;
       error?: string;
     }> = [];
 
@@ -67,7 +64,7 @@ export async function POST(req: Request) {
         let email = "";
         let requestedRole = "";
 
-        if (inviterRole === "SUPER_ADMIN") {
+        if (inviterRole === "super_admin") {
           const organizationValue = String(
             row.organization_id || row.organization || row.org_name || "",
           ).trim();
@@ -78,15 +75,21 @@ export async function POST(req: Request) {
             throw new Error("organization and admin_email are required");
           }
 
-          organizationId = await findOrganizationIdByNameOrId(
-            apiToken,
-            organizationValue,
+          const organizationResult = await pool.query(
+            `SELECT id
+             FROM organisation
+             WHERE id::text = $1
+                OR lower(org_name) = lower($1)
+             LIMIT 1`,
+            [organizationValue],
           );
 
-          if (!organizationId) {
+          if (!organizationResult.rows[0]?.id) {
             throw new Error(`Organization not found: ${organizationValue}`);
           }
-        } else if (inviterRole === "ADMIN") {
+
+          organizationId = organizationResult.rows[0].id as string;
+        } else if (inviterRole === "admin") {
           email = String(row.email || "").trim();
           requestedRole = String(row.role || "")
             .trim()
@@ -108,7 +111,6 @@ export async function POST(req: Request) {
 
         const result = await inviteUser({
           inviter: decoded,
-          apiToken,
           email,
           requestedRole,
           organizationId,
@@ -121,16 +123,13 @@ export async function POST(req: Request) {
           role: requestedRole,
           success: true,
           temporaryPassword: result.temporaryPassword,
-          message: result.alreadyInvited
-            ? "User already invited in this organization"
-            : "Invite created successfully",
         });
       } catch (error) {
         results.push({
           row: index + 2,
           email: String(row.admin_email || row.email || "").trim(),
           role:
-            inviterRole === "SUPER_ADMIN"
+            inviterRole === "super_admin"
               ? "admin"
               : String(row.role || "")
                   .trim()

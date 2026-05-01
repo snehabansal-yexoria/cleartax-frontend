@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { jwtDecode } from "jwt-decode";
 import { login, completeNewPassword } from "../../src/lib/auth";
+import { normalizeRoleName } from "../../src/lib/roleNames";
 import { CognitoUser } from "amazon-cognito-identity-js";
 import Image from "next/image";
 import logo from "../../public/clear-tax.svg";
@@ -16,13 +15,6 @@ import analytics from "../../public/analytics.svg";
 import users from "../../public/users.svg";
 import realTime from "../../public/real-time.svg";
 
-interface TokenPayload {
-  email: string;
-  name?: string;
-  "custom:role"?: string;
-  "custom:tenant_code"?: string;
-}
-
 interface NewPasswordResult {
   type: "NEW_PASSWORD_REQUIRED";
   user: CognitoUser;
@@ -32,7 +24,6 @@ interface NewPasswordResult {
 interface LoginSuccessResult {
   type: "SUCCESS";
   idToken: string;
-  accessToken: string;
 }
 
 type LoginResult = NewPasswordResult | LoginSuccessResult;
@@ -87,60 +78,36 @@ export default function LoginComponent({
       }
 
       if (result.type === "SUCCESS") {
-        const idToken = result.idToken;
-        const accessToken = result.accessToken;
-        const decoded: TokenPayload = jwtDecode(idToken);
-        console.log(decoded);
+        const token = result.idToken;
+
+        document.cookie = `idToken=${token}; path=/`;
 
         await fetch("/api/invitations/accept", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }).catch(() => undefined);
 
-        const role = (decoded["custom:role"] || "client").toLowerCase();
-        console.log(role);
+        const meResponse = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        // 🔥 ROLE CHECK
+        if (!meResponse.ok) {
+          setError("Unable to load your profile. Contact your administrator.");
+          setLoading(false);
+          return;
+        }
+
+        const me = await meResponse.json();
+        const role = normalizeRoleName(me.role);
+
         if (!allowedRoles.includes(role)) {
           setError("You are not allowed to login here");
           setLoading(false);
           return;
         }
 
-        // 🔥 Save token
-        document.cookie = `idToken=${idToken}; path=/`;
-        document.cookie = `accessToken=${accessToken}; path=/`;
+        document.cookie = `role=${role}; path=/`;
 
-        if (role !== "super_admin") {
-          const provisionRes = await fetch("/api/users/provision", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({
-              accessToken,
-              fullName: decoded.name || "",
-              tenantCode: decoded["custom:tenant_code"] || "",
-            }),
-          });
-
-          const provisionData = await provisionRes.json();
-
-          if (!provisionRes.ok) {
-            setError(
-              provisionData.error ||
-                provisionData.details ||
-                "Failed to provision your account",
-            );
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 🔥 Role-based redirect
         if (role === "super_admin") {
           router.replace("/dashboard/super-admin");
         } else if (role === "admin") {
@@ -205,12 +172,6 @@ export default function LoginComponent({
     accountant: "Accountant",
     client: "Client",
   };
-  const signupHref =
-    role === "super_admin"
-      ? "/signup/super-admin"
-      : role === "client"
-        ? "/signup/user"
-        : `/signup/${role}`;
 
   return (
     <div className="loginSection">
@@ -332,10 +293,6 @@ export default function LoginComponent({
                         {loading ? "Logging in..." : "Log In to Dashboard"}
                       </button>
                     </div>
-                    <div className="signup-login-link">
-                      <span>Need a new account?</span>
-                      <Link href={signupHref}>Sign up</Link>
-                    </div>
                   </div>
                 )}
 
@@ -421,241 +378,3 @@ export default function LoginComponent({
     </div>
   );
 }
-
-// "use client";
-
-// import { useState } from "react";
-// import { useRouter } from "next/navigation";
-// import { jwtDecode } from "jwt-decode";
-// import { login, completeNewPassword } from "@/src/lib/auth";
-// import { CognitoUser } from "amazon-cognito-identity-js";
-// import Image from "next/image";
-
-// import logo from "@/public/clear-tax.svg";
-// import logoBlue from "@/public/clear-tax-blue.svg";
-// import shield from "@/public/shield.svg";
-// import lock from "@/public/lock.svg";
-// import live from "@/public/live.svg";
-// import analytics from "@/public/analytics.svg";
-// import users from "@/public/users.svg";
-// import realTime from "@/public/real-time.svg";
-
-// interface TokenPayload {
-//   email: string;
-//   "custom:role"?: string;
-// }
-
-// export default function LoginComponent({
-//   allowedRoles,
-// }: {
-//   allowedRoles: string[];
-// }) {
-//   const router = useRouter();
-
-//   const [email, setEmail] = useState("");
-//   const [password, setPassword] = useState("");
-
-//   const [newPassword, setNewPassword] = useState("");
-//   const [confirmPassword, setConfirmPassword] = useState("");
-
-//   const [requireNewPassword, setRequireNewPassword] = useState(false);
-//   const [user, setUser] = useState<CognitoUser | null>(null);
-
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState("");
-
-//   // 🔐 LOGIN
-//   const handleLogin = async () => {
-//     setError("");
-//     setLoading(true);
-
-//     try {
-//       const result: any = await login(email, password);
-
-//       // 🔥 NEW PASSWORD FLOW
-//       if (result.type === "NEW_PASSWORD_REQUIRED") {
-//         setUser(result.user);
-//         setRequireNewPassword(true);
-//         setLoading(false);
-//         return;
-//       }
-
-//       if (result.type === "SUCCESS") {
-//         const token = result.idToken;
-//         const decoded: TokenPayload = jwtDecode(token);
-
-//         const role = decoded["custom:role"]?.toLowerCase();
-
-//         if (!role) {
-//           setError("Role not assigned. Contact admin.");
-//           setLoading(false);
-//           return;
-//         }
-
-//         if (!allowedRoles.includes(role)) {
-//           setError("You are not allowed to login here");
-//           setLoading(false);
-//           return;
-//         }
-
-//         document.cookie = `idToken=${token}; path=/; secure; samesite=strict`;
-
-//         if (role === "super_admin") {
-//           router.replace("/dashboard/super-admin");
-//         } else if (role === "admin") {
-//           router.replace("/dashboard/admin");
-//         } else if (role === "accountant") {
-//           router.replace("/dashboard/accountant");
-//         } else {
-//           router.replace("/dashboard/client");
-//         }
-//       }
-//     } catch (err: any) {
-//       setError(err.message || "Login failed");
-//     }
-
-//     setLoading(false);
-//   };
-
-//   // 🔐 SET PASSWORD
-//   const handleSetNewPassword = async () => {
-//     if (newPassword !== confirmPassword) {
-//       setError("Passwords do not match");
-//       return;
-//     }
-
-//     if (!user) return;
-
-//     setLoading(true);
-//     setError("");
-
-//     try {
-//       await completeNewPassword(user, newPassword, {});
-
-//       setRequireNewPassword(false);
-//       setPassword("");
-//       setNewPassword("");
-//       setConfirmPassword("");
-
-//       setError("Password updated. Please login.");
-//     } catch (err: any) {
-//       setError(err.message || "Password update failed");
-//     }
-
-//     setLoading(false);
-//   };
-
-//   const role = allowedRoles[0];
-
-//   const roleMap: Record<string, string> = {
-//     super_admin: "Super Admin",
-//     admin: "Admin",
-//     accountant: "Accountant",
-//     client: "Client",
-//   };
-
-//   return (
-//     <div className="loginSection">
-//       <div className="login-container">
-//         <div className="login-wrapper">
-//           {/* LEFT PANEL */}
-//           <div className="login-left">
-//             <div className="login-left-wrap">
-//               <div className="ll-top">
-//                 <div className="llt-icon-head">
-//                   <div className="login-icon">
-//                     <Image src={logo} alt="logo" width={100} height={100} />
-//                   </div>
-//                   <h1>Clear Portfolio</h1>
-//                 </div>
-
-//                 <h2>{roleMap[role]}</h2>
-
-//                 <p className="darkBg txt-center">
-//                   Secure administrative access for financial dashboard
-//                   management.
-//                 </p>
-//               </div>
-
-//               <div className="ll-bottom">
-//                 {[shield, lock, live, analytics, users, realTime].map(
-//                   (icon, i) => (
-//                     <div key={i} className="llb-item">
-//                       <Image src={icon} alt="icon" width={56} height={56} />
-//                     </div>
-//                   ),
-//                 )}
-//               </div>
-//             </div>
-
-//             <div className="ll-copyright">
-//               <p>© 2026 Clear Portfolio</p>
-//             </div>
-//           </div>
-
-//           {/* RIGHT PANEL */}
-//           <div className="login-right">
-//             <div className="login-right-wrap">
-//               <div className="lr-top">
-//                 <Image src={logoBlue} alt="logo" width={100} height={100} />
-//                 <h2>{roleMap[role]} Portal</h2>
-//               </div>
-
-//               <div className="lr-form">
-//                 {/* LOGIN FORM */}
-//                 {!requireNewPassword && (
-//                   <>
-//                     <input
-//                       type="email"
-//                       placeholder="Email"
-//                       value={email}
-//                       onChange={(e) => setEmail(e.target.value)}
-//                     />
-
-//                     <input
-//                       type="password"
-//                       placeholder="Password"
-//                       value={password}
-//                       onChange={(e) => setPassword(e.target.value)}
-//                     />
-
-//                     <button onClick={handleLogin} disabled={loading}>
-//                       {loading ? "Logging in..." : "Login"}
-//                     </button>
-//                   </>
-//                 )}
-
-//                 {/* PASSWORD SET FORM */}
-//                 {requireNewPassword && (
-//                   <>
-//                     <input value={email} disabled />
-
-//                     <input
-//                       type="password"
-//                       placeholder="New Password"
-//                       value={newPassword}
-//                       onChange={(e) => setNewPassword(e.target.value)}
-//                     />
-
-//                     <input
-//                       type="password"
-//                       placeholder="Confirm Password"
-//                       value={confirmPassword}
-//                       onChange={(e) => setConfirmPassword(e.target.value)}
-//                     />
-
-//                     <button onClick={handleSetNewPassword} disabled={loading}>
-//                       {loading ? "Creating..." : "Create Password"}
-//                     </button>
-//                   </>
-//                 )}
-
-//                 {error && <p style={{ color: "red" }}>{error}</p>}
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
