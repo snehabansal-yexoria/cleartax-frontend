@@ -17,9 +17,14 @@ export type CoreUser = {
   role: string;
   roleId: number | null;
   orgId: string;
+  orgName: string;
   status: string;
   phoneNumber: string;
   invitedBy: string;
+  invitedByEmail: string;
+  createdAt: string | null;
+  assignedAccountantId: string;
+  assignedAccountantName: string;
 };
 
 export type CoreOrganization = {
@@ -176,6 +181,30 @@ function getRoleName(raw: RawRecord) {
   return normalizeRoleName(raw.role || raw.role_name || raw.roleName);
 }
 
+export function getCoreApiBearerFromRequest(req: Request, fallbackToken = "") {
+  const header = req.headers.get("authorization") || "";
+  const [scheme, value] = header.split(" ");
+
+  if (scheme?.toLowerCase() === "bearer" && value) {
+    return value;
+  }
+
+  return fallbackToken;
+}
+
+export function getCoreRoleId(role: string) {
+  const normalized = normalizeRoleName(role);
+  const roleIds: Record<string, number> = {
+    super_admin: 1,
+    admin: 2,
+    accountant: 3,
+    client: 4,
+    user: 4,
+  };
+
+  return roleIds[normalized] ?? null;
+}
+
 export function normalizeCoreUser(raw: RawRecord): CoreUser {
   return {
     id: toStringValue(raw.id || raw.user_id || raw.userId),
@@ -184,6 +213,9 @@ export function normalizeCoreUser(raw: RawRecord): CoreUser {
     role: getRoleName(raw),
     roleId: toNumberValue(raw.role_id || raw.roleId),
     orgId: toStringValue(raw.org_id || raw.organization_id || raw.orgId),
+    orgName: toStringValue(
+      raw.org_name || raw.organization_name || raw.orgName,
+    ),
     status: toStringValue(
       raw.status || (raw.is_active === false ? "INACTIVE" : "ACTIVE"),
     ),
@@ -191,6 +223,17 @@ export function normalizeCoreUser(raw: RawRecord): CoreUser {
       raw.phone || raw.phone_number || raw.phoneNumber,
     ),
     invitedBy: toStringValue(raw.invited_by || raw.invitedBy || raw.created_by),
+    invitedByEmail: toStringValue(raw.invited_by_email || raw.invitedByEmail),
+    createdAt:
+      raw.created_at == null && raw.createdAt == null
+        ? null
+        : toStringValue(raw.created_at || raw.createdAt) || null,
+    assignedAccountantId: toStringValue(
+      raw.assigned_accountant_id || raw.assignedAccountantId,
+    ),
+    assignedAccountantName: toStringValue(
+      raw.assigned_accountant_name || raw.assignedAccountantName,
+    ),
   };
 }
 
@@ -293,6 +336,19 @@ export async function createCoreUser(
 ) {
   const payload = await coreApiRequest("/users", {
     method: "POST",
+    token,
+    body,
+  });
+  return normalizeCoreUser(getJsonObject(payload));
+}
+
+export async function updateCoreUser(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(`/users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
     token,
     body,
   });

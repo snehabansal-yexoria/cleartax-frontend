@@ -17,6 +17,7 @@ export type InviteVerifiedToken = {
 
 type InviteInput = {
   inviter: InviteVerifiedToken;
+  apiToken?: string;
   email: string;
   requestedRole: string;
   organizationId?: string;

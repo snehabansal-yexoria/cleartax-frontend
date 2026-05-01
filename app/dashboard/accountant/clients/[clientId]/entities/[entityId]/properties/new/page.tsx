@@ -15,9 +15,9 @@ interface SessionWithIdToken {
 }
 
 export default function AccountantAddPropertyPage() {
-  const params = useParams<{ id: string; entityId: string }>();
+  const params = useParams<{ clientId: string; entityId: string }>();
   const router = useRouter();
-  const clientId = params?.id ?? "";
+  const clientId = params?.clientId ?? "";
   const entityId = params?.entityId ?? "";
   const [entity, setEntity] = useState<CoreEntity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
