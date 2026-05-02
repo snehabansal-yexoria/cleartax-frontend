@@ -792,7 +792,7 @@ export default function AddPropertyWizard({
               </strong>
               <p>You can view it from the entity property list.</p>
             </div>
-            <div className="property-payload-preview">
+            {/* <div className="property-payload-preview">
               <details open>
                 <summary>Submitted payload</summary>
                 <pre>
@@ -806,7 +806,7 @@ export default function AddPropertyWizard({
                   )}
                 </pre>
               </details>
-            </div>
+            </div> */}
             <div className="entity-success-footer">
               <Link href={onSuccessHref} className="entity-wizard-primary">
                 View Entity
