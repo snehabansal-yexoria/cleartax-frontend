@@ -51,6 +51,23 @@ function formatJoinedDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function buildInviteLink(params: {
+  origin: string;
+  token: string;
+  email: string;
+  role: string;
+  temporaryPassword: string;
+}) {
+  const url = new URL("/invite", params.origin);
+  url.searchParams.set("token", params.token);
+  url.searchParams.set("email", params.email);
+  url.searchParams.set("role", params.role);
+
+  return `${url.toString()}#temporary_password=${encodeURIComponent(
+    params.temporaryPassword,
+  )}`;
+}
+
 function AccountantClientsContent() {
   const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState<ClientTab>("all");
@@ -64,6 +81,7 @@ function AccountantClientsContent() {
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [inviteForm, setInviteForm] = useState({
     fullName: "",
@@ -75,6 +93,11 @@ function AccountantClientsContent() {
     if (searchParams.get("invite") === "1") {
       setInviteSuccess(false);
       setInviteDrawerOpen(true);
+    }
+    if (searchParams.get("tab") === "mine") {
+      setCurrentTab("mine");
+      setSelectedClientIds([]);
+      setAssignMessage("");
     }
   }, [searchParams]);
 
@@ -153,7 +176,10 @@ function AccountantClientsContent() {
   }, [loadClients]);
 
   const visibleClients = useMemo(() => {
-    const source = currentTab === "all" ? allClients : myClients;
+    const source =
+      currentTab === "all"
+        ? allClients.filter((client) => !client.isAssignedToCurrentAccountant)
+        : myClients;
     const query = searchValue.trim().toLowerCase();
 
     if (!query) {
@@ -239,6 +265,7 @@ function AccountantClientsContent() {
       phoneNumber: "",
     });
     setTemporaryPassword("");
+    setInviteLink("");
     setInviteSuccess(false);
     setInviteDrawerOpen(false);
   }
@@ -276,6 +303,15 @@ function AccountantClientsContent() {
       }
 
       setTemporaryPassword(data.temporaryPassword || "");
+      setInviteLink(
+        buildInviteLink({
+          origin: window.location.origin,
+          token: String(data.invitationToken || ""),
+          email: String(data.email || inviteForm.email),
+          role: String(data.role || "client"),
+          temporaryPassword: String(data.temporaryPassword || ""),
+        }),
+      );
       setInviteSuccess(true);
       await loadClients();
     } catch (error) {
@@ -304,6 +340,7 @@ function AccountantClientsContent() {
             className="accountant-primary-cta"
             onClick={() => {
               setTemporaryPassword("");
+              setInviteLink("");
               setInviteSuccess(false);
               setInviteDrawerOpen(true);
             }}
@@ -398,10 +435,6 @@ function AccountantClientsContent() {
           </div>
 
           {visibleClients.map((client) => {
-            const isAlreadyAssigned = Boolean(
-              client.isAssignedToCurrentAccountant ||
-              client.isAssignedToAnotherAccountant,
-            );
             const canOpenClient = currentTab === "mine";
             return (
               <article
@@ -411,19 +444,30 @@ function AccountantClientsContent() {
                 }${client.isAssignedToCurrentAccountant ? " is-assigned" : ""}`}
               >
                 <div>
-                  <input
-                    type="checkbox"
-                    checked={selectedClientIds.includes(client.id)}
-                    disabled={currentTab === "mine" || isAlreadyAssigned}
-                    title={
-                      client.isAssignedToCurrentAccountant
-                        ? "Already in My Clients"
-                        : client.isAssignedToAnotherAccountant
-                          ? `Assigned to ${client.assignedAccountantName || "another accountant"}`
-                          : undefined
-                    }
-                    onChange={() => toggleClientSelection(client.id)}
-                  />
+                  {currentTab === "mine" ? (
+                    <span className="accountant-client-selection-empty" />
+                  ) : client.isAssignedToAnotherAccountant ? (
+                    <span
+                      className="accountant-client-assignment-icon is-blocked"
+                      title={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
+                      role="img"
+                      aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
+                    >
+                      <svg
+                        className="accountant-client-lock-icon"
+                        viewBox="0 0 50 50"
+                        aria-hidden="true"
+                      >
+                        <path d="M25 3C18.363 3 13 8.363 13 15v5H9c-1.645 0-3 1.355-3 3v24c0 1.645 1.355 3 3 3h32c1.645 0 3-1.355 3-3V23c0-1.645-1.355-3-3-3h-4v-5C37 8.363 31.637 3 25 3Zm0 2c5.566 0 10 4.434 10 10v5H15v-5C15 9.434 19.434 5 25 5ZM9 22h32c.555 0 1 .445 1 1v24c0 .555-.445 1-1 1H9c-.555 0-1-.445-1-1V23c0-.555.445-1 1-1Zm16 8c-1.699 0-3 1.301-3 3 0 .898.398 1.688 1 2.188V38c0 1.102.898 2 2 2s2-.898 2-2v-2.813c.602-.5 1-1.289 1-2.187 0-1.699-1.301-3-3-3Z" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={selectedClientIds.includes(client.id)}
+                      onChange={() => toggleClientSelection(client.id)}
+                    />
+                  )}
                 </div>
 
                 <div className="accountant-client-cell accountant-client-cell-primary">
@@ -531,11 +575,20 @@ function AccountantClientsContent() {
                   </p>
                   {temporaryPassword && (
                     <div className="accountant-temp-password-card">
-                      <span>Temporary Password</span>
-                      <strong>{temporaryPassword}</strong>
+                      <span>Invite Link</span>
+                      {inviteLink ? (
+                        <a href={inviteLink} target="_blank">
+                          {inviteLink}
+                        </a>
+                      ) : (
+                        <strong>Invite link created</strong>
+                      )}
                       <p>
-                        Share this password securely with the client for now.
+                        Send this link to the client. It includes the temporary
+                        password and opens the create password step.
                       </p>
+                      <span>Backup Temporary Password</span>
+                      <strong>{temporaryPassword}</strong>
                     </div>
                   )}
                 </div>

@@ -9,6 +9,23 @@ interface SessionWithIdToken {
   };
 }
 
+function buildInviteLink(params: {
+  origin: string;
+  token: string;
+  email: string;
+  role: string;
+  temporaryPassword: string;
+}) {
+  const url = new URL("/invite", params.origin);
+  url.searchParams.set("token", params.token);
+  url.searchParams.set("email", params.email);
+  url.searchParams.set("role", params.role);
+
+  return `${url.toString()}#temporary_password=${encodeURIComponent(
+    params.temporaryPassword,
+  )}`;
+}
+
 export default function InviteUserByAdmin() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("accountant");
@@ -50,9 +67,15 @@ export default function InviteUserByAdmin() {
       }
 
       setTempPassword(data.temporaryPassword);
-
-      const link = `${window.location.origin}/login`;
-      setInviteLink(link);
+      setInviteLink(
+        buildInviteLink({
+          origin: window.location.origin,
+          token: String(data.invitationToken || ""),
+          email: String(data.email || email),
+          role: String(data.role || role),
+          temporaryPassword: String(data.temporaryPassword || ""),
+        }),
+      );
 
       setEmail("");
     } catch (error) {
@@ -126,9 +149,9 @@ export default function InviteUserByAdmin() {
           <h3>User Created</h3>
 
           <p>
-            <strong>Temporary Password:</strong>
+            Send this invite link to the user. It includes the temporary
+            password and will take them straight to the create password step.
           </p>
-          <pre>{tempPassword}</pre>
 
           <p>
             <strong>Invite Link:</strong>
@@ -136,6 +159,11 @@ export default function InviteUserByAdmin() {
           <a href={inviteLink} target="_blank" style={{ color: "#2563eb" }}>
             {inviteLink}
           </a>
+
+          <p style={{ marginTop: "10px" }}>
+            <strong>Backup Temporary Password:</strong>
+          </p>
+          <pre>{tempPassword}</pre>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, completeNewPassword } from "../../src/lib/auth";
 import { normalizeRoleName } from "../../src/lib/roleNames";
@@ -32,6 +32,28 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function getInviteEmailFromUrl() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return String(
+    new URLSearchParams(window.location.search).get("email") || "",
+  ).trim();
+}
+
+function getInvitePasswordFromUrl() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return String(
+    new URLSearchParams(window.location.hash.replace(/^#/, "")).get(
+      "temporary_password",
+    ) || "",
+  );
+}
+
 export default function LoginComponent({
   allowedRoles,
 }: {
@@ -39,8 +61,8 @@ export default function LoginComponent({
 }) {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(getInviteEmailFromUrl);
+  const [password, setPassword] = useState(getInvitePasswordFromUrl);
   const [showPassword, setShowPassword] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
@@ -54,76 +76,105 @@ export default function LoginComponent({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const inviteBootstrapAttempted = useRef(false);
 
-  const handleLogin = async () => {
-    setError("");
-    setLoading(true);
+  const handleLogin = useCallback(
+    async (
+      loginEmail = email,
+      loginPassword = password,
+      options: { fromInviteLink?: boolean } = {},
+    ) => {
+      setError("");
+      setLoading(true);
 
-    try {
-      const result = (await login(email, password)) as LoginResult;
+      try {
+        const result = (await login(loginEmail, loginPassword)) as LoginResult;
 
-      // 🔥 Handle first login
-      if (result.type === "NEW_PASSWORD_REQUIRED") {
-        setUser(result.user);
-        console.log("User attributes:", result.user);
+        if (result.type === "NEW_PASSWORD_REQUIRED") {
+          setEmail(loginEmail);
+          setUser(result.user);
 
-        const requiredAttributes: Record<string, string> = {};
-        requiredAttributes.name = email;
+          const requiredAttributes: Record<string, string> = {};
+          requiredAttributes.name = loginEmail;
 
-        setAttributes(requiredAttributes);
-        setRequireNewPassword(true);
+          setAttributes(requiredAttributes);
+          setRequireNewPassword(true);
 
-        setLoading(false);
-        return;
-      }
-
-      if (result.type === "SUCCESS") {
-        const token = result.idToken;
-
-        document.cookie = `idToken=${token}; path=/`;
-
-        await fetch("/api/invitations/accept", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => undefined);
-
-        const meResponse = await fetch("/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!meResponse.ok) {
-          setError("Unable to load your profile. Contact your administrator.");
           setLoading(false);
           return;
         }
 
-        const me = await meResponse.json();
-        const role = normalizeRoleName(me.role);
+        if (result.type === "SUCCESS") {
+          const token = result.idToken;
 
-        if (!allowedRoles.includes(role)) {
-          setError("You are not allowed to login here");
-          setLoading(false);
-          return;
+          document.cookie = `idToken=${token}; path=/`;
+
+          await fetch("/api/invitations/accept", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => undefined);
+
+          const meResponse = await fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!meResponse.ok) {
+            setError("Unable to load your profile. Contact your administrator.");
+            setLoading(false);
+            return;
+          }
+
+          const me = await meResponse.json();
+          const role = normalizeRoleName(me.role);
+
+          if (!allowedRoles.includes(role)) {
+            setError("You are not allowed to login here");
+            setLoading(false);
+            return;
+          }
+
+          document.cookie = `role=${role}; path=/`;
+
+          if (role === "super_admin") {
+            router.replace("/dashboard/super-admin");
+          } else if (role === "admin") {
+            router.replace("/dashboard/admin");
+          } else if (role === "accountant") {
+            router.replace("/dashboard/accountant");
+          } else {
+            router.replace("/dashboard/client");
+          }
         }
-
-        document.cookie = `role=${role}; path=/`;
-
-        if (role === "super_admin") {
-          router.replace("/dashboard/super-admin");
-        } else if (role === "admin") {
-          router.replace("/dashboard/admin");
-        } else if (role === "accountant") {
-          router.replace("/dashboard/accountant");
-        } else {
-          router.replace("/dashboard/client");
-        }
+      } catch (error: unknown) {
+        setError(
+          options.fromInviteLink
+            ? "This invite link could not be opened automatically. Please sign in with the temporary password from your invitation."
+            : getErrorMessage(error, "Login failed"),
+        );
       }
-    } catch (error: unknown) {
-      setError(getErrorMessage(error, "Login failed"));
+
+      setLoading(false);
+    },
+    [allowedRoles, email, password, router],
+  );
+
+  useEffect(() => {
+    if (inviteBootstrapAttempted.current) return;
+
+    const query = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const inviteEmail = String(query.get("email") || "").trim();
+    const invitePassword = String(hash.get("temporary_password") || "");
+
+    if (!query.get("invite") || !inviteEmail || !invitePassword) {
+      return;
     }
 
-    setLoading(false);
-  };
+    inviteBootstrapAttempted.current = true;
+    window.setTimeout(() => {
+      void handleLogin(inviteEmail, invitePassword, { fromInviteLink: true });
+    }, 0);
+  }, [handleLogin]);
 
   const handleSetNewPassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -289,7 +340,10 @@ export default function LoginComponent({
                       </div>
                     </div>
                     <div className="login-submit">
-                      <button onClick={handleLogin} disabled={loading}>
+                      <button
+                        onClick={() => void handleLogin()}
+                        disabled={loading}
+                      >
                         {loading ? "Logging in..." : "Log In to Dashboard"}
                       </button>
                     </div>

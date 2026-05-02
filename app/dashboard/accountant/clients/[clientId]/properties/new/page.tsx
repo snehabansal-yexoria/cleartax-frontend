@@ -617,6 +617,16 @@ export default function AccountantAddPropertyPage() {
         {showSuccess && (
           <div className="accountant-entity-success-layer">
             <div className="accountant-entity-success-card">
+              <div className="entity-success-animation" aria-hidden="true">
+                <span className="entity-success-confetti is-one" />
+                <span className="entity-success-confetti is-two" />
+                <span className="entity-success-confetti is-three" />
+                <span className="entity-success-confetti is-four" />
+                <svg viewBox="0 0 72 72">
+                  <circle className="entity-success-badge" cx="36" cy="36" r="28" />
+                  <path className="entity-success-check" d="M22 37.5 31.5 47 51 25" />
+                </svg>
+              </div>
               <h2>New Property Secured !</h2>
               <p>
                 Successfully added to the client ledger. All future

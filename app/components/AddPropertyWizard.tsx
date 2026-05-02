@@ -81,6 +81,7 @@ export default function AddPropertyWizard({
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [hasDepreciationSchedule, setHasDepreciationSchedule] = useState(false);
   const [status, setStatus] = useState("Listed for Sale");
+  const [isPropertyTypeOpen, setIsPropertyTypeOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [availableForRentDate, setAvailableForRentDate] = useState("");
   const [firstRentalIncomeDate, setFirstRentalIncomeDate] = useState("");
@@ -165,6 +166,11 @@ export default function AddPropertyWizard({
     setFirstRentalIncomeDate("");
     setRenovationStartDate("");
     setRenovationEndDate("");
+  }
+
+  function selectPropertyType(nextType: PropertyType) {
+    setPropertyType(nextType);
+    setIsPropertyTypeOpen(false);
   }
 
   function buildStatusDetails() {
@@ -362,23 +368,64 @@ export default function AddPropertyWizard({
           </label>
 
           <div className="property-wizard-grid">
-            <label className="entity-wizard-label">
-              <span>
+            <div className="entity-wizard-label">
+              <span id="property-type-label">
                 Property Type <em>*</em>
               </span>
-              <select
-                value={propertyType}
-                onChange={(event) =>
-                  setPropertyType(event.target.value as PropertyType)
-                }
+              <div
+                className={`property-status-select${
+                  isPropertyTypeOpen ? " is-open" : ""
+                }`}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setIsPropertyTypeOpen(false);
+                  }
+                }}
               >
-                {propertyTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <button
+                  type="button"
+                  className="property-status-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded={isPropertyTypeOpen}
+                  aria-labelledby="property-type-label"
+                  onClick={() => setIsPropertyTypeOpen((current) => !current)}
+                >
+                  <span>
+                    {
+                      propertyTypeOptions.find(
+                        (option) => option.value === propertyType,
+                      )?.label
+                    }
+                  </span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {isPropertyTypeOpen && (
+                  <div className="property-status-menu" role="listbox">
+                    {propertyTypeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={propertyType === option.value}
+                        className={
+                          propertyType === option.value ? "is-selected" : ""
+                        }
+                        onClick={() => selectPropertyType(option.value)}
+                      >
+                        <span>{option.label}</span>
+                        {propertyType === option.value && (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 12l4 4 10-10" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
             <label className="entity-wizard-label">
               <span>
@@ -785,7 +832,25 @@ export default function AddPropertyWizard({
         <div className="entity-success-layer" role="dialog" aria-modal="true">
           <div className="entity-success-backdrop" aria-hidden="true" />
           <div className="entity-success-card">
-            <span className="entity-success-eyebrow">Property Added</span>
+            <div className="entity-success-animation" aria-hidden="true">
+              <span className="entity-success-confetti is-one" />
+              <span className="entity-success-confetti is-two" />
+              <span className="entity-success-confetti is-three" />
+              <span className="entity-success-confetti is-four" />
+              <svg viewBox="0 0 72 72">
+                <circle
+                  className="entity-success-badge"
+                  cx="36"
+                  cy="36"
+                  r="28"
+                />
+                <path
+                  className="entity-success-check"
+                  d="M22 37.5 31.5 47 51 25"
+                />
+              </svg>
+            </div>
+            <span className="entity-success-body">Property Added</span>
             <div className="entity-success-body">
               <strong>
                 {propertyName} is now linked to {entity.name}.

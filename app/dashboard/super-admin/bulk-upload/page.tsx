@@ -21,7 +21,7 @@ interface BulkResult {
   error?: string;
 }
 
-type InputMode = "file" | "paste";
+type InputMode = "csv" | "table";
 
 const DEFAULT_HEADERS = ["organization", "admin_email", "full_name"];
 
@@ -32,8 +32,10 @@ export default function SuperAdminBulkUploadPage() {
   const [results, setResults] = useState<BulkResult[]>([]);
   const [uploadMessage, setUploadMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [inputMode, setInputMode] = useState<InputMode>("file");
-  const [importSource, setImportSource] = useState<InputMode>("file");
+  const [inputMode, setInputMode] = useState<InputMode>("csv");
+  const [importSource, setImportSource] = useState<InputMode>("csv");
+  const [pendingRows, setPendingRows] = useState<Record<string, string>[]>([]);
+  const [pendingFileName, setPendingFileName] = useState("");
   const [pastedValue, setPastedValue] = useState("");
   const [modalError, setModalError] = useState("");
 
@@ -49,9 +51,11 @@ export default function SuperAdminBulkUploadPage() {
 
   function resetModalState() {
     setFileName("");
+    setPendingRows([]);
+    setPendingFileName("");
     setPastedValue("");
     setModalError("");
-    setInputMode("file");
+    setInputMode("csv");
   }
 
   function openModal() {
@@ -66,7 +70,7 @@ export default function SuperAdminBulkUploadPage() {
 
   function applyParsedRows(
     parsedRows: Record<string, string>[],
-    nextFileName = "",
+    nextFileName: string,
     nextImportSource: InputMode,
   ) {
     setRows(parsedRows);
@@ -91,19 +95,31 @@ export default function SuperAdminBulkUploadPage() {
       return;
     }
 
-    applyParsedRows(parsedRows, file.name, "file");
-    closeModal();
+    setPendingRows(parsedRows);
+    setPendingFileName(file.name);
+    setModalError("");
   }
 
-  function handlePasteImport() {
-    const parsedRows = parseFlexibleRows(pastedValue, DEFAULT_HEADERS);
+  function handleContinueImport() {
+    if (inputMode === "csv") {
+      if (pendingRows.length === 0) {
+        setModalError("Choose a CSV before continuing.");
+        return;
+      }
 
-    if (parsedRows.length === 0) {
-      setModalError("Paste at least one valid row before importing.");
+      applyParsedRows(pendingRows, pendingFileName, "csv");
+      closeModal();
       return;
     }
 
-    applyParsedRows(parsedRows, "Pasted table", "paste");
+    const parsedRows = parseFlexibleRows(pastedValue, DEFAULT_HEADERS);
+
+    if (parsedRows.length === 0) {
+      setModalError("Add at least one valid table row before continuing.");
+      return;
+    }
+
+    applyParsedRows(parsedRows, "Pasted table", "table");
     closeModal();
   }
 
@@ -173,7 +189,7 @@ export default function SuperAdminBulkUploadPage() {
 
         <div className="portal-upload-actions">
           <button type="button" className="portal-primary-link" onClick={openModal}>
-            Import Users
+            Bulk Upload
           </button>
           {fileName && (
             <span className="portal-upload-filename">{fileName}</span>
@@ -186,7 +202,7 @@ export default function SuperAdminBulkUploadPage() {
           >
             {loading
               ? "Uploading..."
-              : importSource === "paste"
+              : importSource === "table"
                 ? "Upload Table"
                 : "Upload CSV"}
           </button>
@@ -208,7 +224,7 @@ export default function SuperAdminBulkUploadPage() {
             <div className="portal-modal-header">
               <div>
                 <p className="portal-kicker">Bulk Upload</p>
-                <h2 id="super-admin-bulk-upload-title">Import Users</h2>
+                <h2 id="super-admin-bulk-upload-title">Bulk Upload</h2>
                 <p>Use a CSV file or paste organization, email, and name rows.</p>
               </div>
               <button
@@ -224,27 +240,27 @@ export default function SuperAdminBulkUploadPage() {
             <div className="portal-modal-tabs">
               <button
                 type="button"
-                className={`portal-modal-tab${inputMode === "file" ? " is-active" : ""}`}
+                className={`portal-modal-tab${inputMode === "csv" ? " is-active" : ""}`}
                 onClick={() => {
-                  setInputMode("file");
+                  setInputMode("csv");
                   setModalError("");
                 }}
               >
-                Choose File
+                Upload CSV
               </button>
               <button
                 type="button"
-                className={`portal-modal-tab${inputMode === "paste" ? " is-active" : ""}`}
+                className={`portal-modal-tab${inputMode === "table" ? " is-active" : ""}`}
                 onClick={() => {
-                  setInputMode("paste");
+                  setInputMode("table");
                   setModalError("");
                 }}
               >
-                Paste Table
+                Add Table
               </button>
             </div>
 
-            {inputMode === "file" ? (
+            {inputMode === "csv" ? (
               <div className="portal-modal-section">
                 <p className="portal-modal-help">
                   Upload a CSV with `organization`, `admin_email`, and optional `full_name`.
@@ -255,6 +271,9 @@ export default function SuperAdminBulkUploadPage() {
                   accept=".csv"
                   onChange={handleFileChange}
                 />
+                {pendingFileName && (
+                  <span className="portal-upload-filename">{pendingFileName}</span>
+                )}
               </div>
             ) : (
               <div className="portal-modal-section">
@@ -269,20 +288,32 @@ export default function SuperAdminBulkUploadPage() {
                   placeholder={template}
                   rows={10}
                 />
-                <div className="portal-modal-actions">
-                  <button
-                    type="button"
-                    className="portal-primary-link"
-                    onClick={handlePasteImport}
-                    disabled={!pastedValue.trim()}
-                  >
-                    Import Pasted Rows
-                  </button>
-                </div>
               </div>
             )}
 
             {modalError && <p className="portal-modal-error">{modalError}</p>}
+
+            <div className="portal-modal-actions">
+              <button
+                type="button"
+                className="portal-secondary-link"
+                onClick={closeModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="portal-primary-link"
+                onClick={handleContinueImport}
+                disabled={
+                  inputMode === "csv"
+                    ? pendingRows.length === 0
+                    : !pastedValue.trim()
+                }
+              >
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       )}

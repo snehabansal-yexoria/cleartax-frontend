@@ -37,7 +37,7 @@ export default function NewEntityForClientPage() {
         }
         const token = session.getIdToken().getJwtToken();
 
-        const res = await fetch("/api/users/me/clients?scope=all", {
+        const res = await fetch("/api/users/me/clients?scope=mine", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;

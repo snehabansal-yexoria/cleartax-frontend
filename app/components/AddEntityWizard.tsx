@@ -96,6 +96,13 @@ export default function AddEntityWizard({
       }, 0),
     [beneficiaries],
   );
+  const filledBeneficiaries = useMemo(
+    () =>
+      beneficiaries.filter(
+        (row) => row.name.trim() || row.percentage.trim(),
+      ),
+    [beneficiaries],
+  );
 
   const ownershipAboveZero = totalOwnership > 0;
   const ownershipWithinLimit = totalOwnership <= 100;
@@ -106,7 +113,15 @@ export default function AddEntityWizard({
     !needsBeneficiaries ||
     (ownershipAboveZero &&
       ownershipWithinLimit &&
-      beneficiaries.every((row) => row.name.trim().length > 0));
+      filledBeneficiaries.length > 0 &&
+      filledBeneficiaries.every((row) => {
+        const percentage = Number.parseFloat(row.percentage);
+        return (
+          row.name.trim().length > 0 &&
+          Number.isFinite(percentage) &&
+          percentage > 0
+        );
+      }));
 
   const selectedTypeLabel =
     entityTypeOptions.find((option) => option.value === entityType)?.label ??
@@ -175,7 +190,7 @@ export default function AddEntityWizard({
       };
 
       body.beneficiaries = needsBeneficiaries
-        ? beneficiaries.map((row) => ({
+        ? filledBeneficiaries.map((row) => ({
             name: row.name.trim(),
             ownership_percentage: Number.parseFloat(row.percentage),
           }))
@@ -433,6 +448,12 @@ export default function AddEntityWizard({
             <strong>{formatPercentage(totalOwnership)}</strong>
           </div>
 
+          {ownershipOverLimit && (
+            <p className="entity-wizard-error">
+              Total ownership cannot exceed 100%.
+            </p>
+          )}
+
           {errorMessage && (
             <p className="entity-wizard-error">{errorMessage}</p>
           )}
@@ -471,7 +492,24 @@ export default function AddEntityWizard({
         <div className="entity-success-layer" role="dialog" aria-modal="true">
           <div className="entity-success-backdrop" aria-hidden="true" />
           <div className="entity-success-card">
-            <span className="entity-success-eyebrow">Entity Added</span>
+            <div className="entity-success-animation" aria-hidden="true">
+              <span className="entity-success-confetti is-one" />
+              <span className="entity-success-confetti is-two" />
+              <span className="entity-success-confetti is-three" />
+              <span className="entity-success-confetti is-four" />
+              <svg viewBox="0 0 72 72">
+                <circle
+                  className="entity-success-badge"
+                  cx="36"
+                  cy="36"
+                  r="28"
+                />
+                <path
+                  className="entity-success-check"
+                  d="M22 37.5 31.5 47 51 25"
+                />
+              </svg>
+            </div>
             <div className="entity-success-body">
               <strong>Entity Successfully Added !</strong>
               <p>

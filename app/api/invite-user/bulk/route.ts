@@ -53,6 +53,8 @@ export async function POST(req: Request) {
       role: string;
       success: boolean;
       temporaryPassword?: string;
+      invitationToken?: string;
+      invitePath?: string;
       error?: string;
     }> = [];
 
@@ -123,6 +125,14 @@ export async function POST(req: Request) {
           role: requestedRole,
           success: true,
           temporaryPassword: result.temporaryPassword,
+          invitationToken: result.invitationToken,
+          invitePath: `/invite?token=${encodeURIComponent(
+            result.invitationToken,
+          )}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(
+            requestedRole,
+          )}#temporary_password=${encodeURIComponent(
+            result.temporaryPassword,
+          )}`,
         });
       } catch (error) {
         results.push({

@@ -290,6 +290,9 @@ export async function inviteUser(input: InviteInput) {
     return {
       success: true,
       temporaryPassword: tempPassword,
+      invitationToken,
+      email,
+      role: requestedRole,
       userId: inviteeUserId,
       organizationId: finalOrgId,
     };

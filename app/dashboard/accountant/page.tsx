@@ -2,6 +2,7 @@
 
 import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
@@ -27,6 +28,10 @@ interface ClientRecord {
   phoneNumber: string;
   invitedByEmail: string;
   joinedAt: string | null;
+  assignedAccountantId?: string;
+  assignedAccountantName?: string;
+  isAssignedToCurrentAccountant?: boolean;
+  isAssignedToAnotherAccountant?: boolean;
 }
 
 interface CurrentUserResponse {
@@ -59,11 +64,16 @@ function formatJoinedDate(value: string | null) {
 }
 
 export default function AccountantPage() {
+  const router = useRouter();
   const [organizationName, setOrganizationName] = useState("");
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [allClients, setAllClients] = useState<ClientRecord[]>([]);
   const [myClients, setMyClients] = useState<ClientRecord[]>([]);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
+  const [selectedAvailableClientId, setSelectedAvailableClientId] =
+    useState("");
+  const [isAssigningClient, setIsAssigningClient] = useState(false);
+  const [assignMessage, setAssignMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -136,6 +146,58 @@ export default function AccountantPage() {
   );
 
   const managedClients = myClients;
+
+  const availableClients = useMemo(
+    () =>
+      allClients.filter(
+        (client) =>
+          !client.isAssignedToCurrentAccountant &&
+          !client.isAssignedToAnotherAccountant,
+      ),
+    [allClients],
+  );
+
+  const suggestedClients = availableClients.slice(0, 3);
+
+  async function handleAssignSuggestedClient() {
+    if (!selectedAvailableClientId || isAssigningClient) {
+      return;
+    }
+
+    try {
+      setIsAssigningClient(true);
+      setAssignMessage("");
+
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        setAssignMessage("Your session has expired. Please log in again.");
+        return;
+      }
+
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ clientIds: [selectedAvailableClientId] }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setAssignMessage(data.error || "Failed to add this client.");
+        return;
+      }
+
+      router.push("/dashboard/accountant/clients?tab=mine");
+    } catch (error) {
+      console.error("Assign suggested client error:", error);
+      setAssignMessage("Something went wrong while adding this client.");
+    } finally {
+      setIsAssigningClient(false);
+    }
+  }
 
   return (
     <Skeleton
@@ -239,6 +301,65 @@ export default function AccountantPage() {
                 >
                   Start adding clients to your list
                 </Link>
+                {suggestedClients.length > 0 && (
+                  <div className="accountant-suggested-clients">
+                    <div className="accountant-suggested-clients-head">
+                      <div>
+                        <strong>Available clients</strong>
+                        <span>Pick one to add directly to My Clients.</span>
+                      </div>
+                      <Link href="/dashboard/accountant/clients">Show more</Link>
+                    </div>
+
+                    <div className="accountant-suggested-client-list">
+                      {suggestedClients.map((client) => {
+                        const isSelected =
+                          selectedAvailableClientId === client.id;
+
+                        return (
+                          <button
+                            key={client.id}
+                            type="button"
+                            className={`accountant-suggested-client${
+                              isSelected ? " is-selected" : ""
+                            }`}
+                            onClick={() => {
+                              setAssignMessage("");
+                              setSelectedAvailableClientId((current) =>
+                                current === client.id ? "" : client.id,
+                              );
+                            }}
+                          >
+                            <span className="accountant-client-pill">
+                              {getInitials(client.name)}
+                            </span>
+                            <span className="accountant-suggested-client-copy">
+                              <strong>{client.name}</strong>
+                              <span>{client.email}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedAvailableClientId && (
+                      <button
+                        type="button"
+                        className="accountant-suggested-add"
+                        onClick={handleAssignSuggestedClient}
+                        disabled={isAssigningClient}
+                      >
+                        {isAssigningClient ? "Adding..." : "Add to list"}
+                      </button>
+                    )}
+
+                    {assignMessage && (
+                      <p className="accountant-suggested-message">
+                        {assignMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             ) : viewMode === "card" ? (
               <div className="accountant-client-grid">
