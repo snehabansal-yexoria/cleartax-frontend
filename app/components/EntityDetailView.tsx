@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { EntityDetailSkeleton } from "@/app/components/PortalSkeletons";
+import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
 
@@ -19,6 +20,7 @@ export type EntityDetailViewProps = {
   backHref: string;
   backLabel: string;
   addPropertyHref: string;
+  addTransactionHref?: string;
   propertyDetailHrefBase: string;
 };
 
@@ -70,6 +72,7 @@ export default function EntityDetailView({
   backHref,
   backLabel,
   addPropertyHref,
+  addTransactionHref = "/dashboard/accountant/transactions/new",
   propertyDetailHrefBase,
 }: EntityDetailViewProps) {
   const router = useRouter();
@@ -328,7 +331,16 @@ export default function EntityDetailView({
           </div>
         )}
 
-        {currentTab !== "properties" && (
+        {currentTab === "transactions" && (
+          <div className="entity-resource-body">
+            <AllTransactionsView
+              addTransactionHref={addTransactionHref}
+              compact
+            />
+          </div>
+        )}
+
+        {currentTab !== "properties" && currentTab !== "transactions" && (
           <div className="entity-coming-soon">
             <strong>{entityTabs.find((tab) => tab.id === currentTab)?.label}</strong>
             <p>Coming soon</p>

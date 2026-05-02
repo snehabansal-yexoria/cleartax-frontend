@@ -55,6 +55,7 @@ const accountantMenuItems: PortalMenuItem[] = [
   },
   {
     id: "transactions",
+    href: "/dashboard/accountant/transactions",
     label: "Transactions",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -300,7 +301,9 @@ export default function DashboardLayout({
 
   function renderPortalMenuItem(item: PortalMenuItem) {
     const isActive = item.href
-      ? item.href === "/dashboard/accountant" ||
+      ? item.id === "transactions"
+        ? pathname.includes("/transactions")
+        : item.href === "/dashboard/accountant" ||
         item.href === "/dashboard/admin" ||
         item.href === "/dashboard/super-admin"
         ? pathname === item.href

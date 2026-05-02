@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
+import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
 
@@ -387,7 +388,20 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {currentTab !== "entities" && (
+        {currentTab === "transactions" && (
+          <div className="client-portfolio-tab-body">
+            <AllTransactionsView
+              addTransactionHref={
+                entities[0]
+                  ? `/dashboard/accountant/clients/${clientId}/entities/${entities[0].id}/transactions/new`
+                  : "/dashboard/accountant/transactions/new"
+              }
+              compact
+            />
+          </div>
+        )}
+
+        {currentTab !== "entities" && currentTab !== "transactions" && (
           <div className="client-coming-soon">
             <strong>{clientTabs.find((tab) => tab.id === currentTab)?.label}</strong>
             <p>Coming soon</p>
