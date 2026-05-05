@@ -26,6 +26,81 @@ type PortalMenuItem = {
   icon: ReactNode;
 };
 
+function DashboardShellSkeleton() {
+  return (
+    <div className="accountant-shell dashboard-shell-skeleton">
+      <aside className="accountant-sidebar accountant-sidebar-skeleton">
+        <div className="accountant-sidebar-top">
+          <div className="accountant-sidebar-header">
+            <div className="skeleton-circle skeleton-circle-brand" />
+          </div>
+
+          <nav className="accountant-nav" aria-label="Loading navigation">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="dashboard-nav-skeleton-item">
+                <div className="skeleton-circle skeleton-circle-nav" />
+                <div className="skeleton-line dashboard-nav-skeleton-label" />
+              </div>
+            ))}
+          </nav>
+        </div>
+
+        <div className="accountant-sidebar-footer">
+          <div className="skeleton-circle skeleton-circle-sm" />
+          <div className="skeleton-stack dashboard-sidebar-profile-skeleton">
+            <div className="skeleton-line skeleton-line-md" />
+            <div className="skeleton-line skeleton-line-sm" />
+          </div>
+        </div>
+      </aside>
+
+      <div className="accountant-main-shell">
+        <div className="accountant-mobile-brand dashboard-mobile-brand-skeleton">
+          <div className="skeleton-circle skeleton-circle-brand" />
+          <div className="skeleton-line dashboard-mobile-brand-line" />
+        </div>
+
+        <header className="accountant-topbar">
+          <div className="skeleton-input dashboard-search-skeleton" />
+          <div className="accountant-topbar-actions">
+            <div className="skeleton-circle skeleton-circle-sm" />
+            <div className="skeleton-row">
+              <div className="skeleton-stack dashboard-header-copy-skeleton">
+                <div className="skeleton-line skeleton-line-md" />
+                <div className="skeleton-line skeleton-line-sm" />
+              </div>
+              <div className="skeleton-circle" />
+            </div>
+          </div>
+        </header>
+
+        <main className="accountant-main-content">
+          <section className="portal-page boneyard-fallback">
+            <div className="portal-page-header">
+              <div className="skeleton-stack">
+                <div className="skeleton-line skeleton-line-sm" />
+                <div className="skeleton-line skeleton-line-lg" />
+                <div className="skeleton-line skeleton-line-md" />
+              </div>
+              <div className="skeleton-pill skeleton-pill-wide" />
+            </div>
+
+            <div className="portal-summary-grid">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article key={index} className="portal-summary-card">
+                  <div className="skeleton-line skeleton-line-sm" />
+                  <div className="skeleton-line skeleton-line-xl" />
+                  <div className="skeleton-line skeleton-line-md" />
+                </article>
+              ))}
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 const accountantMenuItems: PortalMenuItem[] = [
   {
     id: "dashboard",
@@ -197,6 +272,22 @@ const superAdminMenuItems: PortalMenuItem[] = [
   },
 ];
 
+const clientMenuItems: PortalMenuItem[] = [
+  {
+    id: "dashboard",
+    href: "/dashboard/client",
+    label: "Dashboard",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+  },
+];
+
 export default function DashboardLayout({
   children,
 }: {
@@ -285,14 +376,18 @@ export default function DashboardLayout({
       ? superAdminMenuItems
       : role === "admin"
         ? adminMenuItems
-        : accountantMenuItems;
+        : role === "client" || role === "user"
+          ? clientMenuItems
+          : accountantMenuItems;
 
   const portalTitle =
     role === "super_admin"
       ? "Super Admin Control"
       : role === "admin"
         ? organizationName || "Admin Workspace"
-        : organizationName || "Accountant Dashboard";
+        : role === "client" || role === "user"
+          ? organizationName || "Client Dashboard"
+          : organizationName || "Accountant Dashboard";
 
   const portalSubtitle =
     role === "super_admin"
@@ -305,7 +400,8 @@ export default function DashboardLayout({
         ? pathname.includes("/transactions")
         : item.href === "/dashboard/accountant" ||
         item.href === "/dashboard/admin" ||
-        item.href === "/dashboard/super-admin"
+        item.href === "/dashboard/super-admin" ||
+        item.href === "/dashboard/client"
         ? pathname === item.href
         : pathname.startsWith(item.href)
       : false;
@@ -338,7 +434,17 @@ export default function DashboardLayout({
     );
   }
 
-  if (role === "accountant" || role === "admin" || role === "super_admin") {
+  if (!role) {
+    return <DashboardShellSkeleton />;
+  }
+
+  if (
+    role === "accountant" ||
+    role === "admin" ||
+    role === "super_admin" ||
+    role === "client" ||
+    role === "user"
+  ) {
     return (
       <div className="accountant-shell">
         <aside className="accountant-sidebar">
@@ -374,7 +480,9 @@ export default function DashboardLayout({
                   ? "Super Admin Portal"
                   : role === "admin"
                     ? "Admin Portal"
-                    : "Accountant Portal"}
+                    : role === "client" || role === "user"
+                      ? "Client Portal"
+                      : "Accountant Portal"}
               </strong>
               <span>{portalSubtitle}</span>
             </div>
@@ -454,7 +562,9 @@ export default function DashboardLayout({
                         href={
                           role === "super_admin"
                             ? "/dashboard/super-admin"
-                            : "/dashboard/admin"
+                            : role === "admin"
+                              ? "/dashboard/admin"
+                              : "/dashboard/client"
                         }
                         className="accountant-profile-menu-item"
                         role="menuitem"
@@ -510,7 +620,9 @@ export default function DashboardLayout({
                       ? "Super Admin Portal"
                       : role === "admin"
                         ? "Admin Portal"
-                        : organizationName || "Accountant Portal"}
+                        : role === "client" || role === "user"
+                          ? organizationName || "Client Portal"
+                          : organizationName || "Accountant Portal"}
                   </span>
                 </div>
                 <button
@@ -535,111 +647,5 @@ export default function DashboardLayout({
     );
   }
 
-  return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <aside
-        style={{
-          width: "250px",
-          background: "#111",
-          color: "white",
-          padding: "20px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <h3>Dashboard</h3>
-
-          <p>{email}</p>
-
-          <p>Role: {role}</p>
-
-          <hr />
-
-          <nav>
-            <a href="/dashboard">Home</a>
-
-            <br />
-            <br />
-
-            {role === "super_admin" && (
-              <>
-                <a href="/dashboard/super-admin">Super Admin Panel</a>
-                <br />
-                <br />
-
-                <a href="/dashboard/super-admin/invite-admin">Invite User</a>
-                <br />
-                <br />
-
-                <a href="/dashboard/super-admin/bulk-upload">Bulk Upload</a>
-                <br />
-                <br />
-
-                <a href="/dashboard/super-admin/create-organization">
-                  Create Organization
-                </a>
-              </>
-            )}
-
-            {role === "admin" && (
-              <>
-                <a href="/dashboard/admin">Admin Panel</a>
-                <br />
-                <br />
-
-                <a href="/dashboard/admin/invite">Invite User</a>
-                <br />
-                <br />
-
-                <a href="/dashboard/admin/bulk-upload">Bulk Upload</a>
-              </>
-            )}
-            {role === "accountant" && (
-              <>
-                <a href="/dashboard/accountant">Accountant Panel</a>
-                <br />
-                <br />
-
-                <a href="/dashboard/accountant/invite">Invite Client</a>
-              </>
-            )}
-
-            {role === "user" && (
-              <>
-                <a href="/dashboard/client">Client Panel</a>
-                <br />
-                <br />
-              </>
-            )}
-
-            {role === "client" && (
-              <>
-                <a href="/dashboard/client">Client Panel</a>
-                <br />
-                <br />
-              </>
-            )}
-          </nav>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: "10px",
-            background: "#e11d48",
-            color: "white",
-            border: "none",
-            cursor: "pointer",
-            borderRadius: "4px",
-          }}
-        >
-          Logout
-        </button>
-      </aside>
-
-      <main style={{ flex: 1, padding: "40px" }}>{children}</main>
-    </div>
-  );
+  return <DashboardShellSkeleton />;
 }

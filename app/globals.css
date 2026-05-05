@@ -1111,6 +1111,56 @@ p.darkBg {
     padding 0.24s ease;
 }
 
+.accountant-sidebar-skeleton {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(206, 213, 236, 0.82);
+  box-shadow: 0 24px 62px rgba(47, 58, 112, 0.12);
+}
+
+.accountant-sidebar-skeleton .accountant-sidebar-footer {
+  border-top-color: rgba(206, 213, 236, 0.82);
+}
+
+.skeleton-circle-brand {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.skeleton-circle-nav {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.dashboard-nav-skeleton-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 70px;
+  padding: 14px 10px;
+}
+
+.dashboard-nav-skeleton-label,
+.dashboard-sidebar-profile-skeleton,
+.dashboard-header-copy-skeleton {
+  display: none;
+}
+
+.dashboard-search-skeleton {
+  max-width: 520px;
+}
+
+.dashboard-mobile-brand-skeleton {
+  gap: 14px;
+  align-items: center;
+}
+
+.dashboard-mobile-brand-line {
+  width: 180px;
+}
+
 .accountant-sidebar-top {
   display: flex;
   flex-direction: column;
@@ -2933,6 +2983,11 @@ p.darkBg {
   padding-inline: 18px;
 }
 
+.accountant-sidebar-skeleton:hover {
+  width: 92px;
+  padding-inline: 12px;
+}
+
 .accountant-sidebar:hover .accountant-sidebar-header {
   flex-direction: row;
   align-items: center;
@@ -2985,6 +3040,12 @@ p.darkBg {
 .accountant-sidebar:hover .accountant-sidebar-footer {
   justify-content: flex-start;
   padding-inline: 10px;
+}
+
+.accountant-sidebar-skeleton:hover .accountant-sidebar-header,
+.accountant-sidebar-skeleton:hover .accountant-sidebar-footer {
+  justify-content: center;
+  padding-inline: 0;
 }
 
 @media (max-width: 1200px) {
