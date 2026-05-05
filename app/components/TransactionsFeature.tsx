@@ -1,25 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
-type TransactionType = "Expense" | "Income";
+import { getSession } from "@/src/lib/session";
+import type {
+  CoreAssetClass,
+  CorePropertyTransactionRow,
+  CoreTransactionCategory,
+  CoreTransactionListItem,
+  CoreTransactionSubcategory,
+  CoreTransactionType,
+} from "@/src/lib/coreApi";
 
-type StaticTransaction = {
-  id: string;
-  clientName: string;
-  entityName: string;
-  propertyName: string;
-  type: TransactionType;
-  category: string;
-  subcategory: string;
-  date: string;
-  grossAmount: string;
-  gst: string;
-  netAmount: string;
-  percentAmount: string;
-  rule: boolean;
-};
+interface SessionWithIdToken {
+  getIdToken(): { getJwtToken(): string };
+}
+
+export type TransactionsContext =
+  | { kind: "client"; clientId: string }
+  | { kind: "entity"; entityId: string }
+  | { kind: "property"; propertyId: string }
+  | { kind: "none" };
+
+const NUMERIC_FORMATTER = new Intl.NumberFormat("en-AU", {
+  style: "currency",
+  currency: "AUD",
+  maximumFractionDigits: 2,
+});
+
+function formatCurrency(value: number) {
+  return NUMERIC_FORMATTER.format(value);
+}
+
+function formatInvoiceDate(value: string) {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-AU", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 type StaticRule = {
   name: string;
@@ -44,121 +68,6 @@ type StaticSelectProps = {
   required?: boolean;
   className?: string;
 };
-
-const transactions: StaticTransaction[] = [
-  {
-    id: "TXN-001",
-    clientName: "John Smith",
-    entityName: "Rodriguez Family SMSF",
-    propertyName: "Sunset Villa",
-    type: "Expense",
-    category: "Property Management",
-    subcategory: "Management Fees",
-    date: "Mar 8, 2026",
-    grossAmount: "-$1,250.00",
-    gst: "$125.00",
-    netAmount: "-$1,125.00",
-    percentAmount: "$625.00(50%)",
-    rule: true,
-  },
-  {
-    id: "TXN-002",
-    clientName: "John Smith",
-    entityName: "Rodriguez Family SMSF",
-    propertyName: "Ocean View",
-    type: "Income",
-    category: "Rental Income",
-    subcategory: "Monthly Rent",
-    date: "Mar 5, 2026",
-    grossAmount: "$3,200.00",
-    gst: "$0.00",
-    netAmount: "$3,200.00",
-    percentAmount: "$1,600.00(50%)",
-    rule: false,
-  },
-  {
-    id: "TXN-003",
-    clientName: "Sarah Wilson",
-    entityName: "Wilson Family Trust",
-    propertyName: "Mountain Retreat",
-    type: "Expense",
-    category: "Repairs & Maintenance",
-    subcategory: "Plumbing",
-    date: "Mar 3, 2026",
-    grossAmount: "-$850.00",
-    gst: "$85.00",
-    netAmount: "-$765.00",
-    percentAmount: "$850.00(100%)",
-    rule: true,
-  },
-  {
-    id: "TXN-004",
-    clientName: "Michael Chen",
-    entityName: "Chen Investment Co",
-    propertyName: "Downtown Loft",
-    type: "Expense",
-    category: "Utilities",
-    subcategory: "Electricity",
-    date: "Mar 1, 2026",
-    grossAmount: "-$420.00",
-    gst: "$42.00",
-    netAmount: "-$378.00",
-    percentAmount: "$139.986(33.33%)",
-    rule: false,
-  },
-  {
-    id: "TXN-005",
-    clientName: "Sarah Wilson",
-    entityName: "Wilson Family Trust",
-    propertyName: "Mountain Retreat",
-    type: "Income",
-    category: "Rental Income",
-    subcategory: "Monthly Rent",
-    date: "Feb 28, 2026",
-    grossAmount: "$2,800.00",
-    gst: "$0.00",
-    netAmount: "$2,800.00",
-    percentAmount: "$2,800.00(100%)",
-    rule: true,
-  },
-];
-
-const hiddenTransactions: StaticTransaction[] = [
-  {
-    ...transactions[0],
-    id: "TXN-006",
-    propertyName: "Harbour View",
-    category: "Insurance",
-    subcategory: "Landlord Insurance",
-    date: "Feb 24, 2026",
-    grossAmount: "-$760.00",
-    gst: "$76.00",
-    netAmount: "-$684.00",
-    percentAmount: "$380.00(50%)",
-  },
-  {
-    ...transactions[1],
-    id: "TXN-007",
-    propertyName: "Sunset Villa",
-    date: "Feb 21, 2026",
-    grossAmount: "$3,050.00",
-    netAmount: "$3,050.00",
-    percentAmount: "$1,525.00(50%)",
-  },
-  {
-    ...transactions[3],
-    id: "TXN-008",
-    category: "Council Rates",
-    subcategory: "Quarterly Rates",
-    date: "Feb 19, 2026",
-    grossAmount: "-$610.00",
-    gst: "$61.00",
-    netAmount: "-$549.00",
-    percentAmount: "$203.313(33.33%)",
-  },
-];
-
-const transactionRows = [...transactions, ...hiddenTransactions];
 
 const rules: StaticRule[] = [
   {
@@ -321,71 +230,89 @@ function StaticSelect({
   );
 }
 
-function TransactionTable({ compact = false }: { compact?: boolean }) {
-  const rows = compact ? transactions : transactionRows;
-
+function TransactionTable({
+  rows,
+  showClientShare = false,
+}: {
+  rows: CoreTransactionListItem[];
+  showClientShare?: boolean;
+}) {
   return (
     <div className="transactions-table-wrap">
       <table className="transactions-table">
         <thead>
           <tr>
             <th>Transaction ID</th>
-            <th>Client Name</th>
-            <th>Property Name</th>
+            <th>Entity</th>
+            <th>Properties</th>
             <th>Type</th>
             <th>Category</th>
             <th>Subcategory</th>
             <th>Date</th>
-            <th>Gross Amount</th>
+            <th>Gross</th>
             <th>GST</th>
-            <th>Net Amount</th>
-            <th>% Amount</th>
+            <th>Net</th>
+            {showClientShare ? <th>Client Share</th> : null}
             <th>Rule</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((transaction) => {
-            const isIncome = transaction.type === "Income";
+          {rows.map((row) => {
+            const isRevenue = row.type === "revenue";
+            const propertyLabel =
+              row.propertyNames.length === 0
+                ? "—"
+                : row.propertyNames.length === 1
+                  ? row.propertyNames[0]
+                  : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
             return (
-              <tr key={transaction.id}>
+              <tr key={row.id}>
                 <td>
-                  <a href="#transaction">{transaction.id}</a>
+                  <a href={`/dashboard/accountant/transactions/${row.id}`}>
+                    {row.id.slice(0, 8)}…
+                  </a>
                 </td>
-                <td>{transaction.clientName}</td>
-                <td>{transaction.propertyName}</td>
+                <td>{row.entityName || "—"}</td>
+                <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
                 <td>
                   <span
                     className={`transaction-type-pill ${
-                      isIncome ? "is-income" : "is-expense"
+                      isRevenue ? "is-income" : "is-expense"
                     }`}
                   >
-                    {transaction.type}
+                    {isRevenue ? "Revenue" : "Expense"}
                   </span>
                 </td>
-                <td>{transaction.category}</td>
-                <td>{transaction.subcategory}</td>
-                <td>{transaction.date}</td>
-                <td className={isIncome ? "amount-positive" : "amount-negative"}>
-                  {transaction.grossAmount}
+                <td>{row.categoryName}</td>
+                <td>{row.subcategoryName}</td>
+                <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                  {formatCurrency(row.grossAmount)}
                 </td>
-                <td>{transaction.gst}</td>
-                <td className={isIncome ? "amount-positive" : "amount-negative"}>
-                  {transaction.netAmount}
+                <td>{formatCurrency(row.gstAmount)}</td>
+                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                  {formatCurrency(row.netAmount)}
                 </td>
-                <td>{transaction.percentAmount}</td>
+                {showClientShare ? (
+                  <td>
+                    {row.clientShareNet != null
+                      ? formatCurrency(row.clientShareNet)
+                      : "—"}
+                  </td>
+                ) : null}
                 <td>
                   <span
                     className={`transaction-rule-pill ${
-                      transaction.rule ? "is-yes" : "is-no"
+                      row.ruleId != null ? "is-yes" : "is-no"
                     }`}
                   >
-                    {transaction.rule ? "Yes" : "No"}
+                    {row.ruleId != null ? "Yes" : "No"}
                   </span>
                 </td>
                 <td>
                   <div className="transaction-action-set">
-                    <button type="button" aria-label={`Edit ${transaction.id}`}>
+                    <button type="button" aria-label={`Edit ${row.id}`}>
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 20h9" />
                         <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -394,7 +321,7 @@ function TransactionTable({ compact = false }: { compact?: boolean }) {
                     <button
                       type="button"
                       className="is-danger"
-                      aria-label={`Delete ${transaction.id}`}
+                      aria-label={`Delete ${row.id}`}
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M3 6h18" />
@@ -405,6 +332,78 @@ function TransactionTable({ compact = false }: { compact?: boolean }) {
                       </svg>
                     </button>
                   </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PropertyTransactionTable({
+  rows,
+}: {
+  rows: CorePropertyTransactionRow[];
+}) {
+  return (
+    <div className="transactions-table-wrap">
+      <table className="transactions-table">
+        <thead>
+          <tr>
+            <th>Transaction ID</th>
+            <th>Type</th>
+            <th>Category</th>
+            <th>Subcategory</th>
+            <th>Date</th>
+            <th>Bill total</th>
+            <th>Split %</th>
+            <th>Property share</th>
+            <th>GST</th>
+            <th>Net</th>
+            <th>Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const isRevenue = row.transactionType === "revenue";
+            return (
+              <tr key={`${row.transactionId}-${row.splitId}`}>
+                <td>
+                  <a href={`/dashboard/accountant/transactions/${row.transactionId}`}>
+                    {row.transactionId.slice(0, 8)}…
+                  </a>
+                </td>
+                <td>
+                  <span
+                    className={`transaction-type-pill ${
+                      isRevenue ? "is-income" : "is-expense"
+                    }`}
+                  >
+                    {isRevenue ? "Revenue" : "Expense"}
+                  </span>
+                </td>
+                <td>{row.categoryName}</td>
+                <td>{row.subcategoryName}</td>
+                <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                <td>{formatCurrency(row.transactionGrossAmount)}</td>
+                <td>{row.splitPercentage.toFixed(2)}%</td>
+                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                  {formatCurrency(row.splitGrossAmount)}
+                </td>
+                <td>{formatCurrency(row.splitGstAmount)}</td>
+                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                  {formatCurrency(row.splitNetAmount)}
+                </td>
+                <td>
+                  <span
+                    className={`transaction-rule-pill ${
+                      row.ruleId != null ? "is-yes" : "is-no"
+                    }`}
+                  >
+                    {row.ruleId != null ? "Yes" : "No"}
+                  </span>
                 </td>
               </tr>
             );
@@ -487,14 +486,89 @@ function Filters() {
 }
 
 export function AllTransactionsView({
+  context = { kind: "none" },
   addTransactionHref = "/dashboard/accountant/transactions/new",
   rulesHref = "/dashboard/accountant/transactions/rules",
   compact = false,
 }: {
+  context?: TransactionsContext;
   addTransactionHref?: string;
   rulesHref?: string;
   compact?: boolean;
 }) {
+  const [rows, setRows] = useState<CoreTransactionListItem[]>([]);
+  const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (context.kind === "none") {
+      setRows([]);
+      setPropertyRows([]);
+      return;
+    }
+    let cancelled = false;
+    setIsLoading(true);
+    setErrorMessage("");
+
+    async function load() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) {
+          if (!cancelled) setErrorMessage("You're signed out.");
+          return;
+        }
+        const token = session.getIdToken().getJwtToken();
+
+        let url = "";
+        switch (context.kind) {
+          case "client":
+            url = `/api/clients/${encodeURIComponent(context.clientId)}/transactions`;
+            break;
+          case "entity":
+            url = `/api/entities/${encodeURIComponent(context.entityId)}/transactions`;
+            break;
+          case "property":
+            url = `/api/properties/${encodeURIComponent(context.propertyId)}/transactions`;
+            break;
+        }
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          if (!cancelled) setErrorMessage("Failed to load transactions.");
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        if (context.kind === "property") {
+          setPropertyRows((data.items as CorePropertyTransactionRow[]) || []);
+          setRows([]);
+        } else {
+          setRows((data.items as CoreTransactionListItem[]) || []);
+          setPropertyRows([]);
+        }
+      } catch (error) {
+        console.error("Failed to load transactions:", error);
+        if (!cancelled) {
+          setErrorMessage("Unexpected error loading transactions.");
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [context]);
+
+  const totalCount =
+    context.kind === "property" ? propertyRows.length : rows.length;
+  const showClientShare = context.kind === "client";
+
   return (
     <section className={`transactions-page${compact ? " is-compact" : ""}`}>
       <div className="transactions-page-head">
@@ -522,11 +596,30 @@ export function AllTransactionsView({
 
       <Filters />
 
-      <div className="transactions-showing-copy">
-        Showing <strong>8</strong> of <strong>8</strong> transactions
-      </div>
-      <TransactionTable compact={compact} />
-      <Pagination copy="Showing 8 of 8 items" />
+      {context.kind === "none" ? (
+        <div className="transactions-showing-copy">
+          Pick a client or entity to view transactions.
+        </div>
+      ) : isLoading ? (
+        <div className="transactions-showing-copy">Loading transactions…</div>
+      ) : errorMessage ? (
+        <div className="transactions-showing-copy">{errorMessage}</div>
+      ) : totalCount === 0 ? (
+        <div className="transactions-showing-copy">No transactions yet.</div>
+      ) : (
+        <>
+          <div className="transactions-showing-copy">
+            Showing <strong>{totalCount}</strong> of{" "}
+            <strong>{totalCount}</strong> transactions
+          </div>
+          {context.kind === "property" ? (
+            <PropertyTransactionTable rows={propertyRows} />
+          ) : (
+            <TransactionTable rows={rows} showClientShare={showClientShare} />
+          )}
+          <Pagination copy={`Showing ${totalCount} of ${totalCount} items`} />
+        </>
+      )}
     </section>
   );
 }
@@ -680,18 +773,232 @@ function EntityPropertyWarning() {
   );
 }
 
+type PropertyOption = { id: string; name: string };
+
+const ASSET_CLASSES: { value: CoreAssetClass; label: string }[] = [
+  { value: "capital_works", label: "Capital Works" },
+  { value: "capital_allowance", label: "Capital Allowance" },
+];
+
 export function AddTransactionView({
+  entityId,
   backHref = "/dashboard/accountant/transactions",
   backLabel = "Back",
 }: {
+  entityId?: string;
   backHref?: string;
   backLabel?: string;
 }) {
-  const [category, setCategory] = useState("Select category");
-  const [subcategory, setSubcategory] = useState("Select sub-category");
-  const [type, setType] = useState<TransactionType | "">("");
+  const router = useRouter();
+
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenLoaded, setTokenLoaded] = useState(false);
+
+  const [type, setType] = useState<CoreTransactionType | "">("");
+  const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
+
+  const [properties, setProperties] = useState<PropertyOption[]>([]);
+  const [propertyId, setPropertyId] = useState<string>("");
+
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [grossAmount, setGrossAmount] = useState("");
+  const [gstAmount, setGstAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [internalRemarks, setInternalRemarks] = useState("");
+
+  const [isAssetPurchase, setIsAssetPurchase] = useState(false);
+  const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
+  const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
+
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [isMarked, setIsMarked] = useState(false);
+
+  // Resolve the bearer token once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    async function resolve() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (cancelled) return;
+        setToken(session ? session.getIdToken().getJwtToken() : null);
+      } finally {
+        if (!cancelled) setTokenLoaded(true);
+      }
+    }
+    resolve();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load the entity's properties (for the property dropdown).
+  useEffect(() => {
+    if (!token || !entityId) return;
+    let cancelled = false;
+    async function loadProperties() {
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(entityId!)}/properties`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: PropertyOption[] };
+      if (!cancelled) setProperties(data.items || []);
+    }
+    loadProperties();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, entityId]);
+
+  // Load categories whenever the type changes.
+  useEffect(() => {
+    if (!token || !type) {
+      setCategories([]);
+      setCategoryId(null);
+      return;
+    }
+    let cancelled = false;
+    async function loadCategories() {
+      const res = await fetch(
+        `/api/transactions/categories?type=${encodeURIComponent(type)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: CoreTransactionCategory[] };
+      if (!cancelled) {
+        setCategories(data.items || []);
+        setCategoryId(null);
+        setSubcategoryId(null);
+      }
+    }
+    loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, type]);
+
+  // Load subcategories whenever the category changes.
+  useEffect(() => {
+    if (!token || !categoryId) {
+      setSubcategories([]);
+      setSubcategoryId(null);
+      return;
+    }
+    let cancelled = false;
+    async function loadSubcategories() {
+      const res = await fetch(
+        `/api/transactions/categories/${categoryId}/sub-categories`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
+      if (!cancelled) {
+        setSubcategories(data.items || []);
+        setSubcategoryId(null);
+      }
+    }
+    loadSubcategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, categoryId]);
+
+  // When the user un-checks "asset purchase", reset its dependent fields.
+  useEffect(() => {
+    if (!isAssetPurchase) {
+      setAssetClass("");
+      setEffectiveLifeYears("");
+    }
+  }, [isAssetPurchase]);
+
+  const canSubmit =
+    !!entityId &&
+    !!type &&
+    !!categoryId &&
+    !!subcategoryId &&
+    !!propertyId &&
+    !!invoiceDate &&
+    !!grossAmount;
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!entityId || !token) {
+      setSubmitError("Cannot submit without an entity context.");
+      return;
+    }
+    setSubmitError("");
+    setIsSubmitting(true);
+    try {
+      const grossNum = Number.parseFloat(grossAmount);
+      const gstNum = gstAmount ? Number.parseFloat(gstAmount) : 0;
+      if (Number.isNaN(grossNum) || grossNum < 0) {
+        setSubmitError("Amount must be a non-negative number.");
+        return;
+      }
+      if (Number.isNaN(gstNum) || gstNum < 0) {
+        setSubmitError("GST must be a non-negative number.");
+        return;
+      }
+
+      const body: Record<string, unknown> = {
+        type,
+        category_id: categoryId,
+        subcategory_id: subcategoryId,
+        invoice_date: invoiceDate,
+        gross_amount: grossNum,
+        gst_amount: gstNum,
+        description: description.trim() || null,
+        internal_remarks: internalRemarks.trim() || null,
+        is_asset_purchase: isAssetPurchase,
+        splits: [{ property_id: propertyId, split_percentage: 100 }],
+      };
+      if (isAssetPurchase) {
+        body.asset_class = assetClass || null;
+        if (assetClass === "capital_allowance") {
+          const yearsNum = Number.parseFloat(effectiveLifeYears);
+          if (Number.isNaN(yearsNum) || yearsNum <= 0) {
+            setSubmitError("Effective life must be a positive number.");
+            return;
+          }
+          body.effective_life_years = yearsNum;
+        }
+      }
+
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(entityId)}/transactions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setSubmitError(
+          data?.message || data?.error || `Save failed (${res.status}).`,
+        );
+        return;
+      }
+      setIsMarked(true);
+    } catch (error) {
+      console.error("Failed to save transaction:", error);
+      setSubmitError("Unexpected error saving transaction.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   if (isMarked) {
     return (
@@ -702,10 +1009,45 @@ export function AddTransactionView({
             Added one more to list. The Client&apos;s real-time balance has been
             updated accordingly.
           </p>
+          <button
+            type="button"
+            className="transaction-primary-button"
+            onClick={() => router.push(backHref)}
+          >
+            Back to transactions
+          </button>
         </div>
       </section>
     );
   }
+
+  if (tokenLoaded && !token) {
+    return (
+      <section className="transactions-page">
+        <div className="transaction-success-card">
+          <h1>Sign-in required</h1>
+          <p>Please sign in to add a transaction.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const categorySelectOptions: SelectOption[] = [
+    { label: "Select category", value: "" },
+    ...categories.map((c) => ({ label: c.name, value: String(c.id) })),
+  ];
+  const subcategorySelectOptions: SelectOption[] = [
+    { label: "Select sub-category", value: "" },
+    ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
+  ];
+  const propertySelectOptions: SelectOption[] = [
+    { label: "Select property", value: "" },
+    ...properties.map((p) => ({ label: p.name, value: p.id })),
+  ];
+  const assetClassOptions: SelectOption[] = [
+    { label: "Select class", value: "" },
+    ...ASSET_CLASSES.map((a) => ({ label: a.label, value: a.value })),
+  ];
 
   return (
     <section className="transactions-page transaction-add-page">
@@ -740,14 +1082,8 @@ export function AddTransactionView({
           <small>or click to browse</small>
         </button>
 
-        <form
-          className="transaction-entry-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setIsMarked(true);
-          }}
-        >
-          <EntityPropertyWarning />
+        <form className="transaction-entry-form" onSubmit={handleSubmit}>
+          {!entityId ? <EntityPropertyWarning /> : null}
 
           <div className="transaction-type-control">
             <span className="transaction-field-label">
@@ -756,15 +1092,15 @@ export function AddTransactionView({
             <div>
               <button
                 type="button"
-                className={type === "Expense" ? "is-selected" : ""}
-                onClick={() => setType("Expense")}
+                className={type === "expense" ? "is-selected" : ""}
+                onClick={() => setType("expense")}
               >
                 Expense
               </button>
               <button
                 type="button"
-                className={type === "Income" ? "is-selected" : ""}
-                onClick={() => setType("Income")}
+                className={type === "revenue" ? "is-selected" : ""}
+                onClick={() => setType("revenue")}
               >
                 Revenue
               </button>
@@ -775,50 +1111,173 @@ export function AddTransactionView({
             <StaticSelect
               label="Category"
               required
-              value={category}
-              options={[
-                { label: "Select category", value: "Select category" },
-                ...categoryOptions.slice(1),
-              ]}
-              onChange={setCategory}
+              value={categoryId == null ? "" : String(categoryId)}
+              options={categorySelectOptions}
+              onChange={(value) => setCategoryId(value ? Number(value) : null)}
             />
             <StaticSelect
               label="Sub-Category"
               required
-              value={subcategory}
-              options={subcategoryOptions}
-              onChange={setSubcategory}
+              value={subcategoryId == null ? "" : String(subcategoryId)}
+              options={subcategorySelectOptions}
+              onChange={(value) =>
+                setSubcategoryId(value ? Number(value) : null)
+              }
+            />
+            <StaticSelect
+              label="Property"
+              required
+              value={propertyId}
+              options={propertySelectOptions}
+              onChange={setPropertyId}
             />
             <label className="transaction-field">
               <span className="transaction-field-label">
                 Invoice Date<em>*</em>
               </span>
-              <input type="text" placeholder="dd/mm/yyyy" />
+              <input
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+              />
             </label>
             <label className="transaction-field">
               <span className="transaction-field-label">
                 Amount<em>*</em>
               </span>
-              <input type="text" placeholder="$  0.00" />
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={grossAmount}
+                onChange={(e) => setGrossAmount(e.target.value)}
+              />
+            </label>
+            <label className="transaction-field">
+              <span className="transaction-field-label">GST</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={gstAmount}
+                onChange={(e) => setGstAmount(e.target.value)}
+              />
             </label>
           </div>
 
           <label className="transaction-field">
             <span className="transaction-field-label">Description</span>
-            <textarea placeholder="Add description" />
+            <textarea
+              placeholder="Add description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </label>
 
           <label className="transaction-field">
             <span className="transaction-field-label">Add Internal Remarks</span>
-            <input type="text" placeholder="Add Remarks" />
+            <input
+              type="text"
+              placeholder="Add Remarks"
+              value={internalRemarks}
+              onChange={(e) => setInternalRemarks(e.target.value)}
+            />
           </label>
+
+          {type === "expense" ? (
+            <div
+              className="transaction-asset-block"
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTop: "1px solid #e2e8f0",
+              }}
+            >
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 10,
+                  cursor: "pointer",
+                  userSelect: "none",
+                  padding: "4px 0",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isAssetPurchase}
+                  onChange={(e) => setIsAssetPurchase(e.target.checked)}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    margin: 0,
+                    flexShrink: 0,
+                    accentColor: "#1e3a8a",
+                    cursor: "pointer",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  Is this an asset purchase?
+                </span>
+              </label>
+              {isAssetPurchase ? (
+                <div className="transaction-form-grid" style={{ marginTop: 12 }}>
+                  <StaticSelect
+                    label="Asset Class"
+                    required
+                    value={assetClass}
+                    options={assetClassOptions}
+                    onChange={(value) =>
+                      setAssetClass((value as CoreAssetClass) || "")
+                    }
+                  />
+                  {assetClass === "capital_allowance" ? (
+                    <label className="transaction-field">
+                      <span className="transaction-field-label">
+                        Effective life (years)<em>*</em>
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.1"
+                        min="0"
+                        placeholder="e.g. 10"
+                        value={effectiveLifeYears}
+                        onChange={(e) => setEffectiveLifeYears(e.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {submitError ? (
+            <p className="transaction-warning-card" role="alert">
+              {submitError}
+            </p>
+          ) : null}
 
           <div className="transaction-form-actions">
             <Link href={backHref} className="transaction-cancel-button">
               Cancel
             </Link>
-            <button type="submit" className="transaction-save-button">
-              Save Transaction
+            <button
+              type="submit"
+              className="transaction-save-button"
+              disabled={!canSubmit || isSubmitting}
+            >
+              {isSubmitting ? "Saving…" : "Save Transaction"}
             </button>
           </div>
         </form>
@@ -829,7 +1288,6 @@ export function AddTransactionView({
           onClose={() => setIsBulkOpen(false)}
           onImport={() => {
             setIsBulkOpen(false);
-            setIsMarked(true);
           }}
         />
       )}

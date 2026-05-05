@@ -334,6 +334,7 @@ export default function EntityDetailView({
         {currentTab === "transactions" && (
           <div className="entity-resource-body">
             <AllTransactionsView
+              context={{ kind: "entity", entityId }}
               addTransactionHref={addTransactionHref}
               compact
             />

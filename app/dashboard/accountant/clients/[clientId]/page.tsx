@@ -391,6 +391,7 @@ export default function ClientDetailPage() {
         {currentTab === "transactions" && (
           <div className="client-portfolio-tab-body">
             <AllTransactionsView
+              context={{ kind: "client", clientId }}
               addTransactionHref={
                 entities[0]
                   ? `/dashboard/accountant/clients/${clientId}/entities/${entities[0].id}/transactions/new`
