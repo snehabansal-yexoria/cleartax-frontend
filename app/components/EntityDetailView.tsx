@@ -21,6 +21,7 @@ export type EntityDetailViewProps = {
   backLabel: string;
   addPropertyHref: string;
   addTransactionHref?: string;
+  editEntityHref: string;
   propertyDetailHrefBase: string;
 };
 
@@ -73,6 +74,7 @@ export default function EntityDetailView({
   backLabel,
   addPropertyHref,
   addTransactionHref = "/dashboard/accountant/transactions/new",
+  editEntityHref,
   propertyDetailHrefBase,
 }: EntityDetailViewProps) {
   const router = useRouter();
@@ -183,6 +185,18 @@ export default function EntityDetailView({
             {properties.length} propert{properties.length === 1 ? "y" : "ies"}
           </p>
         </div>
+        <Link
+          href={editEntityHref}
+          className="entity-icon-action entity-detail-edit-action"
+          aria-label={`Edit ${entity.name}`}
+          title="Edit entity"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+          <span>Edit Details</span>
+        </Link>
       </header>
 
       <section className="entity-trend-card" aria-label="Profit and loss trend">

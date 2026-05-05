@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/src/lib/session";
@@ -48,6 +48,7 @@ const entityTypeOptions: EntityTypeOption[] = [
 
 type BeneficiaryRow = {
   uid: string;
+  id?: number;
   name: string;
   percentage: string;
 };
@@ -67,6 +68,8 @@ export type AddEntityWizardProps = {
   onSuccessHref: string;
   addAnotherHref?: string;
   defaultBeneficiaryName?: string;
+  mode?: "create" | "edit";
+  initialEntity?: CoreEntity;
 };
 
 export default function AddEntityWizard({
@@ -76,14 +79,18 @@ export default function AddEntityWizard({
   onSuccessHref,
   addAnotherHref,
   defaultBeneficiaryName = "",
+  mode = "create",
+  initialEntity,
 }: AddEntityWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [entityType, setEntityType] = useState<EntityType | null>(null);
-  const [entityName, setEntityName] = useState("");
-  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>([
-    newBeneficiaryRow(),
-  ]);
+  const [entityType, setEntityType] = useState<EntityType | null>(
+    initialEntity?.entityType ?? null,
+  );
+  const [entityName, setEntityName] = useState(initialEntity?.name ?? "");
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>(
+    getInitialBeneficiaries(initialEntity),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -130,6 +137,7 @@ export default function AddEntityWizard({
     entityType === "partnership" ? "Partner" : "Beneficiary";
   const beneficiaryNounPlural =
     entityType === "partnership" ? "Partners" : "Beneficiaries";
+  const isEditMode = mode === "edit";
   const stepMeta = useMemo(
     () => [
       { title: "Choose Entity Type", subtitle: "Select the type of entity" },
@@ -145,6 +153,13 @@ export default function AddEntityWizard({
     ],
     [beneficiaryNounPlural, needsBeneficiaries],
   );
+
+  useEffect(() => {
+    if (!initialEntity) return;
+    setEntityType(initialEntity.entityType);
+    setEntityName(initialEntity.name);
+    setBeneficiaries(getInitialBeneficiaries(initialEntity));
+  }, [initialEntity]);
 
   function updateRow(uid: string, patch: Partial<BeneficiaryRow>) {
     setBeneficiaries((current) =>
@@ -189,20 +204,32 @@ export default function AddEntityWizard({
         created_for: createdFor,
       };
 
+      const primaryBeneficiary = initialEntity?.beneficiaries[0];
+
       body.beneficiaries = needsBeneficiaries
         ? filledBeneficiaries.map((row) => ({
+            ...(row.id ? { id: row.id } : {}),
             name: row.name.trim(),
             ownership_percentage: Number.parseFloat(row.percentage),
           }))
         : [
             {
-              name: defaultBeneficiaryName.trim() || entityName.trim(),
+              ...(primaryBeneficiary?.id ? { id: primaryBeneficiary.id } : {}),
+              name:
+                primaryBeneficiary?.name ||
+                defaultBeneficiaryName.trim() ||
+                entityName.trim(),
               ownership_percentage: 100,
             },
           ];
 
-      const res = await fetch("/api/entities", {
-        method: "POST",
+      const url =
+        isEditMode && initialEntity
+          ? `/api/entities/${encodeURIComponent(initialEntity.id)}`
+          : "/api/entities";
+
+      const res = await fetch(url, {
+        method: isEditMode ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -213,7 +240,9 @@ export default function AddEntityWizard({
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
         setErrorMessage(
-          payload?.error || payload?.message || "Failed to save entity.",
+          payload?.error ||
+            payload?.message ||
+            `Failed to ${isEditMode ? "update" : "save"} entity.`,
         );
         return null;
       }
@@ -298,7 +327,10 @@ export default function AddEntityWizard({
         <div className="entity-wizard-card">
           <header>
             <h2>Choose Entity Type</h2>
-            <p>Select the type of entity you want to create</p>
+            <p>
+              Select the type of entity you want to{" "}
+              {isEditMode ? "maintain" : "create"}
+            </p>
           </header>
 
           <div className="entity-type-grid">
@@ -353,6 +385,10 @@ export default function AddEntityWizard({
             Selected Type: <strong>{selectedTypeLabel}</strong>
           </div>
 
+          {errorMessage && (
+            <p className="entity-wizard-error">{errorMessage}</p>
+          )}
+
           <div className="entity-wizard-footer">
             <button
               type="button"
@@ -371,7 +407,9 @@ export default function AddEntityWizard({
                 ? "Continue"
                 : isSaving
                   ? "Saving..."
-                  : "Create Entity"}
+                  : isEditMode
+                    ? "Update Entity"
+                    : "Create Entity"}
             </button>
           </div>
         </div>
@@ -467,21 +505,27 @@ export default function AddEntityWizard({
               Back
             </button>
             <div className="entity-wizard-footer-actions">
-              <button
-                type="button"
-                className="entity-wizard-secondary"
-                disabled={!beneficiariesValid || isSaving}
-                onClick={addAnotherHref ? handleAddAnother : handleSave}
-              >
-                Add Another Entity
-              </button>
+              {!isEditMode && (
+                <button
+                  type="button"
+                  className="entity-wizard-secondary"
+                  disabled={!beneficiariesValid || isSaving}
+                  onClick={addAnotherHref ? handleAddAnother : handleSave}
+                >
+                  Add Another Entity
+                </button>
+              )}
               <button
                 type="button"
                 className="entity-wizard-primary"
                 disabled={!beneficiariesValid || isSaving}
                 onClick={handleSave}
               >
-                {isSaving ? "Saving…" : "Save & Start Adding Property"}
+                {isSaving
+                  ? "Saving…"
+                  : isEditMode
+                    ? "Save Changes"
+                    : "Save & Start Adding Property"}
               </button>
             </div>
           </div>
@@ -511,10 +555,18 @@ export default function AddEntityWizard({
               </svg>
             </div>
             <div className="entity-success-body">
-              <strong>Entity Successfully Added !</strong>
+              <strong>
+                Entity Successfully {isEditMode ? "Updated" : "Added"} !
+              </strong>
               <p>
-                You&apos;ve successfully registered this entity. It&apos;s now
-                ready for property and transaction mapping.
+                {isEditMode ? (
+                  "Your entity details have been updated and are ready for property and transaction mapping."
+                ) : (
+                  <>
+                    You&apos;ve successfully registered this entity. It&apos;s
+                    now ready for property and transaction mapping.
+                  </>
+                )}
               </p>
             </div>
             <div className="entity-success-footer">
@@ -527,6 +579,23 @@ export default function AddEntityWizard({
       )}
     </section>
   );
+}
+
+function getInitialBeneficiaries(entity?: CoreEntity): BeneficiaryRow[] {
+  if (!entity?.beneficiaries.length) return [newBeneficiaryRow()];
+
+  return entity.beneficiaries.map((beneficiary) => ({
+    uid: `b_${beneficiary.id ?? beneficiary.name}_${Math.random().toString(36).slice(2, 7)}`,
+    id: beneficiary.id,
+    name: beneficiary.name,
+    percentage:
+      Math.abs(
+        beneficiary.ownershipPercentage -
+          Math.round(beneficiary.ownershipPercentage),
+      ) < 0.001
+        ? String(Math.round(beneficiary.ownershipPercentage))
+        : String(beneficiary.ownershipPercentage),
+  }));
 }
 
 function formatPercentage(value: number) {

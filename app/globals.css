@@ -4210,6 +4210,9 @@ p.darkBg {
 }
 
 .client-detail-entity-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   font-size: 13px;
   color: #475467;
 }
@@ -4506,6 +4509,7 @@ p.darkBg {
 }
 
 .entity-ownership-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid #d0d5dd;
@@ -4544,6 +4548,7 @@ p.darkBg {
 
 .entity-type-badge {
   max-width: 60%;
+  margin-right: 42px;
   padding: 8px 10px;
   border-radius: 5px;
   background: #f1f2f4;
@@ -4603,6 +4608,74 @@ p.darkBg {
 
 .entity-card-footer-line svg {
   color: #2f333b;
+}
+
+.entity-icon-action,
+.entity-card-edit-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475467;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.entity-icon-action:hover,
+.entity-card-edit-action:hover {
+  border-color: var(--primary);
+  background: #f5f6fb;
+  color: var(--primary);
+  box-shadow: 0 6px 14px rgba(40, 51, 110, 0.12);
+}
+
+.entity-icon-action:focus-visible,
+.entity-card-edit-action:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.14);
+}
+
+.entity-icon-action svg,
+.entity-card-edit-action svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.entity-card-edit-action {
+  position: absolute;
+  top: 28px;
+  right: 30px;
+  z-index: 2;
+}
+
+.entity-detail-edit-action {
+  width: auto;
+  min-height: 40px;
+  padding: 0 14px;
+  gap: 8px;
+  color: #28336e;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.entity-detail-edit-action span {
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .entity-card-add-property {

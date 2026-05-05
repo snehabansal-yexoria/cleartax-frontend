@@ -24,6 +24,17 @@ export type TransactionsContext =
   | { kind: "property"; propertyId: string }
   | { kind: "none" };
 
+type TransactionTableScope = "global" | "client" | "entity";
+
+type DisplayTransactionRow = CoreTransactionListItem & {
+  clientName?: string;
+};
+
+type ClientRecord = {
+  id: string;
+  name: string;
+};
+
 const NUMERIC_FORMATTER = new Intl.NumberFormat("en-AU", {
   style: "currency",
   currency: "AUD",
@@ -232,18 +243,24 @@ function StaticSelect({
 
 function TransactionTable({
   rows,
+  scope,
   showClientShare = false,
 }: {
-  rows: CoreTransactionListItem[];
+  rows: DisplayTransactionRow[];
+  scope: TransactionTableScope;
   showClientShare?: boolean;
 }) {
+  const showClientName = scope === "global";
+  const showEntityName = scope !== "entity";
+
   return (
     <div className="transactions-table-wrap">
       <table className="transactions-table">
         <thead>
           <tr>
             <th>Transaction ID</th>
-            <th>Entity</th>
+            {showClientName ? <th>Client Name</th> : null}
+            {showEntityName ? <th>Entity</th> : null}
             <th>Properties</th>
             <th>Type</th>
             <th>Category</th>
@@ -273,7 +290,8 @@ function TransactionTable({
                     {row.id.slice(0, 8)}…
                   </a>
                 </td>
-                <td>{row.entityName || "—"}</td>
+                {showClientName ? <td>{row.clientName || "—"}</td> : null}
+                {showEntityName ? <td>{row.entityName || "—"}</td> : null}
                 <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
                 <td>
                   <span
@@ -433,12 +451,16 @@ function Pagination({ copy }: { copy: string }) {
   );
 }
 
-function Filters() {
+function Filters({ context }: { context: TransactionsContext }) {
   const [client, setClient] = useState("All Clients");
   const [entity, setEntity] = useState("All Entities");
   const [property, setProperty] = useState("All Properties");
   const [type, setType] = useState("All Types");
   const [category, setCategory] = useState("All Categories");
+
+  const showClientFilter = context.kind === "none";
+  const showEntityFilter = context.kind === "none" || context.kind === "client";
+  const showPropertyFilter = context.kind !== "property";
 
   return (
     <section className="transaction-filter-card" aria-label="Transaction filters">
@@ -450,24 +472,30 @@ function Filters() {
         <strong>Filters</strong>
       </div>
       <div className="transaction-filter-grid">
-        <StaticSelect
-          label="Client Name"
-          value={client}
-          options={clientOptions}
-          onChange={setClient}
-        />
-        <StaticSelect
-          label="Entity Name"
-          value={entity}
-          options={entityOptions}
-          onChange={setEntity}
-        />
-        <StaticSelect
-          label="Property Name"
-          value={property}
-          options={propertyOptions}
-          onChange={setProperty}
-        />
+        {showClientFilter ? (
+          <StaticSelect
+            label="Client Name"
+            value={client}
+            options={clientOptions}
+            onChange={setClient}
+          />
+        ) : null}
+        {showEntityFilter ? (
+          <StaticSelect
+            label="Entity Name"
+            value={entity}
+            options={entityOptions}
+            onChange={setEntity}
+          />
+        ) : null}
+        {showPropertyFilter ? (
+          <StaticSelect
+            label="Property Name"
+            value={property}
+            options={propertyOptions}
+            onChange={setProperty}
+          />
+        ) : null}
         <StaticSelect
           label="Transaction Type"
           value={type}
@@ -496,17 +524,21 @@ export function AllTransactionsView({
   rulesHref?: string;
   compact?: boolean;
 }) {
-  const [rows, setRows] = useState<CoreTransactionListItem[]>([]);
+  const [rows, setRows] = useState<DisplayTransactionRow[]>([]);
   const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const contextKind = context.kind;
+  const contextId =
+    context.kind === "client"
+      ? context.clientId
+      : context.kind === "entity"
+        ? context.entityId
+        : context.kind === "property"
+          ? context.propertyId
+          : "";
 
   useEffect(() => {
-    if (context.kind === "none") {
-      setRows([]);
-      setPropertyRows([]);
-      return;
-    }
     let cancelled = false;
     setIsLoading(true);
     setErrorMessage("");
@@ -520,16 +552,51 @@ export function AllTransactionsView({
         }
         const token = session.getIdToken().getJwtToken();
 
+        if (contextKind === "none") {
+          const clientsRes = await fetch("/api/users/me/clients?scope=mine", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!clientsRes.ok) {
+            if (!cancelled) setErrorMessage("Failed to load clients.");
+            return;
+          }
+          const clientsData = (await clientsRes.json()) as {
+            clients?: ClientRecord[];
+          };
+          const clients = clientsData.clients || [];
+          const responses = await Promise.all(
+            clients.map(async (client) => {
+              const res = await fetch(
+                `/api/clients/${encodeURIComponent(client.id)}/transactions`,
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+              if (!res.ok) return [];
+              const data = (await res.json()) as {
+                items?: CoreTransactionListItem[];
+              };
+              return (data.items || []).map((item) => ({
+                ...item,
+                clientName: client.name,
+              }));
+            }),
+          );
+          if (!cancelled) {
+            setRows(responses.flat());
+            setPropertyRows([]);
+          }
+          return;
+        }
+
         let url = "";
-        switch (context.kind) {
+        switch (contextKind) {
           case "client":
-            url = `/api/clients/${encodeURIComponent(context.clientId)}/transactions`;
+            url = `/api/clients/${encodeURIComponent(contextId)}/transactions`;
             break;
           case "entity":
-            url = `/api/entities/${encodeURIComponent(context.entityId)}/transactions`;
+            url = `/api/entities/${encodeURIComponent(contextId)}/transactions`;
             break;
           case "property":
-            url = `/api/properties/${encodeURIComponent(context.propertyId)}/transactions`;
+            url = `/api/properties/${encodeURIComponent(contextId)}/transactions`;
             break;
         }
 
@@ -542,11 +609,11 @@ export function AllTransactionsView({
         }
         const data = await res.json();
         if (cancelled) return;
-        if (context.kind === "property") {
+        if (contextKind === "property") {
           setPropertyRows((data.items as CorePropertyTransactionRow[]) || []);
           setRows([]);
         } else {
-          setRows((data.items as CoreTransactionListItem[]) || []);
+          setRows((data.items as DisplayTransactionRow[]) || []);
           setPropertyRows([]);
         }
       } catch (error) {
@@ -563,11 +630,17 @@ export function AllTransactionsView({
     return () => {
       cancelled = true;
     };
-  }, [context]);
+  }, [contextId, contextKind]);
 
   const totalCount =
-    context.kind === "property" ? propertyRows.length : rows.length;
-  const showClientShare = context.kind === "client";
+    contextKind === "property" ? propertyRows.length : rows.length;
+  const showClientShare = contextKind === "client";
+  const tableScope: TransactionTableScope =
+    contextKind === "none"
+      ? "global"
+      : contextKind === "client"
+        ? "client"
+        : "entity";
 
   return (
     <section className={`transactions-page${compact ? " is-compact" : ""}`}>
@@ -594,13 +667,9 @@ export function AllTransactionsView({
         </div>
       </div>
 
-      <Filters />
+      <Filters context={context} />
 
-      {context.kind === "none" ? (
-        <div className="transactions-showing-copy">
-          Pick a client or entity to view transactions.
-        </div>
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="transactions-showing-copy">Loading transactions…</div>
       ) : errorMessage ? (
         <div className="transactions-showing-copy">{errorMessage}</div>
@@ -612,10 +681,14 @@ export function AllTransactionsView({
             Showing <strong>{totalCount}</strong> of{" "}
             <strong>{totalCount}</strong> transactions
           </div>
-          {context.kind === "property" ? (
+          {contextKind === "property" ? (
             <PropertyTransactionTable rows={propertyRows} />
           ) : (
-            <TransactionTable rows={rows} showClientShare={showClientShare} />
+            <TransactionTable
+              rows={rows}
+              scope={tableScope}
+              showClientShare={showClientShare}
+            />
           )}
           <Pagination copy={`Showing ${totalCount} of ${totalCount} items`} />
         </>

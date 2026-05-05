@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
+import {
+  AllTransactionsView,
+  TransactionRulesView,
+} from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
 
@@ -320,8 +324,20 @@ export default function PropertyDetailView({
           ))}
         </div>
         <div className="property-detail-tab-body">
-          <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
-          <p>Coming soon</p>
+          {currentTab === "transactions" ? (
+            <AllTransactionsView
+              context={{ kind: "property", propertyId }}
+              addTransactionHref={`${backHref}/transactions/new`}
+              compact
+            />
+          ) : currentTab === "rules" ? (
+            <TransactionRulesView backHref={backHref} />
+          ) : (
+            <>
+              <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
+              <p>Coming soon</p>
+            </>
+          )}
         </div>
       </section>
     </section>
