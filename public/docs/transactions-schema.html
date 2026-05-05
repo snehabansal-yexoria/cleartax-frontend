@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Transactions Schema</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+  header.hero {
+    margin-bottom: 56px;
+  }
+  header.hero .eyebrow {
+    color: #3b82f6;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  header.hero h1 {
+    font-size: 36px;
+    line-height: 1.15;
+    margin: 0 0 12px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  header.hero p.lede {
+    color: #475569;
+    font-size: 17px;
+    max-width: 780px;
+    margin: 0 0 28px;
+  }
+  .tldr-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  .tldr-card h2 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 700;
+  }
+  .tldr-tree {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13.5px;
+    color: #334155;
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 0;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .tldr-tree b { color: #1d4ed8; font-weight: 700; }
+
+  section {
+    margin-top: 64px;
+  }
+  section > h2.section-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  section > p.section-sub {
+    color: #64748b;
+    margin: 0 0 28px;
+    max-width: 760px;
+  }
+
+  /* ER diagram */
+  .er-wrap {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow-x: auto;
+  }
+  .er-wrap svg { display: block; min-width: 1100px; height: auto; }
+  .er-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 16px;
+    font-size: 12.5px;
+    color: #475569;
+  }
+  .er-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .er-legend i {
+    display: inline-block;
+    width: 22px;
+    height: 2px;
+    border-radius: 1px;
+  }
+  .er-legend i.cascade { background: #ef4444; }
+  .er-legend i.setnull { background: #f59e0b; }
+  .er-legend i.normal { background: #3b82f6; }
+  .er-legend i.dashed { background: repeating-linear-gradient(90deg, #94a3b8 0 4px, transparent 4px 7px); height: 2px; }
+
+  /* Table cards grid */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+  }
+  .card .card-head {
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    color: #fff;
+    padding: 16px 20px;
+  }
+  .card .card-head .name {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .card .card-head .role {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 2px;
+  }
+  .card .card-body {
+    padding: 16px 20px 18px;
+    flex: 1;
+  }
+  .card .what {
+    color: #475569;
+    font-size: 13.5px;
+    margin: 0 0 12px;
+  }
+  table.cols {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.cols th, table.cols td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+  }
+  table.cols th {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    background: #f8fafc;
+  }
+  table.cols td.col-name {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    color: #1e293b;
+    white-space: nowrap;
+  }
+  table.cols td.col-type {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    color: #6366f1;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  table.cols td.col-notes {
+    color: #475569;
+    font-size: 12.5px;
+  }
+  .pk { color: #b45309; font-weight: 700; }
+  .fk { color: #0e7490; font-weight: 700; }
+  .nn { color: #b91c1c; font-weight: 700; }
+
+  /* Walkthrough */
+  .walkthrough {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    .walkthrough { grid-template-columns: 1fr; }
+  }
+  .wt-step {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  .wt-step .wt-head {
+    padding: 14px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .wt-step .wt-head .badge {
+    background: #3b82f6;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.4px;
+  }
+  .wt-step .wt-head .title {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 15px;
+  }
+  .wt-step .wt-head .desc {
+    color: #64748b;
+    font-size: 13px;
+    margin-left: auto;
+  }
+  .wt-step .wt-body {
+    padding: 18px 20px 22px;
+  }
+
+  /* Mock form */
+  .mock-form {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fafbfc;
+    padding: 18px;
+  }
+  .mock-form h3 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    color: #0f172a;
+  }
+  .mock-form .mf-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+  }
+  .mock-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #475569;
+  }
+  .mock-form .mf-input,
+  .mock-form .mf-textarea {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 7px 9px;
+    font-size: 13px;
+    color: #0f172a;
+    font-family: inherit;
+  }
+  .mock-form .mf-textarea { min-height: 50px; }
+  .mock-form .mf-radio {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .mock-form .mf-radio button {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #475569;
+    cursor: default;
+  }
+  .mock-form .mf-radio button.is-selected {
+    background: #1e3a8a;
+    color: #fff;
+    border-color: #1e3a8a;
+  }
+  .mock-form .mf-row { grid-column: 1 / -1; }
+  .mock-form .mf-input em { color: #ef4444; font-style: normal; margin-left: 2px; }
+  .form-label-required::after { content: " *"; color: #ef4444; }
+  .split-card {
+    margin-top: 12px;
+    border: 1px dashed #94a3b8;
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+  }
+  .split-card .sc-row {
+    display: grid;
+    grid-template-columns: 1.4fr 0.6fr 0.6fr;
+    gap: 8px;
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  .split-card .sc-row > span {
+    background: #f1f5f9;
+    border-radius: 5px;
+    padding: 5px 8px;
+    color: #1e293b;
+  }
+  .split-card .sc-head {
+    color: #64748b;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 2px;
+  }
+
+  /* SQL block */
+  .sql-block {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    overflow-x: auto;
+    margin: 0 0 14px;
+    white-space: pre;
+  }
+  .sql-block + .sql-block { margin-top: 0; }
+  .sql-block .kw   { color: #f472b6; }
+  .sql-block .tbl  { color: #93c5fd; }
+  .sql-block .col  { color: #cbd5e1; }
+  .sql-block .str  { color: #86efac; }
+  .sql-block .num  { color: #fbbf24; }
+  .sql-block .nul  { color: #f87171; font-style: italic; }
+  .sql-block .cmt  { color: #64748b; font-style: italic; }
+  .sql-block .hl   { background: rgba(251, 191, 36, 0.18); border-radius: 3px; padding: 0 2px; }
+  .sql-caption {
+    color: #64748b;
+    font-size: 12px;
+    margin: 0 0 8px;
+    font-style: italic;
+  }
+
+  .footer-note {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 13px;
+  }
+  .footer-note code {
+    background: #f1f5f9;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12.5px;
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin-left: 6px;
+  }
+  .pill.lookup { background: #ecfeff; color: #0e7490; }
+  .pill.txn    { background: #eef2ff; color: #4338ca; }
+  .pill.child  { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="hero">
+  <div class="eyebrow">Internal &middot; Schema documentation</div>
+  <h1>Transactions schema</h1>
+  <p class="lede">
+    Six new Postgres tables that capture the transactions feature: a typed taxonomy of
+    categories/sub-categories, a rule engine for auto-categorization, and a three-level transaction
+    model that handles a single bill spanning multiple properties with multiple owners each.
+  </p>
+
+  <div class="tldr-card">
+    <h2>The three-level model</h2>
+<pre class="tldr-tree"><b>transaction</b>                          <span style="color:#64748b">// totals: $1000 utilities, type=expense</span>
+  ├─ <b>transaction_property_split</b>      <span style="color:#64748b">// Property A — 60% — $600</span>
+  │    ├─ <b>transaction_allocation</b>     <span style="color:#64748b">// Owner X — 50% — $300</span>
+  │    └─ <b>transaction_allocation</b>     <span style="color:#64748b">// Owner Y — 50% — $300</span>
+  └─ <b>transaction_property_split</b>      <span style="color:#64748b">// Property B — 40% — $400</span>
+       └─ <b>transaction_allocation</b>     <span style="color:#64748b">// Owner X — 100% — $400</span></pre>
+  </div>
+</header>
+
+<!-- ============ ER DIAGRAM ============ -->
+<section>
+  <h2 class="section-title">Entity-relationship diagram</h2>
+  <p class="section-sub">
+    Six new tables (solid) and the four pre-existing tables they depend on (dashed). Arrows point
+    from the foreign key to its target. Colors indicate ON DELETE behaviour.
+  </p>
+
+  <div class="er-wrap">
+    <svg viewBox="0 0 1180 880" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ER diagram of the transactions schema">
+      <defs>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#3b82f6" />
+        </marker>
+        <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#ef4444" />
+        </marker>
+        <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#f59e0b" />
+        </marker>
+        <marker id="arrow-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8" />
+        </marker>
+      </defs>
+
+      <!-- ============ EXTERNAL TABLES (dashed ghost boxes) ============ -->
+      <g font-family="SFMono-Regular, Menlo, monospace">
+        <!-- organisation -->
+        <g>
+          <rect x="20" y="20" width="170" height="50" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 4" />
+          <text x="105" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">organisation</text>
+          <text x="105" y="60" text-anchor="middle" font-size="10.5" fill="#64748b">id (UUID)</text>
+        </g>
+        <!-- entity -->
+        <g>
+          <rect x="20" y="800" width="170" height="50" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 4" />
+          <text x="105" y="822" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">entity</text>
+          <text x="105" y="840" text-anchor="middle" font-size="10.5" fill="#64748b">id (UUID)</text>
+        </g>
+        <!-- property -->
+        <g>
+          <rect x="985" y="430" width="175" height="50" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 4" />
+          <text x="1072" y="452" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">property</text>
+          <text x="1072" y="470" text-anchor="middle" font-size="10.5" fill="#64748b">id (UUID)</text>
+        </g>
+        <!-- property_owner -->
+        <g>
+          <rect x="985" y="710" width="175" height="50" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 4" />
+          <text x="1072" y="732" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">property_owner</text>
+          <text x="1072" y="750" text-anchor="middle" font-size="10.5" fill="#64748b">id (BIGINT)</text>
+        </g>
+        <!-- users -->
+        <g>
+          <rect x="500" y="20" width="160" height="50" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 4" />
+          <text x="580" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">users</text>
+          <text x="580" y="60" text-anchor="middle" font-size="10.5" fill="#64748b">id (VARCHAR 10)</text>
+        </g>
+      </g>
+
+      <!-- ============ NEW TABLES ============ -->
+      <g font-family="SFMono-Regular, Menlo, monospace">
+        <!-- transaction_category -->
+        <g>
+          <rect x="40" y="120" width="240" height="160" rx="10" fill="#fff" stroke="#0e7490" stroke-width="1.4" />
+          <rect x="40" y="120" width="240" height="32" rx="10" fill="#0e7490" />
+          <text x="160" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">transaction_category</text>
+          <text x="56" y="172" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#b45309">PK</tspan> id (BIGSERIAL)</text>
+          <text x="56" y="192" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> org_id (UUID, NULL)</text>
+          <text x="56" y="212" font-size="11" fill="#1e293b">name (VARCHAR 64)</text>
+          <text x="56" y="232" font-size="11" fill="#1e293b">type (revenue|expense)</text>
+          <text x="56" y="252" font-size="11" fill="#1e293b">is_active (BOOL)</text>
+          <text x="56" y="272" font-size="11" fill="#64748b">created_at, updated_at</text>
+        </g>
+        <!-- transaction_subcategory -->
+        <g>
+          <rect x="40" y="320" width="240" height="160" rx="10" fill="#fff" stroke="#0e7490" stroke-width="1.4" />
+          <rect x="40" y="320" width="240" height="32" rx="10" fill="#0e7490" />
+          <text x="160" y="340" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">transaction_subcategory</text>
+          <text x="56" y="372" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#b45309">PK</tspan> id (BIGSERIAL)</text>
+          <text x="56" y="392" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> category_id</text>
+          <text x="56" y="412" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> org_id (UUID, NULL)</text>
+          <text x="56" y="432" font-size="11" fill="#1e293b">name (VARCHAR 64)</text>
+          <text x="56" y="452" font-size="11" fill="#1e293b">is_active (BOOL)</text>
+          <text x="56" y="472" font-size="11" fill="#64748b">created_at, updated_at</text>
+        </g>
+
+        <!-- transaction_rule -->
+        <g>
+          <rect x="340" y="120" width="265" height="240" rx="10" fill="#fff" stroke="#4338ca" stroke-width="1.4" />
+          <rect x="340" y="120" width="265" height="32" rx="10" fill="#4338ca" />
+          <text x="472" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">transaction_rule</text>
+          <text x="356" y="172" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#b45309">PK</tspan> id (BIGSERIAL)</text>
+          <text x="356" y="192" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> org_id, entity_id, property_id?</text>
+          <text x="356" y="212" font-size="11" fill="#1e293b">name (VARCHAR 255)</text>
+          <text x="356" y="232" font-size="11" fill="#1e293b">match_mode (all|any)</text>
+          <text x="356" y="252" font-size="11" fill="#1e293b">conditions (JSONB array)</text>
+          <text x="356" y="272" font-size="11" fill="#1e293b">assigned_type</text>
+          <text x="356" y="292" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> assigned_category_id</text>
+          <text x="356" y="312" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> assigned_subcategory_id</text>
+          <text x="356" y="332" font-size="11" fill="#1e293b">auto_confirm, is_enabled</text>
+          <text x="356" y="352" font-size="11" fill="#64748b">created_by, is_deleted, …</text>
+        </g>
+
+        <!-- transaction -->
+        <g>
+          <rect x="700" y="120" width="280" height="280" rx="10" fill="#fff" stroke="#1e3a8a" stroke-width="1.6" />
+          <rect x="700" y="120" width="280" height="32" rx="10" fill="#1e3a8a" />
+          <text x="840" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">transaction</text>
+          <text x="716" y="172" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#b45309">PK</tspan> id (UUID)</text>
+          <text x="716" y="192" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> org_id, entity_id</text>
+          <text x="716" y="212" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> created_by (users)</text>
+          <text x="716" y="232" font-size="11" fill="#1e293b">type (revenue|expense)</text>
+          <text x="716" y="252" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> category_id, subcategory_id</text>
+          <text x="716" y="272" font-size="11" fill="#1e293b">invoice_date</text>
+          <text x="716" y="292" font-size="11" fill="#1e293b">gross_amount, gst_amount, net_amount</text>
+          <text x="716" y="312" font-size="11" fill="#1e293b">description, internal_remarks</text>
+          <text x="716" y="332" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> rule_id (NULL)</text>
+          <text x="716" y="352" font-size="11" fill="#1e293b">review_status (unreviewed|reviewed)</text>
+          <text x="716" y="372" font-size="11" fill="#64748b">created_by, is_deleted, …</text>
+          <text x="716" y="392" font-size="10.5" font-style="italic" fill="#94a3b8">no property_id — see splits</text>
+        </g>
+
+        <!-- transaction_property_split -->
+        <g>
+          <rect x="700" y="450" width="280" height="180" rx="10" fill="#fff" stroke="#92400e" stroke-width="1.4" />
+          <rect x="700" y="450" width="280" height="32" rx="10" fill="#92400e" />
+          <text x="840" y="470" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">transaction_property_split</text>
+          <text x="716" y="502" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#b45309">PK</tspan> id (BIGSERIAL)</text>
+          <text x="716" y="522" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> transaction_id (UUID)</text>
+          <text x="716" y="542" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> property_id (UUID)</text>
+          <text x="716" y="562" font-size="11" fill="#1e293b">split_percentage (0–100)</text>
+          <text x="716" y="582" font-size="11" fill="#1e293b">split_gross_amount</text>
+          <text x="716" y="602" font-size="11" fill="#1e293b">split_gst_amount, split_net_amount</text>
+          <text x="716" y="622" font-size="11" fill="#64748b">UNIQUE (transaction_id, property_id)</text>
+        </g>
+
+        <!-- transaction_allocation -->
+        <g>
+          <rect x="700" y="680" width="280" height="170" rx="10" fill="#fff" stroke="#92400e" stroke-width="1.4" />
+          <rect x="700" y="680" width="280" height="32" rx="10" fill="#92400e" />
+          <text x="840" y="700" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">transaction_allocation</text>
+          <text x="716" y="732" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#b45309">PK</tspan> id (BIGSERIAL)</text>
+          <text x="716" y="752" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> transaction_property_split_id</text>
+          <text x="716" y="772" font-size="11" fill="#1e293b"><tspan font-weight="700" fill="#0e7490">FK</tspan> property_owner_id (NULL)</text>
+          <text x="716" y="792" font-size="11" fill="#1e293b">owner_name, entity_beneficiary_id</text>
+          <text x="716" y="812" font-size="11" fill="#1e293b">ownership_percentage</text>
+          <text x="716" y="832" font-size="11" fill="#1e293b">share_gross/gst/net_amount</text>
+        </g>
+      </g>
+
+      <!-- ============ FK ARROWS ============ -->
+      <!-- subcategory.category_id -> category -->
+      <path d="M160 320 L160 280" stroke="#3b82f6" stroke-width="1.6" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- transaction.category_id -> transaction_category -->
+      <path d="M700 230 C 480 230, 360 240, 280 200" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- transaction.subcategory_id -> transaction_subcategory -->
+      <path d="M700 250 C 480 320, 380 380, 280 400" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- transaction.rule_id -> transaction_rule  (SET NULL) -->
+      <path d="M700 332 L 605 250" stroke="#f59e0b" stroke-width="1.6" fill="none" marker-end="url(#arrow-orange)" />
+      <!-- rule.assigned_category_id -> transaction_category -->
+      <path d="M340 290 L 280 240" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- rule.assigned_subcategory_id -> transaction_subcategory -->
+      <path d="M340 310 L 280 380" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- transaction.org_id -> organisation -->
+      <path d="M820 120 L 820 80 L 190 60 L 190 70" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- transaction.created_by -> users -->
+      <path d="M820 120 L 820 80 L 600 70" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arrow-blue)" />
+      <!-- transaction.entity_id -> entity (CASCADE) -->
+      <path d="M720 400 L 720 800 L 190 800" stroke="#ef4444" stroke-width="1.6" fill="none" marker-end="url(#arrow-red)" />
+      <!-- split.transaction_id -> transaction (CASCADE) -->
+      <path d="M840 450 L 840 400" stroke="#ef4444" stroke-width="1.6" fill="none" marker-end="url(#arrow-red)" />
+      <!-- split.property_id -> property (CASCADE) -->
+      <path d="M980 525 L 985 455" stroke="#ef4444" stroke-width="1.6" fill="none" marker-end="url(#arrow-red)" />
+      <!-- allocation.split_id -> split (CASCADE) -->
+      <path d="M840 680 L 840 630" stroke="#ef4444" stroke-width="1.6" fill="none" marker-end="url(#arrow-red)" />
+      <!-- allocation.property_owner_id -> property_owner (SET NULL) -->
+      <path d="M980 752 L 985 735" stroke="#f59e0b" stroke-width="1.6" fill="none" marker-end="url(#arrow-orange)" />
+
+      <!-- arrow labels -->
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#475569">
+        <text x="848" y="425" font-style="italic">CASCADE</text>
+        <text x="848" y="655" font-style="italic">CASCADE</text>
+        <text x="990" y="498" font-style="italic">CASCADE</text>
+        <text x="990" y="745" font-style="italic">SET NULL</text>
+        <text x="615" y="290" font-style="italic">SET NULL</text>
+        <text x="700" y="780" font-style="italic">CASCADE</text>
+      </g>
+    </svg>
+
+    <div class="er-legend">
+      <span><i class="normal"></i> FK reference</span>
+      <span><i class="cascade"></i> ON DELETE CASCADE</span>
+      <span><i class="setnull"></i> ON DELETE SET NULL</span>
+      <span><i class="dashed"></i> Pre-existing table (not added in this migration)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TABLE CARDS ============ -->
+<section>
+  <h2 class="section-title">Tables in detail</h2>
+  <p class="section-sub">
+    Six tables added in migration <code>0008_create_transaction_tables.up.sql</code>. Lookup tables
+    (categories) seed system defaults via migration <code>0009_seed_transaction_categories.up.sql</code>.
+  </p>
+
+  <div class="cards">
+    <!-- 1. transaction_category -->
+    <div class="card">
+      <div class="card-head">
+        <div class="name">transaction_category <span class="pill lookup">lookup</span></div>
+        <div class="role">Top-level taxonomy node, typed revenue or expense</div>
+      </div>
+      <div class="card-body">
+        <p class="what">One row per category like “Rental Income” or “Utilities”. <code>org_id</code> NULL means a system-default category visible to everyone; non-NULL = tenant-defined custom.</p>
+        <table class="cols">
+          <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="col-name"><span class="pk">PK</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> org_id</td><td class="col-type">UUID NULL</td><td class="col-notes">→ organisation. NULL = system default.</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> name</td><td class="col-type">VARCHAR(64)</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> type</td><td class="col-type">VARCHAR(16)</td><td class="col-notes">CHECK in (revenue, expense)</td></tr>
+            <tr><td class="col-name">is_active</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT true</td></tr>
+            <tr><td class="col-name">metadata</td><td class="col-type">JSONB</td><td class="col-notes">DEFAULT '{}'. CHECK object.</td></tr>
+            <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-notes">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. transaction_subcategory -->
+    <div class="card">
+      <div class="card-head">
+        <div class="name">transaction_subcategory <span class="pill lookup">lookup</span></div>
+        <div class="role">Sub-taxonomy under a category</div>
+      </div>
+      <div class="card-body">
+        <p class="what">“Plumbing” under “Repairs &amp; Maintenance”, “Monthly Rent” under “Rental Income”. Type is inherited from the parent category.</p>
+        <table class="cols">
+          <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="col-name"><span class="pk">PK</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> category_id</td><td class="col-type">BIGINT</td><td class="col-notes">→ transaction_category</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> org_id</td><td class="col-type">UUID NULL</td><td class="col-notes">→ organisation. NULL = system default.</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> name</td><td class="col-type">VARCHAR(64)</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name">is_active</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT true</td></tr>
+            <tr><td class="col-name">metadata</td><td class="col-type">JSONB</td><td class="col-notes">DEFAULT '{}'. CHECK object.</td></tr>
+            <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-notes">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. transaction_rule -->
+    <div class="card">
+      <div class="card-head">
+        <div class="name">transaction_rule <span class="pill txn">rules</span></div>
+        <div class="role">Auto-categorization rule with N JSONB conditions</div>
+      </div>
+      <div class="card-body">
+        <p class="what">Created from the RuleModal. Scoped to one entity, optionally narrowed to a single property. <code>conditions</code> holds an array of <code>{field, operator, value}</code> objects.</p>
+        <table class="cols">
+          <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="col-name"><span class="pk">PK</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> org_id</td><td class="col-type">UUID</td><td class="col-notes">→ organisation</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> entity_id</td><td class="col-type">UUID</td><td class="col-notes">→ entity (CASCADE)</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> property_id</td><td class="col-type">UUID NULL</td><td class="col-notes">→ property (CASCADE). NULL = all properties under entity.</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> name</td><td class="col-type">VARCHAR(255)</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name">match_mode</td><td class="col-type">VARCHAR(8)</td><td class="col-notes">DEFAULT 'all'. CHECK in (all, any)</td></tr>
+            <tr><td class="col-name">conditions</td><td class="col-type">JSONB</td><td class="col-notes">CHECK array. Default <code>[]</code>.</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> assigned_type</td><td class="col-type">VARCHAR(16)</td><td class="col-notes">CHECK in (revenue, expense)</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> assigned_category_id</td><td class="col-type">BIGINT</td><td class="col-notes">→ transaction_category</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> assigned_subcategory_id</td><td class="col-type">BIGINT</td><td class="col-notes">→ transaction_subcategory</td></tr>
+            <tr><td class="col-name">auto_confirm</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT false</td></tr>
+            <tr><td class="col-name">is_enabled</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT true</td></tr>
+            <tr><td class="col-name">metadata</td><td class="col-type">JSONB</td><td class="col-notes">DEFAULT '{}'. CHECK object.</td></tr>
+            <tr><td class="col-name">created_by / updated_by</td><td class="col-type">VARCHAR(10)</td><td class="col-notes">→ users</td></tr>
+            <tr><td class="col-name">is_deleted</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT false (soft-delete)</td></tr>
+            <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-notes">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. transaction -->
+    <div class="card">
+      <div class="card-head">
+        <div class="name">transaction <span class="pill txn">root</span></div>
+        <div class="role">One row per recorded financial event — totals only</div>
+      </div>
+      <div class="card-body">
+        <p class="what">No <code>property_id</code> column. Every transaction reaches its property(ies) through <code>transaction_property_split</code> — even single-property transactions have one split row.</p>
+        <table class="cols">
+          <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="col-name"><span class="pk">PK</span> id</td><td class="col-type">UUID</td><td class="col-notes">DEFAULT gen_random_uuid()</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> org_id</td><td class="col-type">UUID</td><td class="col-notes">→ organisation</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> entity_id</td><td class="col-type">UUID</td><td class="col-notes">→ entity (CASCADE)</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> type</td><td class="col-type">VARCHAR(16)</td><td class="col-notes">CHECK in (revenue, expense)</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> category_id</td><td class="col-type">BIGINT</td><td class="col-notes">→ transaction_category</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> subcategory_id</td><td class="col-type">BIGINT</td><td class="col-notes">→ transaction_subcategory</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> invoice_date</td><td class="col-type">DATE</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> gross_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">CHECK ≥ 0. TOTAL across splits.</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> gst_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">CHECK ≥ 0. DEFAULT 0.</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> net_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">CHECK = gross − gst</td></tr>
+            <tr><td class="col-name">description</td><td class="col-type">TEXT</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name">internal_remarks</td><td class="col-type">TEXT</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name">is_asset_purchase</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT false. Capital purchase flag (expense only).</td></tr>
+            <tr><td class="col-name">asset_class</td><td class="col-type">VARCHAR(20) NULL</td><td class="col-notes">CHECK in (capital_works, capital_allowance). Required when asset purchase.</td></tr>
+            <tr><td class="col-name">effective_life_years</td><td class="col-type">NUMERIC(5,1) NULL</td><td class="col-notes">CHECK &gt; 0. Required only for capital_allowance.</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> rule_id</td><td class="col-type">BIGINT NULL</td><td class="col-notes">→ transaction_rule (SET NULL)</td></tr>
+            <tr><td class="col-name">review_status</td><td class="col-type">VARCHAR(16)</td><td class="col-notes">DEFAULT 'unreviewed'. Rules apply only to unreviewed.</td></tr>
+            <tr><td class="col-name">metadata</td><td class="col-type">JSONB</td><td class="col-notes">DEFAULT '{}'. CHECK object.</td></tr>
+            <tr><td class="col-name">created_by / updated_by</td><td class="col-type">VARCHAR(10)</td><td class="col-notes">→ users</td></tr>
+            <tr><td class="col-name">is_deleted</td><td class="col-type">BOOL</td><td class="col-notes">DEFAULT false</td></tr>
+          </tbody>
+        </table>
+        <p class="what" style="margin-top:14px;background:#fff7ed;border-left:3px solid #f59e0b;padding:8px 10px;border-radius:6px;color:#92400e;font-size:12.5px">
+          <strong>Asset-purchase CHECK:</strong> when <code>is_asset_purchase = true</code>, <code>type</code> must be <code>'expense'</code> and <code>asset_class</code> must be set;
+          when <code>asset_class = 'capital_allowance'</code>, <code>effective_life_years</code> must be &gt; 0; otherwise all three are NULL/false.
+        </p>
+      </div>
+    </div>
+
+    <!-- 5. transaction_property_split -->
+    <div class="card">
+      <div class="card-head">
+        <div class="name">transaction_property_split <span class="pill child">level&nbsp;2</span></div>
+        <div class="role">Per-property slice of one transaction</div>
+      </div>
+      <div class="card-body">
+        <p class="what">For a single-property transaction: exactly one row at <code>split_percentage = 100</code>. For a multi-property bill: N rows summing to 100% (handler-enforced). UNIQUE on <code>(transaction_id, property_id)</code>.</p>
+        <table class="cols">
+          <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="col-name"><span class="pk">PK</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> transaction_id</td><td class="col-type">UUID</td><td class="col-notes">→ transaction (CASCADE)</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> property_id</td><td class="col-type">UUID</td><td class="col-notes">→ property (CASCADE)</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> split_percentage</td><td class="col-type">NUMERIC(5,2)</td><td class="col-notes">CHECK 0–100</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> split_gross_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">CHECK ≥ 0</td></tr>
+            <tr><td class="col-name">split_gst_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">DEFAULT 0</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> split_net_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">CHECK = gross − gst</td></tr>
+            <tr><td class="col-name">metadata</td><td class="col-type">JSONB</td><td class="col-notes">DEFAULT '{}'. CHECK object.</td></tr>
+            <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-notes">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 6. transaction_allocation -->
+    <div class="card">
+      <div class="card-head">
+        <div class="name">transaction_allocation <span class="pill child">level&nbsp;3</span></div>
+        <div class="role">Per-owner share of one property split (snapshotted)</div>
+      </div>
+      <div class="card-body">
+        <p class="what">Snapshots the owner’s percentage at insert time. <code>owner_name</code> + <code>entity_beneficiary_id</code> are denormalized so audit data survives if <code>property_owner</code> rows are deleted later.</p>
+        <table class="cols">
+          <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="col-name"><span class="pk">PK</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> transaction_property_split_id</td><td class="col-type">BIGINT</td><td class="col-notes">→ split (CASCADE)</td></tr>
+            <tr><td class="col-name"><span class="fk">FK</span> property_owner_id</td><td class="col-type">BIGINT NULL</td><td class="col-notes">→ property_owner (SET NULL)</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> owner_name</td><td class="col-type">VARCHAR(255)</td><td class="col-notes">snapshot</td></tr>
+            <tr><td class="col-name">entity_beneficiary_id</td><td class="col-type">BIGINT NULL</td><td class="col-notes">snapshot, → entity_beneficiary (SET NULL)</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> ownership_percentage</td><td class="col-type">NUMERIC(5,2)</td><td class="col-notes">CHECK 0–100</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> share_gross_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">split_gross × pct ÷ 100</td></tr>
+            <tr><td class="col-name">share_gst_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">DEFAULT 0</td></tr>
+            <tr><td class="col-name"><span class="nn">NN</span> share_net_amount</td><td class="col-type">NUMERIC(14,2)</td><td class="col-notes">—</td></tr>
+            <tr><td class="col-name">metadata</td><td class="col-type">JSONB</td><td class="col-notes">DEFAULT '{}'. CHECK object.</td></tr>
+            <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-notes">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WALKTHROUGH 1 ============ -->
+<section>
+  <h2 class="section-title">UI → DB walkthrough</h2>
+  <p class="section-sub">
+    What happens when a user fills the Add Transaction form (or the Rules modal) and hits save. Each
+    step shows the form on the left and the resulting <code>INSERT</code>s on the right, with the
+    fields the user typed <span class="hl-inline" style="background:rgba(251,191,36,0.45);padding:0 4px;border-radius:3px">highlighted</span>
+    where they land in SQL.
+  </p>
+
+  <!-- Example A: Single-property -->
+  <div class="wt-step">
+    <div class="wt-head">
+      <span class="badge">Example A</span>
+      <span class="title">Single-property expense — $1,200 plumbing on “Sunset Villa”</span>
+      <span class="desc">1 transaction, 1 split, 1 allocation (sole owner)</span>
+    </div>
+    <div class="wt-body">
+      <div class="walkthrough">
+        <!-- LEFT: mock form -->
+        <div class="mock-form">
+          <h3>Add Transaction</h3>
+          <div class="mf-radio">
+            <button>Expense</button>
+            <button class="is-selected">Expense&nbsp;✓</button>
+          </div>
+          <div class="mf-grid">
+            <label>
+              <span class="form-label-required">Category</span>
+              <span class="mf-input">Repairs &amp; Maintenance</span>
+            </label>
+            <label>
+              <span class="form-label-required">Sub-Category</span>
+              <span class="mf-input">Plumbing</span>
+            </label>
+            <label>
+              <span class="form-label-required">Invoice Date</span>
+              <span class="mf-input">12/03/2026</span>
+            </label>
+            <label>
+              <span class="form-label-required">Amount</span>
+              <span class="mf-input">$1,200.00</span>
+            </label>
+            <label class="mf-row">
+              <span>Description</span>
+              <span class="mf-textarea">Replace burst pipe under kitchen sink, after-hours callout.</span>
+            </label>
+            <label class="mf-row">
+              <span>Internal Remarks</span>
+              <span class="mf-input">Quote was $980 + $220 emergency surcharge.</span>
+            </label>
+          </div>
+          <div class="split-card">
+            <div class="sc-head">Property allocation (auto: 1 property = 100%)</div>
+            <div class="sc-row">
+              <span>Sunset Villa</span><span>100%</span><span>$1,200.00</span>
+            </div>
+            <div class="sc-head" style="margin-top:8px">Owner allocation (Sunset Villa: 1 owner)</div>
+            <div class="sc-row">
+              <span>Jane Doe</span><span>100%</span><span>$1,200.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: SQL -->
+        <div>
+          <p class="sql-caption">Step 1 — totals row</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction</span>
+  (org_id, entity_id, <span class="hl">type</span>,
+   <span class="hl">category_id</span>, <span class="hl">subcategory_id</span>, <span class="hl">invoice_date</span>,
+   <span class="hl">gross_amount</span>, gst_amount, <span class="hl">net_amount</span>,
+   <span class="hl">description</span>, <span class="hl">internal_remarks</span>,
+   review_status, created_by)
+<span class="kw">VALUES</span>
+  (<span class="str">'…org…'</span>, <span class="str">'…entity…'</span>, <span class="hl"><span class="str">'expense'</span></span>,
+   <span class="hl"><span class="num">42</span></span>, <span class="hl"><span class="num">117</span></span>, <span class="hl"><span class="str">'2026-03-12'</span></span>,
+   <span class="hl"><span class="num">1200.00</span></span>, <span class="num">0.00</span>, <span class="hl"><span class="num">1200.00</span></span>,
+   <span class="hl"><span class="str">'Replace burst pipe under kitchen sink, after-hours callout.'</span></span>,
+   <span class="hl"><span class="str">'Quote was $980 + $220 emergency surcharge.'</span></span>,
+   <span class="str">'unreviewed'</span>, <span class="str">'usr_8a3c'</span>)
+<span class="kw">RETURNING</span> id; <span class="cmt">-- → 'txn_a1b2c3'</span></pre>
+
+          <p class="sql-caption">Step 2 — one property split (100%)</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction_property_split</span>
+  (transaction_id, <span class="hl">property_id</span>,
+   <span class="hl">split_percentage</span>,
+   <span class="hl">split_gross_amount</span>, split_gst_amount, <span class="hl">split_net_amount</span>)
+<span class="kw">VALUES</span>
+  (<span class="str">'txn_a1b2c3'</span>, <span class="hl"><span class="str">'…sunset-villa…'</span></span>,
+   <span class="hl"><span class="num">100.00</span></span>,
+   <span class="hl"><span class="num">1200.00</span></span>, <span class="num">0.00</span>, <span class="hl"><span class="num">1200.00</span></span>)
+<span class="kw">RETURNING</span> id; <span class="cmt">-- → 7841</span></pre>
+
+          <p class="sql-caption">Step 3 — one owner allocation</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction_allocation</span>
+  (transaction_property_split_id, property_owner_id,
+   <span class="hl">owner_name</span>, entity_beneficiary_id,
+   <span class="hl">ownership_percentage</span>,
+   <span class="hl">share_gross_amount</span>, share_gst_amount, <span class="hl">share_net_amount</span>)
+<span class="kw">VALUES</span>
+  (<span class="num">7841</span>, <span class="num">912</span>,
+   <span class="hl"><span class="str">'Jane Doe'</span></span>, <span class="num">31</span>,
+   <span class="hl"><span class="num">100.00</span></span>,
+   <span class="hl"><span class="num">1200.00</span></span>, <span class="num">0.00</span>, <span class="hl"><span class="num">1200.00</span></span>);</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example B: Multi-property -->
+  <div class="wt-step">
+    <div class="wt-head">
+      <span class="badge">Example B</span>
+      <span class="title">Multi-property expense — $1,000 utilities split across two properties</span>
+      <span class="desc">1 transaction, 2 splits, 3 allocations</span>
+    </div>
+    <div class="wt-body">
+      <div class="walkthrough">
+        <!-- LEFT -->
+        <div class="mock-form">
+          <h3>Add Transaction</h3>
+          <div class="mf-radio">
+            <button class="is-selected">Expense&nbsp;✓</button>
+            <button>Revenue</button>
+          </div>
+          <div class="mf-grid">
+            <label>
+              <span class="form-label-required">Category</span>
+              <span class="mf-input">Utilities</span>
+            </label>
+            <label>
+              <span class="form-label-required">Sub-Category</span>
+              <span class="mf-input">Electricity</span>
+            </label>
+            <label>
+              <span class="form-label-required">Invoice Date</span>
+              <span class="mf-input">28/02/2026</span>
+            </label>
+            <label>
+              <span class="form-label-required">Amount</span>
+              <span class="mf-input">$1,000.00 ($90 GST)</span>
+            </label>
+            <label class="mf-row">
+              <span>Description</span>
+              <span class="mf-textarea">Origin Energy invoice covering shared meter for the Smith St block.</span>
+            </label>
+          </div>
+          <div class="split-card">
+            <div class="sc-head">Property allocation (user-set)</div>
+            <div class="sc-row"><span>Sunset Villa</span><span>60%</span><span>$600.00</span></div>
+            <div class="sc-row"><span>Ocean View</span><span>40%</span><span>$400.00</span></div>
+
+            <div class="sc-head" style="margin-top:10px">Owners — Sunset Villa (50/50)</div>
+            <div class="sc-row"><span>Jane Doe</span><span>50%</span><span>$300.00</span></div>
+            <div class="sc-row"><span>Mark Doe</span><span>50%</span><span>$300.00</span></div>
+
+            <div class="sc-head" style="margin-top:10px">Owners — Ocean View (sole)</div>
+            <div class="sc-row"><span>Jane Doe</span><span>100%</span><span>$400.00</span></div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div>
+          <p class="sql-caption">Step 1 — totals row (gross $1,000, gst $90, net $910)</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction</span>
+  (org_id, entity_id, <span class="hl">type</span>,
+   <span class="hl">category_id</span>, <span class="hl">subcategory_id</span>, <span class="hl">invoice_date</span>,
+   <span class="hl">gross_amount</span>, <span class="hl">gst_amount</span>, <span class="hl">net_amount</span>,
+   <span class="hl">description</span>,
+   review_status, created_by)
+<span class="kw">VALUES</span>
+  (<span class="str">'…org…'</span>, <span class="str">'…entity…'</span>, <span class="hl"><span class="str">'expense'</span></span>,
+   <span class="hl"><span class="num">87</span></span>, <span class="hl"><span class="num">202</span></span>, <span class="hl"><span class="str">'2026-02-28'</span></span>,
+   <span class="hl"><span class="num">1000.00</span></span>, <span class="hl"><span class="num">90.00</span></span>, <span class="hl"><span class="num">910.00</span></span>,
+   <span class="hl"><span class="str">'Origin Energy invoice covering shared meter…'</span></span>,
+   <span class="str">'unreviewed'</span>, <span class="str">'usr_8a3c'</span>)
+<span class="kw">RETURNING</span> id; <span class="cmt">-- → 'txn_d4e5f6'</span></pre>
+
+          <p class="sql-caption">Step 2 — two property splits (60% / 40%)</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction_property_split</span>
+  (transaction_id, property_id,
+   split_percentage, split_gross_amount, split_gst_amount, split_net_amount)
+<span class="kw">VALUES</span>
+  (<span class="str">'txn_d4e5f6'</span>, <span class="hl"><span class="str">'…sunset-villa…'</span></span>,
+   <span class="hl"><span class="num">60.00</span></span>, <span class="hl"><span class="num">600.00</span></span>, <span class="num">54.00</span>, <span class="num">546.00</span>),
+  (<span class="str">'txn_d4e5f6'</span>, <span class="hl"><span class="str">'…ocean-view…'</span></span>,
+   <span class="hl"><span class="num">40.00</span></span>, <span class="hl"><span class="num">400.00</span></span>, <span class="num">36.00</span>, <span class="num">364.00</span>)
+<span class="kw">RETURNING</span> id; <span class="cmt">-- → 7842, 7843</span></pre>
+
+          <p class="sql-caption">Step 3 — three owner allocations across the two splits</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction_allocation</span>
+  (transaction_property_split_id, property_owner_id,
+   owner_name, ownership_percentage,
+   share_gross_amount, share_gst_amount, share_net_amount)
+<span class="kw">VALUES</span>
+  <span class="cmt">-- Sunset Villa split (id=7842): two owners 50/50</span>
+  (<span class="num">7842</span>, <span class="num">912</span>, <span class="hl"><span class="str">'Jane Doe'</span></span>, <span class="hl"><span class="num">50.00</span></span>,
+   <span class="hl"><span class="num">300.00</span></span>, <span class="num">27.00</span>, <span class="num">273.00</span>),
+  (<span class="num">7842</span>, <span class="num">913</span>, <span class="hl"><span class="str">'Mark Doe'</span></span>, <span class="hl"><span class="num">50.00</span></span>,
+   <span class="hl"><span class="num">300.00</span></span>, <span class="num">27.00</span>, <span class="num">273.00</span>),
+  <span class="cmt">-- Ocean View split (id=7843): sole owner 100%</span>
+  (<span class="num">7843</span>, <span class="num">912</span>, <span class="hl"><span class="str">'Jane Doe'</span></span>, <span class="hl"><span class="num">100.00</span></span>,
+   <span class="hl"><span class="num">400.00</span></span>, <span class="num">36.00</span>, <span class="num">364.00</span>);</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example C: Rule -->
+  <div class="wt-step">
+    <div class="wt-head">
+      <span class="badge">Example C</span>
+      <span class="title">Rule creation — auto-categorize Origin Energy as Utilities → Electricity</span>
+      <span class="desc">1 row in transaction_rule</span>
+    </div>
+    <div class="wt-body">
+      <div class="walkthrough">
+        <div class="mock-form">
+          <h3>Create Rule</h3>
+          <div class="mf-grid">
+            <label class="mf-row">
+              <span class="form-label-required">Rule Name</span>
+              <span class="mf-input">Origin Energy → Utilities</span>
+            </label>
+            <label>
+              <span>Entity</span>
+              <span class="mf-input">Smith Family Trust</span>
+            </label>
+            <label>
+              <span>Property</span>
+              <span class="mf-input">All Properties</span>
+            </label>
+          </div>
+          <div class="split-card">
+            <div class="sc-head">If — match ALL of</div>
+            <div class="sc-row" style="grid-template-columns: 1fr 1fr 1fr">
+              <span>Description</span><span>Contains</span><span>“Origin Energy”</span>
+            </div>
+            <div class="sc-row" style="grid-template-columns: 1fr 1fr 1fr">
+              <span>Amount</span><span>Is greater than</span><span>50</span>
+            </div>
+          </div>
+          <div class="split-card" style="border-style:solid; background:#f8fafc">
+            <div class="sc-head">Then assign</div>
+            <div class="sc-row" style="grid-template-columns: 1fr 1fr">
+              <span>Type</span><span>Expense</span>
+            </div>
+            <div class="sc-row" style="grid-template-columns: 1fr 1fr">
+              <span>Category</span><span>Utilities</span>
+            </div>
+            <div class="sc-row" style="grid-template-columns: 1fr 1fr">
+              <span>Sub-category</span><span>Electricity</span>
+            </div>
+            <div class="sc-row" style="grid-template-columns: 1fr 1fr">
+              <span>Auto-confirm</span><span>off</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="sql-caption">Single insert — conditions array embedded as JSONB</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction_rule</span>
+  (org_id, entity_id, property_id,
+   <span class="hl">name</span>, <span class="hl">match_mode</span>, <span class="hl">conditions</span>,
+   <span class="hl">assigned_type</span>, <span class="hl">assigned_category_id</span>, <span class="hl">assigned_subcategory_id</span>,
+   <span class="hl">auto_confirm</span>, is_enabled, created_by)
+<span class="kw">VALUES</span>
+  (<span class="str">'…org…'</span>, <span class="str">'…entity…'</span>, <span class="nul">NULL</span>,  <span class="cmt">-- All Properties</span>
+   <span class="hl"><span class="str">'Origin Energy → Utilities'</span></span>, <span class="hl"><span class="str">'all'</span></span>,
+   <span class="hl"><span class="str">'[
+      {"field":"description","operator":"contains","value":"Origin Energy"},
+      {"field":"amount","operator":"gt","value":50}
+    ]'</span></span>::jsonb,
+   <span class="hl"><span class="str">'expense'</span></span>, <span class="hl"><span class="num">87</span></span>, <span class="hl"><span class="num">202</span></span>,
+   <span class="hl"><span class="str">false</span></span>, <span class="str">true</span>, <span class="str">'usr_8a3c'</span>);</pre>
+
+          <p class="sql-caption">Later — when a matching transaction is reviewed, the rule’s id is recorded on it</p>
+          <pre class="sql-block"><span class="kw">UPDATE</span> <span class="tbl">transaction</span>
+  <span class="kw">SET</span> rule_id = <span class="num">3014</span>,
+      review_status = <span class="str">'reviewed'</span>,
+      category_id = <span class="num">87</span>,
+      subcategory_id = <span class="num">202</span>,
+      updated_by = <span class="str">'usr_8a3c'</span>
+<span class="kw">WHERE</span> id = <span class="str">'txn_e7f8g9'</span>
+  <span class="kw">AND</span> review_status = <span class="str">'unreviewed'</span>;</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example D: Asset purchase (Capital Allowance) -->
+  <div class="wt-step">
+    <div class="wt-head">
+      <span class="badge">Example D</span>
+      <span class="title">Asset purchase — $4,500 dishwasher (Capital Allowance, 10-year effective life)</span>
+      <span class="desc">Expense + asset-purchase fields populated</span>
+    </div>
+    <div class="wt-body">
+      <div class="walkthrough">
+        <!-- LEFT -->
+        <div class="mock-form">
+          <h3>Add Transaction</h3>
+          <div class="mf-radio">
+            <button class="is-selected">Expense&nbsp;✓</button>
+            <button>Revenue</button>
+          </div>
+          <div class="mf-grid">
+            <label>
+              <span class="form-label-required">Category</span>
+              <span class="mf-input">Repairs &amp; Maintenance</span>
+            </label>
+            <label>
+              <span class="form-label-required">Sub-Category</span>
+              <span class="mf-input">Appliances</span>
+            </label>
+            <label>
+              <span class="form-label-required">Invoice Date</span>
+              <span class="mf-input">15/04/2026</span>
+            </label>
+            <label>
+              <span class="form-label-required">Amount</span>
+              <span class="mf-input">$4,500.00 (incl. $409 GST)</span>
+            </label>
+            <label class="mf-row">
+              <span>Description</span>
+              <span class="mf-textarea">Bosch Series 6 dishwasher — replacement for the kitchen at Sunset Villa.</span>
+            </label>
+          </div>
+
+          <!-- Asset purchase block -->
+          <div class="split-card" style="border-style:solid; border-color:#f59e0b; background:#fff7ed">
+            <div class="sc-head" style="color:#92400e">Asset purchase (expense only)</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#0f172a;margin:6px 0 10px">
+              <span style="display:inline-block;width:14px;height:14px;border:1.5px solid #92400e;border-radius:3px;background:#fef3c7;text-align:center;line-height:12px;color:#92400e;font-weight:700">✓</span>
+              <strong>Is this an asset purchase?</strong>
+            </div>
+            <div class="mf-radio" style="margin-bottom:10px">
+              <button>Capital Works</button>
+              <button class="is-selected">Capital Allowance&nbsp;✓</button>
+            </div>
+            <label style="display:block;font-size:12px;color:#475569">
+              <span>Effective life (years)</span>
+              <span class="mf-input" style="display:block;max-width:140px;margin-top:4px">10</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div>
+          <p class="sql-caption">Single insert into transaction with the three asset-purchase fields populated</p>
+          <pre class="sql-block"><span class="kw">INSERT INTO</span> <span class="tbl">transaction</span>
+  (org_id, entity_id, <span class="hl">type</span>,
+   category_id, subcategory_id, <span class="hl">invoice_date</span>,
+   <span class="hl">gross_amount</span>, <span class="hl">gst_amount</span>, <span class="hl">net_amount</span>,
+   <span class="hl">description</span>,
+   <span class="hl">is_asset_purchase</span>, <span class="hl">asset_class</span>, <span class="hl">effective_life_years</span>,
+   review_status, created_by)
+<span class="kw">VALUES</span>
+  (<span class="str">'…org…'</span>, <span class="str">'…entity…'</span>, <span class="hl"><span class="str">'expense'</span></span>,
+   <span class="num">35</span>, <span class="num">218</span>, <span class="hl"><span class="str">'2026-04-15'</span></span>,
+   <span class="hl"><span class="num">4500.00</span></span>, <span class="hl"><span class="num">409.00</span></span>, <span class="hl"><span class="num">4091.00</span></span>,
+   <span class="hl"><span class="str">'Bosch Series 6 dishwasher — replacement for kitchen at Sunset Villa.'</span></span>,
+   <span class="hl"><span class="str">true</span></span>, <span class="hl"><span class="str">'capital_allowance'</span></span>, <span class="hl"><span class="num">10.0</span></span>,
+   <span class="str">'unreviewed'</span>, <span class="str">'usr_8a3c'</span>)
+<span class="kw">RETURNING</span> id; <span class="cmt">-- → 'txn_b9c0d1'</span></pre>
+
+          <p class="sql-caption">Splits and allocations follow the usual pattern (single property → 1 split, 1 allocation per owner)</p>
+          <pre class="sql-block"><span class="cmt">-- 1× transaction_property_split (Sunset Villa, 100%, $4,500 / $409 GST / $4,091 net)
+-- 1× transaction_allocation (Jane Doe, 100%, same totals)</span></pre>
+
+          <p class="sql-caption">Counter-examples — what the CHECK rejects</p>
+          <pre class="sql-block"><span class="cmt">-- ❌ asset purchase on a revenue row</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">transaction</span> (..., type, is_asset_purchase, asset_class, ...)
+<span class="kw">VALUES</span> (..., <span class="str">'revenue'</span>, <span class="str">true</span>, <span class="str">'capital_works'</span>, ...);
+<span class="cmt">-- ERROR:  new row violates check constraint
+--         "transaction_asset_purchase_check"</span>
+
+<span class="cmt">-- ❌ capital_allowance without effective_life_years</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">transaction</span> (..., is_asset_purchase, asset_class, effective_life_years, ...)
+<span class="kw">VALUES</span> (..., <span class="str">true</span>, <span class="str">'capital_allowance'</span>, <span class="nul">NULL</span>, ...);
+<span class="cmt">-- ERROR:  new row violates check constraint
+--         "transaction_asset_purchase_check"</span>
+
+<span class="cmt">-- ✅ capital_works can omit effective_life_years</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">transaction</span> (..., is_asset_purchase, asset_class, effective_life_years, ...)
+<span class="kw">VALUES</span> (..., <span class="str">true</span>, <span class="str">'capital_works'</span>, <span class="nul">NULL</span>, ...);
+<span class="cmt">-- OK</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="footer-note">
+  Schema source: <code>cleartax/migrations/0008_create_transaction_tables.up.sql</code> &middot;
+  Seed source: <code>cleartax/migrations/0009_seed_transaction_categories.up.sql</code> &middot;
+  This page: <code>cleartax-frontend/public/docs/transactions-schema.html</code> (open directly or visit
+  <code>/docs/transactions-schema.html</code> when <code>next dev</code> is running).
+</div>
+
+</main>
+</body>
+</html>

@@ -246,6 +246,49 @@ export function normalizeCoreOrganization(raw: RawRecord): CoreOrganization {
   };
 }
 
+export class CoreApiError extends Error {
+  readonly status: number;
+  readonly statusText: string;
+  readonly code: string | null;
+  readonly upstreamMessage: string | null;
+  readonly bodyExcerpt: string;
+  readonly method: string;
+  readonly path: string;
+  readonly payload: unknown;
+
+  constructor(init: {
+    status: number;
+    statusText: string;
+    code: string | null;
+    upstreamMessage: string | null;
+    bodyExcerpt: string;
+    method: string;
+    path: string;
+    payload: unknown;
+  }) {
+    const upstream = init.upstreamMessage ? `: ${init.upstreamMessage}` : "";
+    const excerpt = init.bodyExcerpt ? ` — body: ${init.bodyExcerpt}` : "";
+    super(
+      `Core API ${init.method} ${init.path} failed (${init.status} ${init.statusText})${upstream}${excerpt}`,
+    );
+    this.name = "CoreApiError";
+    this.status = init.status;
+    this.statusText = init.statusText;
+    this.code = init.code;
+    this.upstreamMessage = init.upstreamMessage;
+    this.bodyExcerpt = init.bodyExcerpt;
+    this.method = init.method;
+    this.path = init.path;
+    this.payload = init.payload;
+  }
+}
+
+function readStringField(payload: unknown, key: string): string | null {
+  if (typeof payload !== "object" || payload === null) return null;
+  const value = (payload as RawRecord)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 export async function coreApiRequest<T = unknown>(
   path: string,
   { method = "GET", token, body }: CoreApiRequestOptions = {},
@@ -282,16 +325,20 @@ export async function coreApiRequest<T = unknown>(
 
   if (!response.ok) {
     const upstreamMessage =
-      (payload as RawRecord | null)?.message ||
-      (payload as RawRecord | null)?.error;
+      readStringField(payload, "message") || readStringField(payload, "error");
     const bodyExcerpt = parseError
-      ? text.slice(0, 200).replace(/\s+/g, " ").trim()
+      ? text.slice(0, 500).replace(/\s+/g, " ").trim()
       : "";
-    throw new Error(
-      `Core API ${method} ${path} failed (${response.status} ${response.statusText})${
-        upstreamMessage ? `: ${upstreamMessage}` : ""
-      }${bodyExcerpt ? ` — body: ${bodyExcerpt}` : ""}`,
-    );
+    throw new CoreApiError({
+      status: response.status,
+      statusText: response.statusText,
+      code: readStringField(payload, "code"),
+      upstreamMessage,
+      bodyExcerpt,
+      method,
+      path,
+      payload,
+    });
   }
 
   if (parseError) {
@@ -581,4 +628,454 @@ export async function deleteCoreProperty(token: string, id: string) {
     method: "DELETE",
     token,
   });
+}
+
+// =============================================================================
+// Transactions
+// =============================================================================
+
+export type CoreTransactionType = "revenue" | "expense";
+export type CoreReviewStatus = "unreviewed" | "reviewed";
+export type CoreAssetClass = "capital_works" | "capital_allowance";
+
+export type CoreTransactionAllocation = {
+  id: number;
+  propertyOwnerId: number | null;
+  ownerName: string;
+  ownerUserId: string | null;
+  entityBeneficiaryId: number | null;
+  ownershipPercentage: number;
+  shareGrossAmount: number;
+  shareGstAmount: number;
+  shareNetAmount: number;
+  metadata: Record<string, unknown>;
+};
+
+export type CoreTransactionSplit = {
+  id: number;
+  propertyId: string;
+  propertyName: string;
+  splitPercentage: number;
+  splitGrossAmount: number;
+  splitGstAmount: number;
+  splitNetAmount: number;
+  metadata: Record<string, unknown>;
+  allocations: CoreTransactionAllocation[];
+};
+
+export type CoreTransactionDetail = {
+  id: string;
+  orgId: string;
+  entityId: string;
+  entityName: string;
+  type: CoreTransactionType;
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+  invoiceDate: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  description: string | null;
+  internalRemarks: string | null;
+  isAssetPurchase: boolean;
+  assetClass: CoreAssetClass | null;
+  effectiveLifeYears: number | null;
+  ruleId: number | null;
+  reviewStatus: CoreReviewStatus;
+  metadata: Record<string, unknown>;
+  createdBy: string;
+  updatedBy: string | null;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  splits: CoreTransactionSplit[];
+};
+
+export type CoreTransactionListItem = {
+  id: string;
+  type: CoreTransactionType;
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+  invoiceDate: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  description: string | null;
+  internalRemarks: string | null;
+  isAssetPurchase: boolean;
+  assetClass: CoreAssetClass | null;
+  effectiveLifeYears: number | null;
+  ruleId: number | null;
+  reviewStatus: CoreReviewStatus;
+  entityId: string;
+  entityName: string;
+  propertyIds: string[];
+  propertyNames: string[];
+  clientShareGross: number | null;
+  clientShareGst: number | null;
+  clientShareNet: number | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CorePropertyTransactionRow = {
+  transactionId: string;
+  transactionType: CoreTransactionType;
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+  invoiceDate: string;
+  description: string | null;
+  transactionGrossAmount: number;
+  transactionGstAmount: number;
+  transactionNetAmount: number;
+  isAssetPurchase: boolean;
+  ruleId: number | null;
+  reviewStatus: CoreReviewStatus;
+  splitId: number;
+  splitPercentage: number;
+  splitGrossAmount: number;
+  splitGstAmount: number;
+  splitNetAmount: number;
+};
+
+export type CoreTransactionCategory = {
+  id: number;
+  name: string;
+  type: CoreTransactionType;
+  isSystem: boolean;
+  metadata: Record<string, unknown>;
+};
+
+export type CoreTransactionSubcategory = {
+  id: number;
+  categoryId: number;
+  name: string;
+  isSystem: boolean;
+  metadata: Record<string, unknown>;
+};
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => toStringValue(v)).filter((s) => s.length > 0);
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value == null) return null;
+  return toFloatValue(value);
+}
+
+function toNullableString(value: unknown): string | null {
+  if (value == null) return null;
+  const s = toStringValue(value);
+  return s === "" ? null : s;
+}
+
+function toNullableInt(value: unknown): number | null {
+  if (value == null) return null;
+  const parsed = toNumberValue(value);
+  return parsed;
+}
+
+function toAssetClass(value: unknown): CoreAssetClass | null {
+  const s = toNullableString(value);
+  if (s === "capital_works" || s === "capital_allowance") return s;
+  return null;
+}
+
+function toTxnType(value: unknown): CoreTransactionType {
+  const s = toStringValue(value).toLowerCase();
+  return s === "revenue" ? "revenue" : "expense";
+}
+
+function toReviewStatus(value: unknown): CoreReviewStatus {
+  const s = toStringValue(value).toLowerCase();
+  return s === "reviewed" ? "reviewed" : "unreviewed";
+}
+
+export function normalizeCoreTransactionAllocation(
+  raw: RawRecord,
+): CoreTransactionAllocation {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    propertyOwnerId: toNullableInt(raw.property_owner_id ?? raw.propertyOwnerId),
+    ownerName: toStringValue(raw.owner_name ?? raw.ownerName),
+    ownerUserId: toNullableString(raw.owner_user_id ?? raw.ownerUserId),
+    entityBeneficiaryId: toNullableInt(
+      raw.entity_beneficiary_id ?? raw.entityBeneficiaryId,
+    ),
+    ownershipPercentage: toFloatValue(
+      raw.ownership_percentage ?? raw.ownershipPercentage,
+    ),
+    shareGrossAmount: toFloatValue(
+      raw.share_gross_amount ?? raw.shareGrossAmount,
+    ),
+    shareGstAmount: toFloatValue(raw.share_gst_amount ?? raw.shareGstAmount),
+    shareNetAmount: toFloatValue(raw.share_net_amount ?? raw.shareNetAmount),
+    metadata: toRecord(raw.metadata),
+  };
+}
+
+export function normalizeCoreTransactionSplit(
+  raw: RawRecord,
+): CoreTransactionSplit {
+  const allocationsRaw = Array.isArray(raw.allocations) ? raw.allocations : [];
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    propertyName: toStringValue(raw.property_name ?? raw.propertyName),
+    splitPercentage: toFloatValue(raw.split_percentage ?? raw.splitPercentage),
+    splitGrossAmount: toFloatValue(
+      raw.split_gross_amount ?? raw.splitGrossAmount,
+    ),
+    splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
+    splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
+    metadata: toRecord(raw.metadata),
+    allocations: allocationsRaw
+      .filter((a): a is RawRecord => typeof a === "object" && a !== null)
+      .map(normalizeCoreTransactionAllocation),
+  };
+}
+
+export function normalizeCoreTransactionDetail(
+  raw: RawRecord,
+): CoreTransactionDetail {
+  const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entityName: toStringValue(raw.entity_name ?? raw.entityName),
+    type: toTxnType(raw.type),
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+    subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+    invoiceDate: toStringValue(raw.invoice_date ?? raw.invoiceDate),
+    grossAmount: toFloatValue(raw.gross_amount ?? raw.grossAmount),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    netAmount: toFloatValue(raw.net_amount ?? raw.netAmount),
+    description: toNullableString(raw.description),
+    internalRemarks: toNullableString(
+      raw.internal_remarks ?? raw.internalRemarks,
+    ),
+    isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
+    assetClass: toAssetClass(raw.asset_class ?? raw.assetClass),
+    effectiveLifeYears: toNullableNumber(
+      raw.effective_life_years ?? raw.effectiveLifeYears,
+    ),
+    ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
+    reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    metadata: toRecord(raw.metadata),
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
+    isDeleted: Boolean(raw.is_deleted ?? raw.isDeleted),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    splits: splitsRaw
+      .filter((s): s is RawRecord => typeof s === "object" && s !== null)
+      .map(normalizeCoreTransactionSplit),
+  };
+}
+
+export function normalizeCoreTransactionListItem(
+  raw: RawRecord,
+): CoreTransactionListItem {
+  return {
+    id: toStringValue(raw.id),
+    type: toTxnType(raw.type),
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+    subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+    invoiceDate: toStringValue(raw.invoice_date ?? raw.invoiceDate),
+    grossAmount: toFloatValue(raw.gross_amount ?? raw.grossAmount),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    netAmount: toFloatValue(raw.net_amount ?? raw.netAmount),
+    description: toNullableString(raw.description),
+    internalRemarks: toNullableString(
+      raw.internal_remarks ?? raw.internalRemarks,
+    ),
+    isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
+    assetClass: toAssetClass(raw.asset_class ?? raw.assetClass),
+    effectiveLifeYears: toNullableNumber(
+      raw.effective_life_years ?? raw.effectiveLifeYears,
+    ),
+    ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
+    reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entityName: toStringValue(raw.entity_name ?? raw.entityName),
+    propertyIds: toStringArray(raw.property_ids ?? raw.propertyIds),
+    propertyNames: toStringArray(raw.property_names ?? raw.propertyNames),
+    clientShareGross: toNullableNumber(
+      raw.client_share_gross ?? raw.clientShareGross,
+    ),
+    clientShareGst: toNullableNumber(
+      raw.client_share_gst ?? raw.clientShareGst,
+    ),
+    clientShareNet: toNullableNumber(
+      raw.client_share_net ?? raw.clientShareNet,
+    ),
+    metadata: toRecord(raw.metadata),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export function normalizeCorePropertyTransactionRow(
+  raw: RawRecord,
+): CorePropertyTransactionRow {
+  return {
+    transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
+    transactionType: toTxnType(raw.transaction_type ?? raw.transactionType),
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+    subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+    invoiceDate: toStringValue(raw.invoice_date ?? raw.invoiceDate),
+    description: toNullableString(raw.description),
+    transactionGrossAmount: toFloatValue(
+      raw.transaction_gross_amount ?? raw.transactionGrossAmount,
+    ),
+    transactionGstAmount: toFloatValue(
+      raw.transaction_gst_amount ?? raw.transactionGstAmount,
+    ),
+    transactionNetAmount: toFloatValue(
+      raw.transaction_net_amount ?? raw.transactionNetAmount,
+    ),
+    isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
+    ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
+    reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    splitId: toNumberValue(raw.split_id ?? raw.splitId) ?? 0,
+    splitPercentage: toFloatValue(raw.split_percentage ?? raw.splitPercentage),
+    splitGrossAmount: toFloatValue(
+      raw.split_gross_amount ?? raw.splitGrossAmount,
+    ),
+    splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
+    splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
+  };
+}
+
+export function normalizeCoreTransactionCategory(
+  raw: RawRecord,
+): CoreTransactionCategory {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    name: toStringValue(raw.name),
+    type: toTxnType(raw.type),
+    isSystem: Boolean(raw.is_system ?? raw.isSystem),
+    metadata: toRecord(raw.metadata),
+  };
+}
+
+export function normalizeCoreTransactionSubcategory(
+  raw: RawRecord,
+): CoreTransactionSubcategory {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    name: toStringValue(raw.name),
+    isSystem: Boolean(raw.is_system ?? raw.isSystem),
+    metadata: toRecord(raw.metadata),
+  };
+}
+
+export async function listCoreTransactionsByClient(
+  token: string,
+  clientId: string,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/transactions`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+}
+
+export async function listCoreTransactionsByEntity(
+  token: string,
+  entityId: string,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/transactions`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+}
+
+export async function listCoreTransactionsByProperty(
+  token: string,
+  propertyId: string,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/transactions`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+}
+
+export async function getCoreTransaction(token: string, id: string) {
+  const payload = await coreApiRequest(
+    `/transactions/${encodeURIComponent(id)}`,
+    { token },
+  );
+  return normalizeCoreTransactionDetail(getJsonObject(payload));
+}
+
+export async function createCoreTransactionForEntity(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/transactions`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreTransactionDetail(getJsonObject(payload));
+}
+
+export async function updateCoreTransaction(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(
+    `/transactions/${encodeURIComponent(id)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreTransactionDetail(getJsonObject(payload));
+}
+
+export async function listCoreTransactionCategories(
+  token: string,
+  type?: CoreTransactionType,
+) {
+  const query = type ? `?type=${encodeURIComponent(type)}` : "";
+  const payload = await coreApiRequest(`/transactions/categories${query}`, {
+    token,
+  });
+  return getJsonArray(payload).map(normalizeCoreTransactionCategory);
+}
+
+export async function listCoreTransactionSubcategories(
+  token: string,
+  categoryId: number,
+) {
+  const payload = await coreApiRequest(
+    `/transactions/categories/${encodeURIComponent(categoryId)}/sub-categories`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreTransactionSubcategory);
 }
