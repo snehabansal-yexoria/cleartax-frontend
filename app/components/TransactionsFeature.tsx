@@ -809,49 +809,144 @@ function BulkImportModal({
   );
 }
 
-function EntityPropertyWarning() {
+function EditPencilIcon() {
   return (
-    <section className="transaction-warning-card">
-      <strong>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 8v5" />
-          <path d="M12 16h.01" />
-        </svg>
-        Please select Entity Name and Property Name to continue
-      </strong>
-      <div>
-        <span>
-          <small>Entity Name</small>
-          <b>Not selected</b>
-        </span>
-        <button type="button" aria-label="Edit entity">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-          </svg>
-        </button>
-        <span>
-          <small>Property Name</small>
-          <b>Not selected</b>
-        </span>
-        <button type="button" aria-label="Edit property">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-          </svg>
-        </button>
-      </div>
-    </section>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
   );
 }
 
+function RemoveRowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+    </svg>
+  );
+}
+
+type EntityOption = { id: string; name: string };
 type PropertyOption = { id: string; name: string };
+
+const MODE_OF_TRANSACTION_OPTIONS: SelectOption[] = [
+  { label: "Select mode of transaction", value: "" },
+  { label: "Cash", value: "cash" },
+  { label: "Bank Transfer", value: "bank_transfer" },
+  { label: "Credit Card", value: "credit_card" },
+  { label: "Cheque", value: "cheque" },
+  { label: "Direct Debit", value: "direct_debit" },
+  { label: "Other", value: "other" },
+];
 
 const ASSET_CLASSES: { value: CoreAssetClass; label: string }[] = [
   { value: "capital_works", label: "Capital Works" },
   { value: "capital_allowance", label: "Capital Allowance" },
 ];
+
+let splitRowCounter = 0;
+function makeSplitRowId() {
+  splitRowCounter += 1;
+  return `split-${splitRowCounter}`;
+}
+
+type SplitRowState = { id: string; propertyId: string; amount: string };
+
+function EntityPropertyHeaderCard({
+  entities,
+  properties,
+  activeEntityId,
+  activePropertyId,
+  isEditingEntity,
+  isEditingProperty,
+  isPropertyRequired,
+  isEntityLockable,
+  isPropertyLockable,
+  onSelectEntity,
+  onSelectProperty,
+  onEditEntity,
+  onEditProperty,
+}: {
+  entities: EntityOption[];
+  properties: PropertyOption[];
+  activeEntityId: string;
+  activePropertyId: string;
+  isEditingEntity: boolean;
+  isEditingProperty: boolean;
+  isPropertyRequired: boolean;
+  isEntityLockable: boolean;
+  isPropertyLockable: boolean;
+  onSelectEntity: (id: string) => void;
+  onSelectProperty: (id: string) => void;
+  onEditEntity: () => void;
+  onEditProperty: () => void;
+}) {
+  const entityName =
+    entities.find((e) => e.id === activeEntityId)?.name || "Not selected";
+  const propertyName =
+    properties.find((p) => p.id === activePropertyId)?.name || "Not selected";
+
+  return (
+    <section className="transaction-entity-header">
+      <div>
+        {isEditingEntity ? (
+          <StaticSelect
+            label="Entity Name"
+            required
+            value={activeEntityId}
+            options={[
+              { label: "Select Entity", value: "" },
+              ...entities.map((e) => ({ label: e.name, value: e.id })),
+            ]}
+            onChange={onSelectEntity}
+          />
+        ) : (
+          <span>
+            <small>Entity Name</small>
+            <b>{entityName}</b>
+          </span>
+        )}
+        {!isEditingEntity && isEntityLockable ? (
+          <button type="button" aria-label="Edit entity" onClick={onEditEntity}>
+            <EditPencilIcon />
+          </button>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+        {isEditingProperty ? (
+          <StaticSelect
+            label="Property Name"
+            required={isPropertyRequired}
+            value={activePropertyId}
+            options={[
+              { label: "Select Property", value: "" },
+              ...properties.map((p) => ({ label: p.name, value: p.id })),
+            ]}
+            onChange={onSelectProperty}
+          />
+        ) : (
+          <span>
+            <small>Property Name</small>
+            <b>{propertyName}</b>
+          </span>
+        )}
+        {!isEditingProperty && isPropertyLockable ? (
+          <button
+            type="button"
+            aria-label="Edit property"
+            onClick={onEditProperty}
+          >
+            <EditPencilIcon />
+          </button>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+      </div>
+    </section>
+  );
+}
 
 export function AddTransactionView({
   entityId,
@@ -873,12 +968,27 @@ export function AddTransactionView({
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
+  const [entities, setEntities] = useState<EntityOption[]>([]);
+  const [activeEntityId, setActiveEntityId] = useState<string>(entityId ?? "");
+  const [isEditingEntity, setIsEditingEntity] = useState<boolean>(!entityId);
+
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [propertyId, setPropertyId] = useState<string>("");
+  const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
 
   const [invoiceDate, setInvoiceDate] = useState("");
   const [grossAmount, setGrossAmount] = useState("");
+
+  const [showGstBreakdown, setShowGstBreakdown] = useState(false);
   const [gstAmount, setGstAmount] = useState("");
+
+  const [isSplit, setIsSplit] = useState(false);
+  const [splitRows, setSplitRows] = useState<SplitRowState[]>(() => [
+    { id: makeSplitRowId(), propertyId: "", amount: "" },
+  ]);
+
+  const [modeOfTransaction, setModeOfTransaction] = useState<string>("");
+
   const [description, setDescription] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
 
@@ -909,24 +1019,51 @@ export function AddTransactionView({
     };
   }, []);
 
-  // Load the entity's properties (for the property dropdown).
+  // Load entities for the picker (and to look up the locked entity name).
   useEffect(() => {
-    if (!token || !entityId) return;
+    if (!token) return;
+    let cancelled = false;
+    async function loadEntities() {
+      const res = await fetch("/api/entities", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: EntityOption[] };
+      if (!cancelled) setEntities(data.items || []);
+    }
+    loadEntities();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // Load properties whenever the active entity changes.
+  useEffect(() => {
+    if (!token || !activeEntityId) {
+      setProperties([]);
+      setPropertyId("");
+      setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+      return;
+    }
     let cancelled = false;
     async function loadProperties() {
       const res = await fetch(
-        `/api/entities/${encodeURIComponent(entityId!)}/properties`,
+        `/api/entities/${encodeURIComponent(activeEntityId)}/properties`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: PropertyOption[] };
-      if (!cancelled) setProperties(data.items || []);
+      if (!cancelled) {
+        setProperties(data.items || []);
+        setPropertyId("");
+        setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+      }
     }
     loadProperties();
     return () => {
       cancelled = true;
     };
-  }, [token, entityId]);
+  }, [token, activeEntityId]);
 
   // Load categories whenever the type changes.
   useEffect(() => {
@@ -989,33 +1126,135 @@ export function AddTransactionView({
     }
   }, [isAssetPurchase]);
 
+  // When GST breakdown is unchecked, drop any entered GST so the body omits it.
+  useEffect(() => {
+    if (!showGstBreakdown) setGstAmount("");
+  }, [showGstBreakdown]);
+
+  const grossNumberValue = Number.parseFloat(grossAmount);
+  const splitTotal = splitRows.reduce(
+    (sum, r) => sum + (Number.parseFloat(r.amount) || 0),
+    0,
+  );
+  const splitMatches =
+    !Number.isNaN(grossNumberValue) &&
+    grossNumberValue > 0 &&
+    Math.abs(splitTotal - grossNumberValue) < 0.01;
+
+  const splitErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!isSplit) return errors;
+    const seen = new Set<string>();
+    for (const r of splitRows) {
+      if (!r.propertyId) {
+        errors[r.id] = "Choose a property.";
+      } else if (seen.has(r.propertyId)) {
+        errors[r.id] = "Property already used in another split.";
+      } else if (!r.amount || Number.parseFloat(r.amount) <= 0) {
+        errors[r.id] = "Enter a positive amount.";
+      }
+      if (r.propertyId) seen.add(r.propertyId);
+    }
+    return errors;
+  }, [isSplit, splitRows]);
+
   const canSubmit =
-    !!entityId &&
+    !!activeEntityId &&
     !!type &&
     !!categoryId &&
     !!subcategoryId &&
-    !!propertyId &&
     !!invoiceDate &&
-    !!grossAmount;
+    !!grossAmount &&
+    !!modeOfTransaction &&
+    (isSplit
+      ? splitRows.length > 0 &&
+        Object.keys(splitErrors).length === 0 &&
+        splitMatches
+      : !!propertyId);
+
+  function updateSplitRow(id: string, patch: Partial<SplitRowState>) {
+    setSplitRows((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
+  }
+
+  function addSplitRow() {
+    setSplitRows((rows) => [
+      ...rows,
+      { id: makeSplitRowId(), propertyId: "", amount: "" },
+    ]);
+  }
+
+  function removeSplitRow(id: string) {
+    setSplitRows((rows) =>
+      rows.length <= 1 ? rows : rows.filter((r) => r.id !== id),
+    );
+  }
+
+  function handleEntityPicked(id: string) {
+    setActiveEntityId(id);
+    setIsEditingEntity(false);
+    setIsEditingProperty(true);
+  }
+
+  function handlePropertyPicked(id: string) {
+    setPropertyId(id);
+    if (id) setIsEditingProperty(false);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!entityId || !token) {
-      setSubmitError("Cannot submit without an entity context.");
+    if (!activeEntityId || !token) {
+      setSubmitError("Please select an entity to continue.");
       return;
     }
     setSubmitError("");
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
-      const gstNum = gstAmount ? Number.parseFloat(gstAmount) : 0;
       if (Number.isNaN(grossNum) || grossNum < 0) {
         setSubmitError("Amount must be a non-negative number.");
         return;
       }
-      if (Number.isNaN(gstNum) || gstNum < 0) {
-        setSubmitError("GST must be a non-negative number.");
-        return;
+
+      let gstNum: number | null = null;
+      if (showGstBreakdown && gstAmount) {
+        const parsed = Number.parseFloat(gstAmount);
+        if (Number.isNaN(parsed) || parsed < 0) {
+          setSubmitError("GST must be a non-negative number.");
+          return;
+        }
+        gstNum = parsed;
+      }
+
+      let splits: Array<Record<string, unknown>>;
+      if (isSplit) {
+        if (Object.keys(splitErrors).length > 0) {
+          setSubmitError("Fix the errors in the split rows.");
+          return;
+        }
+        if (!splitMatches) {
+          setSubmitError(
+            `Split amounts must total ${grossNum.toFixed(
+              2,
+            )} (currently ${splitTotal.toFixed(2)}).`,
+          );
+          return;
+        }
+        splits = splitRows.map((r) => {
+          const rowAmount = Number.parseFloat(r.amount);
+          return {
+            property_id: r.propertyId,
+            split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
+            split_gross_amount: Number(rowAmount.toFixed(2)),
+          };
+        });
+      } else {
+        if (!propertyId) {
+          setSubmitError("Please select a property.");
+          return;
+        }
+        splits = [{ property_id: propertyId, split_percentage: 100 }];
       }
 
       const body: Record<string, unknown> = {
@@ -1024,12 +1263,17 @@ export function AddTransactionView({
         subcategory_id: subcategoryId,
         invoice_date: invoiceDate,
         gross_amount: grossNum,
-        gst_amount: gstNum,
         description: description.trim() || null,
         internal_remarks: internalRemarks.trim() || null,
         is_asset_purchase: isAssetPurchase,
-        splits: [{ property_id: propertyId, split_percentage: 100 }],
+        splits,
       };
+      if (gstNum !== null) {
+        body.gst_amount = gstNum;
+      }
+      if (modeOfTransaction) {
+        body.metadata = { mode_of_transaction: modeOfTransaction };
+      }
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
         if (assetClass === "capital_allowance") {
@@ -1043,7 +1287,7 @@ export function AddTransactionView({
       }
 
       const res = await fetch(
-        `/api/entities/${encodeURIComponent(entityId)}/transactions`,
+        `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
         {
           method: "POST",
           headers: {
@@ -1113,14 +1357,14 @@ export function AddTransactionView({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
   ];
-  const propertySelectOptions: SelectOption[] = [
-    { label: "Select property", value: "" },
-    ...properties.map((p) => ({ label: p.name, value: p.id })),
-  ];
   const assetClassOptions: SelectOption[] = [
     { label: "Select class", value: "" },
     ...ASSET_CLASSES.map((a) => ({ label: a.label, value: a.value })),
   ];
+  const splitPropertyBaseOptions = properties.map((p) => ({
+    label: p.name,
+    value: p.id,
+  }));
 
   return (
     <section className="transactions-page transaction-add-page">
@@ -1156,7 +1400,21 @@ export function AddTransactionView({
         </button>
 
         <form className="transaction-entry-form" onSubmit={handleSubmit}>
-          {!entityId ? <EntityPropertyWarning /> : null}
+          <EntityPropertyHeaderCard
+            entities={entities}
+            properties={properties}
+            activeEntityId={activeEntityId}
+            activePropertyId={propertyId}
+            isEditingEntity={isEditingEntity}
+            isEditingProperty={isEditingProperty}
+            isPropertyRequired={!isSplit}
+            isEntityLockable={!!activeEntityId}
+            isPropertyLockable={!!propertyId}
+            onSelectEntity={handleEntityPicked}
+            onSelectProperty={handlePropertyPicked}
+            onEditEntity={() => setIsEditingEntity(true)}
+            onEditProperty={() => setIsEditingProperty(true)}
+          />
 
           <div className="transaction-type-control">
             <span className="transaction-field-label">
@@ -1172,7 +1430,9 @@ export function AddTransactionView({
               </button>
               <button
                 type="button"
-                className={type === "revenue" ? "is-selected" : ""}
+                className={
+                  type === "revenue" ? "is-selected is-revenue" : ""
+                }
                 onClick={() => setType("revenue")}
               >
                 Revenue
@@ -1196,13 +1456,6 @@ export function AddTransactionView({
               onChange={(value) =>
                 setSubcategoryId(value ? Number(value) : null)
               }
-            />
-            <StaticSelect
-              label="Property"
-              required
-              value={propertyId}
-              options={propertySelectOptions}
-              onChange={setPropertyId}
             />
             <label className="transaction-field">
               <span className="transaction-field-label">
@@ -1228,8 +1481,22 @@ export function AddTransactionView({
                 onChange={(e) => setGrossAmount(e.target.value)}
               />
             </label>
+          </div>
+
+          <label className="transaction-checkbox-row">
+            <input
+              type="checkbox"
+              checked={showGstBreakdown}
+              onChange={(e) => setShowGstBreakdown(e.target.checked)}
+            />
+            <span>Add GST Breakdown</span>
+          </label>
+
+          {showGstBreakdown ? (
             <label className="transaction-field">
-              <span className="transaction-field-label">GST</span>
+              <span className="transaction-field-label">
+                GST Amount<em>*</em>
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -1240,7 +1507,98 @@ export function AddTransactionView({
                 onChange={(e) => setGstAmount(e.target.value)}
               />
             </label>
-          </div>
+          ) : null}
+
+          <label className="transaction-checkbox-row">
+            <input
+              type="checkbox"
+              checked={isSplit}
+              onChange={(e) => setIsSplit(e.target.checked)}
+            />
+            <span>Is this a split transaction?</span>
+          </label>
+
+          {isSplit ? (
+            <div className="transaction-split-section">
+              {splitRows.map((row, index) => (
+                <div key={row.id} className="transaction-split-row">
+                  <StaticSelect
+                    label={index === 0 ? "Property Name" : undefined}
+                    required
+                    value={row.propertyId}
+                    options={[
+                      { label: "Select Property", value: "" },
+                      ...splitPropertyBaseOptions,
+                    ]}
+                    onChange={(value) =>
+                      updateSplitRow(row.id, { propertyId: value })
+                    }
+                  />
+                  <label className="transaction-field">
+                    {index === 0 ? (
+                      <span className="transaction-field-label">
+                        Amount<em>*</em>
+                      </span>
+                    ) : null}
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={row.amount}
+                      onChange={(e) =>
+                        updateSplitRow(row.id, { amount: e.target.value })
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="transaction-split-remove"
+                    aria-label="Remove split row"
+                    disabled={splitRows.length <= 1}
+                    onClick={() => removeSplitRow(row.id)}
+                  >
+                    <RemoveRowIcon />
+                  </button>
+                  {splitErrors[row.id] ? (
+                    <p className="transaction-split-row-error">
+                      {splitErrors[row.id]}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+              <div className="transaction-split-footer">
+                <span
+                  className={`transaction-split-total${
+                    grossAmount && !splitMatches ? " is-mismatch" : ""
+                  }`}
+                >
+                  {grossAmount && !Number.isNaN(grossNumberValue)
+                    ? `Split total: ${splitTotal.toFixed(
+                        2,
+                      )} of ${grossNumberValue.toFixed(2)}`
+                    : "Enter the total amount above to validate splits."}
+                </span>
+                <button
+                  type="button"
+                  className="transaction-split-add"
+                  onClick={addSplitRow}
+                  disabled={!properties.length}
+                >
+                  + Add Property
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <StaticSelect
+            label="Mode of Transaction"
+            required
+            value={modeOfTransaction}
+            options={MODE_OF_TRANSACTION_OPTIONS}
+            onChange={setModeOfTransaction}
+          />
 
           <label className="transaction-field">
             <span className="transaction-field-label">Description</span>
@@ -1270,38 +1628,13 @@ export function AddTransactionView({
                 borderTop: "1px solid #e2e8f0",
               }}
             >
-              <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  cursor: "pointer",
-                  userSelect: "none",
-                  padding: "4px 0",
-                }}
-              >
+              <label className="transaction-checkbox-row">
                 <input
                   type="checkbox"
                   checked={isAssetPurchase}
                   onChange={(e) => setIsAssetPurchase(e.target.checked)}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    margin: 0,
-                    flexShrink: 0,
-                    accentColor: "#1e3a8a",
-                    cursor: "pointer",
-                  }}
                 />
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "#0f172a",
-                  }}
-                >
-                  Is this an asset purchase?
-                </span>
+                <span>Is this an asset purchase?</span>
               </label>
               {isAssetPurchase ? (
                 <div className="transaction-form-grid" style={{ marginTop: 12 }}>
@@ -1350,7 +1683,7 @@ export function AddTransactionView({
               className="transaction-save-button"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? "Saving…" : "Save Transaction"}
+              {isSubmitting ? "Saving…" : "Save"}
             </button>
           </div>
         </form>

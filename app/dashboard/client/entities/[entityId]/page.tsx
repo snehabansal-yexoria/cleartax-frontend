@@ -14,6 +14,7 @@ export default function ClientEntityDetailPage() {
       backLabel="My Workspace"
       editEntityHref={`/dashboard/client/entities/${entityId}/edit`}
       addPropertyHref={`/dashboard/client/entities/${entityId}/properties/new`}
+      addTransactionHref={`/dashboard/client/entities/${entityId}/transactions/new`}
       propertyDetailHrefBase={`/dashboard/client/entities/${entityId}/properties`}
     />
   );
