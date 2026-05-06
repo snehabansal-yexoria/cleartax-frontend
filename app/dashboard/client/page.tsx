@@ -95,6 +95,12 @@ export default function ClientPage() {
             >
               + Add Entity
             </Link>
+            <Link
+              href="/dashboard/client/transactions/new"
+              className="portal-secondary-link"
+            >
+              + Add Transaction
+            </Link>
             <button
               type="button"
               className="portal-secondary-link"

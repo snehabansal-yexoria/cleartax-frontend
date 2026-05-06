@@ -5396,6 +5396,174 @@ p.darkBg {
   box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.1);
 }
 
+.transaction-type-control button.is-selected.is-revenue {
+  color: #047857;
+  border-color: #047857;
+  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.1);
+}
+
+.transaction-entity-header {
+  padding: 18px 22px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.transaction-entity-header > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 28px;
+  gap: 16px;
+  align-items: center;
+}
+
+.transaction-entity-header span {
+  display: grid;
+  gap: 8px;
+}
+
+.transaction-entity-header small {
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transaction-entity-header b {
+  color: #050816;
+  font-size: 16px;
+}
+
+.transaction-entity-header button {
+  border: 0;
+  background: transparent;
+  color: #1e40af;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.transaction-entity-header svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transaction-entity-header .transaction-field {
+  margin: 0;
+}
+
+.transaction-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+}
+
+.transaction-checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: #28336e;
+  cursor: pointer;
+}
+
+.transaction-checkbox-row span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.transaction-split-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.transaction-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 36px;
+  gap: 12px;
+  align-items: end;
+}
+
+.transaction-split-row .transaction-field {
+  margin: 0;
+}
+
+.transaction-split-row > button.transaction-split-remove {
+  height: 46px;
+  border: 1px solid #d7dce5;
+  background: #ffffff;
+  border-radius: 8px;
+  color: #b42318;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transaction-split-row > button.transaction-split-remove:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.transaction-split-row > button.transaction-split-remove svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transaction-split-row-error {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.transaction-split-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transaction-split-total {
+  font-size: 13px;
+  color: #475467;
+}
+
+.transaction-split-total.is-mismatch {
+  color: #b42318;
+  font-weight: 700;
+}
+
+.transaction-split-add {
+  border: 0;
+  background: transparent;
+  color: #28336e;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.transaction-split-add:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .transaction-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
