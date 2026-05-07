@@ -711,6 +711,8 @@ export type CoreTransactionListItem = {
   effectiveLifeYears: number | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
+  clientId: string;
+  clientName: string;
   entityId: string;
   entityName: string;
   propertyIds: string[];
@@ -916,6 +918,15 @@ export function normalizeCoreTransactionListItem(
     ),
     ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
     reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    clientId: toStringValue(
+      raw.client_id ?? raw.clientId ?? raw.created_for ?? raw.createdFor,
+    ),
+    clientName: toStringValue(
+      raw.client_name ??
+        raw.clientName ??
+        raw.created_for_name ??
+        raw.createdForName,
+    ),
     entityId: toStringValue(raw.entity_id ?? raw.entityId),
     entityName: toStringValue(raw.entity_name ?? raw.entityName),
     propertyIds: toStringArray(raw.property_ids ?? raw.propertyIds),
@@ -1056,6 +1067,13 @@ export async function updateCoreTransaction(
     { method: "PATCH", token, body },
   );
   return normalizeCoreTransactionDetail(getJsonObject(payload));
+}
+
+export async function deleteCoreTransaction(token: string, id: string) {
+  await coreApiRequest(`/transactions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
 }
 
 export async function listCoreTransactionCategories(

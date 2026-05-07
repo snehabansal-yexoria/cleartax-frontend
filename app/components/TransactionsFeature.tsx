@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
 import type {
   CoreAssetClass,
   CorePropertyTransactionRow,
   CoreTransactionCategory,
+  CoreTransactionDetail,
   CoreTransactionListItem,
   CoreTransactionSubcategory,
   CoreTransactionType,
@@ -26,13 +28,32 @@ export type TransactionsContext =
 
 type TransactionTableScope = "global" | "client" | "entity";
 
-type DisplayTransactionRow = CoreTransactionListItem & {
-  clientName?: string;
+type DisplayTransactionRow = CoreTransactionListItem;
+type TransactionModalMode = "view" | "edit";
+type TransactionFeedbackTone = "success" | "warning";
+
+type TransactionFilters = {
+  client: string;
+  entity: string;
+  property: string;
+  type: string;
+  category: string;
 };
 
-type ClientRecord = {
-  id: string;
-  name: string;
+type TransactionFilterOptions = {
+  clients: SelectOption[];
+  entities: SelectOption[];
+  properties: SelectOption[];
+  types: SelectOption[];
+  categories: SelectOption[];
+};
+
+const defaultTransactionFilters: TransactionFilters = {
+  client: "all",
+  entity: "all",
+  property: "all",
+  type: "all",
+  category: "all",
 };
 
 const NUMERIC_FORMATTER = new Intl.NumberFormat("en-AU", {
@@ -43,6 +64,12 @@ const NUMERIC_FORMATTER = new Intl.NumberFormat("en-AU", {
 
 function formatCurrency(value: number) {
   return NUMERIC_FORMATTER.format(value);
+}
+
+function formatTransactionCurrency(value: number, isRevenue: boolean) {
+  const amount = formatCurrency(Math.abs(value));
+  if (isRevenue || value === 0) return amount;
+  return `-${amount}`;
 }
 
 function formatInvoiceDate(value: string) {
@@ -91,13 +118,6 @@ const rules: StaticRule[] = [
   },
 ];
 
-const clientOptions = [
-  "All Clients",
-  "John Smith",
-  "Sarah Wilson",
-  "Michael Chen",
-].map((value) => ({ label: value, value }));
-
 const entityOptions = [
   "All Entities",
   "Rodriguez Family SMSF",
@@ -112,11 +132,6 @@ const propertyOptions = [
   "Mountain Retreat",
   "Downtown Loft",
 ].map((value) => ({ label: value, value }));
-
-const typeOptions = ["All Types", "Expense", "Income"].map((value) => ({
-  label: value,
-  value,
-}));
 
 const categoryOptions = [
   "All Categories",
@@ -241,14 +256,394 @@ function StaticSelect({
   );
 }
 
+function transactionDetailToRow(
+  detail: CoreTransactionDetail,
+  fallback?: DisplayTransactionRow | null,
+): DisplayTransactionRow {
+  const propertyIds = detail.splits.map((split) => split.propertyId).filter(Boolean);
+  const propertyNames = detail.splits
+    .map((split) => split.propertyName)
+    .filter(Boolean);
+
+  return {
+    id: detail.id,
+    type: detail.type,
+    categoryId: detail.categoryId,
+    categoryName: detail.categoryName,
+    subcategoryId: detail.subcategoryId,
+    subcategoryName: detail.subcategoryName,
+    invoiceDate: detail.invoiceDate,
+    grossAmount: detail.grossAmount,
+    gstAmount: detail.gstAmount,
+    netAmount: detail.netAmount,
+    description: detail.description,
+    internalRemarks: detail.internalRemarks,
+    isAssetPurchase: detail.isAssetPurchase,
+    assetClass: detail.assetClass,
+    effectiveLifeYears: detail.effectiveLifeYears,
+    ruleId: detail.ruleId,
+    reviewStatus: detail.reviewStatus,
+    clientId: fallback?.clientId || "",
+    clientName: fallback?.clientName || "",
+    entityId: detail.entityId,
+    entityName: detail.entityName,
+    propertyIds: propertyIds.length ? propertyIds : fallback?.propertyIds || [],
+    propertyNames: propertyNames.length
+      ? propertyNames
+      : fallback?.propertyNames || [],
+    clientShareGross: fallback?.clientShareGross ?? null,
+    clientShareGst: fallback?.clientShareGst ?? null,
+    clientShareNet: fallback?.clientShareNet ?? null,
+    metadata: detail.metadata,
+    createdAt: detail.createdAt,
+    updatedAt: detail.updatedAt,
+  };
+}
+
+function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransactionRow {
+  return {
+    id: row.transactionId,
+    type: row.transactionType,
+    categoryId: row.categoryId,
+    categoryName: row.categoryName,
+    subcategoryId: row.subcategoryId,
+    subcategoryName: row.subcategoryName,
+    invoiceDate: row.invoiceDate,
+    grossAmount: row.transactionGrossAmount,
+    gstAmount: row.transactionGstAmount,
+    netAmount: row.transactionNetAmount,
+    description: row.description,
+    internalRemarks: null,
+    isAssetPurchase: row.isAssetPurchase,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: row.ruleId,
+    reviewStatus: row.reviewStatus,
+    clientId: "",
+    clientName: "",
+    entityId: "",
+    entityName: "",
+    propertyIds: [],
+    propertyNames: [],
+    clientShareGross: row.splitGrossAmount,
+    clientShareGst: row.splitGstAmount,
+    clientShareNet: row.splitNetAmount,
+    metadata: {},
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+function DetailField({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="transaction-detail-field">
+      <span>{label}</span>
+      <strong>{children ?? value ?? "—"}</strong>
+    </div>
+  );
+}
+
+function TransactionDetailPopup({
+  row,
+  detail,
+  mode,
+  isLoading,
+  error,
+  isSaving,
+  isDeleting,
+  onClose,
+  onEdit,
+  onCancelEdit,
+  onSave,
+  onDelete,
+}: {
+  row: DisplayTransactionRow;
+  detail: CoreTransactionDetail | null;
+  mode: TransactionModalMode;
+  isLoading: boolean;
+  error: string;
+  isSaving: boolean;
+  isDeleting: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: (body: Record<string, unknown>) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [description, setDescription] = useState(row.description || "");
+  const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
+  const [reviewStatus, setReviewStatus] = useState(row.reviewStatus);
+  const [isAssetPurchase, setIsAssetPurchase] = useState(row.isAssetPurchase);
+
+  useEffect(() => {
+    setDescription(detail?.description || row.description || "");
+    setInternalRemarks(detail?.internalRemarks || row.internalRemarks || "");
+    setReviewStatus(detail?.reviewStatus || row.reviewStatus);
+    setIsAssetPurchase(detail?.isAssetPurchase ?? row.isAssetPurchase);
+  }, [detail, row]);
+
+  const display = detail ? transactionDetailToRow(detail, row) : row;
+  const isRevenue = display.type === "revenue";
+  const splitRows =
+    detail?.splits.flatMap((split) =>
+      split.allocations.length
+        ? split.allocations.map((allocation) => ({
+            id: `${split.id}-${allocation.id}`,
+            category: display.categoryName,
+            subcategory: display.subcategoryName,
+            amount: allocation.shareGrossAmount,
+            percentage: allocation.ownershipPercentage,
+          }))
+        : [
+            {
+              id: String(split.id),
+              category: display.categoryName,
+              subcategory: display.subcategoryName,
+              amount: split.splitGrossAmount,
+              percentage: split.splitPercentage,
+            },
+          ],
+    ) || [];
+  const invoiceName =
+    typeof display.metadata.invoice_name === "string"
+      ? display.metadata.invoice_name
+      : "";
+
+  async function handleSave() {
+    await onSave({
+      description: description.trim() || null,
+      internal_remarks: internalRemarks.trim() || null,
+      review_status: reviewStatus,
+      is_asset_purchase: isAssetPurchase,
+    });
+  }
+
+  return (
+    <div className="transaction-modal-layer">
+      <button
+        type="button"
+        className="transaction-modal-backdrop"
+        aria-label="Close transaction details"
+        onClick={onClose}
+      />
+      <section className="transaction-detail-modal" aria-label="Transaction Details">
+        <header className="transaction-detail-header">
+          <h2>Transaction Details</h2>
+          <button type="button" aria-label="Close transaction details" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </header>
+
+        <div className="transaction-detail-body">
+          {isLoading ? (
+            <div className="transaction-detail-loading">
+              <span className="skeleton-line skeleton-line-lg" />
+              <span className="skeleton-line skeleton-line-md" />
+              <span className="skeleton-line skeleton-line-xl" />
+            </div>
+          ) : null}
+          {error ? <p className="transaction-detail-error">{error}</p> : null}
+
+          <DetailField label="Transaction ID">
+            <a>{display.id.slice(0, 8).toUpperCase()}</a>
+          </DetailField>
+
+          <div className="transaction-detail-grid is-two">
+            <DetailField label="Client Name" value={display.clientName || "—"} />
+            <DetailField
+              label="Property Name"
+              value={display.propertyNames.join(", ") || "—"}
+            />
+          </div>
+
+          <DetailField label="Entity Name" value={display.entityName || "—"} />
+
+          <div className="transaction-detail-grid is-three">
+            <DetailField label="Type">
+              <span
+                className={`transaction-type-pill ${
+                  isRevenue ? "is-income" : "is-expense"
+                }`}
+              >
+                {isRevenue ? "Income" : "Expense"}
+              </span>
+            </DetailField>
+            <DetailField label="Category" value={display.categoryName} />
+            <DetailField label="Subcategory" value={display.subcategoryName} />
+          </div>
+
+          <DetailField label="Date" value={formatInvoiceDate(display.invoiceDate)} />
+
+          <div className="transaction-detail-grid is-three">
+            <DetailField label="Gross Amount">
+              <span className={isRevenue ? "amount-positive" : "amount-negative"}>
+                {formatTransactionCurrency(display.grossAmount, isRevenue)}
+              </span>
+            </DetailField>
+            <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
+            <DetailField label="Net Amount">
+              <span className={isRevenue ? "amount-positive" : "amount-negative"}>
+                {formatTransactionCurrency(display.netAmount, isRevenue)}
+              </span>
+            </DetailField>
+          </div>
+
+          <DetailField label="Rule Applied">
+            <span className={`transaction-rule-pill ${display.ruleId != null ? "is-yes" : "is-no"}`}>
+              {display.ruleId != null ? "Yes" : "No"}
+            </span>
+          </DetailField>
+
+          {mode === "edit" ? (
+            <div className="transaction-detail-edit">
+              <label className="transaction-field">
+                <span className="transaction-field-label">Description</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </label>
+              <label className="transaction-field">
+                <span className="transaction-field-label">Internal Remarks</span>
+                <textarea
+                  value={internalRemarks}
+                  onChange={(event) => setInternalRemarks(event.target.value)}
+                />
+              </label>
+              <StaticSelect
+                label="Review Status"
+                value={reviewStatus}
+                options={[
+                  { label: "Unreviewed", value: "unreviewed" },
+                  { label: "Reviewed", value: "reviewed" },
+                ]}
+                onChange={(value) =>
+                  setReviewStatus(value === "reviewed" ? "reviewed" : "unreviewed")
+                }
+              />
+              <label className="transaction-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={isAssetPurchase}
+                  onChange={(event) => setIsAssetPurchase(event.target.checked)}
+                />
+                <span>Asset Purchase</span>
+              </label>
+            </div>
+          ) : (
+            <>
+              <DetailField label="Description" value={display.description || "—"} />
+              <DetailField
+                label="Internal Remarks"
+                value={display.internalRemarks || "—"}
+              />
+              <DetailField label="Asset Purchase">
+                <span className={`transaction-rule-pill ${display.isAssetPurchase ? "is-yes" : "is-no"}`}>
+                  {display.isAssetPurchase ? "Yes" : "No"}
+                </span>
+              </DetailField>
+            </>
+          )}
+
+          {splitRows.length > 1 ? (
+            <section className="transaction-detail-splits">
+              <h3>Split Transaction</h3>
+              {splitRows.map((split) => (
+                <div key={split.id} className="transaction-detail-split-card">
+                  <DetailField label="Category" value={split.category} />
+                  <DetailField label="Subcategory" value={split.subcategory} />
+                  <DetailField
+                    label={`Amount (${split.percentage.toFixed(0)}%)`}
+                    value={formatCurrency(split.amount)}
+                  />
+                </div>
+              ))}
+            </section>
+          ) : null}
+
+          <DetailField label="Invoice Attached">
+            <button type="button" className="transaction-invoice-chip" disabled={!invoiceName}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v5h5" />
+              </svg>
+              {invoiceName || "No invoice attached"}
+            </button>
+          </DetailField>
+        </div>
+
+        <footer className="transaction-detail-actions">
+          {mode === "edit" ? (
+            <>
+              <button
+                type="button"
+                className="transaction-cancel-button"
+                onClick={onCancelEdit}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="transaction-save-button"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving…" : "Save Changes"}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="transaction-detail-edit-button" onClick={onEdit}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+                Edit Transaction
+              </button>
+              <button
+                type="button"
+                className="transaction-detail-delete-button"
+                onClick={onDelete}
+                disabled={isDeleting}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M19 6l-1 14H6L5 6" />
+                </svg>
+                {isDeleting ? "Deleting…" : "Delete Transaction"}
+              </button>
+            </>
+          )}
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 function TransactionTable({
   rows,
   scope,
   showClientShare = false,
+  onView,
+  onEdit,
+  onDelete,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
   showClientShare?: boolean;
+  onView: (row: DisplayTransactionRow) => void;
+  onEdit: (row: DisplayTransactionRow) => void;
+  onDelete: (row: DisplayTransactionRow) => void;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
@@ -286,9 +681,13 @@ function TransactionTable({
             return (
               <tr key={row.id}>
                 <td>
-                  <a href={`/dashboard/accountant/transactions/${row.id}`}>
+                  <button
+                    type="button"
+                    className="transaction-id-button"
+                    onClick={() => onView(row)}
+                  >
                     {row.id.slice(0, 8)}…
-                  </a>
+                  </button>
                 </td>
                 {showClientName ? <td>{row.clientName || "—"}</td> : null}
                 {showEntityName ? <td>{row.entityName || "—"}</td> : null}
@@ -306,11 +705,11 @@ function TransactionTable({
                 <td>{row.subcategoryName}</td>
                 <td>{formatInvoiceDate(row.invoiceDate)}</td>
                 <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatCurrency(row.grossAmount)}
+                  {formatTransactionCurrency(row.grossAmount, isRevenue)}
                 </td>
                 <td>{formatCurrency(row.gstAmount)}</td>
                 <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatCurrency(row.netAmount)}
+                  {formatTransactionCurrency(row.netAmount, isRevenue)}
                 </td>
                 {showClientShare ? (
                   <td>
@@ -330,7 +729,11 @@ function TransactionTable({
                 </td>
                 <td>
                   <div className="transaction-action-set">
-                    <button type="button" aria-label={`Edit ${row.id}`}>
+                    <button
+                      type="button"
+                      aria-label={`Edit ${row.id}`}
+                      onClick={() => onEdit(row)}
+                    >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 20h9" />
                         <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -340,6 +743,7 @@ function TransactionTable({
                       type="button"
                       className="is-danger"
                       aria-label={`Delete ${row.id}`}
+                      onClick={() => onDelete(row)}
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M3 6h18" />
@@ -362,8 +766,14 @@ function TransactionTable({
 
 function PropertyTransactionTable({
   rows,
+  onView,
+  onEdit,
+  onDelete,
 }: {
   rows: CorePropertyTransactionRow[];
+  onView: (row: DisplayTransactionRow) => void;
+  onEdit: (row: DisplayTransactionRow) => void;
+  onDelete: (row: DisplayTransactionRow) => void;
 }) {
   return (
     <div className="transactions-table-wrap">
@@ -381,17 +791,23 @@ function PropertyTransactionTable({
             <th>GST</th>
             <th>Net</th>
             <th>Rule</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
             const isRevenue = row.transactionType === "revenue";
+            const displayRow = propertyRowToDisplayRow(row);
             return (
               <tr key={`${row.transactionId}-${row.splitId}`}>
                 <td>
-                  <a href={`/dashboard/accountant/transactions/${row.transactionId}`}>
+                  <button
+                    type="button"
+                    className="transaction-id-button"
+                    onClick={() => onView(displayRow)}
+                  >
                     {row.transactionId.slice(0, 8)}…
-                  </a>
+                  </button>
                 </td>
                 <td>
                   <span
@@ -408,11 +824,11 @@ function PropertyTransactionTable({
                 <td>{formatCurrency(row.transactionGrossAmount)}</td>
                 <td>{row.splitPercentage.toFixed(2)}%</td>
                 <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatCurrency(row.splitGrossAmount)}
+                  {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
                 </td>
                 <td>{formatCurrency(row.splitGstAmount)}</td>
                 <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatCurrency(row.splitNetAmount)}
+                  {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
                 </td>
                 <td>
                   <span
@@ -422,6 +838,34 @@ function PropertyTransactionTable({
                   >
                     {row.ruleId != null ? "Yes" : "No"}
                   </span>
+                </td>
+                <td>
+                  <div className="transaction-action-set">
+                    <button
+                      type="button"
+                      aria-label={`Edit ${row.transactionId}`}
+                      onClick={() => onEdit(displayRow)}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="is-danger"
+                      aria-label={`Delete ${row.transactionId}`}
+                      onClick={() => onDelete(displayRow)}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v5" />
+                        <path d="M14 11v5" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -451,13 +895,24 @@ function Pagination({ copy }: { copy: string }) {
   );
 }
 
-function Filters({ context }: { context: TransactionsContext }) {
-  const [client, setClient] = useState("All Clients");
-  const [entity, setEntity] = useState("All Entities");
-  const [property, setProperty] = useState("All Properties");
-  const [type, setType] = useState("All Types");
-  const [category, setCategory] = useState("All Categories");
-
+function Filters({
+  context,
+  filters,
+  options,
+  onChange,
+  onReset,
+  activeCount,
+}: {
+  context: TransactionsContext;
+  filters: TransactionFilters;
+  options: TransactionFilterOptions;
+  onChange: <K extends keyof TransactionFilters>(
+    key: K,
+    value: TransactionFilters[K],
+  ) => void;
+  onReset: () => void;
+  activeCount: number;
+}) {
   const showClientFilter = context.kind === "none";
   const showEntityFilter = context.kind === "none" || context.kind === "client";
   const showPropertyFilter = context.kind !== "property";
@@ -470,47 +925,133 @@ function Filters({ context }: { context: TransactionsContext }) {
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V22h-4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.8 15a1.7 1.7 0 0 0-1.5-1H3v-4h.3a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V2h4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1h.3v4h-.3a1.7 1.7 0 0 0-1.5 1z" />
         </svg>
         <strong>Filters</strong>
+        {activeCount > 0 ? (
+          <button type="button" className="transaction-filter-reset" onClick={onReset}>
+            Clear filters
+          </button>
+        ) : null}
       </div>
       <div className="transaction-filter-grid">
         {showClientFilter ? (
           <StaticSelect
             label="Client Name"
-            value={client}
-            options={clientOptions}
-            onChange={setClient}
+            value={filters.client}
+            options={options.clients}
+            onChange={(value) => onChange("client", value)}
           />
         ) : null}
         {showEntityFilter ? (
           <StaticSelect
             label="Entity Name"
-            value={entity}
-            options={entityOptions}
-            onChange={setEntity}
+            value={filters.entity}
+            options={options.entities}
+            onChange={(value) => onChange("entity", value)}
           />
         ) : null}
         {showPropertyFilter ? (
           <StaticSelect
             label="Property Name"
-            value={property}
-            options={propertyOptions}
-            onChange={setProperty}
+            value={filters.property}
+            options={options.properties}
+            onChange={(value) => onChange("property", value)}
           />
         ) : null}
         <StaticSelect
           label="Transaction Type"
-          value={type}
-          options={typeOptions}
-          onChange={setType}
+          value={filters.type}
+          options={options.types}
+          onChange={(value) => onChange("type", value)}
         />
         <StaticSelect
           label="Category"
-          value={category}
-          options={categoryOptions}
-          onChange={setCategory}
+          value={filters.category}
+          options={options.categories}
+          onChange={(value) => onChange("category", value)}
         />
       </div>
     </section>
   );
+}
+
+function TransactionLoadingSkeleton({
+  scope,
+}: {
+  scope: "transaction" | "property";
+}) {
+  const columns = scope === "property" ? 11 : 13;
+  return (
+    <div className="transaction-loading-stack" aria-label="Loading transactions">
+      <div className="transactions-showing-copy">
+        <span className="skeleton-line skeleton-line-md" />
+      </div>
+      <div className="transactions-table-wrap transaction-skeleton-table">
+        {Array.from({ length: 5 }).map((_, rowIndex) => (
+          <div key={rowIndex} className="transaction-skeleton-row">
+            {Array.from({ length: columns }).map((__, columnIndex) => (
+              <span
+                key={columnIndex}
+                className={
+                  columnIndex === 0
+                    ? "skeleton-line skeleton-line-md"
+                    : columnIndex % 3 === 0
+                      ? "skeleton-pill"
+                      : "skeleton-line skeleton-line-sm"
+                }
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function makeOptions(
+  label: string,
+  values: string[],
+  fallbackPrefix = "Unknown",
+): SelectOption[] {
+  const unique = Array.from(
+    new Set(values.map((value) => value.trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b));
+
+  return [
+    { label, value: "all" },
+    ...unique.map((value) => ({
+      label: value || fallbackPrefix,
+      value,
+    })),
+  ];
+}
+
+function makeNamedOptions(
+  label: string,
+  values: Array<{ id: string; name: string }>,
+  fallbackPrefix = "Unknown",
+): SelectOption[] {
+  const byValue = new Map<string, string>();
+  for (const item of values) {
+    const id = item.id.trim();
+    const name = item.name.trim();
+    const value = id || name;
+    if (!value) continue;
+    byValue.set(value, name || id || fallbackPrefix);
+  }
+
+  return [
+    { label, value: "all" },
+    ...Array.from(byValue.entries())
+      .map(([value, optionLabel]) => ({ label: optionLabel, value }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
+}
+
+function getRowClientFilterValue(row: CoreTransactionListItem) {
+  return row.clientId || row.clientName;
+}
+
+function getRowEntityFilterValue(row: CoreTransactionListItem) {
+  return row.entityId || row.entityName;
 }
 
 export function AllTransactionsView({
@@ -526,8 +1067,21 @@ export function AllTransactionsView({
 }) {
   const [rows, setRows] = useState<DisplayTransactionRow[]>([]);
   const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
+  const [filters, setFilters] = useState<TransactionFilters>(
+    defaultTransactionFilters,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<DisplayTransactionRow | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
+    null,
+  );
+  const [detailMode, setDetailMode] = useState<TransactionModalMode>("view");
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const [isDetailSaving, setIsDetailSaving] = useState(false);
+  const [isDetailDeleting, setIsDetailDeleting] = useState(false);
   const contextKind = context.kind;
   const contextId =
     context.kind === "client"
@@ -553,35 +1107,18 @@ export function AllTransactionsView({
         const token = session.getIdToken().getJwtToken();
 
         if (contextKind === "none") {
-          const clientsRes = await fetch("/api/users/me/clients?scope=mine", {
+          const res = await fetch("/api/transactions", {
             headers: { Authorization: `Bearer ${token}` },
           });
-          if (!clientsRes.ok) {
-            if (!cancelled) setErrorMessage("Failed to load clients.");
+          if (!res.ok) {
+            if (!cancelled) setErrorMessage("Failed to load transactions.");
             return;
           }
-          const clientsData = (await clientsRes.json()) as {
-            clients?: ClientRecord[];
+          const data = (await res.json()) as {
+            items?: CoreTransactionListItem[];
           };
-          const clients = clientsData.clients || [];
-          const responses = await Promise.all(
-            clients.map(async (client) => {
-              const res = await fetch(
-                `/api/clients/${encodeURIComponent(client.id)}/transactions`,
-                { headers: { Authorization: `Bearer ${token}` } },
-              );
-              if (!res.ok) return [];
-              const data = (await res.json()) as {
-                items?: CoreTransactionListItem[];
-              };
-              return (data.items || []).map((item) => ({
-                ...item,
-                clientName: client.name,
-              }));
-            }),
-          );
           if (!cancelled) {
-            setRows(responses.flat());
+            setRows(data.items || []);
             setPropertyRows([]);
           }
           return;
@@ -632,7 +1169,261 @@ export function AllTransactionsView({
     };
   }, [contextId, contextKind]);
 
+  useEffect(() => {
+    setFilters(defaultTransactionFilters);
+  }, [contextId, contextKind]);
+
+  const filterOptions = useMemo<TransactionFilterOptions>(() => {
+    const clientValues = rows.map((row) => ({
+      id: row.clientId,
+      name: row.clientName,
+    }));
+    const entityValues = rows.map((row) => ({
+      id: row.entityId,
+      name: row.entityName,
+    }));
+    const propertyValues = rows.flatMap((row) =>
+      row.propertyNames.map((name, index) => ({
+        id: row.propertyIds[index] || name,
+        name,
+      })),
+    );
+    const transactionTypes =
+      contextKind === "property"
+        ? propertyRows.map((row) => row.transactionType)
+        : rows.map((row) => row.type);
+    const categories =
+      contextKind === "property"
+        ? propertyRows.map((row) => row.categoryName)
+        : rows.map((row) => row.categoryName);
+
+    return {
+      clients: makeNamedOptions("All Clients", clientValues, "Unknown Client"),
+      entities: makeNamedOptions("All Entities", entityValues, "Unknown Entity"),
+      properties: makeNamedOptions(
+        "All Properties",
+        propertyValues,
+        "Unknown Property",
+      ),
+      types: [
+        { label: "All Types", value: "all" },
+        ...(transactionTypes.includes("expense")
+          ? [{ label: "Expense", value: "Expense" }]
+          : []),
+        ...(transactionTypes.includes("revenue")
+          ? [{ label: "Income", value: "Revenue" }]
+          : []),
+      ],
+      categories: makeOptions("All Categories", categories, "Uncategorized"),
+    };
+  }, [contextKind, propertyRows, rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      const rowClient = getRowClientFilterValue(row);
+      const rowEntity = getRowEntityFilterValue(row);
+      const rowType = row.type === "revenue" ? "Revenue" : "Expense";
+
+      return (
+        (filters.client === "all" || rowClient === filters.client) &&
+        (filters.entity === "all" || rowEntity === filters.entity) &&
+        (filters.property === "all" ||
+          row.propertyIds.includes(filters.property) ||
+          row.propertyNames.includes(filters.property)) &&
+        (filters.type === "all" || rowType === filters.type) &&
+        (filters.category === "all" || row.categoryName === filters.category)
+      );
+    });
+  }, [filters, rows]);
+
+  const filteredPropertyRows = useMemo(() => {
+    return propertyRows.filter((row) => {
+      const rowType = row.transactionType === "revenue" ? "Revenue" : "Expense";
+
+      return (
+        (filters.type === "all" || rowType === filters.type) &&
+        (filters.category === "all" || row.categoryName === filters.category)
+      );
+    });
+  }, [filters.category, filters.type, propertyRows]);
+
+  function updateFilter<K extends keyof TransactionFilters>(
+    key: K,
+    value: TransactionFilters[K],
+  ) {
+    setFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  async function getAuthToken() {
+    const session = (await getSession()) as SessionWithIdToken | null;
+    return session?.getIdToken().getJwtToken() || "";
+  }
+
+  async function openTransactionDetail(
+    row: DisplayTransactionRow,
+    mode: TransactionModalMode = "view",
+  ) {
+    setSelectedTransaction(row);
+    setSelectedDetail(null);
+    setDetailMode(mode);
+    setDetailError("");
+    setIsDetailLoading(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setDetailError("You're signed out.");
+        return;
+      }
+      const res = await fetch(`/api/transactions/${encodeURIComponent(row.id)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setDetailError(
+          data?.message ||
+            data?.error ||
+            "Showing table data. Full details could not be loaded.",
+        );
+        return;
+      }
+      const detail = (await res.json()) as CoreTransactionDetail;
+      setSelectedDetail(detail);
+    } catch (error) {
+      console.error("Failed to load transaction detail:", error);
+      setDetailError("Showing table data. Full details could not be loaded.");
+    } finally {
+      setIsDetailLoading(false);
+    }
+  }
+
+  function applyUpdatedTransaction(detail: CoreTransactionDetail) {
+    setRows((current) =>
+      current.map((item) =>
+        item.id === detail.id ? transactionDetailToRow(detail, item) : item,
+      ),
+    );
+    setPropertyRows((current) =>
+      current.map((item) =>
+        item.transactionId === detail.id
+          ? {
+              ...item,
+              transactionType: detail.type,
+              categoryId: detail.categoryId,
+              categoryName: detail.categoryName,
+              subcategoryId: detail.subcategoryId,
+              subcategoryName: detail.subcategoryName,
+              invoiceDate: detail.invoiceDate,
+              description: detail.description,
+              transactionGrossAmount: detail.grossAmount,
+              transactionGstAmount: detail.gstAmount,
+              transactionNetAmount: detail.netAmount,
+              isAssetPurchase: detail.isAssetPurchase,
+              ruleId: detail.ruleId,
+              reviewStatus: detail.reviewStatus,
+            }
+          : item,
+      ),
+    );
+  }
+
+  async function saveTransactionDetail(body: Record<string, unknown>) {
+    if (!selectedTransaction) return;
+    setDetailError("");
+    setIsDetailSaving(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setDetailError("You're signed out.");
+        return;
+      }
+      const res = await fetch(
+        `/api/transactions/${encodeURIComponent(selectedTransaction.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setDetailError(data?.message || data?.error || "Update failed.");
+        return;
+      }
+      const detail = (await res.json()) as CoreTransactionDetail;
+      setSelectedDetail(detail);
+      setSelectedTransaction((current) =>
+        current ? transactionDetailToRow(detail, current) : current,
+      );
+      applyUpdatedTransaction(detail);
+      setDetailMode("view");
+    } catch (error) {
+      console.error("Failed to update transaction:", error);
+      setDetailError("Unexpected error updating transaction.");
+    } finally {
+      setIsDetailSaving(false);
+    }
+  }
+
+  async function deleteTransaction(row = selectedTransaction) {
+    if (!row) return;
+    const confirmed = window.confirm(
+      "Delete this transaction? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setDetailError("");
+    setIsDetailDeleting(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setDetailError("You're signed out.");
+        return;
+      }
+      const res = await fetch(`/api/transactions/${encodeURIComponent(row.id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setDetailError(
+          data?.message ||
+            data?.error ||
+            "Delete failed. The backend may not support transaction deletion yet.",
+        );
+        return;
+      }
+      setRows((current) => current.filter((item) => item.id !== row.id));
+      setPropertyRows((current) =>
+        current.filter((item) => item.transactionId !== row.id),
+      );
+      setSelectedTransaction(null);
+      setSelectedDetail(null);
+    } catch (error) {
+      console.error("Failed to delete transaction:", error);
+      setDetailError("Unexpected error deleting transaction.");
+    } finally {
+      setIsDetailDeleting(false);
+    }
+  }
+
+  const activeFilterCount = Object.values(filters).filter(
+    (value) => value !== "all",
+  ).length;
   const totalCount =
+    contextKind === "property" ? filteredPropertyRows.length : filteredRows.length;
+  const unfilteredCount =
     contextKind === "property" ? propertyRows.length : rows.length;
   const showClientShare = contextKind === "client";
   const tableScope: TransactionTableScope =
@@ -667,48 +1458,157 @@ export function AllTransactionsView({
         </div>
       </div>
 
-      <Filters context={context} />
+      <Filters
+        context={context}
+        filters={filters}
+        options={filterOptions}
+        onChange={updateFilter}
+        onReset={() => setFilters(defaultTransactionFilters)}
+        activeCount={activeFilterCount}
+      />
 
       {isLoading ? (
-        <div className="transactions-showing-copy">Loading transactions…</div>
+        <TransactionLoadingSkeleton
+          scope={contextKind === "property" ? "property" : "transaction"}
+        />
       ) : errorMessage ? (
         <div className="transactions-showing-copy">{errorMessage}</div>
       ) : totalCount === 0 ? (
-        <div className="transactions-showing-copy">No transactions yet.</div>
+        <div className="transactions-empty-state">
+          <strong>
+            {unfilteredCount === 0
+              ? "No transactions yet."
+              : "No transactions match these filters."}
+          </strong>
+          {unfilteredCount > 0 ? (
+            <button
+              type="button"
+              className="transaction-filter-reset"
+              onClick={() => setFilters(defaultTransactionFilters)}
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
       ) : (
         <>
           <div className="transactions-showing-copy">
             Showing <strong>{totalCount}</strong> of{" "}
-            <strong>{totalCount}</strong> transactions
+            <strong>{unfilteredCount}</strong> transactions
           </div>
           {contextKind === "property" ? (
-            <PropertyTransactionTable rows={propertyRows} />
+            <PropertyTransactionTable
+              rows={filteredPropertyRows}
+              onView={(row) => openTransactionDetail(row, "view")}
+              onEdit={(row) => openTransactionDetail(row, "edit")}
+              onDelete={(row) => deleteTransaction(row)}
+            />
           ) : (
             <TransactionTable
-              rows={rows}
+              rows={filteredRows}
               scope={tableScope}
               showClientShare={showClientShare}
+              onView={(row) => openTransactionDetail(row, "view")}
+              onEdit={(row) => openTransactionDetail(row, "edit")}
+              onDelete={(row) => deleteTransaction(row)}
             />
           )}
-          <Pagination copy={`Showing ${totalCount} of ${totalCount} items`} />
+          <Pagination copy={`Showing ${totalCount} of ${unfilteredCount} items`} />
         </>
       )}
+      {selectedTransaction ? (
+        <TransactionDetailPopup
+          row={selectedTransaction}
+          detail={selectedDetail}
+          mode={detailMode}
+          isLoading={isDetailLoading}
+          error={detailError}
+          isSaving={isDetailSaving}
+          isDeleting={isDetailDeleting}
+          onClose={() => {
+            setSelectedTransaction(null);
+            setSelectedDetail(null);
+            setDetailError("");
+          }}
+          onEdit={() => setDetailMode("edit")}
+          onCancelEdit={() => setDetailMode("view")}
+          onSave={saveTransactionDetail}
+          onDelete={() => deleteTransaction()}
+        />
+      ) : null}
     </section>
   );
 }
 
 function BulkImportModal({
+  entities,
+  properties,
+  defaultEntityId,
+  defaultPropertyId,
+  onEntityChange,
   onClose,
   onImport,
 }: {
+  entities: EntityOption[];
+  properties: PropertyOption[];
+  defaultEntityId: string;
+  defaultPropertyId: string;
+  onEntityChange: (id: string) => void;
   onClose: () => void;
-  onImport: () => void;
+  onImport: (params: {
+    entityId: string;
+    propertyId: string;
+    rows: BulkImportRow[];
+  }) => Promise<void>;
 }) {
-  const [entity, setEntity] = useState("Select Entity");
-  const [property, setProperty] = useState("Select Property");
-  const [hasFile, setHasFile] = useState(false);
-  const canImport =
-    entity !== "Select Entity" && property !== "Select Property" && hasFile;
+  const [entity, setEntity] = useState(defaultEntityId);
+  const [property, setProperty] = useState(defaultPropertyId);
+  const [fileName, setFileName] = useState("");
+  const [rows, setRows] = useState<BulkImportRow[]>([]);
+  const [error, setError] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const canImport = Boolean(entity && property && rows.length > 0 && !isImporting);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const parsed = parseCsv(text);
+    if (parsed.length === 0) {
+      setError("We could not find any rows in that CSV.");
+      setRows([]);
+      setFileName("");
+      return;
+    }
+    setRows(parsed);
+    setFileName(file.name);
+    setError("");
+  }
+
+  function downloadSampleCsv() {
+    const template = [
+      "type,category,subcategory,invoice_date,gross_amount,gst_amount,mode_of_transaction,description,internal_remarks,is_asset_purchase,asset_class,effective_life_years",
+      "expense,Repairs & Maintenance,Plumbing,2026-03-02,850,85,bank_transfer,Emergency plumbing repair,Approved by client,false,,",
+      "revenue,Rental Income,Monthly Rent,2026-03-05,3200,0,bank_transfer,March rental payment,,false,,",
+    ].join("\n");
+    const blob = new Blob([template], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "transactions-sample.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport() {
+    if (!canImport) return;
+    setIsImporting(true);
+    try {
+      await onImport({ entityId: entity, propertyId: property, rows });
+    } finally {
+      setIsImporting(false);
+    }
+  }
 
   return (
     <div className="transaction-modal-layer">
@@ -737,18 +1637,22 @@ function BulkImportModal({
               required
               value={entity}
               options={[
-                { label: "Select Entity", value: "Select Entity" },
-                ...entityOptions.slice(1),
+                { label: "Select Entity", value: "" },
+                ...entities.map((item) => ({ label: item.name, value: item.id })),
               ]}
-              onChange={setEntity}
+              onChange={(value) => {
+                setEntity(value);
+                setProperty("");
+                onEntityChange(value);
+              }}
             />
             <StaticSelect
               label="Property Name"
               required
               value={property}
               options={[
-                { label: "Select Property", value: "Select Property" },
-                ...propertyOptions.slice(1),
+                { label: "Select Property", value: "" },
+                ...properties.map((item) => ({ label: item.name, value: item.id })),
               ]}
               onChange={setProperty}
             />
@@ -759,7 +1663,7 @@ function BulkImportModal({
               <strong>Download Sample CSV Template</strong>
               <span>Use this template to format your transaction data</span>
             </div>
-            <button type="button">
+            <button type="button" onClick={downloadSampleCsv}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 3v12" />
                 <path d="m7 10 5 5 5-5" />
@@ -773,21 +1677,20 @@ function BulkImportModal({
             <span className="transaction-field-label">
               Upload CSV File<em>*</em>
             </span>
-            <button
-              type="button"
-              className={`csv-dropzone${hasFile ? " has-file" : ""}`}
-              onClick={() => setHasFile(true)}
-            >
+            <label className={`csv-dropzone${fileName ? " has-file" : ""}`}>
               <span className="csv-dropzone-icon">
                 <UploadIcon />
               </span>
-              <strong>
-                {hasFile
-                  ? "transactions_march_2026.csv"
-                  : "Drop CSV file here or click to browse"}
-              </strong>
+              <strong>{fileName || "Drop CSV file here or click to browse"}</strong>
               <small>Only .csv files are supported</small>
-            </button>
+              <input type="file" accept=".csv,text/csv" onChange={handleFileChange} />
+            </label>
+            {rows.length > 0 ? (
+              <span className="csv-import-count">
+                {rows.length} row{rows.length === 1 ? "" : "s"} ready to import
+              </span>
+            ) : null}
+            {error ? <p className="transaction-detail-error">{error}</p> : null}
           </div>
         </div>
 
@@ -799,9 +1702,9 @@ function BulkImportModal({
             type="button"
             className="transaction-save-button"
             disabled={!canImport}
-            onClick={onImport}
+            onClick={handleImport}
           >
-            Import Transactions
+            {isImporting ? "Importing…" : "Import Transactions"}
           </button>
         </footer>
       </section>
@@ -814,16 +1717,6 @@ function EditPencilIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
-  );
-}
-
-function RemoveRowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 6h18" />
-      <path d="M8 6V4h8v2" />
-      <path d="M19 6l-1 14H6L5 6" />
     </svg>
   );
 }
@@ -841,11 +1734,6 @@ const MODE_OF_TRANSACTION_OPTIONS: SelectOption[] = [
   { label: "Other", value: "other" },
 ];
 
-const ASSET_CLASSES: { value: CoreAssetClass; label: string }[] = [
-  { value: "capital_works", label: "Capital Works" },
-  { value: "capital_allowance", label: "Capital Allowance" },
-];
-
 let splitRowCounter = 0;
 function makeSplitRowId() {
   splitRowCounter += 1;
@@ -853,6 +1741,64 @@ function makeSplitRowId() {
 }
 
 type SplitRowState = { id: string; propertyId: string; amount: string };
+type BulkImportRow = Record<string, string>;
+
+function parseMoneyValue(value: string) {
+  const cleaned = String(value || "").replace(/[$,\s]/g, "");
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseBooleanValue(value: string) {
+  return ["true", "yes", "y", "1"].includes(String(value || "").trim().toLowerCase());
+}
+
+function normalizeCsvLookup(value: string) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function TransactionFeedbackModal({
+  tone,
+  title,
+  message,
+  onClose,
+}: {
+  tone: TransactionFeedbackTone;
+  title: string;
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="transaction-feedback-layer" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        className="transaction-feedback-backdrop"
+        aria-label="Close message"
+        onClick={onClose}
+      />
+      <section className={`transaction-feedback-card is-${tone}`}>
+        <div className="transaction-feedback-icon" aria-hidden="true">
+          {tone === "success" ? (
+            <svg viewBox="0 0 24 24">
+              <path d="M5 12l4 4 10-10" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24">
+              <path d="M12 8v5" />
+              <path d="M12 17h.01" />
+              <path d="M10.3 4.3 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.3a2 2 0 0 0-3.4 0z" />
+            </svg>
+          )}
+        </div>
+        <h1>{title}</h1>
+        <p>{message}</p>
+        <button type="button" className="transaction-primary-button" onClick={onClose}>
+          Continue
+        </button>
+      </section>
+    </div>
+  );
+}
 
 function EntityPropertyHeaderCard({
   entities,
@@ -1000,6 +1946,11 @@ export function AddTransactionView({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [isMarked, setIsMarked] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    tone: TransactionFeedbackTone;
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Resolve the bearer token once on mount.
   useEffect(() => {
@@ -1123,8 +2074,10 @@ export function AddTransactionView({
     if (!isAssetPurchase) {
       setAssetClass("");
       setEffectiveLifeYears("");
+    } else if (!assetClass) {
+      setAssetClass("capital_allowance");
     }
-  }, [isAssetPurchase]);
+  }, [assetClass, isAssetPurchase]);
 
   // When GST breakdown is unchecked, drop any entered GST so the body omits it.
   useEffect(() => {
@@ -1166,6 +2119,9 @@ export function AddTransactionView({
     !!invoiceDate &&
     !!grossAmount &&
     !!modeOfTransaction &&
+    (!isAssetPurchase ||
+      (assetClass === "capital_works" ||
+        (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
     (isSplit
       ? splitRows.length > 0 &&
         Object.keys(splitErrors).length === 0 &&
@@ -1202,10 +2158,195 @@ export function AddTransactionView({
     if (id) setIsEditingProperty(false);
   }
 
+  async function resolveBulkCategory(
+    importType: CoreTransactionType,
+    row: BulkImportRow,
+    tokenValue: string,
+    cache: Map<CoreTransactionType, CoreTransactionCategory[]>,
+  ) {
+    const directId = Number.parseInt(row.category_id || "", 10);
+    if (Number.isFinite(directId) && directId > 0) return directId;
+
+    const categoryName = normalizeCsvLookup(row.category || row.category_name || "");
+    if (!categoryName) return null;
+
+    let options = cache.get(importType);
+    if (!options) {
+      const res = await fetch(
+        `/api/transactions/categories?type=${encodeURIComponent(importType)}`,
+        { headers: { Authorization: `Bearer ${tokenValue}` } },
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as { items?: CoreTransactionCategory[] };
+      options = data.items || [];
+      cache.set(importType, options);
+    }
+
+    return (
+      options.find((category) => normalizeCsvLookup(category.name) === categoryName)
+        ?.id ?? null
+    );
+  }
+
+  async function resolveBulkSubcategory(
+    categoryIdValue: number,
+    row: BulkImportRow,
+    tokenValue: string,
+    cache: Map<number, CoreTransactionSubcategory[]>,
+  ) {
+    const directId = Number.parseInt(row.subcategory_id || row.sub_category_id || "", 10);
+    if (Number.isFinite(directId) && directId > 0) return directId;
+
+    const subcategoryName = normalizeCsvLookup(
+      row.subcategory || row.sub_category || row.subcategory_name || "",
+    );
+    if (!subcategoryName) return null;
+
+    let options = cache.get(categoryIdValue);
+    if (!options) {
+      const res = await fetch(
+        `/api/transactions/categories/${categoryIdValue}/sub-categories`,
+        { headers: { Authorization: `Bearer ${tokenValue}` } },
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
+      options = data.items || [];
+      cache.set(categoryIdValue, options);
+    }
+
+    return (
+      options.find(
+        (subcategory) => normalizeCsvLookup(subcategory.name) === subcategoryName,
+      )?.id ?? null
+    );
+  }
+
+  async function handleBulkImport({
+    entityId: bulkEntityId,
+    propertyId: bulkPropertyId,
+    rows,
+  }: {
+    entityId: string;
+    propertyId: string;
+    rows: BulkImportRow[];
+  }) {
+    if (!token) {
+      setFeedback({
+        tone: "warning",
+        title: "Sign-in required",
+        message: "Please sign in again before importing transactions.",
+      });
+      return;
+    }
+
+    const categoryCache = new Map<CoreTransactionType, CoreTransactionCategory[]>();
+    const subcategoryCache = new Map<number, CoreTransactionSubcategory[]>();
+    let imported = 0;
+
+    try {
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const rowNumber = index + 2;
+        const rawType = normalizeCsvLookup(row.type || row.transaction_type || "");
+        const importType: CoreTransactionType =
+          rawType === "revenue" || rawType === "income" ? "revenue" : "expense";
+        const categoryValue = await resolveBulkCategory(
+          importType,
+          row,
+          token,
+          categoryCache,
+        );
+        if (!categoryValue) {
+          throw new Error(`Row ${rowNumber}: category is missing or unknown.`);
+        }
+        const subcategoryValue = await resolveBulkSubcategory(
+          categoryValue,
+          row,
+          token,
+          subcategoryCache,
+        );
+        if (!subcategoryValue) {
+          throw new Error(`Row ${rowNumber}: sub-category is missing or unknown.`);
+        }
+        const grossNum = parseMoneyValue(row.gross_amount || row.amount || "");
+        if (grossNum == null || grossNum < 0) {
+          throw new Error(`Row ${rowNumber}: amount must be a positive number.`);
+        }
+        const gstNum = parseMoneyValue(row.gst_amount || row.gst || "") ?? 0;
+        const invoiceDateValue = String(row.invoice_date || row.date || "").trim();
+        if (!invoiceDateValue) {
+          throw new Error(`Row ${rowNumber}: invoice_date is required.`);
+        }
+
+        const isAsset = parseBooleanValue(row.is_asset_purchase || row.asset_purchase || "");
+        const body: Record<string, unknown> = {
+          type: importType,
+          category_id: categoryValue,
+          subcategory_id: subcategoryValue,
+          invoice_date: invoiceDateValue,
+          gross_amount: grossNum,
+          gst_amount: gstNum,
+          description: row.description?.trim() || null,
+          internal_remarks: row.internal_remarks?.trim() || null,
+          is_asset_purchase: isAsset,
+          metadata: {
+            mode_of_transaction:
+              row.mode_of_transaction?.trim() || row.mode?.trim() || "other",
+          },
+          splits: [{ property_id: bulkPropertyId, split_percentage: 100 }],
+        };
+        if (isAsset) {
+          body.asset_class = row.asset_class?.trim() || "capital_works";
+          const lifeYears = parseMoneyValue(row.effective_life_years || "");
+          if (lifeYears != null) body.effective_life_years = lifeYears;
+        }
+
+        const res = await fetch(
+          `/api/entities/${encodeURIComponent(bulkEntityId)}/transactions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          },
+        );
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          throw new Error(
+            `Row ${rowNumber}: ${data?.message || data?.error || "save failed"}`,
+          );
+        }
+        imported += 1;
+      }
+
+      setIsBulkOpen(false);
+      setFeedback({
+        tone: "success",
+        title: "Transactions imported",
+        message: `${imported} transaction${imported === 1 ? "" : "s"} imported successfully.`,
+      });
+    } catch (error) {
+      setFeedback({
+        tone: "warning",
+        title: "Import needs attention",
+        message: error instanceof Error ? error.message : "Unable to import CSV rows.",
+      });
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeEntityId || !token) {
-      setSubmitError("Please select an entity to continue.");
+      setFeedback({
+        tone: "warning",
+        title: "Selection required",
+        message: "Please select Entity Name and Property Name to continue.",
+      });
       return;
     }
     setSubmitError("");
@@ -1357,10 +2498,6 @@ export function AddTransactionView({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
   ];
-  const assetClassOptions: SelectOption[] = [
-    { label: "Select class", value: "" },
-    ...ASSET_CLASSES.map((a) => ({ label: a.label, value: a.value })),
-  ];
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: p.name,
     value: p.id,
@@ -1439,6 +2576,62 @@ export function AddTransactionView({
               </button>
             </div>
           </div>
+
+          {type === "expense" ? (
+            <div className="transaction-asset-card">
+              <label className="transaction-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={isAssetPurchase}
+                  onChange={(e) => setIsAssetPurchase(e.target.checked)}
+                />
+                <span>Is this an asset purchase?</span>
+              </label>
+              <small>Select if this expense should be depreciated over time</small>
+              {isAssetPurchase ? (
+                <div className="transaction-asset-options">
+                  <label className="transaction-radio-card">
+                    <input
+                      type="radio"
+                      checked={assetClass === "capital_allowance"}
+                      onChange={() => setAssetClass("capital_allowance")}
+                    />
+                    <span>
+                      <b>Capital Allowance</b>
+                      <small>Depreciate assets over their effective life</small>
+                    </span>
+                  </label>
+                  {assetClass === "capital_allowance" ? (
+                    <label className="transaction-field">
+                      <span className="transaction-field-label">
+                        Effective life (years)<em>*</em>
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.1"
+                        min="0"
+                        placeholder="Select years"
+                        value={effectiveLifeYears}
+                        onChange={(e) => setEffectiveLifeYears(e.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                  <label className="transaction-radio-card">
+                    <input
+                      type="radio"
+                      checked={assetClass === "capital_works"}
+                      onChange={() => setAssetClass("capital_works")}
+                    />
+                    <span>
+                      <b>Capital Works</b>
+                      <small>Fixed depreciation period for capital improvements</small>
+                    </span>
+                  </label>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="transaction-form-grid">
             <StaticSelect
@@ -1540,17 +2733,20 @@ export function AddTransactionView({
                         Amount<em>*</em>
                       </span>
                     ) : null}
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={row.amount}
-                      onChange={(e) =>
-                        updateSplitRow(row.id, { amount: e.target.value })
-                      }
-                    />
+                    <span className="transaction-money-input">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={row.amount}
+                        onChange={(e) =>
+                          updateSplitRow(row.id, { amount: e.target.value })
+                        }
+                      />
+                      <b>$</b>
+                    </span>
                   </label>
                   <button
                     type="button"
@@ -1559,7 +2755,7 @@ export function AddTransactionView({
                     disabled={splitRows.length <= 1}
                     onClick={() => removeSplitRow(row.id)}
                   >
-                    <RemoveRowIcon />
+                    Remove
                   </button>
                   {splitErrors[row.id] ? (
                     <p className="transaction-split-row-error">
@@ -1618,56 +2814,6 @@ export function AddTransactionView({
               onChange={(e) => setInternalRemarks(e.target.value)}
             />
           </label>
-
-          {type === "expense" ? (
-            <div
-              className="transaction-asset-block"
-              style={{
-                marginTop: 16,
-                paddingTop: 16,
-                borderTop: "1px solid #e2e8f0",
-              }}
-            >
-              <label className="transaction-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={isAssetPurchase}
-                  onChange={(e) => setIsAssetPurchase(e.target.checked)}
-                />
-                <span>Is this an asset purchase?</span>
-              </label>
-              {isAssetPurchase ? (
-                <div className="transaction-form-grid" style={{ marginTop: 12 }}>
-                  <StaticSelect
-                    label="Asset Class"
-                    required
-                    value={assetClass}
-                    options={assetClassOptions}
-                    onChange={(value) =>
-                      setAssetClass((value as CoreAssetClass) || "")
-                    }
-                  />
-                  {assetClass === "capital_allowance" ? (
-                    <label className="transaction-field">
-                      <span className="transaction-field-label">
-                        Effective life (years)<em>*</em>
-                      </span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        min="0"
-                        placeholder="e.g. 10"
-                        value={effectiveLifeYears}
-                        onChange={(e) => setEffectiveLifeYears(e.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
           {submitError ? (
             <p className="transaction-warning-card" role="alert">
               {submitError}
@@ -1691,12 +2837,27 @@ export function AddTransactionView({
 
       {isBulkOpen && (
         <BulkImportModal
-          onClose={() => setIsBulkOpen(false)}
-          onImport={() => {
-            setIsBulkOpen(false);
+          entities={entities}
+          properties={properties}
+          defaultEntityId={activeEntityId}
+          defaultPropertyId={propertyId}
+          onEntityChange={(id) => {
+            setActiveEntityId(id);
+            setIsEditingEntity(!id);
+            setIsEditingProperty(true);
           }}
+          onClose={() => setIsBulkOpen(false)}
+          onImport={handleBulkImport}
         />
       )}
+      {feedback ? (
+        <TransactionFeedbackModal
+          tone={feedback.tone}
+          title={feedback.title}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
     </section>
   );
 }

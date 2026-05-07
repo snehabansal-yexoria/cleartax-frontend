@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  deleteCoreTransaction,
   getCoreTransaction,
   updateCoreTransaction,
 } from "@/src/lib/coreApi";
@@ -45,5 +46,20 @@ export async function PATCH(req: Request, context: RouteContext) {
     return NextResponse.json(transaction);
   } catch (error) {
     return renderUpstreamError(`PATCH /api/transactions/${id}`, error, body);
+  }
+}
+
+export async function DELETE(req: Request, context: RouteContext) {
+  const token = getBearerToken(req);
+  if (!token) {
+    return NextResponse.json({ error: "No token" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  try {
+    await deleteCoreTransaction(token, id);
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    return renderUpstreamError(`DELETE /api/transactions/${id}`, error);
   }
 }
