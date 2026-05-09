@@ -5217,6 +5217,25 @@ p.darkBg {
   font-size: 14px;
 }
 
+.transaction-select.is-disabled .property-status-trigger,
+.transaction-select .property-status-trigger:disabled {
+  cursor: not-allowed;
+  border-color: #e4e7ec;
+  background: #f8fafc;
+  color: #667085;
+  box-shadow: none;
+}
+
+.transaction-select.is-disabled,
+.transaction-select.is-disabled * {
+  cursor: not-allowed;
+}
+
+.transaction-select.is-disabled .property-status-trigger svg,
+.transaction-select .property-status-trigger:disabled svg {
+  color: #98a2b3;
+}
+
 .transaction-select .property-status-menu {
   padding: 6px 12px;
 }
@@ -6133,6 +6152,7 @@ p.darkBg {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
+  text-align: left;
   box-shadow:
     0 18px 36px rgba(16, 24, 40, 0.18),
     0 2px 8px rgba(16, 24, 40, 0.08);
@@ -6200,9 +6220,11 @@ p.darkBg {
 
 .transaction-detail-field {
   min-width: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   color: #101828;
+  text-align: left;
 }
 
 .transaction-detail-field > span {
@@ -7248,7 +7270,7 @@ p.darkBg {
 .property-detail-tab-body strong {
   display: block;
   color: #101828;
-  font-size: 18px;
+  font-size: 14px;
   margin-bottom: 8px;
 }
 

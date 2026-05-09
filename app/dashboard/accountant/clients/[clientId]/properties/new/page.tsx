@@ -115,6 +115,7 @@ export default function AccountantAddPropertyPage() {
 
   const entityName = searchParams.get("entityName") || "New Entity";
   const entityType = searchParams.get("entityType") || "Individual";
+  const takesOwnershipDetails = entityType.toLowerCase() === "individual";
 
   useEffect(() => {
     async function loadClient() {
@@ -176,12 +177,14 @@ export default function AccountantAddPropertyPage() {
       return;
     }
 
-    setCurrentStep((previous) => (previous === 3 ? 2 : 1));
+    setCurrentStep((previous) =>
+      previous === 3 ? (takesOwnershipDetails ? 2 : 1) : 1,
+    );
   }
 
   function handleContinue() {
     if (currentStep === 1) {
-      setCurrentStep(2);
+      setCurrentStep(takesOwnershipDetails ? 2 : 3);
       return;
     }
 
@@ -236,39 +239,47 @@ export default function AccountantAddPropertyPage() {
             </div>
           </article>
 
+          {takesOwnershipDetails && (
+            <>
+              <span
+                className={`accountant-entity-step-line${
+                  currentStep > 1 ? " is-active" : ""
+                }`}
+              />
+
+              <article
+                className={`accountant-entity-step${
+                  currentStep >= 2 ? " is-active" : ""
+                }`}
+              >
+                <span
+                  className={`accountant-entity-step-circle${
+                    currentStep > 2
+                      ? " is-complete"
+                      : currentStep === 2
+                        ? " is-active"
+                        : ""
+                  }`}
+                >
+                  {currentStep > 2 ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m5 13 4 4L19 7" />
+                    </svg>
+                  ) : (
+                    "2"
+                  )}
+                </span>
+                <div>
+                  <strong>Ownership Details</strong>
+                  <p>Define Ownership</p>
+                </div>
+              </article>
+            </>
+          )}
+
           <span
             className={`accountant-entity-step-line${
-              currentStep > 1 ? " is-active" : ""
-            }`}
-          />
-
-          <article
-            className={`accountant-entity-step${
-              currentStep >= 2 ? " is-active" : ""
-            }`}
-          >
-            <span
-              className={`accountant-entity-step-circle${
-                currentStep > 2 ? " is-complete" : currentStep === 2 ? " is-active" : ""
-              }`}
-            >
-              {currentStep > 2 ? (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="m5 13 4 4L19 7" />
-                </svg>
-              ) : (
-                "2"
-              )}
-            </span>
-            <div>
-              <strong>Ownership Details</strong>
-              <p>Define Ownership</p>
-            </div>
-          </article>
-
-          <span
-            className={`accountant-entity-step-line${
-              currentStep > 2 ? " is-active" : ""
+              currentStep === 3 ? " is-active" : ""
             }`}
           />
 
@@ -282,7 +293,7 @@ export default function AccountantAddPropertyPage() {
                 currentStep === 3 ? " is-active" : ""
               }`}
             >
-              3
+              {takesOwnershipDetails ? "3" : "2"}
             </span>
             <div>
               <strong>Loan Details</strong>
@@ -438,7 +449,7 @@ export default function AccountantAddPropertyPage() {
             </>
           )}
 
-          {currentStep === 2 && (
+          {takesOwnershipDetails && currentStep === 2 && (
             <>
               <div className="accountant-entity-flow-header">
                 <h1>Ownership Details</h1>
@@ -592,8 +603,12 @@ export default function AccountantAddPropertyPage() {
                     <strong>{formatMoney(form.marketValue || "22222")}</strong>
                   </div>
                   <div>
-                    <span>Total Owners</span>
-                    <strong>{owners.length}</strong>
+                    <span>Ownership</span>
+                    <strong>
+                      {takesOwnershipDetails
+                        ? `${owners.length} owner${owners.length === 1 ? "" : "s"}`
+                        : "Entity owns 100%"}
+                    </strong>
                   </div>
                 </div>
               </div>

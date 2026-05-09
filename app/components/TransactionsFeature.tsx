@@ -105,6 +105,7 @@ type StaticSelectProps = {
   placeholder?: string;
   required?: boolean;
   className?: string;
+  disabled?: boolean;
 };
 
 const rules: StaticRule[] = [
@@ -195,6 +196,7 @@ function StaticSelect({
   placeholder,
   required,
   className = "",
+  disabled = false,
 }: StaticSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
@@ -210,7 +212,7 @@ function StaticSelect({
       <div
         className={`property-status-select transaction-select${
           isOpen ? " is-open" : ""
-        }`}
+        }${disabled ? " is-disabled" : ""}`}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setIsOpen(false);
@@ -222,12 +224,15 @@ function StaticSelect({
           className="property-status-trigger"
           aria-haspopup="listbox"
           aria-expanded={isOpen}
-          onClick={() => setIsOpen((current) => !current)}
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) setIsOpen((current) => !current);
+          }}
         >
           <span>{selected?.label || placeholder || "Select"}</span>
           <ChevronIcon />
         </button>
-        {isOpen && (
+        {isOpen && !disabled && (
           <div className="property-status-menu" role="listbox">
             {options.map((option) => (
               <button
@@ -382,48 +387,351 @@ function TransactionDetailPopup({
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
   const [reviewStatus, setReviewStatus] = useState(row.reviewStatus);
   const [isAssetPurchase, setIsAssetPurchase] = useState(row.isAssetPurchase);
+  const [type, setType] = useState<CoreTransactionType>(row.type);
+  const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(row.categoryId);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(row.subcategoryId);
+  const [invoiceDate, setInvoiceDate] = useState(row.invoiceDate?.slice(0, 10) || "");
+  const [grossAmount, setGrossAmount] = useState(String(row.grossAmount || ""));
+  const [showGstBreakdown, setShowGstBreakdown] = useState(row.gstAmount > 0);
+  const [gstAmount, setGstAmount] = useState(String(row.gstAmount || ""));
+  const [modeOfTransaction, setModeOfTransaction] = useState(
+    typeof row.metadata.mode_of_transaction === "string"
+      ? row.metadata.mode_of_transaction
+      : "",
+  );
+  const [assetItemName, setAssetItemName] = useState(
+    typeof row.metadata.asset_item_name === "string"
+      ? row.metadata.asset_item_name
+      : "",
+  );
+  const [assetClass, setAssetClass] = useState<CoreAssetClass | "">(
+    row.assetClass || "",
+  );
+  const [effectiveLifeYears, setEffectiveLifeYears] = useState(
+    row.effectiveLifeYears == null ? "" : String(row.effectiveLifeYears),
+  );
+  const [properties, setProperties] = useState<PropertyOption[]>([]);
+  const [isSplit, setIsSplit] = useState(row.propertyIds.length > 1);
+  const [editSplitRows, setEditSplitRows] = useState<SplitRowState[]>(() =>
+    row.propertyIds.length
+      ? row.propertyIds.map((propertyId) => ({
+          id: makeSplitRowId(),
+          propertyId,
+          amount:
+            row.propertyIds.length === 1
+              ? String(row.grossAmount || "")
+              : "",
+        }))
+      : [{ id: makeSplitRowId(), propertyId: "", amount: String(row.grossAmount || "") }],
+  );
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
-    setDescription(detail?.description || row.description || "");
-    setInternalRemarks(detail?.internalRemarks || row.internalRemarks || "");
-    setReviewStatus(detail?.reviewStatus || row.reviewStatus);
-    setIsAssetPurchase(detail?.isAssetPurchase ?? row.isAssetPurchase);
+    const source = detail ? transactionDetailToRow(detail, row) : row;
+    setDescription(source.description || "");
+    setInternalRemarks(source.internalRemarks || "");
+    setReviewStatus(source.reviewStatus);
+    setIsAssetPurchase(source.isAssetPurchase);
+    setType(source.type);
+    setCategoryId(source.categoryId);
+    setSubcategoryId(source.subcategoryId);
+    setInvoiceDate(source.invoiceDate?.slice(0, 10) || "");
+    setGrossAmount(String(source.grossAmount || ""));
+    setShowGstBreakdown(source.gstAmount > 0);
+    setGstAmount(String(source.gstAmount || ""));
+    setModeOfTransaction(
+      typeof source.metadata.mode_of_transaction === "string"
+        ? source.metadata.mode_of_transaction
+        : "",
+    );
+    setAssetItemName(
+      typeof source.metadata.asset_item_name === "string"
+        ? source.metadata.asset_item_name
+        : "",
+    );
+    setAssetClass(source.assetClass || "");
+    setEffectiveLifeYears(
+      source.effectiveLifeYears == null ? "" : String(source.effectiveLifeYears),
+    );
+    if (detail?.splits.length) {
+      setIsSplit(detail.splits.length > 1);
+      setEditSplitRows(
+        detail.splits.map((split) => ({
+          id: String(split.id),
+          propertyId: split.propertyId,
+          amount: String(split.splitGrossAmount || ""),
+        })),
+      );
+    } else {
+      setIsSplit(source.propertyIds.length > 1);
+      setEditSplitRows(
+        source.propertyIds.length
+          ? source.propertyIds.map((propertyId) => ({
+              id: makeSplitRowId(),
+              propertyId,
+              amount:
+                source.propertyIds.length === 1
+                  ? String(source.grossAmount || "")
+                  : "",
+            }))
+          : [
+              {
+                id: makeSplitRowId(),
+                propertyId: "",
+                amount: String(source.grossAmount || ""),
+              },
+            ],
+      );
+    }
+    setEditError("");
   }, [detail, row]);
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
   const isRevenue = display.type === "revenue";
   const splitRows =
-    detail?.splits.flatMap((split) =>
-      split.allocations.length
-        ? split.allocations.map((allocation) => ({
-            id: `${split.id}-${allocation.id}`,
-            category: display.categoryName,
-            subcategory: display.subcategoryName,
-            amount: allocation.shareGrossAmount,
-            percentage: allocation.ownershipPercentage,
-          }))
-        : [
-            {
-              id: String(split.id),
-              category: display.categoryName,
-              subcategory: display.subcategoryName,
-              amount: split.splitGrossAmount,
-              percentage: split.splitPercentage,
-            },
-          ],
-    ) || [];
+    detail?.splits.map((split) => ({
+      id: String(split.id),
+      propertyId: split.propertyId,
+      propertyName: split.propertyName,
+      category: display.categoryName,
+      subcategory: display.subcategoryName,
+      amount: split.splitGrossAmount,
+      percentage: split.splitPercentage,
+    })) || [];
+  const hasPropertySplit =
+    new Set(splitRows.map((split) => split.propertyId).filter(Boolean)).size > 1;
+  const purchasedAssetName =
+    typeof display.metadata.asset_item_name === "string"
+      ? display.metadata.asset_item_name
+      : "";
   const invoiceName =
     typeof display.metadata.invoice_name === "string"
       ? display.metadata.invoice_name
       : "";
+  const categorySelectOptions: SelectOption[] = [
+    { label: "Select category", value: "" },
+    ...categories.map((category) => ({
+      label: category.name,
+      value: String(category.id),
+    })),
+  ];
+  const subcategorySelectOptions: SelectOption[] = [
+    { label: "Select sub-category", value: "" },
+    ...subcategories.map((subcategory) => ({
+      label: subcategory.name,
+      value: String(subcategory.id),
+    })),
+  ];
+  const propertySelectOptions: SelectOption[] = [
+    { label: "Select property", value: "" },
+    ...properties.map((property) => ({ label: property.name, value: property.id })),
+  ];
+
+  useEffect(() => {
+    if (type !== "expense" && isAssetPurchase) {
+      setIsAssetPurchase(false);
+    }
+  }, [isAssetPurchase, type]);
+
+  useEffect(() => {
+    if (!isAssetPurchase) {
+      setAssetItemName("");
+      setAssetClass("");
+      setEffectiveLifeYears("");
+    } else if (!assetClass) {
+      setAssetClass("capital_allowance");
+    }
+  }, [assetClass, isAssetPurchase]);
+
+  useEffect(() => {
+    if (!showGstBreakdown) setGstAmount("");
+  }, [showGstBreakdown]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCategories() {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      const token = session?.getIdToken().getJwtToken();
+      if (!token || !type) {
+        if (!cancelled) setCategories([]);
+        return;
+      }
+      const res = await fetch(
+        `/api/transactions/categories?type=${encodeURIComponent(type)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: CoreTransactionCategory[] };
+      if (!cancelled) setCategories(data.items || []);
+    }
+    loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [type]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSubcategories() {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      const token = session?.getIdToken().getJwtToken();
+      if (!token || !categoryId) {
+        if (!cancelled) setSubcategories([]);
+        return;
+      }
+      const res = await fetch(
+        `/api/transactions/categories/${categoryId}/sub-categories`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
+      if (!cancelled) setSubcategories(data.items || []);
+    }
+    loadSubcategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProperties() {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      const token = session?.getIdToken().getJwtToken();
+      if (!token || !display.entityId) {
+        if (!cancelled) setProperties([]);
+        return;
+      }
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(display.entityId)}/properties`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { items?: PropertyOption[] };
+      if (!cancelled) setProperties(data.items || []);
+    }
+    loadProperties();
+    return () => {
+      cancelled = true;
+    };
+  }, [display.entityId]);
+
+  function updateEditSplitRow(id: string, patch: Partial<SplitRowState>) {
+    setEditSplitRows((rows) =>
+      rows.map((split) => (split.id === id ? { ...split, ...patch } : split)),
+    );
+  }
+
+  function addEditSplitRow() {
+    setEditSplitRows((rows) => [
+      ...rows,
+      { id: makeSplitRowId(), propertyId: "", amount: "" },
+    ]);
+  }
+
+  function removeEditSplitRow(id: string) {
+    setEditSplitRows((rows) =>
+      rows.length <= 1 ? rows : rows.filter((split) => split.id !== id),
+    );
+  }
 
   async function handleSave() {
-    await onSave({
+    const grossNum = Number.parseFloat(grossAmount);
+    if (!type || !categoryId || !subcategoryId || !invoiceDate) {
+      setEditError("Please complete type, category, sub-category, and date.");
+      return;
+    }
+    if (Number.isNaN(grossNum) || grossNum <= 0) {
+      setEditError("Amount must be a positive number.");
+      return;
+    }
+    let gstNum: number | null = null;
+    if (showGstBreakdown && gstAmount) {
+      const parsed = Number.parseFloat(gstAmount);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        setEditError("GST must be a non-negative number.");
+        return;
+      }
+      gstNum = parsed;
+    }
+    const selectedSplits = isSplit
+      ? editSplitRows
+      : [editSplitRows[0] || { id: makeSplitRowId(), propertyId: "", amount: grossAmount }];
+    const seenProperties = new Set<string>();
+    for (const split of selectedSplits) {
+      if (!split.propertyId) {
+        setEditError("Please select a property for each split row.");
+        return;
+      }
+      if (seenProperties.has(split.propertyId)) {
+        setEditError("Each split row must use a different property.");
+        return;
+      }
+      seenProperties.add(split.propertyId);
+    }
+    if (isSplit && seenProperties.size < 2) {
+      setEditError("Split transactions must include more than one property.");
+      return;
+    }
+    const splitTotal = selectedSplits.reduce(
+      (sum, split) => sum + (Number.parseFloat(split.amount) || 0),
+      0,
+    );
+    if (isSplit && Math.abs(splitTotal - grossNum) >= 0.01) {
+      setEditError(`Split amounts must total ${grossNum.toFixed(2)}.`);
+      return;
+    }
+    if (
+      isAssetPurchase &&
+      assetClass === "capital_allowance" &&
+      (!effectiveLifeYears || Number.parseFloat(effectiveLifeYears) <= 0)
+    ) {
+      setEditError("Effective life must be a positive number.");
+      return;
+    }
+    const splits = isSplit
+      ? selectedSplits.map((split) => {
+          const amount = Number.parseFloat(split.amount);
+          return {
+            property_id: split.propertyId,
+            split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
+            split_gross_amount: Number(amount.toFixed(2)),
+          };
+        })
+      : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
+    const body: Record<string, unknown> = {
+      type,
+      category_id: categoryId,
+      subcategory_id: subcategoryId,
+      invoice_date: invoiceDate,
+      gross_amount: grossNum,
       description: description.trim() || null,
       internal_remarks: internalRemarks.trim() || null,
       review_status: reviewStatus,
       is_asset_purchase: isAssetPurchase,
-    });
+      metadata: {
+        ...display.metadata,
+        mode_of_transaction: modeOfTransaction || null,
+      },
+      splits,
+    };
+    body.gst_amount = gstNum ?? 0;
+    if (isAssetPurchase) {
+      body.asset_class = assetClass || null;
+      if (assetItemName.trim()) {
+        body.metadata = {
+          ...(body.metadata as Record<string, unknown>),
+          asset_item_name: assetItemName.trim(),
+        };
+      }
+      if (assetClass === "capital_allowance") {
+        body.effective_life_years = Number.parseFloat(effectiveLifeYears);
+      }
+    }
+    setEditError("");
+    await onSave(body);
   }
 
   return (
@@ -466,41 +774,295 @@ function TransactionDetailPopup({
 
           <DetailField label="Entity Name" value={display.entityName || "—"} />
 
-          <div className="transaction-detail-grid is-three">
-            <DetailField label="Type">
-              <span
-                className={`transaction-type-pill ${
-                  isRevenue ? "is-income" : "is-expense"
-                }`}
-              >
-                {isRevenue ? "Income" : "Expense"}
-              </span>
-            </DetailField>
-            <DetailField label="Category" value={display.categoryName} />
-            <DetailField label="Subcategory" value={display.subcategoryName} />
-          </div>
+          {mode === "edit" ? (
+            <div className="transaction-detail-edit">
+              {editError ? <p className="transaction-detail-error">{editError}</p> : null}
+              <div className="transaction-type-control">
+                <span className="transaction-field-label">Transaction Type<em>*</em></span>
+                <div>
+                  <button
+                    type="button"
+                    className={type === "expense" ? "is-selected" : ""}
+                    onClick={() => {
+                      setType("expense");
+                      setCategoryId(null);
+                      setSubcategoryId(null);
+                    }}
+                  >
+                    Expense
+                  </button>
+                  <button
+                    type="button"
+                    className={type === "revenue" ? "is-selected is-revenue" : ""}
+                    onClick={() => {
+                      setType("revenue");
+                      setCategoryId(null);
+                      setSubcategoryId(null);
+                    }}
+                  >
+                    Revenue
+                  </button>
+                </div>
+              </div>
+              {type === "expense" ? (
+                <div className="transaction-asset-card">
+                  <label className="transaction-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={isAssetPurchase}
+                      onChange={(event) => setIsAssetPurchase(event.target.checked)}
+                    />
+                    <span>Asset Purchase</span>
+                  </label>
+                  {isAssetPurchase ? (
+                    <div className="transaction-asset-options">
+                      <label className="transaction-field">
+                        <span className="transaction-field-label">Purchased Asset</span>
+                        <input
+                          type="text"
+                          value={assetItemName}
+                          onChange={(event) => setAssetItemName(event.target.value)}
+                        />
+                      </label>
+                      <label className="transaction-radio-card">
+                        <input
+                          type="radio"
+                          checked={assetClass === "capital_allowance"}
+                          onChange={() => setAssetClass("capital_allowance")}
+                        />
+                        <span>
+                          <b>Capital Allowance</b>
+                          <small>Depreciate assets over their effective life</small>
+                        </span>
+                      </label>
+                      {assetClass === "capital_allowance" ? (
+                        <label className="transaction-field">
+                          <span className="transaction-field-label">
+                            Effective life (years)<em>*</em>
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.1"
+                            min="0"
+                            value={effectiveLifeYears}
+                            onChange={(event) =>
+                              setEffectiveLifeYears(event.target.value)
+                            }
+                          />
+                        </label>
+                      ) : null}
+                      <label className="transaction-radio-card">
+                        <input
+                          type="radio"
+                          checked={assetClass === "capital_works"}
+                          onChange={() => setAssetClass("capital_works")}
+                        />
+                        <span>
+                          <b>Capital Works</b>
+                          <small>Fixed depreciation period for capital improvements</small>
+                        </span>
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="transaction-detail-grid is-two">
+                <StaticSelect
+                  label="Category"
+                  required
+                  value={categoryId == null ? "" : String(categoryId)}
+                  options={categorySelectOptions}
+                  onChange={(value) => {
+                    setCategoryId(value ? Number(value) : null);
+                    setSubcategoryId(null);
+                  }}
+                />
+                <StaticSelect
+                  label="Sub-Category"
+                  required
+                  value={subcategoryId == null ? "" : String(subcategoryId)}
+                  options={subcategorySelectOptions}
+                  onChange={(value) =>
+                    setSubcategoryId(value ? Number(value) : null)
+                  }
+                />
+                <label className="transaction-field">
+                  <span className="transaction-field-label">Invoice Date<em>*</em></span>
+                  <input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(event) => setInvoiceDate(event.target.value)}
+                  />
+                </label>
+                <label className="transaction-field">
+                  <span className="transaction-field-label">Amount<em>*</em></span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={grossAmount}
+                    onChange={(event) => setGrossAmount(event.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="transaction-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={showGstBreakdown}
+                  onChange={(event) => setShowGstBreakdown(event.target.checked)}
+                />
+                <span>Add GST Breakdown</span>
+              </label>
+              {showGstBreakdown ? (
+                <label className="transaction-field">
+                  <span className="transaction-field-label">GST Amount<em>*</em></span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={gstAmount}
+                    onChange={(event) => setGstAmount(event.target.value)}
+                  />
+                </label>
+              ) : null}
+              <label className="transaction-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={isSplit}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setIsSplit(checked);
+                    if (!checked) {
+                      setEditSplitRows((rows) => [
+                        {
+                          ...(rows[0] || { id: makeSplitRowId(), propertyId: "" }),
+                          amount: grossAmount,
+                        },
+                      ]);
+                    } else if (editSplitRows.length < 2) {
+                      setEditSplitRows((rows) => [
+                        rows[0] || {
+                          id: makeSplitRowId(),
+                          propertyId: "",
+                          amount: "",
+                        },
+                        { id: makeSplitRowId(), propertyId: "", amount: "" },
+                      ]);
+                    }
+                  }}
+                />
+                <span>Is this a split transaction?</span>
+              </label>
+              <div className="transaction-split-section">
+                {editSplitRows.map((split, index) => (
+                  <div key={split.id} className="transaction-split-row">
+                    <StaticSelect
+                      label={index === 0 ? "Property Name" : undefined}
+                      required
+                      value={split.propertyId}
+                      options={propertySelectOptions}
+                      onChange={(value) =>
+                        updateEditSplitRow(split.id, { propertyId: value })
+                      }
+                    />
+                    {isSplit ? (
+                      <label className="transaction-field">
+                        {index === 0 ? (
+                          <span className="transaction-field-label">Amount<em>*</em></span>
+                        ) : null}
+                        <span className="transaction-money-input">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            value={split.amount}
+                            onChange={(event) =>
+                              updateEditSplitRow(split.id, {
+                                amount: event.target.value,
+                              })
+                            }
+                          />
+                          <b>$</b>
+                        </span>
+                      </label>
+                    ) : null}
+                    {isSplit ? (
+                      <button
+                        type="button"
+                        className="transaction-split-remove"
+                        aria-label="Remove split row"
+                        disabled={editSplitRows.length <= 1}
+                        onClick={() => removeEditSplitRow(split.id)}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+                {isSplit ? (
+                  <div className="transaction-split-footer">
+                    <button
+                      type="button"
+                      className="transaction-split-add"
+                      onClick={addEditSplitRow}
+                      disabled={properties.length < 2}
+                    >
+                      + Add Property
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <StaticSelect
+                label="Mode of Transaction"
+                required
+                value={modeOfTransaction}
+                options={MODE_OF_TRANSACTION_OPTIONS}
+                onChange={setModeOfTransaction}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="transaction-detail-grid is-three">
+                <DetailField label="Type">
+                  <span
+                    className={`transaction-type-pill ${
+                      isRevenue ? "is-income" : "is-expense"
+                    }`}
+                  >
+                    {isRevenue ? "Income" : "Expense"}
+                  </span>
+                </DetailField>
+                <DetailField label="Category" value={display.categoryName} />
+                <DetailField label="Subcategory" value={display.subcategoryName} />
+              </div>
 
-          <DetailField label="Date" value={formatInvoiceDate(display.invoiceDate)} />
+              <DetailField label="Date" value={formatInvoiceDate(display.invoiceDate)} />
 
-          <div className="transaction-detail-grid is-three">
-            <DetailField label="Gross Amount">
-              <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                {formatTransactionCurrency(display.grossAmount, isRevenue)}
-              </span>
-            </DetailField>
-            <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
-            <DetailField label="Net Amount">
-              <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                {formatTransactionCurrency(display.netAmount, isRevenue)}
-              </span>
-            </DetailField>
-          </div>
+              <div className="transaction-detail-grid is-three">
+                <DetailField label="Gross Amount">
+                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
+                    {formatTransactionCurrency(display.grossAmount, isRevenue)}
+                  </span>
+                </DetailField>
+                <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
+                <DetailField label="Net Amount">
+                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
+                    {formatTransactionCurrency(display.netAmount, isRevenue)}
+                  </span>
+                </DetailField>
+              </div>
 
-          <DetailField label="Rule Applied">
-            <span className={`transaction-rule-pill ${display.ruleId != null ? "is-yes" : "is-no"}`}>
-              {display.ruleId != null ? "Yes" : "No"}
-            </span>
-          </DetailField>
+              <DetailField label="Rule Applied">
+                <span className={`transaction-rule-pill ${display.ruleId != null ? "is-yes" : "is-no"}`}>
+                  {display.ruleId != null ? "Yes" : "No"}
+                </span>
+              </DetailField>
+            </>
+          )}
 
           {mode === "edit" ? (
             <div className="transaction-detail-edit">
@@ -529,14 +1091,6 @@ function TransactionDetailPopup({
                   setReviewStatus(value === "reviewed" ? "reviewed" : "unreviewed")
                 }
               />
-              <label className="transaction-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={isAssetPurchase}
-                  onChange={(event) => setIsAssetPurchase(event.target.checked)}
-                />
-                <span>Asset Purchase</span>
-              </label>
             </div>
           ) : (
             <>
@@ -550,14 +1104,18 @@ function TransactionDetailPopup({
                   {display.isAssetPurchase ? "Yes" : "No"}
                 </span>
               </DetailField>
+              {display.isAssetPurchase && purchasedAssetName ? (
+                <DetailField label="Purchased Asset" value={purchasedAssetName} />
+              ) : null}
             </>
           )}
 
-          {splitRows.length > 1 ? (
+          {mode !== "edit" && hasPropertySplit ? (
             <section className="transaction-detail-splits">
               <h3>Split Transaction</h3>
               {splitRows.map((split) => (
                 <div key={split.id} className="transaction-detail-split-card">
+                  <DetailField label="Property" value={split.propertyName || "—"} />
                   <DetailField label="Category" value={split.category} />
                   <DetailField label="Subcategory" value={split.subcategory} />
                   <DetailField
@@ -1587,9 +2145,10 @@ function BulkImportModal({
 
   function downloadSampleCsv() {
     const template = [
-      "type,category,subcategory,invoice_date,gross_amount,gst_amount,mode_of_transaction,description,internal_remarks,is_asset_purchase,asset_class,effective_life_years",
-      "expense,Repairs & Maintenance,Plumbing,2026-03-02,850,85,bank_transfer,Emergency plumbing repair,Approved by client,false,,",
-      "revenue,Rental Income,Monthly Rent,2026-03-05,3200,0,bank_transfer,March rental payment,,false,,",
+      "type,category,subcategory,invoice_date,gross_amount,gst_amount,mode_of_transaction,description,internal_remarks,is_asset_purchase,asset_class,effective_life_years,split_properties,split_amounts,split_percentages",
+      "expense,Repairs & Maintenance,Plumbing,2026-03-02,850,85,bank_transfer,Emergency plumbing repair,Approved by client,false,,,,,",
+      "revenue,Rental Income,Monthly Rent,2026-03-05,3200,0,bank_transfer,March rental payment,,false,,,,,",
+      "expense,Utilities,Electricity,2026-03-10,500,50,bank_transfer,Shared electricity bill,,false,,,Sunset Villa|Ocean View,300|200,",
     ].join("\n");
     const blob = new Blob([template], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -1757,6 +2316,69 @@ function normalizeCsvLookup(value: string) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeCsvLooseLookup(value: string) {
+  return normalizeCsvLookup(value)
+    .replace(/&/g, "and")
+    .replace(/\band\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getCsvLookupTokens(value: string) {
+  return normalizeCsvLookup(value)
+    .replace(/&/g, " and ")
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token && token !== "and")
+    .map((token) => token.replace(/s$/, ""));
+}
+
+function namesMatchCsvLookup(candidate: string, expected: string) {
+  const candidateExact = normalizeCsvLookup(candidate);
+  const expectedExact = normalizeCsvLookup(expected);
+  const candidateLoose = normalizeCsvLooseLookup(candidate);
+  const expectedLoose = normalizeCsvLooseLookup(expected);
+  const candidateSingularLoose = candidateLoose.replace(/s/g, "");
+  const expectedSingularLoose = expectedLoose.replace(/s/g, "");
+  const candidateTokens = getCsvLookupTokens(candidate);
+  const expectedTokens = getCsvLookupTokens(expected);
+  const expectedTokensMatch =
+    expectedTokens.length > 0 &&
+    expectedTokens.every((token) => candidateTokens.includes(token));
+  const candidateTokensMatch =
+    candidateTokens.length > 0 &&
+    candidateTokens.every((token) => expectedTokens.includes(token));
+
+  return (
+    candidateExact === expectedExact ||
+    candidateLoose === expectedLoose ||
+    candidateSingularLoose === expectedSingularLoose ||
+    expectedTokensMatch ||
+    candidateTokensMatch ||
+    (!!expectedLoose &&
+      (candidateLoose.includes(expectedLoose) ||
+        expectedLoose.includes(candidateLoose)))
+  );
+}
+
+function parseDelimitedCsvValue(value: string) {
+  return String(value || "")
+    .split(/[|;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function resolvePropertyLookup(value: string, options: PropertyOption[]) {
+  const normalized = normalizeCsvLookup(value);
+  if (!normalized) return "";
+  return (
+    options.find(
+      (property) =>
+        normalizeCsvLookup(property.id) === normalized ||
+        normalizeCsvLookup(property.name) === normalized,
+    )?.id || ""
+  );
+}
+
 function TransactionFeedbackModal({
   tone,
   title,
@@ -1919,6 +2541,7 @@ export function AddTransactionView({
   const [isEditingEntity, setIsEditingEntity] = useState<boolean>(!entityId);
 
   const [properties, setProperties] = useState<PropertyOption[]>([]);
+  const [defaultPropertyId, setDefaultPropertyId] = useState("");
   const [propertyId, setPropertyId] = useState<string>("");
   const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
 
@@ -1939,6 +2562,7 @@ export function AddTransactionView({
   const [internalRemarks, setInternalRemarks] = useState("");
 
   const [isAssetPurchase, setIsAssetPurchase] = useState(false);
+  const [assetItemName, setAssetItemName] = useState("");
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
   const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
 
@@ -1968,6 +2592,17 @@ export function AddTransactionView({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const propertyIdParam = new URLSearchParams(window.location.search).get(
+      "propertyId",
+    );
+    if (propertyIdParam) {
+      setDefaultPropertyId(propertyIdParam);
+      setPropertyId(propertyIdParam);
+      setIsEditingProperty(false);
+    }
   }, []);
 
   // Load entities for the picker (and to look up the locked entity name).
@@ -2005,8 +2640,13 @@ export function AddTransactionView({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: PropertyOption[] };
       if (!cancelled) {
-        setProperties(data.items || []);
-        setPropertyId("");
+        const loadedProperties = data.items || [];
+        setProperties(loadedProperties);
+        const hasDefaultProperty =
+          !!defaultPropertyId &&
+          loadedProperties.some((property) => property.id === defaultPropertyId);
+        setPropertyId(hasDefaultProperty ? defaultPropertyId : "");
+        setIsEditingProperty(!hasDefaultProperty);
         setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
       }
     }
@@ -2014,7 +2654,7 @@ export function AddTransactionView({
     return () => {
       cancelled = true;
     };
-  }, [token, activeEntityId]);
+  }, [token, activeEntityId, defaultPropertyId]);
 
   // Load categories whenever the type changes.
   useEffect(() => {
@@ -2069,9 +2709,16 @@ export function AddTransactionView({
     };
   }, [token, categoryId]);
 
+  useEffect(() => {
+    if (type !== "expense" && isAssetPurchase) {
+      setIsAssetPurchase(false);
+    }
+  }, [isAssetPurchase, type]);
+
   // When the user un-checks "asset purchase", reset its dependent fields.
   useEffect(() => {
     if (!isAssetPurchase) {
+      setAssetItemName("");
       setAssetClass("");
       setEffectiveLifeYears("");
     } else if (!assetClass) {
@@ -2084,11 +2731,23 @@ export function AddTransactionView({
     if (!showGstBreakdown) setGstAmount("");
   }, [showGstBreakdown]);
 
+  useEffect(() => {
+    if (!isMarked) return undefined;
+    const timer = window.setTimeout(() => {
+      router.push(backHref);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [backHref, isMarked, router]);
+
   const grossNumberValue = Number.parseFloat(grossAmount);
   const splitTotal = splitRows.reduce(
     (sum, r) => sum + (Number.parseFloat(r.amount) || 0),
     0,
   );
+  const splitPropertyCount = new Set(
+    splitRows.map((row) => row.propertyId).filter(Boolean),
+  ).size;
+  const splitHasMultipleProperties = splitPropertyCount > 1;
   const splitMatches =
     !Number.isNaN(grossNumberValue) &&
     grossNumberValue > 0 &&
@@ -2097,6 +2756,9 @@ export function AddTransactionView({
   const splitErrors = useMemo(() => {
     const errors: Record<string, string> = {};
     if (!isSplit) return errors;
+    if (splitRows.length < 2) {
+      errors.__form = "Add at least two property rows for a split transaction.";
+    }
     const seen = new Set<string>();
     for (const r of splitRows) {
       if (!r.propertyId) {
@@ -2108,14 +2770,31 @@ export function AddTransactionView({
       }
       if (r.propertyId) seen.add(r.propertyId);
     }
+    if (seen.size > 0 && seen.size < 2) {
+      errors.__form = "Choose more than one property for a split transaction.";
+    }
     return errors;
   }, [isSplit, splitRows]);
+
+  const lockAssetPurchaseCategory = type === "expense" && isAssetPurchase;
+
+  useEffect(() => {
+    if (lockAssetPurchaseCategory && !categoryId && categories[0]) {
+      setCategoryId(categories[0].id);
+    }
+  }, [categories, categoryId, lockAssetPurchaseCategory]);
+
+  useEffect(() => {
+    if (lockAssetPurchaseCategory && !subcategoryId && subcategories[0]) {
+      setSubcategoryId(subcategories[0].id);
+    }
+  }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
 
   const canSubmit =
     !!activeEntityId &&
     !!type &&
-    !!categoryId &&
-    !!subcategoryId &&
+    (lockAssetPurchaseCategory || !!categoryId) &&
+    (lockAssetPurchaseCategory || !!subcategoryId) &&
     !!invoiceDate &&
     !!grossAmount &&
     !!modeOfTransaction &&
@@ -2123,7 +2802,7 @@ export function AddTransactionView({
       (assetClass === "capital_works" ||
         (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
     (isSplit
-      ? splitRows.length > 0 &&
+      ? splitHasMultipleProperties &&
         Object.keys(splitErrors).length === 0 &&
         splitMatches
       : !!propertyId);
@@ -2147,6 +2826,26 @@ export function AddTransactionView({
     );
   }
 
+  function handleSplitToggle(checked: boolean) {
+    setIsSplit(checked);
+    if (checked) {
+      setSplitRows((rows) => {
+        if (
+          rows.length === 1 &&
+          !rows[0].propertyId &&
+          !rows[0].amount &&
+          propertyId
+        ) {
+          return [{ ...rows[0], propertyId, amount: grossAmount }];
+        }
+        return rows;
+      });
+      return;
+    }
+
+    setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+  }
+
   function handleEntityPicked(id: string) {
     setActiveEntityId(id);
     setIsEditingEntity(false);
@@ -2167,8 +2866,7 @@ export function AddTransactionView({
     const directId = Number.parseInt(row.category_id || "", 10);
     if (Number.isFinite(directId) && directId > 0) return directId;
 
-    const categoryName = normalizeCsvLookup(row.category || row.category_name || "");
-    if (!categoryName) return null;
+    const categoryName = row.category || row.category_name || "";
 
     let options = cache.get(importType);
     if (!options) {
@@ -2182,10 +2880,11 @@ export function AddTransactionView({
       cache.set(importType, options);
     }
 
-    return (
-      options.find((category) => normalizeCsvLookup(category.name) === categoryName)
-        ?.id ?? null
-    );
+    if (!categoryName.trim()) return options[0]?.id ?? null;
+
+    return options.find((category) =>
+      namesMatchCsvLookup(category.name, categoryName),
+    )?.id ?? (options[0]?.id ?? null);
   }
 
   async function resolveBulkSubcategory(
@@ -2197,10 +2896,8 @@ export function AddTransactionView({
     const directId = Number.parseInt(row.subcategory_id || row.sub_category_id || "", 10);
     if (Number.isFinite(directId) && directId > 0) return directId;
 
-    const subcategoryName = normalizeCsvLookup(
-      row.subcategory || row.sub_category || row.subcategory_name || "",
-    );
-    if (!subcategoryName) return null;
+    const subcategoryName =
+      row.subcategory || row.sub_category || row.subcategory_name || "";
 
     let options = cache.get(categoryIdValue);
     if (!options) {
@@ -2214,10 +2911,122 @@ export function AddTransactionView({
       cache.set(categoryIdValue, options);
     }
 
-    return (
-      options.find(
-        (subcategory) => normalizeCsvLookup(subcategory.name) === subcategoryName,
-      )?.id ?? null
+    if (!subcategoryName.trim()) return options[0]?.id ?? null;
+
+    return options.find((subcategory) =>
+      namesMatchCsvLookup(subcategory.name, subcategoryName),
+    )?.id ?? (options[0]?.id ?? null);
+  }
+
+  function resolveBulkSplits(
+    row: BulkImportRow,
+    fallbackPropertyId: string,
+    grossNum: number,
+    rowNumber: number,
+  ) {
+    const rawProperties =
+      row.split_properties ||
+      row.split_property_names ||
+      row.split_property_ids ||
+      row.property_splits ||
+      "";
+    const splitProperties = parseDelimitedCsvValue(rawProperties);
+
+    if (splitProperties.length === 0) {
+      return [{ property_id: fallbackPropertyId, split_percentage: 100 }];
+    }
+
+    if (splitProperties.length < 2) {
+      throw new Error(
+        `Row ${rowNumber}: split transactions must include more than one property.`,
+      );
+    }
+
+    const propertyIds = splitProperties.map((value) =>
+      resolvePropertyLookup(value, properties),
+    );
+    const missingPropertyIndex = propertyIds.findIndex((id) => !id);
+    if (missingPropertyIndex >= 0) {
+      throw new Error(
+        `Row ${rowNumber}: split property "${splitProperties[missingPropertyIndex]}" was not found for the selected entity.`,
+      );
+    }
+
+    const uniquePropertyIds = new Set(propertyIds);
+    if (uniquePropertyIds.size !== propertyIds.length) {
+      throw new Error(
+        `Row ${rowNumber}: each split property must be used only once.`,
+      );
+    }
+
+    const splitAmounts = parseDelimitedCsvValue(
+      row.split_amounts || row.split_gross_amounts || "",
+    ).map(parseMoneyValue);
+    const splitPercentages = parseDelimitedCsvValue(
+      row.split_percentages || row.split_percentage || "",
+    ).map((value) => Number.parseFloat(value));
+
+    if (splitAmounts.length > 0) {
+      if (
+        splitAmounts.length !== propertyIds.length ||
+        splitAmounts.some((amount) => amount == null || amount <= 0)
+      ) {
+        throw new Error(
+          `Row ${rowNumber}: split_amounts must contain one positive amount per split property.`,
+        );
+      }
+
+      const amountTotal = splitAmounts.reduce<number>(
+        (sum, amount) => sum + (amount ?? 0),
+        0,
+      );
+      if (Math.abs(amountTotal - grossNum) > 0.01) {
+        throw new Error(
+          `Row ${rowNumber}: split_amounts must total ${grossNum.toFixed(2)}.`,
+        );
+      }
+
+      return propertyIds.map((propertyIdValue, index) => {
+        const amount = splitAmounts[index] ?? 0;
+        return {
+          property_id: propertyIdValue,
+          split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
+          split_gross_amount: Number(amount.toFixed(2)),
+        };
+      });
+    }
+
+    if (splitPercentages.length > 0) {
+      if (
+        splitPercentages.length !== propertyIds.length ||
+        splitPercentages.some(
+          (percentage) => !Number.isFinite(percentage) || percentage <= 0,
+        )
+      ) {
+        throw new Error(
+          `Row ${rowNumber}: split_percentages must contain one positive percentage per split property.`,
+        );
+      }
+
+      const percentageTotal = splitPercentages.reduce(
+        (sum, percentage) => sum + percentage,
+        0,
+      );
+      if (Math.abs(percentageTotal - 100) > 0.01) {
+        throw new Error(`Row ${rowNumber}: split_percentages must total 100.`);
+      }
+
+      return propertyIds.map((propertyIdValue, index) => {
+        const percentage = splitPercentages[index] ?? 0;
+        return {
+          property_id: propertyIdValue,
+          split_percentage: Number(percentage.toFixed(4)),
+        };
+      });
+    }
+
+    throw new Error(
+      `Row ${rowNumber}: provide split_amounts or split_percentages with split_properties.`,
     );
   }
 
@@ -2250,6 +3059,7 @@ export function AddTransactionView({
         const rawType = normalizeCsvLookup(row.type || row.transaction_type || "");
         const importType: CoreTransactionType =
           rawType === "revenue" || rawType === "income" ? "revenue" : "expense";
+        const isAsset = parseBooleanValue(row.is_asset_purchase || row.asset_purchase || "");
         const categoryValue = await resolveBulkCategory(
           importType,
           row,
@@ -2277,8 +3087,12 @@ export function AddTransactionView({
         if (!invoiceDateValue) {
           throw new Error(`Row ${rowNumber}: invoice_date is required.`);
         }
-
-        const isAsset = parseBooleanValue(row.is_asset_purchase || row.asset_purchase || "");
+        const splits = resolveBulkSplits(
+          row,
+          bulkPropertyId,
+          grossNum,
+          rowNumber,
+        );
         const body: Record<string, unknown> = {
           type: importType,
           category_id: categoryValue,
@@ -2292,8 +3106,17 @@ export function AddTransactionView({
           metadata: {
             mode_of_transaction:
               row.mode_of_transaction?.trim() || row.mode?.trim() || "other",
+            ...(row.category || row.category_name
+              ? { csv_category: row.category || row.category_name }
+              : {}),
+            ...(row.subcategory || row.sub_category || row.subcategory_name
+              ? {
+                  csv_subcategory:
+                    row.subcategory || row.sub_category || row.subcategory_name,
+                }
+              : {}),
           },
-          splits: [{ property_id: bulkPropertyId, split_percentage: 100 }],
+          splits,
         };
         if (isAsset) {
           body.asset_class = row.asset_class?.trim() || "capital_works";
@@ -2339,6 +3162,57 @@ export function AddTransactionView({
     }
   }
 
+  async function resolveLockedCategorySelection() {
+    if (!token) return null;
+
+    let resolvedCategoryId = categoryId;
+    let categoryOptions = categories;
+
+    if (!resolvedCategoryId) {
+      if (categoryOptions.length === 0) {
+        const categoryRes = await fetch(
+          `/api/transactions/categories?type=${encodeURIComponent("expense")}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!categoryRes.ok) return null;
+        const data = (await categoryRes.json()) as {
+          items?: CoreTransactionCategory[];
+        };
+        categoryOptions = data.items || [];
+        setCategories(categoryOptions);
+      }
+      resolvedCategoryId = categoryOptions[0]?.id ?? null;
+    }
+
+    if (!resolvedCategoryId) return null;
+
+    let resolvedSubcategoryId = subcategoryId;
+    let subcategoryOptions =
+      categoryId === resolvedCategoryId ? subcategories : [];
+
+    if (!resolvedSubcategoryId) {
+      if (subcategoryOptions.length === 0) {
+        const subcategoryRes = await fetch(
+          `/api/transactions/categories/${resolvedCategoryId}/sub-categories`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!subcategoryRes.ok) return null;
+        const data = (await subcategoryRes.json()) as {
+          items?: CoreTransactionSubcategory[];
+        };
+        subcategoryOptions = data.items || [];
+        setSubcategories(subcategoryOptions);
+      }
+      resolvedSubcategoryId = subcategoryOptions[0]?.id ?? null;
+    }
+
+    if (!resolvedSubcategoryId) return null;
+
+    setCategoryId(resolvedCategoryId);
+    setSubcategoryId(resolvedSubcategoryId);
+    return { categoryId: resolvedCategoryId, subcategoryId: resolvedSubcategoryId };
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeEntityId || !token) {
@@ -2370,6 +3244,12 @@ export function AddTransactionView({
 
       let splits: Array<Record<string, unknown>>;
       if (isSplit) {
+        if (!splitHasMultipleProperties) {
+          setSubmitError(
+            "Split transactions must include more than one property.",
+          );
+          return;
+        }
         if (Object.keys(splitErrors).length > 0) {
           setSubmitError("Fix the errors in the split rows.");
           return;
@@ -2398,10 +3278,23 @@ export function AddTransactionView({
         splits = [{ property_id: propertyId, split_percentage: 100 }];
       }
 
+      let resolvedCategoryId = categoryId;
+      let resolvedSubcategoryId = subcategoryId;
+      if (lockAssetPurchaseCategory && (!resolvedCategoryId || !resolvedSubcategoryId)) {
+        const selection = await resolveLockedCategorySelection();
+        resolvedCategoryId = selection?.categoryId ?? null;
+        resolvedSubcategoryId = selection?.subcategoryId ?? null;
+      }
+
+      if (!resolvedCategoryId || !resolvedSubcategoryId) {
+        setSubmitError("Please select a category and sub-category.");
+        return;
+      }
+
       const body: Record<string, unknown> = {
         type,
-        category_id: categoryId,
-        subcategory_id: subcategoryId,
+        category_id: resolvedCategoryId,
+        subcategory_id: resolvedSubcategoryId,
         invoice_date: invoiceDate,
         gross_amount: grossNum,
         description: description.trim() || null,
@@ -2417,6 +3310,12 @@ export function AddTransactionView({
       }
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
+        if (assetItemName.trim()) {
+          body.metadata = {
+            ...(body.metadata as Record<string, unknown> | undefined),
+            asset_item_name: assetItemName.trim(),
+          };
+        }
         if (assetClass === "capital_allowance") {
           const yearsNum = Number.parseFloat(effectiveLifeYears);
           if (Number.isNaN(yearsNum) || yearsNum <= 0) {
@@ -2461,19 +3360,35 @@ export function AddTransactionView({
   if (isMarked) {
     return (
       <section className="transactions-page">
-        <div className="transaction-success-card">
-          <h1>Transaction Marked !</h1>
-          <p>
-            Added one more to list. The Client&apos;s real-time balance has been
-            updated accordingly.
-          </p>
-          <button
-            type="button"
-            className="transaction-primary-button"
-            onClick={() => router.push(backHref)}
-          >
-            Back to transactions
-          </button>
+        <div className="entity-success-layer" role="dialog" aria-modal="true">
+          <div className="entity-success-backdrop" aria-hidden="true" />
+          <div className="entity-success-card">
+            <div className="entity-success-animation" aria-hidden="true">
+              <span className="entity-success-confetti is-one" />
+              <span className="entity-success-confetti is-two" />
+              <span className="entity-success-confetti is-three" />
+              <span className="entity-success-confetti is-four" />
+              <svg viewBox="0 0 72 72">
+                <circle
+                  className="entity-success-badge"
+                  cx="36"
+                  cy="36"
+                  r="28"
+                />
+                <path
+                  className="entity-success-check"
+                  d="M22 37.5 31.5 47 51 25"
+                />
+              </svg>
+            </div>
+            <span className="entity-success-body">Transaction Added</span>
+            <div className="entity-success-body">
+              <strong>Transaction successfully recorded.</strong>
+              <p>
+                The property ledger has been updated. Returning to transactions.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
     );
@@ -2590,6 +3505,17 @@ export function AddTransactionView({
               <small>Select if this expense should be depreciated over time</small>
               {isAssetPurchase ? (
                 <div className="transaction-asset-options">
+                  <label className="transaction-field">
+                    <span className="transaction-field-label">
+                      Purchased Asset
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="e.g., Fridge, AC, dishwasher"
+                      value={assetItemName}
+                      onChange={(e) => setAssetItemName(e.target.value)}
+                    />
+                  </label>
                   <label className="transaction-radio-card">
                     <input
                       type="radio"
@@ -2640,6 +3566,7 @@ export function AddTransactionView({
               value={categoryId == null ? "" : String(categoryId)}
               options={categorySelectOptions}
               onChange={(value) => setCategoryId(value ? Number(value) : null)}
+              disabled={lockAssetPurchaseCategory}
             />
             <StaticSelect
               label="Sub-Category"
@@ -2649,6 +3576,7 @@ export function AddTransactionView({
               onChange={(value) =>
                 setSubcategoryId(value ? Number(value) : null)
               }
+              disabled={lockAssetPurchaseCategory}
             />
             <label className="transaction-field">
               <span className="transaction-field-label">
@@ -2706,7 +3634,7 @@ export function AddTransactionView({
             <input
               type="checkbox"
               checked={isSplit}
-              onChange={(e) => setIsSplit(e.target.checked)}
+              onChange={(e) => handleSplitToggle(e.target.checked)}
             />
             <span>Is this a split transaction?</span>
           </label>
@@ -2764,6 +3692,11 @@ export function AddTransactionView({
                   ) : null}
                 </div>
               ))}
+              {splitErrors.__form ? (
+                <p className="transaction-split-row-error">
+                  {splitErrors.__form}
+                </p>
+              ) : null}
               <div className="transaction-split-footer">
                 <span
                   className={`transaction-split-total${
@@ -2780,7 +3713,7 @@ export function AddTransactionView({
                   type="button"
                   className="transaction-split-add"
                   onClick={addSplitRow}
-                  disabled={!properties.length}
+                  disabled={properties.length < 2}
                 >
                   + Add Property
                 </button>

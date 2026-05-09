@@ -327,7 +327,7 @@ export default function PropertyDetailView({
           {currentTab === "transactions" ? (
             <AllTransactionsView
               context={{ kind: "property", propertyId }}
-              addTransactionHref={`${backHref}/transactions/new`}
+              addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
               compact
             />
           ) : currentTab === "rules" ? (

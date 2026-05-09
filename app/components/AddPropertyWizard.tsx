@@ -31,10 +31,12 @@ const propertyStatusOptions = [
   "Under Renovation",
 ];
 
-const stepMeta = [
-  { title: "Property Details", subtitle: "Basic Information" },
-  { title: "Ownership Details", subtitle: "Define Ownership" },
-  { title: "Loan Details", subtitle: "Optional Financing Info" },
+type PropertyStep = 1 | 2 | 3;
+
+const allStepMeta: { step: PropertyStep; title: string; subtitle: string }[] = [
+  { step: 1, title: "Property Details", subtitle: "Basic Information" },
+  { step: 2, title: "Ownership Details", subtitle: "Define Ownership" },
+  { step: 3, title: "Loan Details", subtitle: "Optional Financing Info" },
 ];
 
 type OwnerRow = {
@@ -72,7 +74,7 @@ export default function AddPropertyWizard({
   backHref,
   onSuccessHref,
 }: AddPropertyWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<PropertyStep>(1);
   const [propertyName, setPropertyName] = useState("");
   const [propertyType, setPropertyType] = useState<PropertyType>("residential");
   const [locationText, setLocationText] = useState("");
@@ -114,6 +116,15 @@ export default function AddPropertyWizard({
     unknown
   > | null>(null);
 
+  const takesOwnershipDetails = entity.entityType === "individual";
+  const stepMeta = useMemo(
+    () =>
+      allStepMeta.filter(
+        (meta) => takesOwnershipDetails || meta.step !== 2,
+      ),
+    [takesOwnershipDetails],
+  );
+
   const totalOwnership = useMemo(
     () =>
       owners.reduce((sum, owner) => {
@@ -147,7 +158,8 @@ export default function AddPropertyWizard({
   const ownershipWithinLimit = totalOwnership <= 100;
   const ownershipOverLimit = totalOwnership > 100;
   const ownersValid =
-    owners.length > 0 && ownershipAboveZero && ownershipWithinLimit;
+    !takesOwnershipDetails ||
+    (owners.length > 0 && ownershipAboveZero && ownershipWithinLimit);
 
   function updateOwner(entityBeneficiaryId: number, percentage: string) {
     setOwners((current) =>
@@ -245,11 +257,14 @@ export default function AddPropertyWizard({
         purchase_amount: Number.parseFloat(purchaseAmount),
         has_depreciation_schedule: hasDepreciationSchedule,
         status: status.trim(),
-        owners: owners.map((owner) => ({
+      };
+
+      if (takesOwnershipDetails) {
+        body.owners = owners.map((owner) => ({
           entity_beneficiary_id: owner.entityBeneficiaryId,
           ownership_percentage: Number.parseFloat(owner.percentage),
-        })),
-      };
+        }));
+      }
 
       if (imageUrl.trim()) body.image_url = imageUrl.trim();
       const loanDetails = {
@@ -304,11 +319,10 @@ export default function AddPropertyWizard({
 
       <ol className="entity-wizard-steps" aria-label="Property creation steps">
         {stepMeta.map((meta, index) => {
-          const position = (index + 1) as 1 | 2 | 3;
           const state =
-            step === position
+            step === meta.step
               ? "current"
-              : step > position
+              : step > meta.step
                 ? "done"
                 : "pending";
           return (
@@ -320,7 +334,7 @@ export default function AddPropertyWizard({
                       <path d="M5 12l4 4 10-10" />
                     </svg>
                   ) : (
-                    position
+                    index + 1
                   )}
                 </span>
                 <div className="entity-wizard-step-text">
@@ -330,7 +344,7 @@ export default function AddPropertyWizard({
               </li>
               {index < stepMeta.length - 1 && (
                 <li
-                  className={`entity-wizard-connector ${step > position ? "is-done" : ""}`}
+                  className={`entity-wizard-connector ${step > meta.step ? "is-done" : ""}`}
                   aria-hidden="true"
                 />
               )}
@@ -625,7 +639,7 @@ export default function AddPropertyWizard({
               type="button"
               className="entity-wizard-primary"
               disabled={!propertyDetailsValid}
-              onClick={() => setStep(2)}
+              onClick={() => setStep(takesOwnershipDetails ? 2 : 3)}
             >
               Continue
             </button>
@@ -633,7 +647,7 @@ export default function AddPropertyWizard({
         </div>
       )}
 
-      {step === 2 && (
+      {takesOwnershipDetails && step === 2 && (
         <div className="entity-wizard-card">
           <header>
             <h2>Ownership Details</h2>
@@ -799,7 +813,9 @@ export default function AddPropertyWizard({
               </div>
               <div>
                 <dt>Total Owners</dt>
-                <dd>{owners.length}</dd>
+                <dd>
+                  {takesOwnershipDetails ? owners.length : "Entity owns 100%"}
+                </dd>
               </div>
             </dl>
           </div>
@@ -812,7 +828,7 @@ export default function AddPropertyWizard({
             <button
               type="button"
               className="entity-wizard-link"
-              onClick={() => setStep(2)}
+              onClick={() => setStep(takesOwnershipDetails ? 2 : 1)}
             >
               Back
             </button>
