@@ -5534,6 +5534,217 @@ p.darkBg {
   font-size: 16px;
 }
 
+/* Document drop zone — animated states */
+.transaction-document-drop-wrap {
+  position: relative;
+  display: flex;
+}
+
+.transaction-document-drop {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  transition: border-color 220ms ease, background-color 220ms ease,
+    box-shadow 220ms ease, transform 180ms ease;
+}
+
+.transaction-document-drop:hover:not([data-status="uploading"]):not(
+    [data-status="extracting"]
+  ):not([data-status="done"]):not([data-status="error"]) {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.transaction-document-drop[data-status="dragover"] {
+  border-color: var(--primary);
+  background: #f3f6ff;
+  box-shadow: 0 0 0 4px rgba(40, 51, 110, 0.08);
+}
+
+.transaction-document-drop[data-status="uploading"],
+.transaction-document-drop[data-status="extracting"] {
+  cursor: progress;
+  border-color: var(--primary);
+  background: #fbfcff;
+}
+
+.transaction-document-drop[data-status="done"] {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  animation: documentDropPop 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.transaction-document-drop[data-status="error"] {
+  border-color: #dc2626;
+  background: #fef2f2;
+  animation: documentDropShake 360ms ease;
+}
+
+.transaction-document-drop__progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--primary-gold) 30%,
+    var(--primary) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: documentDropProgress 1.5s linear infinite;
+  pointer-events: none;
+}
+
+.transaction-document-drop[data-status="extracting"]
+  .transaction-document-drop__progress {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 161, 23, 0.7),
+    transparent
+  );
+  background-size: 60% 100%;
+  animation-duration: 2.4s;
+}
+
+.transaction-document-drop[data-status="extracting"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(40, 51, 110, 0.06),
+    transparent
+  );
+  background-size: 100% 50%;
+  background-repeat: no-repeat;
+  animation: documentDropScan 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.transaction-document-drop[data-status="done"] svg,
+.transaction-document-drop[data-status="done"] span {
+  border-color: #bbf7d0;
+}
+.transaction-document-drop[data-status="done"] svg {
+  stroke: #16a34a;
+}
+.transaction-document-drop[data-status="error"] svg {
+  stroke: #dc2626;
+}
+.transaction-document-drop[data-status="error"] span {
+  border-color: #fecaca;
+}
+.transaction-document-drop[data-status="uploading"] svg,
+.transaction-document-drop[data-status="extracting"] svg {
+  stroke: var(--primary);
+}
+.transaction-document-drop[data-status="uploading"] svg.is-spinner {
+  animation: documentDropSpin 0.9s linear infinite;
+  transform-origin: center;
+}
+
+.transaction-document-drop__caption {
+  margin-top: 4px;
+  color: #98a2b3;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@keyframes documentDropProgress {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes documentDropScan {
+  0% {
+    background-position: 0 -50%;
+  }
+  100% {
+    background-position: 0 150%;
+  }
+}
+
+@keyframes documentDropSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes documentDropPop {
+  0% {
+    transform: scale(0.985);
+  }
+  55% {
+    transform: scale(1.012);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes documentDropShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transaction-document-drop,
+  .transaction-document-drop__progress,
+  .transaction-document-drop[data-status="extracting"]::after,
+  .transaction-document-drop[data-status="uploading"] svg.is-spinner,
+  .transaction-document-drop[data-status="done"],
+  .transaction-document-drop[data-status="error"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Brief gold flash when a field is autofilled from the extraction */
+.is-prefilled {
+  animation: documentPrefilledFlash 1.8s ease-out;
+  border-radius: 8px;
+}
+
+@keyframes documentPrefilledFlash {
+  0% {
+    background-color: rgba(244, 161, 23, 0.18);
+    box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.12);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(244, 161, 23, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-prefilled {
+    animation: none !important;
+  }
+}
+
 .transaction-entry-form {
   display: flex;
   flex-direction: column;
