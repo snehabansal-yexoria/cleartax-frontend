@@ -13,6 +13,7 @@ export default function ClientPropertyDetailPage() {
       propertyId={propertyId}
       backHref={`/dashboard/client/entities/${entityId}`}
       backLabel="Entity"
+      editPropertyHref={`/dashboard/client/entities/${entityId}/properties/${propertyId}/edit`}
     />
   );
 }

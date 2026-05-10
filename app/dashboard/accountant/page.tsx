@@ -308,7 +308,9 @@ export default function AccountantPage() {
                         <strong>Available clients</strong>
                         <span>Pick one to add directly to My Clients.</span>
                       </div>
-                      <Link href="/dashboard/accountant/clients">Show more</Link>
+                      <Link href="/dashboard/accountant/clients">
+                        Show more
+                      </Link>
                     </div>
 
                     <div className="accountant-suggested-client-list">
@@ -375,7 +377,7 @@ export default function AccountantPage() {
                     <div className="accountant-client-copy">
                       <h4>{client.name}</h4>
                       <p>{client.email}</p>
-                      <span>{client.phoneNumber || "No phone on file"}</span>
+                      <span>{client.phoneNumber || ""}</span>
                     </div>
                   </Link>
                 ))}
