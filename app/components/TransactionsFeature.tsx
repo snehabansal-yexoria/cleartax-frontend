@@ -15,6 +15,10 @@ import type {
   CoreTransactionSubcategory,
   CoreTransactionType,
 } from "@/src/lib/coreApi";
+import {
+  DocumentDropZone,
+  type ExtractedDocumentData,
+} from "@/app/components/DocumentDropZone";
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -2583,6 +2587,8 @@ export function AddTransactionView({
     title: string;
     message: string;
   } | null>(null);
+  const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
+  const [documentId, setDocumentId] = useState<string | null>(null);
 
   // Resolve the bearer token once on mount.
   useEffect(() => {
@@ -2937,6 +2943,56 @@ export function AddTransactionView({
   function handlePropertyPicked(id: string) {
     setPropertyId(id);
     if (id) setIsEditingProperty(false);
+  }
+
+  function handleExtracted(data: ExtractedDocumentData, docId: string) {
+    setDocumentId(docId);
+    const filled = new Set<string>();
+
+    if (data.type === "expense" || data.type === "revenue") {
+      setType(data.type);
+      filled.add("type");
+    }
+    if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+      setInvoiceDate(data.date);
+      filled.add("invoiceDate");
+    }
+    if (typeof data.amount === "number" && Number.isFinite(data.amount)) {
+      setGrossAmount(String(data.amount));
+      filled.add("grossAmount");
+    }
+    if (
+      data.gst_included &&
+      typeof data.gst_amount === "number" &&
+      Number.isFinite(data.gst_amount) &&
+      data.gst_amount > 0
+    ) {
+      setShowGstBreakdown(true);
+      setGstAmount(String(data.gst_amount));
+      filled.add("gstAmount");
+    }
+    const desc = (data.description || data.title || "").trim();
+    if (desc) {
+      setDescription(desc);
+      filled.add("description");
+    }
+
+    const remarkParts = [
+      data.vendor && `Vendor: ${data.vendor}`,
+      data.payer && `Payer: ${data.payer}`,
+      data.reference && `Ref: ${data.reference}`,
+      data.due_date &&
+        /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
+        `Due: ${data.due_date}`,
+    ].filter(Boolean) as string[];
+    if (remarkParts.length > 0) {
+      setInternalRemarks(remarkParts.join(" · "));
+      filled.add("internalRemarks");
+    }
+
+    setPrefilled(new Set());
+    queueMicrotask(() => setPrefilled(filled));
+    window.setTimeout(() => setPrefilled(new Set()), 2200);
   }
 
   async function resolveBulkCategory(
@@ -3396,6 +3452,9 @@ export function AddTransactionView({
         is_asset_purchase: isAssetPurchase,
         splits,
       };
+      if (documentId) {
+        body.document_id = documentId;
+      }
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
@@ -3511,6 +3570,8 @@ export function AddTransactionView({
     label: p.name,
     value: p.id,
   }));
+  const flashClass = (key: string) =>
+    prefilled.has(key) ? " is-prefilled" : "";
 
   return (
     <section className="transactions-page transaction-add-page">
@@ -3538,13 +3599,7 @@ export function AddTransactionView({
       </div>
 
       <div className="transaction-add-layout">
-        <button type="button" className="transaction-document-drop">
-          <span>
-            <UploadIcon />
-          </span>
-          <strong>Drop your document here</strong>
-          <small>or click to browse</small>
-        </button>
+        <DocumentDropZone token={token} onExtracted={handleExtracted} />
 
         <form className="transaction-entry-form" onSubmit={handleSubmit}>
           {requireClientSelection ? (
@@ -3579,18 +3634,7 @@ export function AddTransactionView({
             onEditProperty={() => setIsEditingProperty(true)}
           />
 
-          {hasNoProperties ? (
-            <p className="transaction-warning-card" role="alert">
-              Add a property to this entity before recording transactions.
-            </p>
-          ) : null}
-
-          <fieldset
-            className="transaction-detail-fields"
-            disabled={disableTransactionDetails}
-            aria-disabled={disableTransactionDetails}
-          >
-          <div className="transaction-type-control">
+          <div className={"transaction-type-control" + flashClass("type")}>
             <span className="transaction-field-label">
               Transaction Type<em>*</em>
             </span>
@@ -3700,7 +3744,7 @@ export function AddTransactionView({
               }
               disabled={lockAssetPurchaseCategory}
             />
-            <label className="transaction-field">
+            <label className={"transaction-field" + flashClass("invoiceDate")}>
               <span className="transaction-field-label">
                 Invoice Date<em>*</em>
               </span>
@@ -3710,7 +3754,7 @@ export function AddTransactionView({
                 onChange={(e) => setInvoiceDate(e.target.value)}
               />
             </label>
-            <label className="transaction-field">
+            <label className={"transaction-field" + flashClass("grossAmount")}>
               <span className="transaction-field-label">
                 Amount<em>*</em>
               </span>
@@ -3736,7 +3780,7 @@ export function AddTransactionView({
           </label>
 
           {showGstBreakdown ? (
-            <label className="transaction-field">
+            <label className={"transaction-field" + flashClass("gstAmount")}>
               <span className="transaction-field-label">
                 GST Amount<em>*</em>
               </span>
@@ -3852,7 +3896,7 @@ export function AddTransactionView({
             onChange={setModeOfTransaction}
           />
 
-          <label className="transaction-field">
+          <label className={"transaction-field" + flashClass("description")}>
             <span className="transaction-field-label">Description</span>
             <textarea
               placeholder="Add description"
@@ -3861,7 +3905,9 @@ export function AddTransactionView({
             />
           </label>
 
-          <label className="transaction-field">
+          <label
+            className={"transaction-field" + flashClass("internalRemarks")}
+          >
             <span className="transaction-field-label">Add Internal Remarks</span>
             <input
               type="text"
