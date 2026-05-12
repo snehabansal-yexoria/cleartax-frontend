@@ -10,6 +10,7 @@ export default function AccountantAddTransactionPage() {
 
   return (
     <AddTransactionView
+      clientId={clientId}
       entityId={entityId}
       backHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}`}
       backLabel="Back"

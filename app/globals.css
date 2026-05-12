@@ -2228,7 +2228,8 @@ p.darkBg {
 .accountant-invite-success-icon svg {
   width: 42px;
   height: 42px;
-  animation: accountantArrowFloat 1.8s ease-in-out infinite;
+  animation: accountantArrowFloat 1s ease-in-out infinite;
+  margin-top: 6px;
 }
 
 .accountant-invite-success-icon:hover {
@@ -2274,6 +2275,21 @@ p.darkBg {
   color: #1c2954;
   font-size: 1.4rem;
   letter-spacing: 0.04em;
+}
+
+.accountant-invite-link {
+  display: block;
+  max-width: 100%;
+  margin-top: 10px;
+  color: #2563eb;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.accountant-invite-link:hover {
+  color: #1d4ed8;
 }
 
 .accountant-temp-password-card p {
@@ -5751,6 +5767,22 @@ p.darkBg {
   gap: 24px;
 }
 
+.transaction-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.transaction-detail-fields:disabled {
+  opacity: 0.42;
+  filter: grayscale(0.25);
+  pointer-events: none;
+}
+
 .transaction-warning-card {
   padding: 22px 24px;
   border: 1px solid #f6c66f;
@@ -7275,6 +7307,7 @@ p.darkBg {
   font-family: inherit;
   font-size: 15px;
   font-weight: 700;
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -7371,12 +7404,19 @@ p.darkBg {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .property-outline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #28336e;
   background: #ffffff;
   color: #28336e;
+  text-decoration: none;
 }
 
 .property-review-button {

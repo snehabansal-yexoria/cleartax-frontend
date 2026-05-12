@@ -68,6 +68,11 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function appendQueryParam(href: string, key: string, value: string) {
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
 export default function EntityDetailView({
   entityId,
   backHref,
@@ -326,9 +331,16 @@ export default function EntityDetailView({
                         <dd>0</dd>
                       </div>
                     </dl>
-                    <button type="button" className="entity-property-disabled-action">
+                    <Link
+                      href={appendQueryParam(
+                        addTransactionHref,
+                        "propertyId",
+                        property.id,
+                      )}
+                      className="entity-property-disabled-action"
+                    >
                       + Add Transaction
-                    </button>
+                    </Link>
                     <Link
                       href={`${propertyDetailHrefBase}/${property.id}`}
                       className="entity-property-chevron-link"

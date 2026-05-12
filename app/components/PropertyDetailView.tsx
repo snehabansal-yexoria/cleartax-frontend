@@ -22,6 +22,7 @@ export type PropertyDetailViewProps = {
   propertyId: string;
   backHref: string;
   backLabel: string;
+  editPropertyHref: string;
 };
 
 type PropertyTab = "transactions" | "documents" | "rules";
@@ -82,6 +83,7 @@ export default function PropertyDetailView({
   propertyId,
   backHref,
   backLabel,
+  editPropertyHref,
 }: PropertyDetailViewProps) {
   const router = useRouter();
   const [property, setProperty] = useState<CoreProperty | null>(null);
@@ -191,9 +193,9 @@ export default function PropertyDetailView({
             </p>
           </div>
           <div className="property-hero-actions">
-            <button type="button" className="property-outline-button">
+            <Link href={editPropertyHref} className="property-outline-button">
               Edit Details
-            </button>
+            </Link>
             <button type="button" className="property-review-button">
               Review Form
             </button>

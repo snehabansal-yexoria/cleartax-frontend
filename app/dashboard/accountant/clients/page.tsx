@@ -577,7 +577,11 @@ function AccountantClientsContent() {
                     <div className="accountant-temp-password-card">
                       <span>Invite Link</span>
                       {inviteLink ? (
-                        <a href={inviteLink} target="_blank">
+                        <a
+                          href={inviteLink}
+                          target="_blank"
+                          className="accountant-invite-link"
+                        >
                           {inviteLink}
                         </a>
                       ) : (
@@ -634,7 +638,7 @@ function AccountantClientsContent() {
                     </span>
                     <input
                       type="tel"
-                      placeholder="+91 87778 98789"
+                      placeholder="+61 2 9342 5678"
                       value={inviteForm.phoneNumber}
                       onChange={(event) =>
                         setInviteForm((current) => ({

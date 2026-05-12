@@ -2284,7 +2284,8 @@ function EditPencilIcon() {
   );
 }
 
-type EntityOption = { id: string; name: string };
+type ClientOption = { id: string; name: string };
+type EntityOption = { id: string; name: string; createdFor?: string };
 type PropertyOption = { id: string; name: string };
 
 const MODE_OF_TRANSACTION_OPTIONS: SelectOption[] = [
@@ -2521,11 +2522,15 @@ function EntityPropertyHeaderCard({
 }
 
 export function AddTransactionView({
+  clientId,
   entityId,
+  requireClientSelection = false,
   backHref = "/dashboard/accountant/transactions",
   backLabel = "Back",
 }: {
+  clientId?: string;
   entityId?: string;
+  requireClientSelection?: boolean;
   backHref?: string;
   backLabel?: string;
 }) {
@@ -2540,11 +2545,14 @@ export function AddTransactionView({
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [activeClientId, setActiveClientId] = useState<string>(clientId ?? "");
   const [entities, setEntities] = useState<EntityOption[]>([]);
   const [activeEntityId, setActiveEntityId] = useState<string>(entityId ?? "");
   const [isEditingEntity, setIsEditingEntity] = useState<boolean>(!entityId);
 
   const [properties, setProperties] = useState<PropertyOption[]>([]);
+  const [propertiesLoaded, setPropertiesLoaded] = useState(false);
   const [defaultPropertyId, setDefaultPropertyId] = useState("");
   const [propertyId, setPropertyId] = useState<string>("");
   const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
@@ -2611,26 +2619,72 @@ export function AddTransactionView({
     }
   }, []);
 
+  useEffect(() => {
+    setActiveClientId(clientId ?? "");
+  }, [clientId]);
+
+  useEffect(() => {
+    setActiveEntityId(entityId ?? "");
+    setIsEditingEntity(!entityId);
+  }, [entityId]);
+
+  useEffect(() => {
+    if (!token || !requireClientSelection) return;
+    let cancelled = false;
+    async function loadClients() {
+      const res = await fetch("/api/users/me/clients?scope=mine", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { clients?: ClientOption[] };
+      if (!cancelled) setClients(data.clients || []);
+    }
+    loadClients();
+    return () => {
+      cancelled = true;
+    };
+  }, [requireClientSelection, token]);
+
   // Load entities for the picker (and to look up the locked entity name).
   useEffect(() => {
     if (!token) return;
+    if (requireClientSelection && !activeClientId) {
+      setEntities([]);
+      setActiveEntityId("");
+      setIsEditingEntity(true);
+      return;
+    }
     let cancelled = false;
     async function loadEntities() {
-      const res = await fetch("/api/entities", {
+      const query = activeClientId
+        ? `?client_id=${encodeURIComponent(activeClientId)}`
+        : "";
+      const res = await fetch(`/api/entities${query}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: EntityOption[] };
-      if (!cancelled) setEntities(data.items || []);
+      if (!cancelled) {
+        const loadedEntities = data.items || [];
+        setEntities(loadedEntities);
+        if (
+          activeEntityId &&
+          !loadedEntities.some((entity) => entity.id === activeEntityId)
+        ) {
+          setActiveEntityId("");
+          setIsEditingEntity(true);
+        }
+      }
     }
     loadEntities();
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [activeClientId, activeEntityId, requireClientSelection, token]);
 
   // Load properties whenever the active entity changes.
   useEffect(() => {
+    setPropertiesLoaded(false);
     if (!token || !activeEntityId) {
       setProperties([]);
       setPropertyId("");
@@ -2648,6 +2702,7 @@ export function AddTransactionView({
       if (!cancelled) {
         const loadedProperties = data.items || [];
         setProperties(loadedProperties);
+        setPropertiesLoaded(true);
         const hasDefaultProperty =
           !!defaultPropertyId &&
           loadedProperties.some((property) => property.id === defaultPropertyId);
@@ -2783,6 +2838,12 @@ export function AddTransactionView({
   }, [isSplit, splitRows]);
 
   const lockAssetPurchaseCategory = type === "expense" && isAssetPurchase;
+  const mustChooseClientFirst = requireClientSelection && !activeClientId;
+  const hasNoProperties =
+    !!activeEntityId && propertiesLoaded && properties.length === 0;
+  const canSplitTransaction = properties.length > 1;
+  const disableTransactionDetails =
+    mustChooseClientFirst || !activeEntityId || !propertyId || hasNoProperties;
 
   useEffect(() => {
     if (lockAssetPurchaseCategory && !categoryId && categories[0]) {
@@ -2796,7 +2857,16 @@ export function AddTransactionView({
     }
   }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
 
+  useEffect(() => {
+    if (!canSplitTransaction && isSplit) {
+      setIsSplit(false);
+      setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+    }
+  }, [canSplitTransaction, isSplit]);
+
   const canSubmit =
+    !mustChooseClientFirst &&
+    !hasNoProperties &&
     !!activeEntityId &&
     !!type &&
     (lockAssetPurchaseCategory || !!categoryId) &&
@@ -2833,6 +2903,7 @@ export function AddTransactionView({
   }
 
   function handleSplitToggle(checked: boolean) {
+    if (checked && !canSplitTransaction) return;
     setIsSplit(checked);
     if (checked) {
       setSplitRows((rows) => {
@@ -2856,6 +2927,17 @@ export function AddTransactionView({
     setActiveEntityId(id);
     setIsEditingEntity(false);
     setIsEditingProperty(true);
+  }
+
+  function handleClientPicked(id: string) {
+    setActiveClientId(id);
+    setActiveEntityId("");
+    setIsEditingEntity(true);
+    setProperties([]);
+    setPropertiesLoaded(false);
+    setPropertyId("");
+    setIsEditingProperty(true);
+    setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
   }
 
   function handlePropertyPicked(id: string) {
@@ -3271,12 +3353,24 @@ export function AddTransactionView({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mustChooseClientFirst) {
+      setFeedback({
+        tone: "warning",
+        title: "Client required",
+        message: "Please select a client before choosing an entity.",
+      });
+      return;
+    }
     if (!activeEntityId || !token) {
       setFeedback({
         tone: "warning",
         title: "Selection required",
         message: "Please select Entity Name and Property Name to continue.",
       });
+      return;
+    }
+    if (hasNoProperties) {
+      setSubmitError("Add a property to this entity before recording transactions.");
       return;
     }
     setSubmitError("");
@@ -3496,6 +3590,7 @@ export function AddTransactionView({
         <button
           type="button"
           className="transaction-outline-button"
+          disabled={mustChooseClientFirst}
           onClick={() => setIsBulkOpen(true)}
         >
           <UploadIcon />
@@ -3507,6 +3602,22 @@ export function AddTransactionView({
         <DocumentDropZone token={token} onExtracted={handleExtracted} />
 
         <form className="transaction-entry-form" onSubmit={handleSubmit}>
+          {requireClientSelection ? (
+            <StaticSelect
+              label="Client"
+              required
+              value={activeClientId}
+              options={[
+                { label: "Select Client", value: "" },
+                ...clients.map((client) => ({
+                  label: client.name,
+                  value: client.id,
+                })),
+              ]}
+              onChange={handleClientPicked}
+            />
+          ) : null}
+
           <EntityPropertyHeaderCard
             entities={entities}
             properties={properties}
@@ -3689,6 +3800,7 @@ export function AddTransactionView({
             <input
               type="checkbox"
               checked={isSplit}
+              disabled={!canSplitTransaction}
               onChange={(e) => handleSplitToggle(e.target.checked)}
             />
             <span>Is this a split transaction?</span>
@@ -3804,6 +3916,8 @@ export function AddTransactionView({
               onChange={(e) => setInternalRemarks(e.target.value)}
             />
           </label>
+          </fieldset>
+
           {submitError ? (
             <p className="transaction-warning-card" role="alert">
               {submitError}

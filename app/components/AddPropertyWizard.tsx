@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { CoreEntity, CoreProperty, PropertyType } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
@@ -40,6 +40,7 @@ const allStepMeta: { step: PropertyStep; title: string; subtitle: string }[] = [
 ];
 
 type OwnerRow = {
+  id?: number;
   entityBeneficiaryId: number;
   name: string;
   percentage: string;
@@ -49,6 +50,8 @@ export type AddPropertyWizardProps = {
   entity: CoreEntity;
   backHref: string;
   onSuccessHref: string;
+  mode?: "create" | "edit";
+  initialProperty?: CoreProperty;
 };
 
 function titleCase(value: string) {
@@ -69,41 +72,122 @@ function toMoney(value: string) {
   }).format(amount);
 }
 
+function toInputNumber(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : "";
+}
+
+function getLoanDetail(
+  property: CoreProperty | undefined,
+  key: string,
+) {
+  const value = property?.loanDetails?.[key];
+  return value == null ? "" : String(value);
+}
+
+function getStatusDetails(property: CoreProperty | undefined) {
+  const value = property?.loanDetails?.property_status_details;
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function getStatusDetail(
+  property: CoreProperty | undefined,
+  key: string,
+) {
+  const value = getStatusDetails(property)[key];
+  return value == null ? "" : String(value);
+}
+
+function getInitialOwners(
+  entity: CoreEntity,
+  initialProperty: CoreProperty | undefined,
+) {
+  return entity.beneficiaries
+    .filter((beneficiary) => typeof beneficiary.id === "number")
+    .map((beneficiary) => {
+      const savedOwner = initialProperty?.owners.find(
+        (owner) => owner.entityBeneficiaryId === beneficiary.id,
+      );
+
+      return {
+        id: savedOwner?.id,
+        entityBeneficiaryId: beneficiary.id as number,
+        name: savedOwner?.ownerName || beneficiary.name,
+        percentage: String(
+          savedOwner?.ownershipPercentage ??
+            beneficiary.ownershipPercentage ??
+            "",
+        ),
+      };
+    });
+}
+
 export default function AddPropertyWizard({
   entity,
   backHref,
   onSuccessHref,
+  mode = "create",
+  initialProperty,
 }: AddPropertyWizardProps) {
   const [step, setStep] = useState<PropertyStep>(1);
-  const [propertyName, setPropertyName] = useState("");
-  const [propertyType, setPropertyType] = useState<PropertyType>("residential");
-  const [locationText, setLocationText] = useState("");
-  const [estimatedMarketValue, setEstimatedMarketValue] = useState("");
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [purchaseAmount, setPurchaseAmount] = useState("");
-  const [hasDepreciationSchedule, setHasDepreciationSchedule] = useState(false);
-  const [status, setStatus] = useState("Listed for Sale");
+  const [propertyName, setPropertyName] = useState(initialProperty?.name ?? "");
+  const [propertyType, setPropertyType] = useState<PropertyType>(
+    initialProperty?.propertyType ?? "residential",
+  );
+  const [locationText, setLocationText] = useState(
+    initialProperty?.locationText ?? "",
+  );
+  const [estimatedMarketValue, setEstimatedMarketValue] = useState(
+    toInputNumber(initialProperty?.estimatedMarketValue),
+  );
+  const [purchaseDate, setPurchaseDate] = useState(
+    initialProperty?.purchaseDate ?? "",
+  );
+  const [purchaseAmount, setPurchaseAmount] = useState(
+    toInputNumber(initialProperty?.purchaseAmount),
+  );
+  const [hasDepreciationSchedule, setHasDepreciationSchedule] = useState(
+    initialProperty?.hasDepreciationSchedule ?? false,
+  );
+  const [status, setStatus] = useState(
+    initialProperty?.status || "Listed for Sale",
+  );
   const [isPropertyTypeOpen, setIsPropertyTypeOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [availableForRentDate, setAvailableForRentDate] = useState("");
-  const [firstRentalIncomeDate, setFirstRentalIncomeDate] = useState("");
-  const [renovationStartDate, setRenovationStartDate] = useState("");
-  const [renovationEndDate, setRenovationEndDate] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [owners, setOwners] = useState<OwnerRow[]>(
-    entity.beneficiaries
-      .filter((beneficiary) => typeof beneficiary.id === "number")
-      .map((beneficiary) => ({
-        entityBeneficiaryId: beneficiary.id as number,
-        name: beneficiary.name,
-        percentage: String(beneficiary.ownershipPercentage || ""),
-      })),
+  const [availableForRentDate, setAvailableForRentDate] = useState(
+    getStatusDetail(initialProperty, "available_for_rent_date"),
   );
-  const [bankName, setBankName] = useState("");
-  const [bsbNumber, setBsbNumber] = useState("");
-  const [loanAccountNumber, setLoanAccountNumber] = useState("");
-  const [loanAllocationPercentage, setLoanAllocationPercentage] = useState("");
-  const [loanAmount, setLoanAmount] = useState("");
+  const [firstRentalIncomeDate, setFirstRentalIncomeDate] = useState(
+    getStatusDetail(initialProperty, "first_rental_income_date"),
+  );
+  const [renovationStartDate, setRenovationStartDate] = useState(
+    getStatusDetail(initialProperty, "renovation_start_date"),
+  );
+  const [renovationEndDate, setRenovationEndDate] = useState(
+    getStatusDetail(initialProperty, "renovation_end_date"),
+  );
+  const [imageUrl, setImageUrl] = useState(initialProperty?.imageUrl ?? "");
+  const [owners, setOwners] = useState<OwnerRow[]>(
+    getInitialOwners(entity, initialProperty),
+  );
+  const [bankName, setBankName] = useState(
+    getLoanDetail(initialProperty, "bank_name"),
+  );
+  const [bsbNumber, setBsbNumber] = useState(
+    getLoanDetail(initialProperty, "bsb_number"),
+  );
+  const [loanAccountNumber, setLoanAccountNumber] = useState(
+    getLoanDetail(initialProperty, "loan_account_number"),
+  );
+  const [loanAllocationPercentage, setLoanAllocationPercentage] = useState(
+    getLoanDetail(initialProperty, "loan_allocation_percentage"),
+  );
+  const [loanAmount, setLoanAmount] = useState(
+    getLoanDetail(initialProperty, "loan_amount"),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -116,6 +200,7 @@ export default function AddPropertyWizard({
     unknown
   > | null>(null);
 
+  const isEditMode = mode === "edit";
   const takesOwnershipDetails = entity.entityType === "individual";
   const stepMeta = useMemo(
     () =>
@@ -160,6 +245,43 @@ export default function AddPropertyWizard({
   const ownersValid =
     !takesOwnershipDetails ||
     (owners.length > 0 && ownershipAboveZero && ownershipWithinLimit);
+
+  useEffect(() => {
+    if (!initialProperty) {
+      setOwners(getInitialOwners(entity, undefined));
+      return;
+    }
+
+    setPropertyName(initialProperty.name);
+    setPropertyType(initialProperty.propertyType);
+    setLocationText(initialProperty.locationText);
+    setEstimatedMarketValue(toInputNumber(initialProperty.estimatedMarketValue));
+    setPurchaseDate(initialProperty.purchaseDate);
+    setPurchaseAmount(toInputNumber(initialProperty.purchaseAmount));
+    setHasDepreciationSchedule(initialProperty.hasDepreciationSchedule);
+    setStatus(initialProperty.status || "Listed for Sale");
+    setAvailableForRentDate(
+      getStatusDetail(initialProperty, "available_for_rent_date"),
+    );
+    setFirstRentalIncomeDate(
+      getStatusDetail(initialProperty, "first_rental_income_date"),
+    );
+    setRenovationStartDate(
+      getStatusDetail(initialProperty, "renovation_start_date"),
+    );
+    setRenovationEndDate(
+      getStatusDetail(initialProperty, "renovation_end_date"),
+    );
+    setImageUrl(initialProperty.imageUrl ?? "");
+    setOwners(getInitialOwners(entity, initialProperty));
+    setBankName(getLoanDetail(initialProperty, "bank_name"));
+    setBsbNumber(getLoanDetail(initialProperty, "bsb_number"));
+    setLoanAccountNumber(getLoanDetail(initialProperty, "loan_account_number"));
+    setLoanAllocationPercentage(
+      getLoanDetail(initialProperty, "loan_allocation_percentage"),
+    );
+    setLoanAmount(getLoanDetail(initialProperty, "loan_amount"));
+  }, [entity, initialProperty]);
 
   function updateOwner(entityBeneficiaryId: number, percentage: string) {
     setOwners((current) =>
@@ -261,6 +383,7 @@ export default function AddPropertyWizard({
 
       if (takesOwnershipDetails) {
         body.owners = owners.map((owner) => ({
+          ...(owner.id ? { id: owner.id } : {}),
           entity_beneficiary_id: owner.entityBeneficiaryId,
           ownership_percentage: Number.parseFloat(owner.percentage),
         }));
@@ -275,8 +398,13 @@ export default function AddPropertyWizard({
       setLastRequestPayload(body);
       setLastResponsePayload(null);
 
-      const res = await fetch(`/api/entities/${entity.id}/properties`, {
-        method: "POST",
+      const url =
+        isEditMode && initialProperty
+          ? `/api/properties/${encodeURIComponent(initialProperty.id)}`
+          : `/api/entities/${entity.id}/properties`;
+
+      const res = await fetch(url, {
+        method: isEditMode ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -288,7 +416,9 @@ export default function AddPropertyWizard({
         const payload = await res.json().catch(() => ({}));
         setLastResponsePayload(payload as Record<string, unknown>);
         setErrorMessage(
-          payload?.error || payload?.message || "Failed to save property.",
+          payload?.error ||
+            payload?.message ||
+            `Failed to ${isEditMode ? "update" : "save"} property.`,
         );
         return null;
       }
@@ -838,7 +968,11 @@ export default function AddPropertyWizard({
               disabled={isSaving}
               onClick={handleSave}
             >
-              {isSaving ? "Saving..." : "Add Property"}
+              {isSaving
+                ? "Saving..."
+                : isEditMode
+                  ? "Save Changes"
+                  : "Add Property"}
             </button>
           </div>
         </div>
@@ -866,12 +1000,20 @@ export default function AddPropertyWizard({
                 />
               </svg>
             </div>
-            <span className="entity-success-body">Property Added</span>
+            <span className="entity-success-body">
+              Property {isEditMode ? "Updated" : "Added"}
+            </span>
             <div className="entity-success-body">
               <strong>
-                {propertyName} is now linked to {entity.name}.
+                {isEditMode
+                  ? `${propertyName} has been updated.`
+                  : `${propertyName} is now linked to ${entity.name}.`}
               </strong>
-              <p>You can view it from the entity property list.</p>
+              <p>
+                {isEditMode
+                  ? "Your property details are ready for transaction mapping."
+                  : "You can view it from the entity property list."}
+              </p>
             </div>
             {/* <div className="property-payload-preview">
               <details open>
