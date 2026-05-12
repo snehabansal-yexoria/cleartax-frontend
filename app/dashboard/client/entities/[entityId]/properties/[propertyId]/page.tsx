@@ -11,6 +11,7 @@ export default function ClientPropertyDetailPage() {
   return (
     <PropertyDetailView
       propertyId={propertyId}
+      entityId={entityId}
       backHref={`/dashboard/client/entities/${entityId}`}
       backLabel="Entity"
       editPropertyHref={`/dashboard/client/entities/${entityId}/properties/${propertyId}/edit`}

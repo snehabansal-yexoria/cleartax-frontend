@@ -87,13 +87,24 @@ function formatInvoiceDate(value: string) {
   });
 }
 
-type StaticRule = {
+type CoreTransactionRule = {
+  id: number;
+  orgId: string;
+  entityId: string;
+  propertyId: string | null;
   name: string;
-  property: string;
-  condition: string;
-  setting: string;
-  autoAdd: string;
-  status: "Active" | "Inactive";
+  matchMode: string;
+  conditions: { field: string; operator: string; value: unknown }[];
+  assignedType: string;
+  assignedCategoryId: number;
+  assignedSubcategoryId: number;
+  autoConfirm: boolean;
+  isEnabled: boolean;
+  metadata: Record<string, unknown>;
+  createdBy: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type SelectOption = {
@@ -112,49 +123,33 @@ type StaticSelectProps = {
   disabled?: boolean;
 };
 
-const rules: StaticRule[] = [
-  {
-    name: "A Rental",
-    property: "Sunset Villa",
-    condition: 'Bank text contains "A Rental"',
-    setting: "Expense > Travel",
-    autoAdd: "-",
-    status: "Active",
-  },
-];
-
-const entityOptions = [
-  "All Entities",
-  "Rodriguez Family SMSF",
-  "Wilson Family Trust",
-  "Chen Investment Co",
-].map((value) => ({ label: value, value }));
-
-const propertyOptions = [
-  "All Properties",
-  "Sunset Villa",
-  "Ocean View",
-  "Mountain Retreat",
-  "Downtown Loft",
-].map((value) => ({ label: value, value }));
-
-const categoryOptions = [
-  "All Categories",
-  "Property Management",
-  "Rental Income",
-  "Repairs & Maintenance",
-  "Utilities",
-  "Travel",
-].map((value) => ({ label: value, value }));
-
-const subcategoryOptions = [
-  "Select sub-category",
-  "Management Fees",
-  "Monthly Rent",
-  "Plumbing",
-  "Electricity",
-  "Flights",
-].map((value) => ({ label: value, value }));
+function normalizeRule(raw: Record<string, unknown>): CoreTransactionRule {
+  const conditions = Array.isArray(raw.conditions) ? raw.conditions : [];
+  return {
+    id: Number(raw.id ?? 0),
+    orgId: String(raw.org_id ?? ""),
+    entityId: String(raw.entity_id ?? ""),
+    propertyId: raw.property_id != null ? String(raw.property_id) : null,
+    name: String(raw.name ?? ""),
+    matchMode: String(raw.match_mode ?? "all"),
+    conditions: conditions.map((c: unknown) => {
+      const cond = c as Record<string, unknown>;
+      return { field: String(cond.field ?? ""), operator: String(cond.operator ?? ""), value: cond.value };
+    }),
+    assignedType: String(raw.assigned_type ?? ""),
+    assignedCategoryId: Number(raw.assigned_category_id ?? 0),
+    assignedSubcategoryId: Number(raw.assigned_subcategory_id ?? 0),
+    autoConfirm: Boolean(raw.auto_confirm),
+    isEnabled: Boolean(raw.is_enabled),
+    metadata: (raw.metadata && typeof raw.metadata === "object" && !Array.isArray(raw.metadata))
+      ? (raw.metadata as Record<string, unknown>)
+      : {},
+    createdBy: String(raw.created_by ?? ""),
+    updatedBy: String(raw.updated_by ?? ""),
+    createdAt: String(raw.created_at ?? ""),
+    updatedAt: String(raw.updated_at ?? ""),
+  };
+}
 
 function ChevronIcon() {
   return (
@@ -3965,26 +3960,255 @@ export function AddTransactionView({
   );
 }
 
-function RuleModal({
-  mode,
-  onClose,
-}: {
-  mode: "create" | "edit";
-  onClose: () => void;
-}) {
-  const [entity, setEntity] = useState("Select entity");
-  const [property, setProperty] = useState("All Properties");
-  const [match, setMatch] = useState("All");
-  const [field, setField] = useState("Description");
-  const [operator, setOperator] = useState("Contains");
-  const [type, setType] = useState("Select Type");
-  const [category, setCategory] = useState("Select Category");
-  const [subcategory, setSubcategory] = useState("Select Sub Category");
-  const [ruleName, setRuleName] = useState(mode === "edit" ? "A Rental" : "");
-  const [autoConfirm, setAutoConfirm] = useState(false);
-  const [enabled, setEnabled] = useState(mode === "create");
+type ConditionRow = { id: string; field: string; operator: string; value: string };
 
-  const canSave = Boolean(ruleName.trim()) && enabled;
+const RULE_FIELDS = ["description", "bank_text", "amount", "payee"];
+const RULE_FIELD_LABELS: Record<string, string> = {
+  description: "Description",
+  bank_text: "Bank text",
+  amount: "Amount",
+  payee: "Payee",
+};
+const RULE_OPERATORS = ["contains", "equals", "starts_with", "greater_than"];
+const RULE_OPERATOR_LABELS: Record<string, string> = {
+  contains: "Contains",
+  equals: "Equals",
+  starts_with: "Starts with",
+  greater_than: "Is greater than",
+};
+
+function makeConditionId() {
+  return Math.random().toString(36).slice(2);
+}
+
+function RuleModal({
+  entityId: fixedEntityId,
+  rule,
+  onClose,
+  onSaved,
+}: {
+  entityId?: string;
+  rule?: CoreTransactionRule | null;
+  onClose: () => void;
+  onSaved: (rule: CoreTransactionRule) => void;
+}) {
+  const mode = rule ? "edit" : "create";
+
+  const [token, setToken] = useState<string | null>(null);
+  const [entities, setEntities] = useState<{ id: string; name: string }[]>([]);
+  const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+
+  const [ruleName, setRuleName] = useState(rule?.name ?? "");
+  const [entityId, setEntityId] = useState(fixedEntityId ?? rule?.entityId ?? "");
+  const [propertyId, setPropertyId] = useState(rule?.propertyId ?? "");
+  const [matchMode, setMatchMode] = useState(rule?.matchMode ?? "all");
+  const [conditions, setConditions] = useState<ConditionRow[]>(() =>
+    rule && rule.conditions.length > 0
+      ? rule.conditions.map((c) => ({
+          id: makeConditionId(),
+          field: c.field,
+          operator: c.operator,
+          value: String(c.value ?? ""),
+        }))
+      : [{ id: makeConditionId(), field: "description", operator: "contains", value: "" }],
+  );
+  const [assignedType, setAssignedType] = useState<"expense" | "revenue">(
+    (rule?.assignedType as "expense" | "revenue") ?? "expense",
+  );
+  const [categoryId, setCategoryId] = useState<string>(
+    rule ? String(rule.assignedCategoryId) : "",
+  );
+  const [subcategoryId, setSubcategoryId] = useState<string>(
+    rule ? String(rule.assignedSubcategoryId) : "",
+  );
+  const [autoConfirm, setAutoConfirm] = useState(rule?.autoConfirm ?? false);
+  const [enabled, setEnabled] = useState(rule?.isEnabled ?? true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      const t = session?.getIdToken().getJwtToken() ?? null;
+      if (cancelled) return;
+      setToken(t);
+      if (!t) return;
+
+      if (!fixedEntityId) {
+        const res = await fetch("/api/entities", { headers: { Authorization: `Bearer ${t}` } });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { items?: { id: string; name: string }[] };
+        if (!cancelled) setEntities(data.items ?? []);
+      }
+    }
+    init();
+    return () => { cancelled = true; };
+  }, [fixedEntityId]);
+
+  useEffect(() => {
+    if (!token || !entityId) { setProperties([]); return; }
+    let cancelled = false;
+    fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { items?: { id: string; name: string }[] } | null) => {
+        if (!cancelled && data) setProperties(data.items ?? []);
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+  }, [token, entityId]);
+
+  useEffect(() => {
+    if (!token || !assignedType) { setCategories([]); return; }
+    let cancelled = false;
+    fetch(`/api/transactions/categories?type=${encodeURIComponent(assignedType)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { items?: CoreTransactionCategory[] } | null) => {
+        if (!cancelled && data) {
+          setCategories(data.items ?? []);
+          setCategoryId((prev) => {
+            const valid = (data.items ?? []).some((c) => String(c.id) === prev);
+            return valid ? prev : "";
+          });
+          setSubcategoryId("");
+          setSubcategories([]);
+        }
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+  }, [token, assignedType]);
+
+  useEffect(() => {
+    if (!token || !categoryId) { setSubcategories([]); return; }
+    let cancelled = false;
+    fetch(`/api/transactions/categories/${encodeURIComponent(categoryId)}/sub-categories`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { items?: CoreTransactionSubcategory[] } | null) => {
+        if (!cancelled && data) {
+          setSubcategories(data.items ?? []);
+          setSubcategoryId((prev) => {
+            const valid = (data.items ?? []).some((c) => String(c.id) === prev);
+            return valid ? prev : "";
+          });
+        }
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+  }, [token, categoryId]);
+
+  function addCondition() {
+    setConditions((prev) => [
+      ...prev,
+      { id: makeConditionId(), field: "description", operator: "contains", value: "" },
+    ]);
+  }
+
+  function removeCondition(id: string) {
+    setConditions((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  function updateCondition(id: string, patch: Partial<Omit<ConditionRow, "id">>) {
+    setConditions((prev) => prev.map((c) => c.id === id ? { ...c, ...patch } : c));
+  }
+
+  const canSave =
+    Boolean(ruleName.trim()) &&
+    Boolean(entityId) &&
+    conditions.every((c) => c.field && c.operator && c.value.trim()) &&
+    Boolean(categoryId) &&
+    Boolean(subcategoryId) &&
+    !isSaving;
+
+  async function handleSave() {
+    if (!token || !canSave) return;
+    setIsSaving(true);
+    setSaveError("");
+    try {
+      const body = {
+        name: ruleName.trim(),
+        property_id: propertyId || null,
+        match_mode: matchMode,
+        conditions: conditions.map((c) => ({ field: c.field, operator: c.operator, value: c.value })),
+        assigned_type: assignedType,
+        assigned_category_id: Number(categoryId),
+        assigned_subcategory_id: Number(subcategoryId),
+        auto_confirm: autoConfirm,
+        is_enabled: enabled,
+      };
+
+      let res: Response;
+      if (mode === "edit" && rule) {
+        res = await fetch(
+          `/api/entities/${encodeURIComponent(entityId)}/transaction-rules/${encodeURIComponent(rule.id)}`,
+          {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+      } else {
+        res = await fetch(
+          `/api/entities/${encodeURIComponent(entityId)}/transaction-rules`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { message?: string };
+        setSaveError(err.message || `Failed to save rule (${res.status})`);
+        return;
+      }
+      const saved = (await res.json()) as Record<string, unknown>;
+      onSaved(normalizeRule(saved));
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Unexpected error");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const entitySelectOptions: SelectOption[] = fixedEntityId
+    ? []
+    : [
+        { label: "Select entity", value: "" },
+        ...entities.map((e) => ({ label: e.name, value: e.id })),
+      ];
+
+  const propertySelectOptions: SelectOption[] = [
+    { label: "All Properties", value: "" },
+    ...properties.map((p) => ({ label: p.name, value: p.id })),
+  ];
+
+  const categorySelectOptions: SelectOption[] = [
+    { label: "Select category", value: "" },
+    ...categories.map((c) => ({ label: c.name, value: String(c.id) })),
+  ];
+
+  const subcategorySelectOptions: SelectOption[] = [
+    { label: "Select sub-category", value: "" },
+    ...subcategories.map((c) => ({ label: c.name, value: String(c.id) })),
+  ];
+
+  const fieldSelectOptions: SelectOption[] = RULE_FIELDS.map((f) => ({
+    label: RULE_FIELD_LABELS[f] ?? f,
+    value: f,
+  }));
+  const operatorSelectOptions: SelectOption[] = RULE_OPERATORS.map((o) => ({
+    label: RULE_OPERATOR_LABELS[o] ?? o,
+    value: o,
+  }));
 
   return (
     <div className="transaction-modal-layer">
@@ -4007,12 +4231,10 @@ function RuleModal({
 
         <div className="transaction-modal-body rule-modal-body">
           <label className="transaction-field">
-            <span className="transaction-field-label">
-              Rule Name<em>*</em>
-            </span>
+            <span className="transaction-field-label">Rule Name<em>*</em></span>
             <input
               type="text"
-              placeholder="e.g., A Rental"
+              placeholder="e.g., Rental income"
               value={ruleName}
               onChange={(event) => setRuleName(event.target.value)}
             />
@@ -4020,18 +4242,20 @@ function RuleModal({
 
           <h3>Entity & Property</h3>
           <div className="transaction-two-grid">
+            {!fixedEntityId && (
+              <StaticSelect
+                label="Entity"
+                required
+                value={entityId}
+                options={entitySelectOptions}
+                onChange={setEntityId}
+              />
+            )}
             <StaticSelect
-              value={entity}
-              options={[
-                { label: "Select entity", value: "Select entity" },
-                ...entityOptions.slice(1),
-              ]}
-              onChange={setEntity}
-            />
-            <StaticSelect
-              value={property}
-              options={propertyOptions}
-              onChange={setProperty}
+              label="Property"
+              value={propertyId}
+              options={propertySelectOptions}
+              onChange={setPropertyId}
             />
           </div>
 
@@ -4040,67 +4264,84 @@ function RuleModal({
             <div className="rule-match-row">
               <span>Match</span>
               <StaticSelect
-                value={match}
-                options={["All", "Any"].map((value) => ({ label: value, value }))}
-                onChange={setMatch}
+                value={matchMode}
+                options={[
+                  { label: "All", value: "all" },
+                  { label: "Any", value: "any" },
+                ]}
+                onChange={setMatchMode}
                 className="is-mini"
               />
               <span>of the following:</span>
             </div>
-            <div className="rule-condition-row">
-              <StaticSelect
-                value={field}
-                options={["Description", "Bank text", "Amount", "Payee"].map(
-                  (value) => ({ label: value, value }),
+            {conditions.map((cond, idx) => (
+              <div key={cond.id} className="rule-condition-row">
+                <StaticSelect
+                  value={cond.field}
+                  options={fieldSelectOptions}
+                  onChange={(v) => updateCondition(cond.id, { field: v })}
+                />
+                <StaticSelect
+                  value={cond.operator}
+                  options={operatorSelectOptions}
+                  onChange={(v) => updateCondition(cond.id, { operator: v })}
+                />
+                <input
+                  type="text"
+                  placeholder="Enter value"
+                  value={cond.value}
+                  onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
+                />
+                {conditions.length > 1 && (
+                  <button
+                    type="button"
+                    className="transaction-split-remove"
+                    aria-label={`Remove condition ${idx + 1}`}
+                    onClick={() => removeCondition(cond.id)}
+                  >
+                    Remove
+                  </button>
                 )}
-                onChange={setField}
-              />
-              <StaticSelect
-                value={operator}
-                options={["Contains", "Equals", "Starts with", "Is greater than"].map(
-                  (value) => ({ label: value, value }),
-                )}
-                onChange={setOperator}
-              />
-              <input type="text" placeholder="Enter value" />
-            </div>
-            <button type="button" className="rule-add-condition">
+              </div>
+            ))}
+            <button type="button" className="rule-add-condition" onClick={addCondition}>
               + Add a condition
-            </button>
-            <div className="rule-divider" />
-            <button type="button" className="transaction-cancel-button">
-              Test Rule
             </button>
           </section>
 
           <h3>Then Assign</h3>
-          <StaticSelect
-            label="Transaction Type"
-            value={type}
-            options={[
-              { label: "Select Type", value: "Select Type" },
-              { label: "Expense", value: "Expense" },
-              { label: "Income", value: "Income" },
-            ]}
-            onChange={setType}
-          />
+          <div className="transaction-type-control">
+            <span className="transaction-field-label">Transaction Type<em>*</em></span>
+            <div>
+              <button
+                type="button"
+                className={assignedType === "expense" ? "is-selected" : ""}
+                onClick={() => { setAssignedType("expense"); setCategoryId(""); setSubcategoryId(""); }}
+              >
+                Expense
+              </button>
+              <button
+                type="button"
+                className={assignedType === "revenue" ? "is-selected is-revenue" : ""}
+                onClick={() => { setAssignedType("revenue"); setCategoryId(""); setSubcategoryId(""); }}
+              >
+                Revenue
+              </button>
+            </div>
+          </div>
           <StaticSelect
             label="Category"
-            value={category}
-            options={[
-              { label: "Select Category", value: "Select Category" },
-              ...categoryOptions.slice(1),
-            ]}
-            onChange={setCategory}
+            required
+            value={categoryId}
+            options={categorySelectOptions}
+            onChange={(v) => { setCategoryId(v); setSubcategoryId(""); }}
           />
           <StaticSelect
             label="Sub Category"
-            value={subcategory}
-            options={[
-              { label: "Select Sub Category", value: "Select Sub Category" },
-              ...subcategoryOptions.slice(1),
-            ]}
-            onChange={setSubcategory}
+            required
+            value={subcategoryId}
+            options={subcategorySelectOptions}
+            onChange={setSubcategoryId}
           />
 
           <ToggleCard
@@ -4109,28 +4350,30 @@ function RuleModal({
             title="Automatically confirm transactions this rule applies to"
             subtitle="If disabled, the rule will suggest the category but require manual confirmation"
           />
-          {mode === "create" && (
-            <ToggleCard
-              checked={enabled}
-              onChange={setEnabled}
-              title="Enable this rule"
-              subtitle="If disabled, the rule will not be applied to transactions"
-              green
-            />
+          <ToggleCard
+            checked={enabled}
+            onChange={setEnabled}
+            title="Enable this rule"
+            subtitle="If disabled, the rule will not be applied to transactions"
+            green
+          />
+
+          {saveError && (
+            <p className="transaction-warning-card" role="alert">{saveError}</p>
           )}
         </div>
 
         <footer className="transaction-modal-footer">
-          <button type="button" className="transaction-cancel-button" onClick={onClose}>
+          <button type="button" className="transaction-cancel-button" onClick={onClose} disabled={isSaving}>
             Cancel
           </button>
           <button
             type="button"
             className="transaction-save-button"
             disabled={!canSave}
-            onClick={onClose}
+            onClick={handleSave}
           >
-            Save
+            {isSaving ? "Saving…" : "Save"}
           </button>
         </footer>
       </section>
@@ -4175,22 +4418,88 @@ function ToggleCard({
 
 export function TransactionRulesView({
   backHref = "/dashboard/accountant/transactions",
+  entityId,
 }: {
   backHref?: string;
+  entityId?: string;
 }) {
   const [query, setQuery] = useState("");
-  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [rules, setRules] = useState<CoreTransactionRule[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [selectedRule, setSelectedRule] = useState<CoreTransactionRule | null>(null);
+  const [showModal, setShowModal] = useState<"create" | "edit" | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!entityId) return;
+    let cancelled = false;
+    async function loadRules() {
+      setIsLoading(true);
+      setLoadError("");
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        const token = session?.getIdToken().getJwtToken();
+        if (!token || cancelled) return;
+        const res = await fetch(
+          `/api/entities/${encodeURIComponent(entityId!)}/transaction-rules`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok || cancelled) {
+          if (!cancelled) setLoadError(`Failed to load rules (${res.status})`);
+          return;
+        }
+        const data = (await res.json()) as { items?: Record<string, unknown>[] };
+        if (!cancelled) setRules((data.items ?? []).map(normalizeRule));
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Unexpected error");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    loadRules();
+    return () => { cancelled = true; };
+  }, [entityId]);
+
+  async function handleDelete(rule: CoreTransactionRule) {
+    if (!entityId) return;
+    setDeletingId(rule.id);
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      const token = session?.getIdToken().getJwtToken();
+      if (!token) return;
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(entityId)}/transaction-rules/${encodeURIComponent(rule.id)}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.ok) setRules((prev) => prev.filter((r) => r.id !== rule.id));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function handleSaved(saved: CoreTransactionRule) {
+    setRules((prev) => {
+      const idx = prev.findIndex((r) => r.id === saved.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = saved;
+        return next;
+      }
+      return [saved, ...prev];
+    });
+    setShowModal(null);
+    setSelectedRule(null);
+  }
 
   const filteredRules = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return rules;
     return rules.filter((rule) =>
-      [rule.name, rule.condition, rule.setting, rule.property]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized),
+      rule.name.toLowerCase().includes(normalized) ||
+      rule.conditions.some((c) => `${c.field} ${c.operator} ${c.value}`.toLowerCase().includes(normalized)),
     );
-  }, [query]);
+  }, [query, rules]);
 
   return (
     <section className="transactions-page transaction-rules-page">
@@ -4209,7 +4518,7 @@ export function TransactionRulesView({
         <button
           type="button"
           className="transaction-green-button"
-          onClick={() => setModalMode("create")}
+          onClick={() => { setSelectedRule(null); setShowModal("create"); }}
         >
           <span>+</span>
           New Rule
@@ -4228,50 +4537,96 @@ export function TransactionRulesView({
         </div>
       </section>
 
-      <div className="transaction-rule-table-wrap">
-        <table className="transaction-rule-table">
-          <thead>
-            <tr>
-              <th>Rule Name</th>
-              <th>Applied To</th>
-              <th>Conditions</th>
-              <th>Settings</th>
-              <th>Auto-Add</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRules.map((rule) => (
-              <tr key={rule.name}>
-                <td>
-                  <button type="button" onClick={() => setModalMode("edit")}>
-                    {rule.name}
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 16v-4" />
-                      <path d="M12 8h.01" />
-                    </svg>
-                  </button>
-                </td>
-                <td>
-                  <span className="rule-property-pill">{rule.property}</span>
-                </td>
-                <td>{rule.condition}</td>
-                <td>{rule.setting}</td>
-                <td>{rule.autoAdd}</td>
-                <td>
-                  <span className="rule-status-pill">{rule.status}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {isLoading ? (
+        <div className="transactions-showing-copy">Loading rules…</div>
+      ) : loadError ? (
+        <div className="transactions-showing-copy">{loadError}</div>
+      ) : (
+        <>
+          <div className="transaction-rule-table-wrap">
+            <table className="transaction-rule-table">
+              <thead>
+                <tr>
+                  <th>Rule Name</th>
+                  <th>Conditions</th>
+                  <th>Assigns</th>
+                  <th>Auto-Confirm</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRules.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <div className="transactions-empty-state">
+                        <strong>{rules.length === 0 ? "No rules yet." : "No rules match your search."}</strong>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredRules.map((rule) => (
+                  <tr key={rule.id}>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
+                      >
+                        {rule.name}
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                      </button>
+                    </td>
+                    <td>
+                      {rule.conditions.map((c, i) => (
+                        <span key={i} className="rule-property-pill">
+                          {RULE_FIELD_LABELS[c.field] ?? c.field}{" "}
+                          {RULE_OPERATOR_LABELS[c.operator] ?? c.operator}{" "}
+                          &ldquo;{String(c.value)}&rdquo;
+                        </span>
+                      ))}
+                    </td>
+                    <td>
+                      {rule.assignedType} — #{rule.assignedCategoryId} / #{rule.assignedSubcategoryId}
+                    </td>
+                    <td>{rule.autoConfirm ? "Yes" : "No"}</td>
+                    <td>
+                      <span className="rule-status-pill">{rule.isEnabled ? "Active" : "Inactive"}</span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="transaction-detail-delete-button"
+                        disabled={deletingId === rule.id}
+                        onClick={() => handleDelete(rule)}
+                        aria-label={`Delete rule ${rule.name}`}
+                      >
+                        {deletingId === rule.id ? "…" : (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                          </svg>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination copy={`Showing ${filteredRules.length} of ${rules.length} items`} />
+        </>
+      )}
 
-      <Pagination copy={`Showing ${filteredRules.length} of ${rules.length} items`} />
-
-      {modalMode && (
-        <RuleModal mode={modalMode} onClose={() => setModalMode(null)} />
+      {showModal && (
+        <RuleModal
+          entityId={entityId}
+          rule={showModal === "edit" ? selectedRule : null}
+          onClose={() => { setShowModal(null); setSelectedRule(null); }}
+          onSaved={handleSaved}
+        />
       )}
     </section>
   );

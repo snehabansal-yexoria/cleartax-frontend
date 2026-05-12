@@ -20,6 +20,7 @@ interface SessionWithIdToken {
 
 export type PropertyDetailViewProps = {
   propertyId: string;
+  entityId?: string;
   backHref: string;
   backLabel: string;
   editPropertyHref: string;
@@ -81,6 +82,7 @@ function getLoanAmount(property: CoreProperty | null) {
 
 export default function PropertyDetailView({
   propertyId,
+  entityId,
   backHref,
   backLabel,
   editPropertyHref,
@@ -333,7 +335,7 @@ export default function PropertyDetailView({
               compact
             />
           ) : currentTab === "rules" ? (
-            <TransactionRulesView backHref={backHref} />
+            <TransactionRulesView backHref={backHref} entityId={entityId} />
           ) : (
             <>
               <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
