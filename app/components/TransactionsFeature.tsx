@@ -3916,7 +3916,6 @@ export function AddTransactionView({
               onChange={(e) => setInternalRemarks(e.target.value)}
             />
           </label>
-          </fieldset>
 
           {submitError ? (
             <p className="transaction-warning-card" role="alert">
