@@ -363,6 +363,7 @@ function TransactionDetailPopup({
   error,
   isSaving,
   isDeleting,
+  relatedRules,
   onClose,
   onEdit,
   onCancelEdit,
@@ -376,6 +377,7 @@ function TransactionDetailPopup({
   error: string;
   isSaving: boolean;
   isDeleting: boolean;
+  relatedRules: CoreTransactionRule[];
   onClose: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -1135,6 +1137,54 @@ function TransactionDetailPopup({
               {invoiceName || "No invoice attached"}
             </button>
           </DetailField>
+
+          {mode !== "edit" ? (
+            <section className="transaction-detail-related-rules">
+              <h3>Related Rules</h3>
+              {relatedRules.length === 0 ? (
+                <p>No rules configured for this entity.</p>
+              ) : (
+                relatedRules.map((rule) => {
+                  const matched =
+                    detail?.ruleId != null && rule.id === detail.ruleId;
+                  const cat = categories.find(
+                    (c) => c.id === rule.assignedCategoryId,
+                  );
+                  const sub = subcategories.find(
+                    (s) => s.id === rule.assignedSubcategoryId,
+                  );
+                  return (
+                    <div
+                      key={rule.id}
+                      className={`transaction-detail-rule-card${
+                        matched ? " is-matched" : ""
+                      }`}
+                    >
+                      <div className="rule-card-head">
+                        <strong>{rule.name}</strong>
+                        {matched ? (
+                          <span className="rule-matched-badge">Matched</span>
+                        ) : null}
+                      </div>
+                      <DetailField label="Match Mode" value={rule.matchMode} />
+                      <DetailField
+                        label="Conditions"
+                        value={String(rule.conditions.length)}
+                      />
+                      <DetailField
+                        label="Assigned"
+                        value={`${cat?.name ?? rule.assignedCategoryId} / ${sub?.name ?? rule.assignedSubcategoryId}`}
+                      />
+                      <DetailField
+                        label="Enabled"
+                        value={rule.isEnabled ? "Yes" : "No"}
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </section>
+          ) : null}
         </div>
 
         <footer className="transaction-detail-actions">
@@ -1639,6 +1689,7 @@ export function AllTransactionsView({
   const [detailError, setDetailError] = useState("");
   const [isDetailSaving, setIsDetailSaving] = useState(false);
   const [isDetailDeleting, setIsDetailDeleting] = useState(false);
+  const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
   const contextKind = context.kind;
   const contextId =
     context.kind === "client"
@@ -1822,6 +1873,7 @@ export function AllTransactionsView({
   ) {
     setSelectedTransaction(row);
     setSelectedDetail(null);
+    setRelatedRules([]);
     setDetailMode(mode);
     setDetailError("");
     setIsDetailLoading(true);
@@ -1831,11 +1883,18 @@ export function AllTransactionsView({
         setDetailError("You're signed out.");
         return;
       }
-      const res = await fetch(`/api/transactions/${encodeURIComponent(row.id)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [detailRes, rulesRes] = await Promise.all([
+        fetch(`/api/transactions/${encodeURIComponent(row.id)}`, { headers }),
+        row.entityId
+          ? fetch(
+              `/api/entities/${encodeURIComponent(row.entityId)}/transaction-rules`,
+              { headers },
+            )
+          : Promise.resolve(null),
+      ]);
+      if (!detailRes.ok) {
+        const data = (await detailRes.json().catch(() => null)) as {
           error?: string;
           message?: string;
         } | null;
@@ -1844,10 +1903,16 @@ export function AllTransactionsView({
             data?.error ||
             "Showing table data. Full details could not be loaded.",
         );
-        return;
+      } else {
+        const detail = (await detailRes.json()) as CoreTransactionDetail;
+        setSelectedDetail(detail);
       }
-      const detail = (await res.json()) as CoreTransactionDetail;
-      setSelectedDetail(detail);
+      if (rulesRes && rulesRes.ok) {
+        const data = (await rulesRes.json()) as {
+          items?: Record<string, unknown>[];
+        };
+        setRelatedRules((data.items ?? []).map(normalizeRule));
+      }
     } catch (error) {
       console.error("Failed to load transaction detail:", error);
       setDetailError("Showing table data. Full details could not be loaded.");
@@ -2082,9 +2147,11 @@ export function AllTransactionsView({
           error={detailError}
           isSaving={isDetailSaving}
           isDeleting={isDetailDeleting}
+          relatedRules={relatedRules}
           onClose={() => {
             setSelectedTransaction(null);
             setSelectedDetail(null);
+            setRelatedRules([]);
             setDetailError("");
           }}
           onEdit={() => setDetailMode("edit")}
