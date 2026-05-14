@@ -2064,7 +2064,14 @@ export function AllTransactionsView({
           <p>View and manage all transactions across clients and properties</p>
         </div>
         <div className="transactions-head-actions">
-          <Link href={rulesHref} className="transaction-outline-button">
+          <Link
+            href={
+              contextKind === "entity" && contextId
+                ? `${rulesHref}?entityId=${encodeURIComponent(contextId)}`
+                : rulesHref
+            }
+            className="transaction-outline-button"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 4v16" />
               <path d="M18 4v16" />
@@ -4500,7 +4507,6 @@ export function TransactionRulesView({
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!entityId) return;
     let cancelled = false;
     async function loadRules() {
       setIsLoading(true);
@@ -4509,10 +4515,10 @@ export function TransactionRulesView({
         const session = (await getSession()) as SessionWithIdToken | null;
         const token = session?.getIdToken().getJwtToken();
         if (!token || cancelled) return;
-        const res = await fetch(
-          `/api/entities/${encodeURIComponent(entityId!)}/transaction-rules`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        const url = entityId
+          ? `/api/entities/${encodeURIComponent(entityId)}/transaction-rules`
+          : `/api/transaction-rules`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok || cancelled) {
           if (!cancelled) setLoadError(`Failed to load rules (${res.status})`);
           return;
@@ -4586,6 +4592,8 @@ export function TransactionRulesView({
         <button
           type="button"
           className="transaction-green-button"
+          disabled={!entityId}
+          title={!entityId ? "Select an entity to create a rule" : undefined}
           onClick={() => { setSelectedRule(null); setShowModal("create"); }}
         >
           <span>+</span>
