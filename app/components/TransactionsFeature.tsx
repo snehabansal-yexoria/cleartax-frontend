@@ -1884,15 +1884,10 @@ export function AllTransactionsView({
         return;
       }
       const headers = { Authorization: `Bearer ${token}` };
-      const [detailRes, rulesRes] = await Promise.all([
-        fetch(`/api/transactions/${encodeURIComponent(row.id)}`, { headers }),
-        row.entityId
-          ? fetch(
-              `/api/entities/${encodeURIComponent(row.entityId)}/transaction-rules`,
-              { headers },
-            )
-          : Promise.resolve(null),
-      ]);
+      const detailRes = await fetch(
+        `/api/transactions/${encodeURIComponent(row.id)}`,
+        { headers },
+      );
       if (!detailRes.ok) {
         const data = (await detailRes.json().catch(() => null)) as {
           error?: string;
@@ -1903,15 +1898,21 @@ export function AllTransactionsView({
             data?.error ||
             "Showing table data. Full details could not be loaded.",
         );
-      } else {
-        const detail = (await detailRes.json()) as CoreTransactionDetail;
-        setSelectedDetail(detail);
+        return;
       }
-      if (rulesRes && rulesRes.ok) {
-        const data = (await rulesRes.json()) as {
-          items?: Record<string, unknown>[];
-        };
-        setRelatedRules((data.items ?? []).map(normalizeRule));
+      const detail = (await detailRes.json()) as CoreTransactionDetail;
+      setSelectedDetail(detail);
+      if (detail.entityId) {
+        const rulesRes = await fetch(
+          `/api/entities/${encodeURIComponent(detail.entityId)}/transaction-rules`,
+          { headers },
+        );
+        if (rulesRes.ok) {
+          const data = (await rulesRes.json()) as {
+            items?: Record<string, unknown>[];
+          };
+          setRelatedRules((data.items ?? []).map(normalizeRule));
+        }
       }
     } catch (error) {
       console.error("Failed to load transaction detail:", error);
