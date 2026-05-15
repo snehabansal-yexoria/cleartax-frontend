@@ -10,7 +10,11 @@ import {
   TransactionRulesView,
 } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
-import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import type {
+  CoreEntity,
+  CoreProperty,
+  CorePropertyTransactionRow,
+} from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -24,6 +28,7 @@ export type PropertyDetailViewProps = {
   backHref: string;
   backLabel: string;
   editPropertyHref: string;
+  reviewFormHref?: string;
 };
 
 type PropertyTab = "transactions" | "documents" | "rules";
@@ -32,16 +37,6 @@ const propertyTabs: { id: PropertyTab; label: string }[] = [
   { id: "transactions", label: "Transactions" },
   { id: "documents", label: "Documents" },
   { id: "rules", label: "Transaction Rules" },
-];
-
-const trendMonths = [
-  { month: "Oct", expenses: 61, income: 54 },
-  { month: "Nov", expenses: 61, income: 74 },
-  { month: "Dec", expenses: 61, income: 74 },
-  { month: "Jan", expenses: 61, income: 61 },
-  { month: "Feb", expenses: 61, income: 67 },
-  { month: "Mar", expenses: 49, income: 43 },
-  { month: "Apr", expenses: 61, income: 66 },
 ];
 
 function titleCase(value: string) {
@@ -80,19 +75,43 @@ function getLoanAmount(property: CoreProperty | null) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function monthKey(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+  if (Number.isNaN(date.getTime())) return key;
+  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
+}
+
 export default function PropertyDetailView({
   propertyId,
   entityId,
   backHref,
   backLabel,
   editPropertyHref,
+  reviewFormHref,
 }: PropertyDetailViewProps) {
   const router = useRouter();
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [entity, setEntity] = useState<CoreEntity | null>(null);
+  const [transactions, setTransactions] = useState<CorePropertyTransactionRow[]>(
+    [],
+  );
   const [currentTab, setCurrentTab] = useState<PropertyTab>("transactions");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "transactions" || tab === "documents" || tab === "rules") {
+      setCurrentTab(tab);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,10 +125,14 @@ export default function PropertyDetailView({
         }
         const token = session.getIdToken().getJwtToken();
 
-        const propertyRes = await fetch(
-          `/api/properties/${encodeURIComponent(propertyId)}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        const [propertyRes, transactionsRes] = await Promise.all([
+          fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/properties/${encodeURIComponent(propertyId)}/transactions`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
         if (cancelled) return;
         if (!propertyRes.ok) {
@@ -119,6 +142,12 @@ export default function PropertyDetailView({
 
         const loadedProperty = (await propertyRes.json()) as CoreProperty;
         setProperty(loadedProperty);
+        if (transactionsRes.ok) {
+          const data = (await transactionsRes.json()) as {
+            items?: CorePropertyTransactionRow[];
+          };
+          setTransactions(data.items || []);
+        }
 
         const entityRes = await fetch(
           `/api/entities/${encodeURIComponent(loadedProperty.entityId)}`,
@@ -144,6 +173,46 @@ export default function PropertyDetailView({
   }, [propertyId, router]);
 
   const loanAmount = useMemo(() => getLoanAmount(property), [property]);
+  const transactionSummary = useMemo(() => {
+    const totals = transactions.reduce(
+      (acc, row) => {
+        const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount);
+        if (row.transactionType === "revenue") acc.income += amount;
+        else acc.expenses += amount;
+        return acc;
+      },
+      { income: 0, expenses: 0 },
+    );
+
+    return {
+      ...totals,
+      net: totals.income - totals.expenses,
+      count: transactions.length,
+    };
+  }, [transactions]);
+  const trendRows = useMemo(() => {
+    const byMonth = new Map<string, { month: string; expenses: number; income: number }>();
+    for (const row of transactions) {
+      const key = monthKey(row.invoiceDate);
+      if (!key) continue;
+      const current = byMonth.get(key) || {
+        month: key,
+        expenses: 0,
+        income: 0,
+      };
+      const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount);
+      if (row.transactionType === "revenue") current.income += amount;
+      else current.expenses += amount;
+      byMonth.set(key, current);
+    }
+    return Array.from(byMonth.values())
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-7);
+  }, [transactions]);
+  const maxTrendAmount = Math.max(
+    1,
+    ...trendRows.flatMap((row) => [row.expenses, row.income]),
+  );
 
   if (isLoading) {
     return (
@@ -198,9 +267,15 @@ export default function PropertyDetailView({
             <Link href={editPropertyHref} className="property-outline-button">
               Edit Details
             </Link>
-            <button type="button" className="property-review-button">
+            <Link
+              href={
+                reviewFormHref ||
+                editPropertyHref.replace(/\/edit$/, "/logit-form-review")
+              }
+              className="property-review-button"
+            >
               Review Form
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -227,7 +302,7 @@ export default function PropertyDetailView({
           </div>
           <div>
             <dt>Total Transactions</dt>
-            <dd>0</dd>
+            <dd>{transactionSummary.count}</dd>
           </div>
         </dl>
       </header>
@@ -235,15 +310,17 @@ export default function PropertyDetailView({
       <div className="client-stat-grid property-metric-grid">
         <article className="client-stat-card">
           <span>Total Income</span>
-          <strong>$0</strong>
+          <strong>{formatCurrency(transactionSummary.income)}</strong>
         </article>
         <article className="client-stat-card">
           <span>Total Expenses</span>
-          <strong>$0</strong>
+          <strong>{formatCurrency(transactionSummary.expenses)}</strong>
         </article>
         <article className="client-stat-card">
           <span>Net Profit</span>
-          <strong className="is-profit">$0</strong>
+          <strong className={transactionSummary.net >= 0 ? "is-profit" : ""}>
+            {formatCurrency(transactionSummary.net)}
+          </strong>
         </article>
       </div>
 
@@ -273,32 +350,65 @@ export default function PropertyDetailView({
           </div>
         </div>
 
-        <div className="entity-chart">
-          <div className="entity-chart-y">
-            <span>$6k</span>
-            <span>$4.5k</span>
-            <span>$3k</span>
-            <span>$1.5k</span>
-            <span>$0k</span>
+        {trendRows.length === 0 ? (
+          <div className="property-trend-empty">
+            No transactions are available for this property yet.
           </div>
-          <div className="entity-chart-plot">
-            {trendMonths.map((item) => (
-              <div key={item.month} className="entity-chart-month">
-                <div className="entity-chart-bars">
-                  <span
-                    className="is-expense"
-                    style={{ height: `${item.expenses}%` }}
-                  />
-                  <span
-                    className="is-income"
-                    style={{ height: `${item.income}%` }}
-                  />
-                </div>
-                <span>{item.month}</span>
+        ) : (
+          <div className="property-trend-grid">
+            <div className="entity-chart">
+              <div className="entity-chart-y">
+                <span>{formatCurrency(maxTrendAmount)}</span>
+                <span>{formatCurrency(maxTrendAmount * 0.75)}</span>
+                <span>{formatCurrency(maxTrendAmount * 0.5)}</span>
+                <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
+                <span>{formatCurrency(0)}</span>
               </div>
-            ))}
+              <div className="entity-chart-plot">
+                {trendRows.map((item) => (
+                  <div key={item.month} className="entity-chart-month">
+                    <div className="entity-chart-bars">
+                      <span
+                        className="is-expense"
+                        style={{
+                          height: `${Math.max(
+                            3,
+                            (item.expenses / maxTrendAmount) * 100,
+                          )}%`,
+                        }}
+                      />
+                      <span
+                        className="is-income"
+                        style={{
+                          height: `${Math.max(
+                            3,
+                            (item.income / maxTrendAmount) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <span>{monthLabel(item.month)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="property-trend-table">
+              <div>
+                <strong>Month</strong>
+                <strong>Income</strong>
+                <strong>Expenses</strong>
+              </div>
+              {trendRows.map((item) => (
+                <div key={item.month}>
+                  <span>{monthLabel(item.month)}</span>
+                  <span>{formatCurrency(item.income)}</span>
+                  <span>{formatCurrency(item.expenses)}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="entity-chart-legend">
           <span>

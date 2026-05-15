@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
@@ -19,6 +19,11 @@ import {
   DocumentDropZone,
   type ExtractedDocumentData,
 } from "@/app/components/DocumentDropZone";
+import {
+  announceDropdownOpen,
+  dropdownRegistryEvent,
+  isDropdownRegistryEvent,
+} from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -59,6 +64,15 @@ const defaultTransactionFilters: TransactionFilters = {
   type: "all",
   category: "all",
 };
+
+function appendUrlParam(href: string, key: string, value: string) {
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
+function isSafeInternalHref(value: string | null) {
+  return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
+}
 
 const NUMERIC_FORMATTER = new Intl.NumberFormat("en-AU", {
   style: "currency",
@@ -197,8 +211,26 @@ function StaticSelect({
   className = "",
   disabled = false,
 }: StaticSelectProps) {
+  const reactId = useId();
+  const dropdownId = `transaction-select-${reactId}`;
   const [isOpen, setIsOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
+
+  useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (
+        isDropdownRegistryEvent(event) &&
+        event.detail?.id &&
+        event.detail.id !== dropdownId
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, [dropdownId]);
 
   return (
     <div className={`transaction-field ${className}`}>
@@ -225,7 +257,13 @@ function StaticSelect({
           aria-expanded={isOpen}
           disabled={disabled}
           onClick={() => {
-            if (!disabled) setIsOpen((current) => !current);
+            if (!disabled) {
+              setIsOpen((current) => {
+                const next = !current;
+                if (next) announceDropdownOpen(dropdownId);
+                return next;
+              });
+            }
           }}
         >
           <span>{selected?.label || placeholder || "Select"}</span>
@@ -1665,13 +1703,20 @@ export function AllTransactionsView({
   context = { kind: "none" },
   addTransactionHref = "/dashboard/accountant/transactions/new",
   rulesHref = "/dashboard/accountant/transactions/rules",
+  rulesButtonLabel = "Transaction Rules",
+  rulesButtonClassName = "transaction-outline-button",
+  rulesButtonIcon = "rules",
   compact = false,
 }: {
   context?: TransactionsContext;
   addTransactionHref?: string;
   rulesHref?: string;
+  rulesButtonLabel?: string;
+  rulesButtonClassName?: string;
+  rulesButtonIcon?: "rules" | "reconcile";
   compact?: boolean;
 }) {
+  const pathname = usePathname();
   const [rows, setRows] = useState<DisplayTransactionRow[]>([]);
   const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
   const [filters, setFilters] = useState<TransactionFilters>(
@@ -2055,6 +2100,19 @@ export function AllTransactionsView({
       : contextKind === "client"
         ? "client"
         : "entity";
+  const returnToHref = appendUrlParam(pathname || "/dashboard/accountant/transactions", "tab", "transactions");
+  const rulesTargetHref = appendUrlParam(
+    contextKind === "entity" && contextId
+      ? appendUrlParam(rulesHref, "entityId", contextId)
+      : rulesHref,
+    "returnTo",
+    returnToHref,
+  );
+  const addTransactionTargetHref = appendUrlParam(
+    addTransactionHref,
+    "returnTo",
+    returnToHref,
+  );
 
   return (
     <section className={`transactions-page${compact ? " is-compact" : ""}`}>
@@ -2065,23 +2123,27 @@ export function AllTransactionsView({
         </div>
         <div className="transactions-head-actions">
           <Link
-            href={
-              contextKind === "entity" && contextId
-                ? `${rulesHref}?entityId=${encodeURIComponent(contextId)}`
-                : rulesHref
-            }
-            className="transaction-outline-button"
+            href={rulesTargetHref}
+            className={rulesButtonClassName}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 4v16" />
-              <path d="M18 4v16" />
-              <path d="M4 8h4" />
-              <path d="M16 16h4" />
-              <path d="M10 12h4" />
-            </svg>
-            Transaction Rules
+            {rulesButtonIcon === "reconcile" ? (
+              <svg width="20" height="19" viewBox="0 0 20 19" aria-hidden="true">
+                <path d="M12.8353 16.6232H17.7478C18.6193 16.6232 19.3324 15.9101 19.3324 15.0385V4.81741C19.3324 4.6114 19.2532 4.40539 19.1264 4.24692C19.1106 4.23108 19.0947 4.21523 19.0789 4.19938L15.1172 0.237701C15.1014 0.221854 15.0855 0.206007 15.0697 0.206007C14.9112 0.0792335 14.7052 0 14.4992 0H8.87371C8.00216 0 7.28906 0.713103 7.28906 1.58467C7.28906 1.75899 7.43168 1.90161 7.60599 1.90161C7.7803 1.90161 7.92292 1.75899 7.92292 1.58467C7.92292 1.06173 8.35078 0.633869 8.87371 0.633869H14.4992C14.5626 0.633869 14.626 0.665563 14.6735 0.697256C14.7211 0.744796 14.7369 0.808183 14.7369 0.87157V2.99503C14.7369 3.8666 15.45 4.57971 16.3216 4.57971H18.4609C18.5242 4.57971 18.5876 4.6114 18.6352 4.64309C18.6827 4.69063 18.6986 4.75402 18.6986 4.81741V15.0385C18.6986 15.5615 18.2707 15.9894 17.7478 15.9894H12.8353C12.661 15.9894 12.5184 16.132 12.5184 16.3063C12.5184 16.4806 12.661 16.6232 12.8353 16.6232ZM15.3708 2.99503V1.37867L17.9379 3.94584H16.3216C15.7986 3.94584 15.3708 3.51797 15.3708 2.99503Z" />
+                <path d="M12.0434 17.0983V15.3552C12.0434 15.1808 11.9007 15.0382 11.7264 15.0382C11.5521 15.0382 11.4095 15.1808 11.4095 15.3552V17.0983C11.4095 17.7956 10.839 18.366 10.1418 18.366H1.58465C1.06172 18.366 0.633861 17.9382 0.633861 17.4152V7.19409C0.633861 7.13071 0.665554 7.06732 0.697246 7.01978C0.72894 6.97224 0.808172 6.95639 0.871558 6.95639H3.01084C3.8824 6.95639 4.59549 6.24329 4.59549 5.37172V3.23241C4.59549 3.16902 4.62718 3.10564 4.65887 3.0581C4.70641 3.01056 4.7698 2.99471 4.83319 2.99471H10.4587C10.9816 2.99471 11.4095 3.42257 11.4095 3.94551V6.79792C11.4095 6.97224 11.5521 7.11486 11.7264 7.11486C11.9007 7.11486 12.0434 6.97224 12.0434 6.79792V3.94551C12.0434 3.07394 11.3303 2.36084 10.4587 2.36084H4.83319C4.62718 2.36084 4.42118 2.44007 4.26271 2.56685C4.24687 2.58269 0.221851 6.60776 0.206005 6.62361C0.0792324 6.78208 0 6.98809 0 7.19409V17.4152C0 18.2868 0.713093 18.9999 1.58465 18.9999H10.1259C11.1876 18.9999 12.0434 18.1442 12.0434 17.0983ZM3.01084 6.32252H1.39449L3.96163 3.75535V5.37172C3.96163 5.89466 3.53377 6.32252 3.01084 6.32252Z" />
+                <path d="M12.9164 15.4979C12.9956 15.5296 13.0748 15.5455 13.154 15.5455C13.3125 15.5455 13.4868 15.4821 13.5978 15.3553L15.848 13.1051C16.1015 12.8515 16.1015 12.4554 15.848 12.2018L13.6136 9.96742C13.4393 9.7931 13.154 9.72972 12.9164 9.8248C12.6787 9.93572 12.5202 10.1576 12.5202 10.4111V10.7598H7.29084C7.11653 10.7598 6.97391 10.9024 6.97391 11.0767V11.7423L4.7237 9.49202L6.97391 7.24178V7.90734C6.97391 8.08166 7.11653 8.22428 7.29084 8.22428H12.8371C13.0114 8.22428 13.154 8.08166 13.154 7.90734C13.154 7.73303 13.0114 7.59041 12.8371 7.59041H7.60777V7.24178C7.60777 6.98823 7.4493 6.75053 7.21161 6.65545C6.97391 6.56037 6.70452 6.60791 6.51436 6.79807L4.28 9.04831C4.15323 9.17508 4.08984 9.33355 4.08984 9.49202C4.08984 9.65048 4.15323 9.8248 4.28 9.93572L6.53021 12.186C6.70452 12.3603 6.98976 12.4237 7.22745 12.3286C7.46515 12.2335 7.62362 11.9958 7.62362 11.7423V11.3936H12.853C13.0273 11.3936 13.1699 11.251 13.1699 11.0767V10.4111L15.4201 12.6614L13.154 14.9116V14.246C13.154 14.0717 13.0114 13.9291 12.8371 13.9291H7.29084C7.11653 13.9291 6.97391 14.0717 6.97391 14.246C6.97391 14.4203 7.11653 14.563 7.29084 14.563H12.5202V14.9116C12.5202 15.1651 12.6787 15.387 12.9164 15.4979Z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 4v16" />
+                <path d="M18 4v16" />
+                <path d="M4 8h4" />
+                <path d="M16 16h4" />
+                <path d="M10 12h4" />
+              </svg>
+            )}
+            {rulesButtonLabel}
           </Link>
-          <Link href={addTransactionHref} className="transaction-primary-button">
+          <Link href={addTransactionTargetHref} className="transaction-primary-button">
             <span>+</span>
             Add Transaction
           </Link>
@@ -2605,6 +2667,7 @@ export function AddTransactionView({
   backLabel?: string;
 }) {
   const router = useRouter();
+  const [effectiveBackHref, setEffectiveBackHref] = useState(backHref);
 
   const [token, setToken] = useState<string | null>(null);
   const [tokenLoaded, setTokenLoaded] = useState(false);
@@ -2679,6 +2742,11 @@ export function AddTransactionView({
   }, []);
 
   useEffect(() => {
+    const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
+    setEffectiveBackHref(
+      isSafeInternalHref(returnToParam) ? returnToParam || backHref : backHref,
+    );
+
     const propertyIdParam = new URLSearchParams(window.location.search).get(
       "propertyId",
     );
@@ -2687,7 +2755,7 @@ export function AddTransactionView({
       setPropertyId(propertyIdParam);
       setIsEditingProperty(false);
     }
-  }, []);
+  }, [backHref]);
 
   useEffect(() => {
     setActiveClientId(clientId ?? "");
@@ -2865,10 +2933,10 @@ export function AddTransactionView({
   useEffect(() => {
     if (!isMarked) return undefined;
     const timer = window.setTimeout(() => {
-      router.push(backHref);
+      router.push(effectiveBackHref);
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [backHref, isMarked, router]);
+  }, [effectiveBackHref, isMarked, router]);
 
   const grossNumberValue = Number.parseFloat(grossAmount);
   const splitTotal = splitRows.reduce(
@@ -2912,8 +2980,6 @@ export function AddTransactionView({
   const hasNoProperties =
     !!activeEntityId && propertiesLoaded && properties.length === 0;
   const canSplitTransaction = properties.length > 1;
-  const disableTransactionDetails =
-    mustChooseClientFirst || !activeEntityId || !propertyId || hasNoProperties;
 
   useEffect(() => {
     if (lockAssetPurchaseCategory && !categoryId && categories[0]) {
@@ -2973,7 +3039,15 @@ export function AddTransactionView({
   }
 
   function handleSplitToggle(checked: boolean) {
-    if (checked && !canSplitTransaction) return;
+    if (checked && !canSplitTransaction) {
+      setSubmitError(
+        properties.length === 1
+          ? "Split transactions need at least two properties in this entity. This entity only has one property."
+          : "Add at least two properties to this entity before creating a split transaction.",
+      );
+      return;
+    }
+    setSubmitError("");
     setIsSplit(checked);
     if (checked) {
       setSplitRows((rows) => {
@@ -3645,7 +3719,7 @@ export function AddTransactionView({
 
   return (
     <section className="transactions-page transaction-add-page">
-      <Link href={backHref} className="entity-wizard-back transaction-back-link">
+      <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15 6l-6 6 6 6" />
         </svg>
@@ -3870,7 +3944,6 @@ export function AddTransactionView({
             <input
               type="checkbox"
               checked={isSplit}
-              disabled={!canSplitTransaction}
               onChange={(e) => handleSplitToggle(e.target.checked)}
             />
             <span>Is this a split transaction?</span>
@@ -3994,7 +4067,7 @@ export function AddTransactionView({
           ) : null}
 
           <div className="transaction-form-actions">
-            <Link href={backHref} className="transaction-cancel-button">
+            <Link href={effectiveBackHref} className="transaction-cancel-button">
               Cancel
             </Link>
             <button

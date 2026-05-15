@@ -1,9 +1,14 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import type { CoreEntity, CoreProperty, PropertyType } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
+import {
+  announceDropdownOpen,
+  dropdownRegistryEvent,
+  isDropdownRegistryEvent,
+} from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -44,6 +49,12 @@ type OwnerRow = {
   entityBeneficiaryId: number;
   name: string;
   percentage: string;
+};
+
+type UploadedDocumentRef = {
+  documentId: string;
+  s3Key: string;
+  filename: string;
 };
 
 export type AddPropertyWizardProps = {
@@ -101,6 +112,84 @@ function getStatusDetail(
   return value == null ? "" : String(value);
 }
 
+function getUploadedDocument(
+  property: CoreProperty | undefined,
+): UploadedDocumentRef | null {
+  const loanDetails = property?.loanDetails;
+  if (!loanDetails) return null;
+  const documentId = String(
+    loanDetails.depreciation_schedule_document_id ??
+      loanDetails.depreciationScheduleDocumentId ??
+      "",
+  );
+  const s3Key = String(
+    loanDetails.depreciation_schedule_s3_key ??
+      loanDetails.depreciationScheduleS3Key ??
+      "",
+  );
+  const filename = String(
+    loanDetails.depreciation_schedule_filename ??
+      loanDetails.depreciationScheduleFilename ??
+      "",
+  );
+  if (!documentId && !s3Key) return null;
+  return { documentId, s3Key, filename };
+}
+
+async function uploadViaPresign({
+  token,
+  file,
+  onProgress,
+}: {
+  token: string;
+  file: File;
+  onProgress?: (progress: number) => void;
+}) {
+  onProgress?.(5);
+  const presignRes = await fetch(
+    `/api/documents/presign?filename=${encodeURIComponent(file.name)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!presignRes.ok) {
+    const payload = await presignRes.json().catch(() => ({}));
+    throw new Error(
+      payload?.message ||
+        payload?.error ||
+        `Failed to prepare upload (${presignRes.status}).`,
+    );
+  }
+  const { upload_url, s3_key, document_id } = (await presignRes.json()) as {
+    upload_url: string;
+    s3_key: string;
+    document_id: string;
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", upload_url);
+    request.setRequestHeader(
+      "Content-Type",
+      file.type || "application/octet-stream",
+    );
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress?.(Math.min(98, Math.round((event.loaded / event.total) * 100)));
+    };
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress?.(100);
+        resolve();
+      } else {
+        reject(new Error(`Upload failed (${request.status}).`));
+      }
+    };
+    request.onerror = () => reject(new Error("Upload failed."));
+    request.send(file);
+  });
+
+  return { documentId: document_id, s3Key: s3_key, filename: file.name };
+}
+
 function getInitialOwners(
   entity: CoreEntity,
   initialProperty: CoreProperty | undefined,
@@ -132,6 +221,8 @@ export default function AddPropertyWizard({
   mode = "create",
   initialProperty,
 }: AddPropertyWizardProps) {
+  const propertyTypeDropdownId = `property-type-${useId()}`;
+  const statusDropdownId = `property-status-${useId()}`;
   const [step, setStep] = useState<PropertyStep>(1);
   const [propertyName, setPropertyName] = useState(initialProperty?.name ?? "");
   const [propertyType, setPropertyType] = useState<PropertyType>(
@@ -170,6 +261,16 @@ export default function AddPropertyWizard({
     getStatusDetail(initialProperty, "renovation_end_date"),
   );
   const [imageUrl, setImageUrl] = useState(initialProperty?.imageUrl ?? "");
+  const [propertyImageName, setPropertyImageName] = useState("");
+  const [propertyImageProgress, setPropertyImageProgress] = useState(0);
+  const [isUploadingPropertyImage, setIsUploadingPropertyImage] =
+    useState(false);
+  const [depreciationScheduleDocument, setDepreciationScheduleDocument] =
+    useState<UploadedDocumentRef | null>(getUploadedDocument(initialProperty));
+  const [depreciationUploadProgress, setDepreciationUploadProgress] =
+    useState(0);
+  const [isUploadingDepreciationSchedule, setIsUploadingDepreciationSchedule] =
+    useState(false);
   const [owners, setOwners] = useState<OwnerRow[]>(
     getInitialOwners(entity, initialProperty),
   );
@@ -191,14 +292,6 @@ export default function AddPropertyWizard({
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [lastRequestPayload, setLastRequestPayload] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
-  const [lastResponsePayload, setLastResponsePayload] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
 
   const isEditMode = mode === "edit";
   const takesOwnershipDetails = entity.entityType === "individual";
@@ -247,6 +340,20 @@ export default function AddPropertyWizard({
     (owners.length > 0 && ownershipAboveZero && ownershipWithinLimit);
 
   useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (!isDropdownRegistryEvent(event)) return;
+      const id = event.detail?.id;
+      if (!id) return;
+      if (id !== propertyTypeDropdownId) setIsPropertyTypeOpen(false);
+      if (id !== statusDropdownId) setIsStatusOpen(false);
+    }
+
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, [propertyTypeDropdownId, statusDropdownId]);
+
+  useEffect(() => {
     if (!initialProperty) {
       setOwners(getInitialOwners(entity, undefined));
       return;
@@ -273,6 +380,10 @@ export default function AddPropertyWizard({
       getStatusDetail(initialProperty, "renovation_end_date"),
     );
     setImageUrl(initialProperty.imageUrl ?? "");
+    setPropertyImageName("");
+    setPropertyImageProgress(0);
+    setDepreciationScheduleDocument(getUploadedDocument(initialProperty));
+    setDepreciationUploadProgress(0);
     setOwners(getInitialOwners(entity, initialProperty));
     setBankName(getLoanDetail(initialProperty, "bank_name"));
     setBsbNumber(getLoanDetail(initialProperty, "bsb_number"));
@@ -305,6 +416,70 @@ export default function AddPropertyWizard({
   function selectPropertyType(nextType: PropertyType) {
     setPropertyType(nextType);
     setIsPropertyTypeOpen(false);
+  }
+
+  async function handlePropertyImageUpload(file: File | undefined) {
+    if (!file || isUploadingPropertyImage) return;
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please upload an image file for the property image.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsUploadingPropertyImage(true);
+    setPropertyImageName(file.name);
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        setErrorMessage("Your session has expired. Please log in again.");
+        return;
+      }
+      const token = session.getIdToken().getJwtToken();
+      const uploaded = await uploadViaPresign({
+        token,
+        file,
+        onProgress: setPropertyImageProgress,
+      });
+      setImageUrl(uploaded.s3Key);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to upload property image.",
+      );
+      setPropertyImageProgress(0);
+    } finally {
+      setIsUploadingPropertyImage(false);
+    }
+  }
+
+  async function handleDepreciationScheduleUpload(file: File | undefined) {
+    if (!file || isUploadingDepreciationSchedule) return;
+    setErrorMessage("");
+    setIsUploadingDepreciationSchedule(true);
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        setErrorMessage("Your session has expired. Please log in again.");
+        return;
+      }
+      const token = session.getIdToken().getJwtToken();
+      const uploaded = await uploadViaPresign({
+        token,
+        file,
+        onProgress: setDepreciationUploadProgress,
+      });
+      setDepreciationScheduleDocument(uploaded);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to upload depreciation schedule.",
+      );
+      setDepreciationUploadProgress(0);
+    } finally {
+      setIsUploadingDepreciationSchedule(false);
+    }
   }
 
   function buildStatusDetails() {
@@ -393,10 +568,17 @@ export default function AddPropertyWizard({
       const loanDetails = {
         ...(buildLoanDetails() || {}),
         property_status_details: buildStatusDetails(),
+        ...(depreciationScheduleDocument
+          ? {
+              depreciation_schedule_document_id:
+                depreciationScheduleDocument.documentId,
+              depreciation_schedule_s3_key: depreciationScheduleDocument.s3Key,
+              depreciation_schedule_filename:
+                depreciationScheduleDocument.filename,
+            }
+          : {}),
       };
       body.loan_details = loanDetails;
-      setLastRequestPayload(body);
-      setLastResponsePayload(null);
 
       const url =
         isEditMode && initialProperty
@@ -414,7 +596,6 @@ export default function AddPropertyWizard({
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        setLastResponsePayload(payload as Record<string, unknown>);
         setErrorMessage(
           payload?.error ||
             payload?.message ||
@@ -424,7 +605,6 @@ export default function AddPropertyWizard({
       }
 
       const payload = (await res.json()) as CoreProperty;
-      setLastResponsePayload(payload as unknown as Record<string, unknown>);
       return payload;
     } finally {
       setIsSaving(false);
@@ -532,7 +712,13 @@ export default function AddPropertyWizard({
                   aria-haspopup="listbox"
                   aria-expanded={isPropertyTypeOpen}
                   aria-labelledby="property-type-label"
-                  onClick={() => setIsPropertyTypeOpen((current) => !current)}
+                  onClick={() =>
+                    setIsPropertyTypeOpen((current) => {
+                      const next = !current;
+                      if (next) announceDropdownOpen(propertyTypeDropdownId);
+                      return next;
+                    })
+                  }
                 >
                   <span>
                     {
@@ -637,12 +823,44 @@ export default function AddPropertyWizard({
                 <input
                   type="radio"
                   checked={!hasDepreciationSchedule}
-                  onChange={() => setHasDepreciationSchedule(false)}
+                  onChange={() => {
+                    setHasDepreciationSchedule(false);
+                    setDepreciationScheduleDocument(null);
+                    setDepreciationUploadProgress(0);
+                  }}
                 />
                 No
               </label>
             </fieldset>
           </div>
+
+          {hasDepreciationSchedule && (
+            <div className="property-upload-card">
+              <div>
+                <strong>Depreciation Schedule</strong>
+                <span>
+                  {depreciationScheduleDocument?.filename ||
+                    "Upload the supporting schedule document"}
+                </span>
+              </div>
+              <label className="property-upload-button">
+                {isUploadingDepreciationSchedule
+                  ? `${depreciationUploadProgress}%`
+                  : depreciationScheduleDocument
+                    ? "Replace"
+                    : "Upload"}
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  disabled={isUploadingDepreciationSchedule}
+                  onChange={(event) => {
+                    handleDepreciationScheduleUpload(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
 
           <div className="entity-wizard-label">
             <span id="property-status-label">
@@ -662,7 +880,13 @@ export default function AddPropertyWizard({
                 aria-haspopup="listbox"
                 aria-expanded={isStatusOpen}
                 aria-labelledby="property-status-label"
-                onClick={() => setIsStatusOpen((current) => !current)}
+                onClick={() =>
+                  setIsStatusOpen((current) => {
+                    const next = !current;
+                    if (next) announceDropdownOpen(statusDropdownId);
+                    return next;
+                  })
+                }
               >
                 <span>{status}</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -753,22 +977,42 @@ export default function AddPropertyWizard({
             </div>
           )}
 
-          <label className="entity-wizard-label">
-            Property Image URL
-            <input
-              type="url"
-              placeholder="https://example.com/property.jpg"
-              value={imageUrl}
-              onChange={(event) => setImageUrl(event.target.value)}
-            />
-          </label>
+          <div className="property-upload-card">
+            <div>
+              <strong>Property Image</strong>
+              <span>
+                {propertyImageName ||
+                  (imageUrl ? "Image uploaded" : "Upload a property image")}
+              </span>
+            </div>
+            <label className="property-upload-button">
+              {isUploadingPropertyImage
+                ? `${propertyImageProgress}%`
+                : imageUrl
+                  ? "Replace"
+                  : "Upload"}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={isUploadingPropertyImage}
+                onChange={(event) => {
+                  handlePropertyImageUpload(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </div>
 
           <div className="entity-wizard-footer">
             <div />
             <button
               type="button"
               className="entity-wizard-primary"
-              disabled={!propertyDetailsValid}
+              disabled={
+                !propertyDetailsValid ||
+                isUploadingPropertyImage ||
+                isUploadingDepreciationSchedule
+              }
               onClick={() => setStep(takesOwnershipDetails ? 2 : 3)}
             >
               Continue
@@ -965,7 +1209,11 @@ export default function AddPropertyWizard({
             <button
               type="button"
               className="entity-wizard-primary"
-              disabled={isSaving}
+              disabled={
+                isSaving ||
+                isUploadingPropertyImage ||
+                isUploadingDepreciationSchedule
+              }
               onClick={handleSave}
             >
               {isSaving

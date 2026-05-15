@@ -15,6 +15,7 @@ export default function ClientPropertyDetailPage() {
       backHref={`/dashboard/client/entities/${entityId}`}
       backLabel="Entity"
       editPropertyHref={`/dashboard/client/entities/${entityId}/properties/${propertyId}/edit`}
+      reviewFormHref={`/dashboard/client/entities/${entityId}/properties/${propertyId}/logit-form-review`}
     />
   );
 }

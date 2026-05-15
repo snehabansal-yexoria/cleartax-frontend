@@ -1,9 +1,8 @@
 "use client";
 
 import { Skeleton } from "boneyard-js/react";
-import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AccountantClientsSkeleton } from "../../../components/PortalSkeletons";
 import { getSession } from "../../../../src/lib/session";
 
@@ -69,6 +68,7 @@ function buildInviteLink(params: {
 }
 
 function AccountantClientsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState<ClientTab>("all");
   const [allClients, setAllClients] = useState<ClientRecord[]>([]);
@@ -99,6 +99,8 @@ function AccountantClientsContent() {
       setSelectedClientIds([]);
       setAssignMessage("");
     }
+    const query = searchParams.get("q");
+    if (query) setSearchValue(query);
   }, [searchParams]);
 
   const loadClients = useCallback(async () => {
@@ -442,6 +444,22 @@ function AccountantClientsContent() {
                 className={`accountant-client-table-row${
                   client.isAssignedToAnotherAccountant ? " is-muted" : ""
                 }${client.isAssignedToCurrentAccountant ? " is-assigned" : ""}`}
+                role={canOpenClient ? "link" : undefined}
+                tabIndex={canOpenClient ? 0 : undefined}
+                onClick={() => {
+                  if (canOpenClient) {
+                    router.push(`/dashboard/accountant/clients/${client.id}`);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    canOpenClient &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    event.preventDefault();
+                    router.push(`/dashboard/accountant/clients/${client.id}`);
+                  }
+                }}
               >
                 <div>
                   {currentTab === "mine" ? (
@@ -476,12 +494,9 @@ function AccountantClientsContent() {
                   </div>
                   <div>
                     {canOpenClient ? (
-                      <Link
-                        href={`/dashboard/accountant/clients/${client.id}`}
-                        className="accountant-client-name-link"
-                      >
-                        <strong>{client.name}</strong>
-                      </Link>
+                      <strong className="accountant-client-name-link">
+                        {client.name}
+                      </strong>
                     ) : (
                       <strong>{client.name}</strong>
                     )}

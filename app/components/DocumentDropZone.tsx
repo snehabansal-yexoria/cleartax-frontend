@@ -39,6 +39,7 @@ export function DocumentDropZone({
   const [status, setStatus] = useState<Status>("idle");
   const [filename, setFilename] = useState("");
   const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
 
   const busy = status === "uploading" || status === "extracting";
 
@@ -64,9 +65,11 @@ export function DocumentDropZone({
 
     setFilename(file.name);
     setError("");
+    setProgress(0);
 
     try {
       setStatus("uploading");
+      setProgress(8);
       const presignRes = await fetch(
         `/api/documents/presign?filename=${encodeURIComponent(file.name)}`,
         { headers: { Authorization: `Bearer ${token}` } },
@@ -86,6 +89,7 @@ export function DocumentDropZone({
         s3_key: string;
         document_id: string;
       };
+      setProgress(20);
 
       const putRes = await fetch(upload_url, {
         method: "PUT",
@@ -97,6 +101,13 @@ export function DocumentDropZone({
       }
 
       setStatus("extracting");
+      setProgress(62);
+      const progressTimer = window.setInterval(() => {
+        setProgress((current) => {
+          if (current >= 94) return current;
+          return current + (current < 80 ? 4 : 1);
+        });
+      }, 650);
       const extractRes = await fetch("/api/documents/extract", {
         method: "POST",
         headers: {
@@ -104,7 +115,7 @@ export function DocumentDropZone({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ s3_key }),
-      });
+      }).finally(() => window.clearInterval(progressTimer));
       if (!extractRes.ok) {
         const body = await safeJson(extractRes);
         throw new Error(
@@ -117,10 +128,12 @@ export function DocumentDropZone({
       };
 
       onExtracted(result.data ?? {}, document_id);
+      setProgress(100);
       setStatus("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Document processing failed");
       setStatus("error");
+      setProgress(0);
     }
   }
 
@@ -171,7 +184,21 @@ export function DocumentDropZone({
         {showProgress ? (
           <span className="transaction-document-drop__progress" />
         ) : null}
-        <span>{iconForStatus(status)}</span>
+        {showProgress ? (
+          <span
+            className="transaction-document-drop__circle"
+            style={
+              {
+                "--progress": `${progress}%`,
+              } as React.CSSProperties
+            }
+            aria-label={`${progress}% complete`}
+          >
+            <b>{progress}%</b>
+          </span>
+        ) : (
+          <span>{iconForStatus(status)}</span>
+        )}
         <strong>{primaryLabel(status, filename)}</strong>
         <small>{secondaryLabel(status, error)}</small>
         {filename && (status === "uploading" || status === "extracting" || status === "done") ? (

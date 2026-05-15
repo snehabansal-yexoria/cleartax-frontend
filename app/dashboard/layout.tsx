@@ -6,6 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
 import { logout } from "../../src/lib/logout";
 import { normalizeRoleName } from "../../src/lib/roleNames";
+import {
+  announceDropdownOpen,
+  dropdownRegistryEvent,
+  isDropdownRegistryEvent,
+} from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -301,6 +306,7 @@ export default function DashboardLayout({
   const [organizationName, setOrganizationName] = useState<string>("");
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   useEffect(() => {
     async function loadSession() {
@@ -393,6 +399,37 @@ export default function DashboardLayout({
     role === "super_admin"
       ? email || "Platform oversight"
       : email || "Account access";
+  const accountDropdownId = "dashboard-account-menu";
+  const mobileNavDropdownId = "dashboard-mobile-nav";
+
+  useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (!isDropdownRegistryEvent(event)) return;
+      const id = event.detail?.id;
+      if (!id) return;
+      if (id !== accountDropdownId) setIsAccountMenuOpen(false);
+      if (id !== mobileNavDropdownId) setIsMobileNavOpen(false);
+    }
+
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, []);
+
+  function handleGlobalSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = globalSearch.trim();
+    if (!query) return;
+
+    if (role === "accountant") {
+      router.push(
+        `/dashboard/accountant/clients?q=${encodeURIComponent(query)}`,
+      );
+      return;
+    }
+
+    router.push(`/dashboard?search=${encodeURIComponent(query)}`);
+  }
 
   function renderPortalMenuItem(item: PortalMenuItem) {
     const isActive = item.href
@@ -507,7 +544,7 @@ export default function DashboardLayout({
           </div>
 
           <header className="accountant-topbar">
-            <div className="accountant-search">
+            <form className="accountant-search" onSubmit={handleGlobalSearch}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="6" />
                 <path d="m20 20-4.2-4.2" />
@@ -516,8 +553,10 @@ export default function DashboardLayout({
                 type="text"
                 placeholder="Search clients, transactions, or properties..."
                 aria-label="Search accountant dashboard"
+                value={globalSearch}
+                onChange={(event) => setGlobalSearch(event.target.value)}
               />
-            </div>
+            </form>
 
             <div className="accountant-topbar-actions">
               <button
@@ -535,7 +574,13 @@ export default function DashboardLayout({
                 <button
                   type="button"
                   className="accountant-profile-trigger"
-                  onClick={() => setIsAccountMenuOpen((current) => !current)}
+                  onClick={() =>
+                    setIsAccountMenuOpen((current) => {
+                      const next = !current;
+                      if (next) announceDropdownOpen(accountDropdownId);
+                      return next;
+                    })
+                  }
                   aria-haspopup="menu"
                   aria-expanded={isAccountMenuOpen}
                 >
@@ -595,7 +640,13 @@ export default function DashboardLayout({
           className={`accountant-mobile-menu-button${isMobileNavOpen ? " is-open" : ""}`}
           aria-label="Open navigation menu"
           aria-expanded={isMobileNavOpen}
-          onClick={() => setIsMobileNavOpen((current) => !current)}
+          onClick={() =>
+            setIsMobileNavOpen((current) => {
+              const next = !current;
+              if (next) announceDropdownOpen(mobileNavDropdownId);
+              return next;
+            })
+          }
         >
           <span />
           <span />

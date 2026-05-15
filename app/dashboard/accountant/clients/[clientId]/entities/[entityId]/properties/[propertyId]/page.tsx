@@ -16,6 +16,7 @@ export default function AccountantPropertyDetailPage() {
       backHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}`}
       backLabel="Entity"
       editPropertyHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${propertyId}/edit`}
+      reviewFormHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${propertyId}/logit-form-review`}
     />
   );
 }

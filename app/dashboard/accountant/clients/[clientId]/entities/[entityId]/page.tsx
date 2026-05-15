@@ -16,6 +16,10 @@ export default function AccountantEntityDetailPage() {
       editEntityHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/edit`}
       addPropertyHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/new`}
       addTransactionHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/transactions/new`}
+      transactionRulesHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation`}
+      transactionRulesLabel="Reconcile Transaction"
+      transactionRulesClassName="transaction-reconcile-button"
+      transactionRulesIcon="reconcile"
       propertyDetailHrefBase={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties`}
     />
   );
