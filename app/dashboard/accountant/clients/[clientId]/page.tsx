@@ -7,6 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
+import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -310,9 +311,7 @@ export default function ClientDetailPage() {
         {currentTab === "entities" && (
           <div className="client-portfolio-tab-body">
             {isEntitiesLoading ? (
-              <div className="client-empty-entities">
-                <p>Loading entities…</p>
-              </div>
+              <ClientEntityCardsSkeleton />
             ) : entities.length === 0 ? (
               <div className="client-empty-entities">
                 <span className="client-empty-icon">

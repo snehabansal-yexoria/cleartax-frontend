@@ -423,7 +423,59 @@ export function EntityWizardSkeleton() {
   );
 }
 
-function TrendSkeleton() {
+export function EntityPropertyListSkeleton() {
+  return (
+    <ul className="entity-property-list boneyard-fallback">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <li key={index} className="entity-property-row">
+          <div className="skeleton-stack skeleton-grow">
+            <div className="skeleton-line skeleton-line-lg" />
+            <div className="skeleton-line skeleton-line-md" />
+          </div>
+          <div className="skeleton-fact-grid">
+            {Array.from({ length: 3 }).map((__, factIndex) => (
+              <div key={factIndex} className="skeleton-stack">
+                <div className="skeleton-line skeleton-line-sm" />
+                <div className="skeleton-line skeleton-line-md" />
+              </div>
+            ))}
+          </div>
+          <div className="skeleton-pill" />
+          <div className="skeleton-circle skeleton-circle-xs" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ClientEntityCardsSkeleton() {
+  return (
+    <div className="entity-card-grid boneyard-fallback">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="entity-ownership-card">
+          <div className="entity-ownership-card-main">
+            <div className="entity-ownership-card-top">
+              <div className="skeleton-circle" />
+              <div className="skeleton-pill" />
+            </div>
+            <div className="skeleton-stack">
+              <div className="skeleton-line skeleton-line-lg" />
+              <div className="skeleton-line skeleton-line-md" />
+            </div>
+            <div className="skeleton-stack skeleton-card-spacer">
+              <div className="skeleton-line skeleton-line-md" />
+              <div className="skeleton-line skeleton-line-md" />
+              <div className="skeleton-line skeleton-line-sm" />
+            </div>
+          </div>
+          <div className="skeleton-card-footer" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function TrendSkeleton() {
   return (
     <section className="entity-trend-card skeleton-trend-card" aria-hidden="true">
       <div className="entity-trend-head">

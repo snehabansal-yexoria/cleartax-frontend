@@ -400,8 +400,21 @@ function AccountantClientsContent() {
           </div>
 
           {(currentTab === "all" ? allClients : myClients) === null ? (
-            <div className="accountant-client-table-loading">
-              <p>Loading clients…</p>
+            <div className="boneyard-fallback">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="portal-list-row portal-list-row-admin">
+                  <div className="skeleton-row">
+                    <div className="skeleton-circle skeleton-circle-sm" />
+                    <div className="skeleton-stack skeleton-grow">
+                      <div className="skeleton-line skeleton-line-md" />
+                      <div className="skeleton-line skeleton-line-sm" />
+                    </div>
+                  </div>
+                  <div className="skeleton-line skeleton-line-md" />
+                  <div className="skeleton-pill" />
+                  <div className="skeleton-pill" />
+                </div>
+              ))}
             </div>
           ) : visibleClients.map((client) => {
             const canOpenClient = currentTab === "mine";

@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -190,17 +191,35 @@ export default function AccountantPage() {
     }
   }
 
+  const summaryLoading = allClients === null || myClients === null;
+
   return (
       <section className="accountant-dashboard">
+        <Skeleton
+          name="accountant-summary"
+          loading={summaryLoading}
+          fallback={
+            <div className="accountant-summary-grid boneyard-fallback">
+              <article className="accountant-summary-card accountant-summary-card-blue">
+                <div className="skeleton-line skeleton-line-sm" />
+                <div className="skeleton-line skeleton-line-xl" />
+                <div className="skeleton-line skeleton-line-md" />
+              </article>
+              <article className="accountant-summary-card accountant-summary-card-gold">
+                <div className="skeleton-line skeleton-line-sm" />
+                <div className="skeleton-line skeleton-line-xl" />
+                <div className="skeleton-circle" />
+              </article>
+            </div>
+          }
+        >
         <div className="accountant-summary-grid">
           <article className="accountant-summary-card accountant-summary-card-blue">
             <div>
               <p className="accountant-eyebrow">Invitation Pending</p>
-              <h2>{allClients === null ? "—" : invitationPending}</h2>
+              <h2>{invitationPending}</h2>
               <span>
-                {allClients === null
-                  ? "Loading…"
-                  : invitationPending === 1
+                {invitationPending === 1
                   ? "Client invited by you still to accept"
                   : "Clients invited by you still to accept"}
               </span>
@@ -220,8 +239,8 @@ export default function AccountantPage() {
           <article className="accountant-summary-card accountant-summary-card-gold">
             <div>
               <p className="accountant-eyebrow">Registered Clients</p>
-              <h2>{myClients === null ? "—" : registeredClients}</h2>
-              <span>{myClients === null ? "Loading…" : `${myClients.length} added to your list`}</span>
+              <h2>{registeredClients}</h2>
+              <span>{managedClients.length} added to your list</span>
             </div>
             <div className="accountant-summary-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -233,6 +252,7 @@ export default function AccountantPage() {
             </div>
           </article>
         </div>
+        </Skeleton>
 
         <div className="accountant-content-grid">
           <section className="accountant-clients-panel">
@@ -281,8 +301,10 @@ export default function AccountantPage() {
             </div>
 
             {myClients === null ? (
-              <div className="accountant-empty-state">
-                <p>Loading your client list…</p>
+              <div className="accountant-client-grid boneyard-fallback">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="skeleton-panel skeleton-panel-tall" />
+                ))}
               </div>
             ) : managedClients.length === 0 ? (
               <div className="accountant-empty-state">

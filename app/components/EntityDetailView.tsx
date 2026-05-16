@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
-import { EntityDetailSkeleton } from "@/app/components/PortalSkeletons";
+import {
+  EntityDetailSkeleton,
+  EntityPropertyListSkeleton,
+  TrendSkeleton,
+} from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import type {
@@ -296,107 +300,107 @@ export default function EntityDetailView({
         </Link>
       </header>
 
-      <section className="entity-trend-card" aria-label="Profit and loss trend">
-        <div className="entity-trend-head">
-          <h2>Profit & Loss Trend</h2>
-          <div className="entity-trend-toggle" aria-hidden="true">
-            <span className="is-active">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 19V5" />
-                <path d="M4 19h16" />
-                <path d="M8 17V9" />
-                <path d="M13 17V6" />
-                <path d="M18 17v-5" />
-              </svg>
-              Graph View
-            </span>
-            <span>
-              <svg viewBox="0 0 24 24">
-                <rect x="4" y="5" width="16" height="14" rx="1" />
-                <path d="M4 10h16" />
-                <path d="M4 15h16" />
-                <path d="M10 5v14" />
-              </svg>
-              Table View
-            </span>
+      {isTransactionsLoading ? (
+        <TrendSkeleton />
+      ) : (
+        <section className="entity-trend-card" aria-label="Profit and loss trend">
+          <div className="entity-trend-head">
+            <h2>Profit & Loss Trend</h2>
+            <div className="entity-trend-toggle" aria-hidden="true">
+              <span className="is-active">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4 19V5" />
+                  <path d="M4 19h16" />
+                  <path d="M8 17V9" />
+                  <path d="M13 17V6" />
+                  <path d="M18 17v-5" />
+                </svg>
+                Graph View
+              </span>
+              <span>
+                <svg viewBox="0 0 24 24">
+                  <rect x="4" y="5" width="16" height="14" rx="1" />
+                  <path d="M4 10h16" />
+                  <path d="M4 15h16" />
+                  <path d="M10 5v14" />
+                </svg>
+                Table View
+              </span>
+            </div>
           </div>
-        </div>
 
-        {isTransactionsLoading ? (
-          <div className="property-trend-empty">
-            Loading activity data…
-          </div>
-        ) : trendRows.length === 0 ? (
-          <div className="property-trend-empty">
-            No transactions are available for this entity yet.
-          </div>
-        ) : (
-          <div className="property-trend-grid">
-            <div className="entity-chart">
-              <div className="entity-chart-y">
-                <span>{formatCurrency(maxTrendAmount)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.75)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.5)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
-                <span>{formatCurrency(0)}</span>
-              </div>
-              <div className="entity-chart-plot">
-                {trendRows.map((item) => (
-                  <div key={item.month} className="entity-chart-month">
-                    <div className="entity-chart-bars">
-                      <span
-                        className="is-expense"
-                        style={{
-                          height: `${Math.max(
-                            3,
-                            (item.expenses / maxTrendAmount) * 100,
-                          )}%`,
-                        }}
-                      />
-                      <span
-                        className="is-income"
-                        style={{
-                          height: `${Math.max(
-                            3,
-                            (item.income / maxTrendAmount) * 100,
-                          )}%`,
-                        }}
-                      />
+          {trendRows.length === 0 ? (
+            <div className="property-trend-empty">
+              No transactions are available for this entity yet.
+            </div>
+          ) : (
+            <div className="property-trend-grid">
+              <div className="entity-chart">
+                <div className="entity-chart-y">
+                  <span>{formatCurrency(maxTrendAmount)}</span>
+                  <span>{formatCurrency(maxTrendAmount * 0.75)}</span>
+                  <span>{formatCurrency(maxTrendAmount * 0.5)}</span>
+                  <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
+                  <span>{formatCurrency(0)}</span>
+                </div>
+                <div className="entity-chart-plot">
+                  {trendRows.map((item) => (
+                    <div key={item.month} className="entity-chart-month">
+                      <div className="entity-chart-bars">
+                        <span
+                          className="is-expense"
+                          style={{
+                            height: `${Math.max(
+                              3,
+                              (item.expenses / maxTrendAmount) * 100,
+                            )}%`,
+                          }}
+                        />
+                        <span
+                          className="is-income"
+                          style={{
+                            height: `${Math.max(
+                              3,
+                              (item.income / maxTrendAmount) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <span>{monthLabel(item.month)}</span>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="property-trend-table">
+                <div>
+                  <strong>Month</strong>
+                  <strong>Income</strong>
+                  <strong>Expenses</strong>
+                </div>
+                {trendRows.map((item) => (
+                  <div key={item.month}>
                     <span>{monthLabel(item.month)}</span>
+                    <span>{formatCurrency(item.income)}</span>
+                    <span>{formatCurrency(item.expenses)}</span>
                   </div>
                 ))}
               </div>
             </div>
+          )}
 
-            <div className="property-trend-table">
-              <div>
-                <strong>Month</strong>
-                <strong>Income</strong>
-                <strong>Expenses</strong>
-              </div>
-              {trendRows.map((item) => (
-                <div key={item.month}>
-                  <span>{monthLabel(item.month)}</span>
-                  <span>{formatCurrency(item.income)}</span>
-                  <span>{formatCurrency(item.expenses)}</span>
-                </div>
-              ))}
-            </div>
+          <div className="entity-chart-legend">
+            <span>
+              <i className="is-expense" />
+              Expenses
+            </span>
+            <span>
+              <i className="is-income" />
+              Income
+            </span>
           </div>
-        )}
-
-        <div className="entity-chart-legend">
-          <span>
-            <i className="is-expense" />
-            Expenses
-          </span>
-          <span>
-            <i className="is-income" />
-            Income
-          </span>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="entity-resource-panel">
         <div className="entity-resource-tabs" role="tablist" aria-label="Entity resources">
@@ -427,9 +431,7 @@ export default function EntityDetailView({
             </div>
 
             {isPropertiesLoading ? (
-              <div className="client-detail-empty">
-                <p>Loading properties…</p>
-              </div>
+              <EntityPropertyListSkeleton />
             ) : properties.length === 0 ? (
               <div className="client-detail-empty">
                 <p>No properties have been linked to this entity yet.</p>
