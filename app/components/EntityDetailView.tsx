@@ -404,6 +404,9 @@ export default function EntityDetailView({
               onClick={() => setCurrentTab(tab.id)}
             >
               {tab.label}
+              {tab.id === "reconciliation" && (
+                <span className="entity-tab-alpha-badge">Alpha</span>
+              )}
             </button>
           ))}
         </div>

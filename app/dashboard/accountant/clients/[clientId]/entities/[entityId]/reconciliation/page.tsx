@@ -152,6 +152,8 @@ export default function AccountantReconciliationPage() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [properties, setProperties] = useState<CoreProperty[]>([]);
   const [assignedProperties, setAssignedProperties] = useState<Map<number, string>>(new Map());
+  const [reconPage, setReconPage] = useState(1);
+  const RECON_PAGE_SIZE = 20;
 
   // Table filter/sort state
   const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed">("unreviewed");
@@ -573,6 +575,9 @@ export default function AccountantReconciliationPage() {
       return sortDirection === "desc" ? bt - at : at - bt;
     });
 
+  const reconTotalPages = Math.max(1, Math.ceil(visibleRows.length / RECON_PAGE_SIZE));
+  const pagedReconRows = visibleRows.slice((reconPage - 1) * RECON_PAGE_SIZE, reconPage * RECON_PAGE_SIZE);
+
   const unreviewedCount = allBankTxs.length - reconciledCount - excludedCount;
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -770,14 +775,14 @@ export default function AccountantReconciliationPage() {
               <button
                 type="button"
                 className={activeTab === "unreviewed" ? "is-active" : ""}
-                onClick={() => { setActiveTab("unreviewed"); setFilter("all"); }}
+                onClick={() => { setActiveTab("unreviewed"); setFilter("all"); setReconPage(1); }}
               >
                 Transactions ({unreviewedCount})
               </button>
               <button
                 type="button"
                 className={activeTab === "reviewed" ? "is-active" : ""}
-                onClick={() => { setActiveTab("reviewed"); setFilter("all"); }}
+                onClick={() => { setActiveTab("reviewed"); setFilter("all"); setReconPage(1); }}
               >
                 Reconciled ({reconciledCount + excludedCount})
               </button>
@@ -792,7 +797,7 @@ export default function AccountantReconciliationPage() {
                   type="text"
                   placeholder="Search by payee or description…"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => { setQuery(e.target.value); setReconPage(1); }}
                 />
               </label>
               {activeTab === "unreviewed" && (
@@ -800,14 +805,14 @@ export default function AccountantReconciliationPage() {
                   <button
                     type="button"
                     className={filter === "all" ? "is-active" : ""}
-                    onClick={() => setFilter("all")}
+                    onClick={() => { setFilter("all"); setReconPage(1); }}
                   >
                     All ({unreviewedCount})
                   </button>
                   <button
                     type="button"
                     className={filter === "matched" ? "is-active" : ""}
-                    onClick={() => setFilter("matched")}
+                    onClick={() => { setFilter("matched"); setReconPage(1); }}
                   >
                     Matched ({entityTxsLoading ? "…" : candidateMatches.size})
                   </button>
@@ -815,7 +820,7 @@ export default function AccountantReconciliationPage() {
               )}
               <button
                 type="button"
-                onClick={() => setSortDirection((cur) => (cur === "desc" ? "asc" : "desc"))}
+                onClick={() => { setSortDirection((cur) => (cur === "desc" ? "asc" : "desc")); setReconPage(1); }}
               >
                 Sort: Date {sortDirection === "desc" ? "↓" : "↑"}
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
@@ -853,7 +858,7 @@ export default function AccountantReconciliationPage() {
                 )}
               </div>
             ) : (
-              visibleRows.map(({ row, i }) => {
+              pagedReconRows.map(({ row, i }) => {
                 const matchEntry = optimisticMatches.get(i);
                 const isConfirmed = matchEntry?.status === "confirmed";
                 const isExcluded = matchEntry?.status === "excluded";
@@ -1088,13 +1093,57 @@ export default function AccountantReconciliationPage() {
 
           {/* ── Footer ────────────────────────────────────────────────────── */}
           <footer className="accountant-reconciliation-footer">
-            <span>
-              Showing <strong>{visibleRows.length}</strong> of{" "}
-              <strong>{allBankTxs.length}</strong> transactions
-              {reconciledCount > 0 && (
-                <> · <strong>{reconciledCount}</strong> reconciled</>
+            <div className="recon-pagination-wrap">
+              <span className="recon-pagination-copy">
+                Showing{" "}
+                <strong>
+                  {visibleRows.length === 0 ? 0 : (reconPage - 1) * RECON_PAGE_SIZE + 1}–{Math.min(reconPage * RECON_PAGE_SIZE, visibleRows.length)}
+                </strong>{" "}
+                of <strong>{visibleRows.length}</strong> transactions
+                {reconciledCount > 0 && (
+                  <> · <strong>{reconciledCount}</strong> reconciled</>
+                )}
+              </span>
+              {reconTotalPages > 1 && (
+                <div className="recon-pagination">
+                  <button
+                    type="button"
+                    disabled={reconPage === 1}
+                    onClick={() => setReconPage((p) => p - 1)}
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: reconTotalPages }, (_, idx) => idx + 1)
+                    .filter((p) => p === 1 || p === reconTotalPages || Math.abs(p - reconPage) <= 1)
+                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((v, idx) =>
+                      v === "…" ? (
+                        <span key={`e-${idx}`} className="recon-pagination-ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={v}
+                          type="button"
+                          className={v === reconPage ? "is-active" : undefined}
+                          onClick={() => setReconPage(v as number)}
+                        >
+                          {v}
+                        </button>
+                      )
+                    )}
+                  <button
+                    type="button"
+                    disabled={reconPage === reconTotalPages}
+                    onClick={() => setReconPage((p) => p + 1)}
+                  >
+                    Next →
+                  </button>
+                </div>
               )}
-            </span>
+            </div>
             <div>
               <button
                 type="button"
