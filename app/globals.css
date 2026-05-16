@@ -3172,6 +3172,316 @@ p.darkBg {
   color: #ffffff;
 }
 
+/* ── Reconciliation row wrapper & expand panel ────────────────────────────── */
+
+.recon-row-wrapper {
+  border-bottom: 1px solid #f1f3f6;
+}
+
+.recon-row-wrapper:last-child {
+  border-bottom: none;
+}
+
+.recon-row-wrapper .accountant-reconciliation-table-row {
+  border-bottom: none;
+}
+
+.recon-row-wrapper--confirmed .accountant-reconciliation-table-row {
+  border-left: 3px solid #12b886;
+  background: #f6fef9;
+}
+
+.recon-row-wrapper--excluded .accountant-reconciliation-table-row {
+  opacity: 0.55;
+  border-left: 3px solid #d0d5dd;
+}
+
+.recon-row-wrapper--expanded .accountant-reconciliation-table-row {
+  background: #f8faff;
+}
+
+.recon-expand-panel {
+  padding: 0 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid #e7ebf0;
+  background: #f8faff;
+  animation: recon-slide-in 0.18s ease;
+}
+
+@keyframes recon-slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.recon-property-select {
+  font-size: 13px;
+  color: #344054;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 4px 28px 4px 8px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+  appearance: none;
+  cursor: pointer;
+  max-width: 180px;
+  min-width: 120px;
+}
+
+.recon-property-select:focus {
+  outline: none;
+  border-color: #0b66ff;
+  box-shadow: 0 0 0 2px #dbeafe;
+}
+
+.recon-match-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 16px 18px;
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  background: #ffffff;
+  margin-top: 12px;
+}
+
+.recon-match-card-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #12b886;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.recon-match-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.recon-match-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.recon-match-card-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+}
+
+.recon-match-card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recon-match-card-field dt {
+  font-size: 11px;
+  color: #667085;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.recon-match-card-field dd {
+  font-size: 13px;
+  font-weight: 600;
+  color: #101828;
+  margin: 0;
+}
+
+.recon-match-card-field dd.is-link {
+  color: #0b66ff;
+  font-weight: 700;
+}
+
+.recon-match-card-row2 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.recon-gst-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #344054;
+}
+
+.recon-gst-toggle-pill {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: #12b886;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.recon-gst-toggle-pill.is-off {
+  background: #d0d5dd;
+}
+
+.recon-gst-toggle-pill::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  transition: right 0.15s;
+}
+
+.recon-gst-toggle-pill.is-off::after {
+  right: auto;
+  left: 2px;
+}
+
+.recon-view-invoice {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #0b66ff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.recon-match-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.recon-confirm-btn {
+  min-height: 38px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 8px;
+  background: #1a2e5a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.recon-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.recon-exclude-btn {
+  background: none;
+  border: none;
+  color: #667085;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.recon-exclude-btn:hover {
+  color: #344054;
+}
+
+.recon-undo-btn {
+  background: none;
+  border: none;
+  color: #667085;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.recon-action-confirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.recon-reconciled-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #c7f6df;
+  color: #007a5a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recon-excluded-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #f1f3f6;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recon-shimmer {
+  display: inline-block;
+  width: 80px;
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f3f6 25%, #e5e7eb 50%, #f1f3f6 75%);
+  background-size: 200% 100%;
+  animation: recon-shimmer 1.4s infinite;
+}
+
+@keyframes recon-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.recon-match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #c7f6df;
+  color: #00845f;
+  font-size: 11px;
+  font-weight: 800;
+  animation: recon-badge-in 0.2s ease;
+}
+
+@keyframes recon-badge-in {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.recon-kpi-reconciled {
+  background: linear-gradient(135deg, #f0fdf9 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0 !important;
+}
+
+.recon-kpi-reconciled strong {
+  color: #15803d !important;
+}
+
+/* ── End reconciliation expand panel ──────────────────────────────────────── */
+
 @media (max-width: 1180px) {
   .property-trend-grid {
     grid-template-columns: 1fr;

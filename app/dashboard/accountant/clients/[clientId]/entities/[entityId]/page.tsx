@@ -21,6 +21,7 @@ export default function AccountantEntityDetailPage() {
       transactionRulesClassName="transaction-reconcile-button"
       transactionRulesIcon="reconcile"
       propertyDetailHrefBase={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties`}
+      reconciliationHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation`}
     />
   );
 }

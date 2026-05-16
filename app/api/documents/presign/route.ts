@@ -23,9 +23,16 @@ export async function GET(req: Request) {
     );
   }
 
+  const documentType = url.searchParams.get("document_type") ?? "";
+  const entityId = url.searchParams.get("entity_id") ?? "";
+
+  const qs = new URLSearchParams({ filename });
+  if (documentType) qs.set("document_type", documentType);
+  if (entityId) qs.set("entity_id", entityId);
+
   try {
     const payload = await coreApiRequest<PresignResponse>(
-      `/api/presign?filename=${encodeURIComponent(filename)}`,
+      `/api/presign?${qs.toString()}`,
       { token },
     );
     return NextResponse.json(payload);

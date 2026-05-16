@@ -11,6 +11,7 @@ import type {
   CoreEntity,
   CoreProperty,
   CoreTransactionListItem,
+  ReconciliationListItem,
 } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -31,14 +32,16 @@ export type EntityDetailViewProps = {
   transactionRulesIcon?: "rules" | "reconcile";
   editEntityHref: string;
   propertyDetailHrefBase: string;
+  reconciliationHref?: string;
 };
 
-type EntityTab = "properties" | "transactions" | "documents";
+type EntityTab = "properties" | "transactions" | "documents" | "reconciliation";
 
 const entityTabs: { id: EntityTab; label: string }[] = [
   { id: "properties", label: "Properties" },
   { id: "transactions", label: "Transactions" },
   { id: "documents", label: "Documents" },
+  { id: "reconciliation", label: "Reconciliations" },
 ];
 
 function titleCase(value: string) {
@@ -104,6 +107,7 @@ export default function EntityDetailView({
   transactionRulesIcon,
   editEntityHref,
   propertyDetailHrefBase,
+  reconciliationHref,
 }: EntityDetailViewProps) {
   const router = useRouter();
   const [entity, setEntity] = useState<CoreEntity | null>(null);
@@ -114,10 +118,13 @@ export default function EntityDetailView({
   const [currentTab, setCurrentTab] = useState<EntityTab>("properties");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
+  const [reconList, setReconList] = useState<ReconciliationListItem[]>([]);
+  const [reconListLoading, setReconListLoading] = useState(false);
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "properties" || tab === "transactions" || tab === "documents") {
+    if (tab === "properties" || tab === "transactions" || tab === "documents" || tab === "reconciliation") {
       setCurrentTab(tab);
     }
   }, []);
@@ -133,6 +140,7 @@ export default function EntityDetailView({
           return;
         }
         const token = session.getIdToken().getJwtToken();
+        if (!cancelled) setSessionToken(token);
 
         const [entityRes, propertiesRes, transactionsRes] = await Promise.all([
           fetch(`/api/entities/${encodeURIComponent(entityId)}`, {
@@ -180,6 +188,22 @@ export default function EntityDetailView({
       cancelled = true;
     };
   }, [entityId, router]);
+
+  useEffect(() => {
+    if (currentTab !== "reconciliation" || !sessionToken || !entityId) return;
+    let cancelled = false;
+    setReconListLoading(true);
+    fetch(`/api/entities/${encodeURIComponent(entityId)}/reconciliations`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: ReconciliationListItem[]) => {
+        if (!cancelled) setReconList(Array.isArray(data) ? data : []);
+      })
+      .catch(() => { if (!cancelled) setReconList([]); })
+      .finally(() => { if (!cancelled) setReconListLoading(false); });
+    return () => { cancelled = true; };
+  }, [currentTab, sessionToken, entityId]);
 
   const ownerCopy = useMemo(() => {
     if (!entity) return "";
@@ -470,7 +494,84 @@ export default function EntityDetailView({
           </div>
         )}
 
-        {currentTab !== "properties" && currentTab !== "transactions" && (
+        {currentTab === "reconciliation" && (
+          <div className="entity-resource-body">
+            <div className="entity-resource-head">
+              <h2>Bank Reconciliations</h2>
+              {reconciliationHref && (
+                <Link href={reconciliationHref} className="entity-wizard-primary is-green">
+                  + Upload Statement
+                </Link>
+              )}
+            </div>
+            {reconListLoading ? (
+              <div className="client-detail-empty"><p>Loading…</p></div>
+            ) : reconList.length === 0 ? (
+              <div className="client-detail-empty">
+                <p>No bank statements reconciled yet.</p>
+                {reconciliationHref && (
+                  <Link href={reconciliationHref} className="entity-wizard-primary is-green" style={{ marginTop: 12 }}>
+                    Upload your first statement
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <ul className="entity-property-list">
+                {reconList.map((item) => {
+                  const txCount = item.summary?.totalTransactions ?? "—";
+                  const date = item.createdAt
+                    ? new Date(item.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                    : "—";
+                  const statusColor =
+                    item.status === "done" ? "var(--color-success, #16a34a)"
+                    : item.status === "error" ? "var(--color-danger, #dc2626)"
+                    : "var(--color-warning, #ca8a04)";
+                  return (
+                    <li key={item.id} className="entity-property-row">
+                      <div className="entity-property-main">
+                        <strong>{date}</strong>
+                        <span style={{ color: statusColor, fontWeight: 600, textTransform: "capitalize", fontSize: 13 }}>
+                          {item.status}
+                        </span>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Transactions</dt>
+                          <dd>{txCount}</dd>
+                        </div>
+                        <div>
+                          <dt>Pages</dt>
+                          <dd>{item.totalPages ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt>Total Debits</dt>
+                          <dd>
+                            {item.summary?.totalDebits != null
+                              ? `$${item.summary.totalDebits.toLocaleString("en-AU", { minimumFractionDigits: 2 })}`
+                              : "—"}
+                          </dd>
+                        </div>
+                      </dl>
+                      {reconciliationHref && (
+                        <Link
+                          href={`${reconciliationHref}?id=${encodeURIComponent(item.id)}`}
+                          className="entity-property-chevron-link"
+                          aria-label="View reconciliation"
+                        >
+                          <svg className="entity-property-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m9 6 6 6-6 6" />
+                          </svg>
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "reconciliation" && (
           <div className="entity-coming-soon">
             <strong>{entityTabs.find((tab) => tab.id === currentTab)?.label}</strong>
             <p>Coming soon</p>

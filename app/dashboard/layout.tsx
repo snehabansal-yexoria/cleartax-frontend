@@ -11,6 +11,7 @@ import {
   dropdownRegistryEvent,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
+import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -634,6 +635,7 @@ export default function DashboardLayout({
 
           <main className="accountant-main-content">{children}</main>
         </div>
+        <ReconciliationJobMonitor />
 
         <button
           type="button"

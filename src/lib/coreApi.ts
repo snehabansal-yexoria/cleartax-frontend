@@ -1076,6 +1076,156 @@ export async function deleteCoreTransaction(token: string, id: string) {
   });
 }
 
+// ── Bank Reconciliation ───────────────────────────────────────────────────────
+
+export type ReconciliationTransaction = {
+  date: string;
+  description: string;
+  payee: string | null;
+  debit: number | null;
+  credit: number | null;
+  balance: number | null;
+};
+
+export type ReconciliationAccount = {
+  bank: string;
+  accountNumber: string;
+  accountType: string;
+  holder: string;
+  statementPeriod: { from: string; to: string };
+  openingBalance: number;
+  closingBalance: number;
+};
+
+export type ReconciliationSummary = {
+  totalTransactions: number;
+  totalDebits: number;
+  totalCredits: number;
+  pagesProcessed: number;
+  pagesSkipped: number;
+  processingTimeSeconds: number;
+};
+
+export type ReconciliationListItem = {
+  id: string;
+  status: string;
+  totalPages: number | null;
+  failedPages: number[] | null;
+  summary: ReconciliationSummary | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReconciliationDetail = ReconciliationListItem & {
+  account: ReconciliationAccount | null;
+  transactions: ReconciliationTransaction[];
+  errorMessage: string | null;
+};
+
+export type ReconciliationMatch = {
+  id: string;
+  reconciliationId: string;
+  bankTxIndex: number;
+  transactionId: string | null;
+  status: "confirmed" | "excluded";
+  confirmedBy: string;
+  confirmedAt: string;
+};
+
+function normalizeReconciliationSummary(raw: RawRecord): ReconciliationSummary {
+  return {
+    totalTransactions: Number(raw.total_transactions ?? raw.totalTransactions ?? 0),
+    totalDebits: Number(raw.total_debits ?? raw.totalDebits ?? 0),
+    totalCredits: Number(raw.total_credits ?? raw.totalCredits ?? 0),
+    pagesProcessed: Number(raw.pages_processed ?? raw.pagesProcessed ?? 0),
+    pagesSkipped: Number(raw.pages_skipped ?? raw.pagesSkipped ?? 0),
+    processingTimeSeconds: Number(raw.processing_time_seconds ?? raw.processingTimeSeconds ?? 0),
+  };
+}
+
+function normalizeReconciliationAccount(raw: RawRecord): ReconciliationAccount {
+  const period = (raw.statement_period ?? raw.statementPeriod ?? {}) as RawRecord;
+  return {
+    bank: String(raw.bank ?? ""),
+    accountNumber: String(raw.account_number ?? raw.accountNumber ?? ""),
+    accountType: String(raw.account_type ?? raw.accountType ?? ""),
+    holder: String(raw.holder ?? ""),
+    statementPeriod: {
+      from: String(period.from ?? ""),
+      to: String(period.to ?? ""),
+    },
+    openingBalance: Number(raw.opening_balance ?? raw.openingBalance ?? 0),
+    closingBalance: Number(raw.closing_balance ?? raw.closingBalance ?? 0),
+  };
+}
+
+function normalizeReconciliationListItem(raw: RawRecord): ReconciliationListItem {
+  const summaryRaw = raw.summary as RawRecord | null;
+  return {
+    id: String(raw.id ?? ""),
+    status: String(raw.status ?? ""),
+    totalPages: raw.total_pages != null ? Number(raw.total_pages) : null,
+    failedPages: Array.isArray(raw.failed_pages) ? (raw.failed_pages as number[]) : null,
+    summary: summaryRaw ? normalizeReconciliationSummary(summaryRaw) : null,
+    createdAt: String(raw.created_at ?? ""),
+    updatedAt: String(raw.updated_at ?? ""),
+  };
+}
+
+export async function startReconciliation(
+  token: string,
+  s3Key: string,
+  entityId: string,
+): Promise<{ jobId: string }> {
+  const payload = await coreApiRequest<{ job_id: string }>(
+    `/api/reconciliation`,
+    { method: "POST", token, body: { s3_key: s3Key, entity_id: entityId } },
+  );
+  return { jobId: (payload as { job_id: string }).job_id };
+}
+
+export async function listReconciliations(
+  token: string,
+  entityId: string,
+): Promise<ReconciliationListItem[]> {
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations`,
+    { token },
+  );
+  return getJsonArray(payload).map((r) =>
+    normalizeReconciliationListItem(r as RawRecord),
+  );
+}
+
+export async function getReconciliation(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+): Promise<ReconciliationDetail> {
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}`,
+    { token },
+  ) as RawRecord;
+
+  const base = normalizeReconciliationListItem(payload);
+  const accountRaw = payload.account as RawRecord | null;
+  const txRaw = Array.isArray(payload.transactions) ? payload.transactions as RawRecord[] : [];
+
+  return {
+    ...base,
+    account: accountRaw ? normalizeReconciliationAccount(accountRaw) : null,
+    transactions: txRaw.map((t) => ({
+      date: String(t.date ?? ""),
+      description: String(t.description ?? ""),
+      payee: t.payee != null ? String(t.payee) : null,
+      debit: t.debit != null ? Number(t.debit) : null,
+      credit: t.credit != null ? Number(t.credit) : null,
+      balance: t.balance != null ? Number(t.balance) : null,
+    })),
+    errorMessage: payload.error_message != null ? String(payload.error_message) : null,
+  };
+}
+
 export async function listCoreTransactionCategories(
   token: string,
   type?: CoreTransactionType,
