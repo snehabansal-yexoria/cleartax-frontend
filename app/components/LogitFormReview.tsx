@@ -219,9 +219,6 @@ export default function LogitFormReview({
 
         const loadedProperty = (await propertyRes.json()) as CoreProperty;
         setProperty(loadedProperty);
-        setAddressLine1(loadedProperty.locationText || loadedProperty.name);
-        setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
-        setAcquisitionCost(inputNumber(loadedProperty.purchaseAmount));
         setHasLoan(Boolean(loadedProperty.loanDetails));
         setOwners(
           loadedProperty.owners.length > 0
@@ -232,6 +229,87 @@ export default function LogitFormReview({
               }))
             : [{ id: "primary", name: "", percentage: "100" }],
         );
+
+        const logitRes = await fetch(
+          `/api/properties/${encodeURIComponent(propertyId)}/logit`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!cancelled && logitRes.ok) {
+          const saved = (await logitRes.json()) as Record<string, unknown>;
+          const addr = saved.address as Record<string, string> | undefined;
+          const acq = saved.acquisition as Record<string, string> | undefined;
+          const disp = saved.disposal as Record<string, string> | undefined;
+          const rent = saved.rental_period as
+            | Record<string, string>
+            | undefined;
+          const incRows = saved.income_rows as
+            | { id: string; amount: string; use: string }[]
+            | undefined;
+          const expRows = saved.expense_rows as
+            | { id: string; amount: string; use: string }[]
+            | undefined;
+          const borRows = saved.borrowing_rows as
+            | { id: string; amount: string; use: string }[]
+            | undefined;
+          const depRows = saved.depreciation_rows as
+            | { id: string; amount: string; use: string }[]
+            | undefined;
+
+          setAddressLine1(addr?.line1 ?? loadedProperty.locationText ?? loadedProperty.name);
+          setAddressLine2(addr?.line2 ?? "");
+          setLocality(addr?.locality ?? "");
+          setStateValue(addr?.state ?? "");
+          setPostcode(addr?.postcode ?? "");
+          setAcquisitionDate(acq?.date ?? toInputDate(loadedProperty.purchaseDate));
+          setAcquisitionCost(acq?.cost ?? inputNumber(loadedProperty.purchaseAmount));
+          setDisposalDate(disp?.date ?? "");
+          setDisposalProceeds(disp?.proceeds ?? "");
+          setDateFirstEarnedRent(rent?.date_first_earned_rent ?? "");
+          setWeeksRented(rent?.weeks_rented ?? "52");
+          setWeeksAvailable(rent?.weeks_available ?? "");
+          setDateAvailable(rent?.date_available ?? "");
+
+          if (incRows && incRows.length > 0) {
+            setRentedIncome((prev) =>
+              prev.map((row) => {
+                const saved = incRows.find((r) => r.id === row.id);
+                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
+              }),
+            );
+          } else {
+            setAddressLine1(loadedProperty.locationText || loadedProperty.name);
+            setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
+            setAcquisitionCost(inputNumber(loadedProperty.purchaseAmount));
+          }
+          if (expRows && expRows.length > 0) {
+            setRentedExpenses((prev) =>
+              prev.map((row) => {
+                const saved = expRows.find((r) => r.id === row.id);
+                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
+              }),
+            );
+          }
+          if (borRows && borRows.length > 0) {
+            setBorrowings((prev) =>
+              prev.map((row) => {
+                const saved = borRows.find((r) => r.id === row.id);
+                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
+              }),
+            );
+          }
+          if (depRows && depRows.length > 0) {
+            setDepreciation((prev) =>
+              prev.map((row) => {
+                const saved = depRows.find((r) => r.id === row.id);
+                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
+              }),
+            );
+          }
+        } else {
+          setAddressLine1(loadedProperty.locationText || loadedProperty.name);
+          setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
+          setAcquisitionCost(inputNumber(loadedProperty.purchaseAmount));
+        }
 
         const entityRes = await fetch(
           `/api/entities/${encodeURIComponent(loadedProperty.entityId)}`,
@@ -347,11 +425,74 @@ export default function LogitFormReview({
     }
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setIsSubmitting(false);
-    setSuccessMessage(
-      "Logit form reviewed successfully. The export is ready to lodge.",
-    );
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        router.replace("/login/user");
+        return;
+      }
+      const token = session.getIdToken().getJwtToken();
+      const payload = {
+        address: {
+          line1: addressLine1,
+          line2: addressLine2,
+          locality,
+          state: stateValue,
+          postcode,
+        },
+        acquisition: { date: acquisitionDate, cost: acquisitionCost },
+        disposal: { date: disposalDate, proceeds: disposalProceeds },
+        rental_period: {
+          date_first_earned_rent: dateFirstEarnedRent,
+          weeks_rented: weeksRented,
+          weeks_available: weeksAvailable,
+          date_available: dateAvailable,
+        },
+        income_rows: rentedIncome.map(({ id, amount, use }) => ({
+          id,
+          amount,
+          use,
+        })),
+        expense_rows: rentedExpenses.map(({ id, amount, use }) => ({
+          id,
+          amount,
+          use,
+        })),
+        borrowing_rows: borrowings.map(({ id, amount, use }) => ({
+          id,
+          amount,
+          use,
+        })),
+        depreciation_rows: depreciation.map(({ id, amount, use }) => ({
+          id,
+          amount,
+          use,
+        })),
+      };
+      const res = await fetch(
+        `/api/properties/${encodeURIComponent(propertyId)}/logit`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!res.ok) {
+        setFormError("Failed to save. Please try again.");
+        return;
+      }
+      setSuccessMessage(
+        "Logit form reviewed successfully. The export is ready to lodge.",
+      );
+    } catch (error) {
+      console.error("Failed to save logit form:", error);
+      setFormError("Unexpected error saving. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (isLoading) {

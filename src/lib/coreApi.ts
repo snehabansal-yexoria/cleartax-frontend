@@ -630,6 +630,39 @@ export async function deleteCoreProperty(token: string, id: string) {
   });
 }
 
+export type CoreLogitData = Record<string, unknown>;
+
+export async function getCorePropertyLogit(
+  token: string,
+  id: string,
+): Promise<CoreLogitData> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(id)}/logit`,
+    { token },
+  );
+  const obj = getJsonObject(payload);
+  const ld = obj.logit_data ?? obj.logitData;
+  return typeof ld === "object" && ld !== null && !Array.isArray(ld)
+    ? (ld as CoreLogitData)
+    : {};
+}
+
+export async function updateCorePropertyLogit(
+  token: string,
+  id: string,
+  logitData: CoreLogitData,
+): Promise<CoreLogitData> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(id)}/logit`,
+    { method: "PATCH", token, body: { logit_data: logitData } },
+  );
+  const obj = getJsonObject(payload);
+  const ld = obj.logit_data ?? obj.logitData;
+  return typeof ld === "object" && ld !== null && !Array.isArray(ld)
+    ? (ld as CoreLogitData)
+    : {};
+}
+
 // =============================================================================
 // Transactions
 // =============================================================================

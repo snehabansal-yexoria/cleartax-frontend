@@ -9,6 +9,9 @@
   --white: #ffffff;
   --font-color: #101828;
   --primary-gold: #f4a117;
+  --t-fast: 0.15s ease;
+  --t-base: 0.2s ease;
+  --t-slow: 0.28s ease;
 }
 
 @theme inline {
@@ -1709,6 +1712,7 @@ p.darkBg {
   color: #7985a1;
   font-weight: 700;
   cursor: pointer;
+  transition: color 0.18s ease, border-bottom-color 0.18s ease;
 }
 
 .accountant-client-tabs button span {
@@ -3825,6 +3829,12 @@ p.darkBg {
   min-width: 0;
   border: 1px solid rgba(197, 204, 233, 0.9);
   box-shadow: 0 12px 32px rgba(47, 58, 112, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.accountant-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(47, 58, 112, 0.13);
 }
 
 .accountant-summary-card > div {
@@ -3906,10 +3916,15 @@ p.darkBg {
     background-color 0.2s ease;
 }
 
-.accountant-primary-cta:hover {
-  transform: translateY(-2px);
+.accountant-primary-cta:not(:disabled):hover {
+  transform: translateY(-1px);
   background: #37489c;
-  box-shadow: 0 18px 34px rgba(47, 59, 130, 0.28);
+  box-shadow: 0 4px 14px rgba(47, 59, 130, 0.35);
+}
+
+.accountant-primary-cta:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .accountant-primary-cta svg {
@@ -3979,6 +3994,11 @@ p.darkBg {
   border-radius: 12px;
   color: #637093;
   font-weight: 600;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
+}
+
+.accountant-view-toggle button:active {
+  transform: scale(0.97);
 }
 
 .accountant-view-toggle button.is-active {
@@ -5064,11 +5084,18 @@ p.darkBg {
   cursor: pointer;
   text-decoration: none;
   font-family: inherit;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.entity-wizard-primary:hover {
+.entity-wizard-primary:not(:disabled):hover {
   background: #1f2957;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(40, 51, 110, 0.22);
+}
+
+.entity-wizard-primary:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .entity-wizard-primary:disabled {
@@ -5635,6 +5662,12 @@ p.darkBg {
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.client-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.14);
 }
 
 .client-stat-icon {
@@ -5713,6 +5746,7 @@ p.darkBg {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  transition: color 0.18s ease;
 }
 
 .client-portfolio-tabs button::after,
@@ -5724,6 +5758,7 @@ p.darkBg {
   bottom: -1px;
   height: 2px;
   background: transparent;
+  transition: background 0.22s ease, width 0.22s ease;
 }
 
 .client-portfolio-tabs button.is-active,
@@ -5754,6 +5789,7 @@ p.darkBg {
 .client-portfolio-tab-body {
   min-height: 330px;
   padding: 34px 32px;
+  animation: accountantFadeIn 0.18s ease;
 }
 
 .client-empty-entities {
@@ -5828,6 +5864,13 @@ p.darkBg {
   border-radius: 10px;
   background: #ffffff;
   overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.entity-ownership-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(40, 51, 110, 0.12);
+  border-color: #c7cfeb;
 }
 
 .entity-ownership-card-main {
@@ -6001,6 +6044,7 @@ p.darkBg {
   text-decoration: none;
   font-size: 16px;
   font-weight: 600;
+  transition: color 0.18s ease, background-color 0.18s ease;
 }
 
 .entity-card-add-property:hover {
@@ -8583,6 +8627,7 @@ p.darkBg {
 
 .entity-resource-body {
   padding: 32px 32px 38px;
+  animation: accountantFadeIn 0.18s ease;
 }
 
 .entity-wizard-primary.is-green {
