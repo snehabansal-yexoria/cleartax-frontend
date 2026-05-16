@@ -3200,6 +3200,101 @@ p.darkBg {
   font-size: 13px;
 }
 
+/* ── Reconciliation complete toast ───────────────────────────────────────── */
+
+.recon-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #1a2e5a;
+  color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  min-width: 320px;
+  max-width: 480px;
+  animation: recon-toast-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes recon-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1); }
+}
+
+.recon-toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #12b886;
+}
+
+.recon-toast-icon svg {
+  stroke: #fff;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.recon-toast-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recon-toast-body strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.recon-toast-body span {
+  font-size: 12px;
+  color: #a8b8d8;
+}
+
+.recon-toast-link {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 7px;
+  background: #12b886;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.recon-toast-link:hover {
+  background: #0ea572;
+}
+
+.recon-toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #a8b8d8;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.recon-toast-close:hover {
+  color: #ffffff;
+}
+
 .accountant-reconciliation-footer button {
   min-height: 44px;
   display: inline-flex;

@@ -117,6 +117,65 @@ function UploadAltIcon() {
   );
 }
 
+// ── Reconciliation complete toast ─────────────────────────────────────────────
+
+function playReconSound() {
+  try {
+    const ctx = new AudioContext();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+
+    // Two-tone chime: low then high
+    [440, 660].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      const start = ctx.currentTime + i * 0.18;
+      gain.gain.setValueAtTime(0.35, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+  } catch { /* AudioContext blocked — silent fail */ }
+}
+
+function ReconCompleteToast({
+  href,
+  onClose,
+}: {
+  href: string;
+  onClose: () => void;
+}) {
+  // Auto-dismiss after 12 s
+  useEffect(() => {
+    const t = setTimeout(onClose, 12_000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  return (
+    <div className="recon-toast">
+      <div className="recon-toast-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width={20} height={20}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      </div>
+      <div className="recon-toast-body">
+        <strong>Reconciliation complete!</strong>
+        <span>Your bank statement has been extracted.</span>
+      </div>
+      <Link href={href} className="recon-toast-link" onClick={onClose}>
+        View →
+      </Link>
+      <button type="button" className="recon-toast-close" onClick={onClose} aria-label="Dismiss">
+        ✕
+      </button>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AccountantReconciliationPage() {
@@ -154,6 +213,7 @@ export default function AccountantReconciliationPage() {
   const [assignedProperties, setAssignedProperties] = useState<Map<number, string>>(new Map());
   const [reconPage, setReconPage] = useState(1);
   const RECON_PAGE_SIZE = 20;
+  const [toastReconId, setToastReconId] = useState<string | null>(null);
 
   // Table filter/sort state
   const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed">("unreviewed");
@@ -349,6 +409,8 @@ export default function AccountantReconciliationPage() {
         setUploadStage({ type: "idle" });
         setHasImported(true);
         setFeedbackMessage("Bank statement extracted successfully.");
+        setToastReconId(normalized.id);
+        playReconSound();
         try {
           const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as Array<{ jobId: string }>;
           localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored.filter((j) => j.jobId !== jobId)));
@@ -1187,6 +1249,13 @@ export default function AccountantReconciliationPage() {
             </div>
           </footer>
         </>
+      )}
+
+      {toastReconId && (
+        <ReconCompleteToast
+          href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation?id=${encodeURIComponent(toastReconId)}`}
+          onClose={() => setToastReconId(null)}
+        />
       )}
     </section>
   );
