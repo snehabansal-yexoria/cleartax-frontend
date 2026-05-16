@@ -1,9 +1,7 @@
 "use client";
 
-import { Skeleton } from "boneyard-js/react";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AccountantClientsSkeleton } from "../../../components/PortalSkeletons";
 import { getSession } from "../../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -71,8 +69,8 @@ function AccountantClientsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState<ClientTab>("all");
-  const [allClients, setAllClients] = useState<ClientRecord[]>([]);
-  const [myClients, setMyClients] = useState<ClientRecord[]>([]);
+  const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
+  const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
   const [searchValue, setSearchValue] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [isAssigningClients, setIsAssigningClients] = useState(false);
@@ -82,7 +80,6 @@ function AccountantClientsContent() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [inviteLink, setInviteLink] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [inviteForm, setInviteForm] = useState({
     fullName: "",
     email: "",
@@ -103,85 +100,56 @@ function AccountantClientsContent() {
     if (query) setSearchValue(query);
   }, [searchParams]);
 
+  // Used by mutation handlers (invite, assign) to refresh both lists after a write
   const loadClients = useCallback(async () => {
     try {
       const session = (await getSession()) as SessionWithIdToken | null;
-
-      if (!session) {
-        return;
-      }
-
+      if (!session) return;
       const token = session.getIdToken().getJwtToken();
-
       const [allRes, myRes] = await Promise.all([
-        fetch("/api/users/me/clients?scope=all", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("/api/users/me/clients?scope=mine", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch("/api/users/me/clients?scope=all", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/users/me/clients?scope=mine", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-
-      if (allRes.ok) {
-        const data = await allRes.json();
-        setAllClients(data.clients || []);
-      }
-
-      if (myRes.ok) {
-        const data = await myRes.json();
-        setMyClients(data.clients || []);
-      }
+      if (allRes.ok) setAllClients((await allRes.json()).clients || []);
+      if (myRes.ok) setMyClients((await myRes.json()).clients || []);
     } catch (error) {
       console.error("Failed to load clients:", error);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
+  // Initial load — fire both fetches independently so each list renders as soon as it arrives
   useEffect(() => {
-    async function loadClients() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
+    let cancelled = false;
 
-        if (!session) {
-          return;
-        }
+    getSession().then((rawSession) => {
+      const session = rawSession as SessionWithIdToken | null;
+      if (!session || cancelled) return;
+      const token = session.getIdToken().getJwtToken();
+      const headers = { Authorization: `Bearer ${token}` };
 
-        const token = session.getIdToken().getJwtToken();
+      fetch("/api/users/me/clients?scope=all", { headers })
+        .then((res) => (res.ok ? res.json() : { clients: [] }))
+        .then((data: { clients?: ClientRecord[] }) => {
+          if (!cancelled) setAllClients(data.clients || []);
+        })
+        .catch(() => { if (!cancelled) setAllClients([]); });
 
-        const [allRes, myRes] = await Promise.all([
-          fetch("/api/users/me/clients?scope=all", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=mine", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+      fetch("/api/users/me/clients?scope=mine", { headers })
+        .then((res) => (res.ok ? res.json() : { clients: [] }))
+        .then((data: { clients?: ClientRecord[] }) => {
+          if (!cancelled) setMyClients(data.clients || []);
+        })
+        .catch(() => { if (!cancelled) setMyClients([]); });
+    }).catch(() => {});
 
-        if (allRes.ok) {
-          const data = await allRes.json();
-          setAllClients(data.clients || []);
-        }
-
-        if (myRes.ok) {
-          const data = await myRes.json();
-          setMyClients(data.clients || []);
-        }
-      } catch (error) {
-        console.error("Failed to load clients:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadClients();
-  }, [loadClients]);
+    return () => { cancelled = true; };
+  }, []);
 
   const visibleClients = useMemo(() => {
     const source =
       currentTab === "all"
-        ? allClients.filter((client) => !client.isAssignedToCurrentAccountant)
-        : myClients;
+        ? (allClients ?? []).filter((client) => !client.isAssignedToCurrentAccountant)
+        : (myClients ?? []);
     const query = searchValue.trim().toLowerCase();
 
     if (!query) {
@@ -325,11 +293,6 @@ function AccountantClientsContent() {
   }
 
   return (
-    <Skeleton
-      name="accountant-clients"
-      loading={isLoading}
-      fallback={<AccountantClientsSkeleton />}
-    >
       <section className="accountant-clients-page">
         <div className="accountant-clients-topbar">
           <div>
@@ -366,7 +329,7 @@ function AccountantClientsContent() {
             }}
           >
             All Clients
-            <span>{allClients.length}</span>
+            <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant).length)}</span>
           </button>
           <button
             type="button"
@@ -378,7 +341,7 @@ function AccountantClientsContent() {
             }}
           >
             My Clients
-            <span>{myClients.length}</span>
+            <span>{myClients === null ? "…" : myClients.length}</span>
           </button>
         </div>
 
@@ -436,7 +399,11 @@ function AccountantClientsContent() {
             <div>Joined By</div>
           </div>
 
-          {visibleClients.map((client) => {
+          {(currentTab === "all" ? allClients : myClients) === null ? (
+            <div className="accountant-client-table-loading">
+              <p>Loading clients…</p>
+            </div>
+          ) : visibleClients.map((client) => {
             const canOpenClient = currentTab === "mine";
             return (
               <article
@@ -697,7 +664,6 @@ function AccountantClientsContent() {
           </div>
         )}
       </section>
-    </Skeleton>
   );
 }
 

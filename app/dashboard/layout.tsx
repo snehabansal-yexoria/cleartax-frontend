@@ -322,14 +322,15 @@ export default function DashboardLayout({
         const idToken = session.getIdToken();
         const token = idToken.getJwtToken();
 
-        await fetch("/api/invitations/accept", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => undefined);
-
-        const meResponse = await fetch("/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const [, meResponse] = await Promise.all([
+          fetch("/api/invitations/accept", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => undefined),
+          fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
         if (!meResponse.ok) {
           router.replace("/login");

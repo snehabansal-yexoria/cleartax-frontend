@@ -73,7 +73,8 @@ function statusClass(status: string) {
   return status.toLowerCase() === "active" ? "is-active" : "is-pending";
 }
 
-function propertyCountLabel(count: number) {
+function propertyCountLabel(count: number | undefined) {
+  if (count === undefined) return "…";
   return `${count} ${count === 1 ? "Property" : "Properties"}`;
 }
 
@@ -84,9 +85,10 @@ export default function ClientDetailPage() {
 
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [entities, setEntities] = useState<CoreEntity[]>([]);
-  const [propertyCounts, setPropertyCounts] = useState<Record<string, number>>({});
+  const [propertyCounts, setPropertyCounts] = useState<Record<string, number | undefined>>({});
   const [currentTab, setCurrentTab] = useState<ClientTab>("entities");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isClientLoading, setIsClientLoading] = useState(true);
+  const [isEntitiesLoading, setIsEntitiesLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
@@ -100,64 +102,73 @@ export default function ClientDetailPage() {
           return;
         }
         const token = session.getIdToken().getJwtToken();
+        const headers = { Authorization: `Bearer ${token}` };
 
-        const clientsRes = await fetch("/api/users/me/clients?scope=mine", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Fire client verification and entities fetch in parallel
+        const [clientsRes, entitiesRes] = await Promise.all([
+          fetch("/api/users/me/clients?scope=mine", { headers }),
+          fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, { headers }),
+        ]);
 
         if (cancelled) return;
 
-        let canLoadClient = false;
+        let canLoadEntities = false;
         if (clientsRes.ok) {
           const data = (await clientsRes.json()) as { clients: ClientRecord[] };
           const match = (data.clients || []).find((c) => c.id === clientId) ?? null;
-          setClient(match);
-          canLoadClient = Boolean(match);
-          if (!match) {
+          if (!cancelled) setClient(match);
+          canLoadEntities = Boolean(match);
+          if (!match && !cancelled) {
             setLoadError("Add this client to My Clients before opening their portfolio.");
           }
         } else {
-          setLoadError("Failed to load client.");
+          if (!cancelled) setLoadError("Failed to load client.");
         }
 
-        if (!canLoadClient) {
+        // Reveal client header regardless of whether entities can load
+        if (!cancelled) setIsClientLoading(false);
+
+        if (!canLoadEntities || cancelled) {
+          if (!cancelled) setIsEntitiesLoading(false);
           return;
         }
-
-        const entitiesRes = await fetch(
-          `/api/entities?client_id=${encodeURIComponent(clientId)}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-
-        if (cancelled) return;
 
         if (entitiesRes.ok) {
           const data = (await entitiesRes.json()) as { items: CoreEntity[] };
           const loadedEntities = data.items || [];
-          setEntities(loadedEntities);
+          if (!cancelled) {
+            setEntities(loadedEntities);
+            setIsEntitiesLoading(false); // Show entity cards immediately
 
-          const counts = await Promise.all(
-            loadedEntities.map(async (entity) => {
-              const res = await fetch(
-                `/api/entities/${encodeURIComponent(entity.id)}/properties`,
-                { headers: { Authorization: `Bearer ${token}` } },
-              );
-              if (!res.ok) return [entity.id, 0] as const;
-              const payload = (await res.json()) as { items?: CoreProperty[] };
-              return [entity.id, payload.items?.length ?? 0] as const;
-            }),
-          );
-          if (!cancelled) setPropertyCounts(Object.fromEntries(counts));
+            // Fire one property count fetch per entity independently — no await
+            for (const entity of loadedEntities) {
+              fetch(`/api/entities/${encodeURIComponent(entity.id)}/properties`, { headers })
+                .then((res) => (res.ok ? res.json() : { items: [] }))
+                .then((payload: { items?: CoreProperty[] }) => {
+                  if (!cancelled) {
+                    setPropertyCounts((prev) => ({
+                      ...prev,
+                      [entity.id]: payload.items?.length ?? 0,
+                    }));
+                  }
+                })
+                .catch(() => {
+                  if (!cancelled) {
+                    setPropertyCounts((prev) => ({ ...prev, [entity.id]: 0 }));
+                  }
+                });
+            }
+          }
+        } else {
+          if (!cancelled) setIsEntitiesLoading(false);
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to load client detail:", error);
           setLoadError("Unexpected error loading client.");
+          setIsClientLoading(false);
+          setIsEntitiesLoading(false);
         }
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
     }
 
@@ -168,11 +179,11 @@ export default function ClientDetailPage() {
   }, [clientId, router]);
 
   const totalProperties = useMemo(
-    () => Object.values(propertyCounts).reduce((sum, count) => sum + count, 0),
+    () => Object.values(propertyCounts).reduce((sum, count) => sum + (count ?? 0), 0),
     [propertyCounts],
   );
 
-  if (isLoading) {
+  if (isClientLoading) {
     return (
       <Skeleton
         name="client-portfolio-page"
@@ -249,7 +260,7 @@ export default function ClientDetailPage() {
           </span>
           <div>
             <span>Total Entities</span>
-            <strong>{entities.length}</strong>
+            <strong>{isEntitiesLoading ? "—" : entities.length}</strong>
           </div>
         </article>
         <article className="client-stat-card">
@@ -263,7 +274,7 @@ export default function ClientDetailPage() {
           </span>
           <div>
             <span>Total Properties</span>
-            <strong>{totalProperties}</strong>
+            <strong>{isEntitiesLoading ? "—" : totalProperties}</strong>
           </div>
         </article>
         <article className="client-stat-card">
@@ -298,7 +309,11 @@ export default function ClientDetailPage() {
 
         {currentTab === "entities" && (
           <div className="client-portfolio-tab-body">
-            {entities.length === 0 ? (
+            {isEntitiesLoading ? (
+              <div className="client-empty-entities">
+                <p>Loading entities…</p>
+              </div>
+            ) : entities.length === 0 ? (
               <div className="client-empty-entities">
                 <span className="client-empty-icon">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -331,7 +346,7 @@ export default function ClientDetailPage() {
 
                 <div className="entity-card-grid">
                   {entities.map((entity) => {
-                    const propertyCount = propertyCounts[entity.id] ?? 0;
+                    const propertyCount = propertyCounts[entity.id];
                     return (
                       <article key={entity.id} className="entity-ownership-card">
                         <Link

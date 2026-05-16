@@ -1,10 +1,8 @@
 "use client";
 
-import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 
 interface SessionWithIdToken {
@@ -65,68 +63,61 @@ function formatJoinedDate(value: string | null) {
 
 export default function AccountantPage() {
   const router = useRouter();
-  const [organizationName, setOrganizationName] = useState("");
-  const [currentUserEmail, setCurrentUserEmail] = useState("");
-  const [allClients, setAllClients] = useState<ClientRecord[]>([]);
-  const [myClients, setMyClients] = useState<ClientRecord[]>([]);
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
+  const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [selectedAvailableClientId, setSelectedAvailableClientId] =
     useState("");
   const [isAssigningClient, setIsAssigningClient] = useState(false);
   const [assignMessage, setAssignMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) return;
+    let cancelled = false;
 
-        const token = session.getIdToken().getJwtToken();
-        const [meRes, orgRes, allRes, myRes] = await Promise.all([
-          fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/organization", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=all", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=mine", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+    getSession().then((rawSession) => {
+      const session = rawSession as SessionWithIdToken | null;
+      if (!session || cancelled) return;
 
-        if (meRes.ok) {
-          const data = (await meRes.json()) as CurrentUserResponse;
-          setCurrentUserEmail(String(data.email || "").toLowerCase());
-        }
-        if (orgRes.ok) {
-          const data = (await orgRes.json()) as OrganizationResponse;
-          setOrganizationName(data.organization?.name || "");
-        }
-        if (allRes.ok) {
-          const data = (await allRes.json()) as { clients?: ClientRecord[] };
-          setAllClients(data.clients || []);
-        }
-        if (myRes.ok) {
-          const data = (await myRes.json()) as { clients?: ClientRecord[] };
-          setMyClients(data.clients || []);
-        }
-      } catch (error) {
-        console.error("Failed to load dashboard:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+      const token = session.getIdToken().getJwtToken();
+      const headers = { Authorization: `Bearer ${token}` };
 
-    load();
+      fetch("/api/users/me", { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: CurrentUserResponse | null) => {
+          if (!cancelled) setCurrentUserEmail(String(data?.email || "").toLowerCase());
+        })
+        .catch(() => { if (!cancelled) setCurrentUserEmail(""); });
+
+      fetch("/api/users/me/organization", { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: OrganizationResponse | null) => {
+          if (!cancelled) setOrganizationName(data?.organization?.name || "");
+        })
+        .catch(() => { if (!cancelled) setOrganizationName(""); });
+
+      fetch("/api/users/me/clients?scope=all", { headers })
+        .then((res) => (res.ok ? res.json() : { clients: [] }))
+        .then((data: { clients?: ClientRecord[] }) => {
+          if (!cancelled) setAllClients(data.clients || []);
+        })
+        .catch(() => { if (!cancelled) setAllClients([]); });
+
+      fetch("/api/users/me/clients?scope=mine", { headers })
+        .then((res) => (res.ok ? res.json() : { clients: [] }))
+        .then((data: { clients?: ClientRecord[] }) => {
+          if (!cancelled) setMyClients(data.clients || []);
+        })
+        .catch(() => { if (!cancelled) setMyClients([]); });
+    }).catch(() => {});
+
+    return () => { cancelled = true; };
   }, []);
 
   const invitationPending = useMemo(
     () =>
-      allClients.filter((client) => {
+      (allClients ?? []).filter((client) => {
         const status = client.status.toLowerCase();
         const invitedByEmail = client.invitedByEmail.toLowerCase();
         return (
@@ -139,17 +130,17 @@ export default function AccountantPage() {
 
   const registeredClients = useMemo(
     () =>
-      myClients.filter(
+      (myClients ?? []).filter(
         (client) => !pendingStatuses.has(client.status.toLowerCase()),
       ).length,
     [myClients],
   );
 
-  const managedClients = myClients;
+  const managedClients = myClients ?? [];
 
   const availableClients = useMemo(
     () =>
-      allClients.filter(
+      (allClients ?? []).filter(
         (client) =>
           !client.isAssignedToCurrentAccountant &&
           !client.isAssignedToAnotherAccountant,
@@ -200,19 +191,16 @@ export default function AccountantPage() {
   }
 
   return (
-    <Skeleton
-      name="accountant-dashboard"
-      loading={isLoading}
-      fallback={<AccountantDashboardSkeleton />}
-    >
       <section className="accountant-dashboard">
         <div className="accountant-summary-grid">
           <article className="accountant-summary-card accountant-summary-card-blue">
             <div>
               <p className="accountant-eyebrow">Invitation Pending</p>
-              <h2>{invitationPending}</h2>
+              <h2>{allClients === null ? "—" : invitationPending}</h2>
               <span>
-                {invitationPending === 1
+                {allClients === null
+                  ? "Loading…"
+                  : invitationPending === 1
                   ? "Client invited by you still to accept"
                   : "Clients invited by you still to accept"}
               </span>
@@ -232,8 +220,8 @@ export default function AccountantPage() {
           <article className="accountant-summary-card accountant-summary-card-gold">
             <div>
               <p className="accountant-eyebrow">Registered Clients</p>
-              <h2>{registeredClients}</h2>
-              <span>{myClients.length} added to your list</span>
+              <h2>{myClients === null ? "—" : registeredClients}</h2>
+              <span>{myClients === null ? "Loading…" : `${myClients.length} added to your list`}</span>
             </div>
             <div className="accountant-summary-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -292,7 +280,11 @@ export default function AccountantPage() {
               </div>
             </div>
 
-            {managedClients.length === 0 ? (
+            {myClients === null ? (
+              <div className="accountant-empty-state">
+                <p>Loading your client list…</p>
+              </div>
+            ) : managedClients.length === 0 ? (
               <div className="accountant-empty-state">
                 <p>You have not added any clients to your list yet.</p>
                 <Link
@@ -445,6 +437,5 @@ export default function AccountantPage() {
           </aside>
         </div>
       </section>
-    </Skeleton>
   );
 }

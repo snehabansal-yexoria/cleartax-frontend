@@ -116,7 +116,9 @@ export default function EntityDetailView({
     [],
   );
   const [currentTab, setCurrentTab] = useState<EntityTab>("properties");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isEntityLoading, setIsEntityLoading] = useState(true);
+  const [isPropertiesLoading, setIsPropertiesLoading] = useState(true);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
   const [reconList, setReconList] = useState<ReconciliationListItem[]>([]);
@@ -133,57 +135,57 @@ export default function EntityDetailView({
     let cancelled = false;
 
     async function load() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
-          router.replace("/login/user");
-          return;
-        }
-        const token = session.getIdToken().getJwtToken();
-        if (!cancelled) setSessionToken(token);
-
-        const [entityRes, propertiesRes, transactionsRes] = await Promise.all([
-          fetch(`/api/entities/${encodeURIComponent(entityId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/entities/${encodeURIComponent(entityId)}/transactions`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
-        if (cancelled) return;
-
-        if (!entityRes.ok) {
-          setErrorMessage("Failed to load entity.");
-          return;
-        }
-
-        setEntity((await entityRes.json()) as CoreEntity);
-
-        if (propertiesRes.ok) {
-          const data = (await propertiesRes.json()) as { items?: CoreProperty[] };
-          setProperties(data.items || []);
-        }
-        if (transactionsRes.ok) {
-          const data = (await transactionsRes.json()) as {
-            items?: CoreTransactionListItem[];
-          };
-          setTransactions(data.items || []);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to load entity detail:", error);
-          setErrorMessage("Unexpected error loading entity.");
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        router.replace("/login/user");
+        return;
       }
+      const token = session.getIdToken().getJwtToken();
+      if (!cancelled) setSessionToken(token);
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Entity — must load before header renders
+      fetch(`/api/entities/${encodeURIComponent(entityId)}`, { headers })
+        .then((res) => {
+          if (!res.ok) throw new Error("entity_not_found");
+          return res.json();
+        })
+        .then((data: CoreEntity) => {
+          if (!cancelled) setEntity(data);
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            const msg = err instanceof Error && err.message === "entity_not_found"
+              ? "Failed to load entity."
+              : "Unexpected error loading entity.";
+            setErrorMessage(msg);
+          }
+        })
+        .finally(() => { if (!cancelled) setIsEntityLoading(false); });
+
+      // Properties — independent; populates the Properties tab
+      fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, { headers })
+        .then((res) => (res.ok ? res.json() : { items: [] }))
+        .then((data: { items?: CoreProperty[] }) => {
+          if (!cancelled) setProperties(data.items || []);
+        })
+        .catch(() => { if (!cancelled) setProperties([]); })
+        .finally(() => { if (!cancelled) setIsPropertiesLoading(false); });
+
+      // Transactions — independent; used by trend chart and Transactions tab
+      fetch(`/api/entities/${encodeURIComponent(entityId)}/transactions`, { headers })
+        .then((res) => (res.ok ? res.json() : { items: [] }))
+        .then((data: { items?: CoreTransactionListItem[] }) => {
+          if (!cancelled) setTransactions(data.items || []);
+        })
+        .catch(() => { if (!cancelled) setTransactions([]); })
+        .finally(() => { if (!cancelled) setIsTransactionsLoading(false); });
     }
 
-    if (entityId) load();
+    if (entityId) load().catch((error) => {
+      console.error("Failed to load entity detail:", error);
+    });
     return () => {
       cancelled = true;
     };
@@ -235,7 +237,7 @@ export default function EntityDetailView({
     ...trendRows.flatMap((row) => [row.expenses, row.income]),
   );
 
-  if (isLoading) {
+  if (isEntityLoading) {
     return (
       <Skeleton
         name="entity-detail-page"
@@ -320,7 +322,11 @@ export default function EntityDetailView({
           </div>
         </div>
 
-        {trendRows.length === 0 ? (
+        {isTransactionsLoading ? (
+          <div className="property-trend-empty">
+            Loading activity data…
+          </div>
+        ) : trendRows.length === 0 ? (
           <div className="property-trend-empty">
             No transactions are available for this entity yet.
           </div>
@@ -420,7 +426,11 @@ export default function EntityDetailView({
               </Link>
             </div>
 
-            {properties.length === 0 ? (
+            {isPropertiesLoading ? (
+              <div className="client-detail-empty">
+                <p>Loading properties…</p>
+              </div>
+            ) : properties.length === 0 ? (
               <div className="client-detail-empty">
                 <p>No properties have been linked to this entity yet.</p>
               </div>
