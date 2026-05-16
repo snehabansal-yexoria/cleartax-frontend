@@ -179,7 +179,7 @@ export default function ClientDetailPage() {
   }, [clientId, router]);
 
   const totalProperties = useMemo(
-    () => Object.values(propertyCounts).reduce((sum, count) => sum + (count ?? 0), 0),
+    () => Object.values(propertyCounts).reduce<number>((sum, count) => sum + (count ?? 0), 0),
     [propertyCounts],
   );
 

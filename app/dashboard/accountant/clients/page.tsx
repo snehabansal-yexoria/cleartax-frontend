@@ -164,7 +164,7 @@ function AccountantClientsContent() {
   }, [allClients, myClients, currentTab, searchValue]);
 
   function toggleClientSelection(clientId: string) {
-    const client = allClients.find((item) => item.id === clientId);
+    const client = (allClients ?? []).find((item) => item.id === clientId);
     if (
       currentTab === "mine" ||
       client?.isAssignedToCurrentAccountant ||
