@@ -2,28 +2,18 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
+import { DocumentVault } from "@/app/components/DocumentVault";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
-
-interface ClientRecord {
-  id: string;
-  email: string;
-  status: string;
-  name: string;
-  phoneNumber: string;
-  invitedByEmail: string;
-  joinedAt: string | null;
-}
+import {
+  fetchAccountantClientsBundle,
+  type AccountantClientRecord,
+  type SessionWithIdToken,
+} from "../../accountantClientsData";
 
 type ClientTab = "entities" | "banking" | "transactions" | "documents";
 
@@ -82,7 +72,7 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const clientId = params?.clientId ?? "";
 
-  const [client, setClient] = useState<ClientRecord | null>(null);
+  const [client, setClient] = useState<AccountantClientRecord | null>(null);
   const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [propertyCounts, setPropertyCounts] = useState<Record<string, number>>({});
   const [currentTab, setCurrentTab] = useState<ClientTab>("entities");
@@ -101,26 +91,15 @@ export default function ClientDetailPage() {
         }
         const token = session.getIdToken().getJwtToken();
 
-        const clientsRes = await fetch("/api/users/me/clients?scope=mine", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const clientsBundle = await fetchAccountantClientsBundle(token);
+        const match =
+          clientsBundle.myClients.find((item) => item.id === clientId) ?? null;
 
         if (cancelled) return;
 
-        let canLoadClient = false;
-        if (clientsRes.ok) {
-          const data = (await clientsRes.json()) as { clients: ClientRecord[] };
-          const match = (data.clients || []).find((c) => c.id === clientId) ?? null;
-          setClient(match);
-          canLoadClient = Boolean(match);
-          if (!match) {
-            setLoadError("Add this client to My Clients before opening their portfolio.");
-          }
-        } else {
-          setLoadError("Failed to load client.");
-        }
-
-        if (!canLoadClient) {
+        setClient(match);
+        if (!match) {
+          setLoadError("Add this client to My Clients before opening their portfolio.");
           return;
         }
 
@@ -137,6 +116,7 @@ export default function ClientDetailPage() {
           const data = (await entitiesRes.json()) as { items: CoreEntity[] };
           const loadedEntities = data.items || [];
           setEntities(loadedEntities);
+          setIsLoading(false);
 
           const counts = await Promise.all(
             loadedEntities.map(async (entity) => {
@@ -149,7 +129,13 @@ export default function ClientDetailPage() {
               return [entity.id, payload.items?.length ?? 0] as const;
             }),
           );
-          if (!cancelled) setPropertyCounts(Object.fromEntries(counts));
+          if (!cancelled) {
+            startTransition(() => {
+              setPropertyCounts(Object.fromEntries(counts));
+            });
+          }
+        } else {
+          setLoadError("Failed to load client entities.");
         }
       } catch (error) {
         if (!cancelled) {
@@ -167,9 +153,9 @@ export default function ClientDetailPage() {
     };
   }, [clientId, router]);
 
-  const totalProperties = useMemo(
-    () => Object.values(propertyCounts).reduce((sum, count) => sum + count, 0),
-    [propertyCounts],
+  const totalProperties = Object.values(propertyCounts).reduce(
+    (sum, count) => sum + count,
+    0,
   );
 
   if (isLoading) {
@@ -414,7 +400,13 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {currentTab !== "entities" && currentTab !== "transactions" && (
+        {currentTab === "documents" && (
+          <div className="client-portfolio-tab-body">
+            <DocumentVault scope={{ clientId }} />
+          </div>
+        )}
+
+        {currentTab !== "entities" && currentTab !== "transactions" && currentTab !== "documents" && (
           <div className="client-coming-soon">
             <strong>{clientTabs.find((tab) => tab.id === currentTab)?.label}</strong>
             <p>Coming soon</p>

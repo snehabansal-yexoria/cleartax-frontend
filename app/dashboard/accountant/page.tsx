@@ -3,15 +3,15 @@
 import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AccountantDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
+import {
+  clearAccountantClientsCache,
+  fetchAccountantClientsBundle,
+  type AccountantClientRecord,
+  type SessionWithIdToken,
+} from "./accountantClientsData";
 
 interface OrganizationResponse {
   organization: {
@@ -20,25 +20,12 @@ interface OrganizationResponse {
   } | null;
 }
 
-interface ClientRecord {
-  id: string;
-  email: string;
-  status: string;
-  name: string;
-  phoneNumber: string;
-  invitedByEmail: string;
-  joinedAt: string | null;
-  assignedAccountantId?: string;
-  assignedAccountantName?: string;
-  isAssignedToCurrentAccountant?: boolean;
-  isAssignedToAnotherAccountant?: boolean;
-}
-
 interface CurrentUserResponse {
   id: string;
   email: string;
   fullName: string;
   role: string;
+  orgName?: string;
 }
 
 const pendingStatuses = new Set(["invited", "pending"]);
@@ -63,12 +50,49 @@ function formatJoinedDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function getDashboardMetrics(params: {
+  allClients: AccountantClientRecord[];
+  myClients: AccountantClientRecord[];
+  currentUserEmail: string;
+}) {
+  const availableClients: AccountantClientRecord[] = [];
+  let invitationPending = 0;
+  let registeredClients = 0;
+
+  for (const client of params.allClients) {
+    const status = String(client.status || "").toLowerCase();
+    const invitedByEmail = String(client.invitedByEmail || "").toLowerCase();
+
+    if (
+      pendingStatuses.has(status) &&
+      (!params.currentUserEmail || invitedByEmail === params.currentUserEmail)
+    ) {
+      invitationPending += 1;
+    }
+
+    if (
+      !client.isAssignedToCurrentAccountant &&
+      !client.isAssignedToAnotherAccountant
+    ) {
+      availableClients.push(client);
+    }
+  }
+
+  for (const client of params.myClients) {
+    if (!pendingStatuses.has(String(client.status || "").toLowerCase())) {
+      registeredClients += 1;
+    }
+  }
+
+  return { availableClients, invitationPending, registeredClients };
+}
+
 export default function AccountantPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState("");
   const [currentUserEmail, setCurrentUserEmail] = useState("");
-  const [allClients, setAllClients] = useState<ClientRecord[]>([]);
-  const [myClients, setMyClients] = useState<ClientRecord[]>([]);
+  const [allClients, setAllClients] = useState<AccountantClientRecord[]>([]);
+  const [myClients, setMyClients] = useState<AccountantClientRecord[]>([]);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [selectedAvailableClientId, setSelectedAvailableClientId] =
     useState("");
@@ -77,86 +101,65 @@ export default function AccountantPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
         const session = (await getSession()) as SessionWithIdToken | null;
         if (!session) return;
 
         const token = session.getIdToken().getJwtToken();
-        const [meRes, orgRes, allRes, myRes] = await Promise.all([
+        const [meRes, clientsBundle] = await Promise.all([
           fetch("/api/users/me", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("/api/users/me/organization", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=all", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=mine", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          fetchAccountantClientsBundle(token),
         ]);
+
+        if (cancelled) return;
+
+        let shouldLoadOrganization = false;
 
         if (meRes.ok) {
           const data = (await meRes.json()) as CurrentUserResponse;
           setCurrentUserEmail(String(data.email || "").toLowerCase());
+          if (data.orgName) {
+            setOrganizationName(data.orgName);
+          } else {
+            shouldLoadOrganization = true;
+          }
         }
-        if (orgRes.ok) {
-          const data = (await orgRes.json()) as OrganizationResponse;
-          setOrganizationName(data.organization?.name || "");
-        }
-        if (allRes.ok) {
-          const data = (await allRes.json()) as { clients?: ClientRecord[] };
-          setAllClients(data.clients || []);
-        }
-        if (myRes.ok) {
-          const data = (await myRes.json()) as { clients?: ClientRecord[] };
-          setMyClients(data.clients || []);
+        setAllClients(clientsBundle.allClients);
+        setMyClients(clientsBundle.myClients);
+
+        if (shouldLoadOrganization) {
+          const orgRes = await fetch("/api/users/me/organization", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (cancelled) return;
+
+          if (orgRes.ok) {
+            const orgData = (await orgRes.json()) as OrganizationResponse;
+            setOrganizationName(orgData.organization?.name || "");
+          }
         }
       } catch (error) {
         console.error("Failed to load dashboard:", error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const invitationPending = useMemo(
-    () =>
-      allClients.filter((client) => {
-        const status = client.status.toLowerCase();
-        const invitedByEmail = client.invitedByEmail.toLowerCase();
-        return (
-          pendingStatuses.has(status) &&
-          (!currentUserEmail || invitedByEmail === currentUserEmail)
-        );
-      }).length,
-    [allClients, currentUserEmail],
-  );
-
-  const registeredClients = useMemo(
-    () =>
-      myClients.filter(
-        (client) => !pendingStatuses.has(client.status.toLowerCase()),
-      ).length,
-    [myClients],
-  );
-
   const managedClients = myClients;
-
-  const availableClients = useMemo(
-    () =>
-      allClients.filter(
-        (client) =>
-          !client.isAssignedToCurrentAccountant &&
-          !client.isAssignedToAnotherAccountant,
-      ),
-    [allClients],
-  );
-
+  const { availableClients, invitationPending, registeredClients } =
+    getDashboardMetrics({ allClients, myClients, currentUserEmail });
   const suggestedClients = availableClients.slice(0, 3);
 
   async function handleAssignSuggestedClient() {
@@ -190,6 +193,7 @@ export default function AccountantPage() {
         return;
       }
 
+      clearAccountantClientsCache();
       router.push("/dashboard/accountant/clients?tab=mine");
     } catch (error) {
       console.error("Assign suggested client error:", error);
@@ -371,13 +375,21 @@ export default function AccountantPage() {
                     href={`/dashboard/accountant/clients/${client.id}`}
                     className="accountant-client-card accountant-client-card-plain"
                   >
-                    <div className="accountant-client-pill">
-                      {getInitials(client.name)}
+                    <div className="accountant-client-card-head">
+                      <div className="accountant-client-pill">
+                        {getInitials(client.name)}
+                      </div>
+                      <span className="accountant-client-status-badge">
+                        {client.status || "Active"}
+                      </span>
                     </div>
                     <div className="accountant-client-copy">
                       <h4>{client.name}</h4>
                       <p>{client.email}</p>
+                    </div>
+                    <div className="accountant-client-card-meta">
                       <span>{client.phoneNumber || ""}</span>
+                      <strong>{formatJoinedDate(client.joinedAt)}</strong>
                     </div>
                   </Link>
                 ))}

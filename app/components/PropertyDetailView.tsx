@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
+import { DocumentVault } from "@/app/components/DocumentVault";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
+import {
+  ProfitLossTrend,
+  type ProfitLossTrendItem,
+} from "@/app/components/ProfitLossTrend";
 import {
   AllTransactionsView,
   TransactionRulesView,
@@ -24,6 +29,7 @@ interface SessionWithIdToken {
 
 export type PropertyDetailViewProps = {
   propertyId: string;
+  clientId?: string;
   entityId?: string;
   backHref: string;
   backLabel: string;
@@ -75,21 +81,9 @@ function getLoanAmount(property: CoreProperty | null) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function monthKey(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  const date = new Date(year, month - 1, 1);
-  if (Number.isNaN(date.getTime())) return key;
-  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-}
-
 export default function PropertyDetailView({
   propertyId,
+  clientId,
   entityId,
   backHref,
   backLabel,
@@ -104,7 +98,9 @@ export default function PropertyDetailView({
   );
   const [currentTab, setCurrentTab] = useState<PropertyTab>("transactions");
   const [isLoading, setIsLoading] = useState(true);
+  const [trendLoading, setTrendLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -124,15 +120,12 @@ export default function PropertyDetailView({
           return;
         }
         const token = session.getIdToken().getJwtToken();
+        if (!cancelled) setSessionToken(token);
 
-        const [propertyRes, transactionsRes] = await Promise.all([
-          fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/properties/${encodeURIComponent(propertyId)}/transactions`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+        const propertyRes = await fetch(
+          `/api/properties/${encodeURIComponent(propertyId)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
 
         if (cancelled) return;
         if (!propertyRes.ok) {
@@ -142,12 +135,6 @@ export default function PropertyDetailView({
 
         const loadedProperty = (await propertyRes.json()) as CoreProperty;
         setProperty(loadedProperty);
-        if (transactionsRes.ok) {
-          const data = (await transactionsRes.json()) as {
-            items?: CorePropertyTransactionRow[];
-          };
-          setTransactions(data.items || []);
-        }
 
         const entityRes = await fetch(
           `/api/entities/${encodeURIComponent(loadedProperty.entityId)}`,
@@ -172,6 +159,44 @@ export default function PropertyDetailView({
     };
   }, [propertyId, router]);
 
+  useEffect(() => {
+    if (!sessionToken || !propertyId) return;
+    let cancelled = false;
+
+    async function loadTrend() {
+      try {
+        setTrendLoading(true);
+        setTransactions([]);
+        const res = await fetch(
+          `/api/properties/${encodeURIComponent(propertyId)}/transactions`,
+          { headers: { Authorization: `Bearer ${sessionToken}` } },
+        );
+
+        if (!res.ok || cancelled) {
+          if (!cancelled) setTransactions([]);
+          return;
+        }
+
+        const data = (await res.json()) as {
+          items?: CorePropertyTransactionRow[];
+        };
+        if (!cancelled) setTransactions(data.items || []);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load property profit and loss trend:", error);
+          setTransactions([]);
+        }
+      } finally {
+        if (!cancelled) setTrendLoading(false);
+      }
+    }
+
+    loadTrend();
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, sessionToken]);
+
   const loanAmount = useMemo(() => getLoanAmount(property), [property]);
   const transactionSummary = useMemo(() => {
     const totals = transactions.reduce(
@@ -190,29 +215,12 @@ export default function PropertyDetailView({
       count: transactions.length,
     };
   }, [transactions]);
-  const trendRows = useMemo(() => {
-    const byMonth = new Map<string, { month: string; expenses: number; income: number }>();
-    for (const row of transactions) {
-      const key = monthKey(row.invoiceDate);
-      if (!key) continue;
-      const current = byMonth.get(key) || {
-        month: key,
-        expenses: 0,
-        income: 0,
-      };
-      const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount);
-      if (row.transactionType === "revenue") current.income += amount;
-      else current.expenses += amount;
-      byMonth.set(key, current);
-    }
-    return Array.from(byMonth.values())
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-7);
-  }, [transactions]);
-  const maxTrendAmount = Math.max(
-    1,
-    ...trendRows.flatMap((row) => [row.expenses, row.income]),
-  );
+  const trendItems: ProfitLossTrendItem[] = transactions.map((row) => ({
+    id: String(row.splitId || row.transactionId),
+    invoiceDate: row.invoiceDate,
+    type: row.transactionType,
+    amount: row.splitGrossAmount || row.transactionGrossAmount,
+  }));
 
   if (isLoading) {
     return (
@@ -324,103 +332,11 @@ export default function PropertyDetailView({
         </article>
       </div>
 
-      <section className="entity-trend-card" aria-label="Profit and loss trend">
-        <div className="entity-trend-head">
-          <h2>Profit & Loss Trend</h2>
-          <div className="entity-trend-toggle" aria-hidden="true">
-            <span className="is-active">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 19V5" />
-                <path d="M4 19h16" />
-                <path d="M8 17V9" />
-                <path d="M13 17V6" />
-                <path d="M18 17v-5" />
-              </svg>
-              Graph View
-            </span>
-            <span>
-              <svg viewBox="0 0 24 24">
-                <rect x="4" y="5" width="16" height="14" rx="1" />
-                <path d="M4 10h16" />
-                <path d="M4 15h16" />
-                <path d="M10 5v14" />
-              </svg>
-              Table View
-            </span>
-          </div>
-        </div>
-
-        {trendRows.length === 0 ? (
-          <div className="property-trend-empty">
-            No transactions are available for this property yet.
-          </div>
-        ) : (
-          <div className="property-trend-grid">
-            <div className="entity-chart">
-              <div className="entity-chart-y">
-                <span>{formatCurrency(maxTrendAmount)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.75)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.5)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
-                <span>{formatCurrency(0)}</span>
-              </div>
-              <div className="entity-chart-plot">
-                {trendRows.map((item) => (
-                  <div key={item.month} className="entity-chart-month">
-                    <div className="entity-chart-bars">
-                      <span
-                        className="is-expense"
-                        style={{
-                          height: `${Math.max(
-                            3,
-                            (item.expenses / maxTrendAmount) * 100,
-                          )}%`,
-                        }}
-                      />
-                      <span
-                        className="is-income"
-                        style={{
-                          height: `${Math.max(
-                            3,
-                            (item.income / maxTrendAmount) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <span>{monthLabel(item.month)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="property-trend-table">
-              <div>
-                <strong>Month</strong>
-                <strong>Income</strong>
-                <strong>Expenses</strong>
-              </div>
-              {trendRows.map((item) => (
-                <div key={item.month}>
-                  <span>{monthLabel(item.month)}</span>
-                  <span>{formatCurrency(item.income)}</span>
-                  <span>{formatCurrency(item.expenses)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="entity-chart-legend">
-          <span>
-            <i className="is-expense" />
-            Expenses
-          </span>
-          <span>
-            <i className="is-income" />
-            Income
-          </span>
-        </div>
-      </section>
+      <ProfitLossTrend
+        items={trendItems}
+        isLoading={trendLoading}
+        emptyMessage="No transactions are available for this property yet."
+      />
 
       <section className="property-detail-tabs">
         <div className="property-detail-tab-list" role="tablist" aria-label="Property detail sections">
@@ -447,10 +363,9 @@ export default function PropertyDetailView({
           ) : currentTab === "rules" ? (
             <TransactionRulesView backHref={backHref} entityId={entityId} />
           ) : (
-            <>
-              <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
-              <p>Coming soon</p>
-            </>
+            <DocumentVault
+              scope={{ clientId, entityId, propertyIds: [propertyId] }}
+            />
           )}
         </div>
       </section>

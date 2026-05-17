@@ -10,6 +10,18 @@ type CoreApiRequestOptions = {
 
 type RawRecord = Record<string, unknown>;
 
+export type CorePaginationOptions = {
+  page?: number;
+  pageSize?: number;
+};
+
+export type CorePaginatedResult<T> = {
+  items: T[];
+  total: number | null;
+  page: number | null;
+  pageSize: number | null;
+};
+
 export type CoreUser = {
   id: string;
   email: string;
@@ -157,6 +169,53 @@ function getJsonObject(payload: unknown): RawRecord {
   }
 
   return record;
+}
+
+function getPaginationNumber(payload: unknown, keys: string[]) {
+  if (typeof payload !== "object" || payload === null) return null;
+  const record = payload as RawRecord;
+  for (const key of keys) {
+    const value = record[key];
+    const parsed = toNumberValue(value);
+    if (parsed != null) return parsed;
+  }
+  return null;
+}
+
+function getPaginatedJsonArray<T>(
+  payload: unknown,
+  normalize: (raw: RawRecord) => T,
+): CorePaginatedResult<T> {
+  const items = getJsonArray(payload).map(normalize);
+
+  return {
+    items,
+    total: getPaginationNumber(payload, [
+      "total",
+      "total_count",
+      "totalCount",
+      "count",
+    ]),
+    page: getPaginationNumber(payload, ["page", "current_page", "currentPage"]),
+    pageSize: getPaginationNumber(payload, [
+      "page_size",
+      "pageSize",
+      "limit",
+      "per_page",
+      "perPage",
+    ]),
+  };
+}
+
+function buildPaginationQuery(options?: CorePaginationOptions) {
+  const params = new URLSearchParams();
+  if (options?.page != null) params.set("page", String(options.page));
+  if (options?.pageSize != null) {
+    params.set("page_size", String(options.pageSize));
+    params.set("limit", String(options.pageSize));
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }
 
 function toStringValue(value: unknown) {
@@ -1007,34 +1066,73 @@ export function normalizeCoreTransactionSubcategory(
 export async function listCoreTransactionsByClient(
   token: string,
   clientId: string,
+  options?: CorePaginationOptions,
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/transactions`,
+    `/clients/${encodeURIComponent(clientId)}/transactions${buildPaginationQuery(options)}`,
     { token },
   );
   return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+}
+
+export async function listCoreTransactionsByClientPage(
+  token: string,
+  clientId: string,
+  options?: CorePaginationOptions,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/transactions${buildPaginationQuery(options)}`,
+    { token },
+  );
+  return getPaginatedJsonArray(payload, normalizeCoreTransactionListItem);
 }
 
 export async function listCoreTransactionsByEntity(
   token: string,
   entityId: string,
+  options?: CorePaginationOptions,
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/transactions`,
+    `/entities/${encodeURIComponent(entityId)}/transactions${buildPaginationQuery(options)}`,
     { token },
   );
   return getJsonArray(payload).map(normalizeCoreTransactionListItem);
 }
 
+export async function listCoreTransactionsByEntityPage(
+  token: string,
+  entityId: string,
+  options?: CorePaginationOptions,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/transactions${buildPaginationQuery(options)}`,
+    { token },
+  );
+  return getPaginatedJsonArray(payload, normalizeCoreTransactionListItem);
+}
+
 export async function listCoreTransactionsByProperty(
   token: string,
   propertyId: string,
+  options?: CorePaginationOptions,
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/transactions`,
+    `/properties/${encodeURIComponent(propertyId)}/transactions${buildPaginationQuery(options)}`,
     { token },
   );
   return getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+}
+
+export async function listCoreTransactionsByPropertyPage(
+  token: string,
+  propertyId: string,
+  options?: CorePaginationOptions,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/transactions${buildPaginationQuery(options)}`,
+    { token },
+  );
+  return getPaginatedJsonArray(payload, normalizeCorePropertyTransactionRow);
 }
 
 export async function getCoreTransaction(token: string, id: string) {

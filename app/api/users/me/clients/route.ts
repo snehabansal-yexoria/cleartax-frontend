@@ -3,6 +3,7 @@ import { verifyToken } from "@/src/lib/verifyToken";
 import { getRoleIdByName } from "@/src/lib/roles";
 import {
   assignClientsToAccountant,
+  type DirectoryUser,
   findDirectoryUserByIdentity,
   listDirectoryUsers,
   type VerifiedTokenLike,
@@ -34,6 +35,26 @@ async function getRequester(req: Request) {
   return { requester } as const;
 }
 
+function serializeClient(user: DirectoryUser, requesterId: string) {
+  return {
+    id: user.id,
+    email: user.email,
+    status: user.status,
+    name: user.fullName,
+    phoneNumber: user.phoneNumber || "",
+    invitedByEmail: user.invitedByEmail || "",
+    joinedAt: user.createdAt,
+    assignedAccountantId: user.assignedAccountantId,
+    assignedAccountantName: user.assignedAccountantName,
+    isAssignedToCurrentAccountant:
+      Boolean(user.assignedAccountantId) &&
+      user.assignedAccountantId === requesterId,
+    isAssignedToAnotherAccountant:
+      Boolean(user.assignedAccountantId) &&
+      user.assignedAccountantId !== requesterId,
+  };
+}
+
 export async function GET(req: Request) {
   try {
     const requesterResult = await getRequester(req);
@@ -58,8 +79,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ clients: [] });
     }
 
+    const requestedScope = new URL(req.url).searchParams.get("scope");
     const scope =
-      new URL(req.url).searchParams.get("scope") === "mine" ? "mine" : "all";
+      requestedScope === "mine" || requestedScope === "dashboard"
+        ? requestedScope
+        : "all";
     const clientRoleId = await getRoleIdByName("client");
 
     if (!clientRoleId) {
@@ -74,6 +98,17 @@ export async function GET(req: Request) {
       roleIds: [clientRoleId],
     });
 
+    if (scope === "dashboard" && requesterRole === "accountant") {
+      return NextResponse.json({
+        allClients: clients
+          .filter((user) => user.assignedAccountantId !== requester.id)
+          .map((user) => serializeClient(user, requester.id)),
+        myClients: clients
+          .filter((user) => user.assignedAccountantId === requester.id)
+          .map((user) => serializeClient(user, requester.id)),
+      });
+    }
+
     return NextResponse.json({
       clients: clients
         .filter(
@@ -83,23 +118,7 @@ export async function GET(req: Request) {
               ? user.assignedAccountantId === requester.id
               : user.assignedAccountantId !== requester.id),
         )
-        .map((user) => ({
-          id: user.id,
-          email: user.email,
-          status: user.status,
-          name: user.fullName,
-          phoneNumber: user.phoneNumber || "",
-          invitedByEmail: user.invitedByEmail || "",
-          joinedAt: user.createdAt,
-          assignedAccountantId: user.assignedAccountantId,
-          assignedAccountantName: user.assignedAccountantName,
-          isAssignedToCurrentAccountant:
-            Boolean(user.assignedAccountantId) &&
-            user.assignedAccountantId === requester.id,
-          isAssignedToAnotherAccountant:
-            Boolean(user.assignedAccountantId) &&
-            user.assignedAccountantId !== requester.id,
-        })),
+        .map((user) => serializeClient(user, requester.id)),
     });
   } catch (error) {
     console.error("Fetch clients error:", error);
@@ -141,9 +160,13 @@ export async function POST(req: Request) {
       clientIds?: unknown;
     };
     const clientIds = Array.isArray(body.clientIds)
-      ? body.clientIds
-          .map((value) => String(value || "").trim())
-          .filter(Boolean)
+      ? Array.from(
+          new Set(
+            body.clientIds
+              .map((value) => String(value || "").trim())
+              .filter(Boolean),
+          ),
+        )
       : [];
 
     if (clientIds.length === 0) {

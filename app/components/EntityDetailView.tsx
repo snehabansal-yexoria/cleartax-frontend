@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
+import { DocumentVault } from "@/app/components/DocumentVault";
 import { EntityDetailSkeleton } from "@/app/components/PortalSkeletons";
+import {
+  ProfitLossTrend,
+  type ProfitLossTrendItem,
+} from "@/app/components/ProfitLossTrend";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import type {
@@ -21,6 +26,7 @@ interface SessionWithIdToken {
 }
 
 export type EntityDetailViewProps = {
+  clientId?: string;
   entityId: string;
   backHref: string;
   backLabel: string;
@@ -74,28 +80,8 @@ function appendQueryParam(href: string, key: string, value: string) {
   return `${href}${separator}${key}=${encodeURIComponent(value)}`;
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-}
-
-function monthKey(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  const date = new Date(year, month - 1, 1);
-  if (Number.isNaN(date.getTime())) return key;
-  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-}
-
 export default function EntityDetailView({
+  clientId,
   entityId,
   backHref,
   backLabel,
@@ -119,6 +105,7 @@ export default function EntityDetailView({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
+  const [trendLoading, setTrendLoading] = useState(false);
   const [reconList, setReconList] = useState<ReconciliationListItem[]>([]);
   const [reconListLoading, setReconListLoading] = useState(false);
 
@@ -142,14 +129,11 @@ export default function EntityDetailView({
         const token = session.getIdToken().getJwtToken();
         if (!cancelled) setSessionToken(token);
 
-        const [entityRes, propertiesRes, transactionsRes] = await Promise.all([
+        const [entityRes, propertiesRes] = await Promise.all([
           fetch(`/api/entities/${encodeURIComponent(entityId)}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/entities/${encodeURIComponent(entityId)}/transactions`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -167,12 +151,6 @@ export default function EntityDetailView({
           const data = (await propertiesRes.json()) as { items?: CoreProperty[] };
           setProperties(data.items || []);
         }
-        if (transactionsRes.ok) {
-          const data = (await transactionsRes.json()) as {
-            items?: CoreTransactionListItem[];
-          };
-          setTransactions(data.items || []);
-        }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to load entity detail:", error);
@@ -188,6 +166,44 @@ export default function EntityDetailView({
       cancelled = true;
     };
   }, [entityId, router]);
+
+  useEffect(() => {
+    if (!sessionToken || !entityId) return;
+    let cancelled = false;
+
+    async function loadTrend() {
+      try {
+        setTrendLoading(true);
+        setTransactions([]);
+        const res = await fetch(
+          `/api/entities/${encodeURIComponent(entityId)}/transactions`,
+          { headers: { Authorization: `Bearer ${sessionToken}` } },
+        );
+
+        if (!res.ok || cancelled) {
+          if (!cancelled) setTransactions([]);
+          return;
+        }
+
+        const data = (await res.json()) as {
+          items?: CoreTransactionListItem[];
+        };
+        if (!cancelled) setTransactions(data.items || []);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load entity profit and loss trend:", error);
+          setTransactions([]);
+        }
+      } finally {
+        if (!cancelled) setTrendLoading(false);
+      }
+    }
+
+    loadTrend();
+    return () => {
+      cancelled = true;
+    };
+  }, [entityId, sessionToken]);
 
   useEffect(() => {
     if (currentTab !== "reconciliation" || !sessionToken || !entityId) return;
@@ -211,29 +227,12 @@ export default function EntityDetailView({
     return `${entity.beneficiaries.length} shareholders`;
   }, [entity]);
 
-  const trendRows = useMemo(() => {
-    const byMonth = new Map<string, { month: string; expenses: number; income: number }>();
-    for (const row of transactions) {
-      const key = monthKey(row.invoiceDate);
-      if (!key) continue;
-      const current = byMonth.get(key) || {
-        month: key,
-        expenses: 0,
-        income: 0,
-      };
-      const amount = Math.abs(row.grossAmount || 0);
-      if (row.type === "revenue") current.income += amount;
-      else current.expenses += amount;
-      byMonth.set(key, current);
-    }
-    return Array.from(byMonth.values())
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-7);
-  }, [transactions]);
-  const maxTrendAmount = Math.max(
-    1,
-    ...trendRows.flatMap((row) => [row.expenses, row.income]),
-  );
+  const trendItems: ProfitLossTrendItem[] = transactions.map((row) => ({
+    id: row.id,
+    invoiceDate: row.invoiceDate,
+    type: row.type,
+    amount: row.grossAmount,
+  }));
 
   if (isLoading) {
     return (
@@ -294,103 +293,11 @@ export default function EntityDetailView({
         </Link>
       </header>
 
-      <section className="entity-trend-card" aria-label="Profit and loss trend">
-        <div className="entity-trend-head">
-          <h2>Profit & Loss Trend</h2>
-          <div className="entity-trend-toggle" aria-hidden="true">
-            <span className="is-active">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 19V5" />
-                <path d="M4 19h16" />
-                <path d="M8 17V9" />
-                <path d="M13 17V6" />
-                <path d="M18 17v-5" />
-              </svg>
-              Graph View
-            </span>
-            <span>
-              <svg viewBox="0 0 24 24">
-                <rect x="4" y="5" width="16" height="14" rx="1" />
-                <path d="M4 10h16" />
-                <path d="M4 15h16" />
-                <path d="M10 5v14" />
-              </svg>
-              Table View
-            </span>
-          </div>
-        </div>
-
-        {trendRows.length === 0 ? (
-          <div className="property-trend-empty">
-            No transactions are available for this entity yet.
-          </div>
-        ) : (
-          <div className="property-trend-grid">
-            <div className="entity-chart">
-              <div className="entity-chart-y">
-                <span>{formatCurrency(maxTrendAmount)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.75)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.5)}</span>
-                <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
-                <span>{formatCurrency(0)}</span>
-              </div>
-              <div className="entity-chart-plot">
-                {trendRows.map((item) => (
-                  <div key={item.month} className="entity-chart-month">
-                    <div className="entity-chart-bars">
-                      <span
-                        className="is-expense"
-                        style={{
-                          height: `${Math.max(
-                            3,
-                            (item.expenses / maxTrendAmount) * 100,
-                          )}%`,
-                        }}
-                      />
-                      <span
-                        className="is-income"
-                        style={{
-                          height: `${Math.max(
-                            3,
-                            (item.income / maxTrendAmount) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <span>{monthLabel(item.month)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="property-trend-table">
-              <div>
-                <strong>Month</strong>
-                <strong>Income</strong>
-                <strong>Expenses</strong>
-              </div>
-              {trendRows.map((item) => (
-                <div key={item.month}>
-                  <span>{monthLabel(item.month)}</span>
-                  <span>{formatCurrency(item.income)}</span>
-                  <span>{formatCurrency(item.expenses)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="entity-chart-legend">
-          <span>
-            <i className="is-expense" />
-            Expenses
-          </span>
-          <span>
-            <i className="is-income" />
-            Income
-          </span>
-        </div>
-      </section>
+      <ProfitLossTrend
+        items={trendItems}
+        isLoading={trendLoading}
+        emptyMessage="No transactions are available for this entity yet."
+      />
 
       <section className="entity-resource-panel">
         <div className="entity-resource-tabs" role="tablist" aria-label="Entity resources">
@@ -574,7 +481,13 @@ export default function EntityDetailView({
           </div>
         )}
 
-        {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "reconciliation" && (
+        {currentTab === "documents" && (
+          <div className="entity-resource-body">
+            <DocumentVault scope={{ clientId, entityId }} />
+          </div>
+        )}
+
+        {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "documents" && currentTab !== "reconciliation" && (
           <div className="entity-coming-soon">
             <strong>{entityTabs.find((tab) => tab.id === currentTab)?.label}</strong>
             <p>Coming soon</p>

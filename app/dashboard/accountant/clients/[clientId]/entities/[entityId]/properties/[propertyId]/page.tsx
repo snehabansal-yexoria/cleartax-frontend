@@ -12,6 +12,7 @@ export default function AccountantPropertyDetailPage() {
   return (
     <PropertyDetailView
       propertyId={propertyId}
+      clientId={clientId}
       entityId={entityId}
       backHref={`/dashboard/accountant/clients/${clientId}/entities/${entityId}`}
       backLabel="Entity"

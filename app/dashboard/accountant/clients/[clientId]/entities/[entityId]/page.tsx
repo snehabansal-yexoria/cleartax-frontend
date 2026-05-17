@@ -10,6 +10,7 @@ export default function AccountantEntityDetailPage() {
 
   return (
     <EntityDetailView
+      clientId={clientId}
       entityId={entityId}
       backHref={`/dashboard/accountant/clients/${clientId}`}
       backLabel="Client"

@@ -24,6 +24,78 @@ type TransactionCollationContext = {
   property: CoreProperty;
 };
 
+type TransactionRequestOptions = {
+  page: number;
+  pageSize: number;
+  filters: {
+    client: string;
+    entity: string;
+    property: string;
+    type: string;
+    category: string;
+  };
+};
+
+function getRequestOptions(req: Request): TransactionRequestOptions {
+  const params = new URL(req.url).searchParams;
+  return {
+    page: Math.max(1, Number(params.get("page") || 1)),
+    pageSize: Math.min(
+      100,
+      Math.max(
+        1,
+        Number(params.get("pageSize") || params.get("page_size") || 9),
+      ),
+    ),
+    filters: {
+      client: params.get("client") || "all",
+      entity: params.get("entity") || "all",
+      property: params.get("property") || "all",
+      type: params.get("type") || "all",
+      category: params.get("category") || "all",
+    },
+  };
+}
+
+function rowMatchesFilters(
+  row: CoreTransactionListItem,
+  filters: TransactionRequestOptions["filters"],
+) {
+  const rowType = row.type === "revenue" ? "Revenue" : "Expense";
+  const rowClient = row.clientId || row.clientName;
+  const rowEntity = row.entityId || row.entityName;
+
+  return (
+    (filters.client === "all" || rowClient === filters.client) &&
+    (filters.entity === "all" || rowEntity === filters.entity) &&
+    (filters.property === "all" ||
+      row.propertyIds.includes(filters.property) ||
+      row.propertyNames.includes(filters.property)) &&
+    (filters.type === "all" || rowType === filters.type) &&
+    (filters.category === "all" || row.categoryName === filters.category)
+  );
+}
+
+function pagedResponse(
+  items: CoreTransactionListItem[],
+  options: TransactionRequestOptions,
+) {
+  const sortedItems = items.sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate));
+  const filteredItems = sortedItems.filter((row) =>
+    rowMatchesFilters(row, options.filters),
+  );
+  const start = (options.page - 1) * options.pageSize;
+  const end = start + options.pageSize;
+
+  return NextResponse.json({
+    items: filteredItems.slice(start, end),
+    total: filteredItems.length,
+    unfilteredTotal: sortedItems.length,
+    page: options.page,
+    pageSize: options.pageSize,
+  });
+}
+
 function mergePropertyTransaction(
   byId: Map<string, CoreTransactionListItem>,
   row: CorePropertyTransactionRow,
@@ -131,6 +203,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "No token" }, { status: 401 });
   }
 
+  const options = getRequestOptions(req);
+
   try {
     const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
     if (!decoded?.sub) {
@@ -151,10 +225,7 @@ export async function GET(req: Request) {
     const requesterRole = requester.role.toLowerCase();
     if (["client", "user"].includes(requesterRole)) {
       const items = await listTransactionsFromClientProperties(token, requester);
-      return NextResponse.json({
-        items: items
-          .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate)),
-      });
+      return pagedResponse(items, options);
     }
 
     if (!["admin", "accountant"].includes(requesterRole)) {
@@ -165,7 +236,13 @@ export async function GET(req: Request) {
     }
 
     if (!requester.orgId) {
-      return NextResponse.json({ items: [] });
+      return NextResponse.json({
+        items: [],
+        total: 0,
+        unfilteredTotal: 0,
+        page: options.page,
+        pageSize: options.pageSize,
+      });
     }
 
     const clientRoleIds = await getRoleIdsByNames(["client", "user"]);
@@ -194,11 +271,7 @@ export async function GET(req: Request) {
       }),
     );
 
-    return NextResponse.json({
-      items: responses
-        .flat()
-        .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate)),
-    });
+    return pagedResponse(responses.flat(), options);
   } catch (error) {
     return renderUpstreamError("GET /api/transactions", error);
   }

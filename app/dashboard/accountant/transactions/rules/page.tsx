@@ -11,5 +11,12 @@ export default async function AccountantTransactionRulesPage({
   searchParams: Promise<{ entityId?: string; returnTo?: string }>;
 }) {
   const { entityId, returnTo } = await searchParams;
-  return <TransactionRulesView entityId={entityId} backHref={safeBackHref(returnTo)} />;
+  const backHref = safeBackHref(returnTo);
+  return (
+    <TransactionRulesView
+      entityId={entityId}
+      backHref={backHref}
+      showBackLink={Boolean(backHref)}
+    />
+  );
 }

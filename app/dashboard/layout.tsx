@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
@@ -12,6 +12,15 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
+import { PortalDashboardSkeleton } from "@/app/components/PortalSkeletons";
+import {
+  dismissDocumentProcessingJob,
+  DOCUMENT_PROCESSING_EVENT,
+  readDocumentProcessingJobs,
+  type DocumentProcessingJob,
+} from "@/app/components/documentProcessingStore";
+import { fetchAccountantClientsBundle } from "./accountant/accountantClientsData";
+import { installClientApiCache } from "@/src/lib/clientApiCache";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -294,6 +303,23 @@ const clientMenuItems: PortalMenuItem[] = [
   },
 ];
 
+function documentJobTitle(job: DocumentProcessingJob) {
+  switch (job.status) {
+    case "queued":
+      return "Document queued";
+    case "uploading":
+      return "Uploading document";
+    case "extracting":
+      return "Reading document";
+    case "done":
+      return "Document ready";
+    case "error":
+      return "Document failed";
+    default:
+      return "Document update";
+  }
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -306,8 +332,16 @@ export default function DashboardLayout({
   const [role, setRole] = useState<string>("");
   const [organizationName, setOrganizationName] = useState<string>("");
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [documentJobs, setDocumentJobs] = useState<DocumentProcessingJob[]>([]);
+  const [hasAccountantClients, setHasAccountantClients] = useState(false);
+  const [documentJobsSyncedAt, setDocumentJobsSyncedAt] = useState(0);
+
+  useEffect(() => {
+    installClientApiCache();
+  }, []);
 
   useEffect(() => {
     async function loadSession() {
@@ -345,6 +379,16 @@ export default function DashboardLayout({
         setOrganizationName(me.orgName || "");
 
         document.cookie = `role=${roleName}; path=/`;
+
+        if (roleName === "accountant") {
+          fetchAccountantClientsBundle(token)
+            .then((bundle) => {
+              setHasAccountantClients(bundle.myClients.length > 0);
+            })
+            .catch(() => {
+              setHasAccountantClients(false);
+            });
+        }
       } catch (error) {
         console.error("Session error:", error);
         router.replace("/login");
@@ -378,7 +422,7 @@ export default function DashboardLayout({
 
   const initials = getInitials(email);
 
-  const portalMenuItems =
+  const basePortalMenuItems =
     role === "super_admin"
       ? superAdminMenuItems
       : role === "admin"
@@ -386,6 +430,15 @@ export default function DashboardLayout({
         : role === "client" || role === "user"
           ? clientMenuItems
           : accountantMenuItems;
+
+  const portalMenuItems =
+    role === "accountant" && hasAccountantClients
+      ? basePortalMenuItems.map((item) =>
+          item.id === "clients"
+            ? { ...item, href: "/dashboard/accountant/clients?tab=mine" }
+            : item,
+        )
+      : basePortalMenuItems;
 
   const portalTitle =
     role === "super_admin"
@@ -401,6 +454,7 @@ export default function DashboardLayout({
       ? email || "Platform oversight"
       : email || "Account access";
   const accountDropdownId = "dashboard-account-menu";
+  const notificationDropdownId = "dashboard-notifications";
   const mobileNavDropdownId = "dashboard-mobile-nav";
 
   useEffect(() => {
@@ -409,12 +463,28 @@ export default function DashboardLayout({
       const id = event.detail?.id;
       if (!id) return;
       if (id !== accountDropdownId) setIsAccountMenuOpen(false);
+      if (id !== notificationDropdownId) setIsNotificationMenuOpen(false);
       if (id !== mobileNavDropdownId) setIsMobileNavOpen(false);
     }
 
     window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
     return () =>
       window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, []);
+
+  useEffect(() => {
+    function syncDocumentJobs() {
+      setDocumentJobs(readDocumentProcessingJobs());
+      setDocumentJobsSyncedAt(Date.now());
+    }
+
+    syncDocumentJobs();
+    window.addEventListener(DOCUMENT_PROCESSING_EVENT, syncDocumentJobs);
+    window.addEventListener("storage", syncDocumentJobs);
+    return () => {
+      window.removeEventListener(DOCUMENT_PROCESSING_EVENT, syncDocumentJobs);
+      window.removeEventListener("storage", syncDocumentJobs);
+    };
   }, []);
 
   function handleGlobalSearch(event: React.FormEvent<HTMLFormElement>) {
@@ -433,15 +503,19 @@ export default function DashboardLayout({
   }
 
   function renderPortalMenuItem(item: PortalMenuItem) {
+    const itemPath = item.href?.split("?")[0] || "";
+    const isTransactionRoute = pathname.includes("/transactions");
     const isActive = item.href
       ? item.id === "transactions"
-        ? pathname.includes("/transactions")
-        : item.href === "/dashboard/accountant" ||
-        item.href === "/dashboard/admin" ||
-        item.href === "/dashboard/super-admin" ||
-        item.href === "/dashboard/client"
-        ? pathname === item.href
-        : pathname.startsWith(item.href)
+        ? isTransactionRoute
+        : item.id === "clients" && isTransactionRoute
+          ? false
+        : itemPath === "/dashboard/accountant" ||
+        itemPath === "/dashboard/admin" ||
+        itemPath === "/dashboard/super-admin" ||
+        itemPath === "/dashboard/client"
+        ? pathname === itemPath
+        : pathname.startsWith(itemPath)
       : false;
 
     if (!item.href) {
@@ -471,6 +545,24 @@ export default function DashboardLayout({
       </Link>
     );
   }
+
+  const visibleDocumentJobs = documentJobs.filter(
+    (job) =>
+      job.status !== "done" ||
+      documentJobsSyncedAt - job.updatedAt < 24 * 60 * 60 * 1000,
+  );
+  const activeDocumentJobs = visibleDocumentJobs.filter((job) =>
+    ["queued", "uploading", "extracting"].includes(job.status),
+  );
+  const latestDocumentJob = visibleDocumentJobs[0] ?? null;
+  const documentProgress =
+    activeDocumentJobs.length > 0
+      ? Math.round(
+          activeDocumentJobs.reduce((sum, job) => sum + job.progress, 0) /
+            activeDocumentJobs.length,
+        )
+      : 0;
+  const hasDocumentNotification = visibleDocumentJobs.length > 0;
 
   if (!role) {
     return <DashboardShellSkeleton />;
@@ -545,6 +637,15 @@ export default function DashboardLayout({
           </div>
 
           <header className="accountant-topbar">
+            {activeDocumentJobs.length > 0 ? (
+              <div
+                className="accountant-document-header-progress"
+                style={
+                  { "--progress": `${documentProgress}%` } as React.CSSProperties
+                }
+                aria-hidden="true"
+              />
+            ) : null}
             <form className="accountant-search" onSubmit={handleGlobalSearch}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="6" />
@@ -560,16 +661,72 @@ export default function DashboardLayout({
             </form>
 
             <div className="accountant-topbar-actions">
-              <button
-                type="button"
-                className="accountant-icon-button"
-                aria-label="Notifications"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M15 17H5l1.4-1.4A2 2 0 0 0 7 14.2V10a5 5 0 0 1 10 0v4.2a2 2 0 0 0 .6 1.4L19 17h-4" />
-                  <path d="M10 20a2 2 0 0 0 4 0" />
-                </svg>
-              </button>
+              <div className="accountant-notification-wrap">
+                <button
+                  type="button"
+                  className={`accountant-icon-button${
+                    hasDocumentNotification ? " is-active" : ""
+                  }`}
+                  aria-label="Notifications"
+                  aria-haspopup="menu"
+                  aria-expanded={isNotificationMenuOpen}
+                  onClick={() =>
+                    setIsNotificationMenuOpen((current) => {
+                      const next = !current;
+                      if (next) announceDropdownOpen(notificationDropdownId);
+                      return next;
+                    })
+                  }
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M15 17H5l1.4-1.4A2 2 0 0 0 7 14.2V10a5 5 0 0 1 10 0v4.2a2 2 0 0 0 .6 1.4L19 17h-4" />
+                    <path d="M10 20a2 2 0 0 0 4 0" />
+                  </svg>
+                  {hasDocumentNotification ? (
+                    <span className="accountant-notification-dot" />
+                  ) : null}
+                </button>
+
+                {isNotificationMenuOpen ? (
+                  <div className="accountant-notification-menu" role="menu">
+                    {visibleDocumentJobs.length === 0 ? (
+                      <div className="accountant-notification-empty">
+                        No document notifications
+                      </div>
+                    ) : (
+                      visibleDocumentJobs.slice(0, 6).map((job) => (
+                        <div
+                          className="accountant-notification-item"
+                          key={job.id}
+                          role="menuitem"
+                        >
+                          <strong>{documentJobTitle(job)}</strong>
+                          <span>{job.filename}</span>
+                          {job.status === "done" ? (
+                            <Link
+                              href={job.href}
+                              onClick={() => setIsNotificationMenuOpen(false)}
+                            >
+                              Review document
+                            </Link>
+                          ) : job.status === "error" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                dismissDocumentProcessingJob(job.id)
+                              }
+                            >
+                              Dismiss
+                            </button>
+                          ) : (
+                            <small>{job.progress}% complete</small>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
 
               <div className="accountant-header-profile">
                 <button
@@ -633,9 +790,20 @@ export default function DashboardLayout({
             </div>
           </header>
 
-          <main className="accountant-main-content">{children}</main>
+          <main className="accountant-main-content">
+            <Suspense fallback={<PortalDashboardSkeleton />}>{children}</Suspense>
+          </main>
         </div>
         <ReconciliationJobMonitor />
+        {activeDocumentJobs.length > 0 && latestDocumentJob ? (
+          <div className="accountant-document-work-toast" role="status">
+            <strong>Reading document</strong>
+            <span>You can continue your work while OCR finishes.</span>
+            <div>
+              <i style={{ width: `${documentProgress}%` }} />
+            </div>
+          </div>
+        ) : null}
 
         <button
           type="button"

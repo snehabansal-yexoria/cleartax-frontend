@@ -1,30 +1,21 @@
 "use client";
 
 import { Skeleton } from "boneyard-js/react";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useDeferredValue,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AccountantClientsSkeleton } from "../../../components/PortalSkeletons";
 import { getSession } from "../../../../src/lib/session";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
-
-interface ClientRecord {
-  id: string;
-  email: string;
-  status: string;
-  name: string;
-  phoneNumber: string;
-  invitedByEmail: string;
-  joinedAt: string | null;
-  assignedAccountantId?: string;
-  assignedAccountantName?: string;
-  isAssignedToCurrentAccountant?: boolean;
-  isAssignedToAnotherAccountant?: boolean;
-}
+import {
+  clearAccountantClientsCache,
+  fetchAccountantClientsBundle,
+  type AccountantClientRecord,
+  type SessionWithIdToken,
+} from "../accountantClientsData";
 
 type ClientTab = "all" | "mine";
 
@@ -67,12 +58,39 @@ function buildInviteLink(params: {
   )}`;
 }
 
+function getVisibleClients(params: {
+  allClients: AccountantClientRecord[];
+  myClients: AccountantClientRecord[];
+  currentTab: ClientTab;
+  searchValue: string;
+}) {
+  const source =
+    params.currentTab === "all"
+      ? params.allClients.filter(
+          (client) => !client.isAssignedToCurrentAccountant,
+        )
+      : params.myClients;
+  const query = params.searchValue.trim().toLowerCase();
+
+  if (!query) {
+    return source;
+  }
+
+  return source.filter(
+    (client) =>
+      client.name.toLowerCase().includes(query) ||
+      client.email.toLowerCase().includes(query),
+  );
+}
+
 function AccountantClientsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentTab, setCurrentTab] = useState<ClientTab>("all");
-  const [allClients, setAllClients] = useState<ClientRecord[]>([]);
-  const [myClients, setMyClients] = useState<ClientRecord[]>([]);
+  const [currentTab, setCurrentTab] = useState<ClientTab>(() =>
+    searchParams.get("tab") === "mine" ? "mine" : "all",
+  );
+  const [allClients, setAllClients] = useState<AccountantClientRecord[]>([]);
+  const [myClients, setMyClients] = useState<AccountantClientRecord[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [isAssigningClients, setIsAssigningClients] = useState(false);
@@ -83,6 +101,7 @@ function AccountantClientsContent() {
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const deferredSearchValue = useDeferredValue(searchValue);
   const [inviteForm, setInviteForm] = useState({
     fullName: "",
     email: "",
@@ -103,7 +122,7 @@ function AccountantClientsContent() {
     if (query) setSearchValue(query);
   }, [searchParams]);
 
-  const loadClients = useCallback(async () => {
+  async function loadClients(options: { force?: boolean } = {}) {
     try {
       const session = (await getSession()) as SessionWithIdToken | null;
 
@@ -112,88 +131,27 @@ function AccountantClientsContent() {
       }
 
       const token = session.getIdToken().getJwtToken();
+      const bundle = await fetchAccountantClientsBundle(token, options);
 
-      const [allRes, myRes] = await Promise.all([
-        fetch("/api/users/me/clients?scope=all", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("/api/users/me/clients?scope=mine", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-
-      if (allRes.ok) {
-        const data = await allRes.json();
-        setAllClients(data.clients || []);
-      }
-
-      if (myRes.ok) {
-        const data = await myRes.json();
-        setMyClients(data.clients || []);
-      }
+      setAllClients(bundle.allClients);
+      setMyClients(bundle.myClients);
     } catch (error) {
       console.error("Failed to load clients:", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    async function loadClients() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
+    void loadClients();
+  }, []);
 
-        if (!session) {
-          return;
-        }
-
-        const token = session.getIdToken().getJwtToken();
-
-        const [allRes, myRes] = await Promise.all([
-          fetch("/api/users/me/clients?scope=all", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/users/me/clients?scope=mine", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
-        if (allRes.ok) {
-          const data = await allRes.json();
-          setAllClients(data.clients || []);
-        }
-
-        if (myRes.ok) {
-          const data = await myRes.json();
-          setMyClients(data.clients || []);
-        }
-      } catch (error) {
-        console.error("Failed to load clients:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadClients();
-  }, [loadClients]);
-
-  const visibleClients = useMemo(() => {
-    const source =
-      currentTab === "all"
-        ? allClients.filter((client) => !client.isAssignedToCurrentAccountant)
-        : myClients;
-    const query = searchValue.trim().toLowerCase();
-
-    if (!query) {
-      return source;
-    }
-
-    return source.filter(
-      (client) =>
-        client.name.toLowerCase().includes(query) ||
-        client.email.toLowerCase().includes(query),
-    );
-  }, [allClients, myClients, currentTab, searchValue]);
+  const visibleClients = getVisibleClients({
+    allClients,
+    myClients,
+    currentTab,
+    searchValue: deferredSearchValue,
+  });
 
   function toggleClientSelection(clientId: string) {
     const client = allClients.find((item) => item.id === clientId);
@@ -250,7 +208,8 @@ function AccountantClientsContent() {
         } added to My Clients.`,
       );
       setSelectedClientIds([]);
-      await loadClients();
+      clearAccountantClientsCache();
+      await loadClients({ force: true });
       setCurrentTab("mine");
     } catch (error) {
       console.error("Assign clients error:", error);
@@ -315,7 +274,8 @@ function AccountantClientsContent() {
         }),
       );
       setInviteSuccess(true);
-      await loadClients();
+      clearAccountantClientsCache();
+      await loadClients({ force: true });
     } catch (error) {
       console.error("Invite client error:", error);
       alert("Something went wrong while inviting the client.");
@@ -488,7 +448,10 @@ function AccountantClientsContent() {
                   )}
                 </div>
 
-                <div className="accountant-client-cell accountant-client-cell-primary">
+                <div
+                  className="accountant-client-cell accountant-client-cell-primary"
+                  data-label="Client"
+                >
                   <div className="accountant-client-pill">
                     {getInitials(client.name)}
                   </div>
@@ -504,17 +467,17 @@ function AccountantClientsContent() {
                   </div>
                 </div>
 
-                <div className="accountant-client-cell">
+                <div className="accountant-client-cell" data-label="Email">
                   <span>{client.email}</span>
                 </div>
 
-                <div className="accountant-client-cell">
-                  <strong className="accountant-client-status">
+                <div className="accountant-client-cell" data-label="Status">
+                  <strong className="accountant-client-status accountant-client-status-badge">
                     {client.status}
                   </strong>
                 </div>
 
-                <div className="accountant-client-cell">
+                <div className="accountant-client-cell" data-label="Invited By">
                   {client.isAssignedToAnotherAccountant ? (
                     <span className="accountant-assigned-info">
                       Assigned
@@ -543,12 +506,25 @@ function AccountantClientsContent() {
                   )}
                 </div>
 
-                <div className="accountant-client-cell">
+                <div className="accountant-client-cell" data-label="Joined">
                   <span>{formatJoinedDate(client.joinedAt)}</span>
                 </div>
               </article>
             );
           })}
+
+          {visibleClients.length === 0 && (
+            <div className="accountant-client-table-empty">
+              <strong>No clients found</strong>
+              <span>
+                {deferredSearchValue.trim()
+                  ? "Try a different name or email."
+                  : currentTab === "mine"
+                    ? "Add clients to My Clients to manage their portfolios here."
+                    : "There are no available organization clients to add right now."}
+              </span>
+            </div>
+          )}
         </div>
 
         {isInviteDrawerOpen && (

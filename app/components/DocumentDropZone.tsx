@@ -1,6 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Lottie from "lottie-react";
+import {
+  upsertDocumentProcessingJob,
+  type DocumentProcessingScope,
+  type DocumentProcessingStatus,
+} from "@/app/components/documentProcessingStore";
+import transactionDocumentSuccessAnimation from "@/public/lottie/transaction-document-success.json";
 
 export type ExtractedDocumentData = {
   type?: string;
@@ -31,15 +38,23 @@ const ACCEPT_ATTR = ALLOWED_EXT.join(",");
 export function DocumentDropZone({
   token,
   onExtracted,
+  scope,
 }: {
   token: string | null;
-  onExtracted: (data: ExtractedDocumentData, documentId: string) => void;
+  onExtracted: (
+    data: ExtractedDocumentData,
+    documentId: string,
+    meta?: { filename: string; jobId: string },
+  ) => void;
+  scope?: DocumentProcessingScope;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [filename, setFilename] = useState("");
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
+  const [queueTotal, setQueueTotal] = useState(0);
+  const [queueDone, setQueueDone] = useState(0);
 
   const busy = status === "uploading" || status === "extracting";
 
@@ -48,7 +63,28 @@ export function DocumentDropZone({
     inputRef.current?.click();
   }
 
-  async function handleFile(file: File) {
+  function updateStatus(
+    nextStatus: Status,
+    nextProgress: number,
+    nextFilename: string,
+    jobId?: string,
+    href?: string,
+  ) {
+    setStatus(nextStatus);
+    setProgress(nextProgress);
+    if (jobId) {
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: nextFilename,
+        status: nextStatus as DocumentProcessingStatus,
+        progress: nextProgress,
+        href: href ?? documentReviewHref(jobId),
+        scope,
+      });
+    }
+  }
+
+  async function handleFile(file: File, index = 0, total = 1) {
     if (!token) {
       setError("Not authenticated yet");
       setStatus("error");
@@ -63,15 +99,33 @@ export function DocumentDropZone({
       return;
     }
 
+    const jobId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${index}-${file.name}`;
+    const href = documentReviewHref(jobId);
     setFilename(file.name);
     setError("");
+    setQueueTotal(total);
     setProgress(0);
+    upsertDocumentProcessingJob({
+      id: jobId,
+      filename: file.name,
+      status: "queued",
+      progress: 0,
+      href,
+      scope,
+    });
 
     try {
-      setStatus("uploading");
-      setProgress(8);
+      updateStatus("uploading", 8, file.name, jobId, href);
+      const presignParams = new URLSearchParams({
+        filename: file.name,
+        document_type: "transaction",
+      });
+      if (scope?.entityId) presignParams.set("entity_id", scope.entityId);
       const presignRes = await fetch(
-        `/api/documents/presign?filename=${encodeURIComponent(file.name)}`,
+        `/api/documents/presign?${presignParams.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!presignRes.ok) {
@@ -89,6 +143,15 @@ export function DocumentDropZone({
         s3_key: string;
         document_id: string;
       };
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: file.name,
+        documentId: document_id,
+        status: "uploading",
+        progress: 20,
+        href,
+        scope,
+      });
       setProgress(20);
 
       const putRes = await fetch(upload_url, {
@@ -100,12 +163,21 @@ export function DocumentDropZone({
         throw new Error(`Upload to S3 failed (${putRes.status})`);
       }
 
-      setStatus("extracting");
-      setProgress(62);
+      updateStatus("extracting", 62, file.name, jobId, href);
       const progressTimer = window.setInterval(() => {
         setProgress((current) => {
           if (current >= 94) return current;
-          return current + (current < 80 ? 4 : 1);
+          const next = current + (current < 80 ? 4 : 1);
+          upsertDocumentProcessingJob({
+            id: jobId,
+            filename: file.name,
+            documentId: document_id,
+            status: "extracting",
+            progress: next,
+            href,
+            scope,
+          });
+          return next;
         });
       }, 650);
       const extractRes = await fetch("/api/documents/extract", {
@@ -127,19 +199,46 @@ export function DocumentDropZone({
         data: ExtractedDocumentData;
       };
 
-      onExtracted(result.data ?? {}, document_id);
+      if (total === 1) {
+        onExtracted(result.data ?? {}, document_id, {
+          filename: file.name,
+          jobId,
+        });
+      }
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: file.name,
+        documentId: document_id,
+        status: "done",
+        progress: 100,
+        data: result.data ?? {},
+        href,
+        scope,
+      });
       setProgress(100);
       setStatus("done");
+      setQueueDone((current) => Math.min(total, current + 1));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Document processing failed");
+      const message =
+        err instanceof Error ? err.message : "Document processing failed";
+      setError(message);
       setStatus("error");
       setProgress(0);
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: file.name,
+        status: "error",
+        progress: 0,
+        error: message,
+        href,
+        scope,
+      });
     }
   }
 
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) handleFiles(files);
     e.target.value = "";
   }
 
@@ -147,8 +246,16 @@ export function DocumentDropZone({
     e.preventDefault();
     if (busy) return;
     setStatus((s) => (s === "dragover" ? "idle" : s));
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) handleFiles(files);
+  }
+
+  async function handleFiles(files: File[]) {
+    setQueueTotal(files.length);
+    setQueueDone(0);
+    for (let index = 0; index < files.length; index += 1) {
+      await handleFile(files[index], index, files.length);
+    }
   }
 
   function onDragOver(e: React.DragEvent<HTMLButtonElement>) {
@@ -196,24 +303,44 @@ export function DocumentDropZone({
           >
             <b>{progress}%</b>
           </span>
+        ) : status === "done" ? (
+          <span className="transaction-document-drop__lottie" aria-hidden="true">
+            <Lottie
+              animationData={transactionDocumentSuccessAnimation}
+              loop={false}
+            />
+          </span>
         ) : (
           <span>{iconForStatus(status)}</span>
         )}
         <strong>{primaryLabel(status, filename)}</strong>
         <small>{secondaryLabel(status, error)}</small>
         {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
-          <span className="transaction-document-drop__caption">{filename}</span>
+          <span className="transaction-document-drop__caption">
+            {filename}
+            {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
+          </span>
         ) : null}
       </button>
       <input
         ref={inputRef}
         type="file"
         accept={ACCEPT_ATTR}
+        multiple
         style={{ display: "none" }}
         onChange={onChange}
       />
     </div>
   );
+}
+
+function documentReviewHref(jobId: string) {
+  if (typeof window === "undefined") {
+    return `/dashboard/accountant/transactions/new?reviewDocument=${encodeURIComponent(jobId)}`;
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("reviewDocument", jobId);
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function iconForStatus(status: Status) {
@@ -304,7 +431,7 @@ function secondaryLabel(status: Status, error: string) {
       return error || "Try again or pick a different file";
     case "idle":
     default:
-      return "or click to browse — PDF, PNG, JPG, JPEG";
+      return "or click to browse — PDF, PNG, JPG, JPEG. You can add multiple files.";
   }
 }
 
