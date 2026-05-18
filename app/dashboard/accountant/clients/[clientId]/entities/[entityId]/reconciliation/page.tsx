@@ -19,6 +19,7 @@ import type {
   ReconciliationMatch,
   ReconciliationTransaction,
 } from "@/src/lib/coreApi";
+import { getSession } from "@/src/lib/session";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -26,6 +27,21 @@ function getToken(): string {
   if (typeof document === "undefined") return "";
   const match = document.cookie.match(/(?:^|;\s*)idToken=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : "";
+}
+
+// Uses the Cognito SDK so expired tokens are refreshed automatically via the
+// refresh token. Falls back to the raw cookie if the SDK call fails.
+async function getFreshToken(): Promise<string> {
+  try {
+    const session = await getSession();
+    if (session) {
+      const fresh = session.getIdToken().getJwtToken();
+      // Keep the cookie in sync so the middleware redirect guard still works.
+      document.cookie = `idToken=${fresh}; path=/`;
+      return fresh;
+    }
+  } catch { /* fall through */ }
+  return getToken();
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────

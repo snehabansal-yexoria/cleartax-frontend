@@ -4665,8 +4665,6 @@ export function TransactionRulesView({
         <button
           type="button"
           className="transaction-green-button"
-          disabled={!entityId}
-          title={!entityId ? "Select an entity to create a rule" : undefined}
           onClick={() => { setSelectedRule(null); setShowModal("create"); }}
         >
           <span>+</span>
