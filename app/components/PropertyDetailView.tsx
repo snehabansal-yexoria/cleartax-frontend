@@ -355,11 +355,13 @@ export default function PropertyDetailView({
         </div>
         <div className="property-detail-tab-body">
           {currentTab === "transactions" ? (
+            <div className="border border-black">
             <AllTransactionsView
               context={{ kind: "property", propertyId }}
               addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
               compact
             />
+            </div>
           ) : currentTab === "rules" ? (
             <TransactionRulesView backHref={backHref} entityId={entityId} />
           ) : (

@@ -589,8 +589,8 @@ export default function DashboardLayout({
                     <rect x="13" y="13" width="6" height="6" rx="1.2" />
                   </svg>
                 </div>
-                <div className="accountant-brand-copy">
-                  <span>Clear Portfolio</span>
+                <div className="accountant-brand-copy ">
+                  <span>Clear <br/>Portfolio</span>
                 </div>
               </div>
             </div>

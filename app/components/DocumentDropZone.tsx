@@ -39,6 +39,7 @@ export function DocumentDropZone({
   token,
   onExtracted,
   scope,
+  allowMultiple = false,
 }: {
   token: string | null;
   onExtracted: (
@@ -47,6 +48,7 @@ export function DocumentDropZone({
     meta?: { filename: string; jobId: string },
   ) => void;
   scope?: DocumentProcessingScope;
+  allowMultiple?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -199,12 +201,13 @@ export function DocumentDropZone({
         data: ExtractedDocumentData;
       };
 
-      if (total === 1) {
-        onExtracted(result.data ?? {}, document_id, {
-          filename: file.name,
-          jobId,
-        });
-      }
+      // Notify caller for each file processed. In single-file mode this
+      // will be the only call; in multi-file mode callers receive callbacks
+      // for each file as they complete.
+      onExtracted(result.data ?? {}, document_id, {
+        filename: file.name,
+        jobId,
+      });
       upsertDocumentProcessingJob({
         id: jobId,
         filename: file.name,
@@ -242,50 +245,59 @@ export function DocumentDropZone({
     e.target.value = "";
   }
 
-  function onDrop(e: React.DragEvent<HTMLButtonElement>) {
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
+    e.stopPropagation();
     if (busy) return;
-    setStatus((s) => (s === "dragover" ? "idle" : s));
+    setStatus("idle");
     const files = Array.from(e.dataTransfer.files ?? []);
     if (files.length > 0) handleFiles(files);
   }
 
   async function handleFiles(files: File[]) {
-    setQueueTotal(files.length);
+    // Respect single vs multiple mode
+    const toProcess = allowMultiple ? files : files.length ? [files[0]] : [];
+    setQueueTotal(toProcess.length);
     setQueueDone(0);
-    for (let index = 0; index < files.length; index += 1) {
-      await handleFile(files[index], index, files.length);
+    for (let index = 0; index < toProcess.length; index += 1) {
+      await handleFile(toProcess[index], index, toProcess.length);
     }
   }
 
-  function onDragOver(e: React.DragEvent<HTMLButtonElement>) {
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
+    e.stopPropagation();
   }
 
-  function onDragEnter(e: React.DragEvent<HTMLButtonElement>) {
+  function onDragEnter(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
+    e.stopPropagation();
     if (busy) return;
     setStatus((s) => (s === "idle" || s === "done" || s === "error" ? "dragover" : s));
   }
 
-  function onDragLeave() {
+  function onDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
     setStatus((s) => (s === "dragover" ? "idle" : s));
   }
 
   const showProgress = status === "uploading" || status === "extracting";
 
   return (
-    <div className="transaction-document-drop-wrap">
+    <div
+      className="transaction-document-drop-wrap"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      data-status={status}
+    >
       <button
         type="button"
         className="transaction-document-drop"
         onClick={pickFile}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
         disabled={busy}
-        data-status={status}
         aria-busy={busy}
       >
         {showProgress ? (
@@ -314,7 +326,7 @@ export function DocumentDropZone({
           <span>{iconForStatus(status)}</span>
         )}
         <strong>{primaryLabel(status, filename)}</strong>
-        <small>{secondaryLabel(status, error)}</small>
+        <small>{secondaryLabel(status, error, allowMultiple)}</small>
         {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
           <span className="transaction-document-drop__caption">
             {filename}
@@ -326,7 +338,7 @@ export function DocumentDropZone({
         ref={inputRef}
         type="file"
         accept={ACCEPT_ATTR}
-        multiple
+        multiple={allowMultiple}
         style={{ display: "none" }}
         onChange={onChange}
       />
@@ -417,7 +429,7 @@ function primaryLabel(status: Status, filename: string) {
   }
 }
 
-function secondaryLabel(status: Status, error: string) {
+function secondaryLabel(status: Status, error: string, allowMultiple = false) {
   switch (status) {
     case "dragover":
       return "We'll handle the rest";
@@ -431,7 +443,9 @@ function secondaryLabel(status: Status, error: string) {
       return error || "Try again or pick a different file";
     case "idle":
     default:
-      return "or click to browse — PDF, PNG, JPG, JPEG. You can add multiple files.";
+      return allowMultiple
+        ? "or click to browse — PDF, PNG, JPG, JPEG. You can add multiple files."
+        : "or click to browse — PDF, PNG, JPG, JPEG.";
   }
 }
 

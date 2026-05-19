@@ -1180,6 +1180,9 @@ p.darkBg {
   gap: 14px;
   justify-content: center;
   padding: 0;
+  transform: scale(0.75);
+  transform-origin: top left;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .accountant-brand-icon {
@@ -1219,7 +1222,11 @@ p.darkBg {
 }
 
 .accountant-brand-copy {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.24s ease, max-width 0.24s ease;
 }
 
 .accountant-nav {
@@ -1274,8 +1281,11 @@ p.darkBg {
 .accountant-nav-label {
   font-size: 1.05rem;
   font-weight: 500;
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
   white-space: nowrap;
+  transition: opacity 0.24s ease 0.04s, max-width 0.24s ease 0.04s;
 }
 
 .accountant-sidebar-footer {
@@ -1288,7 +1298,11 @@ p.darkBg {
 }
 
 .accountant-profile-copy {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.24s ease 0.04s, max-width 0.24s ease 0.04s;
   flex-direction: column;
   min-width: 0;
 }
@@ -2534,6 +2548,16 @@ p.darkBg {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes accountantBrandGrow {
+  from {
+    transform: scale(0.75);
+  }
+
+  to {
+    transform: scale(1);
   }
 }
 
@@ -4446,12 +4470,14 @@ p.darkBg {
 .accountant-sidebar:hover .accountant-brand {
   justify-content: flex-start;
   padding: 0 10px;
+  transform: scale(1);
 }
 
 .accountant-sidebar:hover .accountant-brand-copy,
 .accountant-sidebar:hover .accountant-nav-label,
 .accountant-sidebar:hover .accountant-profile-copy {
-  display: block;
+  opacity: 1;
+  max-width: 220px;
 }
 
 .accountant-sidebar:hover .accountant-profile-copy {

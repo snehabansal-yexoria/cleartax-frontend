@@ -173,7 +173,7 @@ export default function ClientDetailPage() {
   if (!client) {
     return (
       <section className="client-detail-page client-portfolio-page">
-        <Link href="/dashboard/accountant/clients" className="entity-wizard-back">
+        <Link href="/dashboard/accountant/clients?tab=mine" className="entity-wizard-back">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
@@ -186,7 +186,7 @@ export default function ClientDetailPage() {
 
   return (
     <section className="client-detail-page client-portfolio-page">
-      <Link href="/dashboard/accountant/clients" className="entity-wizard-back">
+      <Link href="/dashboard/accountant/clients?tab=mine" className="entity-wizard-back">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15 6l-6 6 6 6" />
         </svg>

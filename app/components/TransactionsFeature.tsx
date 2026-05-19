@@ -2627,9 +2627,11 @@ function BulkImportModal({
                 })),
               ]}
               onChange={(value) => {
-                setEntity(value);
-                setProperty("");
-                onEntityChange(value);
+                if (value !== "") {
+                  setEntity(value);
+                  setProperty("");
+                  onEntityChange(value);
+                }
               }}
             />
             <StaticSelect
@@ -2643,7 +2645,11 @@ function BulkImportModal({
                   value: item.id,
                 })),
               ]}
-              onChange={setProperty}
+              onChange={(value) => {
+                if (value !== "") {
+                  setProperty(value);
+                }
+              }}
             />
           </div>
 
@@ -2910,6 +2916,19 @@ function EntityPropertyHeaderCard({
   const propertyName =
     properties.find((p) => p.id === activePropertyId)?.name || "Not selected";
 
+  // Prevent accidental selection of empty placeholder when already selected
+  function handleEntitySelect(value: string) {
+    if (value !== "") {
+      onSelectEntity(value);
+    }
+  }
+
+  function handlePropertySelect(value: string) {
+    if (value !== "") {
+      onSelectProperty(value);
+    }
+  }
+
   return (
     <section className="transaction-entity-header">
       <div>
@@ -2922,7 +2941,7 @@ function EntityPropertyHeaderCard({
               { label: "Select Entity", value: "" },
               ...entities.map((e) => ({ label: e.name, value: e.id })),
             ]}
-            onChange={onSelectEntity}
+            onChange={handleEntitySelect}
           />
         ) : (
           <span>
@@ -2946,7 +2965,7 @@ function EntityPropertyHeaderCard({
               { label: "Select Property", value: "" },
               ...properties.map((p) => ({ label: p.name, value: p.id })),
             ]}
-            onChange={onSelectProperty}
+            onChange={handlePropertySelect}
           />
         ) : (
           <span>
@@ -3428,6 +3447,7 @@ export function AddTransactionView({
   }
 
   function handleClientPicked(id: string) {
+    if (id === "") return; // Prevent empty client selection
     setActiveClientId(id);
     setActiveEntityId("");
     setIsEditingEntity(true);
@@ -3439,8 +3459,9 @@ export function AddTransactionView({
   }
 
   function handlePropertyPicked(id: string) {
+    if (id === "") return; // Prevent empty property selection
     setPropertyId(id);
-    if (id) setIsEditingProperty(false);
+    setIsEditingProperty(false);
   }
 
   const showDocumentReadyModal = useCallback((id: string, filename: string) => {

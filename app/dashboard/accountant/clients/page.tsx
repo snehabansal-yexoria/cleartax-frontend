@@ -16,6 +16,7 @@ import {
   type AccountantClientRecord,
   type SessionWithIdToken,
 } from "../accountantClientsData";
+import Link from "next/link";
 
 type ClientTab = "all" | "mine";
 
@@ -328,6 +329,7 @@ function AccountantClientsContent() {
             All Clients
             <span>{allClients.length}</span>
           </button>
+          <Link href="/dashboard/accountant/clients?tab=mine">
           <button
             type="button"
             className={currentTab === "mine" ? "is-active" : ""}
@@ -340,6 +342,7 @@ function AccountantClientsContent() {
             My Clients
             <span>{myClients.length}</span>
           </button>
+          </Link>
         </div>
 
         <div className="accountant-clients-toolbar">
