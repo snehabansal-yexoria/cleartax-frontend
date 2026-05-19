@@ -62,6 +62,8 @@ export type CoreEntity = {
   createdAt: string;
   updatedAt: string;
   beneficiaries: CoreBeneficiary[];
+  reconciled: boolean;
+  reconciledAt: string | null;
 };
 
 export type CorePropertyOwner = {
@@ -447,6 +449,8 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
     beneficiaries: beneficiariesRaw
       .filter((b): b is RawRecord => typeof b === "object" && b !== null)
       .map(normalizeBeneficiary),
+    reconciled: Boolean(raw.reconciled ?? false),
+    reconciledAt: raw.reconciled_at != null ? toStringValue(raw.reconciled_at) : null,
   };
 }
 
@@ -1257,6 +1261,70 @@ export async function getReconciliation(
     })),
     errorMessage: payload.error_message != null ? String(payload.error_message) : null,
   };
+}
+
+function normalizeReconciliationMatch(raw: RawRecord): ReconciliationMatch {
+  return {
+    id: String(raw.id ?? ""),
+    reconciliationId: String(raw.reconciliation_id ?? raw.reconciliationId ?? ""),
+    bankTxIndex: Number(raw.bank_tx_index ?? raw.bankTxIndex ?? 0),
+    transactionId: raw.transaction_id != null ? String(raw.transaction_id) : null,
+    status: raw.status === "excluded" ? "excluded" : "confirmed",
+    confirmedBy: String(raw.confirmed_by ?? raw.confirmedBy ?? ""),
+    confirmedAt: String(raw.confirmed_at ?? raw.confirmedAt ?? ""),
+  };
+}
+
+export async function listReconciliationMatches(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+): Promise<ReconciliationMatch[]> {
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/matches`,
+    { token },
+  );
+  return getJsonArray(payload).map((r) => normalizeReconciliationMatch(r as RawRecord));
+}
+
+export async function createReconciliationMatch(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+  body: { bankTxIndex: number; transactionId: string | null; status: "confirmed" | "excluded" },
+): Promise<ReconciliationMatch> {
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/matches`,
+    {
+      method: "POST",
+      token,
+      body: {
+        bank_tx_index: body.bankTxIndex,
+        transaction_id: body.transactionId,
+        status: body.status,
+      },
+    },
+  );
+  return normalizeReconciliationMatch(getJsonObject(payload) as RawRecord);
+}
+
+export async function sendInviteEmail(
+  token: string,
+  body: { email: string; role: string; invite_link: string },
+): Promise<void> {
+  await coreApiRequest("/invitations/email", { method: "POST", token, body });
+}
+
+export async function deleteReconciliationMatch(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+  bankTxIndex: number,
+): Promise<void> {
+  await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/matches?bankTxIndex=${bankTxIndex}`,
+    { method: "DELETE", token },
+  );
 }
 
 export async function listCoreTransactionCategories(

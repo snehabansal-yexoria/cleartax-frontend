@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCoreApiBearerFromRequest } from "@/src/lib/coreApi";
+import { getCoreApiBearerFromRequest, sendInviteEmail } from "@/src/lib/coreApi";
 import { verifyToken } from "@/src/lib/verifyToken";
 import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
 
@@ -32,6 +32,14 @@ export async function POST(req: Request) {
       organizationId: String(body.organization_id || ""),
       fullName: String(body.full_name || ""),
     });
+
+    try {
+      const origin = new URL(req.url).origin;
+      const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(result.email)}&role=${encodeURIComponent(result.role)}`;
+      await sendInviteEmail(apiToken, { email: result.email, role: result.role, invite_link: inviteLink });
+    } catch (emailErr) {
+      console.error("invite email failed (non-fatal):", emailErr);
+    }
 
     return NextResponse.json(result);
   } catch (error: unknown) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/src/lib/verifyToken";
+import { sendInviteEmail } from "@/src/lib/coreApi";
 import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
 import { pool } from "@/src/lib/db";
 import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
@@ -118,6 +119,15 @@ export async function POST(req: Request) {
           organizationId,
           fullName: String(row.full_name || "").trim(),
         });
+
+        const origin = new URL(req.url).origin;
+        const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(requestedRole)}`;
+        const apiToken = req.headers.get("authorization")?.split(" ")[1] ?? "";
+        try {
+          await sendInviteEmail(apiToken, { email, role: requestedRole, invite_link: inviteLink });
+        } catch (emailErr) {
+          console.error("invite email failed (non-fatal):", email, emailErr);
+        }
 
         results.push({
           row: index + 2,

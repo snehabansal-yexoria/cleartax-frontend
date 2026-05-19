@@ -9,6 +9,7 @@ import {
   AllTransactionsView,
   TransactionRulesView,
 } from "@/app/components/TransactionsFeature";
+import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
 import type {
   CoreEntity,
@@ -105,6 +106,7 @@ export default function PropertyDetailView({
   const [currentTab, setCurrentTab] = useState<PropertyTab>("transactions");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -124,6 +126,7 @@ export default function PropertyDetailView({
           return;
         }
         const token = session.getIdToken().getJwtToken();
+        if (!cancelled) setSessionToken(token);
 
         const [propertyRes, transactionsRes] = await Promise.all([
           fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
@@ -446,6 +449,11 @@ export default function PropertyDetailView({
             />
           ) : currentTab === "rules" ? (
             <TransactionRulesView backHref={backHref} entityId={entityId} />
+          ) : currentTab === "documents" ? (
+            <DocumentsListView
+              context={{ kind: "property", propertyId }}
+              token={sessionToken}
+            />
           ) : (
             <>
               <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>

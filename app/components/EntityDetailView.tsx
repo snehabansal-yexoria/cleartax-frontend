@@ -10,6 +10,7 @@ import {
   TrendSkeleton,
 } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
+import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
 import type {
   CoreEntity,
@@ -280,24 +281,33 @@ export default function EntityDetailView({
 
       <header className="entity-page-header">
         <div>
-          <h1>{entity.name}</h1>
+          <h1>
+            {entity.name}
+            {entity.reconciled && (
+              <span className="entity-reconciled-badge" title="This entity has been reconciled and is locked">
+                Reconciled
+              </span>
+            )}
+          </h1>
           <p>
             {entityTypeLabel(entity.entityType)} · {ownerCopy} ·{" "}
             {properties.length} propert{properties.length === 1 ? "y" : "ies"}
           </p>
         </div>
-        <Link
-          href={editEntityHref}
-          className="entity-icon-action entity-detail-edit-action"
-          aria-label={`Edit ${entity.name}`}
-          title="Edit entity"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </svg>
-          <span>Edit Details</span>
-        </Link>
+        {!entity.reconciled && (
+          <Link
+            href={editEntityHref}
+            className="entity-icon-action entity-detail-edit-action"
+            aria-label={`Edit ${entity.name}`}
+            title="Edit entity"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            <span>Edit Details</span>
+          </Link>
+        )}
       </header>
 
       {isTransactionsLoading ? (
@@ -469,16 +479,22 @@ export default function EntityDetailView({
                         <dd>0</dd>
                       </div>
                     </dl>
-                    <Link
-                      href={appendQueryParam(
-                        addTransactionHref,
-                        "propertyId",
-                        property.id,
-                      )}
-                      className="entity-property-disabled-action"
-                    >
-                      + Add Transaction
-                    </Link>
+                    {entity.reconciled ? (
+                      <span className="entity-property-disabled-action" title="Entity is reconciled">
+                        + Add Transaction
+                      </span>
+                    ) : (
+                      <Link
+                        href={appendQueryParam(
+                          addTransactionHref,
+                          "propertyId",
+                          property.id,
+                        )}
+                        className="entity-property-disabled-action"
+                      >
+                        + Add Transaction
+                      </Link>
+                    )}
                     <Link
                       href={`${propertyDetailHrefBase}/${property.id}`}
                       className="entity-property-chevron-link"
@@ -499,7 +515,7 @@ export default function EntityDetailView({
           <div className="entity-resource-body">
             <AllTransactionsView
               context={{ kind: "entity", entityId }}
-              addTransactionHref={addTransactionHref}
+              addTransactionHref={entity.reconciled ? undefined : addTransactionHref}
               rulesHref={transactionRulesHref}
               rulesButtonLabel={transactionRulesLabel}
               rulesButtonClassName={transactionRulesClassName}
@@ -513,7 +529,7 @@ export default function EntityDetailView({
           <div className="entity-resource-body">
             <div className="entity-resource-head">
               <h2>Bank Reconciliations</h2>
-              {reconciliationHref && (
+              {reconciliationHref && !entity.reconciled && (
                 <Link href={reconciliationHref} className="entity-wizard-primary is-green">
                   + Upload Statement
                 </Link>
@@ -524,7 +540,7 @@ export default function EntityDetailView({
             ) : reconList.length === 0 ? (
               <div className="client-detail-empty">
                 <p>No bank statements reconciled yet.</p>
-                {reconciliationHref && (
+                {reconciliationHref && !entity.reconciled && (
                   <Link href={reconciliationHref} className="entity-wizard-primary is-green" style={{ marginTop: 12 }}>
                     Upload your first statement
                   </Link>
@@ -586,7 +602,16 @@ export default function EntityDetailView({
           </div>
         )}
 
-        {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "reconciliation" && (
+        {currentTab === "documents" && (
+          <div className="entity-resource-body">
+            <DocumentsListView
+              context={{ kind: "entity", entityId }}
+              token={sessionToken}
+            />
+          </div>
+        )}
+
+        {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "reconciliation" && currentTab !== "documents" && (
           <div className="entity-coming-soon">
             <strong>{entityTabs.find((tab) => tab.id === currentTab)?.label}</strong>
             <p>Coming soon</p>

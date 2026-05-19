@@ -10,7 +10,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type {
   CoreProperty,
   CoreTransactionListItem,
@@ -197,6 +197,7 @@ function ReconCompleteToast({
 export default function AccountantReconciliationPage() {
   const params = useParams<{ clientId: string; entityId: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const clientId = String(params?.clientId ?? "");
   const entityId = String(params?.entityId ?? "");
 
@@ -217,6 +218,8 @@ export default function AccountantReconciliationPage() {
   // History panel selection
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [confirmingIndex, setConfirmingIndex] = useState<number | null>(null);
 
   // ── Matching state ────────────────────────────────────────────────────────
 
@@ -498,32 +501,31 @@ export default function AccountantReconciliationPage() {
 
   // ── Match actions (React 19 optimistic + transition) ──────────────────────
 
-  function doConfirmMatch(bankTxIndex: number, candidate: CoreTransactionListItem) {
-    if (!activeRecon) return;
-    const optimistic: ReconciliationMatch = {
-      id: "",
-      reconciliationId: activeRecon.id,
-      bankTxIndex,
-      transactionId: candidate.id,
-      status: "confirmed",
-      confirmedBy: "",
-      confirmedAt: new Date().toISOString(),
-    };
-    startTransition(async () => {
-      addOptimisticMatch(optimistic);
-      try {
-        await fetch(
-          `/api/entities/${entityId}/reconciliations/${activeRecon.id}/matches`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-            body: JSON.stringify({ bankTxIndex, transactionId: candidate.id, status: "confirmed" }),
-          },
-        );
-        await reloadMatches();
-        setExpandedIndex(null);
-      } catch { /* optimistic rolls back automatically */ }
-    });
+  async function doConfirmMatch(bankTxIndex: number, candidate: CoreTransactionListItem) {
+    if (!activeRecon || confirmingIndex !== null) return;
+    setMatchError(null);
+    setConfirmingIndex(bankTxIndex);
+    try {
+      const res = await fetch(
+        `/api/entities/${entityId}/reconciliations/${activeRecon.id}/matches`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getFreshToken()}` },
+          body: JSON.stringify({ bankTxIndex, transactionId: candidate.id, status: "confirmed" }),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        setMatchError(body.message ?? "Failed to confirm match");
+        return;
+      }
+      await reloadMatches();
+      setExpandedIndex(null);
+    } catch {
+      setMatchError("Failed to confirm match. Please try again.");
+    } finally {
+      setConfirmingIndex(null);
+    }
   }
 
   function doExcludeMatch(bankTxIndex: number) {
@@ -1027,7 +1029,7 @@ export default function AccountantReconciliationPage() {
                   actionCell = (
                     <button
                       type="button"
-                      onClick={() => setExpandedIndex(isExpanded ? null : i)}
+                      onClick={() => { setMatchError(null); setExpandedIndex(isExpanded ? null : i); }}
                     >
                       {isExpanded ? "Hide Matches" : "Review Match"}
                     </button>
@@ -1145,19 +1147,32 @@ export default function AccountantReconciliationPage() {
                               <button
                                 type="button"
                                 className="recon-confirm-btn"
-                                disabled={isPending}
-                                onClick={() => doConfirmMatch(i, candidate)}
+                                disabled={confirmingIndex !== null || isPending}
+                                onClick={() => { void doConfirmMatch(i, candidate); }}
                               >
-                                {isPending ? "Saving…" : "Confirm Match"}
+                                {confirmingIndex === i ? (
+                                  <>
+                                    <span className="recon-btn-spinner" aria-hidden="true" />
+                                    Saving…
+                                  </>
+                                ) : "Confirm Match"}
                               </button>
                               <button
                                 type="button"
                                 className="recon-exclude-btn"
-                                disabled={isPending}
+                                disabled={confirmingIndex !== null || isPending}
                                 onClick={() => doExcludeMatch(i)}
                               >
                                 Exclude
                               </button>
+                              {matchError && (
+                                <div className="recon-match-error" role="alert">
+                                  <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
+                                  </svg>
+                                  <span>{matchError}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1258,7 +1273,12 @@ export default function AccountantReconciliationPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setFeedbackMessage("Reconciliation marked complete.")}
+                onClick={() => {
+                  playReconSound();
+                  router.push(
+                    `/dashboard/accountant/clients/${clientId}/entities/${entityId}`,
+                  );
+                }}
               >
                 Complete Reconciliation
               </button>
