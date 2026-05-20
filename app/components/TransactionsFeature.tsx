@@ -232,6 +232,12 @@ function StaticSelect({
       window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
   }, [dropdownId]);
 
+  useEffect(() => {
+    if (isOpen) {
+      announceDropdownOpen(dropdownId);
+    }
+  }, [dropdownId, isOpen]);
+
   return (
     <div className={`transaction-field ${className}`}>
       {label && (
@@ -258,11 +264,7 @@ function StaticSelect({
           disabled={disabled}
           onClick={() => {
             if (!disabled) {
-              setIsOpen((current) => {
-                const next = !current;
-                if (next) announceDropdownOpen(dropdownId);
-                return next;
-              });
+              setIsOpen((current) => !current);
             }
           }}
         >
@@ -1790,14 +1792,18 @@ export function AllTransactionsView({
             break;
         }
 
+        console.log(`[AllTransactionsView] Fetching ${contextKind} transactions from: ${url}`);
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log(`[AllTransactionsView] Response status: ${res.status}`);
         if (!res.ok) {
+          console.error(`[AllTransactionsView] Failed to load transactions. Status: ${res.status}`);
           if (!cancelled) setErrorMessage("Failed to load transactions.");
           return;
         }
         const data = await res.json();
+        console.log(`[AllTransactionsView] Fetched ${(data.items || []).length} items`);
         if (cancelled) return;
         if (contextKind === "property") {
           setPropertyRows((data.items as CorePropertyTransactionRow[]) || []);
@@ -3069,8 +3075,15 @@ export function AddTransactionView({
 
   function handleEntityPicked(id: string) {
     setActiveEntityId(id);
-    setIsEditingEntity(false);
-    setIsEditingProperty(true);
+    // If an actual entity was chosen, close the entity editor and
+    // open the property editor. If the empty/placeholder option was
+    // selected, keep the entity editor open so the user can choose again.
+    if (id) {
+      setIsEditingEntity(false);
+      setIsEditingProperty(true);
+    } else {
+      setIsEditingEntity(true);
+    }
   }
 
   function handleClientPicked(id: string) {

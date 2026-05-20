@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession } from "../../../../src/lib/session";
+import Link from "next/link";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -331,6 +332,7 @@ function AccountantClientsContent() {
             All Clients
             <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant).length)}</span>
           </button>
+           <Link href="/dashboard/accountant/clients?tab=mine">
           <button
             type="button"
             className={currentTab === "mine" ? "is-active" : ""}
@@ -343,6 +345,7 @@ function AccountantClientsContent() {
             My Clients
             <span>{myClients === null ? "…" : myClients.length}</span>
           </button>
+          </Link>
         </div>
 
         <div className="accountant-clients-toolbar">

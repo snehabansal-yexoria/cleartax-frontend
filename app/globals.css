@@ -1222,7 +1222,12 @@ p.darkBg {
 }
 
 .accountant-brand-copy {
-  display: none;
+  display: inline-flex;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.24s ease, max-width 0.24s ease;
 }
 
 .accountant-nav {
@@ -1275,10 +1280,14 @@ p.darkBg {
 }
 
 .accountant-nav-label {
+  display: inline-flex;
   font-size: 1.05rem;
   font-weight: 500;
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
   white-space: nowrap;
+  transition: opacity 0.24s ease 0.04s, max-width 0.24s ease 0.04s;
 }
 
 .accountant-sidebar-footer {
@@ -1291,7 +1300,12 @@ p.darkBg {
 }
 
 .accountant-profile-copy {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  max-height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.24s ease 0.04s, max-width 0.24s ease 0.04s, max-height 0.24s ease 0.04s;
   flex-direction: column;
   min-width: 0;
 }
@@ -4302,7 +4316,9 @@ p.darkBg {
 .accountant-sidebar:hover .accountant-brand-copy,
 .accountant-sidebar:hover .accountant-nav-label,
 .accountant-sidebar:hover .accountant-profile-copy {
-  display: block;
+  opacity: 1;
+  max-width: 220px;
+  max-height: 80px;
 }
 
 .accountant-sidebar:hover .accountant-profile-copy {

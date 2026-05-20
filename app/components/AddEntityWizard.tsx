@@ -31,7 +31,7 @@ const entityTypeOptions: EntityTypeOption[] = [
   },
   {
     value: "company",
-    label: "Company (Pvt Ltd)",
+    label: "Company (Pty Ltd)",
     description: "Limited liability company structure with shareholders",
   },
   {
