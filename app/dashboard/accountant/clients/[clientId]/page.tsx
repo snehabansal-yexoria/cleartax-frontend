@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
@@ -79,9 +79,10 @@ function propertyCountLabel(count: number | undefined) {
   return `${count} ${count === 1 ? "Property" : "Properties"}`;
 }
 
-export default function ClientDetailPage() {
+function ClientDetailPageContent() {
   const params = useParams<{ clientId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const clientId = params?.clientId ?? "";
 
   const [client, setClient] = useState<ClientRecord | null>(null);
@@ -90,7 +91,27 @@ export default function ClientDetailPage() {
   const [currentTab, setCurrentTab] = useState<ClientTab>("entities");
   const [isClientLoading, setIsClientLoading] = useState(true);
   const [isEntitiesLoading, setIsEntitiesLoading] = useState(true);
+  const [transactionsCounts, setTransactionsCounts] = useState<Record<string, number | undefined>>({});
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    const tab = searchParams?.get("tab");
+    if (tab === "transactions") {
+      setCurrentTab("transactions");
+    } else if (tab === "banking") {
+      setCurrentTab("banking");
+    } else if (tab === "documents") {
+      setCurrentTab("documents");
+    } else if (tab === "entities") {
+      setCurrentTab("entities");
+    }
+  }, [searchParams]);
+
+  const handleTabClick = (tabId: ClientTab) => {
+    setCurrentTab(tabId);
+    router.push(`?tab=${tabId}`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -129,8 +150,17 @@ export default function ClientDetailPage() {
         // Reveal client header regardless of whether entities can load
         if (!cancelled) setIsClientLoading(false);
 
+        // Initialize transactions loading state
+        if (!cancelled) {
+          setIsTransactionsLoading(true);
+          setTransactionsCounts({});
+        }
+
         if (!canLoadEntities || cancelled) {
-          if (!cancelled) setIsEntitiesLoading(false);
+          if (!cancelled) {
+            setIsEntitiesLoading(false);
+            setIsTransactionsLoading(false);
+          }
           return;
         }
 
@@ -159,6 +189,26 @@ export default function ClientDetailPage() {
                   }
                 });
             }
+
+            // Fetch transactions count per entity (asynchronously, no await)
+            for (const entity of loadedEntities) {
+              fetch(`/api/entities/${encodeURIComponent(entity.id)}/transactions`, { headers })
+                .then((res) => (res.ok ? res.json() : { items: [] }))
+                .then((payload: { items?: unknown[] }) => {
+                  if (!cancelled) {
+                    setTransactionsCounts((prev) => ({
+                      ...prev,
+                      [entity.id]: (payload.items || []).length ?? 0,
+                    }));
+                  }
+                })
+                .catch(() => {
+                  if (!cancelled) {
+                    setTransactionsCounts((prev) => ({ ...prev, [entity.id]: 0 }));
+                  }
+                });
+            }
+            if (!cancelled) setIsTransactionsLoading(false);
           }
         } else {
           if (!cancelled) setIsEntitiesLoading(false);
@@ -184,6 +234,11 @@ export default function ClientDetailPage() {
     [propertyCounts],
   );
 
+  const totalTransactions = useMemo(
+    () => Object.values(transactionsCounts).reduce<number>((sum, count) => sum + (count ?? 0), 0),
+    [transactionsCounts],
+  );
+
   if (isClientLoading) {
     return (
       <Skeleton
@@ -199,7 +254,7 @@ export default function ClientDetailPage() {
   if (!client) {
     return (
       <section className="client-detail-page client-portfolio-page">
-        <Link href="/dashboard/accountant/clients" className="entity-wizard-back">
+        <Link href="/dashboard/accountant/clients?tab=mine" className="entity-wizard-back">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
@@ -212,7 +267,7 @@ export default function ClientDetailPage() {
 
   return (
     <section className="client-detail-page client-portfolio-page">
-      <Link href="/dashboard/accountant/clients" className="entity-wizard-back">
+      <Link href="/dashboard/accountant/clients?tab=mine" className="entity-wizard-back">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15 6l-6 6 6 6" />
         </svg>
@@ -276,6 +331,7 @@ export default function ClientDetailPage() {
           <div>
             <span>Total Properties</span>
             <strong>{isEntitiesLoading ? "—" : totalProperties}</strong>
+            
           </div>
         </article>
         <article className="client-stat-card">
@@ -287,7 +343,7 @@ export default function ClientDetailPage() {
           </span>
           <div>
             <span>Total Transactions</span>
-            <strong>0</strong>
+              <strong>{isTransactionsLoading ? "—" : totalTransactions}</strong>
           </div>
         </article>
       </div>
@@ -301,7 +357,7 @@ export default function ClientDetailPage() {
               role="tab"
               aria-selected={currentTab === tab.id}
               className={currentTab === tab.id ? "is-active" : ""}
-              onClick={() => setCurrentTab(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
             >
               {tab.label}
             </button>
@@ -436,5 +492,13 @@ export default function ClientDetailPage() {
         )}
       </section>
     </section>
+  );
+}
+
+export default function ClientDetailPage() {
+  return (
+    <Suspense fallback={<ClientPortfolioSkeleton />}>
+      <ClientDetailPageContent />
+    </Suspense>
   );
 }

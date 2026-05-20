@@ -522,6 +522,7 @@ export default function EntityDetailView({
               rulesButtonIcon={transactionRulesIcon}
               compact
             />
+            
           </div>
         )}
 
