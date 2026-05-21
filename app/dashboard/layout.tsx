@@ -123,7 +123,7 @@ const accountantMenuItems: PortalMenuItem[] = [
   },
   {
     id: "clients",
-    href: "/dashboard/accountant/clients",
+    href: "/dashboard/accountant/clients?tab=mine",
     label: "Clients",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -434,15 +434,14 @@ export default function DashboardLayout({
   }
 
   function renderPortalMenuItem(item: PortalMenuItem) {
-    const isActive = item.href
-      ? item.id === "transactions"
-        ? pathname.includes("/transactions")
-        : item.href === "/dashboard/accountant" ||
-        item.href === "/dashboard/admin" ||
-        item.href === "/dashboard/super-admin" ||
-        item.href === "/dashboard/client"
-        ? pathname === item.href
-        : pathname.startsWith(item.href)
+    const hrefPath = item.href ? item.href.split("?")[0] : "";
+    const isActive = hrefPath
+      ? hrefPath === "/dashboard/accountant" ||
+        hrefPath === "/dashboard/admin" ||
+        hrefPath === "/dashboard/super-admin" ||
+        hrefPath === "/dashboard/client"
+        ? pathname === hrefPath
+        : pathname.startsWith(hrefPath)
       : false;
 
     if (!item.href) {
@@ -499,7 +498,7 @@ export default function DashboardLayout({
                   </svg>
                 </div>
                 <div className="accountant-brand-copy">
-                  <span>Clear <br/> Portfolio</span>
+                  <span>Clear <br /> Portfolio</span>
                 </div>
               </div>
             </div>
