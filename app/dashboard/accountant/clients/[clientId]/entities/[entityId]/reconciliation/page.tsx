@@ -274,7 +274,7 @@ export default function AccountantReconciliationPage() {
   // Load entity + properties on mount
   useEffect(() => {
     const token = getToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
     fetch(`/api/entities/${entityId}`, { headers })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { reconciled?: boolean } | null) => {
