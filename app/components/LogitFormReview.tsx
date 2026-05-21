@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -121,6 +121,28 @@ const depreciationRows: ReviewLine[] = [
     use: "",
   },
 ];
+
+const CATEGORY_TO_ROW_ID: Record<string, string> = {
+  "advertising for tenants": "advertising",
+  "body corporate fees / strata levy": "body-corporate",
+  "cleaning": "cleaning",
+  "council rates": "council-rates",
+  "gardening / lawn mowing": "gardening-a",
+  "insurance": "insurance",
+  "land tax": "land-tax",
+  "legal fees": "legal-fees",
+  "pest control": "pest-control",
+  "property agent fees / commission": "agent-fees",
+  "repairs and maintenance": "repairs",
+  "water charges": "water",
+  "sundry rental expenses": "sundry",
+  "interest on loans - tbd": "interest",
+  "borrowing expenses": "borrowing",
+  "capital allowances": "capital-allowances",
+  "capital works deductions": "capital-works",
+  "rental income": "rental-income",
+  "other rental income": "other-rental-income",
+};
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -311,13 +333,46 @@ export default function LogitFormReview({
           setAcquisitionCost(inputNumber(loadedProperty.purchaseAmount));
         }
 
-        const entityRes = await fetch(
-          `/api/entities/${encodeURIComponent(loadedProperty.entityId)}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        const [entityRes, txRes] = await Promise.all([
+          fetch(`/api/entities/${encodeURIComponent(loadedProperty.entityId)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/entities/${encodeURIComponent(loadedProperty.entityId)}/transactions`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
         if (!cancelled && entityRes.ok) {
           setEntity((await entityRes.json()) as CoreEntity);
+        }
+
+        if (!cancelled && txRes.ok) {
+          const txData = (await txRes.json()) as { items?: CoreTransactionListItem[] };
+          const txs = (txData.items ?? []).filter((t) =>
+            t.propertyIds.includes(propertyId),
+          );
+
+          const sums: Record<string, number> = {};
+          for (const tx of txs) {
+            const rowId = CATEGORY_TO_ROW_ID[tx.categoryName.toLowerCase().trim()];
+            if (rowId) {
+              sums[rowId] = (sums[rowId] ?? 0) + Math.abs(tx.grossAmount);
+            }
+          }
+
+          const applyTxSums = (rows: ReviewLine[]) =>
+            rows.map((row) => {
+              if (row.amount !== "") return row;
+              const sum = sums[row.id];
+              return sum != null && sum > 0
+                ? { ...row, amount: String(Math.round(sum * 100) / 100) }
+                : row;
+            });
+
+          setRentedIncome(applyTxSums);
+          setRentedExpenses(applyTxSums);
+          setBorrowings(applyTxSums);
+          setDepreciation(applyTxSums);
         }
       } catch (error) {
         if (!cancelled) {

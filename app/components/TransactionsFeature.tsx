@@ -4588,6 +4588,7 @@ export function TransactionRulesView({
   const [rules, setRules] = useState<CoreTransactionRule[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const [selectedRule, setSelectedRule] = useState<CoreTransactionRule | null>(null);
   const [showModal, setShowModal] = useState<"create" | "edit" | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -4622,17 +4623,29 @@ export function TransactionRulesView({
   }, [entityId]);
 
   async function handleDelete(rule: CoreTransactionRule) {
-    if (!entityId) return;
+    const targetEntityId = entityId || rule.entityId;
+    if (!targetEntityId) return;
     setDeletingId(rule.id);
+    setDeleteError("");
     try {
       const session = (await getSession()) as SessionWithIdToken | null;
       const token = session?.getIdToken().getJwtToken();
-      if (!token) return;
+      if (!token) {
+        setDeleteError("Session expired. Please refresh the page.");
+        return;
+      }
       const res = await fetch(
-        `/api/entities/${encodeURIComponent(entityId)}/transaction-rules/${encodeURIComponent(rule.id)}`,
+        `/api/entities/${encodeURIComponent(targetEntityId)}/transaction-rules/${encodeURIComponent(rule.id)}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
       );
-      if (res.ok) setRules((prev) => prev.filter((r) => r.id !== rule.id));
+      if (res.ok) {
+        setRules((prev) => prev.filter((r) => r.id !== rule.id));
+      } else {
+        const err = await res.json().catch(() => ({})) as { message?: string };
+        setDeleteError(err.message || `Failed to delete rule (${res.status})`);
+      }
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Unexpected error deleting rule");
     } finally {
       setDeletingId(null);
     }
@@ -4696,6 +4709,10 @@ export function TransactionRulesView({
           />
         </div>
       </section>
+
+      {deleteError && (
+        <p className="transaction-warning-card" role="alert">{deleteError}</p>
+      )}
 
       {isLoading ? (
         <div className="transactions-showing-copy">Loading rules…</div>

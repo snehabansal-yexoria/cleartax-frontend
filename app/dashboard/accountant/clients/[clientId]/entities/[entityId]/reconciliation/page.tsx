@@ -13,7 +13,9 @@ import {
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type {
   CoreProperty,
+  CoreTransactionCategory,
   CoreTransactionListItem,
+  CoreTransactionSubcategory,
   ReconciliationDetail,
   ReconciliationListItem,
   ReconciliationMatch,
@@ -252,6 +254,18 @@ export default function AccountantReconciliationPage() {
   // React 19: deferred entity txs so bank table renders immediately
   const deferredEntityTxs = useDeferredValue(entityTxs);
 
+  // ── Categorize panel state ────────────────────────────────────────────────
+  const [categorizeIndex, setCategorizeIndex] = useState<number | null>(null);
+  const [categorizeType, setCategorizeType] = useState<"expense" | "revenue">("expense");
+  const [categorizeCategoryId, setCategorizeCategoryId] = useState<number | null>(null);
+  const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
+  const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
+  const [categorizeGst, setCategorizeGst] = useState<boolean>(false);
+  const [categorizeCategories, setCategorizeCategories] = useState<CoreTransactionCategory[]>([]);
+  const [categorizeSubcategories, setCategorizeSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  const [categorizeSaving, setCategorizeSaving] = useState(false);
+  const [categorizeError, setCategorizeError] = useState<string | null>(null);
+
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   // Load entity properties on mount for the property dropdown
@@ -360,6 +374,46 @@ export default function AccountantReconciliationPage() {
       .then((data: ReconciliationListItem[]) => setHistory(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, [entityId]);
+
+  // Load categories when categorize panel opens
+  useEffect(() => {
+    if (categorizeIndex === null || !activeRecon) return;
+    const bankTx = activeRecon.transactions[categorizeIndex];
+    const txType: "expense" | "revenue" = bankTx.debit != null ? "expense" : "revenue";
+    setCategorizeType(txType);
+    setCategorizeCategoryId(null);
+    setCategorizeSubcategoryId(null);
+    setCategorizeSubcategories([]);
+    let cancelled = false;
+    void getFreshToken().then((token) => {
+      fetch(`/api/transactions/categories?type=${txType}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d: { items?: CoreTransactionCategory[] }) => {
+          if (!cancelled) setCategorizeCategories(d.items ?? []);
+        })
+        .catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [categorizeIndex, activeRecon]);
+
+  // Load subcategories when category changes inside categorize panel
+  useEffect(() => {
+    if (!categorizeCategoryId) { setCategorizeSubcategories([]); return; }
+    let cancelled = false;
+    void getFreshToken().then((token) => {
+      fetch(`/api/transactions/categories/${categorizeCategoryId}/sub-categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d: { items?: CoreTransactionSubcategory[] }) => {
+          if (!cancelled) setCategorizeSubcategories(d.items ?? []);
+        })
+        .catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [categorizeCategoryId]);
 
   // SSE connection (unchanged from original)
   const connectSSE = useCallback(
@@ -525,6 +579,74 @@ export default function AccountantReconciliationPage() {
       setMatchError("Failed to confirm match. Please try again.");
     } finally {
       setConfirmingIndex(null);
+    }
+  }
+
+  async function doSaveCategorize(bankTxIndex: number) {
+    if (!activeRecon || categorizeSaving) return;
+    if (!categorizeCategoryId || !categorizePropertyId) {
+      setCategorizeError("Category and Property are required.");
+      return;
+    }
+    setCategorizeError(null);
+    setCategorizeSaving(true);
+    const bankTx = activeRecon.transactions[bankTxIndex];
+    const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
+    const gstAmount = categorizeGst ? Math.round((grossAmount / 11) * 100) / 100 : 0;
+    try {
+      const token = await getFreshToken();
+      const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          type: categorizeType,
+          category_id: categorizeCategoryId,
+          subcategory_id: categorizeSubcategoryId,
+          invoice_date: bankTx.date,
+          gross_amount: grossAmount,
+          gst_amount: gstAmount,
+          description: bankTx.payee ?? bankTx.description ?? null,
+          internal_remarks: null,
+          review_status: "reviewed",
+          is_asset_purchase: false,
+          metadata: {},
+          splits: [{ property_id: categorizePropertyId, split_percentage: 100, split_gross_amount: grossAmount }],
+        }),
+      });
+      if (!txRes.ok) {
+        const body = await txRes.json().catch(() => ({})) as { message?: string };
+        setCategorizeError(body.message ?? "Failed to create transaction.");
+        return;
+      }
+      const newTx = await txRes.json() as { id: string };
+
+      const matchRes = await fetch(
+        `/api/entities/${entityId}/reconciliations/${activeRecon.id}/matches`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ bankTxIndex, transactionId: newTx.id, status: "confirmed" }),
+        },
+      );
+      if (!matchRes.ok) {
+        const body = await matchRes.json().catch(() => ({})) as { message?: string };
+        setCategorizeError(body.message ?? "Failed to link match.");
+        return;
+      }
+
+      await reloadMatches();
+      const updatedTxRes = await fetch(`/api/entities/${entityId}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (updatedTxRes.ok) {
+        const data = await updatedTxRes.json() as { items?: CoreTransactionListItem[] };
+        setEntityTxs(data.items ?? []);
+      }
+      setCategorizeIndex(null);
+    } catch {
+      setCategorizeError("Something went wrong. Please try again.");
+    } finally {
+      setCategorizeSaving(false);
     }
   }
 
@@ -994,7 +1116,6 @@ export default function AccountantReconciliationPage() {
                 ) : hasCandidates ? (
                   <>
                     <strong>Uncategorized</strong>
-                    <mark className="is-warning">Categorize</mark>
                   </>
                 ) : (
                   <>
@@ -1029,13 +1150,26 @@ export default function AccountantReconciliationPage() {
                   actionCell = (
                     <button
                       type="button"
-                      onClick={() => { setMatchError(null); setExpandedIndex(isExpanded ? null : i); }}
+                      onClick={() => { setMatchError(null); setCategorizeIndex(null); setExpandedIndex(isExpanded ? null : i); }}
                     >
                       {isExpanded ? "Hide Matches" : "Review Match"}
                     </button>
                   );
                 } else {
-                  actionCell = <span style={{ color: "#d0d5dd" }}>—</span>;
+                  const isCatExpanded = categorizeIndex === i;
+                  actionCell = (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMatchError(null);
+                        setCategorizeError(null);
+                        setCategorizeIndex(isCatExpanded ? null : i);
+                        setExpandedIndex(null);
+                      }}
+                    >
+                      {isCatExpanded ? "Hide Form" : "Categorize"}
+                    </button>
+                  );
                 }
 
                 return (
@@ -1046,6 +1180,7 @@ export default function AccountantReconciliationPage() {
                       isConfirmed ? "recon-row-wrapper--confirmed" : "",
                       isExcluded ? "recon-row-wrapper--excluded" : "",
                       isExpanded ? "recon-row-wrapper--expanded" : "",
+                      categorizeIndex === i && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
                     ].filter(Boolean).join(" ")}
                   >
                     {/* Main row */}
@@ -1176,6 +1311,126 @@ export default function AccountantReconciliationPage() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Inline Categorize panel — for rows with no candidate matches */}
+                    {categorizeIndex === i && !isConfirmed && !isExcluded && (
+                      <div className="recon-categorize-panel">
+                        <div className="recon-categorize-card">
+                          <div className="recon-categorize-title">
+                            <span className="recon-categorize-title-dot" />
+                            <strong>Categorize Transaction</strong>
+                          </div>
+                          <div className="recon-categorize-grid">
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Transaction Type <span className="is-required">*</span>
+                              </label>
+                              <select
+                                className="recon-categorize-select"
+                                value={categorizeType}
+                                onChange={(e) => {
+                                  setCategorizeType(e.target.value as "expense" | "revenue");
+                                  setCategorizeCategoryId(null);
+                                  setCategorizeSubcategoryId(null);
+                                }}
+                              >
+                                <option value="expense">Expense</option>
+                                <option value="revenue">Revenue</option>
+                              </select>
+                            </div>
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Category <span className="is-required">*</span>
+                              </label>
+                              <select
+                                className="recon-categorize-select"
+                                value={categorizeCategoryId ?? ""}
+                                onChange={(e) => {
+                                  setCategorizeCategoryId(e.target.value ? Number(e.target.value) : null);
+                                  setCategorizeSubcategoryId(null);
+                                }}
+                              >
+                                <option value="">Select category</option>
+                                {categorizeCategories.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">Subcategory</label>
+                              <select
+                                className="recon-categorize-select"
+                                value={categorizeSubcategoryId ?? ""}
+                                onChange={(e) => setCategorizeSubcategoryId(e.target.value ? Number(e.target.value) : null)}
+                                disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
+                              >
+                                <option value="">Enter subcategory (optional)</option>
+                                {categorizeSubcategories.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Property Name <span className="is-required">*</span>
+                              </label>
+                              <select
+                                className="recon-categorize-select"
+                                value={categorizePropertyId}
+                                onChange={(e) => setCategorizePropertyId(e.target.value)}
+                              >
+                                <option value="">Select property</option>
+                                {properties.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div className="recon-categorize-gst">
+                            <span className="recon-categorize-gst-label">GST Applicable</span>
+                            <div className="recon-categorize-gst-options">
+                              <label className="recon-categorize-gst-option">
+                                <input type="radio" name={`gst-${i}`} checked={categorizeGst === true} onChange={() => setCategorizeGst(true)} />
+                                Yes
+                              </label>
+                              <label className="recon-categorize-gst-option">
+                                <input type="radio" name={`gst-${i}`} checked={categorizeGst === false} onChange={() => setCategorizeGst(false)} />
+                                No
+                              </label>
+                            </div>
+                          </div>
+                          <hr className="recon-categorize-divider" />
+                          {categorizeError && (
+                            <div className="recon-match-error" role="alert" style={{ marginBottom: 12 }}>
+                              <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
+                              </svg>
+                              <span>{categorizeError}</span>
+                            </div>
+                          )}
+                          <div className="recon-categorize-footer">
+                            <button
+                              type="button"
+                              className="recon-categorize-exclude-btn"
+                              disabled={categorizeSaving}
+                              onClick={() => { doExcludeMatch(i); setCategorizeIndex(null); }}
+                            >
+                              Exclude
+                            </button>
+                            <button
+                              type="button"
+                              className="recon-categorize-save-btn"
+                              disabled={categorizeSaving || !categorizeCategoryId || !categorizePropertyId}
+                              onClick={() => { void doSaveCategorize(i); }}
+                            >
+                              {categorizeSaving ? (
+                                <><span className="recon-btn-spinner" aria-hidden="true" />Saving…</>
+                              ) : "Save & Categorize"}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
