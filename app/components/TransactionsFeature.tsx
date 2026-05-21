@@ -247,9 +247,8 @@ function StaticSelect({
         </span>
       )}
       <div
-        className={`property-status-select transaction-select${
-          isOpen ? " is-open" : ""
-        }${disabled ? " is-disabled" : ""}`}
+        className={`property-status-select transaction-select${isOpen ? " is-open" : ""
+          }${disabled ? " is-disabled" : ""}`}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setIsOpen(false);
@@ -458,13 +457,13 @@ function TransactionDetailPopup({
   const [editSplitRows, setEditSplitRows] = useState<SplitRowState[]>(() =>
     row.propertyIds.length
       ? row.propertyIds.map((propertyId) => ({
-          id: makeSplitRowId(),
-          propertyId,
-          amount:
-            row.propertyIds.length === 1
-              ? String(row.grossAmount || "")
-              : "",
-        }))
+        id: makeSplitRowId(),
+        propertyId,
+        amount:
+          row.propertyIds.length === 1
+            ? String(row.grossAmount || "")
+            : "",
+      }))
       : [{ id: makeSplitRowId(), propertyId: "", amount: String(row.grossAmount || "") }],
   );
   const [editError, setEditError] = useState("");
@@ -510,20 +509,20 @@ function TransactionDetailPopup({
       setEditSplitRows(
         source.propertyIds.length
           ? source.propertyIds.map((propertyId) => ({
-              id: makeSplitRowId(),
-              propertyId,
-              amount:
-                source.propertyIds.length === 1
-                  ? String(source.grossAmount || "")
-                  : "",
-            }))
+            id: makeSplitRowId(),
+            propertyId,
+            amount:
+              source.propertyIds.length === 1
+                ? String(source.grossAmount || "")
+                : "",
+          }))
           : [
-              {
-                id: makeSplitRowId(),
-                propertyId: "",
-                amount: String(source.grossAmount || ""),
-              },
-            ],
+            {
+              id: makeSplitRowId(),
+              propertyId: "",
+              amount: String(source.grossAmount || ""),
+            },
+          ],
       );
     }
     setEditError("");
@@ -734,13 +733,13 @@ function TransactionDetailPopup({
     }
     const splits = isSplit
       ? selectedSplits.map((split) => {
-          const amount = Number.parseFloat(split.amount);
-          return {
-            property_id: split.propertyId,
-            split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
-            split_gross_amount: Number(amount.toFixed(2)),
-          };
-        })
+        const amount = Number.parseFloat(split.amount);
+        return {
+          property_id: split.propertyId,
+          split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
+          split_gross_amount: Number(amount.toFixed(2)),
+        };
+      })
       : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
     const body: Record<string, unknown> = {
       type,
@@ -1070,9 +1069,8 @@ function TransactionDetailPopup({
               <div className="transaction-detail-grid is-three">
                 <DetailField label="Type">
                   <span
-                    className={`transaction-type-pill ${
-                      isRevenue ? "is-income" : "is-expense"
-                    }`}
+                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
+                      }`}
                   >
                     {isRevenue ? "Income" : "Expense"}
                   </span>
@@ -1196,9 +1194,8 @@ function TransactionDetailPopup({
                   return (
                     <div
                       key={rule.id}
-                      className={`transaction-detail-rule-card${
-                        matched ? " is-matched" : ""
-                      }`}
+                      className={`transaction-detail-rule-card${matched ? " is-matched" : ""
+                        }`}
                     >
                       <div className="rule-card-head">
                         <strong>{rule.name}</strong>
@@ -1341,9 +1338,8 @@ function TransactionTable({
                 <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
                 <td>
                   <span
-                    className={`transaction-type-pill ${
-                      isRevenue ? "is-income" : "is-expense"
-                    }`}
+                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
+                      }`}
                   >
                     {isRevenue ? "Revenue" : "Expense"}
                   </span>
@@ -1367,9 +1363,8 @@ function TransactionTable({
                 ) : null}
                 <td>
                   <span
-                    className={`transaction-rule-pill ${
-                      row.ruleId != null ? "is-yes" : "is-no"
-                    }`}
+                    className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                      }`}
                   >
                     {row.ruleId != null ? "Yes" : "No"}
                   </span>
@@ -1458,9 +1453,8 @@ function PropertyTransactionTable({
                 </td>
                 <td>
                   <span
-                    className={`transaction-type-pill ${
-                      isRevenue ? "is-income" : "is-expense"
-                    }`}
+                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
+                      }`}
                   >
                     {isRevenue ? "Revenue" : "Expense"}
                   </span>
@@ -1479,9 +1473,8 @@ function PropertyTransactionTable({
                 </td>
                 <td>
                   <span
-                    className={`transaction-rule-pill ${
-                      row.ruleId != null ? "is-yes" : "is-no"
-                    }`}
+                    className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                      }`}
                   >
                     {row.ruleId != null ? "Yes" : "No"}
                   </span>
@@ -1946,8 +1939,8 @@ export function AllTransactionsView({
         } | null;
         setDetailError(
           data?.message ||
-            data?.error ||
-            "Showing table data. Full details could not be loaded.",
+          data?.error ||
+          "Showing table data. Full details could not be loaded.",
         );
         return;
       }
@@ -1983,21 +1976,21 @@ export function AllTransactionsView({
       current.map((item) =>
         item.transactionId === detail.id
           ? {
-              ...item,
-              transactionType: detail.type,
-              categoryId: detail.categoryId,
-              categoryName: detail.categoryName,
-              subcategoryId: detail.subcategoryId,
-              subcategoryName: detail.subcategoryName,
-              invoiceDate: detail.invoiceDate,
-              description: detail.description,
-              transactionGrossAmount: detail.grossAmount,
-              transactionGstAmount: detail.gstAmount,
-              transactionNetAmount: detail.netAmount,
-              isAssetPurchase: detail.isAssetPurchase,
-              ruleId: detail.ruleId,
-              reviewStatus: detail.reviewStatus,
-            }
+            ...item,
+            transactionType: detail.type,
+            categoryId: detail.categoryId,
+            categoryName: detail.categoryName,
+            subcategoryId: detail.subcategoryId,
+            subcategoryName: detail.subcategoryName,
+            invoiceDate: detail.invoiceDate,
+            description: detail.description,
+            transactionGrossAmount: detail.grossAmount,
+            transactionGstAmount: detail.gstAmount,
+            transactionNetAmount: detail.netAmount,
+            isAssetPurchase: detail.isAssetPurchase,
+            ruleId: detail.ruleId,
+            reviewStatus: detail.reviewStatus,
+          }
           : item,
       ),
     );
@@ -2073,8 +2066,8 @@ export function AllTransactionsView({
         } | null;
         setDetailError(
           data?.message ||
-            data?.error ||
-            "Delete failed. The backend may not support transaction deletion yet.",
+          data?.error ||
+          "Delete failed. The backend may not support transaction deletion yet.",
         );
         return;
       }
@@ -3021,8 +3014,8 @@ export function AddTransactionView({
         (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
     (isSplit
       ? splitHasMultipleProperties &&
-        Object.keys(splitErrors).length === 0 &&
-        splitMatches
+      Object.keys(splitErrors).length === 0 &&
+      splitMatches
       : !!propertyId);
 
   function updateSplitRow(id: string, patch: Partial<SplitRowState>) {
@@ -3139,8 +3132,8 @@ export function AddTransactionView({
       data.payer && `Payer: ${data.payer}`,
       data.reference && `Ref: ${data.reference}`,
       data.due_date &&
-        /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
-        `Due: ${data.due_date}`,
+      /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
+      `Due: ${data.due_date}`,
     ].filter(Boolean) as string[];
     if (remarkParts.length > 0) {
       setInternalRemarks(remarkParts.join(" · "));
@@ -3406,9 +3399,9 @@ export function AddTransactionView({
               : {}),
             ...(row.subcategory || row.sub_category || row.subcategory_name
               ? {
-                  csv_subcategory:
-                    row.subcategory || row.sub_category || row.subcategory_name,
-                }
+                csv_subcategory:
+                  row.subcategory || row.sub_category || row.subcategory_name,
+              }
               : {}),
           },
           splits,
@@ -4022,14 +4015,13 @@ export function AddTransactionView({
               ) : null}
               <div className="transaction-split-footer">
                 <span
-                  className={`transaction-split-total${
-                    grossAmount && !splitMatches ? " is-mismatch" : ""
-                  }`}
+                  className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
+                    }`}
                 >
                   {grossAmount && !Number.isNaN(grossNumberValue)
                     ? `Split total: ${splitTotal.toFixed(
-                        2,
-                      )} of ${grossNumberValue.toFixed(2)}`
+                      2,
+                    )} of ${grossNumberValue.toFixed(2)}`
                     : "Enter the total amount above to validate splits."}
                 </span>
                 <button
@@ -4168,11 +4160,11 @@ function RuleModal({
   const [conditions, setConditions] = useState<ConditionRow[]>(() =>
     rule && rule.conditions.length > 0
       ? rule.conditions.map((c) => ({
-          id: makeConditionId(),
-          field: c.field,
-          operator: c.operator,
-          value: String(c.value ?? ""),
-        }))
+        id: makeConditionId(),
+        field: c.field,
+        operator: c.operator,
+        value: String(c.value ?? ""),
+      }))
       : [{ id: makeConditionId(), field: "description", operator: "contains", value: "" }],
   );
   const [assignedType, setAssignedType] = useState<"expense" | "revenue">(
@@ -4343,9 +4335,9 @@ function RuleModal({
   const entitySelectOptions: SelectOption[] = fixedEntityId
     ? []
     : [
-        { label: "Select entity", value: "" },
-        ...entities.map((e) => ({ label: e.name, value: e.id })),
-      ];
+      { label: "Select entity", value: "" },
+      ...entities.map((e) => ({ label: e.name, value: e.id })),
+    ];
 
   const propertySelectOptions: SelectOption[] = [
     { label: "All Properties", value: "" },
@@ -4563,9 +4555,8 @@ function ToggleCard({
       aria-pressed={checked}
     >
       <span
-        className={`rule-toggle${checked ? " is-on" : ""}${
-          green ? " is-green" : ""
-        }`}
+        className={`rule-toggle${checked ? " is-on" : ""}${green ? " is-green" : ""
+          }`}
       >
         <i />
       </span>

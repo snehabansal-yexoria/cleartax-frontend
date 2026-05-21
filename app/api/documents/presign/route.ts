@@ -25,10 +25,12 @@ export async function GET(req: Request) {
 
   const documentType = url.searchParams.get("document_type") ?? "";
   const entityId = url.searchParams.get("entity_id") ?? "";
+  const propertyId = url.searchParams.get("property_id") ?? "";
 
   const qs = new URLSearchParams({ filename });
   if (documentType) qs.set("document_type", documentType);
   if (entityId) qs.set("entity_id", entityId);
+  if (propertyId) qs.set("property_id", propertyId);
 
   try {
     const payload = await coreApiRequest<PresignResponse>(

@@ -128,6 +128,7 @@ export default function EntityDetailView({
   const [sessionToken, setSessionToken] = useState("");
   const [reconList, setReconList] = useState<ReconciliationListItem[]>([]);
   const [reconListLoading, setReconListLoading] = useState(false);
+  const [trendView, setTrendView] = useState<"graph" | "table">("graph");
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -241,6 +242,17 @@ export default function EntityDetailView({
     1,
     ...trendRows.flatMap((row) => [row.expenses, row.income]),
   );
+  const trendTotals = useMemo(() => {
+    return trendRows.reduce(
+      (acc, row) => {
+        acc.income += row.income;
+        acc.expenses += row.expenses;
+        return acc;
+      },
+      { income: 0, expenses: 0 },
+    );
+  }, [trendRows]);
+  const trendNetTotal = trendTotals.income - trendTotals.expenses;
 
   if (isEntityLoading) {
     return (
@@ -316,8 +328,11 @@ export default function EntityDetailView({
         <section className="entity-trend-card" aria-label="Profit and loss trend">
           <div className="entity-trend-head">
             <h2>Profit & Loss Trend</h2>
-            <div className="entity-trend-toggle" aria-hidden="true">
-              <span className="is-active">
+            <div className="entity-trend-toggle">
+              <span
+                className={trendView === "graph" ? "is-active" : ""}
+                onClick={() => setTrendView("graph")}
+              >
                 <svg viewBox="0 0 24 24">
                   <path d="M4 19V5" />
                   <path d="M4 19h16" />
@@ -327,7 +342,10 @@ export default function EntityDetailView({
                 </svg>
                 Graph View
               </span>
-              <span>
+              <span
+                className={trendView === "table" ? "is-active" : ""}
+                onClick={() => setTrendView("table")}
+              >
                 <svg viewBox="0 0 24 24">
                   <rect x="4" y="5" width="16" height="14" rx="1" />
                   <path d="M4 10h16" />
@@ -343,8 +361,8 @@ export default function EntityDetailView({
             <div className="property-trend-empty">
               No transactions are available for this entity yet.
             </div>
-          ) : (
-            <div className="property-trend-grid">
+          ) : trendView === "graph" ? (
+            <>
               <div className="entity-chart">
                 <div className="entity-chart-y">
                   <span>{formatCurrency(maxTrendAmount)}</span>
@@ -382,33 +400,59 @@ export default function EntityDetailView({
                 </div>
               </div>
 
-              <div className="property-trend-table">
-                <div>
-                  <strong>Month</strong>
-                  <strong>Income</strong>
-                  <strong>Expenses</strong>
-                </div>
-                {trendRows.map((item) => (
-                  <div key={item.month}>
-                    <span>{monthLabel(item.month)}</span>
-                    <span>{formatCurrency(item.income)}</span>
-                    <span>{formatCurrency(item.expenses)}</span>
-                  </div>
-                ))}
+              <div className="entity-chart-legend">
+                <span>
+                  <i className="is-expense" />
+                  Expenses
+                </span>
+                <span>
+                  <i className="is-income" />
+                  Income
+                </span>
               </div>
+            </>
+          ) : (
+            <div className="property-trend-table-full">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Income</th>
+                    <th>Expenses</th>
+                    <th>Net Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trendRows.map((item) => {
+                    const net = item.income - item.expenses;
+                    const isPositive = net >= 0;
+                    return (
+                      <tr key={item.month}>
+                        <td>{monthLabel(item.month)}</td>
+                        <td className="income-col">
+                          <span className="dot">●</span> {formatCurrency(item.income)}
+                        </td>
+                        <td className="expense-col">
+                          <span className="dot">●</span> {formatCurrency(item.expenses)}
+                        </td>
+                        <td className={isPositive ? "income-col" : "expense-col"}>
+                          {isPositive ? "+" : "-"}{formatCurrency(Math.abs(net))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="total-row">
+                    <td>Total</td>
+                    <td>{formatCurrency(trendTotals.income)}</td>
+                    <td>{formatCurrency(trendTotals.expenses)}</td>
+                    <td className={trendNetTotal >= 0 ? "income-col" : "expense-col"}>
+                      {trendNetTotal >= 0 ? "+" : "-"}{formatCurrency(Math.abs(trendNetTotal))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           )}
-
-          <div className="entity-chart-legend">
-            <span>
-              <i className="is-expense" />
-              Expenses
-            </span>
-            <span>
-              <i className="is-income" />
-              Income
-            </span>
-          </div>
         </section>
       )}
 
@@ -522,7 +566,7 @@ export default function EntityDetailView({
               rulesButtonIcon={transactionRulesIcon}
               compact
             />
-            
+
           </div>
         )}
 
@@ -556,8 +600,8 @@ export default function EntityDetailView({
                     : "—";
                   const statusColor =
                     item.status === "done" ? "var(--color-success, #16a34a)"
-                    : item.status === "error" ? "var(--color-danger, #dc2626)"
-                    : "var(--color-warning, #ca8a04)";
+                      : item.status === "error" ? "var(--color-danger, #dc2626)"
+                        : "var(--color-warning, #ca8a04)";
                   return (
                     <li key={item.id} className="entity-property-row">
                       <div className="entity-property-main">

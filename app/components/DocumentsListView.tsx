@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type DocumentListItem = {
   id: string;
@@ -22,14 +22,20 @@ export type DocumentsListViewProps = {
   token: string;
 };
 
+type UploadingFile = {
+  id: string;
+  name: string;
+  progress: number;
+};
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
+  return date.toLocaleDateString("en-US", {
     month: "short",
+    day: "numeric",
     year: "numeric",
-  }).format(date);
+  });
 }
 
 function formatFileSize(bytes: number) {
@@ -63,18 +69,39 @@ function FileIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="20"
-      height="20"
+      width="22"
+      height="22"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ flexShrink: 0, color: "#667085" }}
+      style={{ flexShrink: 0 }}
     >
       <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
       <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="16" y2="13" stroke="currentColor" strokeWidth="2" />
+      <line x1="8" y1="17" x2="14" y2="17" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
@@ -83,8 +110,8 @@ function DownloadIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -95,6 +122,26 @@ function DownloadIcon() {
       <path d="M12 3v12" />
       <path d="m7 10 5 5 5-5" />
       <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
 }
@@ -122,15 +169,15 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const entityId = context.kind === "entity" ? context.entityId : undefined;
   const propertyId = context.kind === "property" ? context.propertyId : undefined;
   const contextKind = context.kind;
 
-  useEffect(() => {
+  const fetchDocuments = () => {
     if (!token) return;
-    let cancelled = false;
-
     const qs =
       contextKind === "entity" && entityId
         ? `entity_id=${encodeURIComponent(entityId)}`
@@ -149,16 +196,18 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
         return res.json() as Promise<{ items?: DocumentListItem[] }>;
       })
       .then((data) => {
-        if (!cancelled) setDocuments(data.items ?? []);
+        setDocuments(data.items ?? []);
       })
       .catch(() => {
-        if (!cancelled) setError("Failed to load documents.");
+        setError("Failed to load documents.");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
+  };
 
-    return () => { cancelled = true; };
+  useEffect(() => {
+    fetchDocuments();
   }, [token, contextKind, entityId, propertyId]);
 
   async function handleDownload(id: string, fileName: string) {
@@ -184,110 +233,232 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
     }
   }
 
-  if (loading) {
-    return (
-      <div className="client-detail-empty">
-        <p>Loading…</p>
-      </div>
-    );
+  async function handlePreview(id: string) {
+    try {
+      const res = await fetch(`/api/documents/${encodeURIComponent(id)}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("preview_failed");
+      const data = (await res.json()) as { download_url: string };
+      window.open(data.download_url, "_blank", "noopener,noreferrer");
+    } catch {
+      // silently fail
+    }
   }
 
-  if (error) {
-    return (
-      <div className="client-detail-empty">
-        <p>{error}</p>
-      </div>
-    );
+  function triggerFileUpload() {
+    fileInputRef.current?.click();
   }
 
-  if (documents.length === 0) {
-    return (
-      <div className="client-detail-empty">
-        <svg
-          viewBox="0 0 24 24"
-          width="32"
-          height="32"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          style={{ color: "#d0d5dd", marginBottom: 8 }}
-        >
-          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-        <p>No documents yet.</p>
-      </div>
-    );
+  async function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
+    // Reset input so user can pick the same file again if desired
+    e.target.value = "";
+
+    for (const file of files) {
+      const tempId = Math.random().toString(36).substring(7);
+      setUploadingFiles((prev) => [...prev, { id: tempId, name: file.name, progress: 0 }]);
+
+      try {
+        const presignParams = new URLSearchParams({
+          filename: file.name,
+          document_type: "direct",
+        });
+        if (entityId) presignParams.set("entity_id", entityId);
+        if (propertyId) presignParams.set("property_id", propertyId);
+
+        const presignRes = await fetch(`/api/documents/presign?${presignParams.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!presignRes.ok) {
+          throw new Error("Presign failed");
+        }
+
+        const { upload_url } = (await presignRes.json()) as { upload_url: string };
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", upload_url);
+          xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percentage = Math.round((event.loaded / event.total) * 100);
+              setUploadingFiles((prev) =>
+                prev.map((f) => (f.id === tempId ? { ...f, progress: percentage } : f))
+              );
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+            } else {
+              reject(new Error("S3 Upload failed"));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network upload error"));
+          xhr.send(file);
+        });
+
+        // Small delay to simulate completion settle, then remove the loader and refetch
+        setTimeout(() => {
+          setUploadingFiles((prev) => prev.filter((f) => f.id !== tempId));
+          fetchDocuments();
+        }, 600);
+
+      } catch (err) {
+        console.error("Direct upload failed:", err);
+        alert(`Failed to upload ${file.name}. Please try again.`);
+        setUploadingFiles((prev) => prev.filter((f) => f.id !== tempId));
+      }
+    }
   }
+
+  const title =
+    context.kind === "property"
+      ? "Property Documents"
+      : context.kind === "entity"
+        ? "Entity Documents"
+        : "Documents";
 
   return (
-    <ul className="entity-property-list">
-      {documents.map((doc) => (
-        <li key={doc.id} className="entity-property-row">
-          <div className="entity-property-main">
-            <FileIcon />
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <strong style={{ wordBreak: "break-word" }}>
-                {doc.original_file_name || doc.file_name}
-              </strong>
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "#667085",
-                  fontWeight: 500,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                {sourceLabel(doc.source)}
-              </span>
-            </div>
-          </div>
+    <div className="premium-docs-container">
+      <div className="premium-docs-header">
+        <h2 className="premium-docs-title">{title}</h2>
+      </div>
 
-          <dl>
-            <div>
-              <dt>Type</dt>
-              <dd>{doc.document_type ? titleCase(doc.document_type) : titleCase(doc.mime_type)}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <span
-                  style={{
-                    color: statusColor(doc.processing_status),
-                    fontWeight: 600,
-                    textTransform: "capitalize",
-                    fontSize: 13,
-                  }}
-                >
-                  {titleCase(doc.processing_status)}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>Size</dt>
-              <dd>{formatFileSize(doc.file_size)}</dd>
-            </div>
-            <div>
-              <dt>Uploaded</dt>
-              <dd>{formatDate(doc.created_at)}</dd>
-            </div>
-          </dl>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleUploadFile}
+        accept=".pdf,.png,.jpg,.jpeg"
+        style={{ display: "none" }}
+      />
 
-          <button
-            type="button"
-            className="document-download-btn"
-            aria-label={`Download ${doc.original_file_name || doc.file_name}`}
-            disabled={downloading === doc.id}
-            onClick={() => handleDownload(doc.id, doc.original_file_name || doc.file_name)}
-          >
-            {downloading === doc.id ? <SpinnerIcon /> : <DownloadIcon />}
+      {loading && documents.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="premium-doc-card" style={{ opacity: 0.6 }}>
+              <div className="premium-doc-left">
+                <div className="premium-doc-icon-wrapper" style={{ animation: "pulse 1.5s infinite" }} />
+                <div className="premium-doc-details">
+                  <div style={{ width: 180, height: 16, backgroundColor: "#eaecf0", borderRadius: 4, marginBottom: 8, animation: "pulse 1.5s infinite" }} />
+                  <div style={{ width: 260, height: 12, backgroundColor: "#f2f4f7", borderRadius: 4, animation: "pulse 1.5s infinite" }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="client-detail-empty" style={{ borderColor: "#fda29b", backgroundColor: "#fef3f2" }}>
+          <svg viewBox="0 0 24 24" width="32" height="32" stroke="#f04438" strokeWidth="1.5" fill="none" style={{ marginBottom: 8 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p style={{ color: "#b42318", fontWeight: 600 }}>{error}</p>
+          <button type="button" onClick={fetchDocuments} className="premium-docs-upload-btn" style={{ marginTop: 12, backgroundColor: "#d92d20" }}>
+            Retry Loading
           </button>
-        </li>
-      ))}
-    </ul>
+        </div>
+      ) : documents.length === 0 && uploadingFiles.length === 0 ? (
+        <div className="client-detail-empty">
+          <svg
+            viewBox="0 0 24 24"
+            width="48"
+            height="48"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{ color: "#d0d5dd", marginBottom: 12 }}
+          >
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#344054" }}>No documents uploaded yet</p>
+          <p style={{ fontSize: 14, color: "#667085", marginTop: 4 }}>No documents have been uploaded for this client.</p>
+        </div>
+      ) : (
+        <ul className="premium-docs-list">
+          {/* Active direct uploads */}
+          {uploadingFiles.map((upFile) => (
+            <li key={upFile.id} className="premium-doc-card is-uploading">
+              <div className="premium-doc-left">
+                <div className="premium-doc-icon-wrapper">
+                  <SpinnerIcon />
+                </div>
+                <div className="premium-doc-details">
+                  <strong className="premium-doc-name">{upFile.name}</strong>
+                  <div className="premium-doc-meta">
+                    <span>Uploading…</span>
+                    <span className="premium-doc-meta-separator">•</span>
+                    <span>{upFile.progress}% complete</span>
+                  </div>
+                  <div className="premium-doc-progress-container">
+                    <div className="premium-doc-progress-bar" style={{ width: `${upFile.progress}%` }} />
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+
+          {/* Uploaded documents list */}
+          {documents.map((doc) => (
+            <li key={doc.id} className="premium-doc-card">
+              <div className="premium-doc-left">
+                <div className="premium-doc-icon-wrapper">
+                  <FileIcon />
+                </div>
+                <div className="premium-doc-details">
+                  <strong className="premium-doc-name">
+                    {doc.original_file_name || doc.file_name}
+                  </strong>
+                  <div className="premium-doc-meta">
+                    <span>
+                      {doc.document_type ? titleCase(doc.document_type) : titleCase(doc.mime_type)}
+                    </span>
+                    <span className="premium-doc-meta-separator">•</span>
+                    <span>{formatFileSize(doc.file_size)}</span>
+                    <span className="premium-doc-meta-separator">•</span>
+                    <span>Uploaded {formatDate(doc.created_at)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="premium-doc-actions">
+                <button
+                  type="button"
+                  className="premium-doc-action-btn"
+                  aria-label={`Preview ${doc.original_file_name || doc.file_name}`}
+                  onClick={() => handlePreview(doc.id)}
+                  title="Preview Document"
+                >
+                  <EyeIcon />
+                </button>
+                <button
+                  type="button"
+                  className="premium-doc-action-btn"
+                  aria-label={`Download ${doc.original_file_name || doc.file_name}`}
+                  disabled={downloading === doc.id}
+                  onClick={() => handleDownload(doc.id, doc.original_file_name || doc.file_name)}
+                  title="Download Document"
+                >
+                  {downloading === doc.id ? <SpinnerIcon /> : <DownloadIcon />}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
