@@ -8512,6 +8512,45 @@ p.darkBg {
   font-size: 14px;
 }
 
+.entity-reconciled-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #166534;
+}
+
+.entity-reconciled-notice strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.entity-reconciled-notice p {
+  font-size: 13px;
+  margin: 0;
+  color: #15803d;
+}
+
+.entity-reconciled-notice-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  stroke: #16a34a;
+  stroke-width: 2;
+  fill: none;
+}
+
+.entity-reconciled-notice-icon circle {
+  fill: #dcfce7;
+  stroke: #16a34a;
+}
+
 .entity-trend-card {
   padding: 34px 34px 28px;
 }
@@ -8837,12 +8876,33 @@ p.darkBg {
 }
 
 .entity-property-title-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
   color: inherit;
   text-decoration: none;
 }
 
+.entity-property-title-link strong {
+  margin-bottom: 0;
+}
+
 .entity-property-title-link:hover strong {
   color: var(--primary);
+}
+
+.entity-property-reconciled-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #c7f6df;
+  color: #007a5a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .entity-property-main span {

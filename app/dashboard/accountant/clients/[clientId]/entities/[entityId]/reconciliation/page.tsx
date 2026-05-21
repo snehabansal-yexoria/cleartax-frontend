@@ -1170,21 +1170,25 @@ export default function AccountantReconciliationPage() {
                   actionCell = (
                     <div className="recon-action-confirmed">
                       <span className="recon-reconciled-badge">Reconciled</span>
-                      <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
-                        Undo
-                      </button>
+                      {!entityReconciled && (
+                        <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
+                          Undo
+                        </button>
+                      )}
                     </div>
                   );
                 } else if (isExcluded) {
                   actionCell = (
                     <div className="recon-action-confirmed">
                       <span className="recon-excluded-badge">Excluded</span>
-                      <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
-                        Undo
-                      </button>
+                      {!entityReconciled && (
+                        <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
+                          Undo
+                        </button>
+                      )}
                     </div>
                   );
-                } else if (hasCandidates) {
+                } else if (!entityReconciled && hasCandidates) {
                   actionCell = (
                     <button
                       type="button"
@@ -1193,7 +1197,7 @@ export default function AccountantReconciliationPage() {
                       {isExpanded ? "Hide Matches" : "Review Match"}
                     </button>
                   );
-                } else {
+                } else if (!entityReconciled) {
                   const isCatExpanded = categorizeIndex === i;
                   actionCell = (
                     <button
@@ -1320,7 +1324,7 @@ export default function AccountantReconciliationPage() {
                               <button
                                 type="button"
                                 className="recon-confirm-btn"
-                                disabled={confirmingIndex !== null || isPending}
+                                disabled={confirmingIndex !== null || isPending || entityReconciled}
                                 onClick={() => { void doConfirmMatch(i, candidate); }}
                               >
                                 {confirmingIndex === i ? (
@@ -1333,7 +1337,7 @@ export default function AccountantReconciliationPage() {
                               <button
                                 type="button"
                                 className="recon-exclude-btn"
-                                disabled={confirmingIndex !== null || isPending}
+                                disabled={confirmingIndex !== null || isPending || entityReconciled}
                                 onClick={() => doExcludeMatch(i)}
                               >
                                 Exclude
@@ -1596,7 +1600,16 @@ export default function AccountantReconciliationPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  const token = getToken();
+                  await fetch(`/api/entities/${entityId}`, {
+                    method: "PATCH",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ reconciled: true }),
+                  });
                   playReconSound();
                   router.push(
                     `/dashboard/accountant/clients/${clientId}/entities/${entityId}`,

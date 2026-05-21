@@ -322,6 +322,22 @@ export default function EntityDetailView({
         )}
       </header>
 
+      {entity.reconciled && (
+        <div className="entity-reconciled-notice" role="status">
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="entity-reconciled-notice-icon" width={20} height={20}>
+            <circle cx="12" cy="12" r="10" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          <div>
+            <strong>Reconciliation Completed</strong>
+            <p>
+              This entity has been reconciled and is now read-only.
+              No further transactions, statements, or edits can be made.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isTransactionsLoading ? (
         <TrendSkeleton />
       ) : (
@@ -499,6 +515,9 @@ export default function EntityDetailView({
                         href={`${propertyDetailHrefBase}/${property.id}`}
                         className="entity-property-title-link"
                       >
+                        {property.reconciled && (
+                          <span className="entity-property-reconciled-badge">Reconciled</span>
+                        )}
                         <strong>{property.name}</strong>
                       </Link>
                       <span>
