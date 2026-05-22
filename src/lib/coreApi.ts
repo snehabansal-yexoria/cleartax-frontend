@@ -90,6 +90,8 @@ export type CoreProperty = {
   status: string;
   imageUrl: string | null;
   loanDetails: Record<string, unknown> | null;
+  reconciled: boolean;
+  reconciledAt: string | null;
   createdBy: string;
   updatedBy: string | null;
   createdAt: string;
@@ -561,6 +563,11 @@ export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
       typeof loanRaw === "object" && loanRaw !== null && !Array.isArray(loanRaw)
         ? (loanRaw as Record<string, unknown>)
         : null,
+    reconciled: Boolean(raw.reconciled ?? false),
+    reconciledAt:
+      raw.reconciled_at == null && raw.reconciledAt == null
+        ? null
+        : toStringValue(raw.reconciled_at ?? raw.reconciledAt) || null,
     createdBy: toStringValue(raw.created_by ?? raw.createdBy),
     updatedBy:
       raw.updated_by == null && raw.updatedBy == null
