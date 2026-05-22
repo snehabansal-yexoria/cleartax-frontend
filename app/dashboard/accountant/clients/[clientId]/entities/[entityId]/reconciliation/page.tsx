@@ -203,6 +203,8 @@ export default function AccountantReconciliationPage() {
   const clientId = String(params?.clientId ?? "");
   const entityId = String(params?.entityId ?? "");
 
+  const [entityReconciled, setEntityReconciled] = useState(false);
+
   // Past reconciliations
   const [history, setHistory] = useState<ReconciliationListItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -261,6 +263,7 @@ export default function AccountantReconciliationPage() {
   const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
   const [categorizeGst, setCategorizeGst] = useState<boolean>(false);
+  const [categorizeGstAmount, setCategorizeGstAmount] = useState<string>("");
   const [categorizeCategories, setCategorizeCategories] = useState<CoreTransactionCategory[]>([]);
   const [categorizeSubcategories, setCategorizeSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categorizeSaving, setCategorizeSaving] = useState(false);
@@ -268,12 +271,17 @@ export default function AccountantReconciliationPage() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
-  // Load entity properties on mount for the property dropdown
+  // Load entity + properties on mount
   useEffect(() => {
     const token = getToken();
-    fetch(`/api/entities/${entityId}/properties`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`/api/entities/${entityId}`, { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { reconciled?: boolean } | null) => {
+        if (data?.reconciled) setEntityReconciled(true);
+      })
+      .catch(() => {});
+    fetch(`/api/entities/${entityId}/properties`, { headers })
       .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((data: { items?: CoreProperty[] }) => setProperties(data.items ?? []))
       .catch(() => {});
@@ -384,6 +392,8 @@ export default function AccountantReconciliationPage() {
     setCategorizeCategoryId(null);
     setCategorizeSubcategoryId(null);
     setCategorizeSubcategories([]);
+    setCategorizeGst(false);
+    setCategorizeGstAmount("");
     let cancelled = false;
     void getFreshToken().then((token) => {
       fetch(`/api/transactions/categories?type=${txType}`, {
@@ -592,7 +602,21 @@ export default function AccountantReconciliationPage() {
     setCategorizeSaving(true);
     const bankTx = activeRecon.transactions[bankTxIndex];
     const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
-    const gstAmount = categorizeGst ? Math.round((grossAmount / 11) * 100) / 100 : 0;
+    let gstAmount = 0;
+  if (categorizeGst) {
+    const parsed = Number.parseFloat(categorizeGstAmount);
+    if (!categorizeGstAmount || Number.isNaN(parsed) || parsed < 0) {
+      setCategorizeError("GST must be a non-negative number.");
+      setCategorizeSaving(false);
+      return;
+    }
+    if (parsed > grossAmount) {
+      setCategorizeError("GST amount cannot exceed the transaction amount.");
+      setCategorizeSaving(false);
+      return;
+    }
+    gstAmount = parsed;
+  }
     try {
       const token = await getFreshToken();
       const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
@@ -799,7 +823,7 @@ export default function AccountantReconciliationPage() {
 
       <div className="accountant-reconciliation-title">
         <h1>Bank Reconciliation</h1>
-        {hasImported && (
+        {hasImported && !entityReconciled && (
           <button type="button" className="accountant-reconciliation-upload-button" onClick={openUploadArea}>
             <UploadIcon />
             Upload Document
@@ -812,35 +836,47 @@ export default function AccountantReconciliationPage() {
         <div className="accountant-reconciliation-import-grid">
           <section className="accountant-upload-statement-card">
             <div>
-              <span><UploadIcon /></span>
-              <h2>Upload Bank Statement</h2>
-              <p>Upload a new bank statement PDF to begin reconciliation</p>
-
-              {isProcessing ? (
-                <div style={{ width: "100%" }}>
-                  <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>{uploadStageLabel()}</p>
-                  <div style={{ background: "#e5e7eb", borderRadius: 9999, height: 8 }}>
-                    <div style={{ background: "#3b82f6", borderRadius: 9999, height: 8, width: `${processingPct}%`, transition: "width 0.3s" }} />
-                  </div>
-                </div>
+              {entityReconciled ? (
+                <>
+                  <span style={{ fontSize: 32 }}>🔒</span>
+                  <h2>Entity Already Reconciled</h2>
+                  <p style={{ color: "#6b7280", fontSize: 14, marginTop: 4 }}>
+                    This entity has been marked as reconciled. No further bank statements can be uploaded.
+                  </p>
+                </>
               ) : (
                 <>
-                  <button type="button" onClick={() => fileRef.current?.click()} disabled={isProcessing}>
-                    <UploadIcon />
-                    Add Bank Statement
-                  </button>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept=".pdf"
-                    style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
-                  />
-                  <small>Supports PDF files only</small>
+                  <span><UploadIcon /></span>
+                  <h2>Upload Bank Statement</h2>
+                  <p>Upload a new bank statement PDF to begin reconciliation</p>
+
+                  {isProcessing ? (
+                    <div style={{ width: "100%" }}>
+                      <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>{uploadStageLabel()}</p>
+                      <div style={{ background: "#e5e7eb", borderRadius: 9999, height: 8 }}>
+                        <div style={{ background: "#3b82f6", borderRadius: 9999, height: 8, width: `${processingPct}%`, transition: "width 0.3s" }} />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => fileRef.current?.click()} disabled={isProcessing}>
+                        <UploadIcon />
+                        Add Bank Statement
+                      </button>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept=".pdf"
+                        style={{ display: "none" }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+                      />
+                      <small>Supports PDF files only</small>
+                    </>
+                  )}
+                  {uploadStage.type === "error" && (
+                    <p style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{uploadStage.message}</p>
+                  )}
                 </>
-              )}
-              {uploadStage.type === "error" && (
-                <p style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{uploadStage.message}</p>
               )}
             </div>
           </section>
@@ -907,7 +943,9 @@ export default function AccountantReconciliationPage() {
           <section className="accountant-uploaded-statements-card">
             <div className="accountant-existing-documents-head">
               <h2>Active Statement</h2>
-              <button type="button" onClick={openUploadArea}>+ Add Statement</button>
+              {!entityReconciled && (
+                <button type="button" onClick={openUploadArea}>+ Add Statement</button>
+              )}
             </div>
 
             {activeReconLoading ? (
@@ -1132,21 +1170,25 @@ export default function AccountantReconciliationPage() {
                   actionCell = (
                     <div className="recon-action-confirmed">
                       <span className="recon-reconciled-badge">Reconciled</span>
-                      <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
-                        Undo
-                      </button>
+                      {!entityReconciled && (
+                        <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
+                          Undo
+                        </button>
+                      )}
                     </div>
                   );
                 } else if (isExcluded) {
                   actionCell = (
                     <div className="recon-action-confirmed">
                       <span className="recon-excluded-badge">Excluded</span>
-                      <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
-                        Undo
-                      </button>
+                      {!entityReconciled && (
+                        <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(i)}>
+                          Undo
+                        </button>
+                      )}
                     </div>
                   );
-                } else if (hasCandidates) {
+                } else if (!entityReconciled && hasCandidates) {
                   actionCell = (
                     <button
                       type="button"
@@ -1155,7 +1197,7 @@ export default function AccountantReconciliationPage() {
                       {isExpanded ? "Hide Matches" : "Review Match"}
                     </button>
                   );
-                } else {
+                } else if (!entityReconciled) {
                   const isCatExpanded = categorizeIndex === i;
                   actionCell = (
                     <button
@@ -1282,7 +1324,7 @@ export default function AccountantReconciliationPage() {
                               <button
                                 type="button"
                                 className="recon-confirm-btn"
-                                disabled={confirmingIndex !== null || isPending}
+                                disabled={confirmingIndex !== null || isPending || entityReconciled}
                                 onClick={() => { void doConfirmMatch(i, candidate); }}
                               >
                                 {confirmingIndex === i ? (
@@ -1295,7 +1337,7 @@ export default function AccountantReconciliationPage() {
                               <button
                                 type="button"
                                 className="recon-exclude-btn"
-                                disabled={confirmingIndex !== null || isPending}
+                                disabled={confirmingIndex !== null || isPending || entityReconciled}
                                 onClick={() => doExcludeMatch(i)}
                               >
                                 Exclude
@@ -1392,14 +1434,44 @@ export default function AccountantReconciliationPage() {
                             <span className="recon-categorize-gst-label">GST Applicable</span>
                             <div className="recon-categorize-gst-options">
                               <label className="recon-categorize-gst-option">
-                                <input type="radio" name={`gst-${i}`} checked={categorizeGst === true} onChange={() => setCategorizeGst(true)} />
+                                <input
+                                  type="radio"
+                                  name={`gst-${i}`}
+                                  checked={categorizeGst === true}
+                                  onChange={() => {
+                                    setCategorizeGst(true);
+                                    const bankTx = activeRecon?.transactions[i];
+                                    const gross = bankTx ? (bankTx.debit ?? bankTx.credit ?? 0) : 0;
+                                    setCategorizeGstAmount(String(Math.round((gross / 11) * 100) / 100));
+                                  }}
+                                />
                                 Yes
                               </label>
                               <label className="recon-categorize-gst-option">
-                                <input type="radio" name={`gst-${i}`} checked={categorizeGst === false} onChange={() => setCategorizeGst(false)} />
+                                <input
+                                  type="radio"
+                                  name={`gst-${i}`}
+                                  checked={categorizeGst === false}
+                                  onChange={() => { setCategorizeGst(false); setCategorizeGstAmount(""); }}
+                                />
                                 No
                               </label>
                             </div>
+                            {categorizeGst && (
+                              <div className="recon-categorize-field" style={{ marginTop: 8 }}>
+                                <label className="recon-categorize-label">GST Amount</label>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="0.00"
+                                  className="recon-categorize-select"
+                                  value={categorizeGstAmount}
+                                  onChange={(e) => setCategorizeGstAmount(e.target.value)}
+                                />
+                              </div>
+                            )}
                           </div>
                           <hr className="recon-categorize-divider" />
                           {categorizeError && (
@@ -1528,7 +1600,16 @@ export default function AccountantReconciliationPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  const token = getToken();
+                  await fetch(`/api/entities/${entityId}`, {
+                    method: "PATCH",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ reconciled: true }),
+                  });
                   playReconSound();
                   router.push(
                     `/dashboard/accountant/clients/${clientId}/entities/${entityId}`,
