@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Lottie from "lottie-react";
 import {
   upsertDocumentProcessingJob,
@@ -40,6 +40,8 @@ export function DocumentDropZone({
   onExtracted,
   scope,
   allowMultiple = false,
+  isSubmitting = false,
+  submitError = "",
 }: {
   token: string | null;
   onExtracted: (
@@ -49,6 +51,8 @@ export function DocumentDropZone({
   ) => void;
   scope?: DocumentProcessingScope;
   allowMultiple?: boolean;
+  isSubmitting?: boolean;
+  submitError?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -57,8 +61,33 @@ export function DocumentDropZone({
   const [progress, setProgress] = useState(0);
   const [queueTotal, setQueueTotal] = useState(0);
   const [queueDone, setQueueDone] = useState(0);
+  const [submitProgress, setSubmitProgress] = useState(0);
 
-  const busy = status === "uploading" || status === "extracting";
+  useEffect(() => {
+    if (isSubmitting) {
+      setSubmitProgress(0);
+      const timer = window.setInterval(() => {
+        setSubmitProgress((prev) => {
+          if (prev >= 95) return prev;
+          const step = prev < 50 ? 6 : prev < 80 ? 3 : 1;
+          return Math.min(prev + step, 95);
+        });
+      }, 150);
+      return () => window.clearInterval(timer);
+    } else {
+      setSubmitProgress(0);
+    }
+  }, [isSubmitting]);
+
+  const busy = status === "uploading" || status === "extracting" || isSubmitting;
+
+  const activeStatus = isSubmitting
+    ? "uploading"
+    : submitError && status !== "uploading" && status !== "extracting"
+    ? "error"
+    : status;
+
+  const activeError = submitError || error;
 
   function pickFile() {
     if (busy) return;
@@ -282,7 +311,7 @@ export function DocumentDropZone({
     setStatus((s) => (s === "dragover" ? "idle" : s));
   }
 
-  const showProgress = status === "uploading" || status === "extracting";
+  const showProgress = status === "uploading" || status === "extracting" || isSubmitting;
 
   return (
     <div
@@ -291,7 +320,7 @@ export function DocumentDropZone({
       onDragOver={onDragOver}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
-      data-status={status}
+      data-status={activeStatus}
     >
       <button
         type="button"
@@ -301,21 +330,28 @@ export function DocumentDropZone({
         aria-busy={busy}
       >
         {showProgress ? (
-          <span className="transaction-document-drop__progress" />
-        ) : null}
-        {showProgress ? (
-          <span
-            className="transaction-document-drop__circle"
-            style={
-              {
-                "--progress": `${progress}%`,
-              } as React.CSSProperties
-            }
-            aria-label={`${progress}% complete`}
-          >
-            <b>{progress}%</b>
-          </span>
-        ) : status === "done" ? (
+          <>
+            <span className="transaction-document-drop__progress" />
+            <div className="transaction-document-drop__gif-container">
+              <img
+                src="/document-loading.gif"
+                alt="Document Loading Animation"
+                className="transaction-document-drop__gif"
+                width={150}
+                height={150}
+              />
+            </div>
+            <span className="transaction-document-drop__percentage-label">
+              {isSubmitting ? submitProgress : progress}%
+            </span>
+            <div className="transaction-document-drop__percentage-bar-outer">
+              <div
+                className="transaction-document-drop__percentage-bar-inner"
+                style={{ width: `${isSubmitting ? submitProgress : progress}%` }}
+              />
+            </div>
+          </>
+        ) : activeStatus === "done" ? (
           <span className="transaction-document-drop__lottie" aria-hidden="true">
             <Lottie
               animationData={transactionDocumentSuccessAnimation}
@@ -323,10 +359,14 @@ export function DocumentDropZone({
             />
           </span>
         ) : (
-          <span>{iconForStatus(status)}</span>
+          <span>{iconForStatus(activeStatus)}</span>
         )}
-        <strong>{primaryLabel(status, filename)}</strong>
-        <small>{secondaryLabel(status, error, allowMultiple)}</small>
+        <strong>
+          {isSubmitting ? "Adding Transaction…" : primaryLabel(activeStatus, filename)}
+        </strong>
+        <small>
+          {isSubmitting ? "Writing record to secure ledger…" : secondaryLabel(activeStatus, activeError, allowMultiple)}
+        </small>
         {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
           <span className="transaction-document-drop__caption">
             {filename}

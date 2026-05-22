@@ -3684,6 +3684,71 @@ p.darkBg {
   color: #15803d !important;
 }
 
+/* ── Premium Reconciliation Enhancements (Figma) ── */
+.recon-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.recon-status-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.recon-status-icon.is-confirmed {
+  color: #10b981; /* emerald-500 */
+}
+
+.recon-status-icon.is-alert {
+  color: #f97316; /* orange-500 */
+}
+
+.recon-categorize-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background-color: #fff3e0; /* soft peach background */
+  color: #ea580c; /* dark orange text */
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.recon-categorize-trigger-btn:hover {
+  background-color: #ffe0b2;
+  color: #c2410c;
+}
+
+.recon-action-match-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  background-color: #e6f9f0; /* light green matching figma */
+  color: #059669; /* emerald-600 */
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.recon-action-match-btn:hover {
+  background-color: #c7f6df;
+  color: #047857;
+}
+
 /* ── End reconciliation expand panel ──────────────────────────────────────── */
 
 @media (max-width: 1180px) {
@@ -7121,6 +7186,56 @@ p.darkBg {
   line-height: 1;
 }
 
+/* Premium Loading GIF, Progress & Percentage Styles */
+.transaction-document-drop__gif-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 150px;
+  height: 150px;
+  border-radius: 16px;
+  background: transparent;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.transaction-document-drop__gif {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.transaction-document-drop__percentage-label {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-top: 8px;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.transaction-document-drop__percentage-bar-outer {
+  width: 200px;
+  height: 6px;
+  background: #e4e7ec;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.transaction-document-drop__percentage-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, #1677e8 100%);
+  border-radius: 999px;
+  transition: width 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
 @keyframes documentDropProgress {
   0% {
     background-position: -200% 0;
@@ -8305,6 +8420,51 @@ p.darkBg {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.rule-condition-row.has-remove-button {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+
+.rule-condition-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #667085;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.rule-condition-remove-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.rule-condition-remove-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.rule-condition-remove-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+
+.rule-condition-remove-btn:active {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+
 .transaction-field.is-mini .property-status-trigger {
   min-height: 46px;
 }
@@ -8424,9 +8584,16 @@ p.darkBg {
   .transaction-two-grid,
   .transaction-form-grid,
   .transaction-type-control > div,
-  .rule-condition-row {
+  .rule-condition-row,
+  .rule-condition-row.has-remove-button {
     grid-template-columns: 1fr;
   }
+
+  .rule-condition-remove-btn {
+    width: 100%;
+    margin-top: 4px;
+  }
+
 
   .transaction-warning-card > div {
     grid-template-columns: 1fr 28px;
@@ -9314,6 +9481,95 @@ p.darkBg {
   font-size: 13px;
   font-weight: 800;
 }
+
+/* Subcategory Styling */
+.logit-row-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.logit-table-row input.logit-parent-input-readonly {
+  background: #f9fafb;
+  color: #475467;
+  border-color: #cbd5e1;
+  cursor: not-allowed;
+  font-weight: 500;
+}
+
+.logit-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  color: #475467;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  margin-right: 12px;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.logit-expand-btn:hover {
+  color: #101828;
+}
+
+.logit-expand-btn:focus {
+  outline: none;
+}
+
+.logit-subcategories-container {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.logit-subcategory-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 120px 120px;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: none;
+}
+
+.logit-subcategory-label {
+  padding-left: 26px;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.logit-subcategory-row input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.logit-subcategory-row input::placeholder {
+  color: #b8bec9;
+}
+
+.logit-subcategory-row input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.12);
+}
+
 
 .logit-grand-total {
   display: grid;

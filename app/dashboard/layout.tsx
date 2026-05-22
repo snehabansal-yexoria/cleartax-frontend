@@ -7,6 +7,10 @@ import { getSession } from "../../src/lib/session";
 import { logout } from "../../src/lib/logout";
 import { normalizeRoleName } from "../../src/lib/roleNames";
 import {
+  readSessionBootstrap,
+  saveSessionBootstrap,
+} from "../../src/lib/sessionBootstrap";
+import {
   announceDropdownOpen,
   dropdownRegistryEvent,
   isDropdownRegistryEvent,
@@ -312,6 +316,13 @@ export default function DashboardLayout({
   useEffect(() => {
     async function loadSession() {
       try {
+        const bootstrap = readSessionBootstrap();
+        if (bootstrap) {
+          setEmail(bootstrap.email);
+          setRole(bootstrap.role);
+          setOrganizationName(bootstrap.orgName);
+        }
+
         const session = (await getSession()) as SessionWithIdToken | null;
 
         if (!session) {
@@ -322,15 +333,16 @@ export default function DashboardLayout({
         const idToken = session.getIdToken();
         const token = idToken.getJwtToken();
 
-        const [, meResponse] = await Promise.all([
-          fetch("/api/invitations/accept", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => undefined),
-          fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+        void fetch("/api/invitations/accept", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch((error) => {
+          console.warn("Invitation acceptance did not complete:", error);
+        });
+
+        const meResponse = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (!meResponse.ok) {
           router.replace("/login");
@@ -345,6 +357,11 @@ export default function DashboardLayout({
         setRole(roleName);
         setOrganizationName(me.orgName || "");
 
+        saveSessionBootstrap({
+          email: me.email,
+          role: roleName,
+          orgName: me.orgName,
+        });
         document.cookie = `role=${roleName}; path=/`;
       } catch (error) {
         console.error("Session error:", error);

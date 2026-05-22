@@ -201,6 +201,17 @@ function CloseIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
+
 function StaticSelect({
   label,
   value,
@@ -3749,7 +3760,12 @@ export function AddTransactionView({
       </div>
 
       <div className="transaction-add-layout">
-        <DocumentDropZone token={token} onExtracted={handleExtracted} />
+        <DocumentDropZone
+          token={token}
+          onExtracted={handleExtracted}
+          isSubmitting={isSubmitting}
+          submitError={submitError}
+        />
 
         <form className="transaction-entry-form" onSubmit={handleSubmit}>
           {requireClientSelection ? (
@@ -4080,7 +4096,7 @@ export function AddTransactionView({
               className="transaction-save-button"
               disabled={!canSubmit || isSubmitting}
             >
-              {isSubmitting ? "Saving…" : "Save"}
+              {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
             </button>
           </div>
         </form>
@@ -4428,7 +4444,7 @@ function RuleModal({
               <span>of the following:</span>
             </div>
             {conditions.map((cond, idx) => (
-              <div key={cond.id} className="rule-condition-row">
+              <div key={cond.id} className={`rule-condition-row${conditions.length > 1 ? " has-remove-button" : ""}`}>
                 <StaticSelect
                   value={cond.field}
                   options={fieldSelectOptions}
@@ -4448,11 +4464,12 @@ function RuleModal({
                 {conditions.length > 1 && (
                   <button
                     type="button"
-                    className="transaction-split-remove"
+                    className="rule-condition-remove-btn"
                     aria-label={`Remove condition ${idx + 1}`}
                     onClick={() => removeCondition(cond.id)}
+                    title="Remove condition"
                   >
-                    Remove
+                    <TrashIcon />
                   </button>
                 )}
               </div>
