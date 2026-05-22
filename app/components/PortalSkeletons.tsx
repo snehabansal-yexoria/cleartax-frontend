@@ -498,3 +498,140 @@ export function TrendSkeleton() {
     </section>
   );
 }
+
+export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActiveRecon?: boolean }) {
+  return (
+    <section className="accountant-reconciliation-page boneyard-fallback">
+      {/* Back to Entity Link skeleton */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+        <div className="skeleton-circle" style={{ width: 20, height: 20 }} />
+        <div className="skeleton-line" style={{ width: 120, height: 14 }} />
+      </div>
+
+      {/* Page Title skeleton */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div className="skeleton-line" style={{ width: 260, height: 32, borderRadius: 8 }} />
+      </div>
+
+      {hasActiveRecon ? (
+        <>
+          {/* Active Statement Card skeleton */}
+          <section className="accountant-uploaded-statements-card" style={{ marginBottom: 24, padding: "20px 24px" }}>
+            <div className="skeleton-row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
+              <div className="skeleton-line" style={{ width: 150, height: 20 }} />
+            </div>
+            <div className="skeleton-row" style={{ gap: 16, alignItems: "center" }}>
+              <div className="skeleton-circle" style={{ width: 44, height: 44 }} />
+              <div className="skeleton-stack" style={{ flex: 1, gap: 8 }}>
+                <div className="skeleton-line" style={{ width: "40%", height: 16 }} />
+                <div className="skeleton-line" style={{ width: "25%", height: 12 }} />
+              </div>
+              <div className="skeleton-stack" style={{ alignItems: "flex-end", gap: 8 }}>
+                <div className="skeleton-line" style={{ width: 100, height: 20 }} />
+                <div className="skeleton-line" style={{ width: 80, height: 12 }} />
+              </div>
+            </div>
+          </section>
+
+          {/* KPI Cards skeleton */}
+          <div className="accountant-reconciliation-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 20, marginBottom: 24 }}>
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <article key={idx} style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid #e3e8ef", background: "#ffffff" }}>
+                <div className="skeleton-line" style={{ width: "50%", height: 12, marginBottom: 12 }} />
+                <div className="skeleton-line" style={{ width: "70%", height: 24, marginBottom: 12 }} />
+                <div className="skeleton-line" style={{ width: "40%", height: 10 }} />
+              </article>
+            ))}
+          </div>
+
+          {/* Filter/Tab bar skeleton */}
+          <section className="accountant-reconciliation-filter-card" style={{ marginBottom: 16 }}>
+            <div className="accountant-reconciliation-tabs" style={{ borderBottom: "1px solid #f1f3f6", paddingBottom: 0 }}>
+              <div className="skeleton-pill" style={{ width: 120, height: 36, borderRadius: "8px 8px 0 0" }} />
+              <div className="skeleton-pill" style={{ width: 100, height: 36, borderRadius: "8px 8px 0 0" }} />
+              <div className="skeleton-pill" style={{ width: 100, height: 36, borderRadius: "8px 8px 0 0" }} />
+            </div>
+            <div className="accountant-reconciliation-controls" style={{ padding: "12px 24px", display: "flex", gap: 16, alignItems: "center" }}>
+              <div className="skeleton-input" style={{ flex: 1, minHeight: 38, borderRadius: 8 }} />
+              <div className="skeleton-pill" style={{ width: 90, height: 38, borderRadius: 8 }} />
+              <div className="skeleton-pill" style={{ width: 90, height: 38, borderRadius: 8 }} />
+              <div className="skeleton-pill" style={{ width: 120, height: 38, borderRadius: 8 }} />
+            </div>
+          </section>
+
+          {/* Table skeleton */}
+          <section className="accountant-reconciliation-table">
+            <div className="accountant-reconciliation-table-head" style={{ borderBottom: "1px solid #e7ebf0" }}>
+              <span className="skeleton-line" style={{ width: 100 }} />
+              <span className="skeleton-line" style={{ width: 80 }} />
+              <span className="skeleton-line" style={{ width: 80 }} />
+              <span className="skeleton-line" style={{ width: 60 }} />
+              <span className="skeleton-line" style={{ width: 60 }} />
+              <span className="skeleton-line" style={{ width: 80 }} />
+            </div>
+            {Array.from({ length: 6 }).map((_, rowIndex) => (
+              <div key={rowIndex} className="accountant-reconciliation-table-row" style={{ borderBottom: "1px solid #f1f3f6" }}>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <div className="skeleton-circle" style={{ width: 24, height: 24 }} />
+                </div>
+                <div className="skeleton-stack" style={{ gap: 6 }}>
+                  <div className="skeleton-line" style={{ width: 160, height: 14 }} />
+                  <div className="skeleton-line" style={{ width: 80, height: 10 }} />
+                </div>
+                <div>
+                  <div className="skeleton-line" style={{ width: 100, height: 30, borderRadius: 6 }} />
+                </div>
+                <div className="skeleton-stack" style={{ gap: 6 }}>
+                  <div className="skeleton-line" style={{ width: 100, height: 12 }} />
+                  <div className="skeleton-line" style={{ width: 60, height: 10 }} />
+                </div>
+                <div>
+                  <div className="skeleton-line" style={{ width: 70, height: 14 }} />
+                </div>
+                <div>
+                  <div className="skeleton-line" style={{ width: 70, height: 14 }} />
+                </div>
+                <div>
+                  <div className="skeleton-pill" style={{ width: 100, height: 32, borderRadius: 6 }} />
+                </div>
+              </div>
+            ))}
+          </section>
+        </>
+      ) : (
+        /* Import grid skeleton (when history is loading but no active statement is selected) */
+        <div className="accountant-reconciliation-import-grid">
+          <section className="accountant-upload-statement-card">
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", padding: 40, gap: 16 }}>
+              <div className="skeleton-circle" style={{ width: 64, height: 64 }} />
+              <div className="skeleton-line" style={{ width: 200, height: 20 }} />
+              <div className="skeleton-line" style={{ width: 280, height: 14 }} />
+              <div className="skeleton-pill" style={{ width: 180, height: 44, marginTop: 12 }} />
+            </div>
+          </section>
+          <section className="accountant-existing-documents-card" style={{ padding: 24 }}>
+            <div className="skeleton-row" style={{ justifyContent: "space-between", marginBottom: 20 }}>
+              <div className="skeleton-stack" style={{ flex: 1, gap: 8 }}>
+                <div className="skeleton-line" style={{ width: 220, height: 18 }} />
+                <div className="skeleton-line" style={{ width: 180, height: 12 }} />
+              </div>
+            </div>
+            <div className="skeleton-stack" style={{ gap: 12, marginBottom: 20 }}>
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 12, padding: 12, border: "1px solid #f1f3f6", borderRadius: 8 }}>
+                  <div className="skeleton-circle" style={{ width: 20, height: 20, borderRadius: 4 }} />
+                  <div className="skeleton-stack" style={{ flex: 1, gap: 8 }}>
+                    <div className="skeleton-line" style={{ width: "60%", height: 14 }} />
+                    <div className="skeleton-line" style={{ width: "40%", height: 10 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="skeleton-pill" style={{ width: "100%", height: 44, borderRadius: 8 }} />
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+

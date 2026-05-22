@@ -84,8 +84,8 @@ export function DocumentDropZone({
   const activeStatus = isSubmitting
     ? "uploading"
     : submitError && status !== "uploading" && status !== "extracting"
-    ? "error"
-    : status;
+      ? "error"
+      : status;
 
   const activeError = submitError || error;
 
@@ -368,10 +368,10 @@ export function DocumentDropZone({
           {isSubmitting ? "Writing record to secure ledger…" : secondaryLabel(activeStatus, activeError, allowMultiple)}
         </small>
         {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
-          <span className="transaction-document-drop__caption">
+          <div>
             {filename}
             {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
-          </span>
+          </div>
         ) : null}
       </button>
       <input

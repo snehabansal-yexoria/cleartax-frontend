@@ -22,6 +22,7 @@ import type {
   ReconciliationTransaction,
 } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
+import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -212,6 +213,7 @@ export default function AccountantReconciliationPage() {
   // Currently viewed reconciliation detail
   const [activeRecon, setActiveRecon] = useState<ReconciliationDetail | null>(null);
   const [activeReconLoading, setActiveReconLoading] = useState(false);
+  const [activeReconFailed, setActiveReconFailed] = useState(false);
 
   // Upload flow state
   const [uploadStage, setUploadStage] = useState<UploadStage>({ type: "idle" });
@@ -238,8 +240,10 @@ export default function AccountantReconciliationPage() {
   const RECON_PAGE_SIZE = 20;
   const [toastReconId, setToastReconId] = useState<string | null>(null);
 
+  // console.log({ confirmedMatches });
+
   // Table filter/sort state
-  const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed">("unreviewed");
+  const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed" | "excluded">("unreviewed");
   const [filter, setFilter] = useState<ReconciliationFilter>("all");
   const [query, setQuery] = useState("");
   const [sortDirection, setSortDirection] = useState<ReconciliationSort>("desc");
@@ -344,12 +348,12 @@ export default function AccountantReconciliationPage() {
       setConfirmedMatches(map);
     }
   }, [activeRecon?.id, entityId]);
-
   // Load a specific reconciliation's detail
   const loadReconciliation = useCallback(
     (id: string) => {
       const token = getToken();
       setActiveReconLoading(true);
+      setActiveReconFailed(false);
       fetch(`/api/entities/${entityId}/reconciliations/${id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -359,9 +363,14 @@ export default function AccountantReconciliationPage() {
             setActiveRecon(data);
             setHasImported(true);
             setFeedbackMessage("Statement loaded.");
+          } else {
+            setActiveReconFailed(true);
           }
         })
-        .catch(() => setFeedbackMessage("Failed to load reconciliation."))
+        .catch(() => {
+          setFeedbackMessage("Failed to load reconciliation.");
+          setActiveReconFailed(true);
+        })
         .finally(() => setActiveReconLoading(false));
     },
     [entityId],
@@ -780,6 +789,13 @@ export default function AccountantReconciliationPage() {
   const reconciledCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "confirmed").length;
   const excludedCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "excluded").length;
 
+  const matchedCount = allBankTxs.filter((_, i) => {
+    const match = optimisticMatches.get(i);
+    const isConfirmed = match?.status === "confirmed";
+    const isResolved = match != null;
+    return isConfirmed || (!isResolved && candidateMatches.has(i));
+  }).length;
+
   const q = query.trim().toLowerCase();
 
   const visibleRows = allBankTxs
@@ -787,11 +803,21 @@ export default function AccountantReconciliationPage() {
     .filter(({ row, i }) => {
       const match = optimisticMatches.get(i);
       const isResolved = match != null;
+      const isConfirmed = match?.status === "confirmed";
+      const isExcluded = match?.status === "excluded";
 
-      if (activeTab === "reviewed") return isResolved;
-      if (isResolved) return false;
+      if (activeTab === "reviewed") return isConfirmed;
+      if (activeTab === "excluded") return isExcluded;
 
-      if (filter === "matched" && !candidateMatches.has(i)) return false;
+      if (isResolved) {
+        if (filter === "matched" && isConfirmed) {
+          // Keep confirmed match in "matched" filter under unreviewed tab
+        } else {
+          return false;
+        }
+      }
+
+      if (filter === "matched" && !candidateMatches.has(i) && !isConfirmed) return false;
       if (q && !row.description.toLowerCase().includes(q) && !(row.payee?.toLowerCase().includes(q) ?? false)) return false;
       return true;
     })
@@ -805,6 +831,13 @@ export default function AccountantReconciliationPage() {
   const pagedReconRows = visibleRows.slice((reconPage - 1) * RECON_PAGE_SIZE, reconPage * RECON_PAGE_SIZE);
 
   const unreviewedCount = allBankTxs.length - reconciledCount - excludedCount;
+
+  const idParam = searchParams.get("id");
+  const isInitialLoading = historyLoading || (idParam && !activeRecon && !activeReconFailed);
+
+  if (isInitialLoading) {
+    return <AccountantReconciliationSkeleton hasActiveRecon={!!idParam} />;
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1017,14 +1050,21 @@ export default function AccountantReconciliationPage() {
                 className={activeTab === "unreviewed" ? "is-active" : ""}
                 onClick={() => { setActiveTab("unreviewed"); setFilter("all"); setReconPage(1); }}
               >
-                Transactions ({unreviewedCount})
+                Unreviewed ({unreviewedCount})
               </button>
               <button
                 type="button"
                 className={activeTab === "reviewed" ? "is-active" : ""}
                 onClick={() => { setActiveTab("reviewed"); setFilter("all"); setReconPage(1); }}
               >
-                Reconciled ({reconciledCount + excludedCount})
+                Reviewed ({reconciledCount})
+              </button>
+              <button
+                type="button"
+                className={activeTab === "excluded" ? "is-active" : ""}
+                onClick={() => { setActiveTab("excluded"); setFilter("all"); setReconPage(1); }}
+              >
+                Excluded ({excludedCount})
               </button>
             </div>
             <div className="accountant-reconciliation-controls">
@@ -1054,7 +1094,7 @@ export default function AccountantReconciliationPage() {
                     className={filter === "matched" ? "is-active" : ""}
                     onClick={() => { setFilter("matched"); setReconPage(1); }}
                   >
-                    Matched ({entityTxsLoading ? "…" : candidateMatches.size})
+                    Matched ({entityTxsLoading ? "…" : matchedCount})
                   </button>
                 </>
               )}
@@ -1089,9 +1129,11 @@ export default function AccountantReconciliationPage() {
                 <strong>
                   {activeTab === "reviewed"
                     ? "No reconciled transactions yet."
-                    : allBankTxs.length === 0
-                      ? "No transactions in this statement."
-                      : "No transactions match these filters."}
+                    : activeTab === "excluded"
+                      ? "No excluded transactions yet."
+                      : allBankTxs.length === 0
+                        ? "No transactions in this statement."
+                        : "No transactions match these filters."}
                 </strong>
                 {activeTab === "unreviewed" && allBankTxs.length > 0 && (
                   <span>Try changing the search or filter.</span>
@@ -1369,7 +1411,23 @@ export default function AccountantReconciliationPage() {
                             <span className="recon-categorize-title-dot" />
                             <strong>Categorize Transaction</strong>
                           </div>
+
                           <div className="recon-categorize-grid">
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Property Name <span className="is-required">*</span>
+                              </label>
+                              <select
+                                className="recon-categorize-select"
+                                value={categorizePropertyId}
+                                onChange={(e) => setCategorizePropertyId(e.target.value)}
+                              >
+                                <option value="">Select property</option>
+                                {properties.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Transaction Type <span className="is-required">*</span>
@@ -1419,21 +1477,7 @@ export default function AccountantReconciliationPage() {
                                 ))}
                               </select>
                             </div>
-                            <div className="recon-categorize-field">
-                              <label className="recon-categorize-label">
-                                Property Name <span className="is-required">*</span>
-                              </label>
-                              <select
-                                className="recon-categorize-select"
-                                value={categorizePropertyId}
-                                onChange={(e) => setCategorizePropertyId(e.target.value)}
-                              >
-                                <option value="">Select property</option>
-                                {properties.map((p) => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                              </select>
-                            </div>
+
                           </div>
                           <div className="recon-categorize-gst">
                             <span className="recon-categorize-gst-label">GST Applicable</span>

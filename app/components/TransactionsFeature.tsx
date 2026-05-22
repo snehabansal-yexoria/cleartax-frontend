@@ -3030,6 +3030,18 @@ export function AddTransactionView({
       splitMatches
       : !!propertyId);
 
+  function handleOpenBulkImport() {
+    if (mustChooseClientFirst) {
+      setFeedback({
+        tone: "warning",
+        title: "Select a client first",
+        message: "Choose a client before importing transactions in bulk.",
+      });
+      return;
+    }
+    setIsBulkOpen(true);
+  }
+
   function updateSplitRow(id: string, patch: Partial<SplitRowState>) {
     setSplitRows((rows) =>
       rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
@@ -3751,9 +3763,10 @@ export function AddTransactionView({
         </div>
         <button
           type="button"
-          className="transaction-outline-button"
-          disabled={mustChooseClientFirst}
-          onClick={() => setIsBulkOpen(true)}
+          className={`transaction-outline-button${mustChooseClientFirst ? " is-disabled" : ""}`}
+          aria-disabled={mustChooseClientFirst}
+          title={mustChooseClientFirst ? "Select a client first" : undefined}
+          onClick={handleOpenBulkImport}
         >
           <UploadIcon />
           Bulk Import from CSV

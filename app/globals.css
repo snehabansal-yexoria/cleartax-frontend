@@ -6613,6 +6613,10 @@ p.darkBg {
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
+.transaction-outline-button.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .transaction-primary-button {
   color: #ffffff;
@@ -7156,6 +7160,19 @@ p.darkBg {
 .transaction-document-drop[data-status="uploading"] svg.is-spinner {
   animation: documentDropSpin 0.9s linear infinite;
   transform-origin: center;
+}
+
+.transaction-document-drop__filename {
+  width: auto !important;
+  height: auto !important;
+  display: inline-block !important;
+  border: none !important;
+  background: transparent !important;
+  color: #344054 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  margin-top: 4px !important;
+  box-shadow: none !important;
 }
 
 .transaction-document-drop__caption {
