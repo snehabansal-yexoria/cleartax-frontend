@@ -217,7 +217,7 @@ export function DocumentDropZone({
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ s3_key }),
+        body: JSON.stringify({ s3_key, ...(scope?.entityId ? { entity_id: scope.entityId } : {}) }),
       }).finally(() => window.clearInterval(progressTimer));
       if (!extractRes.ok) {
         const body = await safeJson(extractRes);

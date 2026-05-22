@@ -3764,6 +3764,7 @@ export function AddTransactionView({
         <DocumentDropZone
           token={token}
           onExtracted={handleExtracted}
+          scope={activeEntityId ? { entityId: activeEntityId } : undefined}
           isSubmitting={isSubmitting}
           submitError={submitError}
         />
