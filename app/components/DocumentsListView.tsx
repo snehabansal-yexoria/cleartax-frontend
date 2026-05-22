@@ -18,6 +18,7 @@ export type DocumentsListViewProps = {
   context:
     | { kind: "entity"; entityId: string }
     | { kind: "property"; propertyId: string }
+    | { kind: "client"; clientId: string }
     | { kind: "owner" };
   token: string;
 };
@@ -174,6 +175,7 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
 
   const entityId = context.kind === "entity" ? context.entityId : undefined;
   const propertyId = context.kind === "property" ? context.propertyId : undefined;
+  const clientId = context.kind === "client" ? context.clientId : undefined;
   const contextKind = context.kind;
 
   const fetchDocuments = () => {
@@ -183,7 +185,9 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
         ? `entity_id=${encodeURIComponent(entityId)}`
         : contextKind === "property" && propertyId
           ? `property_id=${encodeURIComponent(propertyId)}`
-          : "owner_id=me";
+          : contextKind === "client" && clientId
+            ? `client_id=${encodeURIComponent(clientId)}`
+            : "owner_id=me";
 
     setLoading(true);
     setError("");
@@ -208,7 +212,7 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
 
   useEffect(() => {
     fetchDocuments();
-  }, [token, contextKind, entityId, propertyId]);
+  }, [token, contextKind, entityId, propertyId, clientId]);
 
   async function handleDownload(id: string, fileName: string) {
     setDownloading(id);
@@ -324,7 +328,9 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
       ? "Property Documents"
       : context.kind === "entity"
         ? "Entity Documents"
-        : "Documents";
+        : context.kind === "client"
+          ? "Client Document Vault"
+          : "Documents";
 
   return (
     <div className="premium-docs-container">

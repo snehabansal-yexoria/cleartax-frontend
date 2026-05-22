@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
+import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
@@ -93,6 +94,7 @@ function ClientDetailPageContent() {
   const [isEntitiesLoading, setIsEntitiesLoading] = useState(true);
   const [transactionsCounts, setTransactionsCounts] = useState<Record<string, number | undefined>>({});
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
+  const [sessionToken, setSessionToken] = useState("");
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
@@ -124,6 +126,7 @@ function ClientDetailPageContent() {
           return;
         }
         const token = session.getIdToken().getJwtToken();
+        if (!cancelled) setSessionToken(token);
         const headers = { Authorization: `Bearer ${token}` };
 
         // Fire client verification and entities fetch in parallel
@@ -484,9 +487,18 @@ function ClientDetailPageContent() {
           </div>
         )}
 
-        {currentTab !== "entities" && currentTab !== "transactions" && (
+        {currentTab === "documents" && (
+          <div className="client-portfolio-tab-body">
+            <DocumentsListView
+              context={{ kind: "client", clientId }}
+              token={sessionToken}
+            />
+          </div>
+        )}
+
+        {currentTab === "banking" && (
           <div className="client-coming-soon">
-            <strong>{clientTabs.find((tab) => tab.id === currentTab)?.label}</strong>
+            <strong>Bank Accounts &amp; Lending</strong>
             <p>Coming soon</p>
           </div>
         )}
