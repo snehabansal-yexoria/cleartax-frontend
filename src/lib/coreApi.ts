@@ -729,6 +729,8 @@ export type CoreTransactionDetail = {
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
   metadata: Record<string, unknown>;
+  documentId: string | null;
+  documentFileName: string | null;
   createdBy: string;
   updatedBy: string | null;
   isDeleted: boolean;
@@ -926,6 +928,8 @@ export function normalizeCoreTransactionDetail(
     ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
     reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
     metadata: toRecord(raw.metadata),
+    documentId: toNullableString(raw.document_id ?? raw.documentId),
+    documentFileName: toNullableString(raw.document_file_name ?? raw.documentFileName),
     createdBy: toStringValue(raw.created_by ?? raw.createdBy),
     updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
     isDeleted: Boolean(raw.is_deleted ?? raw.isDeleted),

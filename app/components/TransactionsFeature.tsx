@@ -558,9 +558,10 @@ function TransactionDetailPopup({
       ? display.metadata.asset_item_name
       : "";
   const invoiceName =
-    typeof display.metadata.invoice_name === "string"
+    detail?.documentFileName ||
+    (typeof display.metadata.invoice_name === "string"
       ? display.metadata.invoice_name
-      : "";
+      : "");
   const categorySelectOptions: SelectOption[] = [
     { label: "Select category", value: "" },
     ...categories.map((category) => ({
