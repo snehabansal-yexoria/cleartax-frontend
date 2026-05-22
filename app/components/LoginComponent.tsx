@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, completeNewPassword } from "../../src/lib/auth";
 import { normalizeRoleName } from "../../src/lib/roleNames";
+import { saveSessionBootstrap } from "../../src/lib/sessionBootstrap";
 import { CognitoUser } from "amazon-cognito-identity-js";
 import Image from "next/image";
 import logo from "../../public/clear-tax.svg";
@@ -52,6 +53,22 @@ function getInvitePasswordFromUrl() {
       "temporary_password",
     ) || "",
   );
+}
+
+function acceptInvitationInBackground(token: string) {
+  void fetch("/api/invitations/accept", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch((error) => {
+    console.warn("Invitation acceptance did not complete:", error);
+  });
+}
+
+function getDashboardPath(role: string) {
+  if (role === "super_admin") return "/dashboard/super-admin";
+  if (role === "admin") return "/dashboard/admin";
+  if (role === "accountant") return "/dashboard/accountant";
+  return "/dashboard/client";
 }
 
 export default function LoginComponent({
@@ -108,11 +125,7 @@ export default function LoginComponent({
           const token = result.idToken;
 
           document.cookie = `idToken=${token}; path=/`;
-
-          await fetch("/api/invitations/accept", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => undefined);
+          acceptInvitationInBackground(token);
 
           const meResponse = await fetch("/api/users/me", {
             headers: { Authorization: `Bearer ${token}` },
@@ -125,25 +138,21 @@ export default function LoginComponent({
           }
 
           const me = await meResponse.json();
-          const role = normalizeRoleName(me.role);
+          const apiRole = normalizeRoleName(me.role);
 
-          if (!allowedRoles.includes(role)) {
+          if (!allowedRoles.includes(apiRole)) {
             setError("You are not allowed to login here");
             setLoading(false);
             return;
           }
 
-          document.cookie = `role=${role}; path=/`;
-
-          if (role === "super_admin") {
-            router.replace("/dashboard/super-admin");
-          } else if (role === "admin") {
-            router.replace("/dashboard/admin");
-          } else if (role === "accountant") {
-            router.replace("/dashboard/accountant");
-          } else {
-            router.replace("/dashboard/client");
-          }
+          document.cookie = `role=${apiRole}; path=/`;
+          saveSessionBootstrap({
+            email: me.email,
+            role: apiRole,
+            orgName: me.orgName,
+          });
+          router.replace(getDashboardPath(apiRole));
         }
       } catch (error: unknown) {
         setError(
@@ -198,12 +207,7 @@ export default function LoginComponent({
           : "";
 
       if (idToken) {
-        await fetch("/api/invitations/accept", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        });
+        acceptInvitationInBackground(idToken);
       }
 
       alert("Password updated successfully. Please login again.");

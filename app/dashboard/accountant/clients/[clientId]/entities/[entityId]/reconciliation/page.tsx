@@ -280,11 +280,11 @@ export default function AccountantReconciliationPage() {
       .then((data: { reconciled?: boolean } | null) => {
         if (data?.reconciled) setEntityReconciled(true);
       })
-      .catch(() => {});
+      .catch(() => { });
     fetch(`/api/entities/${entityId}/properties`, { headers })
       .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((data: { items?: CoreProperty[] }) => setProperties(data.items ?? []))
-      .catch(() => {});
+      .catch(() => { });
   }, [entityId]);
 
   // Load past reconciliations list on mount
@@ -380,7 +380,7 @@ export default function AccountantReconciliationPage() {
     })
       .then((r) => (r.ok ? r.json() : []))
       .then((data: ReconciliationListItem[]) => setHistory(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .catch(() => { });
   }, [entityId]);
 
   // Load categories when categorize panel opens
@@ -403,7 +403,7 @@ export default function AccountantReconciliationPage() {
         .then((d: { items?: CoreTransactionCategory[] }) => {
           if (!cancelled) setCategorizeCategories(d.items ?? []);
         })
-        .catch(() => {});
+        .catch(() => { });
     });
     return () => { cancelled = true; };
   }, [categorizeIndex, activeRecon]);
@@ -420,7 +420,7 @@ export default function AccountantReconciliationPage() {
         .then((d: { items?: CoreTransactionSubcategory[] }) => {
           if (!cancelled) setCategorizeSubcategories(d.items ?? []);
         })
-        .catch(() => {});
+        .catch(() => { });
     });
     return () => { cancelled = true; };
   }, [categorizeCategoryId]);
@@ -603,20 +603,20 @@ export default function AccountantReconciliationPage() {
     const bankTx = activeRecon.transactions[bankTxIndex];
     const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
     let gstAmount = 0;
-  if (categorizeGst) {
-    const parsed = Number.parseFloat(categorizeGstAmount);
-    if (!categorizeGstAmount || Number.isNaN(parsed) || parsed < 0) {
-      setCategorizeError("GST must be a non-negative number.");
-      setCategorizeSaving(false);
-      return;
+    if (categorizeGst) {
+      const parsed = Number.parseFloat(categorizeGstAmount);
+      if (!categorizeGstAmount || Number.isNaN(parsed) || parsed < 0) {
+        setCategorizeError("GST must be a non-negative number.");
+        setCategorizeSaving(false);
+        return;
+      }
+      if (parsed > grossAmount) {
+        setCategorizeError("GST amount cannot exceed the transaction amount.");
+        setCategorizeSaving(false);
+        return;
+      }
+      gstAmount = parsed;
     }
-    if (parsed > grossAmount) {
-      setCategorizeError("GST amount cannot exceed the transaction amount.");
-      setCategorizeSaving(false);
-      return;
-    }
-    gstAmount = parsed;
-  }
     try {
       const token = await getFreshToken();
       const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
@@ -1105,6 +1105,7 @@ export default function AccountantReconciliationPage() {
                 const candidates = candidateMatches.get(i) ?? [];
                 const hasCandidates = candidates.length > 0;
                 const isExpanded = expandedIndex === i;
+                const isCatExpanded = categorizeIndex === i;
 
                 // Find the matched entity tx for confirmed rows
                 const matchedTx = isConfirmed && matchEntry?.transactionId
@@ -1144,7 +1145,7 @@ export default function AccountantReconciliationPage() {
                 ) : isConfirmed && matchedTx ? (
                   <>
                     <strong>{matchedTx.categoryName}</strong>
-                    <small>{matchedTx.subcategoryName}</small>
+                    {matchedTx.subcategoryName && <small>{matchedTx.subcategoryName}</small>}
                     <em>Matched</em>
                   </>
                 ) : isExcluded ? (
@@ -1153,13 +1154,22 @@ export default function AccountantReconciliationPage() {
                   </>
                 ) : hasCandidates ? (
                   <>
-                    <strong>Uncategorized</strong>
+                    <strong>{candidates[0].categoryName}</strong>
+                    {candidates[0].subcategoryName && <small>{candidates[0].subcategoryName}</small>}
                   </>
                 ) : (
-                  <>
-                    <strong>Uncategorized</strong>
-                    <mark className="is-warning">Categorize</mark>
-                  </>
+                  <button
+                    type="button"
+                    className="recon-categorize-trigger-btn"
+                    onClick={() => {
+                      setMatchError(null);
+                      setCategorizeError(null);
+                      setCategorizeIndex(isCatExpanded ? null : i);
+                      setExpandedIndex(null);
+                    }}
+                  >
+                    {isCatExpanded ? "Hide Form" : "Categorize"}
+                  </button>
                 );
 
                 // Action cell content
@@ -1189,29 +1199,24 @@ export default function AccountantReconciliationPage() {
                     </div>
                   );
                 } else if (!entityReconciled && hasCandidates) {
+                  const btnText = candidates.length > 1
+                    ? (isExpanded ? "Hide Matches" : "View Matches")
+                    : (isExpanded ? "Hide Match" : "Review Match");
                   actionCell = (
                     <button
                       type="button"
-                      onClick={() => { setMatchError(null); setCategorizeIndex(null); setExpandedIndex(isExpanded ? null : i); }}
-                    >
-                      {isExpanded ? "Hide Matches" : "Review Match"}
-                    </button>
-                  );
-                } else if (!entityReconciled) {
-                  const isCatExpanded = categorizeIndex === i;
-                  actionCell = (
-                    <button
-                      type="button"
+                      className="recon-action-match-btn"
                       onClick={() => {
                         setMatchError(null);
-                        setCategorizeError(null);
-                        setCategorizeIndex(isCatExpanded ? null : i);
-                        setExpandedIndex(null);
+                        setCategorizeIndex(null);
+                        setExpandedIndex(isExpanded ? null : i);
                       }}
                     >
-                      {isCatExpanded ? "Hide Form" : "Categorize"}
+                      {btnText}
                     </button>
                   );
+                } else {
+                  actionCell = <span className="is-muted">—</span>;
                 }
 
                 return (
@@ -1222,7 +1227,7 @@ export default function AccountantReconciliationPage() {
                       isConfirmed ? "recon-row-wrapper--confirmed" : "",
                       isExcluded ? "recon-row-wrapper--excluded" : "",
                       isExpanded ? "recon-row-wrapper--expanded" : "",
-                      categorizeIndex === i && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
+                      isCatExpanded && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
                     ].filter(Boolean).join(" ")}
                   >
                     {/* Main row */}
@@ -1357,7 +1362,7 @@ export default function AccountantReconciliationPage() {
                     )}
 
                     {/* Inline Categorize panel — for rows with no candidate matches */}
-                    {categorizeIndex === i && !isConfirmed && !isExcluded && (
+                    {isCatExpanded && !isConfirmed && !isExcluded && (
                       <div className="recon-categorize-panel">
                         <div className="recon-categorize-card">
                           <div className="recon-categorize-title">

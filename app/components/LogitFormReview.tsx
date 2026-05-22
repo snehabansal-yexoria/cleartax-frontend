@@ -6,7 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
+import type {
+  CoreEntity,
+  CoreProperty,
+  CoreTransactionListItem,
+  CoreTransactionCategory,
+  CoreTransactionSubcategory,
+} from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -14,12 +20,22 @@ interface SessionWithIdToken {
   };
 }
 
+type SubcategoryLine = {
+  id: string;
+  subcategoryId: number;
+  label: string;
+  amount: string;
+  use: string;
+};
+
 type ReviewLine = {
   id: string;
   label: string;
   amount: string;
   use: string;
   expandable?: boolean;
+  subcategories?: SubcategoryLine[];
+  initialParentAmount?: string;
 };
 
 type OwnerLine = {
@@ -34,58 +50,58 @@ type LogitFormReviewProps = {
 };
 
 const incomeRows: ReviewLine[] = [
-  { id: "rental-income", label: "Rental income", amount: "", use: "" },
+  { id: "rental-income", label: "Rental income", amount: "0.00", use: "0.00" },
   {
     id: "other-rental-income",
     label: "Other rental income",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
   },
 ];
 
 const expenseRows: ReviewLine[] = [
-  { id: "advertising", label: "Advertising for tenants", amount: "", use: "" },
-  { id: "body-corporate", label: "Body corporate fees", amount: "", use: "" },
-  { id: "cleaning", label: "Cleaning", amount: "", use: "" },
-  { id: "council-rates", label: "Council Rates", amount: "", use: "" },
-  { id: "gardening-a", label: "Gardening/lawn mowing", amount: "", use: "" },
-  { id: "gardening-b", label: "Gardening/lawn mowing", amount: "", use: "" },
+  { id: "advertising", label: "Advertising for tenants", amount: "0.00", use: "0.00" },
+  { id: "body-corporate", label: "Body corporate fees", amount: "0.00", use: "0.00" },
+  { id: "cleaning", label: "Cleaning", amount: "0.00", use: "0.00" },
+  { id: "council-rates", label: "Council Rates", amount: "0.00", use: "0.00" },
+  { id: "gardening-a", label: "Gardening/lawn mowing", amount: "0.00", use: "0.00" },
+  { id: "gardening-b", label: "Gardening/lawn mowing", amount: "0.00", use: "0.00" },
   {
     id: "insurance",
     label: "Insurance",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
-  { id: "land-tax", label: "Land Tax", amount: "", use: "" },
+  { id: "land-tax", label: "Land Tax", amount: "0.00", use: "0.00" },
   {
     id: "legal-fees",
     label: "Legal fees",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
-  { id: "pest-control", label: "Pest Control", amount: "", use: "" },
+  { id: "pest-control", label: "Pest Control", amount: "0.00", use: "0.00" },
   {
     id: "agent-fees",
     label: "Property Agent Fees/ commission",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
   {
     id: "repairs",
     label: "Repairs and Maintenance",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
-  { id: "water", label: "Water charges", amount: "", use: "" },
+  { id: "water", label: "Water charges", amount: "0.00", use: "0.00" },
   {
     id: "sundry",
     label: "Sundry Rental Expenses",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
 ];
@@ -94,15 +110,15 @@ const borrowingRows: ReviewLine[] = [
   {
     id: "interest",
     label: "Interest on loans",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
   {
     id: "borrowing",
     label: "Borrowing expense",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
     expandable: true,
   },
 ];
@@ -111,14 +127,14 @@ const depreciationRows: ReviewLine[] = [
   {
     id: "capital-allowances",
     label: "Capital allowances",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
   },
   {
     id: "capital-works",
     label: "Capital works deductions",
-    amount: "",
-    use: "",
+    amount: "0.00",
+    use: "0.00",
   },
 ];
 
@@ -156,7 +172,8 @@ function formatMoney(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value || 0);
 }
 
@@ -176,10 +193,57 @@ function getRowsTotal(rows: ReviewLine[], key: "amount" | "use") {
   }, 0);
 }
 
+function getRowsClaimableTotal(rows: ReviewLine[]): number {
+  return rows.reduce((sum, row) => {
+    const amount = Number.parseFloat(row.amount);
+    const use = Number.parseFloat(row.use);
+    const amt = Number.isFinite(amount) ? amount : 0;
+    const u = Number.isFinite(use) ? use : 0;
+    return sum + (amt * u) / 100;
+  }, 0);
+}
+
 function inputNumber(value: number | undefined) {
   return typeof value === "number" && Number.isFinite(value)
     ? String(value)
     : "";
+}
+
+function syncParentWithSubcategories(row: ReviewLine): ReviewLine {
+  if (!row.subcategories || row.subcategories.length === 0) return row;
+
+  const totalAmount = row.subcategories.reduce((sum, s) => {
+    const val = Number.parseFloat(s.amount);
+    return sum + (Number.isFinite(val) ? val : 0);
+  }, 0);
+
+  const initialAmt = Number.parseFloat(row.initialParentAmount || "0.00") || 0;
+  const parentAmount = initialAmt + totalAmount;
+
+  const sumAmounts = row.subcategories.reduce((sum, s) => sum + (Number.parseFloat(s.amount) || 0), 0);
+  let averageUse = 0;
+  if (sumAmounts > 0) {
+    const sumWeightedUse = row.subcategories.reduce((sum, s) => {
+      const amt = Number.parseFloat(s.amount) || 0;
+      const useVal = Number.parseFloat(s.use) || 0;
+      return sum + (amt * useVal);
+    }, 0);
+    averageUse = sumWeightedUse / sumAmounts;
+  } else {
+    const validUses = row.subcategories.map(s => Number.parseFloat(s.use)).filter(Number.isFinite);
+    averageUse = validUses.length > 0 ? validUses.reduce((s, u) => s + u, 0) / validUses.length : 0;
+  }
+
+  let finalUse = averageUse.toFixed(2);
+  if (sumAmounts === 0) {
+    finalUse = Number.parseFloat(row.use || "0.00").toFixed(2);
+  }
+
+  return {
+    ...row,
+    amount: parentAmount.toFixed(2),
+    use: finalUse,
+  };
 }
 
 export default function LogitFormReview({
@@ -215,6 +279,10 @@ export default function LogitFormReview({
   const [borrowings, setBorrowings] = useState<ReviewLine[]>(borrowingRows);
   const [depreciation, setDepreciation] =
     useState<ReviewLine[]>(depreciationRows);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [subcategoryOptionsMap, setSubcategoryOptionsMap] = useState<
+    Record<string, { id: number; name: string }[]>
+  >({});
 
   useEffect(() => {
     let cancelled = false;
@@ -245,10 +313,10 @@ export default function LogitFormReview({
         setOwners(
           loadedProperty.owners.length > 0
             ? loadedProperty.owners.map((owner, index) => ({
-                id: String(owner.id ?? index),
-                name: owner.ownerName,
-                percentage: inputNumber(owner.ownershipPercentage),
-              }))
+              id: String(owner.id ?? index),
+              name: owner.ownerName,
+              percentage: inputNumber(owner.ownershipPercentage),
+            }))
             : [{ id: "primary", name: "", percentage: "100" }],
         );
 
@@ -291,46 +359,67 @@ export default function LogitFormReview({
           setWeeksAvailable(rent?.weeks_available ?? "");
           setDateAvailable(rent?.date_available ?? "");
 
+          const mapSubcategories = (subs: any[]) =>
+            subs.map((s) => ({
+              ...s,
+              amount: s.amount === "" || !s.amount ? "0.00" : Number.parseFloat(s.amount).toFixed(2),
+              use: s.use === "" || !s.use ? "0.00" : Number.parseFloat(s.use).toFixed(2),
+            }));
+
+          const loadRowData = (prev: ReviewLine[], savedRows: any[]) =>
+            prev.map((row) => {
+              const saved = savedRows.find((r) => r.id === row.id);
+              if (saved) {
+                const hasSubs = !!(saved.subcategories && saved.subcategories.length > 0);
+                const savedAmt = saved.amount === "" || !saved.amount ? "0.00" : Number.parseFloat(saved.amount).toFixed(2);
+                const savedUse = saved.use === "" || !saved.use ? "0.00" : Number.parseFloat(saved.use).toFixed(2);
+                const initialParentAmount = hasSubs ? "0.00" : savedAmt;
+
+                return syncParentWithSubcategories({
+                  ...row,
+                  amount: savedAmt,
+                  use: savedUse,
+                  initialParentAmount,
+                  subcategories: saved.subcategories ? mapSubcategories(saved.subcategories) : undefined,
+                });
+              }
+              return { ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" };
+            });
+
           if (incRows && incRows.length > 0) {
-            setRentedIncome((prev) =>
-              prev.map((row) => {
-                const saved = incRows.find((r) => r.id === row.id);
-                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
-              }),
-            );
+            setRentedIncome((prev) => loadRowData(prev, incRows));
           } else {
+            setRentedIncome((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
             setAddressLine1(loadedProperty.locationText || loadedProperty.name);
             setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
-            setAcquisitionCost(inputNumber(loadedProperty.purchaseAmount));
+            setAcquisitionCost(loadedProperty.purchaseAmount != null ? Number(loadedProperty.purchaseAmount).toFixed(2) : "");
           }
+
           if (expRows && expRows.length > 0) {
-            setRentedExpenses((prev) =>
-              prev.map((row) => {
-                const saved = expRows.find((r) => r.id === row.id);
-                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
-              }),
-            );
+            setRentedExpenses((prev) => loadRowData(prev, expRows));
+          } else {
+            setRentedExpenses((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
           }
+
           if (borRows && borRows.length > 0) {
-            setBorrowings((prev) =>
-              prev.map((row) => {
-                const saved = borRows.find((r) => r.id === row.id);
-                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
-              }),
-            );
+            setBorrowings((prev) => loadRowData(prev, borRows));
+          } else {
+            setBorrowings((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
           }
+
           if (depRows && depRows.length > 0) {
-            setDepreciation((prev) =>
-              prev.map((row) => {
-                const saved = depRows.find((r) => r.id === row.id);
-                return saved ? { ...row, amount: saved.amount, use: saved.use } : row;
-              }),
-            );
+            setDepreciation((prev) => loadRowData(prev, depRows));
+          } else {
+            setDepreciation((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
           }
         } else {
+          setRentedIncome((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+          setRentedExpenses((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+          setBorrowings((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+          setDepreciation((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
           setAddressLine1(loadedProperty.locationText || loadedProperty.name);
           setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
-          setAcquisitionCost(inputNumber(loadedProperty.purchaseAmount));
+          setAcquisitionCost(loadedProperty.purchaseAmount != null ? Number(loadedProperty.purchaseAmount).toFixed(2) : "");
         }
 
         const [entityRes, txRes] = await Promise.all([
@@ -362,17 +451,122 @@ export default function LogitFormReview({
 
           const applyTxSums = (rows: ReviewLine[]) =>
             rows.map((row) => {
-              if (row.amount !== "") return row;
+              if (row.amount !== "0.00" && row.amount !== "0" && row.amount !== "") return row;
               const sum = sums[row.id];
-              return sum != null && sum > 0
-                ? { ...row, amount: String(Math.round(sum * 100) / 100) }
-                : row;
+              if (sum != null && sum > 0) {
+                const amtStr = sum.toFixed(2);
+                const hasSavedSubs = !!(row.subcategories && row.subcategories.length > 0);
+                return {
+                  ...row,
+                  amount: amtStr,
+                  initialParentAmount: hasSavedSubs ? "0.00" : amtStr,
+                };
+              }
+              return row;
             });
 
           setRentedIncome(applyTxSums);
           setRentedExpenses(applyTxSums);
           setBorrowings(applyTxSums);
           setDepreciation(applyTxSums);
+        }
+
+        // Fetch categories and subcategories
+        const categoriesRes = await fetch(
+          `/api/transactions/categories?type=expense`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        if (!cancelled && categoriesRes.ok) {
+          const catData = (await categoriesRes.json()) as { items?: CoreTransactionCategory[] };
+          const categories = catData.items ?? [];
+
+          const expandableMappings: Record<string, string> = {
+            "insurance": "insurance",
+            "legal-fees": "legal fees",
+            "agent-fees": "property agent fees / commission",
+            "repairs": "repairs and maintenance",
+            "sundry": "sundry rental expenses",
+            "interest": "interest on loans - tbd",
+            "borrowing": "borrowing expenses",
+          };
+
+          const optionsMap: Record<string, { id: number; name: string }[]> = {};
+
+          await Promise.all(
+            Object.entries(expandableMappings).map(async ([rowId, catName]) => {
+              const matchedCat = categories.find(
+                (c) => c.name.toLowerCase().trim() === catName,
+              );
+              if (matchedCat) {
+                const subRes = await fetch(
+                  `/api/transactions/categories/${matchedCat.id}/sub-categories`,
+                  { headers: { Authorization: `Bearer ${token}` } },
+                );
+                if (subRes.ok) {
+                  const subData = (await subRes.json()) as { items?: CoreTransactionSubcategory[] };
+                  optionsMap[rowId] = (subData.items ?? []).map((s) => ({
+                    id: s.id,
+                    name: s.name,
+                  }));
+                }
+              }
+            }),
+          );
+
+          const fallbackSubcategories: Record<string, { id: number; name: string }[]> = {
+            "insurance": [
+              { id: 10001, name: "Building Insurance" },
+              { id: 10002, name: "Landlord Insurance" },
+              { id: 10003, name: "Contents Insurance" },
+              { id: 10004, name: "Public Liability Insurance" },
+            ],
+            "legal-fees": [
+              { id: 10011, name: "Conveyancing Fees" },
+              { id: 10012, name: "Tenancy Agreement Preparation" },
+              { id: 10013, name: "Eviction Legal Costs" },
+              { id: 10014, name: "Lease Dispute Advice" },
+            ],
+            "agent-fees": [
+              { id: 10021, name: "Property Management Fee" },
+              { id: 10022, name: "Leasing Commission" },
+              { id: 10023, name: "Advertising & Marketing" },
+              { id: 10024, name: "Statement & Admin Fee" },
+            ],
+            "repairs": [
+              { id: 10031, name: "Plumbing Repairs" },
+              { id: 10032, name: "Electrical Work" },
+              { id: 10033, name: "Painting & Decorating" },
+              { id: 10034, name: "Handyman Services" },
+              { id: 10035, name: "Gardening & Lawn Care" },
+            ],
+            "sundry": [
+              { id: 10041, name: "Postage & Stationery" },
+              { id: 10042, name: "Travel & Mileage" },
+              { id: 10043, name: "Bank & Credit Fees" },
+              { id: 10044, name: "Subscriptions & Software" },
+            ],
+            "interest": [
+              { id: 10051, name: "Bank Interest" },
+              { id: 10052, name: "Line of Credit Interest" },
+            ],
+            "borrowing": [
+              { id: 10061, name: "Loan Establishment Fee" },
+              { id: 10062, name: "Valuation Fee" },
+              { id: 10063, name: "Mortgage Broker Fee" },
+              { id: 10064, name: "Mortgage Registration Fee" },
+            ],
+          };
+
+          const mergedOptionsMap: Record<string, { id: number; name: string }[]> = {};
+          for (const rowId of Object.keys(expandableMappings)) {
+            const fetched = optionsMap[rowId] || [];
+            mergedOptionsMap[rowId] = fetched.length > 0 ? fetched : fallbackSubcategories[rowId];
+          }
+
+          if (!cancelled) {
+            setSubcategoryOptionsMap(mergedOptionsMap);
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -392,25 +586,33 @@ export default function LogitFormReview({
 
   const totals = useMemo(() => {
     const incomeAmount = getRowsTotal(rentedIncome, "amount");
-    const incomeUse = getRowsTotal(rentedIncome, "use");
+    const incomeUse = getRowsClaimableTotal(rentedIncome);
+    const rentalExpenseAmount = getRowsTotal(rentedExpenses, "amount");
+    const rentalExpenseUse = getRowsClaimableTotal(rentedExpenses);
+    const borrowingAmount = getRowsTotal(borrowings, "amount");
+    const borrowingUse = getRowsClaimableTotal(borrowings);
+    const depreciationAmount = getRowsTotal(depreciation, "amount");
+    const depreciationUse = getRowsClaimableTotal(depreciation);
+
     const expenseAmount =
-      getRowsTotal(rentedExpenses, "amount") +
-      getRowsTotal(borrowings, "amount") +
-      getRowsTotal(depreciation, "amount");
+      rentalExpenseAmount +
+      borrowingAmount +
+      depreciationAmount;
+
     const expenseUse =
-      getRowsTotal(rentedExpenses, "use") +
-      getRowsTotal(borrowings, "use") +
-      getRowsTotal(depreciation, "use");
+      rentalExpenseUse +
+      borrowingUse +
+      depreciationUse;
 
     return {
       incomeAmount,
       incomeUse,
-      rentalExpenseAmount: getRowsTotal(rentedExpenses, "amount"),
-      rentalExpenseUse: getRowsTotal(rentedExpenses, "use"),
-      borrowingAmount: getRowsTotal(borrowings, "amount"),
-      borrowingUse: getRowsTotal(borrowings, "use"),
-      depreciationAmount: getRowsTotal(depreciation, "amount"),
-      depreciationUse: getRowsTotal(depreciation, "use"),
+      rentalExpenseAmount,
+      rentalExpenseUse,
+      borrowingAmount,
+      borrowingUse,
+      depreciationAmount,
+      depreciationUse,
       expenseAmount,
       expenseUse,
     };
@@ -439,6 +641,91 @@ export default function LogitFormReview({
   ) {
     const updater = (rows: ReviewLine[]) =>
       rows.map((row) => (row.id === id ? { ...row, [key]: value } : row));
+
+    if (group === "income") setRentedIncome(updater);
+    if (group === "expenses") setRentedExpenses(updater);
+    if (group === "borrowings") setBorrowings(updater);
+    if (group === "depreciation") setDepreciation(updater);
+  }
+
+  function onToggleExpand(rowId: string) {
+    setExpandedRows((prev) => {
+      const isExpanded = !prev[rowId];
+
+      if (isExpanded) {
+        const options = subcategoryOptionsMap[rowId] || [];
+
+        const initializeSubs = (rows: ReviewLine[]) =>
+          rows.map((row) => {
+            if (row.id !== rowId) return row;
+
+            // Merge previously saved subcategories with missing options
+            const currentSubs = (row.subcategories ?? []).map((sub) => ({
+              ...sub,
+              amount: sub.amount === "" || !sub.amount ? "0.00" : Number.parseFloat(sub.amount).toFixed(2),
+              use: sub.use === "" || !sub.use ? "0.00" : Number.parseFloat(sub.use).toFixed(2),
+            }));
+            const mergedSubs = [...currentSubs];
+
+            for (const opt of options) {
+              const exists = currentSubs.some(
+                (s) => s.subcategoryId === opt.id || s.label.toLowerCase().trim() === opt.name.toLowerCase().trim()
+              );
+              if (!exists) {
+                mergedSubs.push({
+                  id: crypto.randomUUID(),
+                  subcategoryId: opt.id,
+                  label: opt.name,
+                  amount: "0.00",
+                  use: "0.00",
+                });
+              }
+            }
+
+            // Keep sort order matching options list
+            mergedSubs.sort((a, b) => {
+              const aIdx = options.findIndex((o) => o.id === a.subcategoryId || o.name.toLowerCase().trim() === a.label.toLowerCase().trim());
+              const bIdx = options.findIndex((o) => o.id === b.subcategoryId || o.name.toLowerCase().trim() === b.label.toLowerCase().trim());
+              return aIdx - bIdx;
+            });
+
+            const updatedRow = {
+              ...row,
+              subcategories: mergedSubs,
+            };
+            return syncParentWithSubcategories(updatedRow);
+          });
+
+        setRentedIncome(initializeSubs);
+        setRentedExpenses(initializeSubs);
+        setBorrowings(initializeSubs);
+        setDepreciation(initializeSubs);
+      }
+
+      return { ...prev, [rowId]: isExpanded };
+    });
+  }
+
+  function updateSubcategoryLine(
+    group: "income" | "expenses" | "borrowings" | "depreciation",
+    parentId: string,
+    subId: string,
+    key: "label" | "amount" | "use" | "subcategoryId",
+    value: string | number,
+  ) {
+    const updater = (rows: ReviewLine[]) =>
+      rows.map((row) => {
+        if (row.id !== parentId) return row;
+        const currentSubs = row.subcategories ?? [];
+        const updatedSubs = currentSubs.map((sub) =>
+          sub.id === subId ? { ...sub, [key]: value } : sub
+        );
+
+        return syncParentWithSubcategories({
+          ...row,
+          subcategories: updatedSubs,
+        });
+      });
 
     if (group === "income") setRentedIncome(updater);
     if (group === "expenses") setRentedExpenses(updater);
@@ -503,25 +790,53 @@ export default function LogitFormReview({
           weeks_available: weeksAvailable,
           date_available: dateAvailable,
         },
-        income_rows: rentedIncome.map(({ id, amount, use }) => ({
+        income_rows: rentedIncome.map(({ id, amount, use, subcategories }) => ({
           id,
-          amount,
-          use,
+          amount: amount === "" || !amount ? "0" : amount,
+          use: use === "" || !use ? "0" : use,
+          subcategories: subcategories
+            ? subcategories.map((s) => ({
+              ...s,
+              amount: s.amount === "" || !s.amount ? "0" : s.amount,
+              use: s.use === "" || !s.use ? "0" : s.use,
+            }))
+            : undefined,
         })),
-        expense_rows: rentedExpenses.map(({ id, amount, use }) => ({
+        expense_rows: rentedExpenses.map(({ id, amount, use, subcategories }) => ({
           id,
-          amount,
-          use,
+          amount: amount === "" || !amount ? "0" : amount,
+          use: use === "" || !use ? "0" : use,
+          subcategories: subcategories
+            ? subcategories.map((s) => ({
+              ...s,
+              amount: s.amount === "" || !s.amount ? "0" : s.amount,
+              use: s.use === "" || !s.use ? "0" : s.use,
+            }))
+            : undefined,
         })),
-        borrowing_rows: borrowings.map(({ id, amount, use }) => ({
+        borrowing_rows: borrowings.map(({ id, amount, use, subcategories }) => ({
           id,
-          amount,
-          use,
+          amount: amount === "" || !amount ? "0" : amount,
+          use: use === "" || !use ? "0" : use,
+          subcategories: subcategories
+            ? subcategories.map((s) => ({
+              ...s,
+              amount: s.amount === "" || !s.amount ? "0" : s.amount,
+              use: s.use === "" || !s.use ? "0" : s.use,
+            }))
+            : undefined,
         })),
-        depreciation_rows: depreciation.map(({ id, amount, use }) => ({
+        depreciation_rows: depreciation.map(({ id, amount, use, subcategories }) => ({
           id,
-          amount,
-          use,
+          amount: amount === "" || !amount ? "0" : amount,
+          use: use === "" || !use ? "0" : use,
+          subcategories: subcategories
+            ? subcategories.map((s) => ({
+              ...s,
+              amount: s.amount === "" || !s.amount ? "0" : s.amount,
+              use: s.use === "" || !s.use ? "0" : s.use,
+            }))
+            : undefined,
         })),
       };
       const res = await fetch(
@@ -700,6 +1015,12 @@ export default function LogitFormReview({
                 placeholder="$"
                 value={acquisitionCost}
                 onChange={(event) => setAcquisitionCost(event.target.value)}
+                onBlur={(event) => {
+                  const parsed = Number.parseFloat(event.target.value);
+                  if (Number.isFinite(parsed)) {
+                    setAcquisitionCost(parsed.toFixed(2));
+                  }
+                }}
               />
             </label>
             <label className="entity-wizard-label">
@@ -719,6 +1040,12 @@ export default function LogitFormReview({
                 placeholder="$"
                 value={disposalProceeds}
                 onChange={(event) => setDisposalProceeds(event.target.value)}
+                onBlur={(event) => {
+                  const parsed = Number.parseFloat(event.target.value);
+                  if (Number.isFinite(parsed)) {
+                    setDisposalProceeds(parsed.toFixed(2));
+                  }
+                }}
               />
             </label>
           </div>
@@ -869,6 +1196,11 @@ export default function LogitFormReview({
           totalAmount={totals.incomeAmount}
           totalUse={totals.incomeUse}
           onChange={(id, key, value) => updateLine("income", id, key, value)}
+          expandedRows={expandedRows}
+          subcategoryOptionsMap={subcategoryOptionsMap}
+          onToggleExpand={onToggleExpand}
+          onSubcategoryChange={updateSubcategoryLine}
+          group="income"
         />
 
         <LogitTable
@@ -880,6 +1212,11 @@ export default function LogitFormReview({
           totalAmount={totals.rentalExpenseAmount}
           totalUse={totals.rentalExpenseUse}
           onChange={(id, key, value) => updateLine("expenses", id, key, value)}
+          expandedRows={expandedRows}
+          subcategoryOptionsMap={subcategoryOptionsMap}
+          onToggleExpand={onToggleExpand}
+          onSubcategoryChange={updateSubcategoryLine}
+          group="expenses"
         />
 
         <LogitTable
@@ -893,6 +1230,11 @@ export default function LogitFormReview({
           onChange={(id, key, value) =>
             updateLine("borrowings", id, key, value)
           }
+          expandedRows={expandedRows}
+          subcategoryOptionsMap={subcategoryOptionsMap}
+          onToggleExpand={onToggleExpand}
+          onSubcategoryChange={updateSubcategoryLine}
+          group="borrowings"
         />
 
         <LogitTable
@@ -906,6 +1248,11 @@ export default function LogitFormReview({
           onChange={(id, key, value) =>
             updateLine("depreciation", id, key, value)
           }
+          expandedRows={expandedRows}
+          subcategoryOptionsMap={subcategoryOptionsMap}
+          onToggleExpand={onToggleExpand}
+          onSubcategoryChange={updateSubcategoryLine}
+          group="depreciation"
         />
 
         <div className="logit-grand-total">
@@ -941,6 +1288,11 @@ function LogitTable({
   totalAmount,
   totalUse,
   onChange,
+  expandedRows,
+  subcategoryOptionsMap,
+  onToggleExpand,
+  onSubcategoryChange,
+  group,
 }: {
   title: string;
   subtitle: string;
@@ -950,6 +1302,17 @@ function LogitTable({
   totalAmount: number;
   totalUse: number;
   onChange: (id: string, key: "amount" | "use", value: string) => void;
+  expandedRows: Record<string, boolean>;
+  subcategoryOptionsMap: Record<string, { id: number; name: string }[]>;
+  onToggleExpand: (rowId: string) => void;
+  onSubcategoryChange: (
+    group: "income" | "expenses" | "borrowings" | "depreciation",
+    parentId: string,
+    subId: string,
+    key: "label" | "amount" | "use" | "subcategoryId",
+    value: string | number
+  ) => void;
+  group: "income" | "expenses" | "borrowings" | "depreciation";
 }) {
   return (
     <section className="entity-wizard-card logit-card">
@@ -963,31 +1326,128 @@ function LogitTable({
           <span>Amount</span>
           <span>Use (%)</span>
         </div>
-        {rows.map((row) => (
-          <div className="logit-table-row" role="row" key={row.id}>
-            <span>
-              {row.expandable && <b aria-hidden="true">+</b>}
-              {row.label}
-            </span>
-            <input
-              type="number"
-              min="0"
-              placeholder="0.00"
-              value={row.amount}
-              onChange={(event) =>
-                onChange(row.id, "amount", event.target.value)
-              }
-            />
-            <input
-              type="number"
-              min="0"
-              max="100"
-              placeholder="0.00"
-              value={row.use}
-              onChange={(event) => onChange(row.id, "use", event.target.value)}
-            />
-          </div>
-        ))}
+        {rows.map((row) => {
+          const hasSubs = !!(row.subcategories && row.subcategories.length > 0);
+          const isExpanded = !!expandedRows[row.id];
+
+          return (
+            <div key={row.id} className="logit-row-group">
+              <div className="logit-table-row" role="row">
+                <span>
+                  {row.expandable && (
+                    <button
+                      type="button"
+                      className={`logit-expand-btn ${isExpanded ? "is-expanded" : ""}`}
+                      onClick={() => onToggleExpand(row.id)}
+                      aria-label={isExpanded ? "Collapse subcategories" : "Expand subcategories"}
+                    >
+                      {isExpanded ? "−" : "+"}
+                    </button>
+                  )}
+                  {row.label}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0.00"
+                  value={row.amount || "0.00"}
+                  readOnly={row.expandable || hasSubs}
+                  className={(row.expandable || hasSubs) ? "logit-parent-input-readonly" : ""}
+                  onChange={(event) =>
+                    onChange(row.id, "amount", event.target.value)
+                  }
+                  onBlur={(event) => {
+                    const parsed = Number.parseFloat(event.target.value);
+                    const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
+                    onChange(row.id, "amount", formatted);
+                  }}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="0.00"
+                  value={row.use || "0.00"}
+                  readOnly={row.expandable || hasSubs}
+                  className={(row.expandable || hasSubs) ? "logit-parent-input-readonly" : ""}
+                  onChange={(event) =>
+                    onChange(row.id, "use", event.target.value)
+                  }
+                  onBlur={(event) => {
+                    const parsed = Number.parseFloat(event.target.value);
+                    const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
+                    onChange(row.id, "use", formatted);
+                  }}
+                />
+              </div>
+
+              {row.expandable && isExpanded && (
+                <div className="logit-subcategories-container">
+                  {(row.subcategories ?? []).map((sub) => {
+                    return (
+                      <div className="logit-subcategory-row" key={sub.id} role="row">
+                        <span className="logit-subcategory-label">{sub.label}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0.00"
+                          value={sub.amount || "0.00"}
+                          onChange={(event) =>
+                            onSubcategoryChange(
+                              group,
+                              row.id,
+                              sub.id,
+                              "amount",
+                              event.target.value
+                            )
+                          }
+                          onBlur={(event) => {
+                            const parsed = Number.parseFloat(event.target.value);
+                            const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
+                            onSubcategoryChange(
+                              group,
+                              row.id,
+                              sub.id,
+                              "amount",
+                              formatted
+                            );
+                          }}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="0.00"
+                          value={sub.use || "0.00"}
+                          onChange={(event) =>
+                            onSubcategoryChange(
+                              group,
+                              row.id,
+                              sub.id,
+                              "use",
+                              event.target.value
+                            )
+                          }
+                          onBlur={(event) => {
+                            const parsed = Number.parseFloat(event.target.value);
+                            const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
+                            onSubcategoryChange(
+                              group,
+                              row.id,
+                              sub.id,
+                              "use",
+                              formatted
+                            );
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div className="logit-table-total" role="row">
           <strong>{totalLabel}</strong>
           <span>{formatMoney(totalAmount)}</span>

@@ -1,4 +1,5 @@
 import { userPool } from "./cognito";
+import { clearSessionBootstrap } from "./sessionBootstrap";
 
 export function logout() {
   const user = userPool.getCurrentUser();
@@ -9,4 +10,5 @@ export function logout() {
 
   document.cookie = "idToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   document.cookie = "role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  clearSessionBootstrap();
 }
