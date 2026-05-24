@@ -3063,11 +3063,14 @@ export function AddTransactionView({
 
   function handleSplitToggle(checked: boolean) {
     if (checked && !canSplitTransaction) {
-      setSubmitError(
-        properties.length === 1
-          ? "Split transactions need at least two properties in this entity. This entity only has one property."
-          : "Add at least two properties to this entity before creating a split transaction.",
-      );
+      const msg = properties.length === 1
+        ? "Split transactions need at least two properties in this entity. This entity only has one property."
+        : "Add at least two properties to this entity before creating a split transaction.";
+      if (submitError === msg) {
+        setSubmitError("");
+      } else {
+        setSubmitError(msg);
+      }
       return;
     }
     setSubmitError("");
@@ -3092,6 +3095,7 @@ export function AddTransactionView({
 
   function handleEntityPicked(id: string) {
     setActiveEntityId(id);
+    setSubmitError("");
     // If an actual entity was chosen, close the entity editor and
     // open the property editor. If the empty/placeholder option was
     // selected, keep the entity editor open so the user can choose again.
@@ -3112,11 +3116,13 @@ export function AddTransactionView({
     setPropertyId("");
     setIsEditingProperty(true);
     setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+    setSubmitError("");
   }
 
   function handlePropertyPicked(id: string) {
     setPropertyId(id);
     if (id) setIsEditingProperty(false);
+    setSubmitError("");
   }
 
   function handleExtracted(data: ExtractedDocumentData, docId: string) {
