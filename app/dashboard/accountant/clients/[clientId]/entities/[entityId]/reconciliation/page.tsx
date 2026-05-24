@@ -239,6 +239,8 @@ export default function AccountantReconciliationPage() {
   const [reconPage, setReconPage] = useState(1);
   const RECON_PAGE_SIZE = 20;
   const [toastReconId, setToastReconId] = useState<string | null>(null);
+  const [completingRecon, setCompletingRecon] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   // console.log({ confirmedMatches });
 
@@ -1647,25 +1649,45 @@ export default function AccountantReconciliationPage() {
                 </svg>
                 Export CSV
               </button>
+              {completeError && (
+                <span style={{ fontSize: 12, color: "#dc2626" }} role="alert">
+                  {completeError}
+                </span>
+              )}
               <button
                 type="button"
+                disabled={completingRecon || entityReconciled}
                 onClick={async () => {
-                  const token = getToken();
-                  await fetch(`/api/entities/${entityId}`, {
-                    method: "PATCH",
-                    headers: {
-                      "Content-Type": "application/json",
-                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                    },
-                    body: JSON.stringify({ reconciled: true }),
-                  });
-                  playReconSound();
-                  router.push(
-                    `/dashboard/accountant/clients/${clientId}/entities/${entityId}`,
-                  );
+                  if (!window.confirm("Mark this entity as reconciled? You won't be able to edit transactions after this.")) return;
+                  setCompleteError(null);
+                  setCompletingRecon(true);
+                  try {
+                    const token = await getFreshToken();
+                    const res = await fetch(`/api/entities/${entityId}`, {
+                      method: "PATCH",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ reconciled: true }),
+                    });
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({})) as { message?: string };
+                      setCompleteError(body.message ?? "Failed to complete reconciliation.");
+                      return;
+                    }
+                    playReconSound();
+                    router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}`);
+                  } catch {
+                    setCompleteError("Something went wrong. Please try again.");
+                  } finally {
+                    setCompletingRecon(false);
+                  }
                 }}
               >
-                Complete Reconciliation
+                {completingRecon ? (
+                  <><span className="recon-btn-spinner" aria-hidden="true" />Completing…</>
+                ) : "Complete Reconciliation"}
               </button>
             </div>
           </footer>
