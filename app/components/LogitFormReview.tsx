@@ -56,6 +56,7 @@ const incomeRows: ReviewLine[] = [
     label: "Other rental income",
     amount: "0.00",
     use: "0.00",
+    expandable: true,
   },
 ];
 
@@ -472,15 +473,26 @@ export default function LogitFormReview({
         }
 
         // Fetch categories and subcategories
-        const categoriesRes = await fetch(
-          `/api/transactions/categories?type=expense`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        const [categoriesRes, revenueRes] = await Promise.all([
+          fetch(`/api/transactions/categories?type=expense`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/transactions/categories?type=revenue`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
+        let categories: CoreTransactionCategory[] = [];
         if (!cancelled && categoriesRes.ok) {
           const catData = (await categoriesRes.json()) as { items?: CoreTransactionCategory[] };
-          const categories = catData.items ?? [];
+          categories = [...categories, ...(catData.items ?? [])];
+        }
+        if (!cancelled && revenueRes.ok) {
+          const revData = (await revenueRes.json()) as { items?: CoreTransactionCategory[] };
+          categories = [...categories, ...(revData.items ?? [])];
+        }
 
+        if (!cancelled && (categoriesRes.ok || revenueRes.ok)) {
           const expandableMappings: Record<string, string> = {
             "insurance": "insurance",
             "legal-fees": "legal fees",
@@ -489,6 +501,7 @@ export default function LogitFormReview({
             "sundry": "sundry rental expenses",
             "interest": "interest on loans - tbd",
             "borrowing": "borrowing expenses",
+            "other-rental-income": "other rental income",
           };
 
           const optionsMap: Record<string, { id: number; name: string }[]> = {};
@@ -555,6 +568,12 @@ export default function LogitFormReview({
               { id: 10062, name: "Valuation Fee" },
               { id: 10063, name: "Mortgage Broker Fee" },
               { id: 10064, name: "Mortgage Registration Fee" },
+            ],
+            "other-rental-income": [
+              { id: 10071, name: "Shared Property Services" },
+              { id: 10072, name: "Solar Feed-in Tariffs" },
+              { id: 10073, name: "Water Usage Reimbursements" },
+              { id: 10074, name: "Insurance Claim Payouts" },
             ],
           };
 
@@ -912,11 +931,7 @@ export default function LogitFormReview({
         </div>
       </header>
 
-      {loadError && <p className="logit-alert is-error">{loadError}</p>}
-      {formError && <p className="logit-alert is-error">{formError}</p>}
-      {successMessage && (
-        <p className="logit-alert is-success">{successMessage}</p>
-      )}
+
 
       <form
         className="logit-review-form"
@@ -1015,6 +1030,12 @@ export default function LogitFormReview({
                 placeholder="$"
                 value={acquisitionCost}
                 onChange={(event) => setAcquisitionCost(event.target.value)}
+                onFocus={(event) => {
+                  const val = event.target.value;
+                  if (val === "0" || val === "0.00" || val === "0.0") {
+                    setAcquisitionCost("");
+                  }
+                }}
                 onBlur={(event) => {
                   const parsed = Number.parseFloat(event.target.value);
                   if (Number.isFinite(parsed)) {
@@ -1040,6 +1061,12 @@ export default function LogitFormReview({
                 placeholder="$"
                 value={disposalProceeds}
                 onChange={(event) => setDisposalProceeds(event.target.value)}
+                onFocus={(event) => {
+                  const val = event.target.value;
+                  if (val === "0" || val === "0.00" || val === "0.0") {
+                    setDisposalProceeds("");
+                  }
+                }}
                 onBlur={(event) => {
                   const parsed = Number.parseFloat(event.target.value);
                   if (Number.isFinite(parsed)) {
@@ -1254,12 +1281,16 @@ export default function LogitFormReview({
           onSubcategoryChange={updateSubcategoryLine}
           group="depreciation"
         />
-
         <div className="logit-grand-total">
           <strong>Total Expenses</strong>
           <span>{formatMoney(totals.expenseAmount)}</span>
           <span>{formatMoney(totals.expenseUse)}</span>
         </div>
+        {loadError && <p className="logit-alert is-error">{loadError}</p>}
+        {formError && <p className="logit-alert is-error">{formError}</p>}
+        {successMessage && (
+          <p className="logit-alert is-success">{successMessage}</p>
+        )}
 
         <div className="logit-form-actions">
           <Link href={backHref} className="entity-wizard-secondary">
@@ -1350,12 +1381,18 @@ function LogitTable({
                   type="number"
                   min="0"
                   placeholder="0.00"
-                  value={row.amount || "0.00"}
+                  value={row.amount ?? ""}
                   readOnly={row.expandable || hasSubs}
                   className={(row.expandable || hasSubs) ? "logit-parent-input-readonly" : ""}
                   onChange={(event) =>
                     onChange(row.id, "amount", event.target.value)
                   }
+                  onFocus={(event) => {
+                    const val = event.target.value;
+                    if (val === "0" || val === "0.00" || val === "0.0") {
+                      onChange(row.id, "amount", "");
+                    }
+                  }}
                   onBlur={(event) => {
                     const parsed = Number.parseFloat(event.target.value);
                     const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
@@ -1367,12 +1404,18 @@ function LogitTable({
                   min="0"
                   max="100"
                   placeholder="0.00"
-                  value={row.use || "0.00"}
+                  value={row.use ?? ""}
                   readOnly={row.expandable || hasSubs}
                   className={(row.expandable || hasSubs) ? "logit-parent-input-readonly" : ""}
                   onChange={(event) =>
                     onChange(row.id, "use", event.target.value)
                   }
+                  onFocus={(event) => {
+                    const val = event.target.value;
+                    if (val === "0" || val === "0.00" || val === "0.0") {
+                      onChange(row.id, "use", "");
+                    }
+                  }}
                   onBlur={(event) => {
                     const parsed = Number.parseFloat(event.target.value);
                     const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
@@ -1391,7 +1434,7 @@ function LogitTable({
                           type="number"
                           min="0"
                           placeholder="0.00"
-                          value={sub.amount || "0.00"}
+                          value={sub.amount ?? ""}
                           onChange={(event) =>
                             onSubcategoryChange(
                               group,
@@ -1401,6 +1444,18 @@ function LogitTable({
                               event.target.value
                             )
                           }
+                          onFocus={(event) => {
+                            const val = event.target.value;
+                            if (val === "0" || val === "0.00" || val === "0.0") {
+                              onSubcategoryChange(
+                                group,
+                                row.id,
+                                sub.id,
+                                "amount",
+                                ""
+                              );
+                            }
+                          }}
                           onBlur={(event) => {
                             const parsed = Number.parseFloat(event.target.value);
                             const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
@@ -1418,7 +1473,7 @@ function LogitTable({
                           min="0"
                           max="100"
                           placeholder="0.00"
-                          value={sub.use || "0.00"}
+                          value={sub.use ?? ""}
                           onChange={(event) =>
                             onSubcategoryChange(
                               group,
@@ -1428,6 +1483,18 @@ function LogitTable({
                               event.target.value
                             )
                           }
+                          onFocus={(event) => {
+                            const val = event.target.value;
+                            if (val === "0" || val === "0.00" || val === "0.0") {
+                              onSubcategoryChange(
+                                group,
+                                row.id,
+                                sub.id,
+                                "use",
+                                ""
+                              );
+                            }
+                          }}
                           onBlur={(event) => {
                             const parsed = Number.parseFloat(event.target.value);
                             const formatted = Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";

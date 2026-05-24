@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, useRef } from "react";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
@@ -227,6 +227,8 @@ function StaticSelect({
   const [isOpen, setIsOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
 
+  const selectRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function closeIfAnotherOpened(event: Event) {
       if (
@@ -249,6 +251,21 @@ function StaticSelect({
     }
   }, [dropdownId, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
     <div className={`transaction-field ${className}`}>
       {label && (
@@ -258,6 +275,7 @@ function StaticSelect({
         </span>
       )}
       <div
+        ref={selectRef}
         className={`property-status-select transaction-select${isOpen ? " is-open" : ""
           }${disabled ? " is-disabled" : ""}`}
         onBlur={(event) => {
@@ -478,6 +496,7 @@ function TransactionDetailPopup({
       : [{ id: makeSplitRowId(), propertyId: "", amount: String(row.grossAmount || "") }],
   );
   const [editError, setEditError] = useState("");
+  const [isOpeningInvoice, setIsOpeningInvoice] = useState(false);
 
   useEffect(() => {
     const source = detail ? transactionDetailToRow(detail, row) : row;
@@ -539,6 +558,35 @@ function TransactionDetailPopup({
     setEditError("");
   }, [detail, row]);
 
+  async function handleOpenInvoice() {
+    const docId = detail?.documentId || (display.metadata.document_id as string | undefined);
+    if (!docId) {
+      alert("No invoice document ID found.");
+      return;
+    }
+
+    setIsOpeningInvoice(true);
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        alert("You're signed out.");
+        return;
+      }
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch(`/api/documents/${encodeURIComponent(docId)}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to get download URL");
+      const data = (await res.json()) as { download_url: string };
+      window.open(data.download_url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to open invoice:", err);
+      alert("Failed to open the attached invoice. Please try again.");
+    } finally {
+      setIsOpeningInvoice(false);
+    }
+  }
+
   const display = detail ? transactionDetailToRow(detail, row) : row;
   const isRevenue = display.type === "revenue";
   const splitRows =
@@ -576,6 +624,10 @@ function TransactionDetailPopup({
       value: String(subcategory.id),
     })),
   ];
+  const showSubcategorySelect =
+    !!categoryId &&
+    (subcategories.length === 0 ||
+      subcategories.some((s) => s.name.toLowerCase() !== "general"));
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
     ...properties.map((property) => ({ label: property.name, value: property.id })),
@@ -639,7 +691,14 @@ function TransactionDetailPopup({
       );
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
-      if (!cancelled) setSubcategories(data.items || []);
+      if (!cancelled) {
+        const loaded = data.items || [];
+        setSubcategories(loaded);
+        const actual = loaded.filter((s) => s.name.toLowerCase() !== "general");
+        if (actual.length === 0 && loaded.length > 0) {
+          setSubcategoryId(loaded[0].id);
+        }
+      }
     }
     loadSubcategories();
     return () => {
@@ -930,15 +989,19 @@ function TransactionDetailPopup({
                     setSubcategoryId(null);
                   }}
                 />
-                <StaticSelect
-                  label="Sub-Category"
-                  required
-                  value={subcategoryId == null ? "" : String(subcategoryId)}
-                  options={subcategorySelectOptions}
-                  onChange={(value) =>
-                    setSubcategoryId(value ? Number(value) : null)
-                  }
-                />
+                {showSubcategorySelect && (
+                  <div className="transaction-field-animate">
+                    <StaticSelect
+                      label="Sub-Category"
+                      required
+                      value={subcategoryId == null ? "" : String(subcategoryId)}
+                      options={subcategorySelectOptions}
+                      onChange={(value) =>
+                        setSubcategoryId(value ? Number(value) : null)
+                      }
+                    />
+                  </div>
+                )}
                 <label className="transaction-field">
                   <span className="transaction-field-label">Invoice Date<em>*</em></span>
                   <input
@@ -1078,7 +1141,7 @@ function TransactionDetailPopup({
             </div>
           ) : (
             <>
-              <div className="transaction-detail-grid is-three">
+              <div className={`transaction-detail-grid ${display.subcategoryName && display.subcategoryName.toLowerCase() !== "general" ? "is-three" : "is-two"}`}>
                 <DetailField label="Type">
                   <span
                     className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
@@ -1088,7 +1151,11 @@ function TransactionDetailPopup({
                   </span>
                 </DetailField>
                 <DetailField label="Category" value={display.categoryName} />
-                <DetailField label="Subcategory" value={display.subcategoryName} />
+                {display.subcategoryName && display.subcategoryName.toLowerCase() !== "general" && (
+                  <div className="transaction-field-animate">
+                    <DetailField label="Subcategory" value={display.subcategoryName} />
+                  </div>
+                )}
               </div>
 
               <DetailField label="Date" value={formatInvoiceDate(display.invoiceDate)} />
@@ -1168,7 +1235,11 @@ function TransactionDetailPopup({
                 <div key={split.id} className="transaction-detail-split-card">
                   <DetailField label="Property" value={split.propertyName || "—"} />
                   <DetailField label="Category" value={split.category} />
-                  <DetailField label="Subcategory" value={split.subcategory} />
+                  {split.subcategory && split.subcategory.toLowerCase() !== "general" && (
+                    <div className="transaction-field-animate">
+                      <DetailField label="Subcategory" value={split.subcategory} />
+                    </div>
+                  )}
                   <DetailField
                     label={`Amount (${split.percentage.toFixed(0)}%)`}
                     value={formatCurrency(split.amount)}
@@ -1179,12 +1250,31 @@ function TransactionDetailPopup({
           ) : null}
 
           <DetailField label="Invoice Attached">
-            <button type="button" className="transaction-invoice-chip" disabled={!invoiceName}>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 3h7l4 4v14H7z" />
-                <path d="M14 3v5h5" />
-              </svg>
-              {invoiceName || "No invoice attached"}
+            <button
+              type="button"
+              className="transaction-invoice-chip"
+              disabled={!invoiceName || isOpeningInvoice}
+              onClick={handleOpenInvoice}
+            >
+              {isOpeningInvoice ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                  style={{ animation: "spin 0.9s linear infinite" }}
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 3h7l4 4v14H7z" />
+                  <path d="M14 3v5h5" />
+                </svg>
+              )}
+              {isOpeningInvoice ? "Opening Invoice…" : (invoiceName || "No invoice attached")}
             </button>
           </DetailField>
 
@@ -2909,8 +2999,14 @@ export function AddTransactionView({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
       if (!cancelled) {
-        setSubcategories(data.items || []);
-        setSubcategoryId(null);
+        const loaded = data.items || [];
+        setSubcategories(loaded);
+        const actual = loaded.filter((s) => s.name.toLowerCase() !== "general");
+        if (actual.length === 0 && loaded.length > 0) {
+          setSubcategoryId(loaded[0].id);
+        } else {
+          setSubcategoryId(null);
+        }
       }
     }
     loadSubcategories();
@@ -3746,6 +3842,10 @@ export function AddTransactionView({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
   ];
+  const showSubcategorySelect =
+    !!categoryId &&
+    (subcategories.length === 0 ||
+      subcategories.some((s) => s.name.toLowerCase() !== "general"));
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: p.name,
     value: p.id,
@@ -3921,16 +4021,20 @@ export function AddTransactionView({
               onChange={(value) => setCategoryId(value ? Number(value) : null)}
               disabled={lockAssetPurchaseCategory}
             />
-            <StaticSelect
-              label="Sub-Category"
-              required
-              value={subcategoryId == null ? "" : String(subcategoryId)}
-              options={subcategorySelectOptions}
-              onChange={(value) =>
-                setSubcategoryId(value ? Number(value) : null)
-              }
-              disabled={lockAssetPurchaseCategory}
-            />
+            {showSubcategorySelect && (
+              <div className="transaction-field-animate">
+                <StaticSelect
+                  label="Sub-Category"
+                  required
+                  value={subcategoryId == null ? "" : String(subcategoryId)}
+                  options={subcategorySelectOptions}
+                  onChange={(value) =>
+                    setSubcategoryId(value ? Number(value) : null)
+                  }
+                  disabled={lockAssetPurchaseCategory}
+                />
+              </div>
+            )}
             <label className={"transaction-field" + flashClass("invoiceDate")}>
               <span className="transaction-field-label">
                 Invoice Date<em>*</em>
@@ -4283,11 +4387,17 @@ function RuleModal({
       .then((r) => r.ok ? r.json() : null)
       .then((data: { items?: CoreTransactionSubcategory[] } | null) => {
         if (!cancelled && data) {
-          setSubcategories(data.items ?? []);
-          setSubcategoryId((prev) => {
-            const valid = (data.items ?? []).some((c) => String(c.id) === prev);
-            return valid ? prev : "";
-          });
+          const loaded = data.items ?? [];
+          setSubcategories(loaded);
+          const actual = loaded.filter((s) => s.name.toLowerCase() !== "general");
+          if (actual.length === 0 && loaded.length > 0) {
+            setSubcategoryId(String(loaded[0].id));
+          } else {
+            setSubcategoryId((prev) => {
+              const valid = loaded.some((c) => String(c.id) === prev);
+              return valid ? prev : "";
+            });
+          }
         }
       })
       .catch(() => null);
@@ -4390,6 +4500,10 @@ function RuleModal({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((c) => ({ label: c.name, value: String(c.id) })),
   ];
+  const showSubcategorySelect =
+    !!categoryId &&
+    (subcategories.length === 0 ||
+      subcategories.some((s) => s.name.toLowerCase() !== "general"));
 
   const fieldSelectOptions: SelectOption[] = RULE_FIELDS.map((f) => ({
     label: RULE_FIELD_LABELS[f] ?? f,
@@ -4527,13 +4641,17 @@ function RuleModal({
             options={categorySelectOptions}
             onChange={(v) => { setCategoryId(v); setSubcategoryId(""); }}
           />
-          <StaticSelect
-            label="Sub Category"
-            required
-            value={subcategoryId}
-            options={subcategorySelectOptions}
-            onChange={setSubcategoryId}
-          />
+          {showSubcategorySelect && (
+            <div className="transaction-field-animate">
+              <StaticSelect
+                label="Sub Category"
+                required
+                value={subcategoryId}
+                options={subcategorySelectOptions}
+                onChange={setSubcategoryId}
+              />
+            </div>
+          )}
 
           <ToggleCard
             checked={autoConfirm}
