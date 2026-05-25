@@ -8213,10 +8213,22 @@ p.darkBg {
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 3px 8px rgba(16, 24, 40, 0.08);
+  transition: all 0.2s ease-in-out;
+}
+
+.transaction-invoice-chip:not(:disabled) {
+  cursor: pointer;
+}
+
+.transaction-invoice-chip:not(:disabled):hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .transaction-invoice-chip:disabled {
   color: #667085;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .transaction-invoice-chip svg,
@@ -10600,6 +10612,21 @@ p.darkBg {
   background-color: #2f80ed;
   border-radius: 3px;
   transition: width 0.15s ease-out;
+}
+
+@keyframes transactionFieldFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.transaction-field-animate {
+  animation: transactionFieldFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 
