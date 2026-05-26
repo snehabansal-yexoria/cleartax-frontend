@@ -1,9 +1,14 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, useId, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession } from "../../../../src/lib/session";
 import Link from "next/link";
+import {
+  dropdownRegistryEvent,
+  announceDropdownOpen,
+  isDropdownRegistryEvent,
+} from "../../../../src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -66,6 +71,165 @@ function buildInviteLink(params: {
   )}`;
 }
 
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '14px', height: '14px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+type SelectOption = {
+  label: string;
+  value: string;
+};
+
+type StaticSelectProps = {
+  label?: string;
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+  triggerClassName?: string;
+  disabled?: boolean;
+  horizontal?: boolean;
+};
+
+function StaticSelect({
+  label,
+  value,
+  options,
+  onChange,
+  placeholder,
+  required,
+  className = "",
+  triggerClassName = "",
+  disabled = false,
+  horizontal = false,
+}: StaticSelectProps) {
+  const reactId = useId();
+  const dropdownId = `transaction-select-${reactId}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (
+        isDropdownRegistryEvent(event) &&
+        event.detail?.id &&
+        event.detail.id !== dropdownId
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, [dropdownId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      announceDropdownOpen(dropdownId);
+    }
+  }, [dropdownId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      className={`transaction-field ${className}`}
+      style={{
+        minWidth: '200px',
+        ...(horizontal && {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: '12px',
+          minWidth: 'fit-content',
+        }),
+      }}
+    >
+      {label && (
+        <span
+          className="transaction-field-label"
+          style={horizontal ? { margin: 0, whiteSpace: 'nowrap' } : undefined}
+        >
+          {label}
+          {required && <em>*</em>}
+        </span>
+      )}
+      <div
+        ref={selectRef}
+        className={`property-status-select transaction-select${isOpen ? " is-open" : ""
+          }${disabled ? " is-disabled" : ""}`}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            setIsOpen(false);
+          }
+        }}
+      >
+        <button
+          type="button"
+          className={triggerClassName || "property-status-trigger"}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) {
+              setIsOpen((current) => !current);
+            }
+          }}
+        >
+          <span>{selected?.label || placeholder || "Select"}</span>
+          <ChevronIcon />
+        </button>
+        {isOpen && !disabled && (
+          <div className="property-status-menu" role="listbox" style={{ zIndex: 50 }}>
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={value === option.value}
+                className={value === option.value ? "is-selected" : ""}
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {value === option.value && (
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+                    <path d="M5 12l4 4 10-10" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AccountantClientsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -86,6 +250,8 @@ function AccountantClientsContent() {
     email: "",
     phoneNumber: "",
   });
+  const [pageSize, setPageSize] = useState<string>("20");
+  const [sortBy, setSortBy] = useState<string>("properties");
 
   useEffect(() => {
     if (searchParams.get("invite") === "1") {
@@ -141,7 +307,7 @@ function AccountantClientsContent() {
           if (!cancelled) setMyClients(data.clients || []);
         })
         .catch(() => { if (!cancelled) setMyClients([]); });
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => { cancelled = true; };
   }, []);
@@ -163,6 +329,22 @@ function AccountantClientsContent() {
         client.email.toLowerCase().includes(query),
     );
   }, [allClients, myClients, currentTab, searchValue]);
+
+  const sortedClients = useMemo(() => {
+    return [...visibleClients].sort((a, b) => {
+      if (sortBy === "name-asc") {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === "name-desc") {
+        return b.name.localeCompare(a.name);
+      }
+      return 0;
+    });
+  }, [visibleClients, sortBy]);
+
+  const limit = pageSize === "all" ? sortedClients.length : Number(pageSize);
+  const displayedClients = useMemo(() => {
+    return sortedClients.slice(0, limit);
+  }, [sortedClients, limit]);
 
   function toggleClientSelection(clientId: string) {
     const client = (allClients ?? []).find((item) => item.id === clientId);
@@ -214,8 +396,7 @@ function AccountantClientsContent() {
       }
 
       setAssignMessage(
-        `${data.assignedCount || selectedClientIds.length} client${
-          (data.assignedCount || selectedClientIds.length) === 1 ? "" : "s"
+        `${data.assignedCount || selectedClientIds.length} client${(data.assignedCount || selectedClientIds.length) === 1 ? "" : "s"
         } added to My Clients.`,
       );
       setSelectedClientIds([]);
@@ -294,45 +475,46 @@ function AccountantClientsContent() {
   }
 
   return (
-      <section className="accountant-clients-page">
-        <div className="accountant-clients-topbar">
-          <div>
-            <h1>All Clients</h1>
-            <p>Manage and view all your property clients</p>
-          </div>
-
-          <button
-            type="button"
-            className="accountant-primary-cta"
-            onClick={() => {
-              setTemporaryPassword("");
-              setInviteLink("");
-              setInviteSuccess(false);
-              setInviteDrawerOpen(true);
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
-            </svg>
-            Invite Client
-          </button>
+    <section className="accountant-clients-page">
+      <div className="accountant-clients-topbar">
+        <div>
+          <h1>All Clients</h1>
+          <p>Manage and view all your property clients</p>
         </div>
 
-        <div className="accountant-client-tabs">
-          <button
-            type="button"
-            className={currentTab === "all" ? "is-active" : ""}
-            onClick={() => {
-              setCurrentTab("all");
-              setSelectedClientIds([]);
-              setAssignMessage("");
-            }}
-          >
-            All Clients
-            <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant).length)}</span>
-          </button>
-           <Link href="/dashboard/accountant/clients?tab=mine">
+        <button
+          type="button"
+          className="accountant-primary-cta"
+          onClick={() => {
+            setTemporaryPassword("");
+            setInviteLink("");
+            setInviteSuccess(false);
+            setInviteDrawerOpen(true);
+          }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          Invite Client
+        </button>
+      </div>
+
+      <div className="accountant-client-tabs">
+        <button
+          type="button"
+          className={currentTab === "all" ? "is-active" : ""}
+          onClick={() => {
+            setCurrentTab("all");
+            setSelectedClientIds([]);
+            setAssignMessage("");
+            setPageSize("20");
+          }}
+        >
+          All Clients
+          <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant).length)}</span>
+        </button>
+        <Link href="/dashboard/accountant/clients?tab=mine">
           <button
             type="button"
             className={currentTab === "mine" ? "is-active" : ""}
@@ -340,346 +522,384 @@ function AccountantClientsContent() {
               setCurrentTab("mine");
               setSelectedClientIds([]);
               setAssignMessage("");
+              setPageSize("20");
             }}
           >
             My Clients
             <span>{myClients === null ? "…" : myClients.length}</span>
           </button>
-          </Link>
+        </Link>
+      </div>
+
+      <div className="accountant-clients-toolbar" style={{ gap: '24px' }}>
+        <div className="accountant-client-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="6" />
+            <path d="m20 20-4.2-4.2" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by client name or email..."
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+          />
         </div>
 
-        <div className="accountant-clients-toolbar">
-          <div className="accountant-client-search">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="6" />
-              <path d="m20 20-4.2-4.2" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search by client name or email..."
-              value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
-            />
-          </div>
+        {visibleClients.length > 20 && (
+          <StaticSelect
+            label="Show"
+            horizontal
+            value={pageSize}
+            options={[
+              { label: "20 records", value: "20" },
+              { label: "50 records", value: "50" },
+              { label: "100 records", value: "100" },
+              { label: "200 records", value: "200" },
+              { label: "Load All", value: "all" },
+            ]}
+            onChange={(value) => setPageSize(value)}
+          />
+        )}
 
-          <button type="button" className="accountant-sort-button">
-            Sort by Properties
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+        <StaticSelect
+          value={sortBy}
+          horizontal
+          triggerClassName="accountant-sort-button"
+          options={[
+            { label: "Sort by Name (A-Z)", value: "name-asc" },
+            { label: "Sort by Name (Z-A)", value: "name-desc" },
+            { label: "Sort by Properties", value: "properties" },
+          ]}
+          onChange={(value) => setSortBy(value)}
+        />
+      </div>
+
+      {assignMessage && (
+        <div className="accountant-selection-banner">
+          <span>{assignMessage}</span>
+        </div>
+      )}
+
+      {currentTab === "all" && selectedClientIds.length > 0 && (
+        <div className="accountant-selection-banner">
+          <span>
+            {selectedClientIds.length} client
+            {selectedClientIds.length === 1 ? "" : "s"} selected
+          </span>
+          <button
+            type="button"
+            onClick={handleAssignSelectedClients}
+            disabled={isAssigningClients}
+          >
+            {isAssigningClients ? "Adding..." : "Add to list"}
           </button>
         </div>
+      )}
 
-        {assignMessage && (
-          <div className="accountant-selection-banner">
-            <span>{assignMessage}</span>
-          </div>
-        )}
-
-        {currentTab === "all" && selectedClientIds.length > 0 && (
-          <div className="accountant-selection-banner">
-            <span>
-              {selectedClientIds.length} client
-              {selectedClientIds.length === 1 ? "" : "s"} selected
-            </span>
-            <button
-              type="button"
-              onClick={handleAssignSelectedClients}
-              disabled={isAssigningClients}
-            >
-              {isAssigningClients ? "Adding..." : "Add to list"}
-            </button>
-          </div>
-        )}
-
-        <div className="accountant-client-table">
-          <div className="accountant-client-table-head">
-            <div />
-            <div>Client Name</div>
-            <div>Email Address</div>
-            <div>Status</div>
-            <div>Invited By</div>
-            <div>Joined By</div>
-          </div>
-
-          {(currentTab === "all" ? allClients : myClients) === null ? (
-            <div className="boneyard-fallback">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="portal-list-row portal-list-row-admin">
-                  <div className="skeleton-row">
-                    <div className="skeleton-circle skeleton-circle-sm" />
-                    <div className="skeleton-stack skeleton-grow">
-                      <div className="skeleton-line skeleton-line-md" />
-                      <div className="skeleton-line skeleton-line-sm" />
-                    </div>
-                  </div>
-                  <div className="skeleton-line skeleton-line-md" />
-                  <div className="skeleton-pill" />
-                  <div className="skeleton-pill" />
-                </div>
-              ))}
-            </div>
-          ) : visibleClients.map((client) => {
-            const canOpenClient = currentTab === "mine";
-            return (
-              <article
-                key={client.id}
-                className={`accountant-client-table-row${
-                  client.isAssignedToAnotherAccountant ? " is-muted" : ""
-                }${client.isAssignedToCurrentAccountant ? " is-assigned" : ""}`}
-                role={canOpenClient ? "link" : undefined}
-                tabIndex={canOpenClient ? 0 : undefined}
-                onClick={() => {
-                  if (canOpenClient) {
-                    router.push(`/dashboard/accountant/clients/${client.id}`);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    canOpenClient &&
-                    (event.key === "Enter" || event.key === " ")
-                  ) {
-                    event.preventDefault();
-                    router.push(`/dashboard/accountant/clients/${client.id}`);
-                  }
-                }}
-              >
-                <div>
-                  {currentTab === "mine" ? (
-                    <span className="accountant-client-selection-empty" />
-                  ) : client.isAssignedToAnotherAccountant ? (
-                    <span
-                      className="accountant-client-assignment-icon is-blocked"
-                      title={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
-                      role="img"
-                      aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
-                    >
-                      <svg
-                        className="accountant-client-lock-icon"
-                        viewBox="0 0 50 50"
-                        aria-hidden="true"
-                      >
-                        <path d="M25 3C18.363 3 13 8.363 13 15v5H9c-1.645 0-3 1.355-3 3v24c0 1.645 1.355 3 3 3h32c1.645 0 3-1.355 3-3V23c0-1.645-1.355-3-3-3h-4v-5C37 8.363 31.637 3 25 3Zm0 2c5.566 0 10 4.434 10 10v5H15v-5C15 9.434 19.434 5 25 5ZM9 22h32c.555 0 1 .445 1 1v24c0 .555-.445 1-1 1H9c-.555 0-1-.445-1-1V23c0-.555.445-1 1-1Zm16 8c-1.699 0-3 1.301-3 3 0 .898.398 1.688 1 2.188V38c0 1.102.898 2 2 2s2-.898 2-2v-2.813c.602-.5 1-1.289 1-2.187 0-1.699-1.301-3-3-3Z" />
-                      </svg>
-                    </span>
-                  ) : (
-                    <input
-                      type="checkbox"
-                      checked={selectedClientIds.includes(client.id)}
-                      onChange={() => toggleClientSelection(client.id)}
-                    />
-                  )}
-                </div>
-
-                <div className="accountant-client-cell accountant-client-cell-primary">
-                  <div className="accountant-client-pill">
-                    {getInitials(client.name)}
-                  </div>
-                  <div>
-                    {canOpenClient ? (
-                      <strong className="accountant-client-name-link">
-                        {client.name}
-                      </strong>
-                    ) : (
-                      <strong>{client.name}</strong>
-                    )}
-                    <span>{client.phoneNumber || "+1 (555) 000-0000"}</span>
-                  </div>
-                </div>
-
-                <div className="accountant-client-cell">
-                  <span>{client.email}</span>
-                </div>
-
-                <div className="accountant-client-cell">
-                  <strong className="accountant-client-status">
-                    {client.status}
-                  </strong>
-                </div>
-
-                <div className="accountant-client-cell">
-                  {client.isAssignedToAnotherAccountant ? (
-                    <span className="accountant-assigned-info">
-                      Assigned
-                      <button
-                        type="button"
-                        className="accountant-info-icon"
-                        aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
-                      >
-                        i
-                        <span
-                          className="accountant-info-tooltip"
-                          role="tooltip"
-                        >
-                          Assigned to{" "}
-                          {client.assignedAccountantName ||
-                            "another accountant"}
-                        </span>
-                      </button>
-                    </span>
-                  ) : (
-                    <span>
-                      {client.isAssignedToCurrentAccountant
-                        ? "Added to My Clients"
-                        : client.invitedByEmail || "Organization Admin"}
-                    </span>
-                  )}
-                </div>
-
-                <div className="accountant-client-cell">
-                  <span>{formatJoinedDate(client.joinedAt)}</span>
-                </div>
-              </article>
-            );
-          })}
+      <div className="accountant-client-table">
+        <div className="accountant-client-table-head">
+          <div />
+          <div>Client Name</div>
+          <div>Email Address</div>
+          <div>Status</div>
+          <div>Invited By</div>
+          <div>Joined By</div>
         </div>
 
-        {isInviteDrawerOpen && (
-          <div className="accountant-drawer-layer">
-            <button
-              type="button"
-              className="accountant-drawer-backdrop"
-              aria-label="Close invite drawer"
-              onClick={resetInviteState}
-            />
-
-            <aside className="accountant-invite-drawer">
-              <div className="accountant-invite-drawer-header">
-                <div>
-                  <h2>Invite New Client</h2>
-                  <p>Send an invitation to a new client</p>
+        {(currentTab === "all" ? allClients : myClients) === null ? (
+          <div className="boneyard-fallback">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="portal-list-row portal-list-row-admin">
+                <div className="skeleton-row">
+                  <div className="skeleton-circle skeleton-circle-sm" />
+                  <div className="skeleton-stack skeleton-grow">
+                    <div className="skeleton-line skeleton-line-md" />
+                    <div className="skeleton-line skeleton-line-sm" />
+                  </div>
                 </div>
-
-                <button type="button" onClick={resetInviteState}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12" />
-                    <path d="M18 6 6 18" />
-                  </svg>
-                </button>
+                <div className="skeleton-line skeleton-line-md" />
+                <div className="skeleton-pill" />
+                <div className="skeleton-pill" />
               </div>
-
-              {inviteSuccess ? (
-                <div className="accountant-invite-success">
-                  <div className="accountant-invite-success-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="m22 2-7 20-4-9-9-4Z" />
-                      <path d="M22 2 11 13" />
-                    </svg>
-                  </div>
-                  <h3>Invitation Sent!</h3>
-                  <p>
-                    That&apos;s another client invitation in the books. You can
-                    track their onboarding status directly from your portfolio.
-                  </p>
-                  {temporaryPassword && (
-                    <div className="accountant-temp-password-card">
-                      <span>Invite Link</span>
-                      {inviteLink ? (
-                        <a
-                          href={inviteLink}
-                          target="_blank"
-                          className="accountant-invite-link"
-                        >
-                          {inviteLink}
-                        </a>
-                      ) : (
-                        <strong>Invite link created</strong>
-                      )}
-                      <p>
-                        Send this link to the client. It includes the temporary
-                        password and opens the create password step.
-                      </p>
-                      <span>Backup Temporary Password</span>
-                      <strong>{temporaryPassword}</strong>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="accountant-invite-drawer-body">
-                  <label>
-                    <span>
-                      Full Name <span className="imp">*</span>
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Enter client's full name"
-                      value={inviteForm.fullName}
-                      onChange={(event) =>
-                        setInviteForm((current) => ({
-                          ...current,
-                          fullName: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>
-                      Email Address <span className="imp">*</span>
-                    </span>
-                    <input
-                      type="email"
-                      placeholder="client@example.com"
-                      value={inviteForm.email}
-                      onChange={(event) =>
-                        setInviteForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>
-                      Phone Number <small>(Optional)</small>
-                    </span>
-                    <input
-                      type="tel"
-                      placeholder="+61 2 9342 5678"
-                      value={inviteForm.phoneNumber}
-                      onChange={(event) =>
-                        setInviteForm((current) => ({
-                          ...current,
-                          phoneNumber: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-
-                  <div className="accountant-invite-note">
-                    <strong>What happens next?</strong>
-                    <p>
-                      The client will receive an email invitation to join the
-                      platform and complete their registration.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="accountant-invite-drawer-footer">
-                <button type="button" onClick={resetInviteState}>
-                  {inviteSuccess ? "Close" : "Cancel"}
-                </button>
-                {!inviteSuccess && (
-                  <button
-                    type="button"
-                    className="is-primary"
-                    onClick={handleInviteClient}
-                    disabled={
-                      inviteLoading ||
-                      !inviteForm.fullName.trim() ||
-                      !inviteForm.email.trim()
-                    }
+            ))}
+          </div>
+        ) : displayedClients.map((client) => {
+          const canOpenClient = currentTab === "mine";
+          return (
+            <article
+              key={client.id}
+              className={`accountant-client-table-row${client.isAssignedToAnotherAccountant ? " is-muted" : ""
+                }${client.isAssignedToCurrentAccountant ? " is-assigned" : ""}`}
+              role={canOpenClient ? "link" : undefined}
+              tabIndex={canOpenClient ? 0 : undefined}
+              onClick={() => {
+                if (canOpenClient) {
+                  router.push(`/dashboard/accountant/clients/${client.id}`);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (
+                  canOpenClient &&
+                  (event.key === "Enter" || event.key === " ")
+                ) {
+                  event.preventDefault();
+                  router.push(`/dashboard/accountant/clients/${client.id}`);
+                }
+              }}
+            >
+              <div>
+                {currentTab === "mine" ? (
+                  <span className="accountant-client-selection-empty" />
+                ) : client.isAssignedToAnotherAccountant ? (
+                  <span
+                    className="accountant-client-assignment-icon is-blocked"
+                    title={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
+                    role="img"
+                    aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
                   >
-                    {inviteLoading ? "Sending..." : "Send Invitation"}
-                  </button>
+                    <svg
+                      className="accountant-client-lock-icon"
+                      viewBox="0 0 50 50"
+                      aria-hidden="true"
+                    >
+                      <path d="M25 3C18.363 3 13 8.363 13 15v5H9c-1.645 0-3 1.355-3 3v24c0 1.645 1.355 3 3 3h32c1.645 0 3-1.355 3-3V23c0-1.645-1.355-3-3-3h-4v-5C37 8.363 31.637 3 25 3Zm0 2c5.566 0 10 4.434 10 10v5H15v-5C15 9.434 19.434 5 25 5ZM9 22h32c.555 0 1 .445 1 1v24c0 .555-.445 1-1 1H9c-.555 0-1-.445-1-1V23c0-.555.445-1 1-1Zm16 8c-1.699 0-3 1.301-3 3 0 .898.398 1.688 1 2.188V38c0 1.102.898 2 2 2s2-.898 2-2v-2.813c.602-.5 1-1.289 1-2.187 0-1.699-1.301-3-3-3Z" />
+                    </svg>
+                  </span>
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={selectedClientIds.includes(client.id)}
+                    onChange={() => toggleClientSelection(client.id)}
+                  />
                 )}
               </div>
-            </aside>
-          </div>
-        )}
-      </section>
+
+              <div className="accountant-client-cell accountant-client-cell-primary">
+                <div className="accountant-client-pill">
+                  {getInitials(client.name)}
+                </div>
+                <div>
+                  {canOpenClient ? (
+                    <strong className="accountant-client-name-link">
+                      {client.name}
+                    </strong>
+                  ) : (
+                    <strong>{client.name}</strong>
+                  )}
+                  <span>{client.phoneNumber || "+1 (555) 000-0000"}</span>
+                </div>
+              </div>
+
+              <div className="accountant-client-cell">
+                <span>{client.email}</span>
+              </div>
+
+              <div className="accountant-client-cell">
+                <strong className="accountant-client-status">
+                  {client.status}
+                </strong>
+              </div>
+
+              <div className="accountant-client-cell">
+                {client.isAssignedToAnotherAccountant ? (
+                  <span className="accountant-assigned-info">
+                    Assigned
+                    <button
+                      type="button"
+                      className="accountant-info-icon"
+                      aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
+                    >
+                      i
+                      <span
+                        className="accountant-info-tooltip"
+                        role="tooltip"
+                      >
+                        Assigned to{" "}
+                        {client.assignedAccountantName ||
+                          "another accountant"}
+                      </span>
+                    </button>
+                  </span>
+                ) : (
+                  <span>
+                    {client.isAssignedToCurrentAccountant
+                      ? "Added to My Clients"
+                      : client.invitedByEmail || "Organization Admin"}
+                  </span>
+                )}
+              </div>
+
+              <div className="accountant-client-cell">
+                <span>{formatJoinedDate(client.joinedAt)}</span>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {visibleClients.length > limit && (
+        <div className="client-list-load-more-container" style={{ marginTop: '24px' }}>
+          <button
+            type="button"
+            className="client-list-load-more-btn"
+            onClick={() => {
+              if (pageSize === "20") setPageSize("50");
+              else if (pageSize === "50") setPageSize("100");
+              else if (pageSize === "100") setPageSize("200");
+              else setPageSize("all");
+            }}
+          >
+            Load More Clients
+          </button>
+        </div>
+      )}
+
+      {isInviteDrawerOpen && (
+        <div className="accountant-drawer-layer">
+          <button
+            type="button"
+            className="accountant-drawer-backdrop"
+            aria-label="Close invite drawer"
+            onClick={resetInviteState}
+          />
+
+          <aside className="accountant-invite-drawer">
+            <div className="accountant-invite-drawer-header">
+              <div>
+                <h2>Invite New Client</h2>
+                <p>Send an invitation to a new client</p>
+              </div>
+
+              <button type="button" onClick={resetInviteState}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+
+            {inviteSuccess ? (
+              <div className="accountant-invite-success">
+                <div className="accountant-invite-success-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                  </svg>
+                </div>
+                <h3>Invitation Sent!</h3>
+                <p>
+                  That&apos;s another client invitation in the books. You can
+                  track their onboarding status directly from your portfolio.
+                </p>
+                {temporaryPassword && (
+                  <div className="accountant-temp-password-card">
+                    <span>Invite Link</span>
+                    {inviteLink ? (
+                      <a
+                        href={inviteLink}
+                        target="_blank"
+                        className="accountant-invite-link"
+                      >
+                        {inviteLink}
+                      </a>
+                    ) : (
+                      <strong>Invite link created</strong>
+                    )}
+                    <p>
+                      Send this link to the client. It includes the temporary
+                      password and opens the create password step.
+                    </p>
+                    <span>Backup Temporary Password</span>
+                    <strong>{temporaryPassword}</strong>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="accountant-invite-drawer-body">
+                <label>
+                  <span>
+                    Full Name <span className="imp">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Enter client's full name"
+                    value={inviteForm.fullName}
+                    onChange={(event) =>
+                      setInviteForm((current) => ({
+                        ...current,
+                        fullName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  <span>
+                    Email Address <span className="imp">*</span>
+                  </span>
+                  <input
+                    type="email"
+                    placeholder="client@example.com"
+                    value={inviteForm.email}
+                    onChange={(event) =>
+                      setInviteForm((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  <span>
+                    Phone Number <small>(Optional)</small>
+                  </span>
+                  <input
+                    type="tel"
+                    placeholder="+61 2 9342 5678"
+                    value={inviteForm.phoneNumber}
+                    onChange={(event) =>
+                      setInviteForm((current) => ({
+                        ...current,
+                        phoneNumber: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <div className="accountant-invite-note">
+                  <strong>What happens next?</strong>
+                  <p>
+                    The client will receive an email invitation to join the
+                    platform and complete their registration.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="accountant-invite-drawer-footer">
+              <button type="button" onClick={resetInviteState}>
+                {inviteSuccess ? "Close" : "Cancel"}
+              </button>
+              {!inviteSuccess && (
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={handleInviteClient}
+                  disabled={
+                    inviteLoading ||
+                    !inviteForm.fullName.trim() ||
+                    !inviteForm.email.trim()
+                  }
+                >
+                  {inviteLoading ? "Sending..." : "Send Invitation"}
+                </button>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+    </section>
   );
 }
 
