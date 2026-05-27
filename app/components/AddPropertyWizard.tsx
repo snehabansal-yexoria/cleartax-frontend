@@ -217,16 +217,22 @@ async function uploadViaPresign({
   token,
   file,
   onProgress,
+  documentType,
+  entityId,
 }: {
   token: string;
   file: File;
   onProgress?: (progress: number) => void;
+  documentType?: string;
+  entityId?: string;
 }) {
   onProgress?.(5);
-  const presignRes = await fetch(
-    `/api/documents/presign?filename=${encodeURIComponent(file.name)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+  const qs = new URLSearchParams({ filename: file.name });
+  if (documentType) qs.set("document_type", documentType);
+  if (entityId) qs.set("entity_id", entityId);
+  const presignRes = await fetch(`/api/documents/presign?${qs.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!presignRes.ok) {
     const payload = await presignRes.json().catch(() => ({}));
     throw new Error(
@@ -645,6 +651,8 @@ export default function AddPropertyWizard({
         token,
         file,
         onProgress: setPropertyImageProgress,
+        documentType: "property_image",
+        entityId: entity.id,
       });
       setImageUrl(uploaded.s3Key);
     } catch (error) {
@@ -674,6 +682,8 @@ export default function AddPropertyWizard({
         token,
         file,
         onProgress: setDepreciationUploadProgress,
+        documentType: "depreciation_schedule",
+        entityId: entity.id,
       });
       setDepreciationScheduleDocument(uploaded);
     } catch (error) {
