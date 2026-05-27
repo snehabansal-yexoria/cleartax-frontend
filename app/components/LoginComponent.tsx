@@ -29,6 +29,9 @@ interface LoginSuccessResult {
 
 type LoginResult = NewPasswordResult | LoginSuccessResult;
 
+// SET THIS TO false TO DISABLE THE PREMIUM FULL-SCREEN LOADING SCREEN AND TRANSITION DELAY
+const ENABLE_LOADING_TRANSITION = true;
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -103,6 +106,16 @@ export default function LoginComponent({
     ) => {
       setError("");
       setLoading(true);
+      const startTime = Date.now();
+
+      const delayAtLeast2s = async () => {
+        if (!ENABLE_LOADING_TRANSITION) return;
+        const elapsed = Date.now() - startTime;
+        const remainingDelay = Math.max(0, 1000 - elapsed);
+        if (remainingDelay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+        }
+      };
 
       try {
         const result = (await login(loginEmail, loginPassword)) as LoginResult;
@@ -117,6 +130,7 @@ export default function LoginComponent({
           setAttributes(requiredAttributes);
           setRequireNewPassword(true);
 
+          await delayAtLeast2s();
           setLoading(false);
           return;
         }
@@ -132,6 +146,7 @@ export default function LoginComponent({
           });
 
           if (!meResponse.ok) {
+            await delayAtLeast2s();
             setError("Unable to load your profile. Contact your administrator.");
             setLoading(false);
             return;
@@ -141,6 +156,7 @@ export default function LoginComponent({
           const apiRole = normalizeRoleName(me.role);
 
           if (!allowedRoles.includes(apiRole)) {
+            await delayAtLeast2s();
             setError("You are not allowed to login here");
             setLoading(false);
             return;
@@ -152,9 +168,13 @@ export default function LoginComponent({
             role: apiRole,
             orgName: me.orgName,
           });
+
+          await delayAtLeast2s();
           router.replace(getDashboardPath(apiRole));
+          return; // Keep loading true during redirection to avoid flickering
         }
       } catch (error: unknown) {
+        await delayAtLeast2s();
         setError(
           options.fromInviteLink
             ? "This invite link could not be opened automatically. Please sign in with the temporary password from your invitation."
@@ -200,9 +220,9 @@ export default function LoginComponent({
       const result = await completeNewPassword(user, newPassword, attributes);
       const idToken =
         typeof result === "object" &&
-        result !== null &&
-        "getIdToken" in result &&
-        typeof result.getIdToken === "function"
+          result !== null &&
+          "getIdToken" in result &&
+          typeof result.getIdToken === "function"
           ? result.getIdToken().getJwtToken()
           : "";
 
@@ -230,6 +250,221 @@ export default function LoginComponent({
 
   return (
     <div className="loginSection">
+      {ENABLE_LOADING_TRANSITION && loading && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, rgba(9, 15, 29, 0.99) 100%)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            animation: "fadeInPremium 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+          }}
+        >
+          <style>{`
+            @keyframes fadeInPremium {
+              from { opacity: 0; transform: scale(1.02); }
+              to { opacity: 1; transform: scale(1); }
+            }
+            @keyframes premiumSpin {
+              0% {
+                stroke-dashoffset: 120;
+                transform: rotate(0deg);
+              }
+              50% {
+                stroke-dashoffset: 30;
+                transform: rotate(180deg);
+              }
+              100% {
+                stroke-dashoffset: 120;
+                transform: rotate(360deg);
+              }
+            }
+            @keyframes pulseDot {
+              0%, 100% { transform: scale(0.85); opacity: 0.5; }
+              50% { transform: scale(1.15); opacity: 1; }
+            }
+            @keyframes glowPulse {
+              0%, 100% { opacity: 0.15; }
+              50% { opacity: 0.3; }
+            }
+          `}</style>
+
+          {/* Background Ambient Glow */}
+          <div
+            style={{
+              position: "absolute",
+              width: "400px",
+              height: "400px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(244, 161, 23, 0.08) 0%, transparent 70%)",
+              zIndex: 1,
+              animation: "glowPulse 4s ease-in-out infinite",
+              pointerEvents: "none",
+            }}
+          />
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 2,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "24px",
+              padding: "48px 40px",
+              borderRadius: "32px",
+              background: "rgba(255, 255, 255, 0.02)",
+              border: "1px solid rgba(255, 255, 255, 0.05)",
+              boxShadow: "0 40px 100px rgba(0, 0, 0, 0.4)",
+              maxWidth: "360px",
+              width: "90%",
+              textAlign: "center",
+            }}
+          >
+            {/* Secure Authentication Status Pill */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "999px",
+                background: "rgba(244, 161, 23, 0.08)",
+                border: "1px solid rgba(244, 161, 23, 0.15)",
+                color: "#ffb425",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "#ffb425",
+                  boxShadow: "0 0 8px #ffb425",
+                  animation: "pulseDot 1.5s ease-in-out infinite",
+                }}
+              />
+              Secure Verification
+            </div>
+
+            {/* Custom Premium SVG Dash-Array Spinner */}
+            <div style={{ position: "relative", width: "72px", height: "72px", margin: "8px 0" }}>
+              <svg width="72" height="72" viewBox="0 0 50 50">
+                <circle
+                  cx="25"
+                  cy="25"
+                  r="22"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.03)"
+                  strokeWidth="2.5"
+                />
+                <circle
+                  cx="25"
+                  cy="25"
+                  r="22"
+                  fill="none"
+                  stroke="url(#premiumSpinnerGrad)"
+                  strokeWidth="2.5"
+                  strokeDasharray="138"
+                  strokeDashoffset="120"
+                  strokeLinecap="round"
+                  style={{
+                    transformOrigin: "center",
+                    animation: "premiumSpin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite",
+                  }}
+                />
+                <defs>
+                  <linearGradient id="premiumSpinnerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffb425" />
+                    <stop offset="100%" stopColor="#3b82f6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              {/* Pulsing Core Dot in the center */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "29px",
+                  left: "29px",
+                  width: "14px",
+                  height: "14px",
+                  borderRadius: "50%",
+                  background: "#ffffff",
+                  boxShadow: "0 0 12px rgba(255, 255, 255, 0.6)",
+                  animation: "pulseDot 1.5s ease-in-out infinite",
+                }}
+              />
+            </div>
+
+            {/* Text details */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <span
+                style={{
+                  color: "#ffffff",
+                  fontSize: "1.4rem",
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  fontFamily: '"Public Sans", sans-serif',
+                }}
+              >
+                Authorizing Access
+              </span>
+              <span
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "0.88rem",
+                  fontWeight: 400,
+                  lineHeight: "1.5",
+                }}
+              >
+                Opening your personalized clear workspace dashboard...
+              </span>
+            </div>
+
+            {/* Footer with lock */}
+            <div
+              style={{
+                marginTop: "12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                color: "#475569",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                letterSpacing: "0.02em",
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              End-to-End Encrypted
+            </div>
+          </div>
+        </div>
+      )}
       <div className="login-container">
         <div className="login-wrapper">
           <div className="login-left">
@@ -313,7 +548,13 @@ export default function LoginComponent({
               </div>
               <div className="lr-form">
                 {!requireNewPassword && (
-                  <div className="login-form-wrap">
+                  <form
+                    className="login-form-wrap"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleLogin();
+                    }}
+                  >
                     <div className="login-element">
                       <label htmlFor="email">Email Address</label>
                       <input
@@ -345,17 +586,23 @@ export default function LoginComponent({
                     </div>
                     <div className="login-submit">
                       <button
-                        onClick={() => void handleLogin()}
+                        type="submit"
                         disabled={loading}
                       >
                         {loading ? "Logging in..." : "Log In to Dashboard"}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 )}
 
                 {requireNewPassword && (
-                  <div className="login-form-wrap">
+                  <form
+                    className="login-form-wrap"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleSetNewPassword();
+                    }}
+                  >
                     <div className="login-element">
                       <label htmlFor="password_email">Email Address</label>
                       <input
@@ -408,11 +655,11 @@ export default function LoginComponent({
                       </div>
                     </div>
                     <div className="login-submit">
-                      <button onClick={handleSetNewPassword} disabled={loading}>
+                      <button type="submit" disabled={loading}>
                         {loading ? "Creating..." : "Create Password"}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 )}
 
                 {error && (

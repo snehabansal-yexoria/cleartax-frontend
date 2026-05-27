@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
@@ -298,6 +298,25 @@ const clientMenuItems: PortalMenuItem[] = [
   },
 ];
 
+function highlightMatch(text: string, query: string) {
+  if (!query) return <span>{text}</span>;
+  const cleanQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${cleanQuery})`, "gi"));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <strong key={i} className="search-highlight">
+            {part}
+          </strong>
+        ) : (
+          part
+        ),
+      )}
+    </span>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -312,6 +331,18 @@ export default function DashboardLayout({
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+
+  // Autocomplete states
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [hasPrefetched, setHasPrefetched] = useState(false);
+  
+  // Data catalogs for in-memory matching
+  const [clientsCatalog, setClientsCatalog] = useState<any[]>([]);
+  const [entitiesCatalog, setEntitiesCatalog] = useState<any[]>([]);
+
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadSession() {
@@ -435,10 +466,175 @@ export default function DashboardLayout({
       window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
   }, []);
 
+  // Prefetch data based on role
+  async function prefetchSearchData() {
+    if (hasPrefetched || !role) return;
+
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
+      if (role === "accountant") {
+        const res = await fetch("/api/users/me/clients?scope=all", { headers });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setClientsCatalog(data.clients || []);
+        }
+      } else if (role === "client" || role === "user") {
+        const res = await fetch("/api/entities", { headers });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setEntitiesCatalog(data.items || []);
+        }
+      }
+      setHasPrefetched(true);
+    } catch (err) {
+      console.warn("Failed to prefetch autocomplete data", err);
+    }
+  }
+
+  // Auto prefetch when role is determined
+  useEffect(() => {
+    if (role) {
+      prefetchSearchData();
+    }
+  }, [role]);
+
+  // Click outside to dismiss suggestions
+  useEffect(() => {
+    if (!isSearchFocused) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        console.log("Clicked outside global search! Closing suggestions.");
+        setIsSearchFocused(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSearchFocused]);
+
+  // Compute and filter search suggestions on typing
+  useEffect(() => {
+    console.log("Suggestions hook ran. isSearchFocused:", isSearchFocused, "role:", role, "query:", globalSearch);
+    if (!isSearchFocused) {
+      setSuggestions([]);
+      return;
+    }
+
+    const query = globalSearch.trim().toLowerCase();
+
+    // 1. Static navigation/action suggestions
+    const actions: any[] = [];
+    
+    if (role === "accountant") {
+      actions.push(
+        { id: "nav-dash", type: "nav", title: "Go to Dashboard", href: "/dashboard/accountant", keywords: ["dashboard", "home", "main"] },
+        { id: "nav-clients", type: "nav", title: "View All Clients", href: "/dashboard/accountant/clients", keywords: ["clients", "customers", "users", "list"] },
+        { id: "nav-invite", type: "action", title: "Invite Client", href: "/dashboard/accountant/clients?invite=1", keywords: ["invite", "new client", "add client", "create"] },
+        { id: "nav-txs", type: "nav", title: "View Transactions", href: "/dashboard/accountant/transactions", keywords: ["transactions", "payments", "money", "history"] }
+      );
+    } else if (role === "admin") {
+      actions.push(
+        { id: "nav-dash", type: "nav", title: "Go to Dashboard", href: "/dashboard/admin", keywords: ["dashboard", "home"] },
+        { id: "nav-invite", type: "action", title: "Invite User", href: "/dashboard/admin/invite", keywords: ["invite", "add", "new user"] },
+        { id: "nav-upload", type: "action", title: "Bulk Upload", href: "/dashboard/admin/bulk-upload", keywords: ["bulk", "upload", "csv", "excel", "import"] }
+      );
+    } else if (role === "super_admin") {
+      actions.push(
+        { id: "nav-dash", type: "nav", title: "Go to Dashboard", href: "/dashboard/super-admin", keywords: ["dashboard", "home"] },
+        { id: "nav-invite-admin", type: "action", title: "Invite Admin", href: "/dashboard/super-admin/invite-admin", keywords: ["invite", "admin", "add"] },
+        { id: "nav-upload", type: "action", title: "Bulk Upload", href: "/dashboard/super-admin/bulk-upload", keywords: ["bulk", "upload", "csv", "import"] },
+        { id: "nav-org", type: "action", title: "Create Organization", href: "/dashboard/super-admin/create-organization", keywords: ["organization", "org", "create", "new"] }
+      );
+    } else if (role === "client" || role === "user") {
+      actions.push(
+        { id: "nav-dash", type: "nav", title: "Go to Dashboard", href: "/dashboard/client", keywords: ["dashboard", "home", "entities"] },
+        { id: "nav-add-entity", type: "action", title: "Add Entity", href: "/dashboard/client/entities/new", keywords: ["add entity", "new entity", "create company", "trust"] },
+        { id: "nav-add-tx", type: "action", title: "Add Transaction", href: "/dashboard/client/transactions/new", keywords: ["add transaction", "new payment", "create transaction"] }
+      );
+    }
+
+    const filteredActions = actions.filter(act => {
+      if (!query) return true;
+      return (
+        act.title.toLowerCase().includes(query) ||
+        act.keywords.some((k: string) => k.toLowerCase().includes(query))
+      );
+    });
+
+    // 2. Dynamic matching from pre-fetched catalogs
+    const dynamicResults: any[] = [];
+    if (query) {
+      if (role === "accountant") {
+        clientsCatalog.forEach(client => {
+          const nameMatch = client.name?.toLowerCase().includes(query);
+          const emailMatch = client.email?.toLowerCase().includes(query);
+          if (nameMatch || emailMatch) {
+            dynamicResults.push({
+              id: `client-${client.id}`,
+              type: "client",
+              title: client.name || "Unnamed Client",
+              subtitle: client.email || "",
+              href: `/dashboard/accountant/clients/${client.id}`
+            });
+          }
+        });
+      } else if (role === "client" || role === "user") {
+        entitiesCatalog.forEach(entity => {
+          if (entity.name?.toLowerCase().includes(query)) {
+            dynamicResults.push({
+              id: `entity-${entity.id}`,
+              type: "entity",
+              title: entity.name || "Unnamed Entity",
+              subtitle: entity.entityType ? entity.entityType.replace(/_/g, " ").toUpperCase() : "ENTITY",
+              href: `/dashboard/client/entities/${entity.id}`
+            });
+          }
+        });
+      }
+    }
+
+    const combined = [...filteredActions, ...dynamicResults].slice(0, 8);
+    console.log("Suggestions calculated array:", combined);
+    setSuggestions(combined);
+    setHighlightedIndex(-1);
+  }, [globalSearch, isSearchFocused, role, clientsCatalog, entitiesCatalog]);
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (suggestions.length === 0) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+    } else if (event.key === "Enter") {
+      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+        event.preventDefault();
+        const selected = suggestions[highlightedIndex];
+        if (selected.href && selected.href !== "#") {
+          router.push(selected.href);
+        }
+        setIsSearchFocused(false);
+      }
+    } else if (event.key === "Escape") {
+      setIsSearchFocused(false);
+      event.currentTarget.blur();
+    }
+  }
+
   function handleGlobalSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = globalSearch.trim();
     if (!query) return;
+
+    setIsSearchFocused(false);
 
     if (role === "accountant") {
       router.push(
@@ -562,19 +758,81 @@ export default function DashboardLayout({
           </div>
 
           <header className="accountant-topbar">
-            <form className="accountant-search" onSubmit={handleGlobalSearch}>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="6" />
-                <path d="m20 20-4.2-4.2" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search clients, transactions, or properties..."
-                aria-label="Search accountant dashboard"
-                value={globalSearch}
-                onChange={(event) => setGlobalSearch(event.target.value)}
-              />
-            </form>
+            <div className="accountant-search-container" ref={searchRef}>
+              <form className="accountant-search" onSubmit={handleGlobalSearch}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6" />
+                  <path d="m20 20-4.2-4.2" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search clients, transactions, or properties..."
+                  aria-label="Search accountant dashboard"
+                  value={globalSearch}
+                  onChange={(event) => setGlobalSearch(event.target.value)}
+                  onFocus={() => {
+                    setIsSearchFocused(true);
+                    prefetchSearchData();
+                  }}
+                  onKeyDown={handleKeyDown}
+                />
+              </form>
+
+              {isSearchFocused && suggestions.length > 0 && (
+                <div className="search-suggestions-dropdown">
+                  <div className="suggestions-scrollable">
+                    {suggestions.map((item, index) => {
+                      const isHighlighted = index === highlightedIndex;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`suggestion-item ${isHighlighted ? "is-highlighted" : ""}`}
+                          onMouseEnter={() => setHighlightedIndex(index)}
+                          onClick={() => {
+                            if (item.href && item.href !== "#") {
+                              router.push(item.href);
+                            }
+                            setIsSearchFocused(false);
+                          }}
+                        >
+                          <div className="suggestion-icon-wrapper">
+                            {item.type === "nav" || item.type === "action" ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                              </svg>
+                            ) : item.type === "client" ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="suggestion-text-wrapper">
+                            <span className="suggestion-title">
+                              {highlightMatch(item.title, globalSearch)}
+                            </span>
+                            {item.subtitle && (
+                              <span className="suggestion-subtitle">
+                                {highlightMatch(item.subtitle, globalSearch)}
+                              </span>
+                            )}
+                          </div>
+                          {isHighlighted && (
+                            <div className="suggestion-enter-badge">
+                              <span>Enter ↵</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="accountant-topbar-actions">
               <button

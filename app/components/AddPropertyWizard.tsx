@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useMemo, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useState, ClipboardEvent } from "react";
 import Link from "next/link";
 import type { CoreEntity, CoreProperty, PropertyType } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
@@ -89,6 +89,59 @@ function toInputNumber(value: number | undefined) {
     : "";
 }
 
+function getTodayString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateString(text: string): string | null {
+  const clean = text.trim();
+  if (!clean) return null;
+
+  // Pattern 1: YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  const ymdMatch = clean.match(/^(\d{4})[-./\s](\d{1,2})[-./\s](\d{1,2})$/);
+  if (ymdMatch) {
+    const y = ymdMatch[1];
+    const m = ymdMatch[2].padStart(2, "0");
+    const d = ymdMatch[3].padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // Pattern 2: DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  const dmyMatch = clean.match(/^(\d{1,2})[-./\s](\d{1,2})[-./\s](\d{4})$/);
+  if (dmyMatch) {
+    let first = parseInt(dmyMatch[1], 10);
+    let second = parseInt(dmyMatch[2], 10);
+    const y = dmyMatch[3];
+
+    let d = first;
+    let m = second;
+    if (second > 12) {
+      d = second;
+      m = first;
+    }
+
+    const dStr = String(d).padStart(2, "0");
+    const mStr = String(m).padStart(2, "0");
+    return `${y}-${mStr}-${dStr}`;
+  }
+
+  // Native parse for formats like "May 27, 2026"
+  const parsed = Date.parse(clean);
+  if (!isNaN(parsed)) {
+    const dObj = new Date(parsed);
+    const y = dObj.getFullYear();
+    const m = String(dObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dObj.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  return null;
+}
+
 function getLoanDetail(
   property: CoreProperty | undefined,
   key: string,
@@ -134,6 +187,29 @@ function getUploadedDocument(
   );
   if (!documentId && !s3Key) return null;
   return { documentId, s3Key, filename };
+}
+
+function formatAUD(val: string): string {
+  // Remove everything except digits and one decimal point
+  let cleaned = val.replace(/[^0-9.]/g, "");
+  
+  // Handle multiple decimals (only keep the first one)
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    cleaned = parts[0] + "." + parts.slice(1).join("");
+  }
+  
+  if (!cleaned) return "";
+  
+  // Format integer part with thousands separators
+  let [integer, decimal] = cleaned.split(".");
+  integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  
+  let formatted = "A$" + integer;
+  if (decimal !== undefined) {
+    formatted += "." + decimal.slice(0, 2);
+  }
+  return formatted;
 }
 
 async function uploadViaPresign({
@@ -286,12 +362,101 @@ export default function AddPropertyWizard({
   const [loanAllocationPercentage, setLoanAllocationPercentage] = useState(
     getLoanDetail(initialProperty, "loan_allocation_percentage"),
   );
-  const [loanAmount, setLoanAmount] = useState(
-    getLoanDetail(initialProperty, "loan_amount"),
-  );
+  const [loanAmount, setLoanAmount] = useState(() => {
+    const raw = getLoanDetail(initialProperty, "loan_amount");
+    return raw ? formatAUD(raw) : "";
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isDraggingDoc, setIsDraggingDoc] = useState(false);
+
+  const isBankNameValid = !bankName || /^[a-zA-Z\s]*$/.test(bankName);
+  const isBsbValid = !bsbNumber || bsbNumber.length === 6;
+  const isLoanAccountNumberValid = !loanAccountNumber || /^\d*$/.test(loanAccountNumber);
+  const isLoanAllocationValid = !loanAllocationPercentage || (Number(loanAllocationPercentage) >= 0 && Number(loanAllocationPercentage) <= 100);
+  const isLoanAmountValid = !loanAmount || (loanAmount !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(loanAmount));
+
+  const isLoanDetailsValid =
+    isBankNameValid &&
+    isBsbValid &&
+    isLoanAccountNumberValid &&
+    isLoanAllocationValid &&
+    isLoanAmountValid;
+
+  const handleLoanAmountChange = (inputVal: string) => {
+    if (!inputVal || inputVal === "A" || inputVal === "A$") {
+      setLoanAmount("");
+      return;
+    }
+    const formatted = formatAUD(inputVal);
+    setLoanAmount(formatted);
+  };
+
+  const handleDateChange = (
+    val: string,
+    setter: (v: string) => void,
+    limitToToday = false,
+  ) => {
+    if (!val) {
+      setter("");
+      return;
+    }
+    const parts = val.split("-");
+    if (parts[0] && parts[0].length > 4) {
+      parts[0] = parts[0].slice(0, 4);
+      val = parts.join("-");
+    }
+
+    if (limitToToday) {
+      const today = getTodayString();
+      if (val > today) {
+        val = today;
+      }
+    }
+    setter(val);
+  };
+
+  const handleDatePaste = (
+    event: ClipboardEvent<HTMLInputElement>,
+    setter: (v: string) => void,
+    limitToToday = false,
+  ) => {
+    event.preventDefault();
+    const text = event.clipboardData.getData("text");
+    const parsed = parseDateString(text);
+    if (parsed) {
+      if (limitToToday) {
+        const today = getTodayString();
+        if (parsed > today) {
+          setter(today);
+          return;
+        }
+      }
+      setter(parsed);
+    }
+  };
+
+  const handleDateBlur = (
+    val: string,
+    setter: (v: string) => void,
+    limitToToday = false,
+  ) => {
+    if (!val) return;
+    const parts = val.split("-");
+    if (parts[0] && parts[0].length > 4) {
+      parts[0] = parts[0].slice(0, 4);
+      val = parts.join("-");
+    }
+    if (limitToToday) {
+      const today = getTodayString();
+      if (val > today) {
+        val = today;
+      }
+    }
+    setter(val);
+  };
 
   const isEditMode = mode === "edit";
   const takesOwnershipDetails = entity.entityType === "individual";
@@ -391,7 +556,8 @@ export default function AddPropertyWizard({
     setLoanAllocationPercentage(
       getLoanDetail(initialProperty, "loan_allocation_percentage"),
     );
-    setLoanAmount(getLoanDetail(initialProperty, "loan_amount"));
+    const initialAmount = getLoanDetail(initialProperty, "loan_amount");
+    setLoanAmount(initialAmount ? formatAUD(initialAmount) : "");
   }, [entity, initialProperty]);
 
   function updateOwner(entityBeneficiaryId: number, percentage: string) {
@@ -524,7 +690,8 @@ export default function AddPropertyWizard({
       );
     }
     if (loanAmount.trim()) {
-      details.loan_amount = Number.parseFloat(loanAmount);
+      const cleaned = loanAmount.replace(/[^0-9.]/g, "");
+      details.loan_amount = Number.parseFloat(cleaned);
     }
     return Object.keys(details).length > 0 ? details : undefined;
   }
@@ -791,8 +958,11 @@ export default function AddPropertyWizard({
               <input
                 type="date"
                 className="property-date-input"
+                max={getTodayString()}
                 value={purchaseDate}
-                onChange={(event) => setPurchaseDate(event.target.value)}
+                onChange={(event) => handleDateChange(event.target.value, setPurchaseDate, true)}
+                onPaste={(event) => handleDatePaste(event, setPurchaseDate, true)}
+                onBlur={(event) => handleDateBlur(event.target.value, setPurchaseDate, true)}
               />
             </label>
 
@@ -835,30 +1005,99 @@ export default function AddPropertyWizard({
           </div>
 
           {hasDepreciationSchedule && (
-            <div className="property-upload-card">
-              <div>
-                <strong>Depreciation Schedule</strong>
-                <span>
-                  {depreciationScheduleDocument?.filename ||
-                    "Upload the supporting schedule document"}
-                </span>
-              </div>
-              <label className="property-upload-button">
-                {isUploadingDepreciationSchedule
-                  ? `${depreciationUploadProgress}%`
-                  : depreciationScheduleDocument
-                    ? "Replace"
-                    : "Upload"}
-                <input
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                  disabled={isUploadingDepreciationSchedule}
-                  onChange={(event) => {
-                    handleDepreciationScheduleUpload(event.target.files?.[0]);
-                    event.target.value = "";
+            <div className="property-upload-section">
+              <span className="entity-wizard-label-text">
+                Depreciation Schedule <em>*</em>
+              </span>
+              {isUploadingDepreciationSchedule ? (
+                <div className="property-upload-progress-card">
+                  <div className="property-upload-progress-info">
+                    <svg className="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+                      <polyline points="13 2 13 9 20 9" />
+                    </svg>
+                    <div className="progress-details">
+                      <span className="filename">Uploading schedule...</span>
+                      <span className="progress-percentage">{depreciationUploadProgress}%</span>
+                    </div>
+                  </div>
+                  <div className="progress-bar-container">
+                    <div className="progress-bar-fill" style={{ width: `${depreciationUploadProgress}%` }} />
+                  </div>
+                </div>
+              ) : depreciationScheduleDocument ? (
+                <div className="property-uploaded-card">
+                  <div className="uploaded-file-info">
+                    <div className="uploaded-preview-wrap document-preview">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="document-icon">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                    </div>
+                    <div className="uploaded-details">
+                      <span className="filename">{depreciationScheduleDocument.filename || "Depreciation Schedule"}</span>
+                      <span className="success-tag">Successfully uploaded</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-uploaded-file"
+                    onClick={() => {
+                      setDepreciationScheduleDocument(null);
+                      setDepreciationUploadProgress(0);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className={`property-dropzone ${isDraggingDoc ? "is-dragging" : ""}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingDoc(true);
                   }}
-                />
-              </label>
+                  onDragLeave={() => setIsDraggingDoc(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingDoc(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleDepreciationScheduleUpload(file);
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleDepreciationScheduleUpload(file);
+                      e.target.value = "";
+                    }}
+                    id="property-depreciation-input"
+                    className="hidden-file-input"
+                  />
+                  <label htmlFor="property-depreciation-input" className="dropzone-label">
+                    <div className="upload-icon-circle">
+                      <svg className="upload-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <div className="dropzone-text-group">
+                      <span className="dropzone-title">
+                        <strong>Click to upload</strong> or drag and drop
+                      </span>
+                      <span className="dropzone-subtitle">
+                        PDF, DOC, DOCX, JPG, or PNG (max. 10MB)
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -928,8 +1167,10 @@ export default function AddPropertyWizard({
                   className="property-date-input"
                   value={availableForRentDate}
                   onChange={(event) =>
-                    setAvailableForRentDate(event.target.value)
+                    handleDateChange(event.target.value, setAvailableForRentDate)
                   }
+                  onPaste={(event) => handleDatePaste(event, setAvailableForRentDate)}
+                  onBlur={(event) => handleDateBlur(event.target.value, setAvailableForRentDate)}
                 />
               </label>
               {status === "Rented" && (
@@ -942,8 +1183,10 @@ export default function AddPropertyWizard({
                     className="property-date-input"
                     value={firstRentalIncomeDate}
                     onChange={(event) =>
-                      setFirstRentalIncomeDate(event.target.value)
+                      handleDateChange(event.target.value, setFirstRentalIncomeDate)
                     }
+                    onPaste={(event) => handleDatePaste(event, setFirstRentalIncomeDate)}
+                    onBlur={(event) => handleDateBlur(event.target.value, setFirstRentalIncomeDate)}
                   />
                 </label>
               )}
@@ -961,8 +1204,10 @@ export default function AddPropertyWizard({
                   className="property-date-input"
                   value={renovationStartDate}
                   onChange={(event) =>
-                    setRenovationStartDate(event.target.value)
+                    handleDateChange(event.target.value, setRenovationStartDate)
                   }
+                  onPaste={(event) => handleDatePaste(event, setRenovationStartDate)}
+                  onBlur={(event) => handleDateBlur(event.target.value, setRenovationStartDate)}
                 />
               </label>
               <label className="entity-wizard-label">
@@ -971,36 +1216,105 @@ export default function AddPropertyWizard({
                   type="date"
                   className="property-date-input"
                   value={renovationEndDate}
-                  onChange={(event) => setRenovationEndDate(event.target.value)}
+                  onChange={(event) => handleDateChange(event.target.value, setRenovationEndDate)}
+                  onPaste={(event) => handleDatePaste(event, setRenovationEndDate)}
+                  onBlur={(event) => handleDateBlur(event.target.value, setRenovationEndDate)}
                 />
               </label>
             </div>
           )}
 
-          <div className="property-upload-card">
-            <div>
-              <strong>Property Image</strong>
-              <span>
-                {propertyImageName ||
-                  (imageUrl ? "Image uploaded" : "Upload a property image")}
-              </span>
-            </div>
-            <label className="property-upload-button">
-              {isUploadingPropertyImage
-                ? `${propertyImageProgress}%`
-                : imageUrl
-                  ? "Replace"
-                  : "Upload"}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={isUploadingPropertyImage}
-                onChange={(event) => {
-                  handlePropertyImageUpload(event.target.files?.[0]);
-                  event.target.value = "";
+          <div className="property-upload-section">
+            <span className="entity-wizard-label-text">
+              Property Image <em>*</em>
+            </span>
+            {isUploadingPropertyImage ? (
+              <div className="property-upload-progress-card">
+                <div className="property-upload-progress-info">
+                  <svg className="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+                    <polyline points="13 2 13 9 20 9" />
+                  </svg>
+                  <div className="progress-details">
+                    <span className="filename">{propertyImageName || "Uploading image..."}</span>
+                    <span className="progress-percentage">{propertyImageProgress}%</span>
+                  </div>
+                </div>
+                <div className="progress-bar-container">
+                  <div className="progress-bar-fill" style={{ width: `${propertyImageProgress}%` }} />
+                </div>
+              </div>
+            ) : imageUrl ? (
+              <div className="property-uploaded-card">
+                <div className="uploaded-file-info">
+                  <div className="uploaded-preview-wrap">
+                    <img src={imageUrl.startsWith('http') || imageUrl.startsWith('/') ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`} alt="Property Preview" className="uploaded-image-thumbnail" />
+                  </div>
+                  <div className="uploaded-details">
+                    <span className="filename">{propertyImageName || "Property Image"}</span>
+                    <span className="success-tag">Successfully uploaded</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="remove-uploaded-file"
+                  onClick={() => {
+                    setImageUrl("");
+                    setPropertyImageName("");
+                    setPropertyImageProgress(0);
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`property-dropzone ${isDraggingImage ? "is-dragging" : ""}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImage(true);
                 }}
-              />
-            </label>
+                onDragLeave={() => setIsDraggingImage(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImage(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handlePropertyImageUpload(file);
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePropertyImageUpload(file);
+                    e.target.value = "";
+                  }}
+                  id="property-image-input"
+                  className="hidden-file-input"
+                />
+                <label htmlFor="property-image-input" className="dropzone-label">
+                  <div className="upload-icon-circle">
+                    <svg className="upload-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <div className="dropzone-text-group">
+                    <span className="dropzone-title">
+                      <strong>Click to upload</strong> or drag and drop
+                    </span>
+                    <span className="dropzone-subtitle">
+                      PNG, JPG, JPEG, or WEBP (max. 10MB)
+                    </span>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="entity-wizard-footer">
@@ -1111,10 +1425,18 @@ export default function AddPropertyWizard({
             Bank Name
             <input
               type="text"
-              placeholder="e.g., Wells Fargo"
+              placeholder="e.g., Commonwealth Bank"
               value={bankName}
-              onChange={(event) => setBankName(event.target.value)}
+              onChange={(event) => {
+                const cleaned = event.target.value.replace(/[^a-zA-Z\s]/g, "");
+                setBankName(cleaned);
+              }}
             />
+            {!isBankNameValid && (
+              <span className="entity-wizard-inline-error">
+                Bank Name must contain alphabets only.
+              </span>
+            )}
           </label>
 
           <div className="property-wizard-grid">
@@ -1122,10 +1444,18 @@ export default function AddPropertyWizard({
               BSB Number
               <input
                 type="text"
-                placeholder="e.g., 123-456"
+                placeholder="e.g., 123456"
                 value={bsbNumber}
-                onChange={(event) => setBsbNumber(event.target.value)}
+                onChange={(event) => {
+                  const cleaned = event.target.value.replace(/\D/g, "").slice(0, 6);
+                  setBsbNumber(cleaned);
+                }}
               />
+              {!isBsbValid && (
+                <span className="entity-wizard-inline-error">
+                  BSB Number must allow exactly 6 digits only.
+                </span>
+              )}
             </label>
 
             <label className="entity-wizard-label">
@@ -1134,8 +1464,16 @@ export default function AddPropertyWizard({
                 type="text"
                 placeholder="Enter account number"
                 value={loanAccountNumber}
-                onChange={(event) => setLoanAccountNumber(event.target.value)}
+                onChange={(event) => {
+                  const cleaned = event.target.value.replace(/\D/g, "");
+                  setLoanAccountNumber(cleaned);
+                }}
               />
+              {!isLoanAccountNumberValid && (
+                <span className="entity-wizard-inline-error">
+                  Loan Account Number must contain numeric values only.
+                </span>
+              )}
             </label>
 
             <label className="entity-wizard-label">
@@ -1146,21 +1484,36 @@ export default function AddPropertyWizard({
                 max="100"
                 placeholder="0%"
                 value={loanAllocationPercentage}
-                onChange={(event) =>
-                  setLoanAllocationPercentage(event.target.value)
-                }
+                onChange={(event) => {
+                  let val = event.target.value;
+                  if (val !== "") {
+                    const num = Number(val);
+                    if (num > 100) val = "100";
+                    if (num < 0) val = "0";
+                  }
+                  setLoanAllocationPercentage(val);
+                }}
               />
+              {!isLoanAllocationValid && (
+                <span className="entity-wizard-inline-error">
+                  Loan Allocation percentage must not exceed 100%.
+                </span>
+              )}
             </label>
 
             <label className="entity-wizard-label">
               Loan Amount
               <input
-                type="number"
-                min="0"
-                placeholder="Enter amount"
+                type="text"
+                placeholder="A$0"
                 value={loanAmount}
-                onChange={(event) => setLoanAmount(event.target.value)}
+                onChange={(event) => handleLoanAmountChange(event.target.value)}
               />
+              {!isLoanAmountValid && (
+                <span className="entity-wizard-inline-error">
+                  Loan Amount must accept only Australian Dollar currency format with "S" symbol that is A$.
+                </span>
+              )}
             </label>
           </div>
 
@@ -1212,7 +1565,8 @@ export default function AddPropertyWizard({
               disabled={
                 isSaving ||
                 isUploadingPropertyImage ||
-                isUploadingDepreciationSchedule
+                isUploadingDepreciationSchedule ||
+                !isLoanDetailsValid
               }
               onClick={handleSave}
             >
