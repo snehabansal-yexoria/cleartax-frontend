@@ -22,27 +22,27 @@ const entityTypeOptions: EntityTypeOption[] = [
   {
     value: "individual",
     label: "Individual",
-    description: "Single person ownership with direct asset control",
+    description: "Property owned in your personal name",
   },
   {
     value: "partnership",
     label: "Partnership",
-    description: "Shared ownership between two or more partners",
+    description: "Joint ownership between two or more parties",
   },
   {
     value: "company",
     label: "Company (Pty Ltd)",
-    description: "Limited liability company structure with shareholders",
+    description: "Property owned through a company entity",
   },
   {
     value: "trust",
-    label: "Trust (Discretionary/ Unit)",
-    description: "Asset protection and flexible distribution to beneficiaries",
+    label: "Trust (Discretionary / Unit Trust)",
+    description: "Property held within a trust structure",
   },
   {
     value: "smsf",
     label: "Self Managed Super Fund (SMSF)",
-    description: "Tax-effective retirement savings and investment vehicle",
+    description: "Property owned through an SMSF for retirement investment",
   },
 ];
 
@@ -93,6 +93,7 @@ export default function AddEntityWizard({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedEntity, setSavedEntity] = useState<CoreEntity | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const totalOwnership = useMemo(
@@ -140,15 +141,15 @@ export default function AddEntityWizard({
   const isEditMode = mode === "edit";
   const stepMeta = useMemo(
     () => [
-      { title: "Choose Entity Type", subtitle: "Select the type of entity" },
+      { title: "Choose Entity Type", subtitle: "Select the entity that legally owns the investment property" },
       { title: "Enter Entity Name", subtitle: "Name client entity" },
       ...(needsBeneficiaries
         ? [
-            {
-              title: `Add ${beneficiaryNounPlural}`,
-              subtitle: "Define ownership structure",
-            },
-          ]
+          {
+            title: `Add ${beneficiaryNounPlural}`,
+            subtitle: "Define ownership structure",
+          },
+        ]
         : []),
     ],
     [beneficiaryNounPlural, needsBeneficiaries],
@@ -179,6 +180,7 @@ export default function AddEntityWizard({
     setEntityName("");
     setBeneficiaries([newBeneficiaryRow()]);
     setSaved(false);
+    setSavedEntity(null);
     setErrorMessage("");
   }
 
@@ -208,20 +210,20 @@ export default function AddEntityWizard({
 
       body.beneficiaries = needsBeneficiaries
         ? filledBeneficiaries.map((row) => ({
-            ...(row.id ? { id: row.id } : {}),
-            name: row.name.trim(),
-            ownership_percentage: Number.parseFloat(row.percentage),
-          }))
+          ...(row.id ? { id: row.id } : {}),
+          name: row.name.trim(),
+          ownership_percentage: Number.parseFloat(row.percentage),
+        }))
         : [
-            {
-              ...(primaryBeneficiary?.id ? { id: primaryBeneficiary.id } : {}),
-              name:
-                primaryBeneficiary?.name ||
-                defaultBeneficiaryName.trim() ||
-                entityName.trim(),
-              ownership_percentage: 100,
-            },
-          ];
+          {
+            ...(primaryBeneficiary?.id ? { id: primaryBeneficiary.id } : {}),
+            name:
+              primaryBeneficiary?.name ||
+              defaultBeneficiaryName.trim() ||
+              entityName.trim(),
+            ownership_percentage: 100,
+          },
+        ];
 
       const url =
         isEditMode && initialEntity
@@ -241,13 +243,15 @@ export default function AddEntityWizard({
         const payload = await res.json().catch(() => ({}));
         setErrorMessage(
           payload?.error ||
-            payload?.message ||
-            `Failed to ${isEditMode ? "update" : "save"} entity.`,
+          payload?.message ||
+          `Failed to ${isEditMode ? "update" : "save"} entity.`,
         );
         return null;
       }
 
-      return (await res.json()) as CoreEntity;
+      const entity = (await res.json()) as CoreEntity;
+      setSavedEntity(entity);
+      return entity;
     } finally {
       setIsSaving(false);
     }
@@ -478,9 +482,8 @@ export default function AddEntityWizard({
           </div>
 
           <div
-            className={`entity-beneficiary-total${
-              ownershipAboveZero && ownershipWithinLimit ? " is-complete" : ""
-            }${ownershipOverLimit ? " is-over" : ""}`}
+            className={`entity-beneficiary-total${ownershipAboveZero && ownershipWithinLimit ? " is-complete" : ""
+              }${ownershipOverLimit ? " is-over" : ""}`}
           >
             <span>Total Ownership:</span>
             <strong>{formatPercentage(totalOwnership)}</strong>
@@ -570,7 +573,16 @@ export default function AddEntityWizard({
               </p>
             </div>
             <div className="entity-success-footer">
-              <Link href={onSuccessHref} className="entity-wizard-primary">
+              <Link
+                href={
+                  !isEditMode && entityType === "individual" && savedEntity
+                    ? onSuccessHref.includes("/dashboard/accountant")
+                      ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
+                      : `/dashboard/client/entities/${savedEntity.id}/properties/new`
+                    : onSuccessHref
+                }
+                className="entity-wizard-primary"
+              >
                 Continue
               </Link>
             </div>
@@ -591,7 +603,7 @@ function getInitialBeneficiaries(entity?: CoreEntity): BeneficiaryRow[] {
     percentage:
       Math.abs(
         beneficiary.ownershipPercentage -
-          Math.round(beneficiary.ownershipPercentage),
+        Math.round(beneficiary.ownershipPercentage),
       ) < 0.001
         ? String(Math.round(beneficiary.ownershipPercentage))
         : String(beneficiary.ownershipPercentage),

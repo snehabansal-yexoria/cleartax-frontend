@@ -85,6 +85,7 @@ export type CoreProperty = {
   locationText: string;
   estimatedMarketValue: number;
   purchaseDate: string;
+  settlementDate?: string;
   purchaseAmount: number;
   hasDepreciationSchedule: boolean;
   status: string;
@@ -550,6 +551,7 @@ export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
       raw.estimated_market_value ?? raw.estimatedMarketValue,
     ),
     purchaseDate: toStringValue(raw.purchase_date ?? raw.purchaseDate),
+    settlementDate: toStringValue(raw.settlement_date ?? raw.settlementDate),
     purchaseAmount: toFloatValue(raw.purchase_amount ?? raw.purchaseAmount),
     hasDepreciationSchedule: Boolean(
       raw.has_depreciation_schedule ?? raw.hasDepreciationSchedule,
