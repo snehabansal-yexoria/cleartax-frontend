@@ -34,6 +34,7 @@ type PropertyForm = {
   location: string;
   marketValue: string;
   purchaseDate: string;
+  settlementDate: string;
   purchaseAmount: string;
   depreciationSchedule: "yes" | "no";
   propertyStatus: string;
@@ -78,9 +79,9 @@ function getTotalOwnership(rows: OwnerRow[]) {
 
 function formatMoney(value: string) {
   const amount = Number.parseFloat(value || "0");
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-AU", {
     style: "currency",
-    currency: "USD",
+    currency: "AUD",
     maximumFractionDigits: 0,
   }).format(Number.isFinite(amount) ? amount : 0);
 }
@@ -103,6 +104,7 @@ export default function AccountantAddPropertyPage() {
     location: "",
     marketValue: "",
     purchaseDate: "",
+    settlementDate: "",
     purchaseAmount: "",
     depreciationSchedule: "no",
     propertyStatus: "Listed For Sale",
@@ -216,14 +218,12 @@ export default function AccountantAddPropertyPage() {
 
         <div className="accountant-entity-stepper accountant-property-stepper">
           <article
-            className={`accountant-entity-step${
-              currentStep === 1 ? " is-active" : currentStep > 1 ? " is-complete" : ""
-            }`}
+            className={`accountant-entity-step${currentStep === 1 ? " is-active" : currentStep > 1 ? " is-complete" : ""
+              }`}
           >
             <span
-              className={`accountant-entity-step-circle${
-                currentStep > 1 ? " is-complete" : currentStep === 1 ? " is-active" : ""
-              }`}
+              className={`accountant-entity-step-circle${currentStep > 1 ? " is-complete" : currentStep === 1 ? " is-active" : ""
+                }`}
             >
               {currentStep > 1 ? (
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -242,24 +242,21 @@ export default function AccountantAddPropertyPage() {
           {takesOwnershipDetails && (
             <>
               <span
-                className={`accountant-entity-step-line${
-                  currentStep > 1 ? " is-active" : ""
-                }`}
+                className={`accountant-entity-step-line${currentStep > 1 ? " is-active" : ""
+                  }`}
               />
 
               <article
-                className={`accountant-entity-step${
-                  currentStep >= 2 ? " is-active" : ""
-                }`}
+                className={`accountant-entity-step${currentStep >= 2 ? " is-active" : ""
+                  }`}
               >
                 <span
-                  className={`accountant-entity-step-circle${
-                    currentStep > 2
-                      ? " is-complete"
-                      : currentStep === 2
-                        ? " is-active"
-                        : ""
-                  }`}
+                  className={`accountant-entity-step-circle${currentStep > 2
+                    ? " is-complete"
+                    : currentStep === 2
+                      ? " is-active"
+                      : ""
+                    }`}
                 >
                   {currentStep > 2 ? (
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -278,20 +275,17 @@ export default function AccountantAddPropertyPage() {
           )}
 
           <span
-            className={`accountant-entity-step-line${
-              currentStep === 3 ? " is-active" : ""
-            }`}
+            className={`accountant-entity-step-line${currentStep === 3 ? " is-active" : ""
+              }`}
           />
 
           <article
-            className={`accountant-entity-step${
-              currentStep === 3 ? " is-active" : ""
-            }`}
+            className={`accountant-entity-step${currentStep === 3 ? " is-active" : ""
+              }`}
           >
             <span
-              className={`accountant-entity-step-circle${
-                currentStep === 3 ? " is-active" : ""
-              }`}
+              className={`accountant-entity-step-circle${currentStep === 3 ? " is-active" : ""
+                }`}
             >
               {takesOwnershipDetails ? "3" : "2"}
             </span>
@@ -305,7 +299,7 @@ export default function AccountantAddPropertyPage() {
         <div className="accountant-entity-flow-card">
           {currentStep === 1 && (
             <>
-              <div className="accountant-entity-flow-header">
+              <div className="accountant-entity-flow-header border ">
                 <h1>Property Details</h1>
                 <p>Enter the basic information about the property</p>
               </div>
@@ -357,11 +351,11 @@ export default function AccountantAddPropertyPage() {
 
                 <div className="accountant-property-field">
                   <label>
-                    Estimated Market Value <span>*</span>
+                    Estimated Market Value
                   </label>
                   <input
                     type="text"
-                    placeholder="$ 0"
+                    placeholder="A$ 0"
                     value={form.marketValue}
                     onChange={(event) => updateForm("marketValue", event.target.value)}
                   />
@@ -369,7 +363,7 @@ export default function AccountantAddPropertyPage() {
 
                 <div className="accountant-property-field">
                   <label>
-                    Purchase Date <span>*</span>
+                    Contract Date <span>*</span>
                   </label>
                   <input
                     type="text"
@@ -381,11 +375,23 @@ export default function AccountantAddPropertyPage() {
 
                 <div className="accountant-property-field">
                   <label>
+                    Settlement Date
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="dd/mm/yyyy"
+                    value={form.settlementDate}
+                    onChange={(event) => updateForm("settlementDate", event.target.value)}
+                  />
+                </div>
+
+                <div className="accountant-property-field">
+                  <label>
                     Property Purchase Amount <span>*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="$ 0"
+                    placeholder="A$ 0"
                     value={form.purchaseAmount}
                     onChange={(event) =>
                       updateForm("purchaseAmount", event.target.value)
@@ -486,9 +492,9 @@ export default function AccountantAddPropertyPage() {
                             current.map((row) =>
                               row.id === owner.id
                                 ? {
-                                    ...row,
-                                    percentage: event.target.value.replace(/[^\d.]/g, ""),
-                                  }
+                                  ...row,
+                                  percentage: event.target.value.replace(/[^\d.]/g, ""),
+                                }
                                 : row,
                             ),
                           )

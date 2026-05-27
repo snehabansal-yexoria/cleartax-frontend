@@ -74,11 +74,12 @@ function titleCase(value: string) {
 }
 
 function toMoney(value: string) {
-  const amount = Number.parseFloat(value);
-  if (!Number.isFinite(amount)) return "$0";
+  const clean = value ? value.replace(/[^0-9.]/g, "") : "";
+  const amount = Number.parseFloat(clean);
+  if (!Number.isFinite(amount)) return "A$0";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "AUD",
     maximumFractionDigits: 0,
   }).format(amount);
 }
@@ -172,18 +173,18 @@ function getUploadedDocument(
   if (!loanDetails) return null;
   const documentId = String(
     loanDetails.depreciation_schedule_document_id ??
-      loanDetails.depreciationScheduleDocumentId ??
-      "",
+    loanDetails.depreciationScheduleDocumentId ??
+    "",
   );
   const s3Key = String(
     loanDetails.depreciation_schedule_s3_key ??
-      loanDetails.depreciationScheduleS3Key ??
-      "",
+    loanDetails.depreciationScheduleS3Key ??
+    "",
   );
   const filename = String(
     loanDetails.depreciation_schedule_filename ??
-      loanDetails.depreciationScheduleFilename ??
-      "",
+    loanDetails.depreciationScheduleFilename ??
+    "",
   );
   if (!documentId && !s3Key) return null;
   return { documentId, s3Key, filename };
@@ -192,19 +193,19 @@ function getUploadedDocument(
 function formatAUD(val: string): string {
   // Remove everything except digits and one decimal point
   let cleaned = val.replace(/[^0-9.]/g, "");
-  
+
   // Handle multiple decimals (only keep the first one)
   const parts = cleaned.split(".");
   if (parts.length > 2) {
     cleaned = parts[0] + "." + parts.slice(1).join("");
   }
-  
+
   if (!cleaned) return "";
-  
+
   // Format integer part with thousands separators
   let [integer, decimal] = cleaned.split(".");
   integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  
+
   let formatted = "A$" + integer;
   if (decimal !== undefined) {
     formatted += "." + decimal.slice(0, 2);
@@ -230,8 +231,8 @@ async function uploadViaPresign({
     const payload = await presignRes.json().catch(() => ({}));
     throw new Error(
       payload?.message ||
-        payload?.error ||
-        `Failed to prepare upload (${presignRes.status}).`,
+      payload?.error ||
+      `Failed to prepare upload (${presignRes.status}).`,
     );
   }
   const { upload_url, s3_key, document_id } = (await presignRes.json()) as {
@@ -283,8 +284,8 @@ function getInitialOwners(
         name: savedOwner?.ownerName || beneficiary.name,
         percentage: String(
           savedOwner?.ownershipPercentage ??
-            beneficiary.ownershipPercentage ??
-            "",
+          beneficiary.ownershipPercentage ??
+          "",
         ),
       };
     });
@@ -307,15 +308,20 @@ export default function AddPropertyWizard({
   const [locationText, setLocationText] = useState(
     initialProperty?.locationText ?? "",
   );
-  const [estimatedMarketValue, setEstimatedMarketValue] = useState(
-    toInputNumber(initialProperty?.estimatedMarketValue),
-  );
+  const [estimatedMarketValue, setEstimatedMarketValue] = useState(() => {
+    const raw = initialProperty?.estimatedMarketValue;
+    return raw ? formatAUD(String(raw)) : "";
+  });
   const [purchaseDate, setPurchaseDate] = useState(
     initialProperty?.purchaseDate ?? "",
   );
-  const [purchaseAmount, setPurchaseAmount] = useState(
-    toInputNumber(initialProperty?.purchaseAmount),
+  const [settlementDate, setSettlementDate] = useState(
+    initialProperty?.settlementDate ?? "",
   );
+  const [purchaseAmount, setPurchaseAmount] = useState(() => {
+    const raw = initialProperty?.purchaseAmount;
+    return raw ? formatAUD(String(raw)) : "";
+  });
   const [hasDepreciationSchedule, setHasDepreciationSchedule] = useState(
     initialProperty?.hasDepreciationSchedule ?? false,
   );
@@ -377,6 +383,8 @@ export default function AddPropertyWizard({
   const isLoanAccountNumberValid = !loanAccountNumber || /^\d*$/.test(loanAccountNumber);
   const isLoanAllocationValid = !loanAllocationPercentage || (Number(loanAllocationPercentage) >= 0 && Number(loanAllocationPercentage) <= 100);
   const isLoanAmountValid = !loanAmount || (loanAmount !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(loanAmount));
+  const isEstimatedMarketValueValid = !estimatedMarketValue || (estimatedMarketValue !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(estimatedMarketValue));
+  const isPurchaseAmountValid = !purchaseAmount || (purchaseAmount !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(purchaseAmount));
 
   const isLoanDetailsValid =
     isBankNameValid &&
@@ -392,6 +400,24 @@ export default function AddPropertyWizard({
     }
     const formatted = formatAUD(inputVal);
     setLoanAmount(formatted);
+  };
+
+  const handleEstimatedMarketValueChange = (inputVal: string) => {
+    if (!inputVal || inputVal === "A" || inputVal === "A$") {
+      setEstimatedMarketValue("");
+      return;
+    }
+    const formatted = formatAUD(inputVal);
+    setEstimatedMarketValue(formatted);
+  };
+
+  const handlePurchaseAmountChange = (inputVal: string) => {
+    if (!inputVal || inputVal === "A" || inputVal === "A$") {
+      setPurchaseAmount("");
+      return;
+    }
+    const formatted = formatAUD(inputVal);
+    setPurchaseAmount(formatted);
   };
 
   const handleDateChange = (
@@ -491,8 +517,10 @@ export default function AddPropertyWizard({
     propertyType &&
     locationText.trim() &&
     estimatedMarketValue.trim() &&
+    isEstimatedMarketValueValid &&
     purchaseDate &&
     purchaseAmount.trim() &&
+    isPurchaseAmountValid &&
     status.trim() &&
     statusDetailsValid,
   );
@@ -521,15 +549,27 @@ export default function AddPropertyWizard({
   useEffect(() => {
     if (!initialProperty) {
       setOwners(getInitialOwners(entity, undefined));
+      setSettlementDate("");
+      setEstimatedMarketValue("");
+      setPurchaseAmount("");
       return;
     }
 
     setPropertyName(initialProperty.name);
     setPropertyType(initialProperty.propertyType);
     setLocationText(initialProperty.locationText);
-    setEstimatedMarketValue(toInputNumber(initialProperty.estimatedMarketValue));
+    setEstimatedMarketValue(
+      initialProperty.estimatedMarketValue
+        ? formatAUD(String(initialProperty.estimatedMarketValue))
+        : "",
+    );
     setPurchaseDate(initialProperty.purchaseDate);
-    setPurchaseAmount(toInputNumber(initialProperty.purchaseAmount));
+    setSettlementDate(initialProperty.settlementDate ?? "");
+    setPurchaseAmount(
+      initialProperty.purchaseAmount
+        ? formatAUD(String(initialProperty.purchaseAmount))
+        : "",
+    );
     setHasDepreciationSchedule(initialProperty.hasDepreciationSchedule);
     setStatus(initialProperty.status || "Listed for Sale");
     setAvailableForRentDate(
@@ -716,9 +756,10 @@ export default function AddPropertyWizard({
         name: propertyName.trim(),
         property_type: propertyType,
         location_text: locationText.trim(),
-        estimated_market_value: Number.parseFloat(estimatedMarketValue),
+        estimated_market_value: Number.parseFloat(estimatedMarketValue.replace(/[^0-9.]/g, "")),
         purchase_date: purchaseDate,
-        purchase_amount: Number.parseFloat(purchaseAmount),
+        settlement_date: settlementDate || null,
+        purchase_amount: Number.parseFloat(purchaseAmount.replace(/[^0-9.]/g, "")),
         has_depreciation_schedule: hasDepreciationSchedule,
         status: status.trim(),
       };
@@ -737,12 +778,12 @@ export default function AddPropertyWizard({
         property_status_details: buildStatusDetails(),
         ...(depreciationScheduleDocument
           ? {
-              depreciation_schedule_document_id:
-                depreciationScheduleDocument.documentId,
-              depreciation_schedule_s3_key: depreciationScheduleDocument.s3Key,
-              depreciation_schedule_filename:
-                depreciationScheduleDocument.filename,
-            }
+            depreciation_schedule_document_id:
+              depreciationScheduleDocument.documentId,
+            depreciation_schedule_s3_key: depreciationScheduleDocument.s3Key,
+            depreciation_schedule_filename:
+              depreciationScheduleDocument.filename,
+          }
           : {}),
       };
       body.loan_details = loanDetails;
@@ -765,8 +806,8 @@ export default function AddPropertyWizard({
         const payload = await res.json().catch(() => ({}));
         setErrorMessage(
           payload?.error ||
-            payload?.message ||
-            `Failed to ${isEditMode ? "update" : "save"} property.`,
+          payload?.message ||
+          `Failed to ${isEditMode ? "update" : "save"} property.`,
         );
         return null;
       }
@@ -864,9 +905,8 @@ export default function AddPropertyWizard({
                 Property Type <em>*</em>
               </span>
               <div
-                className={`property-status-select${
-                  isPropertyTypeOpen ? " is-open" : ""
-                }`}
+                className={`property-status-select${isPropertyTypeOpen ? " is-open" : ""
+                  }`}
                 onBlur={(event) => {
                   if (!event.currentTarget.contains(event.relatedTarget)) {
                     setIsPropertyTypeOpen(false);
@@ -938,22 +978,26 @@ export default function AddPropertyWizard({
 
             <label className="entity-wizard-label">
               <span>
-                Estimated Market Value <em>*</em>
+                Estimated Market Value
               </span>
               <input
-                type="number"
-                min="0"
-                placeholder="$ 0"
+                type="text"
+                placeholder="A$0"
                 value={estimatedMarketValue}
                 onChange={(event) =>
-                  setEstimatedMarketValue(event.target.value)
+                  handleEstimatedMarketValueChange(event.target.value)
                 }
               />
+              {!isEstimatedMarketValueValid && (
+                <span className="entity-wizard-inline-error">
+                  Estimated Market Value must accept only Australian Dollar currency format (A$).
+                </span>
+              )}
             </label>
 
             <label className="entity-wizard-label">
               <span>
-                Purchase Date <em>*</em>
+                Contract Date <em>*</em>
               </span>
               <input
                 type="date"
@@ -968,15 +1012,33 @@ export default function AddPropertyWizard({
 
             <label className="entity-wizard-label">
               <span>
+                Settlement Date
+              </span>
+              <input
+                type="date"
+                className="property-date-input"
+                value={settlementDate}
+                onChange={(event) => handleDateChange(event.target.value, setSettlementDate, false)}
+                onPaste={(event) => handleDatePaste(event, setSettlementDate, false)}
+                onBlur={(event) => handleDateBlur(event.target.value, setSettlementDate, false)}
+              />
+            </label>
+
+            <label className="entity-wizard-label">
+              <span>
                 Property Purchase Amount <em>*</em>
               </span>
               <input
-                type="number"
-                min="0"
-                placeholder="$ 0"
+                type="text"
+                placeholder="A$0"
                 value={purchaseAmount}
-                onChange={(event) => setPurchaseAmount(event.target.value)}
+                onChange={(event) => handlePurchaseAmountChange(event.target.value)}
               />
+              {!isPurchaseAmountValid && (
+                <span className="entity-wizard-inline-error">
+                  Property Purchase Amount must accept only Australian Dollar currency format (A$).
+                </span>
+              )}
             </label>
 
             <fieldset className="property-wizard-radio">
@@ -1384,9 +1446,8 @@ export default function AddPropertyWizard({
           )}
 
           <div
-            className={`entity-beneficiary-total ${
-              ownershipAboveZero && ownershipWithinLimit ? "is-complete" : ""
-            }${ownershipOverLimit ? " is-over" : ""}`}
+            className={`entity-beneficiary-total ${ownershipAboveZero && ownershipWithinLimit ? "is-complete" : ""
+              }${ownershipOverLimit ? " is-over" : ""}`}
           >
             <span>Total Ownership</span>
             <strong>
@@ -1480,18 +1541,10 @@ export default function AddPropertyWizard({
               Loan % Allocation
               <input
                 type="number"
-                min="0"
-                max="100"
                 placeholder="0%"
                 value={loanAllocationPercentage}
                 onChange={(event) => {
-                  let val = event.target.value;
-                  if (val !== "") {
-                    const num = Number(val);
-                    if (num > 100) val = "100";
-                    if (num < 0) val = "0";
-                  }
-                  setLoanAllocationPercentage(val);
+                  setLoanAllocationPercentage(event.target.value);
                 }}
               />
               {!isLoanAllocationValid && (

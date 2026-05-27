@@ -2802,7 +2802,7 @@ export function AddTransactionView({
     { id: makeSplitRowId(), propertyId: "", amount: "" },
   ]);
 
-  const [modeOfTransaction, setModeOfTransaction] = useState<string>("");
+  const [modeOfTransaction, setModeOfTransaction] = useState<string>("bank_transfer");
 
   const [description, setDescription] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
