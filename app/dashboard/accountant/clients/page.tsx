@@ -32,6 +32,12 @@ interface ClientRecord {
 
 type ClientTab = "all" | "mine";
 
+interface AccountantRecord {
+  id: string;
+  name: string;
+  email: string;
+}
+
 function getInitials(name: string) {
   const parts = name
     .split(" ")
@@ -52,6 +58,36 @@ function formatJoinedDate(value: string | null) {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatStatus(raw: string) {
+  const s = raw.toUpperCase();
+  const labels: Record<string, string> = {
+    ACCEPTED: "Accepted",
+    PENDING: "Pending",
+    ACTIVE: "Active",
+    INACTIVE: "Inactive",
+  };
+  return labels[s] ?? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+function statusStyle(raw: string) {
+  const s = raw.toUpperCase();
+  const base = {
+    borderRadius: "6px",
+    padding: "2px 10px",
+    fontSize: "12px",
+    fontWeight: 600,
+    whiteSpace: "nowrap" as const,
+    display: "inline-block",
+  };
+  if (s === "ACCEPTED" || s === "ACTIVE") {
+    return { ...base, color: "#027a48", background: "#ecfdf3" };
+  }
+  if (s === "PENDING") {
+    return { ...base, color: "#b54708", background: "#fffaeb" };
+  }
+  return { ...base, color: "#344054", background: "#f2f4f7" };
 }
 
 function buildInviteLink(params: {
@@ -252,6 +288,13 @@ function AccountantClientsContent() {
   });
   const [pageSize, setPageSize] = useState<string>("20");
   const [sortBy, setSortBy] = useState<string>("properties");
+  const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
+  const [transferClient, setTransferClient] = useState<ClientRecord | null>(null);
+  const [transferToAccountantId, setTransferToAccountantId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState(false);
+  const [accountants, setAccountants] = useState<AccountantRecord[] | null>(null);
 
   useEffect(() => {
     if (searchParams.get("invite") === "1") {
@@ -266,6 +309,24 @@ function AccountantClientsContent() {
     const query = searchParams.get("q");
     if (query) setSearchValue(query);
   }, [searchParams]);
+
+  const loadAccountants = useCallback(async () => {
+    if (accountants !== null) return;
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/accountants", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { accountants?: AccountantRecord[] };
+        setAccountants(data.accountants ?? []);
+      }
+    } catch {
+      setAccountants([]);
+    }
+  }, [accountants]);
 
   // Used by mutation handlers (invite, assign) to refresh both lists after a write
   const loadClients = useCallback(async () => {
@@ -474,6 +535,57 @@ function AccountantClientsContent() {
     }
   }
 
+  function openTransferDrawer(client: ClientRecord) {
+    setTransferClient(client);
+    setTransferToAccountantId("");
+    setTransferReason("");
+    setTransferSuccess(false);
+    setTransferDrawerOpen(true);
+    loadAccountants();
+  }
+
+  function resetTransferState() {
+    setTransferDrawerOpen(false);
+    setTransferClient(null);
+    setTransferToAccountantId("");
+    setTransferReason("");
+    setTransferSuccess(false);
+  }
+
+  async function handleTransferClient() {
+    if (!transferClient || !transferToAccountantId || isTransferring) return;
+    try {
+      setIsTransferring(true);
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/clients/transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientId: transferClient.id,
+          toAccountantId: transferToAccountantId,
+          reason: transferReason || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(data.error || "Failed to transfer client");
+        return;
+      }
+      setTransferSuccess(true);
+      await loadClients();
+    } catch (error) {
+      console.error("Transfer client error:", error);
+      alert("Something went wrong while transferring the client.");
+    } finally {
+      setIsTransferring(false);
+    }
+  }
+
   return (
     <section className="accountant-clients-page">
       <div className="accountant-clients-topbar">
@@ -602,7 +714,7 @@ function AccountantClientsContent() {
           <div>Client Name</div>
           <div>Email Address</div>
           <div>Status</div>
-          <div>Invited By</div>
+          <div>Accountant</div>
           <div>Joined By</div>
         </div>
 
@@ -695,42 +807,49 @@ function AccountantClientsContent() {
               </div>
 
               <div className="accountant-client-cell">
-                <strong className="accountant-client-status">
-                  {client.status}
-                </strong>
+                <span style={statusStyle(client.status)}>
+                  {formatStatus(client.status)}
+                </span>
               </div>
 
               <div className="accountant-client-cell">
-                {client.isAssignedToAnotherAccountant ? (
-                  <span className="accountant-assigned-info">
-                    Assigned
-                    <button
-                      type="button"
-                      className="accountant-info-icon"
-                      aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
-                    >
-                      i
-                      <span
-                        className="accountant-info-tooltip"
-                        role="tooltip"
-                      >
-                        Assigned to{" "}
-                        {client.assignedAccountantName ||
-                          "another accountant"}
-                      </span>
-                    </button>
+                {client.isAssignedToCurrentAccountant ? (
+                  <span style={{ color: "#2f3c82", fontWeight: 600, fontSize: "13px" }}>
+                    You
+                  </span>
+                ) : client.assignedAccountantName ? (
+                  <span title={client.assignedAccountantId}>
+                    {client.assignedAccountantName}
                   </span>
                 ) : (
-                  <span>
-                    {client.isAssignedToCurrentAccountant
-                      ? "Added to My Clients"
-                      : client.invitedByEmail || "Organization Admin"}
-                  </span>
+                  <span style={{ color: "#98a2b3" }}>Unassigned</span>
                 )}
               </div>
 
-              <div className="accountant-client-cell">
+              <div className="accountant-client-cell" style={{ flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
                 <span>{formatJoinedDate(client.joinedAt)}</span>
+                {currentTab === "mine" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTransferDrawer(client);
+                    }}
+                    style={{
+                      fontSize: "11px",
+                      padding: "3px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #d0d5dd",
+                      background: "#fff",
+                      color: "#344054",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Transfer
+                  </button>
+                )}
               </div>
             </article>
           );
@@ -751,6 +870,174 @@ function AccountantClientsContent() {
           >
             Load More Clients
           </button>
+        </div>
+      )}
+
+      {isTransferDrawerOpen && (
+        <div className="accountant-drawer-layer">
+          <button
+            type="button"
+            className="accountant-drawer-backdrop"
+            aria-label="Close transfer drawer"
+            onClick={resetTransferState}
+          />
+          <aside className="accountant-invite-drawer">
+            <div className="accountant-invite-drawer-header">
+              <div>
+                <h2>Transfer Client</h2>
+                <p>
+                  Reassign{" "}
+                  <strong>{transferClient?.name ?? "this client"}</strong> to
+                  another accountant
+                </p>
+              </div>
+              <button type="button" onClick={resetTransferState}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+
+            {transferSuccess ? (
+              <div className="accountant-invite-success">
+                <div className="accountant-invite-success-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                  </svg>
+                </div>
+                <h3>Client Transferred!</h3>
+                <p>
+                  {transferClient?.name} has been reassigned to{" "}
+                  {accountants?.find((a) => a.id === transferToAccountantId)
+                    ?.name ?? "the selected accountant"}
+                  . The transfer has been logged in the client&apos;s history.
+                </p>
+              </div>
+            ) : (
+              <div className="accountant-invite-drawer-body">
+                <div
+                  style={{
+                    marginBottom: "20px",
+                    padding: "12px 14px",
+                    background: "#f9fafb",
+                    borderRadius: "10px",
+                    border: "1px solid #e4e7ec",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#667085",
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Transferring
+                  </span>
+                  <strong
+                    style={{
+                      display: "block",
+                      fontSize: "15px",
+                      color: "#101828",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {transferClient?.name}
+                  </strong>
+                  <span style={{ fontSize: "13px", color: "#667085" }}>
+                    {transferClient?.email}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}
+                  >
+                    Transfer To <span className="imp">*</span>
+                  </span>
+                  <StaticSelect
+                    value={transferToAccountantId}
+                    placeholder={
+                      accountants === null
+                        ? "Loading accountants…"
+                        : "Select accountant"
+                    }
+                    options={(accountants ?? [])
+                      .filter((a) => a.id !== transferClient?.assignedAccountantId)
+                      .map((a) => ({
+                        label: `${a.name} (${a.email})`,
+                        value: a.id,
+                      }))}
+                    onChange={setTransferToAccountantId}
+                    disabled={accountants === null}
+                  />
+                </div>
+
+                <label
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}>
+                    Reason <small style={{ fontWeight: 400, color: "#667085" }}>(Optional)</small>
+                  </span>
+                  <textarea
+                    placeholder="e.g. Going on annual leave Dec 1–15"
+                    value={transferReason}
+                    rows={3}
+                    onChange={(e) => setTransferReason(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      border: "1.5px solid #d0d5dd",
+                      borderRadius: "10px",
+                      fontSize: "14px",
+                      resize: "vertical",
+                      fontFamily: "inherit",
+                      color: "#101828",
+                      outline: "none",
+                    }}
+                  />
+                </label>
+
+                <div className="accountant-invite-note" style={{ marginTop: "16px" }}>
+                  <strong>What happens?</strong>
+                  <p>
+                    The selected accountant becomes the primary contact for this
+                    client. This transfer is recorded in the client&apos;s
+                    ownership history.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="accountant-invite-drawer-footer">
+              <button type="button" onClick={resetTransferState}>
+                {transferSuccess ? "Close" : "Cancel"}
+              </button>
+              {!transferSuccess && (
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={handleTransferClient}
+                  disabled={isTransferring || !transferToAccountantId}
+                >
+                  {isTransferring ? "Transferring…" : "Transfer Client"}
+                </button>
+              )}
+            </div>
+          </aside>
         </div>
       )}
 

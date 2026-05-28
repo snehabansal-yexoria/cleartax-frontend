@@ -266,10 +266,20 @@ export async function assignClientsToAccountant({
 
     const result = await client.query<{ id: string }>(
       `UPDATE users
-       SET assigned_accountant_id = $1
+       SET assigned_accountant_id = $1,
+           assigned_at = NOW()
        WHERE id = ANY($2::varchar[])
        RETURNING id`,
       [accountantId, uniqueClientIds],
+    );
+
+    await client.query(
+      `INSERT INTO client_accountant_history
+         (client_user_id, org_id, from_accountant_id, to_accountant_id, transferred_by)
+       SELECT id, $3::uuid, NULL, $1, $1
+       FROM users
+       WHERE id = ANY($2::varchar[])`,
+      [accountantId, uniqueClientIds, orgId],
     );
 
     await client.query("COMMIT");

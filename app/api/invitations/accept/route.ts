@@ -5,6 +5,7 @@ import {
   listCoreUsers,
   updateCoreUser,
 } from "../../../../src/lib/coreApi";
+import { pool } from "../../../../src/lib/db";
 
 type VerifiedToken = {
   sub?: string;
@@ -39,11 +40,18 @@ export async function POST(req: Request) {
       await updateCoreUser(apiToken, currentUser.id, {
         is_active: true,
       }).catch(() => null);
-
-      await updateCoreUser(apiToken, currentUser.id, {
-        status: "accepted",
-      }).catch(() => null);
     }
+
+    await pool
+      .query(
+        `UPDATE user_invitation
+         SET status = 'accepted',
+             accepted_at = COALESCE(accepted_at, CURRENT_TIMESTAMP)
+         WHERE lower(email) = lower($1)
+           AND accepted_at IS NULL`,
+        [decoded.email],
+      )
+      .catch(() => null);
 
     return NextResponse.json({
       success: true,
