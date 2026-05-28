@@ -522,7 +522,6 @@ export default function AddPropertyWizard({
     propertyName.trim() &&
     propertyType &&
     locationText.trim() &&
-    estimatedMarketValue.trim() &&
     isEstimatedMarketValueValid &&
     purchaseDate &&
     purchaseAmount.trim() &&
@@ -766,7 +765,9 @@ export default function AddPropertyWizard({
         name: propertyName.trim(),
         property_type: propertyType,
         location_text: locationText.trim(),
-        estimated_market_value: Number.parseFloat(estimatedMarketValue.replace(/[^0-9.]/g, "")),
+        estimated_market_value: estimatedMarketValue.trim()
+          ? Number.parseFloat(estimatedMarketValue.replace(/[^0-9.]/g, ""))
+          : null,
         purchase_date: purchaseDate,
         settlement_date: settlementDate || null,
         purchase_amount: Number.parseFloat(purchaseAmount.replace(/[^0-9.]/g, "")),
@@ -1319,9 +1320,9 @@ export default function AddPropertyWizard({
             ) : imageUrl ? (
               <div className="property-uploaded-card">
                 <div className="uploaded-file-info">
-                  <div className="uploaded-preview-wrap">
+                  {/* <div className="uploaded-preview-wrap">
                     <img src={imageUrl.startsWith('http') || imageUrl.startsWith('/') ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`} alt="Property Preview" className="uploaded-image-thumbnail" />
-                  </div>
+                  </div> */}
                   <div className="uploaded-details">
                     <span className="filename">{propertyImageName || "Property Image"}</span>
                     <span className="success-tag">Successfully uploaded</span>
@@ -1599,7 +1600,7 @@ export default function AddPropertyWizard({
               </div>
               <div>
                 <dt>Estimated Value</dt>
-                <dd>{toMoney(estimatedMarketValue)}</dd>
+                <dd>{estimatedMarketValue.trim() ? toMoney(estimatedMarketValue) : "-"}</dd>
               </div>
               <div>
                 <dt>Total Owners</dt>

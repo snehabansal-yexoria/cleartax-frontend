@@ -3,7 +3,7 @@
 import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSession } from "@/src/lib/session";
 
 interface SessionWithIdToken {
@@ -74,6 +74,24 @@ export default function AccountantPage() {
   const [isAssigningClient, setIsAssigningClient] = useState(false);
   const [assignMessage, setAssignMessage] = useState("");
 
+  const loadClients = useCallback(async () => {
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [allRes, myRes] = await Promise.all([
+        fetch("/api/users/me/clients?scope=all", { headers }),
+        fetch("/api/users/me/clients?scope=mine", { headers }),
+      ]);
+      if (allRes.ok) setAllClients((await allRes.json()).clients || []);
+      if (myRes.ok) setMyClients((await myRes.json()).clients || []);
+    } catch (error) {
+      console.error("Failed to load dashboard clients:", error);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -98,23 +116,20 @@ export default function AccountantPage() {
         })
         .catch(() => { if (!cancelled) setOrganizationName(""); });
 
-      fetch("/api/users/me/clients?scope=all", { headers })
-        .then((res) => (res.ok ? res.json() : { clients: [] }))
-        .then((data: { clients?: ClientRecord[] }) => {
-          if (!cancelled) setAllClients(data.clients || []);
-        })
-        .catch(() => { if (!cancelled) setAllClients([]); });
-
-      fetch("/api/users/me/clients?scope=mine", { headers })
-        .then((res) => (res.ok ? res.json() : { clients: [] }))
-        .then((data: { clients?: ClientRecord[] }) => {
-          if (!cancelled) setMyClients(data.clients || []);
-        })
-        .catch(() => { if (!cancelled) setMyClients([]); });
+      loadClients();
     }).catch(() => {});
 
     return () => { cancelled = true; };
-  }, []);
+  }, [loadClients]);
+
+  // Set up polling to auto-refresh the dashboard client lists every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadClients();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [loadClients]);
 
   const invitationPending = useMemo(
     () =>

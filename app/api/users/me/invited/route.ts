@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
+
 import { verifyToken } from "@/src/lib/verifyToken";
 import { getRoleIdsByNames } from "@/src/lib/roles";
 import { backfillAcceptedInvitationByEmail } from "@/src/lib/invitations";

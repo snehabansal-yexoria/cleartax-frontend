@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
+
 import { verifyToken } from "@/src/lib/verifyToken";
 import { getRoleIdByName } from "@/src/lib/roles";
+import { backfillAcceptedInvitationByEmail } from "@/src/lib/invitations";
 import {
   assignClientsToAccountant,
   findDirectoryUserByIdentity,
@@ -73,6 +76,17 @@ export async function GET(req: Request) {
       orgId: requester.orgId,
       roleIds: [clientRoleId],
     });
+
+    await Promise.all(
+      clients
+        .filter((user) => ["PENDING", "INVITED"].includes(user.status))
+        .map(async (user) => {
+          const wasBackfilled = await backfillAcceptedInvitationByEmail(user.email);
+          if (wasBackfilled) {
+            user.status = "ACCEPTED";
+          }
+        }),
+    );
 
     return NextResponse.json({
       clients: clients

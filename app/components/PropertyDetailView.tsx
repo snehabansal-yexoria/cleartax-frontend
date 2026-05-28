@@ -305,7 +305,7 @@ export default function PropertyDetailView({
           </div>
           <div>
             <dt>Market Value</dt>
-            <dd>{formatCurrency(property.estimatedMarketValue)}</dd>
+            <dd>{property.estimatedMarketValue ? formatCurrency(property.estimatedMarketValue) : "-"}</dd>
           </div>
           <div>
             <dt>Loan Value</dt>

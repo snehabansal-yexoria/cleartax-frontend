@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
+
 import { verifyToken } from "../../../../src/lib/verifyToken";
 import {
   getCoreApiBearerFromRequest,
   listCoreUsers,
   updateCoreUser,
 } from "../../../../src/lib/coreApi";
+import { pool } from "../../../../src/lib/db";
 
 type VerifiedToken = {
   sub?: string;
@@ -43,6 +46,20 @@ export async function POST(req: Request) {
       await updateCoreUser(apiToken, currentUser.id, {
         status: "accepted",
       }).catch(() => null);
+    }
+
+    // Also update the local user_invitation database record status to accepted
+    if (decoded.email) {
+      await pool.query(
+        `UPDATE user_invitation
+         SET status = 'accepted',
+             accepted_at = COALESCE(accepted_at, CURRENT_TIMESTAMP)
+         WHERE lower(email) = lower($1)
+           AND accepted_at IS NULL`,
+        [decoded.email.toLowerCase()]
+      ).catch((err) => {
+        console.error("Failed to update user_invitation status in local DB:", err);
+      });
     }
 
     return NextResponse.json({

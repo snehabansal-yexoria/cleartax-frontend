@@ -72,7 +72,8 @@ function formatJoinedDate(value: string | null) {
 }
 
 function statusClass(status: string) {
-  return status.toLowerCase() === "active" ? "is-active" : "is-pending";
+  const s = status.toLowerCase();
+  return s === "active" || s === "accepted" ? "is-active" : "is-pending";
 }
 
 function propertyCountLabel(count: number | undefined) {

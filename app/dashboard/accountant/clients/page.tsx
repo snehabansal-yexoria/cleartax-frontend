@@ -312,6 +312,15 @@ function AccountantClientsContent() {
     return () => { cancelled = true; };
   }, []);
 
+  // Set up polling to auto-refresh the client status every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadClients();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [loadClients]);
+
   const visibleClients = useMemo(() => {
     const source =
       currentTab === "all"
