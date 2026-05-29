@@ -467,6 +467,18 @@ export default function DashboardLayout({
       window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
   }, []);
 
+  useEffect(() => {
+    if (isAccountMenuOpen) {
+      announceDropdownOpen(accountDropdownId);
+    }
+  }, [isAccountMenuOpen]);
+
+  useEffect(() => {
+    if (isMobileNavOpen) {
+      announceDropdownOpen(mobileNavDropdownId);
+    }
+  }, [isMobileNavOpen]);
+
   // Prefetch data based on role
   async function prefetchSearchData() {
     if (hasPrefetched || !role) return;
@@ -868,11 +880,7 @@ export default function DashboardLayout({
                   type="button"
                   className="accountant-profile-trigger"
                   onClick={() =>
-                    setIsAccountMenuOpen((current) => {
-                      const next = !current;
-                      if (next) announceDropdownOpen(accountDropdownId);
-                      return next;
-                    })
+                    setIsAccountMenuOpen((current) => !current)
                   }
                   aria-haspopup="menu"
                   aria-expanded={isAccountMenuOpen}
@@ -935,11 +943,7 @@ export default function DashboardLayout({
           aria-label="Open navigation menu"
           aria-expanded={isMobileNavOpen}
           onClick={() =>
-            setIsMobileNavOpen((current) => {
-              const next = !current;
-              if (next) announceDropdownOpen(mobileNavDropdownId);
-              return next;
-            })
+            setIsMobileNavOpen((current) => !current)
           }
         >
           <span />
