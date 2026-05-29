@@ -76,12 +76,13 @@ function titleCase(value: string) {
 function toMoney(value: string) {
   const clean = value ? value.replace(/[^0-9.]/g, "") : "";
   const amount = Number.parseFloat(clean);
-  if (!Number.isFinite(amount)) return "A$0";
-  return new Intl.NumberFormat("en-US", {
+  if (!Number.isFinite(amount)) return "$0";
+  const formatted = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "AUD",
     maximumFractionDigits: 0,
   }).format(amount);
+  return formatted.replace(/^A\$/, "$");
 }
 
 function toInputNumber(value: number | undefined) {
@@ -206,7 +207,7 @@ function formatAUD(val: string): string {
   let [integer, decimal] = cleaned.split(".");
   integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-  let formatted = "A$" + integer;
+  let formatted = "$" + integer;
   if (decimal !== undefined) {
     formatted += "." + decimal.slice(0, 2);
   }
@@ -388,9 +389,9 @@ export default function AddPropertyWizard({
   const isBsbValid = !bsbNumber || bsbNumber.length === 6;
   const isLoanAccountNumberValid = !loanAccountNumber || /^\d*$/.test(loanAccountNumber);
   const isLoanAllocationValid = !loanAllocationPercentage || (Number(loanAllocationPercentage) >= 0 && Number(loanAllocationPercentage) <= 100);
-  const isLoanAmountValid = !loanAmount || (loanAmount !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(loanAmount));
-  const isEstimatedMarketValueValid = !estimatedMarketValue || (estimatedMarketValue !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(estimatedMarketValue));
-  const isPurchaseAmountValid = !purchaseAmount || (purchaseAmount !== "A$" && /^A\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(purchaseAmount));
+  const isLoanAmountValid = !loanAmount || (loanAmount !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(loanAmount));
+  const isEstimatedMarketValueValid = !estimatedMarketValue || (estimatedMarketValue !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(estimatedMarketValue));
+  const isPurchaseAmountValid = !purchaseAmount || (purchaseAmount !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(purchaseAmount));
 
   const isLoanDetailsValid =
     isBankNameValid &&
@@ -400,7 +401,7 @@ export default function AddPropertyWizard({
     isLoanAmountValid;
 
   const handleLoanAmountChange = (inputVal: string) => {
-    if (!inputVal || inputVal === "A" || inputVal === "A$") {
+    if (!inputVal || inputVal === "$") {
       setLoanAmount("");
       return;
     }
@@ -409,7 +410,7 @@ export default function AddPropertyWizard({
   };
 
   const handleEstimatedMarketValueChange = (inputVal: string) => {
-    if (!inputVal || inputVal === "A" || inputVal === "A$") {
+    if (!inputVal || inputVal === "$") {
       setEstimatedMarketValue("");
       return;
     }
@@ -418,7 +419,7 @@ export default function AddPropertyWizard({
   };
 
   const handlePurchaseAmountChange = (inputVal: string) => {
-    if (!inputVal || inputVal === "A" || inputVal === "A$") {
+    if (!inputVal || inputVal === "$") {
       setPurchaseAmount("");
       return;
     }
@@ -522,7 +523,6 @@ export default function AddPropertyWizard({
     propertyName.trim() &&
     propertyType &&
     locationText.trim() &&
-    estimatedMarketValue.trim() &&
     isEstimatedMarketValueValid &&
     purchaseDate &&
     purchaseAmount.trim() &&
@@ -766,7 +766,9 @@ export default function AddPropertyWizard({
         name: propertyName.trim(),
         property_type: propertyType,
         location_text: locationText.trim(),
-        estimated_market_value: Number.parseFloat(estimatedMarketValue.replace(/[^0-9.]/g, "")),
+        estimated_market_value: estimatedMarketValue.trim()
+          ? Number.parseFloat(estimatedMarketValue.replace(/[^0-9.]/g, ""))
+          : null,
         purchase_date: purchaseDate,
         settlement_date: settlementDate || null,
         purchase_amount: Number.parseFloat(purchaseAmount.replace(/[^0-9.]/g, "")),
@@ -992,7 +994,7 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="text"
-                placeholder="A$0"
+                placeholder="$0"
                 value={estimatedMarketValue}
                 onChange={(event) =>
                   handleEstimatedMarketValueChange(event.target.value)
@@ -1000,7 +1002,7 @@ export default function AddPropertyWizard({
               />
               {!isEstimatedMarketValueValid && (
                 <span className="entity-wizard-inline-error">
-                  Estimated Market Value must accept only Australian Dollar currency format (A$).
+                  Estimated Market Value must accept only Australian Dollar currency format ($).
                 </span>
               )}
             </label>
@@ -1040,13 +1042,13 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="text"
-                placeholder="A$0"
+                placeholder="$0"
                 value={purchaseAmount}
                 onChange={(event) => handlePurchaseAmountChange(event.target.value)}
               />
               {!isPurchaseAmountValid && (
                 <span className="entity-wizard-inline-error">
-                  Property Purchase Amount must accept only Australian Dollar currency format (A$).
+                  Property Purchase Amount must accept only Australian Dollar currency format ($).
                 </span>
               )}
             </label>
@@ -1319,9 +1321,9 @@ export default function AddPropertyWizard({
             ) : imageUrl ? (
               <div className="property-uploaded-card">
                 <div className="uploaded-file-info">
-                  <div className="uploaded-preview-wrap">
+                  {/* <div className="uploaded-preview-wrap">
                     <img src={imageUrl.startsWith('http') || imageUrl.startsWith('/') ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`} alt="Property Preview" className="uploaded-image-thumbnail" />
-                  </div>
+                  </div> */}
                   <div className="uploaded-details">
                     <span className="filename">{propertyImageName || "Property Image"}</span>
                     <span className="success-tag">Successfully uploaded</span>
@@ -1568,13 +1570,13 @@ export default function AddPropertyWizard({
               Loan Amount
               <input
                 type="text"
-                placeholder="A$0"
+                placeholder="$0"
                 value={loanAmount}
                 onChange={(event) => handleLoanAmountChange(event.target.value)}
               />
               {!isLoanAmountValid && (
                 <span className="entity-wizard-inline-error">
-                  Loan Amount must accept only Australian Dollar currency format with "S" symbol that is A$.
+                  Loan Amount must accept only Australian Dollar currency format with "$" symbol.
                 </span>
               )}
             </label>
@@ -1599,7 +1601,7 @@ export default function AddPropertyWizard({
               </div>
               <div>
                 <dt>Estimated Value</dt>
-                <dd>{toMoney(estimatedMarketValue)}</dd>
+                <dd>{estimatedMarketValue.trim() ? toMoney(estimatedMarketValue) : "-"}</dd>
               </div>
               <div>
                 <dt>Total Owners</dt>

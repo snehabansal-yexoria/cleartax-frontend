@@ -135,6 +135,7 @@ type StaticSelectProps = {
   required?: boolean;
   className?: string;
   disabled?: boolean;
+  error?: string;
 };
 
 function normalizeRule(raw: Record<string, unknown>): CoreTransactionRule {
@@ -221,6 +222,7 @@ function StaticSelect({
   required,
   className = "",
   disabled = false,
+  error,
 }: StaticSelectProps) {
   const reactId = useId();
   const dropdownId = `transaction-select-${reactId}`;
@@ -324,6 +326,11 @@ function StaticSelect({
           </div>
         )}
       </div>
+      {error && (
+        <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -3885,7 +3892,7 @@ export function AddTransactionView({
           onExtracted={handleExtracted}
           scope={activeEntityId ? { entityId: activeEntityId } : undefined}
           isSubmitting={isSubmitting}
-          submitError={submitError}
+          submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
         />
 
         <form className="transaction-entry-form" onSubmit={handleSubmit}>
@@ -4096,59 +4103,72 @@ export function AddTransactionView({
             <span>Is this a split transaction?</span>
           </label>
 
+          {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
+            <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
+              {submitError}
+            </p>
+          ) : null}
+
           {isSplit ? (
             <div className="transaction-split-section">
-              {splitRows.map((row, index) => (
-                <div key={row.id} className="transaction-split-row">
-                  <StaticSelect
-                    label={index === 0 ? "Property Name" : undefined}
-                    required
-                    value={row.propertyId}
-                    options={[
-                      { label: "Select Property", value: "" },
-                      ...splitPropertyBaseOptions,
-                    ]}
-                    onChange={(value) =>
-                      updateSplitRow(row.id, { propertyId: value })
-                    }
-                  />
-                  <label className="transaction-field">
-                    {index === 0 ? (
-                      <span className="transaction-field-label">
-                        Amount<em>*</em>
+              {splitRows.map((row, index) => {
+                const rowError = splitErrors[row.id];
+                const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                return (
+                  <div key={row.id} className="transaction-split-row">
+                    <StaticSelect
+                      label={index === 0 ? "Property Name" : undefined}
+                      required
+                      value={row.propertyId}
+                      options={[
+                        { label: "Select Property", value: "" },
+                        ...splitPropertyBaseOptions,
+                      ]}
+                      onChange={(value) =>
+                        updateSplitRow(row.id, { propertyId: value })
+                      }
+                      error={propertyError}
+                    />
+                    <label className="transaction-field">
+                      {index === 0 ? (
+                        <span className="transaction-field-label">
+                          Amount<em>*</em>
+                        </span>
+                      ) : null}
+                      <span className="transaction-money-input">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={row.amount}
+                          onChange={(e) =>
+                            updateSplitRow(row.id, { amount: e.target.value })
+                          }
+                        />
+                        <b>$</b>
                       </span>
-                    ) : null}
-                    <span className="transaction-money-input">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={row.amount}
-                        onChange={(e) =>
-                          updateSplitRow(row.id, { amount: e.target.value })
-                        }
-                      />
-                      <b>$</b>
-                    </span>
-                  </label>
-                  <button
-                    type="button"
-                    className="transaction-split-remove"
-                    aria-label="Remove split row"
-                    disabled={splitRows.length <= 1}
-                    onClick={() => removeSplitRow(row.id)}
-                  >
-                    Remove
-                  </button>
-                  {splitErrors[row.id] ? (
-                    <p className="transaction-split-row-error">
-                      {splitErrors[row.id]}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
+                      {amountError && (
+                        <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
+                          {amountError}
+                        </p>
+                      )}
+                    </label>
+                    <button
+                      type="button"
+                      className="transaction-split-remove"
+                      aria-label="Remove split row"
+                      disabled={splitRows.length <= 1}
+                      onClick={() => removeSplitRow(row.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
               {splitErrors.__form ? (
                 <p className="transaction-split-row-error">
                   {splitErrors.__form}
@@ -4175,6 +4195,12 @@ export function AddTransactionView({
                 </button>
               </div>
             </div>
+          ) : null}
+
+          {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
+            <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
+              {submitError}
+            </p>
           ) : null}
 
           <StaticSelect
@@ -4206,7 +4232,7 @@ export function AddTransactionView({
             />
           </label>
 
-          {submitError ? (
+          {submitError && !submitError.toLowerCase().includes("split") ? (
             <p className="transaction-warning-card" role="alert">
               {submitError}
             </p>

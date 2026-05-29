@@ -6,6 +6,26 @@ import {
 } from "@/src/lib/userDirectory";
 import { verifyToken } from "@/src/lib/verifyToken";
 import { pool } from "@/src/lib/db";
+import {
+  CognitoIdentityProviderClient,
+  AdminUpdateUserAttributesCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
+
+const appAccessKeyId = process.env.APP_ACCESS_KEY_ID;
+const appSecretAccessKey = process.env.APP_SECRET_ACCESS_KEY;
+const cognitoUserPoolId = process.env.COGNITO_USER_POOL_ID;
+
+const cognitoClient = new CognitoIdentityProviderClient({
+  region: process.env.APP_REGION || process.env.AWS_REGION || "ap-southeast-2",
+  ...(appAccessKeyId && appSecretAccessKey
+    ? {
+        credentials: {
+          accessKeyId: appAccessKeyId,
+          secretAccessKey: appSecretAccessKey,
+        },
+      }
+    : {}),
+});
 
 function getBackendUrl() {
   const base =
@@ -134,39 +154,69 @@ export async function PATCH(req: Request) {
     const body = await req.json().catch(() => ({}));
     const { phoneNumber, fullName } = body;
 
-    // 2. Build the request body for the backend update
-    const updateBody: Record<string, unknown> = {};
+    let responseData: any = null;
+
+    // Cognito phone number update if phoneNumber is specified
     if (phoneNumber !== undefined) {
-      updateBody.phone_number = phoneNumber;
-      updateBody.phone = phoneNumber;
+      let sanitizedPhone = String(phoneNumber).trim().replace(/[^\d+]/g, "");
+
+      if (sanitizedPhone) {
+        if (!sanitizedPhone.startsWith("+")) {
+          return NextResponse.json(
+            { error: "Phone number must start with '+' and include country code (e.g. +61491570156 or +919876543210)." },
+            { status: 400 }
+          );
+        }
+
+        try {
+          await cognitoClient.send(
+            new AdminUpdateUserAttributesCommand({
+              UserPoolId: cognitoUserPoolId,
+              Username: decoded.email,
+              UserAttributes: [
+                { Name: "phone_number", Value: sanitizedPhone },
+              ],
+            })
+          );
+        } catch (cognitoErr: any) {
+          console.error("Cognito phone number update error:", cognitoErr);
+          return NextResponse.json(
+            { error: cognitoErr.message || "Failed to update phone number in Cognito." },
+            { status: 400 }
+          );
+        }
+      }
     }
+
+    // Call Go backend PATCH /users/{id} to update in Cognito/backend database ONLY if fullName is provided
     if (fullName !== undefined) {
-      updateBody.full_name = fullName;
-    }
+      const updateBody = {
+        full_name: fullName
+      };
 
-    // 3. Call Go backend PATCH /users/{id} to update in Cognito/backend database
-    const res = await fetch(
-      `${getBackendUrl()}/users/${encodeURIComponent(userId)}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const res = await fetch(
+        `${getBackendUrl()}/users/${encodeURIComponent(userId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: authHeader,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(updateBody),
+          cache: "no-store",
         },
-        body: JSON.stringify(updateBody),
-        cache: "no-store",
-      },
-    );
-
-    const responseText = await res.text();
-    const responseData = responseText ? JSON.parse(responseText) : null;
-
-    if (!res.ok) {
-      return NextResponse.json(
-        responseData ?? { error: res.statusText },
-        { status: res.status },
       );
+
+      const responseText = await res.text();
+      responseData = responseText ? JSON.parse(responseText) : null;
+
+      if (!res.ok) {
+        return NextResponse.json(
+          responseData ?? { error: res.statusText },
+          { status: res.status },
+        );
+      }
     }
 
     // 4. Sync the updated full_name with local Postgres database to avoid inconsistencies
@@ -183,13 +233,28 @@ export async function PATCH(req: Request) {
         });
     }
 
+    // Sync the updated phone_number with local Postgres database
+    if (phoneNumber !== undefined) {
+      let sanitizedPhone = String(phoneNumber).trim().replace(/[^\d+]/g, "");
+      await pool
+        .query(
+          `UPDATE users
+         SET phone_number = $1
+         WHERE id = $2 OR lower(email) = $3`,
+          [sanitizedPhone, userId, (decoded.email || "").toLowerCase()],
+        )
+        .catch((err) => {
+          console.error("Failed to sync updated phone number to PG db:", err);
+        });
+    }
+
     return NextResponse.json({
       success: true,
       user: {
         id: responseData?.id || userId,
         email: responseData?.email || decoded.email || "",
         fullName: responseData?.full_name || responseData?.fullName || fullName || "",
-        phoneNumber: responseData?.phone_number || responseData?.phone || responseData?.phoneNumber || phoneNumber || "",
+        phoneNumber: phoneNumber !== undefined ? String(phoneNumber).trim().replace(/[^\d+]/g, "") : (responseData?.phone_number || responseData?.phone || responseData?.phoneNumber || ""),
       },
     });
   } catch (error) {

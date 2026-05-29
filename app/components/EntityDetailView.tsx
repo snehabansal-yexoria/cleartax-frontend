@@ -539,7 +539,13 @@ export default function EntityDetailView({
                       </div>
                       <div>
                         <dt>Total Transactions</dt>
-                        <dd>0</dd>
+                        <dd>
+                          {isTransactionsLoading
+                            ? "..."
+                            : transactions.filter((t) =>
+                                t.propertyIds?.includes(property.id),
+                              ).length}
+                        </dd>
                       </div>
                     </dl>
                     {entity.reconciled ? (

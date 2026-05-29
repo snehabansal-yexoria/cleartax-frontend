@@ -288,6 +288,8 @@ function AccountantClientsContent() {
   });
   const [pageSize, setPageSize] = useState<string>("20");
   const [sortBy, setSortBy] = useState<string>("properties");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
   const [transferClient, setTransferClient] = useState<ClientRecord | null>(null);
   const [transferToAccountantId, setTransferToAccountantId] = useState("");
@@ -309,6 +311,14 @@ function AccountantClientsContent() {
     const query = searchParams.get("q");
     if (query) setSearchValue(query);
   }, [searchParams]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchValue]);
+
+  useEffect(() => {
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
 
   const loadAccountants = useCallback(async () => {
     if (accountants !== null) return;
@@ -397,15 +407,31 @@ function AccountantClientsContent() {
         return a.name.localeCompare(b.name);
       } else if (sortBy === "name-desc") {
         return b.name.localeCompare(a.name);
+      } else if (sortBy === "joined-asc") {
+        if (!a.joinedAt && !b.joinedAt) return 0;
+        if (!a.joinedAt) return 1;
+        if (!b.joinedAt) return -1;
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      } else if (sortBy === "joined-desc") {
+        if (!a.joinedAt && !b.joinedAt) return 0;
+        if (!a.joinedAt) return 1;
+        if (!b.joinedAt) return -1;
+        return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
       }
       return 0;
     });
   }, [visibleClients, sortBy]);
 
-  const limit = pageSize === "all" ? sortedClients.length : Number(pageSize);
+  const totalItems = sortedClients.length;
+  const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
+  const totalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+
   const displayedClients = useMemo(() => {
-    return sortedClients.slice(0, limit);
-  }, [sortedClients, limit]);
+    const startIndex = (activePage - 1) * numericPageSize;
+    const endIndex = startIndex + numericPageSize;
+    return sortedClients.slice(startIndex, endIndex);
+  }, [sortedClients, activePage, numericPageSize]);
 
   function toggleClientSelection(clientId: string) {
     const client = (allClients ?? []).find((item) => item.id === clientId);
@@ -621,6 +647,7 @@ function AccountantClientsContent() {
             setSelectedClientIds([]);
             setAssignMessage("");
             setPageSize("20");
+            setCurrentPage(1);
           }}
         >
           All Clients
@@ -635,6 +662,7 @@ function AccountantClientsContent() {
               setSelectedClientIds([]);
               setAssignMessage("");
               setPageSize("20");
+              setCurrentPage(1);
             }}
           >
             My Clients
@@ -657,22 +685,6 @@ function AccountantClientsContent() {
           />
         </div>
 
-        {visibleClients.length > 20 && (
-          <StaticSelect
-            label="Show"
-            horizontal
-            value={pageSize}
-            options={[
-              { label: "20 records", value: "20" },
-              { label: "50 records", value: "50" },
-              { label: "100 records", value: "100" },
-              { label: "200 records", value: "200" },
-              { label: "Load All", value: "all" },
-            ]}
-            onChange={(value) => setPageSize(value)}
-          />
-        )}
-
         <StaticSelect
           value={sortBy}
           horizontal
@@ -680,6 +692,8 @@ function AccountantClientsContent() {
           options={[
             { label: "Sort by Name (A-Z)", value: "name-asc" },
             { label: "Sort by Name (Z-A)", value: "name-desc" },
+            { label: "Sort by Date (Oldest)", value: "joined-asc" },
+            { label: "Sort by Date (Newest)", value: "joined-desc" },
             { label: "Sort by Properties", value: "properties" },
           ]}
           onChange={(value) => setSortBy(value)}
@@ -854,24 +868,126 @@ function AccountantClientsContent() {
             </article>
           );
         })}
-      </div>
 
-      {visibleClients.length > limit && (
-        <div className="client-list-load-more-container" style={{ marginTop: '24px' }}>
-          <button
-            type="button"
-            className="client-list-load-more-btn"
-            onClick={() => {
-              if (pageSize === "20") setPageSize("50");
-              else if (pageSize === "50") setPageSize("100");
-              else if (pageSize === "100") setPageSize("200");
-              else setPageSize("all");
-            }}
-          >
-            Load More Clients
-          </button>
-        </div>
-      )}
+        {/* Pagination Footer */}
+        {allClients !== null && myClients !== null && totalItems > 0 && (
+          <footer className="premium-pagination-container">
+            {/* Left Section: Items per page and page range details */}
+            <div className="premium-pagination-left">
+              <span className="premium-pagination-label">Items per page</span>
+              <div className="premium-pagination-select-wrapper">
+                <select
+                  className="premium-pagination-select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <span className="premium-pagination-info">
+                {`${(activePage - 1) * numericPageSize + 1}–${Math.min(activePage * numericPageSize, totalItems)} of ${totalItems} items`}
+              </span>
+            </div>
+
+            {/* Right Section: First, Previous, Page Input, Next, Last */}
+            <div className="premium-pagination-right">
+              {/* First Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn premium-pagination-icon-btn"
+                title="First Page"
+                onClick={() => setCurrentPage(1)}
+                disabled={activePage === 1}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <line x1="5" y1="5" x2="5" y2="19" />
+                  <polyline points="19 5 12 12 19 19" />
+                </svg>
+              </button>
+
+              {/* Previous Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={activePage === 1}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                <span className="premium-pagination-btn-text">Previous</span>
+              </button>
+
+              {/* Page Selector Input Box */}
+              <div className="premium-pagination-page-input-wrapper">
+                <input
+                  type="number"
+                  className="premium-pagination-page-input"
+                  value={pageInputValue}
+                  onChange={(e) => setPageInputValue(e.target.value)}
+                  onBlur={() => {
+                    const pageNum = Number(pageInputValue);
+                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                      setCurrentPage(pageNum);
+                    } else {
+                      setPageInputValue(String(activePage));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const pageNum = Number(pageInputValue);
+                      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                        setCurrentPage(pageNum);
+                        e.currentTarget.blur();
+                      } else {
+                        setPageInputValue(String(activePage));
+                        e.currentTarget.blur();
+                      }
+                    }
+                  }}
+                  min={1}
+                  max={totalPages}
+                />
+                <span className="premium-pagination-label">of {totalPages}</span>
+              </div>
+
+              {/* Next Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={activePage === totalPages}
+              >
+                <span className="premium-pagination-btn-text">Next</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {/* Last Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn premium-pagination-icon-btn"
+                title="Last Page"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={activePage === totalPages}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <line x1="19" y1="5" x2="19" y2="19" />
+                  <polyline points="5 5 12 12 5 19" />
+                </svg>
+              </button>
+            </div>
+          </footer>
+        )}
+      </div>
 
       {isTransferDrawerOpen && (
         <div className="accountant-drawer-layer">
