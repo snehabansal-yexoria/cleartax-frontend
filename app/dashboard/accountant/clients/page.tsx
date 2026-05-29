@@ -845,22 +845,15 @@ function AccountantClientsContent() {
                 {currentTab === "mine" && (
                   <button
                     type="button"
+                    className="accountant-transfer-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       openTransferDrawer(client);
                     }}
-                    style={{
-                      fontSize: "11px",
-                      padding: "3px 10px",
-                      borderRadius: "6px",
-                      border: "1px solid #d0d5dd",
-                      background: "#fff",
-                      color: "#344054",
-                      cursor: "pointer",
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                    }}
                   >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+                    </svg>
                     Transfer
                   </button>
                 )}
