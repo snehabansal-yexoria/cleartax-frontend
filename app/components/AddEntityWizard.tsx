@@ -368,8 +368,32 @@ export default function AddEntityWizard({
       {step === 2 && (
         <div className="entity-wizard-card">
           <header>
-            <h2>Enter Entity Name</h2>
-            <p>Give client entity a clear, identifiable name</p>
+            <h2>
+              {entityType === "individual"
+                ? "Individual"
+                : entityType === "partnership"
+                  ? "Partnership"
+                  : entityType === "company"
+                    ? "Company (Pty Ltd)"
+                    : entityType === "trust"
+                      ? "Trust (Discretionary / Unit Trust)"
+                      : entityType === "smsf"
+                        ? "Self-Managed Super Fund (SMSF)"
+                        : "Enter Entity Name"}
+            </h2>
+            <p>
+              {entityType === "individual"
+                ? "Enter the full legal name of the individual"
+                : entityType === "partnership"
+                  ? "Enter the partnership name as per the partnership agreement"
+                  : entityType === "company"
+                    ? "Enter the company name as per the ASIC registration"
+                    : entityType === "trust"
+                      ? "Enter the full trust name as per the trust deed"
+                      : entityType === "smsf"
+                        ? "Enter the fund name as per the SMSF deed"
+                        : "Give client entity a clear, identifiable name"}
+            </p>
           </header>
 
           <label className="entity-wizard-label">
@@ -378,7 +402,19 @@ export default function AddEntityWizard({
             </span>
             <input
               type="text"
-              placeholder="e.g., Smith Family Trust, ABC Properties LLC"
+              placeholder={
+                entityType === "individual"
+                  ? "e.g. John Smith"
+                  : entityType === "partnership"
+                    ? "e.g. Smith & Brown Partnership"
+                    : entityType === "company"
+                      ? "e.g. ABC Properties Pty Ltd"
+                      : entityType === "trust"
+                        ? "e.g. Smith Family/Unit Trust"
+                        : entityType === "smsf"
+                          ? "e.g. Smith Super Fund"
+                          : "e.g., Smith Family Trust, ABC Properties LLC"
+              }
               value={entityName}
               onChange={(event) => setEntityName(event.target.value)}
               autoFocus

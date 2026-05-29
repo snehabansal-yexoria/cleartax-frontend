@@ -336,6 +336,14 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
     <div className="premium-docs-container">
       <div className="premium-docs-header">
         <h2 className="premium-docs-title">{title}</h2>
+        <button
+          type="button"
+          onClick={triggerFileUpload}
+          className="premium-docs-upload-btn"
+        >
+          <UploadIcon />
+          <span>Upload Document</span>
+        </button>
       </div>
 
       <input
@@ -418,8 +426,8 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
           ))}
 
           {/* Uploaded documents list */}
-          {documents.map((doc) => (
-            <li key={doc.id} className="premium-doc-card">
+          {documents.map((doc, index) => (
+            <li key={`${doc.id}-${index}`} className="premium-doc-card">
               <div className="premium-doc-left">
                 <div className="premium-doc-icon-wrapper">
                   <FileIcon />

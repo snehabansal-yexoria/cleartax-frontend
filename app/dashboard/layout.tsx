@@ -343,6 +343,7 @@ export default function DashboardLayout({
   const [entitiesCatalog, setEntitiesCatalog] = useState<any[]>([]);
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadSession() {
@@ -517,6 +518,22 @@ export default function DashboardLayout({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isSearchFocused]);
+
+  // Click outside to dismiss account menu dropdown
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        console.log("Clicked outside accountant profile! Closing menu.");
+        setIsAccountMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isAccountMenuOpen]);
 
   // Compute and filter search suggestions on typing
   useEffect(() => {
@@ -846,7 +863,7 @@ export default function DashboardLayout({
                 </svg>
               </button>
 
-              <div className="accountant-header-profile">
+              <div className="accountant-header-profile" ref={profileMenuRef}>
                 <button
                   type="button"
                   className="accountant-profile-trigger"

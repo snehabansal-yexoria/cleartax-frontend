@@ -484,27 +484,31 @@ export default function PropertyDetailView({
             </button>
           ))}
         </div>
-        <div className="property-detail-tab-body">
-          {currentTab === "transactions" ? (
-            <AllTransactionsView
-              context={{ kind: "property", propertyId }}
-              addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
-              compact
-            />
-          ) : currentTab === "rules" ? (
-            <TransactionRulesView backHref={backHref} entityId={entityId} />
-          ) : currentTab === "documents" ? (
+        {currentTab === "documents" ? (
+          <div className="entity-resource-body">
             <DocumentsListView
               context={{ kind: "property", propertyId }}
               token={sessionToken}
             />
-          ) : (
-            <>
-              <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
-              <p>Coming soon</p>
-            </>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="property-detail-tab-body">
+            {currentTab === "transactions" ? (
+              <AllTransactionsView
+                context={{ kind: "property", propertyId }}
+                addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
+                compact
+              />
+            ) : currentTab === "rules" ? (
+              <TransactionRulesView backHref={backHref} entityId={entityId} />
+            ) : (
+              <>
+                <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
+                <p>Coming soon</p>
+              </>
+            )}
+          </div>
+        )}
       </section>
     </section>
   );
