@@ -1226,10 +1226,15 @@ export async function startReconciliation(
   token: string,
   s3Key: string,
   entityId: string,
+  sessionId: string,
 ): Promise<{ jobId: string }> {
   const payload = await coreApiRequest<{ job_id: string }>(
     `/api/reconciliation`,
-    { method: "POST", token, body: { s3_key: s3Key, entity_id: entityId } },
+    {
+      method: "POST",
+      token,
+      body: { s3_key: s3Key, entity_id: entityId, session_id: sessionId },
+    },
   );
   return { jobId: (payload as { job_id: string }).job_id };
 }
@@ -1338,6 +1343,118 @@ export async function deleteReconciliationMatch(
     `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/matches?bankTxIndex=${bankTxIndex}`,
     { method: "DELETE", token },
   );
+}
+
+// ── Reconciliation sessions ──────────────────────────────────────────────────
+
+export type ReconciliationSessionStatus = "open" | "completed";
+
+export type ReconciliationSession = {
+  id: string;
+  entityId: string;
+  label: string;
+  periodFrom: string | null;
+  periodTo: string | null;
+  status: ReconciliationSessionStatus;
+  statementCount: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+};
+
+export type ReconciliationSessionDetail = ReconciliationSession & {
+  statements: ReconciliationListItem[];
+};
+
+function normalizeReconciliationSession(raw: RawRecord): ReconciliationSession {
+  const status = raw.status === "completed" ? "completed" : "open";
+  return {
+    id: String(raw.id ?? ""),
+    entityId: String(raw.entity_id ?? raw.entityId ?? ""),
+    label: String(raw.label ?? ""),
+    periodFrom: raw.period_from != null ? String(raw.period_from) : null,
+    periodTo: raw.period_to != null ? String(raw.period_to) : null,
+    status,
+    statementCount: Number(raw.statement_count ?? raw.statementCount ?? 0),
+    createdAt: String(raw.created_at ?? raw.createdAt ?? ""),
+    updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ""),
+    completedAt: raw.completed_at != null ? String(raw.completed_at) : null,
+  };
+}
+
+export async function listReconciliationSessions(
+  token: string,
+  entityId: string,
+): Promise<ReconciliationSession[]> {
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`,
+    { token },
+  );
+  return getJsonArray(payload).map((r) =>
+    normalizeReconciliationSession(r as RawRecord),
+  );
+}
+
+export async function createReconciliationSession(
+  token: string,
+  entityId: string,
+  body: { label: string; periodFrom?: string | null; periodTo?: string | null },
+): Promise<ReconciliationSession> {
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`,
+    {
+      method: "POST",
+      token,
+      body: {
+        label: body.label,
+        period_from: body.periodFrom ?? null,
+        period_to: body.periodTo ?? null,
+      },
+    },
+  );
+  return normalizeReconciliationSession(getJsonObject(payload) as RawRecord);
+}
+
+export async function getReconciliationSession(
+  token: string,
+  entityId: string,
+  sessionId: string,
+): Promise<ReconciliationSessionDetail> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}`,
+    { token },
+  )) as RawRecord;
+  const base = normalizeReconciliationSession(payload);
+  const statementsRaw = Array.isArray(payload.statements)
+    ? (payload.statements as RawRecord[])
+    : [];
+  return {
+    ...base,
+    statements: statementsRaw.map(normalizeReconciliationListItem),
+  };
+}
+
+export async function updateReconciliationSession(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  body: {
+    label?: string;
+    periodFrom?: string | null;
+    periodTo?: string | null;
+    status?: ReconciliationSessionStatus;
+  },
+): Promise<ReconciliationSession> {
+  const reqBody: Record<string, unknown> = {};
+  if (body.label !== undefined) reqBody.label = body.label;
+  if (body.periodFrom !== undefined) reqBody.period_from = body.periodFrom;
+  if (body.periodTo !== undefined) reqBody.period_to = body.periodTo;
+  if (body.status !== undefined) reqBody.status = body.status;
+  const payload = await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}`,
+    { method: "PATCH", token, body: reqBody },
+  );
+  return normalizeReconciliationSession(getJsonObject(payload) as RawRecord);
 }
 
 export async function listCoreTransactionCategories(

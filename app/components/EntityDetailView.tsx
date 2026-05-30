@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -16,7 +16,7 @@ import type {
   CoreEntity,
   CoreProperty,
   CoreTransactionListItem,
-  ReconciliationListItem,
+  ReconciliationSession,
 } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -126,8 +126,14 @@ export default function EntityDetailView({
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
-  const [reconList, setReconList] = useState<ReconciliationListItem[]>([]);
-  const [reconListLoading, setReconListLoading] = useState(false);
+  const [sessionList, setSessionList] = useState<ReconciliationSession[]>([]);
+  const [sessionListLoading, setSessionListLoading] = useState(false);
+  const [newSessionOpen, setNewSessionOpen] = useState(false);
+  const [newSessionLabel, setNewSessionLabel] = useState("");
+  const [newSessionFrom, setNewSessionFrom] = useState("");
+  const [newSessionTo, setNewSessionTo] = useState("");
+  const [newSessionSaving, setNewSessionSaving] = useState(false);
+  const [newSessionError, setNewSessionError] = useState<string | null>(null);
   const [trendView, setTrendView] = useState<"graph" | "table">("graph");
 
   useEffect(() => {
@@ -200,18 +206,64 @@ export default function EntityDetailView({
   useEffect(() => {
     if (currentTab !== "reconciliation" || !sessionToken || !entityId) return;
     let cancelled = false;
-    setReconListLoading(true);
-    fetch(`/api/entities/${encodeURIComponent(entityId)}/reconciliations`, {
+    setSessionListLoading(true);
+    fetch(`/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`, {
       headers: { Authorization: `Bearer ${sessionToken}` },
     })
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: ReconciliationListItem[]) => {
-        if (!cancelled) setReconList(Array.isArray(data) ? data : []);
+      .then((data: ReconciliationSession[]) => {
+        if (!cancelled) setSessionList(Array.isArray(data) ? data : []);
       })
-      .catch(() => { if (!cancelled) setReconList([]); })
-      .finally(() => { if (!cancelled) setReconListLoading(false); });
+      .catch(() => { if (!cancelled) setSessionList([]); })
+      .finally(() => { if (!cancelled) setSessionListLoading(false); });
     return () => { cancelled = true; };
   }, [currentTab, sessionToken, entityId]);
+
+  async function handleCreateSession(e: FormEvent) {
+    e.preventDefault();
+    if (!sessionToken || !entityId) return;
+    const label = newSessionLabel.trim();
+    if (!label) {
+      setNewSessionError("Label is required");
+      return;
+    }
+    setNewSessionSaving(true);
+    setNewSessionError(null);
+    try {
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({
+            label,
+            periodFrom: newSessionFrom || null,
+            periodTo: newSessionTo || null,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || `Failed to create session (${res.status})`);
+      }
+      const created = (await res.json()) as ReconciliationSession;
+      setSessionList((cur) => [created, ...cur]);
+      setNewSessionOpen(false);
+      setNewSessionLabel("");
+      setNewSessionFrom("");
+      setNewSessionTo("");
+      if (reconciliationHref) {
+        router.push(`${reconciliationHref}/${encodeURIComponent(created.id)}`);
+      }
+    } catch (err) {
+      setNewSessionError(err instanceof Error ? err.message : "Failed to create");
+    } finally {
+      setNewSessionSaving(false);
+    }
+  }
 
   const ownerCopy = useMemo(() => {
     if (!entity) return "";
@@ -599,65 +651,120 @@ export default function EntityDetailView({
           <div className="entity-resource-body">
             <div className="entity-resource-head">
               <h2>Bank Reconciliations</h2>
-              {reconciliationHref && !entity.reconciled && (
-                <Link href={reconciliationHref} className="entity-wizard-primary is-green">
-                  + Upload Statement
-                </Link>
-              )}
+              <button
+                type="button"
+                className="entity-wizard-primary is-green"
+                onClick={() => setNewSessionOpen((v) => !v)}
+              >
+                {newSessionOpen ? "Cancel" : "+ New Reconciliation"}
+              </button>
             </div>
-            {reconListLoading ? (
-              <div className="client-detail-empty"><p>Loading…</p></div>
-            ) : reconList.length === 0 ? (
-              <div className="client-detail-empty">
-                <p>No bank statements reconciled yet.</p>
-                {reconciliationHref && !entity.reconciled && (
-                  <Link href={reconciliationHref} className="entity-wizard-primary is-green" style={{ marginTop: 12 }}>
-                    Upload your first statement
-                  </Link>
+
+            {newSessionOpen && (
+              <form
+                onSubmit={handleCreateSession}
+                className="recon-session-form"
+                style={{
+                  display: "grid",
+                  gap: 12,
+                  padding: 16,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  marginBottom: 16,
+                }}
+              >
+                <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                  <span style={{ fontWeight: 600 }}>Label</span>
+                  <input
+                    type="text"
+                    value={newSessionLabel}
+                    onChange={(e) => setNewSessionLabel(e.target.value)}
+                    placeholder="e.g. FY26 Q1"
+                    maxLength={120}
+                    required
+                    style={{ padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 6 }}
+                  />
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                    <span style={{ fontWeight: 600 }}>Period from (optional)</span>
+                    <input
+                      type="date"
+                      value={newSessionFrom}
+                      onChange={(e) => setNewSessionFrom(e.target.value)}
+                      style={{ padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 6 }}
+                    />
+                  </label>
+                  <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                    <span style={{ fontWeight: 600 }}>Period to (optional)</span>
+                    <input
+                      type="date"
+                      value={newSessionTo}
+                      onChange={(e) => setNewSessionTo(e.target.value)}
+                      style={{ padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 6 }}
+                    />
+                  </label>
+                </div>
+                {newSessionError && (
+                  <p style={{ color: "#dc2626", fontSize: 13, margin: 0 }}>{newSessionError}</p>
                 )}
+                <div>
+                  <button
+                    type="submit"
+                    className="entity-wizard-primary is-green"
+                    disabled={newSessionSaving}
+                  >
+                    {newSessionSaving ? "Creating…" : "Create & Open"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {sessionListLoading ? (
+              <div className="client-detail-empty"><p>Loading…</p></div>
+            ) : sessionList.length === 0 ? (
+              <div className="client-detail-empty">
+                <p>No reconciliations yet. Create one to start uploading bank statements.</p>
               </div>
             ) : (
               <ul className="entity-property-list">
-                {reconList.map((item) => {
-                  const txCount = item.summary?.totalTransactions ?? "—";
-                  const date = item.createdAt
-                    ? new Date(item.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                {sessionList.map((s) => {
+                  const created = s.createdAt
+                    ? new Date(s.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
                     : "—";
-                  const statusColor =
-                    item.status === "done" ? "var(--color-success, #16a34a)"
-                      : item.status === "error" ? "var(--color-danger, #dc2626)"
-                        : "var(--color-warning, #ca8a04)";
+                  const period = s.periodFrom && s.periodTo
+                    ? `${s.periodFrom} → ${s.periodTo}`
+                    : s.periodFrom || s.periodTo || "—";
+                  const statusColor = s.status === "completed"
+                    ? "var(--color-success, #16a34a)"
+                    : "var(--color-warning, #ca8a04)";
                   return (
-                    <li key={item.id} className="entity-property-row">
+                    <li key={s.id} className="entity-property-row">
                       <div className="entity-property-main">
-                        <strong>{date}</strong>
+                        <strong>{s.label}</strong>
                         <span style={{ color: statusColor, fontWeight: 600, textTransform: "capitalize", fontSize: 13 }}>
-                          {item.status}
+                          {s.status}
                         </span>
                       </div>
                       <dl>
                         <div>
-                          <dt>Transactions</dt>
-                          <dd>{txCount}</dd>
+                          <dt>Statements</dt>
+                          <dd>{s.statementCount}</dd>
                         </div>
                         <div>
-                          <dt>Pages</dt>
-                          <dd>{item.totalPages ?? "—"}</dd>
+                          <dt>Period</dt>
+                          <dd>{period}</dd>
                         </div>
                         <div>
-                          <dt>Total Debits</dt>
-                          <dd>
-                            {item.summary?.totalDebits != null
-                              ? `$${item.summary.totalDebits.toLocaleString("en-AU", { minimumFractionDigits: 2 })}`
-                              : "—"}
-                          </dd>
+                          <dt>Created</dt>
+                          <dd>{created}</dd>
                         </div>
                       </dl>
                       {reconciliationHref && (
                         <Link
-                          href={`${reconciliationHref}?id=${encodeURIComponent(item.id)}`}
+                          href={`${reconciliationHref}/${encodeURIComponent(s.id)}`}
                           className="entity-property-chevron-link"
-                          aria-label="View reconciliation"
+                          aria-label="Open reconciliation"
                         >
                           <svg className="entity-property-chevron" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="m9 6 6 6-6 6" />
