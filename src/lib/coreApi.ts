@@ -64,6 +64,7 @@ export type CoreEntity = {
   beneficiaries: CoreBeneficiary[];
   reconciled: boolean;
   reconciledAt: string | null;
+  trustType?: string;
 };
 
 export type CorePropertyOwner = {
@@ -454,6 +455,7 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
       .map(normalizeBeneficiary),
     reconciled: Boolean(raw.reconciled ?? false),
     reconciledAt: raw.reconciled_at != null ? toStringValue(raw.reconciled_at) : null,
+    trustType: raw.trust_type != null ? toStringValue(raw.trust_type) : undefined,
   };
 }
 

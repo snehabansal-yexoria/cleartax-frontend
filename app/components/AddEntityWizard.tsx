@@ -22,27 +22,22 @@ const entityTypeOptions: EntityTypeOption[] = [
   {
     value: "individual",
     label: "Individual",
-    description: "Property owned in your personal name",
+    description: "Single person ownership with direct asset control",
   },
   {
     value: "partnership",
     label: "Partnership",
-    description: "Joint ownership between two or more parties",
+    description: "Shared ownership between two or more partners",
   },
   {
     value: "company",
     label: "Company (Pty Ltd)",
-    description: "Property owned through a company entity",
+    description: "Limited liability company structure with shareholders",
   },
   {
     value: "trust",
-    label: "Trust (Discretionary / Unit Trust)",
-    description: "Property held within a trust structure",
-  },
-  {
-    value: "smsf",
-    label: "Self Managed Super Fund (SMSF)",
-    description: "Property owned through an SMSF for retirement investment",
+    label: "Trust (Discretionary/ Unit)",
+    description: "Asset protection and flexible distribution to beneficiaries",
   },
 ];
 
@@ -84,9 +79,25 @@ export default function AddEntityWizard({
 }: AddEntityWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [entityType, setEntityType] = useState<EntityType | null>(
-    initialEntity?.entityType ?? null,
-  );
+  const [entityType, setEntityType] = useState<EntityType | null>(() => {
+    if (initialEntity?.entityType === "smsf") {
+      return "trust";
+    }
+    return initialEntity?.entityType ?? null;
+  });
+  const [trustType, setTrustType] = useState<"discretionary" | "unit" | "smsf" | null>(() => {
+    if (initialEntity?.entityType === "smsf") {
+      return "smsf";
+    }
+    if (initialEntity?.entityType === "trust") {
+      const tType = (initialEntity as any).trustType || (initialEntity as any).trust_type;
+      if (tType === "discretionary" || tType === "unit" || tType === "smsf") {
+        return tType;
+      }
+      return "discretionary";
+    }
+    return null;
+  });
   const [entityName, setEntityName] = useState(initialEntity?.name ?? "");
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>(
     getInitialBeneficiaries(initialEntity),
@@ -116,7 +127,8 @@ export default function AddEntityWizard({
   const ownershipWithinLimit = totalOwnership <= 100;
   const ownershipOverLimit = totalOwnership > 100;
   const needsBeneficiaries =
-    entityType === "partnership" || entityType === "trust";
+    entityType === "partnership" ||
+    (entityType === "trust" && trustType !== "smsf");
   const beneficiariesValid =
     !needsBeneficiaries ||
     (ownershipAboveZero &&
@@ -131,9 +143,24 @@ export default function AddEntityWizard({
         );
       }));
 
-  const selectedTypeLabel =
-    entityTypeOptions.find((option) => option.value === entityType)?.label ??
-    "";
+  const selectedTypeLabel = useMemo(() => {
+    if (entityType === "trust") {
+      const subLabel =
+        trustType === "smsf"
+          ? "Self Managed Super Fund (SMSF)"
+          : trustType === "unit"
+            ? "Unit Trust"
+            : trustType === "discretionary"
+              ? "Discretionary Trust"
+              : "";
+      return subLabel ? `Trust (${subLabel})` : "Trust";
+    }
+    return (
+      entityTypeOptions.find((option) => option.value === entityType)?.label ??
+      ""
+    );
+  }, [entityType, trustType]);
+
   const beneficiaryNoun =
     entityType === "partnership" ? "Partner" : "Beneficiary";
   const beneficiaryNounPlural =
@@ -157,7 +184,22 @@ export default function AddEntityWizard({
 
   useEffect(() => {
     if (!initialEntity) return;
-    setEntityType(initialEntity.entityType);
+    if (initialEntity.entityType === "smsf") {
+      setEntityType("trust");
+      setTrustType("smsf");
+    } else {
+      setEntityType(initialEntity.entityType);
+      if (initialEntity.entityType === "trust") {
+        const tType = (initialEntity as any).trustType || (initialEntity as any).trust_type;
+        if (tType === "discretionary" || tType === "unit" || tType === "smsf") {
+          setTrustType(tType);
+        } else {
+          setTrustType("discretionary");
+        }
+      } else {
+        setTrustType(null);
+      }
+    }
     setEntityName(initialEntity.name);
     setBeneficiaries(getInitialBeneficiaries(initialEntity));
   }, [initialEntity]);
@@ -177,6 +219,7 @@ export default function AddEntityWizard({
   function resetState() {
     setStep(1);
     setEntityType(null);
+    setTrustType(null);
     setEntityName("");
     setBeneficiaries([newBeneficiaryRow()]);
     setSaved(false);
@@ -201,10 +244,14 @@ export default function AddEntityWizard({
       const token = session.getIdToken().getJwtToken();
 
       const body: Record<string, unknown> = {
-        entity_type: entityType,
+        entity_type: entityType === "trust" && trustType === "smsf" ? "smsf" : entityType,
         name: entityName.trim(),
         created_for: createdFor,
       };
+
+      if (entityType === "trust" && trustType) {
+        body.trust_type = trustType;
+      }
 
       const primaryBeneficiary = initialEntity?.beneficiaries[0];
 
@@ -343,7 +390,12 @@ export default function AddEntityWizard({
                 key={option.value}
                 type="button"
                 className={`entity-type-card${entityType === option.value ? " is-selected" : ""}`}
-                onClick={() => setEntityType(option.value)}
+                onClick={() => {
+                  setEntityType(option.value);
+                  if (option.value !== "trust") {
+                    setTrustType(null);
+                  }
+                }}
               >
                 <strong>{option.label}</strong>
                 <span>{option.description}</span>
@@ -351,12 +403,55 @@ export default function AddEntityWizard({
             ))}
           </div>
 
+          {entityType === "trust" && (
+            <div className="entity-subtype-section" style={{ marginTop: "8px" }}>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "var(--primary, #28336e)",
+                marginBottom: "12px",
+                marginTop: "16px"
+              }}>
+                Select Trust Type:
+              </h3>
+              <div className="entity-type-grid">
+                {[
+                  {
+                    value: "discretionary",
+                    label: "Discretionary Trust",
+                    description: "Trustee has discretion over distributions to beneficiaries",
+                  },
+                  {
+                    value: "unit",
+                    label: "Unit Trust",
+                    description: "Beneficiaries hold fixed units with defined entitlements",
+                  },
+                  {
+                    value: "smsf",
+                    label: "Self Managed Super Fund (SMSF)",
+                    description: "Tax-effective retirement savings and investment vehicle",
+                  },
+                ].map((subOption) => (
+                  <button
+                    key={subOption.value}
+                    type="button"
+                    className={`entity-type-card${trustType === subOption.value ? " is-selected" : ""}`}
+                    onClick={() => setTrustType(subOption.value as any)}
+                  >
+                    <strong>{subOption.label}</strong>
+                    <span>{subOption.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="entity-wizard-footer">
             <div />
             <button
               type="button"
               className="entity-wizard-primary"
-              disabled={!entityType}
+              disabled={!entityType || (entityType === "trust" && !trustType)}
               onClick={() => setStep(2)}
             >
               Continue
@@ -376,10 +471,12 @@ export default function AddEntityWizard({
                   : entityType === "company"
                     ? "Company (Pty Ltd)"
                     : entityType === "trust"
-                      ? "Trust (Discretionary / Unit Trust)"
-                      : entityType === "smsf"
+                      ? trustType === "smsf"
                         ? "Self-Managed Super Fund (SMSF)"
-                        : "Enter Entity Name"}
+                        : trustType === "unit"
+                          ? "Unit Trust"
+                          : "Discretionary Trust"
+                      : "Enter Entity Name"}
             </h2>
             <p>
               {entityType === "individual"
@@ -389,10 +486,12 @@ export default function AddEntityWizard({
                   : entityType === "company"
                     ? "Enter the company name as per the ASIC registration"
                     : entityType === "trust"
-                      ? "Enter the full trust name as per the trust deed"
-                      : entityType === "smsf"
+                      ? trustType === "smsf"
                         ? "Enter the fund name as per the SMSF deed"
-                        : "Give client entity a clear, identifiable name"}
+                        : trustType === "unit"
+                          ? "Enter the full trust name as per the unit trust deed"
+                          : "Enter the full discretionary trust name as per the trust deed"
+                      : "Give client entity a clear, identifiable name"}
             </p>
           </header>
 
@@ -410,10 +509,10 @@ export default function AddEntityWizard({
                     : entityType === "company"
                       ? "e.g. ABC Properties Pty Ltd"
                       : entityType === "trust"
-                        ? "e.g. Smith Family/Unit Trust"
-                        : entityType === "smsf"
+                        ? trustType === "smsf"
                           ? "e.g. Smith Super Fund"
-                          : "e.g., Smith Family Trust, ABC Properties LLC"
+                          : "e.g. Smith Family/Unit Trust"
+                        : "e.g., Smith Family Trust, ABC Properties LLC"
               }
               value={entityName}
               onChange={(event) => setEntityName(event.target.value)}
