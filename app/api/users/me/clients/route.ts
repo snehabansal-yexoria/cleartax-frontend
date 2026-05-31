@@ -81,7 +81,7 @@ export async function GET(req: Request) {
             requesterRole === "admin" ||
             (scope === "mine"
               ? user.assignedAccountantId === requester.id
-              : user.assignedAccountantId !== requester.id),
+              : true),
         )
         .map((user) => ({
           id: user.id,

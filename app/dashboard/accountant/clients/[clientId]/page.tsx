@@ -131,7 +131,7 @@ function ClientDetailPageContent() {
 
         // Fire client verification and entities fetch in parallel
         const [clientsRes, entitiesRes] = await Promise.all([
-          fetch("/api/users/me/clients?scope=mine", { headers }),
+          fetch("/api/users/me/clients?scope=all", { headers }),
           fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, { headers }),
         ]);
 
@@ -144,7 +144,7 @@ function ClientDetailPageContent() {
           if (!cancelled) setClient(match);
           canLoadEntities = Boolean(match);
           if (!match && !cancelled) {
-            setLoadError("Add this client to My Clients before opening their portfolio.");
+            setLoadError("Client portfolio not found or you are not authorized to view it.");
           }
         } else {
           if (!cancelled) setLoadError("Failed to load client.");
