@@ -1057,6 +1057,16 @@ function TransactionDetailPopup({
                   onChange={(event) => {
                     const checked = event.target.checked;
                     setIsSplit(checked);
+                    if (checked && properties.length < 2) {
+                      const msg = properties.length === 1
+                        ? "Split transactions need at least two properties in this entity. This entity only has one property."
+                        : "Add at least two properties to this entity before creating a split transaction.";
+                      setEditError(msg);
+                    } else {
+                      if (editError && editError.toLowerCase().includes("split")) {
+                        setEditError("");
+                      }
+                    }
                     if (!checked) {
                       setEditSplitRows((rows) => [
                         {
@@ -2934,6 +2944,7 @@ export function AddTransactionView({
     if (!token || !activeEntityId) {
       setProperties([]);
       setPropertyId("");
+      setIsSplit(false);
       setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
       return;
     }
@@ -2955,6 +2966,9 @@ export function AddTransactionView({
         setPropertyId(hasDefaultProperty ? defaultPropertyId : "");
         setIsEditingProperty(!hasDefaultProperty);
         setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+        if (loadedProperties.length < 2) {
+          setIsSplit(false);
+        }
       }
     }
     loadProperties();
@@ -3107,12 +3121,7 @@ export function AddTransactionView({
     }
   }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
 
-  useEffect(() => {
-    if (!canSplitTransaction && isSplit) {
-      setIsSplit(false);
-      setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
-    }
-  }, [canSplitTransaction, isSplit]);
+
 
   const canSubmit =
     !mustChooseClientFirst &&
@@ -3169,14 +3178,12 @@ export function AddTransactionView({
       const msg = properties.length === 1
         ? "Split transactions need at least two properties in this entity. This entity only has one property."
         : "Add at least two properties to this entity before creating a split transaction.";
-      if (submitError === msg) {
+      setSubmitError(msg);
+    } else {
+      if (submitError && submitError.toLowerCase().includes("split")) {
         setSubmitError("");
-      } else {
-        setSubmitError(msg);
       }
-      return;
     }
-    setSubmitError("");
     setIsSplit(checked);
     if (checked) {
       setSplitRows((rows) => {

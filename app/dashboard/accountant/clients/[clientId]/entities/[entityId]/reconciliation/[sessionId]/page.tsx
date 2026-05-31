@@ -1106,8 +1106,9 @@ export default function AccountantReconciliationSessionPage() {
         </article>
       </div>
 
-      {/* ── Filter / tab bar ─────────────────────────────────────────── */}
-      <section className="accountant-reconciliation-filter-card">
+      <div className="accountant-reconciliation-main-card">
+        {/* ── Filter / tab bar ─────────────────────────────────────────── */}
+        <section className="accountant-reconciliation-filter-card">
         <div className="accountant-reconciliation-tabs">
           <button
             type="button"
@@ -1752,6 +1753,7 @@ export default function AccountantReconciliationSessionPage() {
           )}
         </div>
       </footer>
+      </div>
 
       {toastReconId && (
         <ReconCompleteToast

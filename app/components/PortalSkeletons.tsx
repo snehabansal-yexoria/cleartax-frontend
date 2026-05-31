@@ -534,8 +534,8 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
           </section>
 
           {/* KPI Cards skeleton */}
-          <div className="accountant-reconciliation-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 20, marginBottom: 24 }}>
-            {Array.from({ length: 3 }).map((_, idx) => (
+          <div className="accountant-reconciliation-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 20, marginBottom: 24 }}>
+            {Array.from({ length: 4 }).map((_, idx) => (
               <article key={idx} style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid #e3e8ef", background: "#ffffff" }}>
                 <div className="skeleton-line" style={{ width: "50%", height: 12, marginBottom: 12 }} />
                 <div className="skeleton-line" style={{ width: "70%", height: 24, marginBottom: 12 }} />
@@ -565,6 +565,7 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
               <span className="skeleton-line" style={{ width: 100 }} />
               <span className="skeleton-line" style={{ width: 80 }} />
               <span className="skeleton-line" style={{ width: 80 }} />
+              <span className="skeleton-line" style={{ width: 70 }} />
               <span className="skeleton-line" style={{ width: 60 }} />
               <span className="skeleton-line" style={{ width: 60 }} />
               <span className="skeleton-line" style={{ width: 80 }} />
@@ -575,15 +576,17 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
                   <div className="skeleton-circle" style={{ width: 24, height: 24 }} />
                 </div>
                 <div className="skeleton-stack" style={{ gap: 6 }}>
-                  <div className="skeleton-line" style={{ width: 160, height: 14 }} />
+                  <div className="skeleton-line" style={{ width: 150, height: 14 }} />
                   <div className="skeleton-line" style={{ width: 80, height: 10 }} />
                 </div>
                 <div>
-                  <div className="skeleton-line" style={{ width: 100, height: 30, borderRadius: 6 }} />
-                </div>
-                <div className="skeleton-stack" style={{ gap: 6 }}>
                   <div className="skeleton-line" style={{ width: 100, height: 12 }} />
-                  <div className="skeleton-line" style={{ width: 60, height: 10 }} />
+                </div>
+                <div>
+                  <div className="skeleton-line" style={{ width: 110, height: 28, borderRadius: 6 }} />
+                </div>
+                <div>
+                  <div className="skeleton-line" style={{ width: 90, height: 28, borderRadius: 6 }} />
                 </div>
                 <div>
                   <div className="skeleton-line" style={{ width: 70, height: 14 }} />
