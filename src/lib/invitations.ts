@@ -135,7 +135,10 @@ export async function inviteUser(input: InviteInput) {
   try {
     const inviterEmail = String(input.inviter.email || "").trim().toLowerCase();
     const email = String(input.email || "").trim().toLowerCase();
-    const requestedRole = String(input.requestedRole || "").trim().toLowerCase();
+    const requestedRole = String(input.requestedRole || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
     const organizationId = String(input.organizationId || "").trim();
     const fullName = String(input.fullName || "").trim();
 
@@ -155,7 +158,7 @@ export async function inviteUser(input: InviteInput) {
 
     const allowedInvites: Record<string, string[]> = {
       super_admin: ["admin"],
-      admin: ["accountant", "client"],
+      admin: ["accountant", "client", "regional_manager"],
       accountant: ["client"],
     };
 

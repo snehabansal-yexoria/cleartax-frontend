@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, useId, useRef, useCallback } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
@@ -10,6 +10,11 @@ import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import {
+  dropdownRegistryEvent,
+  announceDropdownOpen,
+  isDropdownRegistryEvent,
+} from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -25,6 +30,16 @@ interface ClientRecord {
   phoneNumber: string;
   invitedByEmail: string;
   joinedAt: string | null;
+  assignedAccountantId?: string;
+  assignedAccountantName?: string;
+  isAssignedToCurrentAccountant?: boolean;
+  isAssignedToAnotherAccountant?: boolean;
+}
+
+interface AccountantRecord {
+  id: string;
+  name: string;
+  email: string;
 }
 
 type ClientTab = "entities" | "banking" | "transactions" | "documents";
@@ -80,6 +95,165 @@ function propertyCountLabel(count: number | undefined) {
   return `${count} ${count === 1 ? "Property" : "Properties"}`;
 }
 
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '14px', height: '14px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+type SelectOption = {
+  label: string;
+  value: string;
+};
+
+type StaticSelectProps = {
+  label?: string;
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+  triggerClassName?: string;
+  disabled?: boolean;
+  horizontal?: boolean;
+};
+
+function StaticSelect({
+  label,
+  value,
+  options,
+  onChange,
+  placeholder,
+  required,
+  className = "",
+  triggerClassName = "",
+  disabled = false,
+  horizontal = false,
+}: StaticSelectProps) {
+  const reactId = useId();
+  const dropdownId = `transaction-select-${reactId}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (
+        isDropdownRegistryEvent(event) &&
+        event.detail?.id &&
+        event.detail.id !== dropdownId
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, [dropdownId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      announceDropdownOpen(dropdownId);
+    }
+  }, [dropdownId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      className={`transaction-field ${className}`}
+      style={{
+        minWidth: '200px',
+        ...(horizontal && {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: '12px',
+          minWidth: 'fit-content',
+        }),
+      }}
+    >
+      {label && (
+        <span
+          className="transaction-field-label"
+          style={horizontal ? { margin: 0, whiteSpace: 'nowrap' } : undefined}
+        >
+          {label}
+          {required && <em>*</em>}
+        </span>
+      )}
+      <div
+        ref={selectRef}
+        className={`property-status-select transaction-select${isOpen ? " is-open" : ""
+          }${disabled ? " is-disabled" : ""}`}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            setIsOpen(false);
+          }
+        }}
+      >
+        <button
+          type="button"
+          className={triggerClassName || "property-status-trigger"}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) {
+              setIsOpen((current) => !current);
+            }
+          }}
+        >
+          <span>{selected?.label || placeholder || "Select"}</span>
+          <ChevronIcon />
+        </button>
+        {isOpen && !disabled && (
+          <div className="property-status-menu" role="listbox" style={{ zIndex: 50 }}>
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={value === option.value}
+                className={value === option.value ? "is-selected" : ""}
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {value === option.value && (
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+                    <path d="M5 12l4 4 10-10" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClientDetailPageContent() {
   const params = useParams<{ clientId: string }>();
   const router = useRouter();
@@ -96,6 +270,16 @@ function ClientDetailPageContent() {
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState("");
   const [loadError, setLoadError] = useState("");
+
+  const [currentUser, setCurrentUser] = useState<{ email: string; fullName: string } | null>(null);
+  const [accountants, setAccountants] = useState<AccountantRecord[] | null>(null);
+
+  // Transfer states
+  const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
+  const [transferToAccountantId, setTransferToAccountantId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState(false);
 
   useEffect(() => {
     const tab = searchParams?.get("tab");
@@ -115,122 +299,168 @@ function ClientDetailPageContent() {
     router.push(`?tab=${tabId}`);
   };
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
-          router.replace("/login/user");
-          return;
-        }
-        const token = session.getIdToken().getJwtToken();
-        if (!cancelled) setSessionToken(token);
-        const headers = { Authorization: `Bearer ${token}` };
-
-        // Fire client verification and entities fetch in parallel
-        const [clientsRes, entitiesRes] = await Promise.all([
-          fetch("/api/users/me/clients?scope=all", { headers }),
-          fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, { headers }),
-        ]);
-
-        if (cancelled) return;
-
-        let canLoadEntities = false;
-        if (clientsRes.ok) {
-          const data = (await clientsRes.json()) as { clients: ClientRecord[] };
-          const match = (data.clients || []).find((c) => c.id === clientId) ?? null;
-          if (!cancelled) setClient(match);
-          canLoadEntities = Boolean(match);
-          if (!match && !cancelled) {
-            setLoadError("Client portfolio not found or you are not authorized to view it.");
-          }
-        } else {
-          if (!cancelled) setLoadError("Failed to load client.");
-        }
-
-        // Reveal client header regardless of whether entities can load
-        if (!cancelled) setIsClientLoading(false);
-
-        // Initialize transactions loading state
-        if (!cancelled) {
-          setIsTransactionsLoading(true);
-          setTransactionsCounts({});
-        }
-
-        if (!canLoadEntities || cancelled) {
-          if (!cancelled) {
-            setIsEntitiesLoading(false);
-            setIsTransactionsLoading(false);
-          }
-          return;
-        }
-
-        if (entitiesRes.ok) {
-          const data = (await entitiesRes.json()) as { items: CoreEntity[] };
-          const loadedEntities = data.items || [];
-          if (!cancelled) {
-            setEntities(loadedEntities);
-            setIsEntitiesLoading(false); // Show entity cards immediately
-
-            // Fire one property count fetch per entity independently — no await
-            for (const entity of loadedEntities) {
-              fetch(`/api/entities/${encodeURIComponent(entity.id)}/properties`, { headers })
-                .then((res) => (res.ok ? res.json() : { items: [] }))
-                .then((payload: { items?: CoreProperty[] }) => {
-                  if (!cancelled) {
-                    setPropertyCounts((prev) => ({
-                      ...prev,
-                      [entity.id]: payload.items?.length ?? 0,
-                    }));
-                  }
-                })
-                .catch(() => {
-                  if (!cancelled) {
-                    setPropertyCounts((prev) => ({ ...prev, [entity.id]: 0 }));
-                  }
-                });
-            }
-
-            // Fetch transactions count per entity (asynchronously, no await)
-            for (const entity of loadedEntities) {
-              fetch(`/api/entities/${encodeURIComponent(entity.id)}/transactions`, { headers })
-                .then((res) => (res.ok ? res.json() : { items: [] }))
-                .then((payload: { items?: unknown[] }) => {
-                  if (!cancelled) {
-                    setTransactionsCounts((prev) => ({
-                      ...prev,
-                      [entity.id]: (payload.items || []).length ?? 0,
-                    }));
-                  }
-                })
-                .catch(() => {
-                  if (!cancelled) {
-                    setTransactionsCounts((prev) => ({ ...prev, [entity.id]: 0 }));
-                  }
-                });
-            }
-            if (!cancelled) setIsTransactionsLoading(false);
-          }
-        } else {
-          if (!cancelled) setIsEntitiesLoading(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to load client detail:", error);
-          setLoadError("Unexpected error loading client.");
-          setIsClientLoading(false);
-          setIsEntitiesLoading(false);
-        }
+  const reloadClientDetails = useCallback(async () => {
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        router.replace("/login/user");
+        return;
       }
-    }
+      const token = session.getIdToken().getJwtToken();
+      setSessionToken(token);
+      const headers = { Authorization: `Bearer ${token}` };
 
-    if (clientId) load();
-    return () => {
-      cancelled = true;
-    };
+      // Fire parallel fetches
+      const [clientsRes, entitiesRes, meRes, accountantsRes] = await Promise.all([
+        fetch("/api/users/me/clients?scope=all", { headers }),
+        fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, { headers }),
+        fetch("/api/users/me", { headers }),
+        fetch("/api/users/me/accountants", { headers }),
+      ]);
+
+      let canLoadEntities = false;
+      if (clientsRes.ok) {
+        const data = (await clientsRes.json()) as { clients: ClientRecord[] };
+        const match = (data.clients || []).find((c) => c.id === clientId) ?? null;
+        setClient(match);
+        canLoadEntities = Boolean(match);
+        if (!match) {
+          setLoadError("Client portfolio not found or you are not authorized to view it.");
+        }
+      } else {
+        setLoadError("Failed to load client.");
+      }
+
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        setCurrentUser(meData);
+      }
+
+      if (accountantsRes.ok) {
+        const accData = await accountantsRes.json();
+        setAccountants(accData.accountants || []);
+      }
+
+      setIsClientLoading(false);
+
+      // Initialize transactions loading state
+      setIsTransactionsLoading(true);
+      setTransactionsCounts({});
+
+      if (!canLoadEntities) {
+        setIsEntitiesLoading(false);
+        setIsTransactionsLoading(false);
+        return;
+      }
+
+      if (entitiesRes.ok) {
+        const data = (await entitiesRes.json()) as { items: CoreEntity[] };
+        const loadedEntities = data.items || [];
+        setEntities(loadedEntities);
+        setIsEntitiesLoading(false); // Show entity cards immediately
+
+        // Fire one property count fetch per entity independently — no await
+        for (const entity of loadedEntities) {
+          fetch(`/api/entities/${encodeURIComponent(entity.id)}/properties`, { headers })
+            .then((res) => (res.ok ? res.json() : { items: [] }))
+            .then((payload: { items?: CoreProperty[] }) => {
+              setPropertyCounts((prev) => ({
+                ...prev,
+                [entity.id]: payload.items?.length ?? 0,
+              }));
+            })
+            .catch(() => {
+              setPropertyCounts((prev) => ({ ...prev, [entity.id]: 0 }));
+            });
+        }
+
+        // Fetch transactions count per entity (asynchronously, no await)
+        for (const entity of loadedEntities) {
+          fetch(`/api/entities/${encodeURIComponent(entity.id)}/transactions`, { headers })
+            .then((res) => (res.ok ? res.json() : { items: [] }))
+            .then((payload: { items?: unknown[] }) => {
+              setTransactionsCounts((prev) => ({
+                ...prev,
+                [entity.id]: (payload.items || []).length ?? 0,
+              }));
+            })
+            .catch(() => {
+              setTransactionsCounts((prev) => ({ ...prev, [entity.id]: 0 }));
+            });
+        }
+        setIsTransactionsLoading(false);
+      } else {
+        setIsEntitiesLoading(false);
+      }
+    } catch (error) {
+      console.error("Failed to load client detail:", error);
+      setLoadError("Unexpected error loading client.");
+      setIsClientLoading(false);
+      setIsEntitiesLoading(false);
+    }
   }, [clientId, router]);
+
+  useEffect(() => {
+    if (clientId) {
+      reloadClientDetails();
+    }
+  }, [clientId, reloadClientDetails]);
+
+  const assignedAccountant = useMemo(() => {
+    if (!client) return null;
+    if (client.isAssignedToCurrentAccountant) {
+      return currentUser;
+    }
+    return accountants?.find((acc) => acc.id === client.assignedAccountantId) || null;
+  }, [client, currentUser, accountants]);
+
+  function openTransferDrawer(c: ClientRecord) {
+    setTransferToAccountantId("");
+    setTransferReason("");
+    setTransferSuccess(false);
+    setTransferDrawerOpen(true);
+  }
+
+  function resetTransferState() {
+    setTransferDrawerOpen(false);
+    setTransferToAccountantId("");
+    setTransferReason("");
+    setTransferSuccess(false);
+  }
+
+  async function handleTransferClient() {
+    if (!client || !transferToAccountantId || isTransferring) return;
+    try {
+      setIsTransferring(true);
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/clients/transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientId: client.id,
+          toAccountantId: transferToAccountantId,
+          reason: transferReason || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(data.error || "Failed to transfer client");
+        return;
+      }
+      setTransferSuccess(true);
+      await reloadClientDetails();
+    } catch (error) {
+      console.error("Transfer client error:", error);
+      alert("Something went wrong while transferring the client.");
+    } finally {
+      setIsTransferring(false);
+    }
+  }
 
   const totalProperties = useMemo(
     () => Object.values(propertyCounts).reduce<number>((sum, count) => sum + (count ?? 0), 0),
@@ -277,34 +507,104 @@ function ClientDetailPageContent() {
         Back to Clients
       </Link>
 
-      <header className="client-profile-card">
-        <div className="client-profile-main">
-          <span className="client-profile-avatar">{getInitials(client.name)}</span>
-          <div>
-            <h1>{client.name}</h1>
-            <div className="client-profile-meta">
-              <span>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 6h16v12H4z" />
-                  <path d="m4 7 8 6 8-6" />
-                </svg>
-                {client.email}
-              </span>
-              <span>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="4" y="5" width="16" height="15" rx="2" />
-                  <path d="M8 3v4" />
-                  <path d="M16 3v4" />
-                  <path d="M4 10h16" />
-                </svg>
-                Joined {formatJoinedDate(client.joinedAt)}
-              </span>
+      <header className="client-profile-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "24px", width: "100%" }}>
+          <div className="client-profile-main">
+            <span className="client-profile-avatar">{getInitials(client.name)}</span>
+            <div>
+              <h1>{client.name}</h1>
+              <div className="client-profile-meta">
+                <span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6h16v12H4z" />
+                    <path d="m4 7 8 6 8-6" />
+                  </svg>
+                  {client.email}
+                </span>
+                <span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="5" width="16" height="15" rx="2" />
+                    <path d="M8 3v4" />
+                    <path d="M16 3v4" />
+                    <path d="M4 10h16" />
+                  </svg>
+                  Joined {formatJoinedDate(client.joinedAt)}
+                </span>
+              </div>
             </div>
           </div>
+          <span className={`client-status-pill ${statusClass(client.status)}`}>
+            {titleCase(client.status)}
+          </span>
         </div>
-        <span className={`client-status-pill ${statusClass(client.status)}`}>
-          {titleCase(client.status)}
-        </span>
+
+        {/* Horizontal Divider Line */}
+        <hr style={{ border: 0, borderTop: "1px solid #e4e7ec", margin: 0 }} />
+
+        {/* Managed By & Transfer Row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexWrap: "wrap", gap: "16px" }}>
+          <div>
+            <span style={{ fontSize: "12px", color: "#667085", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "8px" }}>
+              Account Managed By
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span className="client-profile-avatar" style={{ width: "38px", height: "38px", fontSize: "14px", background: "#2f3c82" }}>
+                {getInitials(
+                  client.isAssignedToCurrentAccountant
+                    ? (currentUser?.fullName || client.assignedAccountantName || "You")
+                    : (client.assignedAccountantName || "Unassigned")
+                )}
+              </span>
+              <div>
+                <strong style={{ display: "block", fontSize: "15px", color: "#101828", fontWeight: 600 }}>
+                  {client.isAssignedToCurrentAccountant
+                    ? `${currentUser?.fullName || client.assignedAccountantName || "You"} (You)`
+                    : (client.assignedAccountantName || "Unassigned")}
+                </strong>
+                <span style={{ fontSize: "13px", color: "#667085", display: "block", marginTop: "2px" }}>
+                  {assignedAccountant?.email || "No email available"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Transfer Ownership Button - Only visible when client is assigned to current accountant */}
+          {client.isAssignedToCurrentAccountant && (
+            <button
+              type="button"
+              className="accountant-transfer-btn"
+              onClick={() => openTransferDrawer(client)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: "1px solid #d0d5dd",
+                borderRadius: "8px",
+                background: "#ffffff",
+                color: "#344054",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f9fafb";
+                e.currentTarget.style.borderColor = "#c6cacc";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#ffffff";
+                e.currentTarget.style.borderColor = "#d0d5dd";
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+              </svg>
+              Transfer Ownership
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="client-stat-grid">
@@ -503,6 +803,175 @@ function ClientDetailPageContent() {
           </div>
         )}
       </section>
+
+      {/* Transfer Ownership Drawer Overlay */}
+      {isTransferDrawerOpen && (
+        <div className="accountant-drawer-layer" style={{ zIndex: 1000 }}>
+          <button
+            type="button"
+            className="accountant-drawer-backdrop"
+            aria-label="Close transfer drawer"
+            onClick={resetTransferState}
+          />
+          <aside className="accountant-invite-drawer">
+            <div className="accountant-invite-drawer-header">
+              <div>
+                <h2>Transfer Client</h2>
+                <p>
+                  Reassign{" "}
+                  <strong>{client?.name ?? "this client"}</strong> to
+                  another accountant
+                </p>
+              </div>
+              <button type="button" onClick={resetTransferState}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+
+            {transferSuccess ? (
+              <div className="accountant-invite-success">
+                <div className="accountant-invite-success-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                  </svg>
+                </div>
+                <h3>Client Transferred!</h3>
+                <p>
+                  {client?.name} has been reassigned to{" "}
+                  {accountants?.find((a) => a.id === transferToAccountantId)
+                    ?.name ?? "the selected accountant"}
+                  . The transfer has been logged in the client&apos;s history.
+                </p>
+              </div>
+            ) : (
+              <div className="accountant-invite-drawer-body">
+                <div
+                  style={{
+                    marginBottom: "20px",
+                    padding: "12px 14px",
+                    background: "#f9fafb",
+                    borderRadius: "10px",
+                    border: "1px solid #e4e7ec",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#667085",
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Transfering
+                  </span>
+                  <strong
+                    style={{
+                      display: "block",
+                      fontSize: "15px",
+                      color: "#101828",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {client?.name}
+                  </strong>
+                  <span style={{ fontSize: "13px", color: "#667085" }}>
+                    {client?.email}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}
+                  >
+                    Transfer To <span className="imp">*</span>
+                  </span>
+                  <StaticSelect
+                    value={transferToAccountantId}
+                    placeholder={
+                      accountants === null
+                        ? "Loading accountants…"
+                        : "Select accountant"
+                    }
+                    options={(accountants ?? [])
+                      .filter((a) => a.id !== client?.assignedAccountantId)
+                      .map((a) => ({
+                        label: `${a.name} (${a.email})`,
+                        value: a.id,
+                      }))}
+                    onChange={setTransferToAccountantId}
+                    disabled={accountants === null}
+                  />
+                </div>
+
+                <label
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}>
+                    Reason <small style={{ fontWeight: 400, color: "#667085" }}>(Optional)</small>
+                  </span>
+                  <textarea
+                    placeholder="e.g. Going on annual leave Dec 1–15"
+                    value={transferReason}
+                    rows={3}
+                    onChange={(e) => setTransferReason(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      border: "1.5px solid #d0d5dd",
+                      borderRadius: "10px",
+                      fontSize: "14px",
+                      resize: "vertical",
+                      fontFamily: "inherit",
+                      color: "#101828",
+                      outline: "none",
+                    }}
+                  />
+                </label>
+
+                <div className="accountant-invite-note" style={{ marginTop: "16px" }}>
+                  <strong>What happens?</strong>
+                  <p>
+                    The selected accountant becomes the primary contact for this
+                    client. This transfer is recorded in the client&apos;s
+                    ownership history.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="accountant-invite-drawer-footer">
+              <button type="button" onClick={resetTransferState}>
+                {transferSuccess ? "Close" : "Cancel"}
+              </button>
+              {!transferSuccess && (
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={handleTransferClient}
+                  disabled={isTransferring || !transferToAccountantId}
+                >
+                  {isTransferring ? "Transferring…" : "Transfer Client"}
+                </button>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
     </section>
   );
 }

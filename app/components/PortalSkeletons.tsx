@@ -406,7 +406,7 @@ export function EntityWizardSkeleton() {
           <div className="skeleton-line skeleton-line-md" />
         </header>
         <div className="entity-type-grid">
-          {Array.from({ length: 4 }).map((_, index) => (
+          {Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="skeleton-panel skeleton-panel-compact" />
           ))}
         </div>

@@ -96,14 +96,15 @@ export async function POST(req: Request) {
           email = String(row.email || "").trim();
           requestedRole = String(row.role || "")
             .trim()
-            .toLowerCase();
+            .toLowerCase()
+            .replace(/[\s-]+/g, "_");
 
           if (!email || !requestedRole) {
             throw new Error("email and role are required");
           }
 
-          if (!["accountant", "client"].includes(requestedRole)) {
-            throw new Error("role must be accountant or client");
+          if (!["accountant", "client", "regional_manager"].includes(requestedRole)) {
+            throw new Error("role must be accountant, client, or regional_manager");
           }
         } else {
           return NextResponse.json(

@@ -321,7 +321,7 @@ export default function AdminBulkUploadPage() {
           <div className="portal-list-header">
             <div>
               <h2>Preview</h2>
-              <p>Only `accountant` and `client` roles are allowed here.</p>
+              <p>Only `accountant`, `client`, and `regional_manager` roles are allowed here.</p>
             </div>
           </div>
 
@@ -334,9 +334,11 @@ export default function AdminBulkUploadPage() {
             </div>
 
             {rows.map((row, index) => {
-              const validRole = ["accountant", "client"].includes(
-                String(row.role || "").toLowerCase(),
-              );
+              const normalized = String(row.role || "")
+                .trim()
+                .toLowerCase()
+                .replace(/[\s-]+/g, "_");
+              const validRole = ["accountant", "client", "regional_manager"].includes(normalized);
 
               return (
                 <article key={`${row.email}-${index}`} className="portal-list-row portal-list-row-admin">

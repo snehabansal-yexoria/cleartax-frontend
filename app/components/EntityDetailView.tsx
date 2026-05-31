@@ -100,36 +100,7 @@ function monthLabel(key: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
 }
 
-const AVAILABLE_MANAGERS = [
-  {
-    id: "rm-1",
-    name: "Alex Rivera",
-    email: "alex.rivera@cleartax.com.au",
-    phone: "+61 2 9876 5432",
-    role: "Senior Account Manager",
-  },
-  {
-    id: "rm-2",
-    name: "Samantha Chen",
-    email: "samantha.chen@cleartax.com.au",
-    phone: "+61 3 8765 4321",
-    role: "Enterprise Success Lead",
-  },
-  {
-    id: "rm-3",
-    name: "Marcus Vance",
-    email: "marcus.vance@cleartax.com.au",
-    phone: "+61 8 7654 3210",
-    role: "Client Relationship Manager",
-  },
-  {
-    id: "rm-4",
-    name: "Elara Sterling",
-    email: "elara.sterling@cleartax.com.au",
-    phone: "+61 7 6543 2109",
-    role: "Strategic Account Director",
-  }
-];
+// Removed static AVAILABLE_MANAGERS. Now loaded dynamically from API.
 
 
 export default function EntityDetailView({
@@ -168,19 +139,75 @@ export default function EntityDetailView({
   const [newSessionError, setNewSessionError] = useState<string | null>(null);
   const [trendView, setTrendView] = useState<"graph" | "table">("graph");
   const [selectedRmId, setSelectedRmId] = useState<string>("");
+  const [availableManagers, setAvailableManagers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!sessionToken) return;
+    let cancelled = false;
+
+    fetch("/api/users/me/regional-managers", {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : { regionalManagers: [] }))
+      .then((data) => {
+        if (!cancelled) {
+          setAvailableManagers(data.regionalManagers || []);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load regional managers:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionToken]);
 
   const selectedRm = useMemo(() => {
-    return AVAILABLE_MANAGERS.find(rm => rm.id === selectedRmId) || null;
-  }, [selectedRmId]);
+    const found = availableManagers.find(rm => rm.id === selectedRmId);
+    if (found) return found;
+    if (entity && (entity as any).regionalManager && (entity as any).regionalManager.id === selectedRmId) {
+      return (entity as any).regionalManager;
+    }
+    return null;
+  }, [availableManagers, selectedRmId, entity]);
 
   const avatarInitials = useMemo(() => {
     if (!selectedRm) return "";
     return selectedRm.name
       .split(" ")
-      .map(part => part.charAt(0))
+      .map((part: string) => part.charAt(0))
       .join("")
       .toUpperCase();
   }, [selectedRm]);
+
+  async function handleAssignRm(rmId: string) {
+    if (!sessionToken || !entityId) return;
+
+    try {
+      setSelectedRmId(rmId);
+      const res = await fetch(`/api/entities/${encodeURIComponent(entityId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          assignedRegionalManagerId: rmId || null,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to assign regional manager");
+      }
+
+      const updatedEntity = await res.json();
+      setEntity(updatedEntity);
+    } catch (err) {
+      console.error("Error assigning regional manager:", err);
+      alert("Failed to assign Regional Manager. Please try again.");
+    }
+  }
 
 
   useEffect(() => {
@@ -211,7 +238,10 @@ export default function EntityDetailView({
           return res.json();
         })
         .then((data: CoreEntity) => {
-          if (!cancelled) setEntity(data);
+          if (!cancelled) {
+            setEntity(data);
+            setSelectedRmId((data as any).regionalManager?.id || "");
+          }
         })
         .catch((err: unknown) => {
           if (!cancelled) {
@@ -571,10 +601,10 @@ export default function EntityDetailView({
         </section>
       )}
 
-      {/* Relationship Manager Section */}
-      <section className="entity-trend-card entity-rm-card" aria-label="Relationship Manager" style={{ padding: "24px 34px 28px" }}>
+      {/* Regional Manager Section */}
+      <section className="entity-trend-card entity-rm-card" aria-label="Regional Manager" style={{ padding: "24px 34px 28px" }}>
         <div className="entity-trend-head" style={{ marginBottom: 20 }}>
-          <h2>Relationship Manager</h2>
+          <h2>Regional Manager</h2>
         </div>
 
         <div className="entity-rm-content">
@@ -593,11 +623,11 @@ export default function EntityDetailView({
 
             <div className="entity-rm-text-details">
               <h3 className="entity-rm-status-title" style={{ fontSize: 16, fontWeight: 700, color: "#1d2939" }}>
-                {selectedRm ? selectedRm.name : "No Relationship Manager Assigned"}
+                {selectedRm ? selectedRm.name : "No Regional Manager Assigned"}
               </h3>
               {selectedRm ? (
                 <div className="entity-rm-assigned-meta">
-                  <span className="entity-rm-badge">{selectedRm.role}</span>
+                  <span className="entity-rm-badge">Regional Manager</span>
                   <span className="entity-rm-meta-item">
                     <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14">
                       <rect x="3" y="4" width="18" height="14" rx="2" />
@@ -605,41 +635,36 @@ export default function EntityDetailView({
                     </svg>
                     {selectedRm.email}
                   </span>
-                  <span className="entity-rm-meta-item">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
-                    {selectedRm.phone}
-                  </span>
                 </div>
               ) : (
                 <p className="entity-rm-status-subtitle" style={{ fontSize: 13, color: "#667085", marginTop: 4 }}>
-                  Please select a relationship manager from the dropdown below to assign them to this entity.
+                  Please select a regional manager from the dropdown below to assign them to this entity.
                 </p>
               )}
             </div>
           </div>
 
           {/* Right Side: Select Input (only visible when no RM is assigned) */}
-          {!selectedRm && (
+          {/* Right Side: Select Input or Delete/Remove Button */}
+          {!selectedRm ? (
             <div className="entity-rm-action-section">
               <label className="entity-rm-label" htmlFor="rm-dropdown-select" style={{ fontSize: 12, fontWeight: 600, color: "#344054", marginBottom: 6 }}>
-                Select Relationship Manager
+                Select Regional Manager
               </label>
               <div className="entity-rm-select-wrapper">
                 <select
                   id="rm-dropdown-select"
                   className="entity-rm-select"
                   value={selectedRmId}
-                  onChange={(e) => setSelectedRmId(e.target.value)}
+                  onChange={(e) => handleAssignRm(e.target.value)}
                   style={{
                     color: selectedRmId === "" ? "#98a2b3" : "#101828",
                   }}
                 >
                   <option value=""></option>
-                  {AVAILABLE_MANAGERS.map((rm) => (
+                  {availableManagers.map((rm) => (
                     <option key={rm.id} value={rm.id}>
-                      {rm.name} ({rm.role})
+                      {rm.name}
                     </option>
                   ))}
                 </select>
@@ -662,6 +687,57 @@ export default function EntityDetailView({
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </div>
+            </div>
+          ) : (
+            <div className="entity-rm-action-section" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => handleAssignRm("")}
+                title="Remove Regional Manager"
+                aria-label="Remove Regional Manager"
+                style={{
+                  background: "transparent",
+                  border: "1px solid #f2f4f7",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  color: "#667085",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#fef3f2";
+                  e.currentTarget.style.borderColor = "#fee4e2";
+                  e.currentTarget.style.color = "#d92d20";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.borderColor = "#f2f4f7";
+                  e.currentTarget.style.color = "#667085";
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="15"
+                  height="15"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.0"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+                <span>Remove</span>
+              </button>
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import {
   getCoreEntity,
   updateCoreEntity,
 } from "@/src/lib/coreApi";
+import { pool } from "@/src/lib/db";
 
 function getBearerToken(req: Request) {
   const header = req.headers.get("authorization");
@@ -24,6 +25,28 @@ export async function GET(req: Request, context: RouteContext) {
   const { id } = await context.params;
   try {
     const entity = await getCoreEntity(token, id);
+
+    // Fetch assigned regional manager directly from database
+    const dbRes = await pool.query(
+      `SELECT e.assigned_regional_manager_id, u.full_name, u.email 
+       FROM entity e
+       LEFT JOIN users u ON u.id = e.assigned_regional_manager_id
+       WHERE e.id = $1::uuid`,
+      [id]
+    );
+
+    const dbRow = dbRes.rows[0];
+    if (dbRow && dbRow.assigned_regional_manager_id) {
+      (entity as any).regionalManager = {
+        id: dbRow.assigned_regional_manager_id,
+        name: dbRow.full_name,
+        email: dbRow.email,
+        role: "Regional Manager",
+      };
+    } else {
+      (entity as any).regionalManager = null;
+    }
+
     return NextResponse.json(entity);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch entity";
@@ -39,7 +62,7 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  let body: unknown;
+  let body: any;
   try {
     body = await req.json();
   } catch {
@@ -47,7 +70,43 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   try {
+    // Save assigned regional manager to the database if passed
+    if (body && typeof body === "object" && "assignedRegionalManagerId" in body) {
+      const assignedId = body.assignedRegionalManagerId
+        ? String(body.assignedRegionalManagerId).trim()
+        : null;
+
+      await pool.query(
+        `UPDATE entity 
+         SET assigned_regional_manager_id = $1 
+         WHERE id = $2::uuid`,
+        [assignedId || null, id]
+      );
+    }
+
     const entity = await updateCoreEntity(token, id, body as Record<string, unknown>);
+
+    // Fetch updated regional manager details
+    const dbRes = await pool.query(
+      `SELECT e.assigned_regional_manager_id, u.full_name, u.email 
+       FROM entity e
+       LEFT JOIN users u ON u.id = e.assigned_regional_manager_id
+       WHERE e.id = $1::uuid`,
+      [id]
+    );
+
+    const dbRow = dbRes.rows[0];
+    if (dbRow && dbRow.assigned_regional_manager_id) {
+      (entity as any).regionalManager = {
+        id: dbRow.assigned_regional_manager_id,
+        name: dbRow.full_name,
+        email: dbRow.email,
+        role: "Regional Manager",
+      };
+    } else {
+      (entity as any).regionalManager = null;
+    }
+
     return NextResponse.json(entity);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update entity";
