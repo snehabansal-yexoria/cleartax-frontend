@@ -386,7 +386,11 @@ function AccountantClientsContent() {
   const visibleClients = useMemo(() => {
     const source =
       currentTab === "all"
-        ? (allClients ?? []).filter((client) => !client.isAssignedToCurrentAccountant)
+        ? (allClients ?? []).filter(
+            (client) =>
+              !client.isAssignedToCurrentAccountant &&
+              !client.isAssignedToAnotherAccountant
+          )
         : (myClients ?? []);
     const query = searchValue.trim().toLowerCase();
 
@@ -651,7 +655,7 @@ function AccountantClientsContent() {
           }}
         >
           All Clients
-          <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant).length)}</span>
+          <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant).length)}</span>
         </button>
         <Link href="/dashboard/accountant/clients?tab=mine">
           <button

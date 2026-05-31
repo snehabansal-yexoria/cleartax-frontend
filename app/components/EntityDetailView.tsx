@@ -100,6 +100,38 @@ function monthLabel(key: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
 }
 
+const AVAILABLE_MANAGERS = [
+  {
+    id: "rm-1",
+    name: "Alex Rivera",
+    email: "alex.rivera@cleartax.com.au",
+    phone: "+61 2 9876 5432",
+    role: "Senior Account Manager",
+  },
+  {
+    id: "rm-2",
+    name: "Samantha Chen",
+    email: "samantha.chen@cleartax.com.au",
+    phone: "+61 3 8765 4321",
+    role: "Enterprise Success Lead",
+  },
+  {
+    id: "rm-3",
+    name: "Marcus Vance",
+    email: "marcus.vance@cleartax.com.au",
+    phone: "+61 8 7654 3210",
+    role: "Client Relationship Manager",
+  },
+  {
+    id: "rm-4",
+    name: "Elara Sterling",
+    email: "elara.sterling@cleartax.com.au",
+    phone: "+61 7 6543 2109",
+    role: "Strategic Account Director",
+  }
+];
+
+
 export default function EntityDetailView({
   entityId,
   backHref,
@@ -135,6 +167,21 @@ export default function EntityDetailView({
   const [newSessionSaving, setNewSessionSaving] = useState(false);
   const [newSessionError, setNewSessionError] = useState<string | null>(null);
   const [trendView, setTrendView] = useState<"graph" | "table">("graph");
+  const [selectedRmId, setSelectedRmId] = useState<string>("");
+
+  const selectedRm = useMemo(() => {
+    return AVAILABLE_MANAGERS.find(rm => rm.id === selectedRmId) || null;
+  }, [selectedRmId]);
+
+  const avatarInitials = useMemo(() => {
+    if (!selectedRm) return "";
+    return selectedRm.name
+      .split(" ")
+      .map(part => part.charAt(0))
+      .join("")
+      .toUpperCase();
+  }, [selectedRm]);
+
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -524,6 +571,102 @@ export default function EntityDetailView({
         </section>
       )}
 
+      {/* Relationship Manager Section */}
+      <section className="entity-trend-card entity-rm-card" aria-label="Relationship Manager" style={{ padding: "24px 34px 28px" }}>
+        <div className="entity-trend-head" style={{ marginBottom: 20 }}>
+          <h2>Relationship Manager</h2>
+        </div>
+
+        <div className="entity-rm-content">
+          {/* Left Side: Avatar + Details */}
+          <div className="entity-rm-info-section">
+            <div className={`entity-rm-avatar-wrapper ${selectedRm ? "is-assigned" : ""}`}>
+              {selectedRm ? (
+                avatarInitials
+              ) : (
+                <svg className="entity-rm-avatar-icon" viewBox="0 0 24 24" aria-hidden="true" style={{ width: 22, height: 22, stroke: "#98a2b3" }}>
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </div>
+
+            <div className="entity-rm-text-details">
+              <h3 className="entity-rm-status-title" style={{ fontSize: 16, fontWeight: 700, color: "#1d2939" }}>
+                {selectedRm ? selectedRm.name : "No Relationship Manager Assigned"}
+              </h3>
+              {selectedRm ? (
+                <div className="entity-rm-assigned-meta">
+                  <span className="entity-rm-badge">{selectedRm.role}</span>
+                  <span className="entity-rm-meta-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14">
+                      <rect x="3" y="4" width="18" height="14" rx="2" />
+                      <path d="m3 7 9 6 9-6" />
+                    </svg>
+                    {selectedRm.email}
+                  </span>
+                  <span className="entity-rm-meta-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    {selectedRm.phone}
+                  </span>
+                </div>
+              ) : (
+                <p className="entity-rm-status-subtitle" style={{ fontSize: 13, color: "#667085", marginTop: 4 }}>
+                  Please select a relationship manager from the dropdown below to assign them to this entity.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Side: Select Input (only visible when no RM is assigned) */}
+          {!selectedRm && (
+            <div className="entity-rm-action-section">
+              <label className="entity-rm-label" htmlFor="rm-dropdown-select" style={{ fontSize: 12, fontWeight: 600, color: "#344054", marginBottom: 6 }}>
+                Select Relationship Manager
+              </label>
+              <div className="entity-rm-select-wrapper">
+                <select
+                  id="rm-dropdown-select"
+                  className="entity-rm-select"
+                  value={selectedRmId}
+                  onChange={(e) => setSelectedRmId(e.target.value)}
+                  style={{
+                    color: selectedRmId === "" ? "#98a2b3" : "#101828",
+                  }}
+                >
+                  <option value=""></option>
+                  {AVAILABLE_MANAGERS.map((rm) => (
+                    <option key={rm.id} value={rm.id}>
+                      {rm.name} ({rm.role})
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 16,
+                    height: 16,
+                    pointerEvents: "none",
+                    stroke: "#667085",
+                    strokeWidth: 2,
+                    fill: "none"
+                  }}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="entity-resource-panel">
         <div className="entity-resource-tabs" role="tablist" aria-label="Entity resources">
           {entityTabs.map((tab) => (
@@ -595,8 +738,8 @@ export default function EntityDetailView({
                           {isTransactionsLoading
                             ? "..."
                             : transactions.filter((t) =>
-                                t.propertyIds?.includes(property.id),
-                              ).length}
+                              t.propertyIds?.includes(property.id),
+                            ).length}
                         </dd>
                       </div>
                     </dl>
