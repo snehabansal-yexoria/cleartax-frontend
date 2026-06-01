@@ -1300,7 +1300,7 @@ export default function AddPropertyWizard({
 
           <div className="property-upload-section">
             <span className="entity-wizard-label-text">
-              Property Image <em>*</em>
+              Property Image <small>(Optional)</small>
             </span>
             {isUploadingPropertyImage ? (
               <div className="property-upload-progress-card">
