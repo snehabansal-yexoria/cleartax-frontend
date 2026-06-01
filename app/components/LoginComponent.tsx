@@ -258,9 +258,9 @@ export default function LoginComponent({
             left: 0,
             width: "100vw",
             height: "100vh",
-            background: "radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, rgba(9, 15, 29, 0.99) 100%)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
+            background: "radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.94) 0%, rgba(244, 246, 250, 0.98) 100%)",
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -304,7 +304,7 @@ export default function LoginComponent({
               width: "400px",
               height: "400px",
               borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(244, 161, 23, 0.08) 0%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(40, 51, 110, 0.05) 0%, rgba(244, 161, 23, 0.04) 50%, transparent 70%)",
               zIndex: 1,
               animation: "glowPulse 4s ease-in-out infinite",
               pointerEvents: "none",
@@ -321,9 +321,9 @@ export default function LoginComponent({
               gap: "24px",
               padding: "48px 40px",
               borderRadius: "32px",
-              background: "rgba(255, 255, 255, 0.02)",
-              border: "1px solid rgba(255, 255, 255, 0.05)",
-              boxShadow: "0 40px 100px rgba(0, 0, 0, 0.4)",
+              background: "rgba(255, 255, 255, 0.85)",
+              border: "1px solid rgba(40, 51, 110, 0.08)",
+              boxShadow: "0 30px 80px rgba(40, 51, 110, 0.06), 0 10px 30px rgba(0, 0, 0, 0.02)",
               maxWidth: "360px",
               width: "90%",
               textAlign: "center",
@@ -337,9 +337,9 @@ export default function LoginComponent({
                 gap: "6px",
                 padding: "6px 12px",
                 borderRadius: "999px",
-                background: "rgba(244, 161, 23, 0.08)",
-                border: "1px solid rgba(244, 161, 23, 0.15)",
-                color: "#ffb425",
+                background: "rgba(40, 51, 110, 0.04)",
+                border: "1px solid rgba(40, 51, 110, 0.08)",
+                color: "#28336e",
                 fontSize: "0.72rem",
                 fontWeight: 700,
                 letterSpacing: "0.06em",
@@ -351,8 +351,8 @@ export default function LoginComponent({
                   width: "6px",
                   height: "6px",
                   borderRadius: "50%",
-                  background: "#ffb425",
-                  boxShadow: "0 0 8px #ffb425",
+                  background: "#f4a117",
+                  boxShadow: "0 0 8px #f4a117",
                   animation: "pulseDot 1.5s ease-in-out infinite",
                 }}
               />
@@ -367,7 +367,7 @@ export default function LoginComponent({
                   cy="25"
                   r="22"
                   fill="none"
-                  stroke="rgba(255, 255, 255, 0.03)"
+                  stroke="rgba(40, 51, 110, 0.06)"
                   strokeWidth="2.5"
                 />
                 <circle
@@ -387,8 +387,8 @@ export default function LoginComponent({
                 />
                 <defs>
                   <linearGradient id="premiumSpinnerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffb425" />
-                    <stop offset="100%" stopColor="#3b82f6" />
+                    <stop offset="0%" stopColor="#28336e" />
+                    <stop offset="100%" stopColor="#f4a117" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -401,8 +401,8 @@ export default function LoginComponent({
                   width: "14px",
                   height: "14px",
                   borderRadius: "50%",
-                  background: "#ffffff",
-                  boxShadow: "0 0 12px rgba(255, 255, 255, 0.6)",
+                  background: "#28336e",
+                  boxShadow: "0 0 12px rgba(40, 51, 110, 0.25)",
                   animation: "pulseDot 1.5s ease-in-out infinite",
                 }}
               />
@@ -412,7 +412,7 @@ export default function LoginComponent({
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <span
                 style={{
-                  color: "#ffffff",
+                  color: "#28336e",
                   fontSize: "1.4rem",
                   fontWeight: 800,
                   letterSpacing: "-0.02em",
@@ -423,7 +423,7 @@ export default function LoginComponent({
               </span>
               <span
                 style={{
-                  color: "#94a3b8",
+                  color: "#4a5565",
                   fontSize: "0.88rem",
                   fontWeight: 400,
                   lineHeight: "1.5",
@@ -441,7 +441,7 @@ export default function LoginComponent({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "6px",
-                color: "#475569",
+                color: "#717182",
                 fontSize: "0.75rem",
                 fontWeight: 600,
                 letterSpacing: "0.02em",

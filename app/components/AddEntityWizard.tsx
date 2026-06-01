@@ -31,13 +31,18 @@ const entityTypeOptions: EntityTypeOption[] = [
   },
   {
     value: "company",
-    label: "Company (Pty Ltd)",
+    label: "Company (Pvt Ltd)",
     description: "Limited liability company structure with shareholders",
   },
   {
     value: "trust",
     label: "Trust (Discretionary/ Unit)",
     description: "Asset protection and flexible distribution to beneficiaries",
+  },
+  {
+    value: "smsf",
+    label: "Self Managed Super Fund (SMSF)",
+    description: "Tax-effective retirement savings and investment vehicle",
   },
 ];
 
@@ -81,20 +86,22 @@ export default function AddEntityWizard({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [entityType, setEntityType] = useState<EntityType | null>(() => {
     if (initialEntity?.entityType === "smsf") {
-      return "trust";
-    }
-    return initialEntity?.entityType ?? null;
-  });
-  const [trustType, setTrustType] = useState<"discretionary" | "unit" | "smsf" | null>(() => {
-    if (initialEntity?.entityType === "smsf") {
       return "smsf";
     }
     if (initialEntity?.entityType === "trust") {
       const tType = (initialEntity as any).trustType || (initialEntity as any).trust_type;
-      if (tType === "discretionary" || tType === "unit" || tType === "smsf") {
+      if (tType === "smsf") {
+        return "smsf";
+      }
+    }
+    return initialEntity?.entityType ?? null;
+  });
+  const [trustType, setTrustType] = useState<"discretionary" | "unit" | "hybrid" | null>(() => {
+    if (initialEntity?.entityType === "trust") {
+      const tType = (initialEntity as any).trustType || (initialEntity as any).trust_type;
+      if (tType === "discretionary" || tType === "unit" || tType === "hybrid") {
         return tType;
       }
-      return "discretionary";
     }
     return null;
   });
@@ -128,7 +135,7 @@ export default function AddEntityWizard({
   const ownershipOverLimit = totalOwnership > 100;
   const needsBeneficiaries =
     entityType === "partnership" ||
-    (entityType === "trust" && trustType !== "smsf");
+    entityType === "trust";
   const beneficiariesValid =
     !needsBeneficiaries ||
     (ownershipAboveZero &&
@@ -146,12 +153,12 @@ export default function AddEntityWizard({
   const selectedTypeLabel = useMemo(() => {
     if (entityType === "trust") {
       const subLabel =
-        trustType === "smsf"
-          ? "Self Managed Super Fund (SMSF)"
-          : trustType === "unit"
-            ? "Unit Trust"
-            : trustType === "discretionary"
-              ? "Discretionary Trust"
+        trustType === "unit"
+          ? "Unit Trust"
+          : trustType === "discretionary"
+            ? "Discretionary Trust"
+            : trustType === "hybrid"
+              ? "Hybrid Trust"
               : "";
       return subLabel ? `Trust (${subLabel})` : "Trust";
     }
@@ -185,20 +192,24 @@ export default function AddEntityWizard({
   useEffect(() => {
     if (!initialEntity) return;
     if (initialEntity.entityType === "smsf") {
-      setEntityType("trust");
-      setTrustType("smsf");
-    } else {
-      setEntityType(initialEntity.entityType);
-      if (initialEntity.entityType === "trust") {
-        const tType = (initialEntity as any).trustType || (initialEntity as any).trust_type;
-        if (tType === "discretionary" || tType === "unit" || tType === "smsf") {
+      setEntityType("smsf");
+      setTrustType(null);
+    } else if (initialEntity.entityType === "trust") {
+      const tType = (initialEntity as any).trustType || (initialEntity as any).trust_type;
+      if (tType === "smsf") {
+        setEntityType("smsf");
+        setTrustType(null);
+      } else {
+        setEntityType("trust");
+        if (tType === "discretionary" || tType === "unit" || tType === "hybrid") {
           setTrustType(tType);
         } else {
           setTrustType("discretionary");
         }
-      } else {
-        setTrustType(null);
       }
+    } else {
+      setEntityType(initialEntity.entityType);
+      setTrustType(null);
     }
     setEntityName(initialEntity.name);
     setBeneficiaries(getInitialBeneficiaries(initialEntity));
@@ -244,7 +255,7 @@ export default function AddEntityWizard({
       const token = session.getIdToken().getJwtToken();
 
       const body: Record<string, unknown> = {
-        entity_type: entityType === "trust" && trustType === "smsf" ? "smsf" : entityType,
+        entity_type: entityType,
         name: entityName.trim(),
         created_for: createdFor,
       };
@@ -427,9 +438,9 @@ export default function AddEntityWizard({
                     description: "Beneficiaries hold fixed units with defined entitlements",
                   },
                   {
-                    value: "smsf",
-                    label: "Self Managed Super Fund (SMSF)",
-                    description: "Tax-effective retirement savings and investment vehicle",
+                    value: "hybrid",
+                    label: "Hybrid Trust",
+                    description: "Combines features of both discretionary and unit trusts",
                   },
                 ].map((subOption) => (
                   <button
@@ -438,7 +449,11 @@ export default function AddEntityWizard({
                     className={`entity-type-card${trustType === subOption.value ? " is-selected" : ""}`}
                     onClick={() => setTrustType(subOption.value as any)}
                   >
-                    <strong>{subOption.label}</strong>
+                    <strong>
+                      {(
+                        subOption.label
+                      )}
+                    </strong>
                     <span>{subOption.description}</span>
                   </button>
                 ))}
@@ -469,14 +484,16 @@ export default function AddEntityWizard({
                 : entityType === "partnership"
                   ? "Partnership"
                   : entityType === "company"
-                    ? "Company (Pty Ltd)"
-                    : entityType === "trust"
-                      ? trustType === "smsf"
-                        ? "Self-Managed Super Fund (SMSF)"
-                        : trustType === "unit"
+                    ? "Company (Pvt Ltd)"
+                    : entityType === "smsf"
+                      ? "Self Managed Super Fund (SMSF)"
+                      : entityType === "trust"
+                        ? trustType === "unit"
                           ? "Unit Trust"
-                          : "Discretionary Trust"
-                      : "Enter Entity Name"}
+                          : trustType === "hybrid"
+                            ? "Hybrid Trust"
+                            : "Discretionary Trust"
+                        : "Enter Entity Name"}
             </h2>
             <p>
               {entityType === "individual"
@@ -485,13 +502,15 @@ export default function AddEntityWizard({
                   ? "Enter the partnership name as per the partnership agreement"
                   : entityType === "company"
                     ? "Enter the company name as per the ASIC registration"
-                    : entityType === "trust"
-                      ? trustType === "smsf"
-                        ? "Enter the fund name as per the SMSF deed"
-                        : trustType === "unit"
+                    : entityType === "smsf"
+                      ? "Enter the fund name as per the SMSF deed"
+                      : entityType === "trust"
+                        ? trustType === "unit"
                           ? "Enter the full trust name as per the unit trust deed"
-                          : "Enter the full discretionary trust name as per the trust deed"
-                      : "Give client entity a clear, identifiable name"}
+                          : trustType === "hybrid"
+                            ? "Enter the full hybrid trust name as per the hybrid trust deed"
+                            : "Enter the full discretionary trust name as per the trust deed"
+                        : "Give client entity a clear, identifiable name"}
             </p>
           </header>
 
@@ -508,11 +527,13 @@ export default function AddEntityWizard({
                     ? "e.g. Smith & Brown Partnership"
                     : entityType === "company"
                       ? "e.g. ABC Properties Pty Ltd"
-                      : entityType === "trust"
-                        ? trustType === "smsf"
-                          ? "e.g. Smith Super Fund"
-                          : "e.g. Smith Family/Unit Trust"
-                        : "e.g., Smith Family Trust, ABC Properties LLC"
+                      : entityType === "smsf"
+                        ? "e.g. Smith Super Fund"
+                        : entityType === "trust"
+                          ? trustType === "hybrid"
+                            ? "e.g. Smith Hybrid Trust"
+                            : "e.g. Smith Family/Unit Trust"
+                          : "e.g., Smith Family Trust, ABC Properties LLC"
               }
               value={entityName}
               onChange={(event) => setEntityName(event.target.value)}
@@ -710,7 +731,7 @@ export default function AddEntityWizard({
             <div className="entity-success-footer">
               <Link
                 href={
-                  !isEditMode && entityType === "individual" && savedEntity
+                  !isEditMode && (entityType === "individual" || entityType === "smsf") && savedEntity
                     ? onSuccessHref.includes("/dashboard/accountant")
                       ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
                       : `/dashboard/client/entities/${savedEntity.id}/properties/new`

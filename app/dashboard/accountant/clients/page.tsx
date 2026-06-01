@@ -386,11 +386,7 @@ function AccountantClientsContent() {
   const visibleClients = useMemo(() => {
     const source =
       currentTab === "all"
-        ? (allClients ?? []).filter(
-            (client) =>
-              !client.isAssignedToCurrentAccountant &&
-              !client.isAssignedToAnotherAccountant
-          )
+        ? (allClients ?? [])
         : (myClients ?? []);
     const query = searchValue.trim().toLowerCase();
 
@@ -655,7 +651,7 @@ function AccountantClientsContent() {
           }}
         >
           All Clients
-          <span>{allClients === null ? "…" : (allClients.filter(c => !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant).length)}</span>
+          <span>{allClients === null ? "…" : allClients.length}</span>
         </button>
         <Link href="/dashboard/accountant/clients?tab=mine">
           <button
@@ -754,7 +750,7 @@ function AccountantClientsContent() {
             ))}
           </div>
         ) : displayedClients.map((client) => {
-          const canOpenClient = currentTab === "mine";
+          const canOpenClient = true;
           return (
             <article
               key={client.id}
@@ -781,18 +777,20 @@ function AccountantClientsContent() {
                 {currentTab === "mine" ? (
                   <span className="accountant-client-selection-empty" />
                 ) : client.isAssignedToAnotherAccountant ? (
+                  <span className="accountant-client-selection-empty" />
+                ) : client.isAssignedToCurrentAccountant ? (
                   <span
-                    className="accountant-client-assignment-icon is-blocked"
-                    title={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
+                    className="accountant-client-assignment-icon"
+                    title="Assigned to you"
                     role="img"
-                    aria-label={`Assigned to ${client.assignedAccountantName || "another accountant"}`}
+                    aria-label="Assigned to you"
                   >
                     <svg
-                      className="accountant-client-lock-icon"
-                      viewBox="0 0 50 50"
+                      viewBox="0 0 24 24"
                       aria-hidden="true"
+                      style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 3 }}
                     >
-                      <path d="M25 3C18.363 3 13 8.363 13 15v5H9c-1.645 0-3 1.355-3 3v24c0 1.645 1.355 3 3 3h32c1.645 0 3-1.355 3-3V23c0-1.645-1.355-3-3-3h-4v-5C37 8.363 31.637 3 25 3Zm0 2c5.566 0 10 4.434 10 10v5H15v-5C15 9.434 19.434 5 25 5ZM9 22h32c.555 0 1 .445 1 1v24c0 .555-.445 1-1 1H9c-.555 0-1-.445-1-1V23c0-.555.445-1 1-1Zm16 8c-1.699 0-3 1.301-3 3 0 .898.398 1.688 1 2.188V38c0 1.102.898 2 2 2s2-.898 2-2v-2.813c.602-.5 1-1.289 1-2.187 0-1.699-1.301-3-3-3Z" />
+                      <path d="M5 12l4 4 10-10" />
                     </svg>
                   </span>
                 ) : (
