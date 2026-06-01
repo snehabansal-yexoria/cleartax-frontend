@@ -111,7 +111,7 @@ export default function AccountantPage() {
           if (!cancelled) setMyClients(data.clients || []);
         })
         .catch(() => { if (!cancelled) setMyClients([]); });
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => { cancelled = true; };
   }, []);
@@ -120,13 +120,9 @@ export default function AccountantPage() {
     () =>
       (allClients ?? []).filter((client) => {
         const status = client.status.toLowerCase();
-        const invitedByEmail = client.invitedByEmail.toLowerCase();
-        return (
-          pendingStatuses.has(status) &&
-          (!currentUserEmail || invitedByEmail === currentUserEmail)
-        );
+        return pendingStatuses.has(status);
       }).length,
-    [allClients, currentUserEmail],
+    [allClients],
   );
 
   const registeredClients = useMemo(
@@ -194,25 +190,25 @@ export default function AccountantPage() {
   const summaryLoading = allClients === null || myClients === null;
 
   return (
-      <section className="accountant-dashboard">
-        <Skeleton
-          name="accountant-summary"
-          loading={summaryLoading}
-          fallback={
-            <div className="accountant-summary-grid boneyard-fallback">
-              <article className="accountant-summary-card accountant-summary-card-blue">
-                <div className="skeleton-line skeleton-line-sm" />
-                <div className="skeleton-line skeleton-line-xl" />
-                <div className="skeleton-line skeleton-line-md" />
-              </article>
-              <article className="accountant-summary-card accountant-summary-card-gold">
-                <div className="skeleton-line skeleton-line-sm" />
-                <div className="skeleton-line skeleton-line-xl" />
-                <div className="skeleton-circle" />
-              </article>
-            </div>
-          }
-        >
+    <section className="accountant-dashboard">
+      <Skeleton
+        name="accountant-summary"
+        loading={summaryLoading}
+        fallback={
+          <div className="accountant-summary-grid boneyard-fallback">
+            <article className="accountant-summary-card accountant-summary-card-blue">
+              <div className="skeleton-line skeleton-line-sm" />
+              <div className="skeleton-line skeleton-line-xl" />
+              <div className="skeleton-line skeleton-line-md" />
+            </article>
+            <article className="accountant-summary-card accountant-summary-card-gold">
+              <div className="skeleton-line skeleton-line-sm" />
+              <div className="skeleton-line skeleton-line-xl" />
+              <div className="skeleton-circle" />
+            </article>
+          </div>
+        }
+      >
         <div className="accountant-summary-grid">
           <article className="accountant-summary-card accountant-summary-card-blue">
             <div>
@@ -220,8 +216,8 @@ export default function AccountantPage() {
               <h2>{invitationPending}</h2>
               <span>
                 {invitationPending === 1
-                  ? "Client invited by you still to accept"
-                  : "Clients invited by you still to accept"}
+                  ? "Client still to accept"
+                  : "Clients still to accept"}
               </span>
             </div>
             <Link
@@ -252,212 +248,211 @@ export default function AccountantPage() {
             </div>
           </article>
         </div>
-        </Skeleton>
+      </Skeleton>
 
-        <div className="accountant-content-grid">
-          <section className="accountant-clients-panel">
-            <div className="accountant-panel-header">
-              <div>
-                <h3>Client Management</h3>
-                <p>
-                  {managedClients.length > 0
-                    ? organizationName
-                      ? `Manage your clients for ${organizationName}`
-                      : "Manage your portfolio clients"
-                    : "Add clients to your list to start managing their portfolios"}
-                </p>
-              </div>
-
-              <div className="accountant-view-toggle">
-                <button
-                  type="button"
-                  className={viewMode === "card" ? "is-active" : ""}
-                  onClick={() => setViewMode("card")}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="4" width="7" height="7" rx="1.2" />
-                    <rect x="14" y="4" width="7" height="7" rx="1.2" />
-                    <rect x="3" y="13" width="7" height="7" rx="1.2" />
-                    <rect x="14" y="13" width="7" height="7" rx="1.2" />
-                  </svg>
-                  Card View
-                </button>
-                <button
-                  type="button"
-                  className={viewMode === "list" ? "is-active" : ""}
-                  onClick={() => setViewMode("list")}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 6h13" />
-                    <path d="M8 12h13" />
-                    <path d="M8 18h13" />
-                    <circle cx="4" cy="6" r="1" />
-                    <circle cx="4" cy="12" r="1" />
-                    <circle cx="4" cy="18" r="1" />
-                  </svg>
-                  List View
-                </button>
-              </div>
+      <div className="accountant-content-grid">
+        <section className="accountant-clients-panel">
+          <div className="accountant-panel-header">
+            <div>
+              <h3>Client Management</h3>
+              <p>
+                {managedClients.length > 0
+                  ? organizationName
+                    ? `Manage your clients for ${organizationName}`
+                    : "Manage your portfolio clients"
+                  : "Add clients to your list to start managing their portfolios"}
+              </p>
             </div>
 
-            {myClients === null ? (
-              <div className="accountant-client-grid boneyard-fallback">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="skeleton-panel skeleton-panel-tall" />
-                ))}
-              </div>
-            ) : managedClients.length === 0 ? (
-              <div className="accountant-empty-state">
-                <p>You have not added any clients to your list yet.</p>
-                <Link
-                  href="/dashboard/accountant/clients"
-                  className="accountant-empty-cta"
-                >
-                  Start adding clients to your list
-                </Link>
-                {suggestedClients.length > 0 && (
-                  <div className="accountant-suggested-clients">
-                    <div className="accountant-suggested-clients-head">
-                      <div>
-                        <strong>Available clients</strong>
-                        <span>Pick one to add directly to My Clients.</span>
-                      </div>
-                      <Link href="/dashboard/accountant/clients">
-                        Show more
-                      </Link>
+            <div className="accountant-view-toggle">
+              <button
+                type="button"
+                className={viewMode === "card" ? "is-active" : ""}
+                onClick={() => setViewMode("card")}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="7" height="7" rx="1.2" />
+                  <rect x="14" y="4" width="7" height="7" rx="1.2" />
+                  <rect x="3" y="13" width="7" height="7" rx="1.2" />
+                  <rect x="14" y="13" width="7" height="7" rx="1.2" />
+                </svg>
+                Card View
+              </button>
+              <button
+                type="button"
+                className={viewMode === "list" ? "is-active" : ""}
+                onClick={() => setViewMode("list")}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 6h13" />
+                  <path d="M8 12h13" />
+                  <path d="M8 18h13" />
+                  <circle cx="4" cy="6" r="1" />
+                  <circle cx="4" cy="12" r="1" />
+                  <circle cx="4" cy="18" r="1" />
+                </svg>
+                List View
+              </button>
+            </div>
+          </div>
+
+          {myClients === null ? (
+            <div className="accountant-client-grid boneyard-fallback">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="skeleton-panel skeleton-panel-tall" />
+              ))}
+            </div>
+          ) : managedClients.length === 0 ? (
+            <div className="accountant-empty-state">
+              <p>You have not added any clients to your list yet.</p>
+              <Link
+                href="/dashboard/accountant/clients"
+                className="accountant-empty-cta"
+              >
+                Start adding clients to your list
+              </Link>
+              {suggestedClients.length > 0 && (
+                <div className="accountant-suggested-clients">
+                  <div className="accountant-suggested-clients-head">
+                    <div>
+                      <strong>Available clients</strong>
+                      <span>Pick one to add directly to My Clients.</span>
                     </div>
-
-                    <div className="accountant-suggested-client-list">
-                      {suggestedClients.map((client) => {
-                        const isSelected =
-                          selectedAvailableClientId === client.id;
-
-                        return (
-                          <button
-                            key={client.id}
-                            type="button"
-                            className={`accountant-suggested-client${
-                              isSelected ? " is-selected" : ""
-                            }`}
-                            onClick={() => {
-                              setAssignMessage("");
-                              setSelectedAvailableClientId((current) =>
-                                current === client.id ? "" : client.id,
-                              );
-                            }}
-                          >
-                            <span className="accountant-client-pill">
-                              {getInitials(client.name)}
-                            </span>
-                            <span className="accountant-suggested-client-copy">
-                              <strong>{client.name}</strong>
-                              <span>{client.email}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {selectedAvailableClientId && (
-                      <button
-                        type="button"
-                        className="accountant-suggested-add"
-                        onClick={handleAssignSuggestedClient}
-                        disabled={isAssigningClient}
-                      >
-                        {isAssigningClient ? "Adding..." : "Add to list"}
-                      </button>
-                    )}
-
-                    {assignMessage && (
-                      <p className="accountant-suggested-message">
-                        {assignMessage}
-                      </p>
-                    )}
+                    <Link href="/dashboard/accountant/clients">
+                      Show more
+                    </Link>
                   </div>
-                )}
-              </div>
-            ) : viewMode === "card" ? (
-              <div className="accountant-client-grid">
-                {managedClients.map((client) => (
-                  <Link
-                    key={client.id}
-                    href={`/dashboard/accountant/clients/${client.id}`}
-                    className="accountant-client-card accountant-client-card-plain"
-                  >
+
+                  <div className="accountant-suggested-client-list">
+                    {suggestedClients.map((client) => {
+                      const isSelected =
+                        selectedAvailableClientId === client.id;
+
+                      return (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className={`accountant-suggested-client${isSelected ? " is-selected" : ""
+                            }`}
+                          onClick={() => {
+                            setAssignMessage("");
+                            setSelectedAvailableClientId((current) =>
+                              current === client.id ? "" : client.id,
+                            );
+                          }}
+                        >
+                          <span className="accountant-client-pill">
+                            {getInitials(client.name)}
+                          </span>
+                          <span className="accountant-suggested-client-copy">
+                            <strong>{client.name}</strong>
+                            <span>{client.email}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedAvailableClientId && (
+                    <button
+                      type="button"
+                      className="accountant-suggested-add"
+                      onClick={handleAssignSuggestedClient}
+                      disabled={isAssigningClient}
+                    >
+                      {isAssigningClient ? "Adding..." : "Add to list"}
+                    </button>
+                  )}
+
+                  {assignMessage && (
+                    <p className="accountant-suggested-message">
+                      {assignMessage}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : viewMode === "card" ? (
+            <div className="accountant-client-grid">
+              {managedClients.map((client) => (
+                <Link
+                  key={client.id}
+                  href={`/dashboard/accountant/clients/${client.id}`}
+                  className="accountant-client-card accountant-client-card-plain"
+                >
+                  <div className="accountant-client-pill">
+                    {getInitials(client.name)}
+                  </div>
+                  <div className="accountant-client-copy">
+                    <h4>{client.name}</h4>
+                    <p>{client.email}</p>
+                    <span>{client.phoneNumber || ""}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="accountant-client-list">
+              {managedClients.map((client) => (
+                <Link
+                  key={client.id}
+                  href={`/dashboard/accountant/clients/${client.id}`}
+                  className="accountant-client-list-row"
+                >
+                  <div className="accountant-client-list-main">
                     <div className="accountant-client-pill">
                       {getInitials(client.name)}
                     </div>
-                    <div className="accountant-client-copy">
+                    <div className="accountant-client-list-copy">
                       <h4>{client.name}</h4>
                       <p>{client.email}</p>
-                      <span>{client.phoneNumber || ""}</span>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="accountant-client-list">
-                {managedClients.map((client) => (
-                  <Link
-                    key={client.id}
-                    href={`/dashboard/accountant/clients/${client.id}`}
-                    className="accountant-client-list-row"
-                  >
-                    <div className="accountant-client-list-main">
-                      <div className="accountant-client-pill">
-                        {getInitials(client.name)}
-                      </div>
-                      <div className="accountant-client-list-copy">
-                        <h4>{client.name}</h4>
-                        <p>{client.email}</p>
-                      </div>
-                    </div>
+                  </div>
 
-                    <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">
-                        Status
-                      </span>
-                      <strong>{client.status || "Active"}</strong>
-                    </div>
+                  <div className="accountant-client-list-meta">
+                    <span className="accountant-client-list-label">
+                      Status
+                    </span>
+                    <strong>{client.status || "Active"}</strong>
+                  </div>
 
-                    <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">
-                        Joined
-                      </span>
-                      <strong>{formatJoinedDate(client.joinedAt)}</strong>
-                    </div>
+                  <div className="accountant-client-list-meta">
+                    <span className="accountant-client-list-label">
+                      Joined
+                    </span>
+                    <strong>{formatJoinedDate(client.joinedAt)}</strong>
+                  </div>
 
-                    <div className="accountant-client-list-meta">
-                      <span className="accountant-client-list-label">
-                        Invited by
-                      </span>
-                      <strong>
-                        {client.invitedByEmail || "Organisation Admin"}
-                      </strong>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <aside className="accountant-activity-panel">
-            <div className="accountant-panel-header">
-              <div>
-                <h3>Recent Activity</h3>
-                <p>Latest updates and actions</p>
-              </div>
+                  <div className="accountant-client-list-meta">
+                    <span className="accountant-client-list-label">
+                      Invited by
+                    </span>
+                    <strong>
+                      {client.invitedByEmail || "Organisation Admin"}
+                    </strong>
+                  </div>
+                </Link>
+              ))}
             </div>
+          )}
+        </section>
 
-            <div className="accountant-empty-state">
-              <p>
-                No activity feed yet. Once we wire up the activity stream this
-                is where new documents, invites and entity changes will land.
-              </p>
+        <aside className="accountant-activity-panel">
+          <div className="accountant-panel-header">
+            <div>
+              <h3>Recent Activity</h3>
+              <p>Latest updates and actions</p>
             </div>
-          </aside>
-        </div>
-      </section>
+          </div>
+
+          <div className="accountant-empty-state">
+            <p>
+              No activity feed yet. Once we wire up the activity stream this
+              is where new documents, invites and entity changes will land.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
   );
 }
