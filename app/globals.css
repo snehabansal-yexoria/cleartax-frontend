@@ -8160,6 +8160,332 @@ p.darkBg {
   cursor: not-allowed;
 }
 
+/* ─────────────────────────────────────────────
+   Document Preview Panel
+   Replaces the drop zone after extraction done
+   ───────────────────────────────────────────── */
+
+.doc-preview-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 720px;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+  transition: border-color 220ms ease;
+}
+
+/* Header bar */
+.doc-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf0f4;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.doc-preview-header-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.doc-preview-file-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #e4e7ec;
+  background: #ffffff;
+  color: #475467;
+}
+
+.doc-preview-file-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doc-preview-file-icon--large {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+}
+
+.doc-preview-file-icon--large svg {
+  width: 28px;
+  height: 28px;
+}
+
+.doc-preview-filename {
+  font-size: 13px;
+  font-weight: 700;
+  color: #344054;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.doc-preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.doc-preview-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid #d0d5dd;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #344054;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.doc-preview-action-btn:hover {
+  background: #f3f6ff;
+  border-color: #28336e;
+  color: #28336e;
+}
+
+.doc-preview-action-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doc-preview-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid #28336e;
+  border-radius: 7px;
+  background: #28336e;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.doc-preview-reset-btn:hover {
+  background: #1e2852;
+  border-color: #1e2852;
+}
+
+.doc-preview-reset-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Body: iframe / image */
+.doc-preview-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.doc-preview-iframe {
+  width: 100%;
+  flex: 1;
+  border: none;
+  display: block;
+  min-height: 620px;
+}
+
+/* Mobile: hide iframe, show fallback */
+.doc-preview-mobile-fallback {
+  display: none;
+}
+
+.doc-preview-image-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f8fafc;
+  min-height: 0;
+}
+
+.doc-preview-image {
+  max-width: 100%;
+  max-height: 660px;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.10);
+}
+
+/* Error state */
+.doc-preview-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 32px;
+  text-align: center;
+  color: #475467;
+}
+
+.doc-preview-error-icon {
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.doc-preview-error-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doc-preview-error strong {
+  color: #101828;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.doc-preview-error p {
+  font-size: 14px;
+  color: #667085;
+  max-width: 320px;
+  margin: 0;
+}
+
+.doc-preview-error-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* Skeleton loading */
+.doc-preview-skeleton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 24px;
+  background: #fafafa;
+}
+
+.doc-preview-skeleton-shimmer {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0f2f5 25%, #e4e7ec 50%, #f0f2f5 75%);
+  background-size: 200% 100%;
+  animation: docPreviewShimmer 1.4s ease-in-out infinite;
+}
+
+.doc-preview-skeleton-shimmer--short {
+  width: 55%;
+}
+
+.doc-preview-skeleton-shimmer--mid {
+  width: 75%;
+}
+
+@keyframes docPreviewShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-preview-skeleton-shimmer {
+    animation: none;
+    background: #f0f2f5;
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 820px) {
+  .doc-preview-panel {
+    min-height: 0;
+  }
+
+  /* Hide iframe on mobile — show the CTA fallback instead */
+  .doc-preview-iframe {
+    display: none;
+  }
+
+  .doc-preview-mobile-fallback {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 32px 24px;
+    text-align: center;
+    color: #475467;
+  }
+
+  .doc-preview-mobile-fallback strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: #101828;
+    max-width: 260px;
+    word-break: break-word;
+  }
+
+  .doc-preview-mobile-fallback p {
+    font-size: 14px;
+    color: #667085;
+    margin: 0;
+  }
+}
+
+/* ─── End Document Preview Panel ─────────────── */
+
 .transaction-success-card {
   min-height: 640px;
   display: flex;

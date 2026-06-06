@@ -274,6 +274,9 @@ function ClientDetailPageContent() {
   const [currentUser, setCurrentUser] = useState<{ email: string; fullName: string } | null>(null);
   const [accountants, setAccountants] = useState<AccountantRecord[] | null>(null);
 
+  // Export state
+  const [isExporting, setIsExporting] = useState(false);
+
   // Transfer states
   const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
   const [transferToAccountantId, setTransferToAccountantId] = useState("");
@@ -462,6 +465,41 @@ function ClientDetailPageContent() {
     }
   }
 
+  async function handleExportCsv() {
+    if (isExporting) return;
+    try {
+      setIsExporting(true);
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch(`/api/clients/${encodeURIComponent(clientId)}/export-csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        console.error("Export CSV failed", res.status);
+        alert("Failed to export client data. Please try again.");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] || `${client?.name || clientId}_Export.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export CSV error:", error);
+      alert("Something went wrong while exporting. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   const totalProperties = useMemo(
     () => Object.values(propertyCounts).reduce<number>((sum, count) => sum + (count ?? 0), 0),
     [propertyCounts],
@@ -568,12 +606,12 @@ function ClientDetailPageContent() {
             </div>
           </div>
 
-          {/* Transfer Ownership Button - Only visible when client is assigned to current accountant */}
-          {client.isAssignedToCurrentAccountant && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* Export CSV Button */}
             <button
               type="button"
-              className="accountant-transfer-btn"
-              onClick={() => openTransferDrawer(client)}
+              onClick={handleExportCsv}
+              disabled={isExporting}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -585,25 +623,72 @@ function ClientDetailPageContent() {
                 color: "#344054",
                 fontSize: "14px",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: isExporting ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
-                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)"
+                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
+                opacity: isExporting ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f9fafb";
-                e.currentTarget.style.borderColor = "#c6cacc";
+                if (!isExporting) {
+                  e.currentTarget.style.background = "#f9fafb";
+                  e.currentTarget.style.borderColor = "#c6cacc";
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "#ffffff";
                 e.currentTarget.style.borderColor = "#d0d5dd";
               }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
-              </svg>
-              Transfer Ownership
+              {isExporting ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", animation: "spin 0.9s linear infinite" }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                </svg>
+              )}
+              {isExporting ? "Exporting…" : "Export CSV"}
             </button>
-          )}
+
+            {/* Transfer Ownership Button - Only visible when client is assigned to current accountant */}
+            {client.isAssignedToCurrentAccountant && (
+              <button
+                type="button"
+                className="accountant-transfer-btn"
+                onClick={() => openTransferDrawer(client)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  border: "1px solid #d0d5dd",
+                  borderRadius: "8px",
+                  background: "#ffffff",
+                  color: "#344054",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#f9fafb";
+                  e.currentTarget.style.borderColor = "#c6cacc";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.borderColor = "#d0d5dd";
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+                </svg>
+                Transfer Ownership
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
