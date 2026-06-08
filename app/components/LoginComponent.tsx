@@ -98,6 +98,42 @@ export default function LoginComponent({
   const [error, setError] = useState("");
   const inviteBootstrapAttempted = useRef(false);
 
+  const [mobileStep, setMobileStep] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isTestingOnboarding, setIsTestingOnboarding] = useState(false);
+
+  const isClientLogin = allowedRoles.length === 1 && allowedRoles[0] === "client";
+
+  useEffect(() => {
+    if (!isClientLogin) {
+      setMobileStep(3);
+      return;
+    }
+
+    const isMobile = window.innerWidth <= 768;
+    const isTesting = new URLSearchParams(window.location.search).has("testSplash");
+
+    if (isTesting) {
+      setIsTestingOnboarding(true);
+    }
+
+    if (!isMobile && !isTesting) {
+      setMobileStep(3);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsTransitioning(true);
+      const nextTimer = setTimeout(() => {
+        setMobileStep(1);
+        setIsTransitioning(false);
+      }, 400);
+      return () => clearTimeout(nextTimer);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [isClientLogin]);
+
   const handleLogin = useCallback(
     async (
       loginEmail = email,
@@ -249,7 +285,175 @@ export default function LoginComponent({
   };
 
   return (
-    <div className="loginSection">
+    <div className={`loginSection${isClientLogin && mobileStep < 3 ? " mobile-client-active" : ""}`}>
+      {isClientLogin && mobileStep < 3 && (
+        <div className={`mobile-onboarding-container step-${mobileStep}${isTransitioning ? " is-transitioning" : ""}${isTestingOnboarding ? " test-splash" : ""}`}>
+          {/* Step 0: Splash Screen */}
+          {mobileStep === 0 && (
+            <div className="onboarding-splash">
+              <div className="mobile-splash-logo" />
+              <h1 className="mobile-splash-title">ClearPortfolio</h1>
+              <p className="mobile-splash-subtitle">YOUR PORTFOLIO, CLEARLY</p>
+            </div>
+          )}
+
+          {/* Step 1: Onboarding Details */}
+          {mobileStep === 1 && (
+            <div className="onboarding-content">
+              <div className="onboarding-top">
+                <div className="onboarding-logo" />
+                <h1 className="onboarding-title">
+                  Your Portfolio,<br />clearly.
+                </h1>
+                <p className="onboarding-subtitle">
+                  Track your properties, transactions, and returns - with your accountant in sync.
+                </p>
+              </div>
+
+              <div className="onboarding-features">
+                <div className="feature-item">
+                  <div className="feature-icon-wrapper">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f7a61a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 3v18h18" />
+                      <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+                    </svg>
+                  </div>
+                  <span className="feature-text">Real-time portfolio P&L</span>
+                </div>
+
+                <div className="feature-item">
+                  <div className="feature-icon-wrapper">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f7a61a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 10V6a2 2 0 0 1 2-2h4M14 4h4a2 2 0 0 1 2 2v4M20 14v4a2 2 0 0 1-2 2h-4M10 20H6a2 2 0 0 1-2-2v-4" />
+                      <path d="M7 12h10" />
+                      <path d="M9 8h6" />
+                      <path d="M9 16h6" />
+                    </svg>
+                  </div>
+                  <span className="feature-text">OCR receipts in seconds</span>
+                </div>
+
+                <div className="feature-item">
+                  <div className="feature-icon-wrapper">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f7a61a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </div>
+                  <span className="feature-text">Shared with your accountant</span>
+                </div>
+              </div>
+
+              <div className="onboarding-footer">
+                <button 
+                  type="button" 
+                  className="onboarding-btn" 
+                  onClick={() => {
+                    setIsTransitioning(true);
+                    setTimeout(() => {
+                      setMobileStep(2);
+                      setIsTransitioning(false);
+                    }, 400);
+                  }}
+                >
+                  Sign In
+                </button>
+                <p className="onboarding-terms">
+                  By continuing you agree to our Terms & Privacy Policy
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Mobile Login Form */}
+          {mobileStep === 2 && (
+            <div className="onboarding-content">
+              <div className="onboarding-top">
+                <div className="onboarding-logo" />
+                <h1 className="onboarding-title">Welcome Back</h1>
+                <p className="onboarding-subtitle">Please sign in to your client account.</p>
+              </div>
+
+              <form
+                className="mobile-login-form-wrap"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleLogin();
+                }}
+              >
+                <div className="mobile-login-element">
+                  <label htmlFor="mobile-email">Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="name@email.com"
+                    id="mobile-email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="mobile-login-element">
+                  <label htmlFor="mobile-password">Password</label>
+                  <div className="mobile-login-password-field">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      id="mobile-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="mobile-login-password-toggle"
+                      onClick={() => setShowPassword((current) => !current)}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="mobile-login-error">
+                    <p>{error}</p>
+                  </div>
+                )}
+
+                <div className="onboarding-footer" style={{ marginTop: "24px" }}>
+                  <button
+                    type="submit"
+                    className="onboarding-btn"
+                    disabled={loading}
+                  >
+                    {loading ? "Logging in..." : "Log In to Dashboard"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="mobile-back-btn"
+                    onClick={() => {
+                      setIsTransitioning(true);
+                      setTimeout(() => {
+                        setMobileStep(1);
+                        setIsTransitioning(false);
+                      }, 400);
+                    }}
+                  >
+                    Back to onboarding
+                  </button>
+
+                  <p className="onboarding-terms">
+                    By continuing you agree to our Terms & Privacy Policy
+                  </p>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
       {ENABLE_LOADING_TRANSITION && loading && (
         <div
           style={{

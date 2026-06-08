@@ -14,6 +14,9 @@ export async function GET(
     return NextResponse.json({ error: "No token" }, { status: 401 });
   }
   const { id: entityId } = await params;
+  if (entityId.startsWith("demo-")) {
+    return NextResponse.json([]);
+  }
   try {
     const items = await listReconciliationSessions(token, entityId);
     return NextResponse.json(items);

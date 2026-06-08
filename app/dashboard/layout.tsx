@@ -317,6 +317,18 @@ function highlightMatch(text: string, query: string) {
   );
 }
 
+function MobileSplashScreen({ fade, isTesting }: { fade: boolean; isTesting?: boolean }) {
+  return (
+    <div id="mobile-splash-screen" className={`mobile-splash-screen${fade ? " fade-out" : ""}${isTesting ? " test-splash" : ""}`}>
+      <div className="mobile-splash-content">
+        <div className="mobile-splash-logo" />
+        <h1 className="mobile-splash-title">ClearPortfolio</h1>
+        <p className="mobile-splash-subtitle">YOUR PORTFOLIO, CLEARLY</p>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -331,6 +343,36 @@ export default function DashboardLayout({
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [isSplashFade, setIsSplashFade] = useState(false);
+  const [isSplashRemoved, setIsSplashRemoved] = useState(false);
+  const [isTestingSplash, setIsTestingSplash] = useState(false);
+
+  useEffect(() => {
+    const isMobile = window.innerWidth <= 768;
+    const hasSeenSplash = sessionStorage.getItem("hasSeenSplash");
+    const isTesting = new URLSearchParams(window.location.search).has("testSplash");
+    
+    if (isTesting) {
+      setIsTestingSplash(true);
+    }
+
+    if ((!isMobile || hasSeenSplash) && !isTesting) {
+      setIsSplashRemoved(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsSplashFade(true);
+      const closeTimer = setTimeout(() => {
+        setIsSplashRemoved(true);
+        if (!isTesting) {
+          sessionStorage.setItem("hasSeenSplash", "true");
+        }
+      }, 500);
+      return () => clearTimeout(closeTimer);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Autocomplete states
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -715,7 +757,12 @@ export default function DashboardLayout({
   }
 
   if (!role) {
-    return <DashboardShellSkeleton />;
+    return (
+      <>
+        {!isSplashRemoved && <MobileSplashScreen fade={isSplashFade} isTesting={isTestingSplash} />}
+        <DashboardShellSkeleton />
+      </>
+    );
   }
 
   if (
@@ -727,6 +774,7 @@ export default function DashboardLayout({
   ) {
     return (
       <div className="accountant-shell">
+        {!isSplashRemoved && <MobileSplashScreen fade={isSplashFade} isTesting={isTestingSplash} />}
         <aside className="accountant-sidebar">
           <div className="accountant-sidebar-top">
             <div className="accountant-sidebar-header">

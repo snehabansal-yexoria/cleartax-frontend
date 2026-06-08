@@ -23,6 +23,107 @@ export async function GET(req: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  if (id.startsWith("demo-")) {
+    const demoEntities: Record<string, any> = {
+      "demo-ent-1": {
+        id: "demo-ent-1",
+        orgId: "demo-org",
+        entityType: "trust",
+        name: "Johnson Family Trust",
+        createdFor: "demo-user",
+        createdBy: "demo-user",
+        updatedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        beneficiaries: [
+          { id: 1, name: "Sarah Johnson", ownershipPercentage: 100 }
+        ],
+        reconciled: false,
+        reconciledAt: null,
+        regionalManager: {
+          id: "demo-rm-1",
+          name: "Michael Chang",
+          email: "michael.chang@cleartax.com.au",
+          role: "Regional Manager"
+        }
+      },
+      "demo-ent-2": {
+        id: "demo-ent-2",
+        orgId: "demo-org",
+        entityType: "company",
+        name: "SJ Holdings Pvt Ltd",
+        createdFor: "demo-user",
+        createdBy: "demo-user",
+        updatedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        beneficiaries: [
+          { id: 1, name: "Sarah Johnson", ownershipPercentage: 50 },
+          { id: 2, name: "John Johnson", ownershipPercentage: 50 }
+        ],
+        reconciled: false,
+        reconciledAt: null,
+        regionalManager: null
+      },
+      "demo-ent-3": {
+        id: "demo-ent-3",
+        orgId: "demo-org",
+        entityType: "individual",
+        name: "Sarah Johnson",
+        createdFor: "demo-user",
+        createdBy: "demo-user",
+        updatedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        beneficiaries: [],
+        reconciled: false,
+        reconciledAt: null,
+        regionalManager: null
+      },
+      "demo-entity-1": {
+        id: "demo-entity-1",
+        orgId: "demo-org",
+        entityType: "trust",
+        name: "Johnson Family Trust",
+        createdFor: "demo-user",
+        createdBy: "demo-user",
+        updatedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        beneficiaries: [
+          { id: 1, name: "Sarah Johnson", ownershipPercentage: 100 }
+        ],
+        reconciled: false,
+        reconciledAt: null,
+        regionalManager: {
+          id: "demo-rm-1",
+          name: "Michael Chang",
+          email: "michael.chang@cleartax.com.au",
+          role: "Regional Manager"
+        }
+      },
+      "demo-entity-2": {
+        id: "demo-entity-2",
+        orgId: "demo-org",
+        entityType: "company",
+        name: "SJ Holdings Pvt Ltd",
+        createdFor: "demo-user",
+        createdBy: "demo-user",
+        updatedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        beneficiaries: [
+          { id: 1, name: "Sarah Johnson", ownershipPercentage: 100 }
+        ],
+        reconciled: false,
+        reconciledAt: null,
+        regionalManager: null
+      }
+    };
+    const entity = demoEntities[id] || demoEntities["demo-ent-1"];
+    return NextResponse.json(entity);
+  }
+
   try {
     const entity = await getCoreEntity(token, id);
 
@@ -62,6 +163,17 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  if (id.startsWith("demo-")) {
+    return NextResponse.json({
+      id,
+      name: "Mocked Demo Entity",
+      entityType: "trust",
+      beneficiaries: [],
+      reconciled: false,
+      reconciledAt: null,
+      regionalManager: null,
+    });
+  }
   let body: any;
   try {
     body = await req.json();
@@ -122,6 +234,9 @@ export async function DELETE(req: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  if (id.startsWith("demo-")) {
+    return new NextResponse(null, { status: 204 });
+  }
   try {
     await deleteCoreEntity(token, id);
     return new NextResponse(null, { status: 204 });

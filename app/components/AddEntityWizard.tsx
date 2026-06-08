@@ -83,6 +83,17 @@ export default function AddEntityWizard({
   initialEntity,
 }: AddEntityWizardProps) {
   const router = useRouter();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [entityType, setEntityType] = useState<EntityType | null>(() => {
     if (initialEntity?.entityType === "smsf") {
@@ -335,6 +346,637 @@ export default function AddEntityWizard({
       resetState();
       if (addAnotherHref) router.push(addAnotherHref);
     }
+  }
+
+  if (isMobile) {
+    return (
+      <div className="m-wizard-container">
+        <style>{`
+          .m-wizard-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f7f9fc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            position: relative;
+          }
+          .m-wizard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: #ffffff;
+            border-bottom: 1px solid #eaeef4;
+            position: relative;
+          }
+          .m-wizard-back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1b235a;
+            font-weight: 600;
+            font-size: 15px;
+            text-decoration: none;
+            border: none;
+            background: none;
+            padding: 0;
+            cursor: pointer;
+          }
+          .m-wizard-back-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            fill: none;
+          }
+          .m-wizard-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #101828;
+            margin: 0;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+          }
+          .m-wizard-banner {
+            background-color: #f4f6fc;
+            padding: 12px 20px;
+            text-align: center;
+            border-bottom: 1px solid #eaeef4;
+          }
+          .m-wizard-banner-text {
+            color: #2f3e8b;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+          }
+          .m-wizard-content {
+            flex: 1;
+            padding: 24px 20px 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+          }
+          .m-wizard-label {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #101828;
+          }
+          .m-wizard-label em {
+            color: #d92d20;
+            font-style: normal;
+            font-weight: 600;
+            margin-left: 2px;
+          }
+          .m-wizard-input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid #d0d5dd;
+            font-size: 15px;
+            color: #101828;
+            background: #ffffff;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+          }
+          .m-wizard-input::placeholder {
+            color: #98a2b3;
+          }
+          .m-wizard-input:focus {
+            border-color: #1b235a;
+            box-shadow: 0 0 0 3px rgba(27, 35, 90, 0.12);
+          }
+          .m-wizard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+          }
+          .m-wizard-card {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #eaeef4;
+            background: #ffffff;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+            width: 100%;
+          }
+          .m-wizard-card strong {
+            font-size: 15px;
+            font-weight: 700;
+            color: #101828;
+          }
+          .m-wizard-card span {
+            font-size: 13px;
+            color: #667085;
+            font-weight: 500;
+          }
+          .m-wizard-card.is-selected {
+            border-color: #1b235a;
+            background-color: #f4f6fc;
+            box-shadow: 0 0 0 1px #1b235a;
+          }
+          .m-wizard-next-btn {
+            align-self: flex-end;
+            padding: 10px 24px;
+            border-radius: 8px;
+            background: #1b235a;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            margin-top: 16px;
+          }
+          .m-wizard-next-btn:disabled {
+            background-color: #c0c6d6;
+            cursor: not-allowed;
+          }
+          .m-wizard-btn-secondary-inline {
+            align-self: center;
+            padding: 10px 20px;
+            background: transparent;
+            color: #1b235a;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+          }
+          .m-wizard-btn-secondary-inline:disabled {
+            color: #c0c6d6;
+            cursor: not-allowed;
+          }
+          .m-wizard-beneficiaries {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+          .m-beneficiary-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 100px 36px;
+            gap: 8px;
+            align-items: center;
+          }
+          .m-beneficiary-pct-wrap {
+            display: flex;
+            align-items: center;
+            border: 1px solid #d0d5dd;
+            border-radius: 12px;
+            background: #ffffff;
+            padding-right: 12px;
+          }
+          .m-beneficiary-pct-wrap input {
+            border: none;
+            padding: 14px 12px;
+            width: 100%;
+            font-size: 15px;
+            outline: none;
+            border-radius: 12px;
+          }
+          .m-beneficiary-pct-wrap span {
+            font-size: 15px;
+            color: #667085;
+            font-weight: 600;
+          }
+          .m-beneficiary-remove-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #fef3f2;
+            border: none;
+            color: #d92d20;
+            cursor: pointer;
+          }
+          .m-beneficiary-remove-btn:disabled {
+            background: #f2f4f7;
+            color: #d0d5dd;
+            cursor: not-allowed;
+          }
+          .m-beneficiary-add-btn {
+            background: none;
+            border: none;
+            color: #1b235a;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            align-self: flex-start;
+          }
+          .m-wizard-error {
+            color: #d92d20;
+            font-size: 14px;
+            margin: 0;
+            font-weight: 500;
+          }
+        `}</style>
+
+        {/* Header */}
+        <header className="m-wizard-header">
+          {step === 1 ? (
+            <Link href={backHref} className="m-wizard-back-btn">
+              <svg viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="m-wizard-back-btn"
+              onClick={() => setStep((prev) => (prev === 3 ? 2 : 1) as 1 | 2)}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+          )}
+          <h1 className="m-wizard-title">
+            {step === 1
+              ? "Choose Entity Type"
+              : step === 2
+                ? "Enter Entity Name"
+                : `Add ${beneficiaryNounPlural}`}
+          </h1>
+          <div style={{ width: '40px' }} />
+        </header>
+
+        {/* Banner */}
+        <div className="m-wizard-banner">
+          <p className="m-wizard-banner-text">
+            Enter the below values to complete the step
+          </p>
+        </div>
+
+        {/* Content area */}
+        <div className="m-wizard-content">
+          {step === 1 && (
+            <>
+              {/* Entity Type */}
+              <div className="m-wizard-label">
+                <span>
+                  Entity Type <em>*</em>
+                </span>
+                <div className="m-wizard-grid">
+                  {[
+                    {
+                      value: "individual" as EntityType,
+                      label: "Individual",
+                      subtext: "Personal",
+                    },
+                    {
+                      value: "company" as EntityType,
+                      label: "Company",
+                      subtext: "Pty Ltd",
+                    },
+                    {
+                      value: "partnership" as EntityType,
+                      label: "Partnership",
+                      subtext: "Business",
+                    },
+                    {
+                      value: "smsf" as EntityType,
+                      label: "SMSF",
+                      subtext: "Super Fund",
+                    },
+                    {
+                      value: "trust" as EntityType,
+                      label: "Trust",
+                      subtext: "Discretionary / Unit / Hybrid",
+                    },
+                  ].map((option) => {
+                    const isSelected = entityType === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`m-wizard-card${isSelected ? " is-selected" : ""}`}
+                        onClick={() => {
+                          setEntityType(option.value);
+                          if (option.value !== "trust") {
+                            setTrustType(null);
+                            setStep(2);
+                          }
+                        }}
+                      >
+                        <strong>{option.label}</strong>
+                        <span>{option.subtext}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {entityType === "trust" && (
+                <div className="m-wizard-label" style={{ marginTop: '12px' }}>
+                  <span>
+                    Select Trust Type <em>*</em>
+                  </span>
+                  <div className="m-wizard-grid">
+                    {[
+                      {
+                        value: "discretionary" as const,
+                        label: "Discretionary Trust",
+                        subtext: "Type - Discretionary",
+                      },
+                      {
+                        value: "unit" as const,
+                        label: "Unit Trust",
+                        subtext: "Type - Unit",
+                      },
+                      {
+                        value: "hybrid" as const,
+                        label: "Hybrid Trust",
+                        subtext: "Type - Hybrid",
+                      },
+                    ].map((subOption) => {
+                      const isSubSelected = trustType === subOption.value;
+                      return (
+                        <button
+                          key={subOption.value}
+                          type="button"
+                          className={`m-wizard-card${isSubSelected ? " is-selected" : ""}`}
+                          onClick={() => {
+                            setTrustType(subOption.value);
+                            setStep(2);
+                          }}
+                        >
+                          <strong>{subOption.label}</strong>
+                          <span>{subOption.subtext}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Next Button */}
+              <button
+                type="button"
+                className="m-wizard-next-btn"
+                disabled={!entityType || (entityType === "trust" && !trustType)}
+                onClick={() => setStep(2)}
+              >
+                Next
+              </button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              {/* Entity Name */}
+              <label className="m-wizard-label">
+                <span>
+                  Entity Name <em>*</em>
+                </span>
+                <input
+                  type="text"
+                  className="m-wizard-input"
+                  placeholder="e.g., Smith Family Trust, ABC Properties LLC"
+                  value={entityName}
+                  onChange={(event) => setEntityName(event.target.value)}
+                  autoFocus
+                />
+              </label>
+
+              {/* Selected Type Display */}
+              <div className="entity-wizard-selected-chip" style={{ borderRadius: '12px' }}>
+                Selected Type: <strong>{selectedTypeLabel}</strong>
+              </div>
+
+              {errorMessage && <p className="m-wizard-error">{errorMessage}</p>}
+
+              {/* Next Button */}
+              <button
+                type="button"
+                className="m-wizard-next-btn"
+                disabled={!entityName.trim() || isSaving}
+                onClick={handleNameContinue}
+              >
+                {needsBeneficiaries
+                  ? "Continue"
+                  : isSaving
+                    ? "Saving..."
+                    : isEditMode
+                      ? "Save Changes"
+                      : "Create Entity"}
+              </button>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              {/* Step 3: Beneficiaries */}
+              <div className="m-wizard-label">
+                <span>
+                  Define the {beneficiaryNoun.toLowerCase()} ownership percentages
+                  for this entity
+                </span>
+              </div>
+
+              <div className="m-wizard-beneficiaries">
+                {beneficiaries.map((row) => (
+                  <div key={row.uid} className="m-beneficiary-row">
+                    <input
+                      type="text"
+                      className="m-wizard-input"
+                      placeholder={`${beneficiaryNoun} name`}
+                      value={row.name}
+                      onChange={(event) =>
+                        updateRow(row.uid, { name: event.target.value })
+                      }
+                    />
+                    <div className="m-beneficiary-pct-wrap">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={100}
+                        placeholder="0"
+                        value={row.percentage}
+                        onChange={(event) =>
+                          updateRow(row.uid, { percentage: event.target.value })
+                        }
+                      />
+                      <span>%</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="m-beneficiary-remove-btn"
+                      aria-label="Remove beneficiary"
+                      onClick={() => removeRow(row.uid)}
+                      disabled={beneficiaries.length === 1}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          stroke: 'currentColor',
+                          strokeWidth: 2.5,
+                          fill: 'none',
+                        }}
+                      >
+                        <path d="M6 6l12 12" />
+                        <path d="M18 6 6 18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className="m-beneficiary-add-btn"
+                  onClick={() =>
+                    setBeneficiaries((current) => [
+                      ...current,
+                      newBeneficiaryRow(),
+                    ])
+                  }
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      stroke: 'currentColor',
+                      strokeWidth: 2.5,
+                      fill: 'none',
+                    }}
+                  >
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  Add Another {beneficiaryNoun}
+                </button>
+              </div>
+
+              {/* Total ownership card */}
+              <div
+                className={`entity-beneficiary-total${
+                  ownershipAboveZero && ownershipWithinLimit ? " is-complete" : ""
+                }${ownershipOverLimit ? " is-over" : ""}`}
+                style={{ borderRadius: '12px', padding: '14px 16px' }}
+              >
+                <span>Total Ownership:</span>
+                <strong>{formatPercentage(totalOwnership)}</strong>
+              </div>
+
+              {ownershipOverLimit && (
+                <p className="m-wizard-error">
+                  Total ownership cannot exceed 100%.
+                </p>
+              )}
+
+              {errorMessage && <p className="m-wizard-error">{errorMessage}</p>}
+
+              {/* Actions Wrapper */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '16px' }}>
+                {!isEditMode && (
+                  <button
+                    type="button"
+                    className="m-wizard-btn-secondary-inline"
+                    disabled={!beneficiariesValid || isSaving}
+                    onClick={addAnotherHref ? handleAddAnother : handleSave}
+                  >
+                    Add Another Entity
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="m-wizard-next-btn"
+                  disabled={!beneficiariesValid || isSaving}
+                  onClick={handleSave}
+                  style={{ marginTop: 0 }}
+                >
+                  {isSaving
+                    ? "Saving…"
+                    : isEditMode
+                      ? "Save Changes"
+                      : "Save & Start Adding Property"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Success Modal overlay (reused from original desktop code but will render fine) */}
+        {saved && (
+          <div className="entity-success-layer" role="dialog" aria-modal="true">
+            <div className="entity-success-backdrop" aria-hidden="true" />
+            <div className="entity-success-card">
+              <div className="entity-success-animation" aria-hidden="true">
+                <span className="entity-success-confetti is-one" />
+                <span className="entity-success-confetti is-two" />
+                <span className="entity-success-confetti is-three" />
+                <span className="entity-success-confetti is-four" />
+                <svg viewBox="0 0 72 72">
+                  <circle
+                    className="entity-success-badge"
+                    cx="36"
+                    cy="36"
+                    r="28"
+                  />
+                  <path
+                    className="entity-success-check"
+                    d="M22 37.5 31.5 47 51 25"
+                  />
+                </svg>
+              </div>
+              <div className="entity-success-body">
+                <strong>
+                  Entity Successfully {isEditMode ? "Updated" : "Added"} !
+                </strong>
+                <p>
+                  {isEditMode ? (
+                    "Your entity details have been updated and are ready for property and transaction mapping."
+                  ) : (
+                    <>
+                      You&apos;ve successfully registered this entity. It&apos;s
+                      now ready for property and transaction mapping.
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="entity-success-footer">
+                <Link
+                  href={
+                    !isEditMode &&
+                    (entityType === "individual" || entityType === "smsf") &&
+                    savedEntity
+                      ? onSuccessHref.includes("/dashboard/accountant")
+                        ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
+                        : `/dashboard/client/entities/${savedEntity.id}/properties/new`
+                      : onSuccessHref
+                  }
+                  className="entity-wizard-primary"
+                  style={{ borderRadius: '12px', width: '100%' }}
+                >
+                  Continue
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (

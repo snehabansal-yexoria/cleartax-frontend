@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -140,6 +140,83 @@ export default function EntityDetailView({
   const [trendView, setTrendView] = useState<"graph" | "table">("graph");
   const [selectedRmId, setSelectedRmId] = useState<string>("");
   const [availableManagers, setAvailableManagers] = useState<any[]>([]);
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const [mobileView, setMobileView] = useState<"dashboard" | "transactions" | "documents">("dashboard");
+  const [mobileDocs, setMobileDocs] = useState<any[]>([]);
+  const [isMobileDocsLoading, setIsMobileDocsLoading] = useState(true);
+  const mobileFileInputRef = useRef<HTMLInputElement>(null);
+  const [isMobileUploading, setIsMobileUploading] = useState(false);
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!sessionToken || !entityId) return;
+    setIsMobileDocsLoading(true);
+    fetch(`/api/documents/list?entity_id=${encodeURIComponent(entityId)}`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((res) => res.ok ? res.json() : { items: [] })
+      .then((data) => {
+        setMobileDocs(data.items || []);
+      })
+      .catch(() => setMobileDocs([]))
+      .finally(() => setIsMobileDocsLoading(false));
+  }, [sessionToken, entityId]);
+
+  const handleMobileUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    e.target.value = "";
+    setIsMobileUploading(true);
+
+    for (const file of files) {
+      try {
+        const presignParams = new URLSearchParams({
+          filename: file.name,
+          document_type: "direct",
+        });
+        if (entityId) presignParams.set("entity_id", entityId);
+
+        const presignRes = await fetch(`/api/documents/presign?${presignParams.toString()}`, {
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+
+        if (!presignRes.ok) throw new Error("Presign failed");
+        const { upload_url } = await presignRes.json();
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", upload_url);
+          xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+          xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject();
+          xhr.onerror = () => reject();
+          xhr.send(file);
+        });
+
+        // Refetch documents
+        const res = await fetch(`/api/documents/list?entity_id=${encodeURIComponent(entityId)}`, {
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMobileDocs(data.items || []);
+        }
+      } catch (err) {
+        console.error("Direct upload failed:", err);
+        alert(`Failed to upload ${file.name}. Please try again.`);
+      }
+    }
+    setIsMobileUploading(false);
+  };
 
   useEffect(() => {
     if (!sessionToken) return;
@@ -382,6 +459,634 @@ export default function EntityDetailView({
     );
   }, [trendRows]);
   const trendNetTotal = trendTotals.income - trendTotals.expenses;
+
+  const displayMarketValue = useMemo(() => {
+    return properties.reduce((sum, p) => sum + (p.estimatedMarketValue || 0), 0);
+  }, [properties]);
+
+  const displayOutstandingLoans = useMemo(() => {
+    return properties.reduce((sum, p) => {
+      if (!p.loanDetails) return sum;
+      const loanAmt = p.loanDetails.loan_amount ?? p.loanDetails.loanAmount ?? p.loanDetails.amount ?? 0;
+      return sum + Number(loanAmt);
+    }, 0);
+  }, [properties]);
+
+  const displayNetEquity = useMemo(() => {
+    return displayMarketValue - displayOutstandingLoans;
+  }, [displayMarketValue, displayOutstandingLoans]);
+
+  const displayCashFlow = useMemo(() => {
+    const currentMonthDate = new Date();
+    const currentMonth = currentMonthDate.getMonth();
+    const currentYear = currentMonthDate.getFullYear();
+
+    const currentMonthTx = transactions.filter(tx => {
+      if (!tx.invoiceDate) return false;
+      const d = new Date(tx.invoiceDate);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    const incomeThisMonth = currentMonthTx
+      .filter(tx => tx.type === "revenue")
+      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+
+    const expenseThisMonth = currentMonthTx
+      .filter(tx => tx.type === "expense")
+      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+
+    return incomeThisMonth - expenseThisMonth;
+  }, [transactions]);
+
+  function formatCurrencyStat(val: number) {
+    const absVal = Math.abs(val);
+    const sign = val < 0 ? "-" : "";
+    if (absVal >= 1000000) {
+      return `${sign}$${(absVal / 1000000).toFixed(2)}M`;
+    }
+    if (absVal >= 1000) {
+      return `${sign}$${(absVal / 1000).toFixed(0)}K`;
+    }
+    return `${sign}$${absVal.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  }
+
+  function formatCashFlowValue(val: number) {
+    const sign = val >= 0 ? "+" : "-";
+    const absVal = Math.abs(val);
+    return `${sign}$${absVal.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  }
+
+  const mobileTrendRows = useMemo(() => {
+    if (trendRows.length > 0) {
+      return trendRows.slice(-6);
+    }
+    return [];
+  }, [trendRows]);
+
+  const displayBeneficiaries = useMemo(() => {
+    if (entity?.beneficiaries && entity.beneficiaries.length > 0) {
+      return entity.beneficiaries;
+    }
+    return [];
+  }, [entity?.beneficiaries]);
+
+  const totalOwnership = useMemo(() => {
+    return displayBeneficiaries.reduce((sum, b) => sum + (b.ownershipPercentage || 0), 0);
+  }, [displayBeneficiaries]);
+
+  const displayProperties = useMemo(() => {
+    if (properties.length > 0) {
+      return properties.map(p => {
+        const propTxs = transactions.filter(t => t.propertyIds?.includes(p.id));
+        const income = propTxs.filter(t => t.type === "revenue").reduce((sum, t) => sum + (t.netAmount || t.grossAmount || 0), 0);
+        const expense = propTxs.filter(t => t.type === "expense").reduce((sum, t) => sum + (t.netAmount || t.grossAmount || 0), 0);
+        const net = income - expense;
+
+        const formatShortVal = (val: number, showSign = false) => {
+          const absVal = Math.abs(val);
+          const sign = val >= 0 ? (showSign ? "+" : "") : "-";
+          if (absVal >= 1000) return `${sign}$${(absVal / 1000).toFixed(1)}K`;
+          return `${sign}$${absVal}`;
+        };
+
+        return {
+          id: p.id,
+          name: p.name,
+          imageUrl: p.imageUrl || null,
+          entityName: entity?.name || "Individual",
+          incomeText: formatShortVal(income, true),
+          expenseText: formatShortVal(expense, false),
+          netText: formatShortVal(net, true),
+          status: p.status || "Rented",
+          netVal: net
+        };
+      });
+    }
+
+    return [];
+  }, [properties, transactions, entity?.name]);
+
+  const displayRecentTransactions = useMemo(() => {
+    if (transactions.length > 0) {
+      return transactions.slice(0, 3).map(t => {
+        const isRevenue = t.type === "revenue";
+        const amtStr = `${isRevenue ? "+" : "-"}$${Math.abs(t.netAmount || t.grossAmount || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        const metadataStr = t.metadata?.reference || t.metadata?.accountNumber || "XX3421";
+        return {
+          id: t.id,
+          description: t.description || `${isRevenue ? "Rent" : "Expense"} - ${t.categoryName}`,
+          categoryMeta: `${t.categoryName} - ${metadataStr}`,
+          amountText: amtStr,
+          isRevenue
+        };
+      });
+    }
+    return [];
+  }, [transactions]);
+
+  if (isEntityLoading) {
+    return (
+      <Skeleton
+        name="entity-detail-page"
+        loading
+        fallback={<EntityDetailSkeleton />}
+      >
+        <EntityDetailSkeleton />
+      </Skeleton>
+    );
+  }
+
+  if (isMobile) {
+    if (!entity) {
+      return (
+        <section className="client-detail-page entity-detail-page mobile-entity-detail-page">
+          <header className="mobile-entity-header">
+            <Link href={backHref} className="mobile-header-back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mobile-back-icon">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              <span>Back</span>
+            </Link>
+            <h1 className="mobile-header-title">Entity Detail</h1>
+            <span style={{ width: 44 }}></span>
+          </header>
+          <p className="entity-wizard-error" style={{ padding: 20, textAlign: "center" }}>
+            {errorMessage || "Entity not found."}
+          </p>
+        </section>
+      );
+    }
+
+    if (mobileView === "transactions") {
+      return (
+        <div className="mobile-entity-detail-page">
+          <header className="mobile-entity-header">
+            <button
+              onClick={() => setMobileView("dashboard")}
+              className="mobile-header-back"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mobile-back-icon">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              <span>Back</span>
+            </button>
+            <h1 className="mobile-header-title">Transactions</h1>
+            <span style={{ width: 44 }}></span>
+          </header>
+          <div style={{ padding: "16px" }}>
+            <AllTransactionsView
+              context={{ kind: "entity", entityId }}
+              addTransactionHref={entity.reconciled ? undefined : addTransactionHref}
+              rulesHref={transactionRulesHref}
+              rulesButtonLabel={transactionRulesLabel}
+              rulesButtonClassName={transactionRulesClassName}
+              rulesButtonIcon={transactionRulesIcon}
+              compact
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (mobileView === "documents") {
+      return (
+        <div className="mobile-entity-detail-page">
+          <header className="mobile-entity-header">
+            <button
+              onClick={() => setMobileView("dashboard")}
+              className="mobile-header-back"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mobile-back-icon">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              <span>Back</span>
+            </button>
+            <h1 className="mobile-header-title">Documents</h1>
+            <span style={{ width: 44 }}></span>
+          </header>
+          <div style={{ padding: "16px" }}>
+            <DocumentsListView
+              context={{ kind: "entity", entityId }}
+              token={sessionToken}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mobile-entity-detail-page">
+        {/* Mobile Header */}
+        <header className="mobile-entity-header">
+          <Link href={backHref} className="mobile-header-back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mobile-back-icon">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            <span>Back</span>
+          </Link>
+          <h1 className="mobile-header-title">Entity Detail</h1>
+          <Link href={editEntityHref} className="mobile-header-edit">
+            Edit
+          </Link>
+        </header>
+
+        {/* Deep Blue Entity Overview Card */}
+        <section className="mobile-entity-overview">
+          <div className="mobile-entity-type-badge">
+            {entity.entityType === "trust" ? "Trust - Discretionary" : entityTypeLabel(entity.entityType)}
+          </div>
+          <h2 className="mobile-entity-name">{entity.name}</h2>
+          <p className="mobile-entity-properties-count">
+            {properties.length} propert{properties.length === 1 ? "y" : "ies"}
+          </p>
+
+          <div className="mobile-stats-grid">
+            <div className="mobile-stat-card">
+              <span className="mobile-stat-label">Net Equity</span>
+              <span className="mobile-stat-value is-green">
+                {formatCurrencyStat(displayNetEquity)}
+              </span>
+            </div>
+            <div className="mobile-stat-card">
+              <span className="mobile-stat-label">
+                Market Value - {properties.length} propert{properties.length === 1 ? "y" : "ies"}
+              </span>
+              <span className="mobile-stat-value">
+                {formatCurrencyStat(displayMarketValue)}
+              </span>
+            </div>
+            <div className="mobile-stat-card">
+              <span className="mobile-stat-label">Outstanding Loan</span>
+              <span className="mobile-stat-value is-orange">
+                {formatCurrencyStat(displayOutstandingLoans)}
+              </span>
+            </div>
+            <div className="mobile-stat-card">
+              <span className="mobile-stat-label">Cash Flow (This Month)</span>
+              <span className="mobile-stat-value is-green">
+                {formatCashFlowValue(displayCashFlow)}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Profit & Loss Trend Card */}
+        <section className="mobile-trend-section">
+          <h3 className="mobile-section-title">Profit & Loss Trend</h3>
+
+          <div className="mobile-chart-container">
+            {mobileTrendRows.length === 0 ? (
+              <div style={{ padding: "32px 16px", textAlign: "center", color: "#667085", fontSize: "13px" }}>
+                No trend data available.
+              </div>
+            ) : (
+              <>
+                <div className="mobile-chart-bars-row">
+                  {mobileTrendRows.map((item, idx) => {
+                    const total = item.income + item.expenses || 1;
+                    const incPct = (item.income / total) * 100;
+                    const expPct = (item.expenses / total) * 100;
+
+                    return (
+                      <div key={idx} className="mobile-chart-column">
+                        <div className="mobile-chart-bar-stack">
+                          <div className="mobile-chart-bar-income" style={{ height: `${incPct}%` }} />
+                          <div className="mobile-chart-bar-expense" style={{ height: `${expPct}%` }} />
+                        </div>
+                        <span className="mobile-chart-label">{item.month}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mobile-chart-divider" />
+                <div className="mobile-chart-legend">
+                  <div className="mobile-legend-item">
+                    <span className="mobile-legend-color is-income" />
+                    <span>Income</span>
+                  </div>
+                  <div className="mobile-legend-item">
+                    <span className="mobile-legend-color is-expense" />
+                    <span>Expenses</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Beneficiaries Card */}
+        <section className="mobile-beneficiaries-section">
+          <h3 className="mobile-section-title">Beneficiaries</h3>
+
+          <div className="mobile-beneficiaries-card">
+            {displayBeneficiaries.length === 0 ? (
+              <div style={{ padding: "24px 16px", textAlign: "center", color: "#667085", fontSize: "13px" }}>
+                No beneficiaries listed.
+              </div>
+            ) : (
+              <>
+                {displayBeneficiaries.map((b, idx) => (
+                  <div key={idx} className="mobile-beneficiary-row">
+                    <div className="mobile-beneficiary-info">
+                      <span className="mobile-beneficiary-name">{b.name}</span>
+                      <span className="mobile-beneficiary-role">
+                        {idx === 0 ? "Primary beneficiary" : "Beneficiary"}
+                      </span>
+                    </div>
+                    <span className="mobile-beneficiary-percentage">
+                      {b.ownershipPercentage}%
+                    </span>
+                  </div>
+                ))}
+
+                <div className="mobile-beneficiary-row is-total">
+                  <span className="mobile-beneficiary-name">Total ownership</span>
+                  <span className="mobile-beneficiary-percentage is-green">
+                    {totalOwnership}%
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Quick Action Buttons Row */}
+        <div className="mobile-quick-actions">
+          <Link href={entity.reconciled ? "#" : addTransactionHref} className="mobile-action-btn">
+            <div className="mobile-action-icon-container">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 20, height: 20 }}>
+                <path d="m7 15 5 5 5-5" />
+                <path d="m17 9-5-5-5 5" />
+              </svg>
+            </div>
+            <span>Add Transaction</span>
+          </Link>
+          <Link href={addPropertyHref} className="mobile-action-btn">
+            <div className="mobile-action-icon-container">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 20, height: 20 }}>
+                <path d="M3 21h18" />
+                <path d="M3 10h18" />
+                <path d="M5 6h14" />
+                <path d="M4 10v11" />
+                <path d="M20 10v11" />
+              </svg>
+            </div>
+            <span>Add Property</span>
+          </Link>
+        </div>
+
+        {/* Properties Section */}
+        <section className="mobile-properties-section" style={{ margin: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <h3 className="mobile-section-title" style={{ fontSize: "16px", fontWeight: 700, color: "#475467" }}>Properties</h3>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {displayProperties.length === 0 ? (
+              <div style={{ padding: "24px", textAlign: "center", background: "#ffffff", borderRadius: "16px", border: "1px solid #eaeef4", color: "#667085", fontSize: "14px" }}>
+                No properties linked to this entity.
+              </div>
+            ) : (
+              displayProperties.map((prop, idx) => {
+                const isImageBroken = brokenImages[prop.id];
+                const hasImageUrl = prop.imageUrl && prop.imageUrl !== "null" && prop.imageUrl !== "undefined" && prop.imageUrl.trim() !== "";
+
+                const imgTargetSrc = prop.imageUrl && hasImageUrl
+                  ? (prop.imageUrl.startsWith("http") || prop.imageUrl.startsWith("/")
+                    ? prop.imageUrl
+                    : `/api/documents/download?key=${encodeURIComponent(prop.imageUrl)}`)
+                  : "";
+
+                return (
+                  <Link
+                    key={`${prop.id}-${idx}`}
+                    href={`${propertyDetailHrefBase}/${prop.id}`}
+                    className="mobile-property-card"
+                    style={{ textDecoration: "none", color: "inherit", display: "flex", background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "16px", padding: "12px", gap: "12px", boxShadow: "0 4px 12px rgba(16,24,40,0.01)" }}
+                  >
+                    {hasImageUrl && !isImageBroken ? (
+                      <img
+                        src={imgTargetSrc}
+                        alt={prop.name}
+                        style={{ width: "90px", height: "90px", borderRadius: "12px", objectFit: "cover", backgroundColor: "#f2f4f7" }}
+                        onError={() => setBrokenImages(prev => ({ ...prev, [prop.id]: true }))}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "90px",
+                          height: "90px",
+                          borderRadius: "12px",
+                          backgroundColor: "#f2f4f7",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#98a2b3",
+                          flexShrink: 0
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "36px", height: "36px" }}>
+                          <rect x="3" y="3" width="18" height="18" rx="4" />
+                          <circle cx="8.5" cy="8.5" r="2" />
+                          <path d="M3 19c2.5-3.5 6-3.5 9 0 2.5-3.5 6-7 9-3" />
+                        </svg>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "4px" }}>
+                      <strong style={{ fontSize: "15px", fontWeight: 700, color: "#101828" }}>{prop.name}</strong>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#667085" }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px" }}>
+                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                        </svg>
+                        <span>{prop.entityName}</span>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "#475467", marginTop: "4px" }}>
+                        <span>Income <strong style={{ color: "#12b76a" }}>{prop.incomeText}</strong></span>
+                        <span>Expense <strong style={{ color: "#344054" }}>{prop.expenseText}</strong></span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "3px 8px",
+                            borderRadius: "12px",
+                            backgroundColor: prop.status === "Rented" ? "#d1fadf" : "#f2f4f7",
+                            color: prop.status === "Rented" ? "#027a48" : "#344054"
+                          }}
+                        >
+                          {prop.status}
+                        </span>
+                        <span style={{ fontSize: "12px", color: "#475467" }}>
+                          Net <strong style={{ color: prop.netVal >= 0 ? "#12b76a" : "#f04438" }}>{prop.netText}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        {/* Recent Transactions Section */}
+        <section className="mobile-transactions-section" style={{ margin: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="mobile-section-title" style={{ fontSize: "16px", fontWeight: 700, color: "#475467" }}>Recent Transactions</h3>
+            <button
+              onClick={() => setMobileView("transactions")}
+              style={{ background: "none", border: "none", color: "#1b265c", fontSize: "14px", fontWeight: 700, cursor: "pointer", padding: 0 }}
+            >
+              View all
+            </button>
+          </div>
+
+          <div className="mobile-transactions-card" style={{ background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "16px", padding: displayRecentTransactions.length === 0 ? "24px" : "0 16px", boxShadow: "0 4px 12px rgba(16,24,40,0.01)" }}>
+            {displayRecentTransactions.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#667085", fontSize: "14px" }}>
+                No transactions recorded yet.
+              </div>
+            ) : (
+              displayRecentTransactions.map((tx, idx) => (
+                <div
+                  key={tx.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "16px 0",
+                    borderBottom: idx < displayRecentTransactions.length - 1 ? "1px solid #f2f4f7" : "none",
+                    gap: "12px"
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: tx.isRevenue ? "#d1fadf" : "#fee4e2",
+                      color: tx.isRevenue ? "#027a48" : "#d92d20"
+                    }}
+                  >
+                    {tx.isRevenue ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.0" style={{ width: "16px", height: "16px" }}>
+                        <line x1="7" y1="17" x2="17" y2="7" />
+                        <polyline points="7 7 17 7 17 17" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.0" style={{ width: "16px", height: "16px" }}>
+                        <line x1="17" y1="7" x2="7" y2="17" />
+                        <polyline points="17 17 7 17 7 7" />
+                      </svg>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "2px" }}>
+                    <strong style={{ fontSize: "14px", fontWeight: 700, color: "#101828" }}>{tx.description}</strong>
+                    <span style={{ fontSize: "12px", color: "#667085" }}>{tx.categoryMeta}</span>
+                  </div>
+
+                  <span style={{ fontSize: "15px", fontWeight: 700, color: tx.isRevenue ? "#027a48" : "#344054" }}>
+                    {tx.amountText}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Documents Section */}
+        <section className="mobile-documents-section" style={{ margin: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="mobile-section-title" style={{ fontSize: "16px", fontWeight: 700, color: "#475467" }}>Documents</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button
+                onClick={() => setMobileView("documents")}
+                style={{ background: "none", border: "none", color: "#1b265c", fontSize: "14px", fontWeight: 700, cursor: "pointer", padding: 0 }}
+              >
+                View all
+              </button>
+              <button
+                onClick={() => mobileFileInputRef.current?.click()}
+                style={{
+                  backgroundColor: "#1b265c",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "20px",
+                  padding: "6px 16px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          <input
+            ref={mobileFileInputRef}
+            type="file"
+            multiple
+            onChange={handleMobileUploadFile}
+            accept=".pdf,.png,.jpg,.jpeg"
+            style={{ display: "none" }}
+          />
+
+          <div className="mobile-documents-card" style={{ background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "16px", padding: "8px 16px", boxShadow: "0 4px 12px rgba(16,24,40,0.01)" }}>
+            {isMobileUploading && (
+              <div style={{ padding: "12px 0", fontSize: "13px", color: "#667085", display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="spinner" style={{ width: "16px", height: "16px", border: "2px solid #eaecf0", borderTopColor: "#1b265c", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                <span>Uploading file...</span>
+              </div>
+            )}
+
+            {isMobileDocsLoading && mobileDocs.length === 0 ? (
+              <div style={{ padding: "16px 0", textAlign: "center", fontSize: "13px", color: "#667085" }}>Loading documents...</div>
+            ) : mobileDocs.length === 0 ? (
+              <div style={{ padding: "24px 0", textAlign: "center", fontSize: "13px", color: "#667085" }}>
+                No documents uploaded yet.
+              </div>
+            ) : (
+              mobileDocs.slice(0, 3).map((doc, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "12px 0",
+                    borderBottom: idx < Math.min(mobileDocs.length, 3) - 1 ? "1px solid #f2f4f7" : "none",
+                    gap: "12px"
+                  }}
+                >
+                  <div style={{ color: "#667085" }}>
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "2px", minWidth: 0 }}>
+                    <strong style={{ fontSize: "13px", fontWeight: 700, color: "#101828", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {doc.original_file_name || doc.file_name}
+                    </strong>
+                    <span style={{ fontSize: "11px", color: "#667085" }}>
+                      {doc.document_type ? titleCase(doc.document_type) : titleCase(doc.mime_type)} • {(doc.file_size / 1024).toFixed(0)} KB
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (isEntityLoading) {
     return (
@@ -779,8 +1484,8 @@ export default function EntityDetailView({
               </div>
             ) : (
               <ul className="entity-property-list">
-                {properties.map((property) => (
-                  <li key={property.id} className="entity-property-row">
+                {properties.map((property, idx) => (
+                  <li key={`${property.id}-${idx}`} className="entity-property-row">
                     <div className="entity-property-main">
                       <Link
                         href={`${propertyDetailHrefBase}/${property.id}`}
