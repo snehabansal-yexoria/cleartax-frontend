@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       requestedRole: String(body.role || ""),
       organizationId: String(body.organization_id || ""),
       fullName: String(body.full_name || ""),
+      phoneNumber: String(body.phone_number || ""),
     });
 
     try {

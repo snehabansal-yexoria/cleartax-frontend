@@ -1,6 +1,47 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
 import { useEffect, useState, useRef, type ReactNode } from "react";
+
+interface CatalogClient {
+  id: string;
+  email: string;
+  status: string;
+  name: string;
+  phoneNumber?: string;
+  invitedByEmail?: string;
+  joinedAt?: string | null;
+  assignedAccountantId?: string;
+  assignedAccountantName?: string;
+  isAssignedToCurrentAccountant?: boolean;
+  isAssignedToAnotherAccountant?: boolean;
+}
+
+interface CatalogEntity {
+  id: string;
+  name: string;
+  entityType?: string;
+  orgId?: string;
+}
+
+interface CatalogProperty {
+  id: string;
+  name: string;
+  entityId: string;
+  entityName: string;
+  clientId?: string;
+  clientName?: string;
+  locationText?: string;
+}
+
+interface SearchSuggestion {
+  id: string;
+  type: "nav" | "action" | "client" | "entity" | "property";
+  title: string;
+  subtitle?: string;
+  href: string;
+  keywords?: string[];
+}
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
@@ -334,13 +375,14 @@ export default function DashboardLayout({
 
   // Autocomplete states
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [hasPrefetched, setHasPrefetched] = useState(false);
-  
+
   // Data catalogs for in-memory matching
-  const [clientsCatalog, setClientsCatalog] = useState<any[]>([]);
-  const [entitiesCatalog, setEntitiesCatalog] = useState<any[]>([]);
+  const [clientsCatalog, setClientsCatalog] = useState<CatalogClient[]>([]);
+  const [entitiesCatalog, setEntitiesCatalog] = useState<CatalogEntity[]>([]);
+  const [propertiesCatalog, setPropertiesCatalog] = useState<CatalogProperty[]>([]);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -502,6 +544,14 @@ export default function DashboardLayout({
           setEntitiesCatalog(data.items || []);
         }
       }
+
+      if (["accountant", "client", "user", "admin"].includes(role)) {
+        const res = await fetch("/api/properties", { headers });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setPropertiesCatalog(data.items || []);
+        }
+      }
       setHasPrefetched(true);
     } catch (err) {
       console.warn("Failed to prefetch autocomplete data", err);
@@ -558,8 +608,8 @@ export default function DashboardLayout({
     const query = globalSearch.trim().toLowerCase();
 
     // 1. Static navigation/action suggestions
-    const actions: any[] = [];
-    
+    const actions: SearchSuggestion[] = [];
+
     if (role === "accountant") {
       actions.push(
         { id: "nav-dash", type: "nav", title: "Go to Dashboard", href: "/dashboard/accountant", keywords: ["dashboard", "home", "main"] },
@@ -592,12 +642,12 @@ export default function DashboardLayout({
       if (!query) return true;
       return (
         act.title.toLowerCase().includes(query) ||
-        act.keywords.some((k: string) => k.toLowerCase().includes(query))
+        act.keywords?.some((k: string) => k.toLowerCase().includes(query))
       );
     });
 
     // 2. Dynamic matching from pre-fetched catalogs
-    const dynamicResults: any[] = [];
+    const dynamicResults: SearchSuggestion[] = [];
     if (query) {
       if (role === "accountant") {
         clientsCatalog.forEach(client => {
@@ -626,13 +676,36 @@ export default function DashboardLayout({
           }
         });
       }
+
+      // Match properties
+      propertiesCatalog.forEach((property) => {
+        if (property.name?.toLowerCase().includes(query)) {
+          let href = "";
+          let subtitle = "";
+          if (role === "accountant" || role === "admin") {
+            href = `/dashboard/accountant/clients/${property.clientId}/entities/${property.entityId}/properties/${property.id}`;
+            subtitle = `${property.clientName} / ${property.entityName}`;
+          } else {
+            href = `/dashboard/client/entities/${property.entityId}/properties/${property.id}`;
+            subtitle = property.entityName;
+          }
+
+          dynamicResults.push({
+            id: `property-${property.id}`,
+            type: "property",
+            title: property.name || "Unnamed Property",
+            subtitle: subtitle,
+            href: href,
+          });
+        }
+      });
     }
 
     const combined = [...filteredActions, ...dynamicResults].slice(0, 8);
     console.log("Suggestions calculated array:", combined);
     setSuggestions(combined);
     setHighlightedIndex(-1);
-  }, [globalSearch, isSearchFocused, role, clientsCatalog, entitiesCatalog]);
+  }, [globalSearch, isSearchFocused, role, clientsCatalog, entitiesCatalog, propertiesCatalog]);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (suggestions.length === 0) return;
@@ -786,7 +859,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          <header className="accountant-topbar">
+          <header className="accountant-topbar border border-2 border-red-200">
             <div className="accountant-search-container" ref={searchRef}>
               <form className="accountant-search" onSubmit={handleGlobalSearch}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -833,6 +906,11 @@ export default function DashboardLayout({
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                                 <circle cx="12" cy="7" r="4" />
+                              </svg>
+                            ) : item.type === "property" ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                <polyline points="9 22 9 12 15 12 15 22" />
                               </svg>
                             ) : (
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
