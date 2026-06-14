@@ -19,6 +19,7 @@ import {
   DocumentDropZone,
   type ExtractedDocumentData,
 } from "@/app/components/DocumentDropZone";
+import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -2840,6 +2841,7 @@ export function AddTransactionView({
   } | null>(null);
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
   const [documentId, setDocumentId] = useState<string | null>(null);
+  const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
 
   // Resolve the bearer token once on mount.
   useEffect(() => {
@@ -3235,8 +3237,9 @@ export function AddTransactionView({
     setSubmitError("");
   }
 
-  function handleExtracted(data: ExtractedDocumentData, docId: string) {
+  function handleExtracted(data: ExtractedDocumentData, docId: string, meta?: { filename: string; jobId: string }) {
     setDocumentId(docId);
+    if (meta?.filename) setUploadedFilename(meta.filename);
     const filled = new Set<string>();
 
     if (data.type === "expense" || data.type === "revenue") {
@@ -3894,13 +3897,25 @@ export function AddTransactionView({
       </div>
 
       <div className="transaction-add-layout">
-        <DocumentDropZone
-          token={token}
-          onExtracted={handleExtracted}
-          scope={activeEntityId ? { entityId: activeEntityId } : undefined}
-          isSubmitting={isSubmitting}
-          submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
-        />
+        {documentId && uploadedFilename && token ? (
+          <DocumentPreviewPanel
+            documentId={documentId}
+            filename={uploadedFilename}
+            token={token}
+            onReset={() => {
+              setDocumentId(null);
+              setUploadedFilename(null);
+            }}
+          />
+        ) : (
+          <DocumentDropZone
+            token={token}
+            onExtracted={handleExtracted}
+            scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+            isSubmitting={isSubmitting}
+            submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+          />
+        )}
 
         <form className="transaction-entry-form" onSubmit={handleSubmit}>
           {requireClientSelection ? (
