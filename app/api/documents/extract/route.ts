@@ -5,6 +5,14 @@ import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 type ExtractResponse = {
   success: boolean;
   data: Record<string, unknown>;
+  matched_rule?: {
+    rule_id: number;
+    rule_name: string;
+    assigned_type?: string;
+    assigned_category_id?: number;
+    assigned_subcategory_id?: number;
+    auto_confirm?: boolean;
+  } | null;
 };
 
 export async function POST(req: Request) {

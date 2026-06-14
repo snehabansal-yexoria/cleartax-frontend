@@ -18,6 +18,7 @@ import type {
 import {
   DocumentDropZone,
   type ExtractedDocumentData,
+  type ExtractedMeta,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
 import {
@@ -2797,6 +2798,11 @@ export function AddTransactionView({
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
+  // When a document extraction matches a rule, the rule's category/subcategory
+  // are stashed here so the async category→subcategory load effects can apply
+  // them once their option lists arrive (instead of resetting to the default).
+  const pendingRuleRef = useRef<{ categoryId: number; subcategoryId: number } | null>(null);
+
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId ?? "");
   const [entities, setEntities] = useState<EntityOption[]>([]);
@@ -2995,9 +3001,17 @@ export function AddTransactionView({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
-        setCategories(data.items || []);
-        setCategoryId(null);
-        setSubcategoryId(null);
+        const items = data.items || [];
+        setCategories(items);
+        // If a matched rule is pending and its category exists for this type,
+        // select it (the subcategory effect will then apply the rule's subcat).
+        const pending = pendingRuleRef.current;
+        if (pending && items.some((c) => c.id === pending.categoryId)) {
+          setCategoryId(pending.categoryId);
+        } else {
+          setCategoryId(null);
+          setSubcategoryId(null);
+        }
       }
     }
     loadCategories();
@@ -3024,6 +3038,18 @@ export function AddTransactionView({
       if (!cancelled) {
         const loaded = data.items || [];
         setSubcategories(loaded);
+        // A matched rule takes precedence: select its subcategory if present,
+        // then clear the pending rule so manual edits behave normally.
+        const pending = pendingRuleRef.current;
+        if (pending && pending.categoryId === categoryId) {
+          if (loaded.some((s) => s.id === pending.subcategoryId)) {
+            setSubcategoryId(pending.subcategoryId);
+          } else {
+            setSubcategoryId(null);
+          }
+          pendingRuleRef.current = null;
+          return;
+        }
         const actual = loaded.filter((s) => s.name.toLowerCase() !== "general");
         if (actual.length === 0 && loaded.length > 0) {
           setSubcategoryId(loaded[0].id);
@@ -3237,13 +3263,33 @@ export function AddTransactionView({
     setSubmitError("");
   }
 
-  function handleExtracted(data: ExtractedDocumentData, docId: string, meta?: { filename: string; jobId: string }) {
+  function handleExtracted(data: ExtractedDocumentData, docId: string, meta?: ExtractedMeta) {
     setDocumentId(docId);
     if (meta?.filename) setUploadedFilename(meta.filename);
     const filled = new Set<string>();
 
-    if (data.type === "expense" || data.type === "revenue") {
-      setType(data.type);
+    // A matched rule decides type/category/subcategory. Stash its category +
+    // subcategory in pendingRuleRef BEFORE setType triggers the async category
+    // load, so the load effects apply the rule's values instead of defaults.
+    const rule = meta?.matchedRule ?? null;
+    const ruleType =
+      rule?.assigned_type === "expense" || rule?.assigned_type === "revenue"
+        ? rule.assigned_type
+        : null;
+    if (rule && rule.assigned_category_id && rule.assigned_subcategory_id) {
+      pendingRuleRef.current = {
+        categoryId: rule.assigned_category_id,
+        subcategoryId: rule.assigned_subcategory_id,
+      };
+      filled.add("categoryId");
+      filled.add("subcategoryId");
+    }
+
+    const effectiveType =
+      ruleType ??
+      (data.type === "expense" || data.type === "revenue" ? data.type : null);
+    if (effectiveType) {
+      setType(effectiveType);
       filled.add("type");
     }
     if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {

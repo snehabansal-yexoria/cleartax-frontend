@@ -24,6 +24,23 @@ export type ExtractedDocumentData = {
   reference?: string;
 };
 
+// A transaction rule that the backend matched against the extracted document.
+// Used to auto-fill type / category / subcategory on the transaction form.
+export type MatchedRule = {
+  rule_id: number;
+  rule_name: string;
+  assigned_type?: string;
+  assigned_category_id?: number;
+  assigned_subcategory_id?: number;
+  auto_confirm?: boolean;
+};
+
+export type ExtractedMeta = {
+  filename: string;
+  jobId: string;
+  matchedRule?: MatchedRule | null;
+};
+
 type Status =
   | "idle"
   | "dragover"
@@ -47,7 +64,7 @@ export function DocumentDropZone({
   onExtracted: (
     data: ExtractedDocumentData,
     documentId: string,
-    meta?: { filename: string; jobId: string },
+    meta?: ExtractedMeta,
   ) => void;
   scope?: DocumentProcessingScope;
   allowMultiple?: boolean;
@@ -228,14 +245,17 @@ export function DocumentDropZone({
       const result = (await extractRes.json()) as {
         success: boolean;
         data: ExtractedDocumentData;
+        matched_rule?: MatchedRule | null;
       };
 
       // Notify caller for each file processed. In single-file mode this
       // will be the only call; in multi-file mode callers receive callbacks
-      // for each file as they complete.
+      // for each file as they complete. matched_rule (if any) lets the form
+      // auto-fill type / category / subcategory from the matched rule.
       onExtracted(result.data ?? {}, document_id, {
         filename: file.name,
         jobId,
+        matchedRule: result.matched_rule ?? null,
       });
       upsertDocumentProcessingJob({
         id: jobId,
