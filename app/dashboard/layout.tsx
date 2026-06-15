@@ -195,6 +195,7 @@ const accountantMenuItems: PortalMenuItem[] = [
   },
   {
     id: "tasks",
+    href: "/dashboard/accountant/task",
     label: "Tasks",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -859,7 +860,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          <header className="accountant-topbar border border-2 border-red-200">
+          <header className="accountant-topbar">
             <div className="accountant-search-container" ref={searchRef}>
               <form className="accountant-search" onSubmit={handleGlobalSearch}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
