@@ -126,6 +126,7 @@ type CoreTransactionRule = {
 type SelectOption = {
   label: string;
   value: string;
+  type?: "revenue" | "expense" | string;
 };
 
 type StaticSelectProps = {
@@ -300,7 +301,23 @@ function StaticSelect({
             }
           }}
         >
-          <span>{selected?.label || placeholder || "Select"}</span>
+          <span style={{ display: "inline-flex", alignItems: "center" }}>
+            {selected?.type && (
+              <span
+                className="category-dot"
+                style={{
+                  display: "inline-block",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  marginRight: "8px",
+                  backgroundColor: selected.type === "revenue" ? "#12a150" : "#e11d48",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            {selected?.label || placeholder || "Select"}
+          </span>
           <ChevronIcon />
         </button>
         {isOpen && !disabled && (
@@ -317,7 +334,23 @@ function StaticSelect({
                   setIsOpen(false);
                 }}
               >
-                <span>{option.label}</span>
+                <span style={{ display: "inline-flex", alignItems: "center" }}>
+                  {option.type && (
+                    <span
+                      className="category-dot"
+                      style={{
+                        display: "inline-block",
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        marginRight: "8px",
+                        backgroundColor: option.type === "revenue" ? "#12a150" : "#e11d48",
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  {option.label}
+                </span>
                 {value === option.value && (
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M5 12l4 4 10-10" />
@@ -624,6 +657,7 @@ function TransactionDetailPopup({
     ...categories.map((category) => ({
       label: category.name,
       value: String(category.id),
+      type: type,
     })),
   ];
   const subcategorySelectOptions: SelectOption[] = [
@@ -1807,6 +1841,44 @@ function makeNamedOptions(
   ];
 }
 
+function makeCategoryOptions(
+  label: string,
+  rows: DisplayTransactionRow[],
+  propertyRows: CorePropertyTransactionRow[],
+  contextKind: string,
+  fallbackPrefix = "Unknown",
+): SelectOption[] {
+  const categoryMap = new Map<string, string>();
+  if (contextKind === "property") {
+    for (const row of propertyRows) {
+      const name = (row.categoryName || "").trim();
+      if (name) {
+        categoryMap.set(name, row.transactionType);
+      }
+    }
+  } else {
+    for (const row of rows) {
+      const name = (row.categoryName || "").trim();
+      if (name) {
+        categoryMap.set(name, row.type);
+      }
+    }
+  }
+
+  const unique = Array.from(categoryMap.keys()).sort((a, b) =>
+    a.localeCompare(b),
+  );
+
+  return [
+    { label, value: "all" },
+    ...unique.map((name) => ({
+      label: name || fallbackPrefix,
+      value: name,
+      type: categoryMap.get(name) as "revenue" | "expense" | undefined,
+    })),
+  ];
+}
+
 function getRowClientFilterValue(row: CoreTransactionListItem) {
   return row.clientId || row.clientName;
 }
@@ -1987,7 +2059,13 @@ export function AllTransactionsView({
           ? [{ label: "Income", value: "Revenue" }]
           : []),
       ],
-      categories: makeOptions("All Categories", categories, "Uncategorized"),
+      categories: makeCategoryOptions(
+        "All Categories",
+        rows,
+        propertyRows,
+        contextKind,
+        "Uncategorized",
+      ),
     };
   }, [contextKind, propertyRows, rows]);
 
@@ -3899,7 +3977,11 @@ export function AddTransactionView({
 
   const categorySelectOptions: SelectOption[] = [
     { label: "Select category", value: "" },
-    ...categories.map((c) => ({ label: c.name, value: String(c.id) })),
+    ...categories.map((c) => ({
+      label: c.name,
+      value: String(c.id),
+      type: type || undefined,
+    })),
   ];
   const subcategorySelectOptions: SelectOption[] = [
     { label: "Select sub-category", value: "" },

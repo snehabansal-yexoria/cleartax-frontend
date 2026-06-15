@@ -7,6 +7,12 @@ import {
   listDirectoryUsers,
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
+import {
+  getCoreApiBearerFromRequest,
+  listCoreEntities,
+  listCoreProperties,
+  listCoreUsers,
+} from "@/src/lib/coreApi";
 
 async function getRequester(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -74,6 +80,57 @@ export async function GET(req: Request) {
       roleIds: [clientRoleId],
     });
 
+    const token = getCoreApiBearerFromRequest(req);
+
+    // Fetch entities for each client and list of core users in parallel
+    const entitiesPromises = clients.map((client) =>
+      listCoreEntities(token, { clientId: client.id }).catch((err) => {
+        console.error(`Error fetching entities for client ${client.id}:`, err);
+        return [];
+      }),
+    );
+
+    const coreUsersPromise = listCoreUsers(token).catch((err) => {
+      console.error("Error fetching core users:", err);
+      return [];
+    });
+
+    const [allEntitiesLists, coreUsers] = await Promise.all([
+      Promise.all(entitiesPromises),
+      coreUsersPromise,
+    ]);
+    const allEntities = allEntitiesLists.flat();
+
+    // Map user id to actual phone number from Core API
+    const corePhoneMap = new Map<string, string>();
+    for (const u of coreUsers) {
+      if (u.phoneNumber) {
+        corePhoneMap.set(u.id, u.phoneNumber);
+      }
+    }
+
+    // Fetch properties for each entity in parallel
+    const propertiesPromises = allEntities.map((entity) =>
+      listCoreProperties(token, entity.id)
+        .then((props) => ({
+          clientId: entity.createdFor,
+          count: props.length,
+        }))
+        .catch((err) => {
+          console.error(`Error fetching properties for entity ${entity.id}:`, err);
+          return { clientId: entity.createdFor, count: 0 };
+        }),
+    );
+
+    const propertiesResults = await Promise.all(propertiesPromises);
+
+    // Map clientId to total properties count
+    const propertiesCountMap = new Map<string, number>();
+    for (const result of propertiesResults) {
+      const current = propertiesCountMap.get(result.clientId) || 0;
+      propertiesCountMap.set(result.clientId, current + result.count);
+    }
+
     return NextResponse.json({
       clients: clients
         .filter(
@@ -88,7 +145,7 @@ export async function GET(req: Request) {
           email: user.email,
           status: user.status,
           name: user.fullName,
-          phoneNumber: user.phoneNumber || "",
+          phoneNumber: corePhoneMap.get(user.id) || user.phoneNumber || "",
           invitedByEmail: user.invitedByEmail || "",
           joinedAt: user.createdAt,
           assignedAccountantId: user.assignedAccountantId,
@@ -99,6 +156,7 @@ export async function GET(req: Request) {
           isAssignedToAnotherAccountant:
             Boolean(user.assignedAccountantId) &&
             user.assignedAccountantId !== requester.id,
+          propertiesCount: propertiesCountMap.get(user.id) || 0,
         })),
     });
   } catch (error) {

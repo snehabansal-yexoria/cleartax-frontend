@@ -2045,7 +2045,7 @@ p.darkBg {
 .accountant-client-table-row {
   display: grid;
   grid-template-columns:
-    36px minmax(220px, 1.2fr) minmax(180px, 1fr) 140px 180px 120px;
+    36px minmax(220px, 1.2fr) minmax(180px, 1fr) 140px 180px 110px 120px;
   gap: 12px;
   align-items: center;
   padding: 0 18px;
@@ -4282,6 +4282,12 @@ p.darkBg {
   gap: 22px;
 }
 
+@media (max-width: 650px) {
+  .accountant-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .accountant-summary-card {
   min-height: 140px;
   border-radius: 22px;
@@ -4313,6 +4319,14 @@ p.darkBg {
   background: linear-gradient(180deg, #fff5cf 0%, #fff2bf 100%);
 }
 
+.accountant-summary-card-purple {
+  background: linear-gradient(180deg, #f0e6ff 0%, #e6d5ff 100%);
+}
+
+.accountant-summary-card-green {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
 .accountant-eyebrow {
   margin-bottom: 8px;
   font-weight: 700;
@@ -4331,6 +4345,16 @@ p.darkBg {
 .accountant-summary-card-gold h2,
 .accountant-summary-card-gold .accountant-eyebrow {
   color: #935119;
+}
+
+.accountant-summary-card-purple h2,
+.accountant-summary-card-purple .accountant-eyebrow {
+  color: #5b21b6;
+}
+
+.accountant-summary-card-green h2,
+.accountant-summary-card-green .accountant-eyebrow {
+  color: #15803d;
 }
 
 .accountant-summary-card span {
@@ -4359,6 +4383,30 @@ p.darkBg {
   align-items: center;
   justify-content: center;
   box-shadow: 0 16px 28px rgba(244, 161, 23, 0.22);
+}
+
+.accountant-summary-icon-purple {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 28px rgba(124, 58, 237, 0.22);
+}
+
+.accountant-summary-icon-green {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 28px rgba(5, 150, 105, 0.22);
 }
 
 .accountant-primary-cta {
@@ -4800,8 +4848,10 @@ p.darkBg {
 
   .accountant-client-table-head div:nth-child(5),
   .accountant-client-table-head div:nth-child(6),
+  .accountant-client-table-head div:nth-child(7),
   .accountant-client-table-row div:nth-child(5),
-  .accountant-client-table-row div:nth-child(6) {
+  .accountant-client-table-row div:nth-child(6),
+  .accountant-client-table-row div:nth-child(7) {
     display: none;
   }
 }
@@ -12137,5 +12187,109 @@ p.darkBg {
 
   .entity-rm-action-section {
     min-width: 100%;
+  }
+}
+
+/* Inactive Client Management States */
+.accountant-clients-panel.is-inactive {
+  position: relative;
+}
+
+.accountant-clients-panel.is-inactive .accountant-panel-header h3 {
+  color: #64748b;
+  transition: color 0.3s ease;
+}
+
+.accountant-clients-panel.is-inactive .accountant-panel-header p {
+  color: #94a3b8;
+  transition: color 0.3s ease;
+}
+
+.accountant-view-toggle button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.accountant-panel-content-wrapper {
+  position: relative;
+  min-height: 250px;
+}
+
+.accountant-panel-inactive-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 18px;
+  animation: accountantFadeIn 0.3s ease-in-out;
+}
+
+.accountant-panel-inactive-content {
+  text-align: center;
+  padding: 24px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.accountant-panel-inactive-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.accountant-panel-inactive-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.accountant-panel-inactive-content h4 {
+  font-size: 1.25rem;
+  color: #0f172a;
+  font-weight: 700;
+  margin: 0;
+}
+
+.accountant-panel-inactive-content p {
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.accountant-panel-inactive-content .accountant-primary-cta {
+  margin-top: 4px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(47, 59, 130, 0.15);
+}
+
+@keyframes accountantFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }

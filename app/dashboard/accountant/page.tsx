@@ -62,12 +62,25 @@ function formatJoinedDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default function AccountantPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
   const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
+  const [summaryStats, setSummaryStats] = useState<{
+    totalProperties: number;
+    totalMarketValue: number;
+  } | null>(null);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [selectedAvailableClientId, setSelectedAvailableClientId] =
     useState("");
@@ -111,6 +124,13 @@ export default function AccountantPage() {
           if (!cancelled) setMyClients(data.clients || []);
         })
         .catch(() => { if (!cancelled) setMyClients([]); });
+
+      fetch("/api/users/me/accountant-summary", { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { totalProperties: number; totalMarketValue: number } | null) => {
+          if (!cancelled) setSummaryStats(data || { totalProperties: 0, totalMarketValue: 0 });
+        })
+        .catch(() => { if (!cancelled) setSummaryStats({ totalProperties: 0, totalMarketValue: 0 }); });
     }).catch(() => { });
 
     return () => { cancelled = true; };
@@ -187,7 +207,7 @@ export default function AccountantPage() {
     }
   }
 
-  const summaryLoading = allClients === null || myClients === null;
+  const summaryLoading = allClients === null || myClients === null || summaryStats === null;
 
   return (
     <section className="accountant-dashboard">
@@ -202,6 +222,16 @@ export default function AccountantPage() {
               <div className="skeleton-line skeleton-line-md" />
             </article>
             <article className="accountant-summary-card accountant-summary-card-gold">
+              <div className="skeleton-line skeleton-line-sm" />
+              <div className="skeleton-line skeleton-line-xl" />
+              <div className="skeleton-circle" />
+            </article>
+            <article className="accountant-summary-card accountant-summary-card-purple">
+              <div className="skeleton-line skeleton-line-sm" />
+              <div className="skeleton-line skeleton-line-xl" />
+              <div className="skeleton-circle" />
+            </article>
+            <article className="accountant-summary-card accountant-summary-card-green">
               <div className="skeleton-line skeleton-line-sm" />
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
@@ -247,15 +277,45 @@ export default function AccountantPage() {
               </svg>
             </div>
           </article>
+
+          <article className="accountant-summary-card accountant-summary-card-purple">
+            <div>
+              <p className="accountant-eyebrow">Properties Managed</p>
+              <h2>{summaryStats?.totalProperties ?? 0}</h2>
+              <span>Across client portfolios</span>
+            </div>
+            <div className="accountant-summary-icon accountant-summary-icon-purple">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </div>
+          </article>
+
+          <article className="accountant-summary-card accountant-summary-card-green">
+            <div>
+              <p className="accountant-eyebrow">Total Market Value</p>
+              <h2 style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.4rem)", marginTop: "4px", marginBottom: "4px" }}>
+                {formatCurrency(summaryStats?.totalMarketValue ?? 0)}
+              </h2>
+              <span>Estimated asset valuation</span>
+            </div>
+            <div className="accountant-summary-icon accountant-summary-icon-green">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+          </article>
         </div>
       </Skeleton>
 
       <div className="accountant-content-grid">
-        <section className="accountant-clients-panel">
+        <section className={`accountant-clients-panel${!summaryLoading && registeredClients === 0 ? " is-inactive" : ""}`}>
           <div className="accountant-panel-header">
             <div>
-              <h3>Client Management</h3>
-              <p>
+              <h3 style={!summaryLoading && registeredClients === 0 ? { color: "#64748b", transition: "color 0.3s ease" } : undefined}>Client Management</h3>
+              <p style={!summaryLoading && registeredClients === 0 ? { color: "#94a3b8", transition: "color 0.3s ease" } : undefined}>
                 {managedClients.length > 0
                   ? organizationName
                     ? `Manage your clients for ${organizationName}`
@@ -269,6 +329,14 @@ export default function AccountantPage() {
                 type="button"
                 className={viewMode === "card" ? "is-active" : ""}
                 onClick={() => setViewMode("card")}
+                disabled={!summaryLoading && registeredClients === 0}
+                style={{
+                  ...(!summaryLoading && registeredClients === 0 && {
+                    opacity: 0.5,
+                    cursor: "not-allowed",
+                    pointerEvents: "none",
+                  }),
+                }}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3" y="4" width="7" height="7" rx="1.2" />
@@ -282,6 +350,14 @@ export default function AccountantPage() {
                 type="button"
                 className={viewMode === "list" ? "is-active" : ""}
                 onClick={() => setViewMode("list")}
+                disabled={!summaryLoading && registeredClients === 0}
+                style={{
+                  ...(!summaryLoading && registeredClients === 0 && {
+                    opacity: 0.5,
+                    cursor: "not-allowed",
+                    pointerEvents: "none",
+                  }),
+                }}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8 6h13" />
@@ -296,145 +372,245 @@ export default function AccountantPage() {
             </div>
           </div>
 
-          {myClients === null ? (
-            <div className="accountant-client-grid boneyard-fallback">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="skeleton-panel skeleton-panel-tall" />
-              ))}
-            </div>
-          ) : managedClients.length === 0 ? (
-            <div className="accountant-empty-state">
-              <p>You have not added any clients to your list yet.</p>
-              <Link
-                href="/dashboard/accountant/clients"
-                className="accountant-empty-cta"
+          <div className="accountant-panel-content-wrapper" style={{ position: "relative", minHeight: "250px" }}>
+            {!summaryLoading && registeredClients === 0 && (
+              <div
+                className="accountant-panel-inactive-overlay"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: "rgba(255, 255, 255, 0.75)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 10,
+                  borderRadius: "18px",
+                  animation: "accountantFadeIn 0.3s ease-in-out",
+                }}
               >
-                Start adding clients to your list
-              </Link>
-              {suggestedClients.length > 0 && (
-                <div className="accountant-suggested-clients">
-                  <div className="accountant-suggested-clients-head">
-                    <div>
-                      <strong>Available clients</strong>
-                      <span>Pick one to add directly to My Clients.</span>
-                    </div>
-                    <Link href="/dashboard/accountant/clients">
-                      Show more
-                    </Link>
-                  </div>
-
-                  <div className="accountant-suggested-client-list">
-                    {suggestedClients.map((client) => {
-                      const isSelected =
-                        selectedAvailableClientId === client.id;
-
-                      return (
-                        <button
-                          key={client.id}
-                          type="button"
-                          className={`accountant-suggested-client${isSelected ? " is-selected" : ""
-                            }`}
-                          onClick={() => {
-                            setAssignMessage("");
-                            setSelectedAvailableClientId((current) =>
-                              current === client.id ? "" : client.id,
-                            );
-                          }}
-                        >
-                          <span className="accountant-client-pill">
-                            {getInitials(client.name)}
-                          </span>
-                          <span className="accountant-suggested-client-copy">
-                            <strong>{client.name}</strong>
-                            <span>{client.email}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedAvailableClientId && (
-                    <button
-                      type="button"
-                      className="accountant-suggested-add"
-                      onClick={handleAssignSuggestedClient}
-                      disabled={isAssigningClient}
+                <div
+                  className="accountant-panel-inactive-content"
+                  style={{
+                    textAlign: "center",
+                    padding: "24px",
+                    maxWidth: "340px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "16px",
+                  }}
+                >
+                  <div
+                    className="accountant-panel-inactive-icon"
+                    style={{
+                      width: "56px",
+                      height: "56px",
+                      borderRadius: "999px",
+                      background: "#f8fafc",
+                      color: "#64748b",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        stroke: "currentColor",
+                        strokeWidth: 2,
+                        fill: "none",
+                      }}
                     >
-                      {isAssigningClient ? "Adding..." : "Add to list"}
-                    </button>
-                  )}
-
-                  {assignMessage && (
-                    <p className="accountant-suggested-message">
-                      {assignMessage}
-                    </p>
-                  )}
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <h4
+                    style={{
+                      fontSize: "1.25rem",
+                      color: "#0f172a",
+                      fontWeight: 700,
+                      margin: 0,
+                    }}
+                  >
+                    Client Management Inactive
+                  </h4>
+                  <p
+                    style={{
+                      fontSize: "0.95rem",
+                      color: "#475569",
+                      lineHeight: 1.5,
+                      margin: 0,
+                    }}
+                  >
+                    You have 0 registered clients. Please register or add a client to activate client management.
+                  </p>
+                  <Link
+                    href="/dashboard/accountant/clients"
+                    className="accountant-primary-cta"
+                    style={{
+                      marginTop: "4px",
+                      padding: "10px 20px",
+                      fontSize: "0.9rem",
+                      boxShadow: "0 4px 12px rgba(47, 59, 130, 0.15)",
+                    }}
+                  >
+                    Go to Clients
+                  </Link>
                 </div>
-              )}
-            </div>
-          ) : viewMode === "card" ? (
-            <div className="accountant-client-grid">
-              {managedClients.map((client) => (
+              </div>
+            )}
+
+            {myClients === null ? (
+              <div className="accountant-client-grid boneyard-fallback">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="skeleton-panel skeleton-panel-tall" />
+                ))}
+              </div>
+            ) : managedClients.length === 0 ? (
+              <div className="accountant-empty-state">
+                <p>You have not added any clients to your list yet.</p>
                 <Link
-                  key={client.id}
-                  href={`/dashboard/accountant/clients/${client.id}`}
-                  className="accountant-client-card accountant-client-card-plain"
+                  href="/dashboard/accountant/clients"
+                  className="accountant-empty-cta"
                 >
-                  <div className="accountant-client-pill">
-                    {getInitials(client.name)}
-                  </div>
-                  <div className="accountant-client-copy">
-                    <h4>{client.name}</h4>
-                    <p>{client.email}</p>
-                    <span>{client.phoneNumber || ""}</span>
-                  </div>
+                  Start adding clients to your list
                 </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="accountant-client-list">
-              {managedClients.map((client) => (
-                <Link
-                  key={client.id}
-                  href={`/dashboard/accountant/clients/${client.id}`}
-                  className="accountant-client-list-row"
-                >
-                  <div className="accountant-client-list-main">
+                {suggestedClients.length > 0 && (
+                  <div className="accountant-suggested-clients">
+                    <div className="accountant-suggested-clients-head">
+                      <div>
+                        <strong>Available clients</strong>
+                        <span>Pick one to add directly to My Clients.</span>
+                      </div>
+                      <Link href="/dashboard/accountant/clients">
+                        Show more
+                      </Link>
+                    </div>
+
+                    <div className="accountant-suggested-client-list">
+                      {suggestedClients.map((client) => {
+                        const isSelected =
+                          selectedAvailableClientId === client.id;
+
+                        return (
+                          <button
+                            key={client.id}
+                            type="button"
+                            className={`accountant-suggested-client${isSelected ? " is-selected" : ""
+                              }`}
+                            onClick={() => {
+                              setAssignMessage("");
+                              setSelectedAvailableClientId((current) =>
+                                current === client.id ? "" : client.id,
+                              );
+                            }}
+                          >
+                            <span className="accountant-client-pill">
+                              {getInitials(client.name)}
+                            </span>
+                            <span className="accountant-suggested-client-copy">
+                              <strong>{client.name}</strong>
+                              <span>{client.email}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedAvailableClientId && (
+                      <button
+                        type="button"
+                        className="accountant-suggested-add"
+                        onClick={handleAssignSuggestedClient}
+                        disabled={isAssigningClient}
+                      >
+                        {isAssigningClient ? "Adding..." : "Add to list"}
+                      </button>
+                    )}
+
+                    {assignMessage && (
+                      <p className="accountant-suggested-message">
+                        {assignMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : viewMode === "card" ? (
+              <div className="accountant-client-grid">
+                {managedClients.map((client) => (
+                  <Link
+                    key={client.id}
+                    href={`/dashboard/accountant/clients/${client.id}`}
+                    className="accountant-client-card accountant-client-card-plain"
+                  >
                     <div className="accountant-client-pill">
                       {getInitials(client.name)}
                     </div>
-                    <div className="accountant-client-list-copy">
+                    <div className="accountant-client-copy">
                       <h4>{client.name}</h4>
                       <p>{client.email}</p>
+                      <span>{client.phoneNumber || ""}</span>
                     </div>
-                  </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="accountant-client-list">
+                {managedClients.map((client) => (
+                  <Link
+                    key={client.id}
+                    href={`/dashboard/accountant/clients/${client.id}`}
+                    className="accountant-client-list-row"
+                  >
+                    <div className="accountant-client-list-main">
+                      <div className="accountant-client-pill">
+                        {getInitials(client.name)}
+                      </div>
+                      <div className="accountant-client-list-copy">
+                        <h4>{client.name}</h4>
+                        <p>{client.email}</p>
+                      </div>
+                    </div>
 
-                  <div className="accountant-client-list-meta">
-                    <span className="accountant-client-list-label">
-                      Status
-                    </span>
-                    <strong>{client.status || "Active"}</strong>
-                  </div>
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Status
+                      </span>
+                      <strong>{client.status || "Active"}</strong>
+                    </div>
 
-                  <div className="accountant-client-list-meta">
-                    <span className="accountant-client-list-label">
-                      Joined
-                    </span>
-                    <strong>{formatJoinedDate(client.joinedAt)}</strong>
-                  </div>
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Joined
+                      </span>
+                      <strong>{formatJoinedDate(client.joinedAt)}</strong>
+                    </div>
 
-                  <div className="accountant-client-list-meta">
-                    <span className="accountant-client-list-label">
-                      Invited by
-                    </span>
-                    <strong>
-                      {client.invitedByEmail || "Organisation Admin"}
-                    </strong>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                    <div className="accountant-client-list-meta">
+                      <span className="accountant-client-list-label">
+                        Invited by
+                      </span>
+                      <strong>
+                        {client.invitedByEmail || "Organisation Admin"}
+                      </strong>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
         <aside className="accountant-activity-panel">

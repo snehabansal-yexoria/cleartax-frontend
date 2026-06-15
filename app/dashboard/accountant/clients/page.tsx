@@ -28,6 +28,7 @@ interface ClientRecord {
   assignedAccountantName?: string;
   isAssignedToCurrentAccountant?: boolean;
   isAssignedToAnotherAccountant?: boolean;
+  propertiesCount?: number;
 }
 
 type ClientTab = "all" | "mine";
@@ -54,10 +55,12 @@ function getInitials(name: string) {
 function formatJoinedDate(value: string | null) {
   if (!value) return "Recently";
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "Recently";
+  const day = date.getDate();
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
 }
 
 function formatStatus(raw: string) {
@@ -279,6 +282,7 @@ function AccountantClientsContent() {
   const [isInviteDrawerOpen, setInviteDrawerOpen] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState("");
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [inviteForm, setInviteForm] = useState({
@@ -417,6 +421,10 @@ function AccountantClientsContent() {
         if (!a.joinedAt) return 1;
         if (!b.joinedAt) return -1;
         return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
+      } else if (sortBy === "properties") {
+        const countA = a.propertiesCount || 0;
+        const countB = b.propertiesCount || 0;
+        return countB - countA;
       }
       return 0;
     });
@@ -507,15 +515,18 @@ function AccountantClientsContent() {
     setInviteLink("");
     setInviteSuccess(false);
     setInviteDrawerOpen(false);
+    setInviteError("");
   }
 
   async function handleInviteClient() {
     try {
       setInviteLoading(true);
+      setInviteError("");
 
       const session = (await getSession()) as SessionWithIdToken | null;
 
       if (!session) {
+        setInviteError("Your session has expired. Please log in again.");
         return;
       }
 
@@ -537,7 +548,7 @@ function AccountantClientsContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Failed to invite client");
+        setInviteError(data.error || "Failed to invite client");
         return;
       }
 
@@ -555,7 +566,7 @@ function AccountantClientsContent() {
       await loadClients();
     } catch (error) {
       console.error("Invite client error:", error);
-      alert("Something went wrong while inviting the client.");
+      setInviteError("Something went wrong while inviting the client.");
     } finally {
       setInviteLoading(false);
     }
@@ -628,6 +639,7 @@ function AccountantClientsContent() {
             setInviteLink("");
             setInviteSuccess(false);
             setInviteDrawerOpen(true);
+            setInviteError("");
           }}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -729,7 +741,8 @@ function AccountantClientsContent() {
           <div>Email Address</div>
           <div>Status</div>
           <div>Accountant</div>
-          <div>Joined By</div>
+          <div>Properties</div>
+          <div>Joined Date</div>
         </div>
 
         {(currentTab === "all" ? allClients : myClients) === null ? (
@@ -798,6 +811,7 @@ function AccountantClientsContent() {
                     type="checkbox"
                     checked={selectedClientIds.includes(client.id)}
                     onChange={() => toggleClientSelection(client.id)}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 )}
               </div>
@@ -814,7 +828,7 @@ function AccountantClientsContent() {
                   ) : (
                     <strong>{client.name}</strong>
                   )}
-                  <span>{client.phoneNumber || "+1 (555) 000-0000"}</span>
+                  {client.phoneNumber && <span>{client.phoneNumber}</span>}
                 </div>
               </div>
 
@@ -840,6 +854,10 @@ function AccountantClientsContent() {
                 ) : (
                   <span style={{ color: "#98a2b3" }}>Unassigned</span>
                 )}
+              </div>
+
+              <div className="accountant-client-cell">
+                <span>{client.propertiesCount ?? 0}</span>
               </div>
 
               <div className="accountant-client-cell" style={{ flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
@@ -1214,6 +1232,37 @@ function AccountantClientsContent() {
               </div>
             ) : (
               <div className="accountant-invite-drawer-body">
+                {inviteError && (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      border: "1px solid #fda29b",
+                      background: "#fef3f2",
+                      color: "#b42318",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "8px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      style={{ width: "16px", height: "16px", flexShrink: 0, marginTop: "2px" }}
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{inviteError}</span>
+                  </div>
+                )}
+
                 <label>
                   <span>
                     Full Name <span className="imp">*</span>
@@ -1222,12 +1271,13 @@ function AccountantClientsContent() {
                     type="text"
                     placeholder="Enter client's full name"
                     value={inviteForm.fullName}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setInviteError("");
                       setInviteForm((current) => ({
                         ...current,
                         fullName: event.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                   />
                 </label>
 
@@ -1239,12 +1289,13 @@ function AccountantClientsContent() {
                     type="email"
                     placeholder="client@example.com"
                     value={inviteForm.email}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setInviteError("");
                       setInviteForm((current) => ({
                         ...current,
                         email: event.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                   />
                 </label>
 
@@ -1256,12 +1307,13 @@ function AccountantClientsContent() {
                     type="tel"
                     placeholder="+61 2 9342 5678"
                     value={inviteForm.phoneNumber}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setInviteError("");
                       setInviteForm((current) => ({
                         ...current,
                         phoneNumber: event.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                   />
                 </label>
 
