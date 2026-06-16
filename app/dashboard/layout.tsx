@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useState, useRef, type ReactNode } from "react";
 
@@ -558,12 +558,10 @@ export default function DashboardLayout({
     }
   }
 
-  // Auto prefetch when role is determined
-  useEffect(() => {
-    if (role) {
-      prefetchSearchData();
-    }
-  }, [role]);
+  // NOTE: search-bar autocomplete data is prefetched on search focus only (see
+  // the onFocus handler), not eagerly on mount — eager prefetch hit the
+  // fan-out /api/properties route on every dashboard load. Search will be
+  // rebuilt on a dedicated backend endpoint.
 
   // Click outside to dismiss suggestions
   useEffect(() => {

@@ -4,6 +4,7 @@ import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AccountantAccountSkeleton } from "../../../components/PortalSkeletons";
+import MfaSettings from "../../../components/MfaSettings";
 import { getSession } from "../../../../src/lib/session";
 
 interface SessionWithIdToken {
@@ -361,6 +362,8 @@ export default function AccountantAccountPage() {
               Contact Admin
             </button>
           </aside>
+
+          <MfaSettings email={email} />
         </div>
       </section>
     </Skeleton>

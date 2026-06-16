@@ -47,7 +47,37 @@ export function login(email: string, password: string) {
           userAttributes,
         });
       },
+
+      // User has TOTP enabled — pause and ask for the 6-digit code.
+      totpRequired: () => {
+        resolve({
+          type: "TOTP_REQUIRED",
+          user,
+        });
+      },
     });
+  });
+}
+
+// Complete a login that was paused on the TOTP challenge. Returns the same
+// SUCCESS shape as login() so callers can share the post-login path.
+export function sendMfaCode(user: CognitoUser, code: string) {
+  return new Promise((resolve, reject) => {
+    user.sendMFACode(
+      code,
+      {
+        onSuccess: (result) => {
+          resolve({
+            type: "SUCCESS",
+            idToken: result.getIdToken().getJwtToken(),
+            accessToken: result.getAccessToken().getJwtToken(),
+            result,
+          });
+        },
+        onFailure: (err) => reject(err),
+      },
+      "SOFTWARE_TOKEN_MFA",
+    );
   });
 }
 

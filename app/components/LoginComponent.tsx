@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, completeNewPassword } from "../../src/lib/auth";
+import { login, completeNewPassword, sendMfaCode } from "../../src/lib/auth";
 import { normalizeRoleName } from "../../src/lib/roleNames";
 import { saveSessionBootstrap } from "../../src/lib/sessionBootstrap";
 import { CognitoUser } from "amazon-cognito-identity-js";
@@ -27,7 +27,15 @@ interface LoginSuccessResult {
   idToken: string;
 }
 
-type LoginResult = NewPasswordResult | LoginSuccessResult;
+interface TotpRequiredResult {
+  type: "TOTP_REQUIRED";
+  user: CognitoUser;
+}
+
+type LoginResult =
+  | NewPasswordResult
+  | LoginSuccessResult
+  | TotpRequiredResult;
 
 // SET THIS TO false TO DISABLE THE PREMIUM FULL-SCREEN LOADING SCREEN AND TRANSITION DELAY
 const ENABLE_LOADING_TRANSITION = true;
@@ -94,9 +102,48 @@ export default function LoginComponent({
   const [user, setUser] = useState<CognitoUser | null>(null);
   const [attributes, setAttributes] = useState<Record<string, string>>({});
 
+  const [requireTotp, setRequireTotp] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const inviteBootstrapAttempted = useRef(false);
+
+  // Shared post-authentication path: set cookies, load profile, gate by role,
+  // redirect. Returns an error message to display, or null on success (in which
+  // case the redirect has been issued and loading should stay on).
+  const completeLogin = useCallback(
+    async (token: string): Promise<string | null> => {
+      document.cookie = `idToken=${token}; path=/`;
+      acceptInvitationInBackground(token);
+
+      const meResponse = await fetch("/api/users/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!meResponse.ok) {
+        return "Unable to load your profile. Contact your administrator.";
+      }
+
+      const me = await meResponse.json();
+      const apiRole = normalizeRoleName(me.role);
+
+      if (!allowedRoles.includes(apiRole)) {
+        return "You are not allowed to login here";
+      }
+
+      document.cookie = `role=${apiRole}; path=/`;
+      saveSessionBootstrap({
+        email: me.email,
+        role: apiRole,
+        orgName: me.orgName,
+      });
+
+      router.replace(getDashboardPath(apiRole));
+      return null;
+    },
+    [allowedRoles, router],
+  );
 
   const handleLogin = useCallback(
     async (
@@ -135,43 +182,26 @@ export default function LoginComponent({
           return;
         }
 
-        if (result.type === "SUCCESS") {
-          const token = result.idToken;
-
-          document.cookie = `idToken=${token}; path=/`;
-          acceptInvitationInBackground(token);
-
-          const meResponse = await fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (!meResponse.ok) {
-            await delayAtLeast2s();
-            setError("Unable to load your profile. Contact your administrator.");
-            setLoading(false);
-            return;
-          }
-
-          const me = await meResponse.json();
-          const apiRole = normalizeRoleName(me.role);
-
-          if (!allowedRoles.includes(apiRole)) {
-            await delayAtLeast2s();
-            setError("You are not allowed to login here");
-            setLoading(false);
-            return;
-          }
-
-          document.cookie = `role=${apiRole}; path=/`;
-          saveSessionBootstrap({
-            email: me.email,
-            role: apiRole,
-            orgName: me.orgName,
-          });
+        if (result.type === "TOTP_REQUIRED") {
+          setUser(result.user);
+          setRequireTotp(true);
+          setMfaCode("");
 
           await delayAtLeast2s();
-          router.replace(getDashboardPath(apiRole));
-          return; // Keep loading true during redirection to avoid flickering
+          setLoading(false);
+          return;
+        }
+
+        if (result.type === "SUCCESS") {
+          const errorMessage = await completeLogin(result.idToken);
+
+          await delayAtLeast2s();
+
+          if (errorMessage) {
+            setError(errorMessage);
+            setLoading(false);
+          }
+          return; // On success keep loading true during redirection to avoid flickering
         }
       } catch (error: unknown) {
         await delayAtLeast2s();
@@ -184,7 +214,7 @@ export default function LoginComponent({
 
       setLoading(false);
     },
-    [allowedRoles, email, password, router],
+    [completeLogin, email, password],
   );
 
   useEffect(() => {
@@ -237,6 +267,33 @@ export default function LoginComponent({
     }
 
     setLoading(false);
+  };
+
+  const handleSubmitTotp = async () => {
+    if (!user) return;
+
+    const code = mfaCode.trim();
+    if (!code) {
+      setError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = (await sendMfaCode(user, code)) as LoginSuccessResult;
+      const errorMessage = await completeLogin(result.idToken);
+
+      if (errorMessage) {
+        setError(errorMessage);
+        setLoading(false);
+      }
+      // On success keep loading true while the redirect happens.
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Invalid code. Please try again."));
+      setLoading(false);
+    }
   };
 
   const role = allowedRoles[0];
@@ -547,7 +604,7 @@ export default function LoginComponent({
                 </div>
               </div>
               <div className="lr-form">
-                {!requireNewPassword && (
+                {!requireNewPassword && !requireTotp && (
                   <form
                     className="login-form-wrap"
                     onSubmit={(e) => {
@@ -657,6 +714,41 @@ export default function LoginComponent({
                     <div className="login-submit">
                       <button type="submit" disabled={loading}>
                         {loading ? "Creating..." : "Create Password"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {requireTotp && (
+                  <form
+                    className="login-form-wrap"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleSubmitTotp();
+                    }}
+                  >
+                    <div className="login-element">
+                      <label htmlFor="mfa_code">Authentication Code</label>
+                      <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                        Enter the 6-digit code from your authenticator app.
+                      </p>
+                      <input
+                        type="text"
+                        id="mfa_code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="123456"
+                        value={mfaCode}
+                        onChange={(e) =>
+                          setMfaCode(e.target.value.replace(/\D/g, ""))
+                        }
+                        autoFocus
+                      />
+                    </div>
+                    <div className="login-submit">
+                      <button type="submit" disabled={loading}>
+                        {loading ? "Verifying..." : "Verify & Continue"}
                       </button>
                     </div>
                   </form>

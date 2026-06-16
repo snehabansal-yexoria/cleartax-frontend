@@ -9,7 +9,7 @@ import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
-import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import type { CoreEntity } from "@/src/lib/coreApi";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
@@ -313,21 +313,21 @@ function ClientDetailPageContent() {
       setSessionToken(token);
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fire parallel fetches
-      const [clientsRes, entitiesRes, meRes, accountantsRes] = await Promise.all([
-        fetch("/api/users/me/clients?scope=all", { headers }),
+      // One call for the client (no scope=all + find), the entities-with-counts
+      // call, plus current user + accountants. No per-entity fan-out.
+      const [clientRes, entitiesRes, meRes, accountantsRes] = await Promise.all([
+        fetch(`/api/users/me/clients/${encodeURIComponent(clientId)}`, { headers }),
         fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, { headers }),
         fetch("/api/users/me", { headers }),
         fetch("/api/users/me/accountants", { headers }),
       ]);
 
       let canLoadEntities = false;
-      if (clientsRes.ok) {
-        const data = (await clientsRes.json()) as { clients: ClientRecord[] };
-        const match = (data.clients || []).find((c) => c.id === clientId) ?? null;
-        setClient(match);
-        canLoadEntities = Boolean(match);
-        if (!match) {
+      if (clientRes.ok) {
+        const data = (await clientRes.json()) as { client: ClientRecord | null };
+        setClient(data.client ?? null);
+        canLoadEntities = Boolean(data.client);
+        if (!data.client) {
           setLoadError("Client portfolio not found or you are not authorized to view it.");
         }
       } else {
@@ -346,11 +346,10 @@ function ClientDetailPageContent() {
 
       setIsClientLoading(false);
 
-      // Initialize transactions loading state
-      setIsTransactionsLoading(true);
-      setTransactionsCounts({});
-
       if (!canLoadEntities) {
+        setEntities([]);
+        setPropertyCounts({});
+        setTransactionsCounts({});
         setIsEntitiesLoading(false);
         setIsTransactionsLoading(false);
         return;
@@ -360,40 +359,20 @@ function ClientDetailPageContent() {
         const data = (await entitiesRes.json()) as { items: CoreEntity[] };
         const loadedEntities = data.items || [];
         setEntities(loadedEntities);
-        setIsEntitiesLoading(false); // Show entity cards immediately
 
-        // Fire one property count fetch per entity independently — no await
-        for (const entity of loadedEntities) {
-          fetch(`/api/entities/${encodeURIComponent(entity.id)}/properties`, { headers })
-            .then((res) => (res.ok ? res.json() : { items: [] }))
-            .then((payload: { items?: CoreProperty[] }) => {
-              setPropertyCounts((prev) => ({
-                ...prev,
-                [entity.id]: payload.items?.length ?? 0,
-              }));
-            })
-            .catch(() => {
-              setPropertyCounts((prev) => ({ ...prev, [entity.id]: 0 }));
-            });
-        }
-
-        // Fetch transactions count per entity (asynchronously, no await)
-        for (const entity of loadedEntities) {
-          fetch(`/api/entities/${encodeURIComponent(entity.id)}/transactions`, { headers })
-            .then((res) => (res.ok ? res.json() : { items: [] }))
-            .then((payload: { items?: unknown[] }) => {
-              setTransactionsCounts((prev) => ({
-                ...prev,
-                [entity.id]: (payload.items || []).length ?? 0,
-              }));
-            })
-            .catch(() => {
-              setTransactionsCounts((prev) => ({ ...prev, [entity.id]: 0 }));
-            });
-        }
+        // Counts come straight off each entity (computed by the backend in the
+        // same /entities query) — no per-entity properties/transactions fetches.
+        setPropertyCounts(
+          Object.fromEntries(loadedEntities.map((e) => [e.id, e.propertiesCount ?? 0])),
+        );
+        setTransactionsCounts(
+          Object.fromEntries(loadedEntities.map((e) => [e.id, e.transactionsCount ?? 0])),
+        );
+        setIsEntitiesLoading(false);
         setIsTransactionsLoading(false);
       } else {
         setIsEntitiesLoading(false);
+        setIsTransactionsLoading(false);
       }
     } catch (error) {
       console.error("Failed to load client detail:", error);

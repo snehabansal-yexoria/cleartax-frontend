@@ -65,6 +65,8 @@ export type CoreEntity = {
   reconciled: boolean;
   reconciledAt: string | null;
   trustType?: string;
+  propertiesCount: number;
+  transactionsCount: number;
 };
 
 export type CorePropertyOwner = {
@@ -383,6 +385,91 @@ export async function listCoreUsers(token: string) {
   return getJsonArray(payload).map(normalizeCoreUser);
 }
 
+export interface CoreClient {
+  id: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  status: string;
+  joinedAt: string;
+  assignedAccountantId: string | null;
+  assignedAccountantName: string | null;
+  invitedByEmail: string;
+  propertiesCount: number;
+  totalMarketValue: number;
+  isAssignedToCurrentAccountant: boolean;
+  isAssignedToAnotherAccountant: boolean;
+}
+
+function normalizeCoreClient(raw: RawRecord): CoreClient {
+  const assignedId = raw.assigned_accountant_id ?? raw.assignedAccountantId;
+  const assignedName = raw.assigned_accountant_name ?? raw.assignedAccountantName;
+
+  return {
+    id: toStringValue(raw.id),
+    email: toStringValue(raw.email),
+    fullName: toStringValue(raw.full_name ?? raw.fullName),
+    phoneNumber: toStringValue(raw.phone_number ?? raw.phoneNumber),
+    status: toStringValue(raw.status),
+    joinedAt: toStringValue(raw.joined_at ?? raw.joinedAt),
+    assignedAccountantId: assignedId == null ? null : toStringValue(assignedId) || null,
+    assignedAccountantName:
+      assignedName == null ? null : toStringValue(assignedName) || null,
+    invitedByEmail: toStringValue(raw.invited_by_email ?? raw.invitedByEmail),
+    propertiesCount: toNumberValue(raw.properties_count ?? raw.propertiesCount) ?? 0,
+    totalMarketValue: toFloatValue(raw.total_market_value ?? raw.totalMarketValue),
+    isAssignedToCurrentAccountant: Boolean(
+      raw.is_assigned_to_current_accountant ?? raw.isAssignedToCurrentAccountant,
+    ),
+    isAssignedToAnotherAccountant: Boolean(
+      raw.is_assigned_to_another_accountant ?? raw.isAssignedToAnotherAccountant,
+    ),
+  };
+}
+
+// Server-side aggregate of org clients with property counts/values — replaces
+// the per-client entities + per-entity properties fan-out.
+export async function listCoreClients(
+  token: string,
+  params?: { scope?: "mine" | "all" },
+) {
+  const query = params?.scope === "mine" ? "?scope=mine" : "";
+  const payload = await coreApiRequest(`/clients${query}`, { token });
+  return getJsonArray(payload).map(normalizeCoreClient);
+}
+
+// Single enriched client by id — lets the detail page avoid pulling the whole
+// client list to find one row.
+export async function getCoreClient(token: string, id: string) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(id)}`,
+    { token },
+  );
+  return normalizeCoreClient(getJsonObject(payload));
+}
+
+// Dashboard stat-card numbers (counts/totals only — no client list).
+export interface CoreAccountantSummary {
+  pendingInvitations: number;
+  registeredClients: number;
+  managedClients: number;
+  totalProperties: number;
+  totalMarketValue: number;
+}
+
+export async function getCoreAccountantSummary(
+  token: string,
+): Promise<CoreAccountantSummary> {
+  const raw = getJsonObject(await coreApiRequest("/accountant/summary", { token }));
+  return {
+    pendingInvitations: toNumberValue(raw.pending_invitations) ?? 0,
+    registeredClients: toNumberValue(raw.registered_clients) ?? 0,
+    managedClients: toNumberValue(raw.managed_clients) ?? 0,
+    totalProperties: toNumberValue(raw.total_properties) ?? 0,
+    totalMarketValue: toFloatValue(raw.total_market_value),
+  };
+}
+
 export async function createCoreUser(
   token: string,
   body: Record<string, unknown>,
@@ -456,6 +543,8 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
     reconciled: Boolean(raw.reconciled ?? false),
     reconciledAt: raw.reconciled_at != null ? toStringValue(raw.reconciled_at) : null,
     trustType: raw.trust_type != null ? toStringValue(raw.trust_type) : undefined,
+    propertiesCount: toNumberValue(raw.properties_count ?? raw.propertiesCount) ?? 0,
+    transactionsCount: toNumberValue(raw.transactions_count ?? raw.transactionsCount) ?? 0,
   };
 }
 

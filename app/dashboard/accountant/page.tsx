@@ -3,7 +3,7 @@
 import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getSession } from "@/src/lib/session";
 
 interface SessionWithIdToken {
@@ -31,16 +31,17 @@ interface ClientRecord {
   assignedAccountantName?: string;
   isAssignedToCurrentAccountant?: boolean;
   isAssignedToAnotherAccountant?: boolean;
+  propertiesCount?: number;
+  totalMarketValue?: number;
 }
 
-interface CurrentUserResponse {
-  id: string;
-  email: string;
-  fullName: string;
-  role: string;
+interface DashboardSummary {
+  pendingInvitations: number;
+  registeredClients: number;
+  managedClients: number;
+  totalProperties: number;
+  totalMarketValue: number;
 }
-
-const pendingStatuses = new Set(["invited", "pending"]);
 
 function getInitials(name: string) {
   const parts = name
@@ -74,13 +75,11 @@ function formatCurrency(value: number) {
 export default function AccountantPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
   const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
-  const [summaryStats, setSummaryStats] = useState<{
-    totalProperties: number;
-    totalMarketValue: number;
-  } | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  // Unassigned clients for the "add to my list" nudge — loaded lazily only when
+  // the empty state is shown, so the dashboard never queries all clients on load.
+  const [availableClients, setAvailableClients] = useState<ClientRecord[] | null>(null);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [selectedAvailableClientId, setSelectedAvailableClientId] =
     useState("");
@@ -97,13 +96,6 @@ export default function AccountantPage() {
       const token = session.getIdToken().getJwtToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      fetch("/api/users/me", { headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: CurrentUserResponse | null) => {
-          if (!cancelled) setCurrentUserEmail(String(data?.email || "").toLowerCase());
-        })
-        .catch(() => { if (!cancelled) setCurrentUserEmail(""); });
-
       fetch("/api/users/me/organization", { headers })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: OrganizationResponse | null) => {
@@ -111,61 +103,86 @@ export default function AccountantPage() {
         })
         .catch(() => { if (!cancelled) setOrganizationName(""); });
 
-      fetch("/api/users/me/clients?scope=all", { headers })
-        .then((res) => (res.ok ? res.json() : { clients: [] }))
-        .then((data: { clients?: ClientRecord[] }) => {
-          if (!cancelled) setAllClients(data.clients || []);
+      // Stat-card numbers come from the summary endpoint (aggregates only — no
+      // client list). pending_invitations is org-wide; the rest are my counts.
+      fetch("/api/users/me/accountant-summary", { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: DashboardSummary | null) => {
+          if (cancelled) return;
+          setSummary(
+            data ?? {
+              pendingInvitations: 0,
+              registeredClients: 0,
+              managedClients: 0,
+              totalProperties: 0,
+              totalMarketValue: 0,
+            },
+          );
         })
-        .catch(() => { if (!cancelled) setAllClients([]); });
+        .catch(() => {
+          if (!cancelled)
+            setSummary({
+              pendingInvitations: 0,
+              registeredClients: 0,
+              managedClients: 0,
+              totalProperties: 0,
+              totalMarketValue: 0,
+            });
+        });
 
+      // Client Management list = my clients only.
       fetch("/api/users/me/clients?scope=mine", { headers })
         .then((res) => (res.ok ? res.json() : { clients: [] }))
         .then((data: { clients?: ClientRecord[] }) => {
           if (!cancelled) setMyClients(data.clients || []);
         })
         .catch(() => { if (!cancelled) setMyClients([]); });
-
-      fetch("/api/users/me/accountant-summary", { headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: { totalProperties: number; totalMarketValue: number } | null) => {
-          if (!cancelled) setSummaryStats(data || { totalProperties: 0, totalMarketValue: 0 });
-        })
-        .catch(() => { if (!cancelled) setSummaryStats({ totalProperties: 0, totalMarketValue: 0 }); });
     }).catch(() => { });
 
     return () => { cancelled = true; };
   }, []);
 
-  const invitationPending = useMemo(
-    () =>
-      (allClients ?? []).filter((client) => {
-        const status = client.status.toLowerCase();
-        return pendingStatuses.has(status);
-      }).length,
-    [allClients],
-  );
-
-  const registeredClients = useMemo(
-    () =>
-      (myClients ?? []).filter(
-        (client) => !pendingStatuses.has(client.status.toLowerCase()),
-      ).length,
-    [myClients],
-  );
-
+  const invitationPending = summary?.pendingInvitations ?? 0;
+  const registeredClients = summary?.registeredClients ?? 0;
   const managedClients = myClients ?? [];
+  const suggestedClients = (availableClients ?? []).slice(0, 3);
 
-  const availableClients = useMemo(
-    () =>
-      (allClients ?? []).filter(
-        (client) =>
-          !client.isAssignedToCurrentAccountant &&
-          !client.isAssignedToAnotherAccountant,
-      ),
-    [allClients],
-  );
+  // Stat-card totals, in the shape the cards already read.
+  const summaryStats = summary
+    ? {
+        totalProperties: summary.totalProperties,
+        totalMarketValue: summary.totalMarketValue,
+      }
+    : null;
 
-  const suggestedClients = availableClients.slice(0, 3);
+  // Lazily load unassigned clients for the "add to my list" nudge — only when
+  // the empty state is on screen, never on the normal (has-clients) dashboard.
+  const loadAvailableClients = useCallback(async () => {
+    if (availableClients !== null) return;
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/clients?scope=all", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const clients = (res.ok ? (await res.json()).clients : []) as ClientRecord[];
+      setAvailableClients(
+        clients.filter(
+          (c) =>
+            !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant,
+        ),
+      );
+    } catch {
+      setAvailableClients([]);
+    }
+  }, [availableClients]);
+
+  useEffect(() => {
+    if (myClients !== null && managedClients.length === 0) {
+      void loadAvailableClients();
+    }
+  }, [myClients, managedClients.length, loadAvailableClients]);
 
   async function handleAssignSuggestedClient() {
     if (!selectedAvailableClientId || isAssigningClient) {
@@ -207,7 +224,7 @@ export default function AccountantPage() {
     }
   }
 
-  const summaryLoading = allClients === null || myClients === null || summaryStats === null;
+  const summaryLoading = summary === null || myClients === null;
 
   return (
     <section className="accountant-dashboard">

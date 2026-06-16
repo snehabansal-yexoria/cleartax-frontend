@@ -272,7 +272,9 @@ function StaticSelect({
 function AccountantClientsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentTab, setCurrentTab] = useState<ClientTab>("all");
+  const [currentTab, setCurrentTab] = useState<ClientTab>(
+    searchParams.get("tab") === "mine" ? "mine" : "all",
+  );
   const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
   const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
   const [searchValue, setSearchValue] = useState("");
@@ -342,50 +344,52 @@ function AccountantClientsContent() {
     }
   }, [accountants]);
 
-  // Used by mutation handlers (invite, assign) to refresh both lists after a write
+  // Fetch one tab's clients from the backend (scope=mine returns only the
+  // accountant's assigned clients; scope=all returns the whole org).
+  const fetchScope = useCallback(async (scope: "all" | "mine") => {
+    const session = (await getSession()) as SessionWithIdToken | null;
+    if (!session) return [] as ClientRecord[];
+    const token = session.getIdToken().getJwtToken();
+    const res = await fetch(`/api/users/me/clients?scope=${scope}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return (res.ok ? (await res.json()).clients || [] : []) as ClientRecord[];
+  }, []);
+
+  // Load a tab's data only if it hasn't been loaded yet (lazy per-tab).
+  const ensureTabLoaded = useCallback(
+    async (tab: ClientTab) => {
+      if (tab === "all") {
+        if (allClients !== null) return;
+        setAllClients(await fetchScope("all"));
+      } else {
+        if (myClients !== null) return;
+        setMyClients(await fetchScope("mine"));
+      }
+    },
+    [allClients, myClients, fetchScope],
+  );
+
+  // Refresh after a write (invite/assign/transfer) — refetch whichever tab(s)
+  // are currently loaded so the visible list reflects the change.
   const loadClients = useCallback(async () => {
     try {
-      const session = (await getSession()) as SessionWithIdToken | null;
-      if (!session) return;
-      const token = session.getIdToken().getJwtToken();
-      const [allRes, myRes] = await Promise.all([
-        fetch("/api/users/me/clients?scope=all", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("/api/users/me/clients?scope=mine", { headers: { Authorization: `Bearer ${token}` } }),
+      const [all, mine] = await Promise.all([
+        allClients !== null ? fetchScope("all") : Promise.resolve(null),
+        myClients !== null ? fetchScope("mine") : Promise.resolve(null),
       ]);
-      if (allRes.ok) setAllClients((await allRes.json()).clients || []);
-      if (myRes.ok) setMyClients((await myRes.json()).clients || []);
+      if (all !== null) setAllClients(all);
+      if (mine !== null) setMyClients(mine);
     } catch (error) {
       console.error("Failed to load clients:", error);
     }
-  }, []);
+  }, [allClients, myClients, fetchScope]);
 
-  // Initial load — fire both fetches independently so each list renders as soon as it arrives
+  // Load the active tab's data on mount and whenever the tab changes. The guard
+  // in ensureTabLoaded prevents refetching an already-loaded tab.
   useEffect(() => {
-    let cancelled = false;
-
-    getSession().then((rawSession) => {
-      const session = rawSession as SessionWithIdToken | null;
-      if (!session || cancelled) return;
-      const token = session.getIdToken().getJwtToken();
-      const headers = { Authorization: `Bearer ${token}` };
-
-      fetch("/api/users/me/clients?scope=all", { headers })
-        .then((res) => (res.ok ? res.json() : { clients: [] }))
-        .then((data: { clients?: ClientRecord[] }) => {
-          if (!cancelled) setAllClients(data.clients || []);
-        })
-        .catch(() => { if (!cancelled) setAllClients([]); });
-
-      fetch("/api/users/me/clients?scope=mine", { headers })
-        .then((res) => (res.ok ? res.json() : { clients: [] }))
-        .then((data: { clients?: ClientRecord[] }) => {
-          if (!cancelled) setMyClients(data.clients || []);
-        })
-        .catch(() => { if (!cancelled) setMyClients([]); });
-    }).catch(() => { });
-
-    return () => { cancelled = true; };
-  }, []);
+    void ensureTabLoaded(currentTab);
+  }, [currentTab, ensureTabLoaded]);
 
   const visibleClients = useMemo(() => {
     const source =
