@@ -36,6 +36,7 @@ export default function InviteUserByAdmin() {
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function handleCopy(text: string, setCopiedState: (v: boolean) => void) {
     void navigator.clipboard.writeText(text);
@@ -44,8 +45,12 @@ export default function InviteUserByAdmin() {
   }
 
   async function createUser() {
+    setError(null);
+    setInviteLink("");
+    setTempPassword("");
+
     if (!email || !email.includes("@")) {
-      alert("Please enter a valid email address.");
+      setError("Please enter a valid email address.");
       return;
     }
 
@@ -55,7 +60,7 @@ export default function InviteUserByAdmin() {
       const session = (await getSession()) as SessionWithIdToken | null;
 
       if (!session) {
-        alert("Session expired. Please login again.");
+        setError("Session expired. Please login again.");
         return;
       }
 
@@ -76,7 +81,7 @@ export default function InviteUserByAdmin() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Failed to create user");
+        setError(data.error || "Failed to create user");
         return;
       }
 
@@ -92,9 +97,9 @@ export default function InviteUserByAdmin() {
       );
 
       setEmail("");
-    } catch (error) {
-      console.error("Invite error:", error);
-      alert("Something went wrong while creating the user.");
+    } catch (err) {
+      console.error("Invite error:", err);
+      setError("Something went wrong while creating the user.");
     } finally {
       setLoading(false);
     }
@@ -383,6 +388,89 @@ export default function InviteUserByAdmin() {
             transform: translateY(0);
           }
         }
+
+        .portal-secondary-link {
+          white-space: nowrap;
+          flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .portal-secondary-link svg {
+          transition: transform 0.2s ease;
+        }
+        
+        .portal-secondary-link:hover svg {
+          transform: translateX(-4px);
+        }
+
+        .error-alert {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          background: #fef2f2;
+          border: 1px solid #fee2e2;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .error-alert-content {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        
+        .error-alert-icon {
+          color: #ef4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 2px;
+          flex-shrink: 0;
+        }
+        
+        .error-alert-text {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        
+        .error-alert-title {
+          font-weight: 700;
+          font-size: 0.88rem;
+          color: #991b1b;
+        }
+        
+        .error-alert-desc {
+          font-size: 0.8rem;
+          color: #b91c1c;
+          margin: 0;
+          line-height: 1.4;
+        }
+        
+        .error-alert-close {
+          background: transparent;
+          border: none;
+          color: #f87171;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+          margin-top: -2px;
+        }
+        
+        .error-alert-close:hover {
+          background: rgba(239, 68, 68, 0.08);
+          color: #b91c1c;
+        }
       `}</style>
 
       <div className="invite-container">
@@ -394,11 +482,44 @@ export default function InviteUserByAdmin() {
           </div>
 
           <Link href="/dashboard/admin" className="portal-secondary-link">
-            Back to Dashboard
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            <span>Back to Dashboard</span>
           </Link>
         </div>
 
         <div className="premium-card">
+          {error && (
+            <div className="error-alert">
+              <div className="error-alert-content">
+                <div className="error-alert-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div className="error-alert-text">
+                  <span className="error-alert-title">Invitation Error</span>
+                  <p className="error-alert-desc">{error}</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                className="error-alert-close" 
+                onClick={() => setError(null)} 
+                aria-label="Dismiss error"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           <div className="custom-input-group">
             <span className="custom-input-label">Select Workspace Role</span>
             <div className="role-grid">
@@ -519,57 +640,78 @@ export default function InviteUserByAdmin() {
 
         {inviteLink && (
           <div className="success-card">
-            <div className="success-badge">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>Member Account Provisioned</span>
-            </div>
-            
-            <h3 style={{ color: "#0f172a", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
-              Invitation Ready to Send
-            </h3>
+            {role === "regional_manager" ? (
+              <>
+                <div className="success-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Reg. Manager Created</span>
+                </div>
 
-            <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "16px" }}>
-              The account credentials have been successfully created. Copy and share the secure login link below with the user.
-            </p>
+                <h3 style={{ color: "#0f172a", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
+                  User Created Successfully
+                </h3>
 
-            <div>
-              <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Secure Invite Link</span>
-              <div className="copy-box">
-                <span className="copy-box-text">{inviteLink}</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(inviteLink, setCopiedLink)}
-                  className={`copy-btn${copiedLink ? " copied" : ""}`}
-                >
-                  {copiedLink ? "Copied!" : (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                      Copy
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+                <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "0px" }}>
+                  The user has been created successfully.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="success-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Member Account Provisioned</span>
+                </div>
 
-            <div>
-              <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Backup Temporary Password</span>
-              <div className="password-pre">
-                <span>{tempPassword}</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(tempPassword, setCopiedPassword)}
-                  className={`copy-btn${copiedPassword ? " copied" : ""}`}
-                  style={{ background: "#ffffff" }}
-                >
-                  {copiedPassword ? "Copied!" : "Copy"}
-                </button>
-              </div>
-            </div>
+                <h3 style={{ color: "#0f172a", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
+                  Invitation Ready to Send
+                </h3>
+
+                <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "16px" }}>
+                  The account credentials have been successfully created. Copy and share the secure login link below with the user.
+                </p>
+
+                <div>
+                  <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Secure Invite Link</span>
+                  <div className="copy-box">
+                    <span className="copy-box-text">{inviteLink}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(inviteLink, setCopiedLink)}
+                      className={`copy-btn${copiedLink ? " copied" : ""}`}
+                    >
+                      {copiedLink ? "Copied!" : (
+                        <>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Backup Temporary Password</span>
+                  <div className="password-pre">
+                    <span>{tempPassword}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(tempPassword, setCopiedPassword)}
+                      className={`copy-btn${copiedPassword ? " copied" : ""}`}
+                      style={{ background: "#ffffff" }}
+                    >
+                      {copiedPassword ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

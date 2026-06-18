@@ -860,8 +860,10 @@ function AccountantClientsContent() {
                 )}
               </div>
 
-              <div className="accountant-client-cell">
-                <span>{client.propertiesCount ?? 0}</span>
+              <div className="accountant-client-cell flex justify-center">
+                <span className="inline-flex items-center justify-center px-[10px] py-[3px] rounded-lg bg-[#f0f3fa] text-[#2f3c82] font-bold text-[13px] min-w-[32px] border border-[#e1e7f3] transition-all duration-150 ease-in-out group-hover:bg-[#e5ecfb] group-hover:border-[#cbd5e1] group-hover:text-[#2f3c82]">
+                  {client.propertiesCount ?? 0}
+                </span>
               </div>
 
               <div className="accountant-client-cell" style={{ flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
