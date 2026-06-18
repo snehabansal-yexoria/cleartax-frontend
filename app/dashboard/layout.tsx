@@ -80,27 +80,27 @@ type PortalMenuItem = {
 function DashboardShellSkeleton() {
   return (
     <div className="accountant-shell dashboard-shell-skeleton">
-      <aside className="accountant-sidebar accountant-sidebar-skeleton">
-        <div className="accountant-sidebar-top">
-          <div className="accountant-sidebar-header">
-            <div className="skeleton-circle skeleton-circle-brand" />
+      <aside className="w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-[#ffffff]/80 border border-[#ced5ec]/80 pt-7 pb-4 px-3.5 flex flex-col justify-between transition-all duration-300 ease-in-out group/sidebar z-30">
+        <div className="flex flex-col gap-9 w-full">
+          <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
+            <div className="w-11 h-11 rounded-xl bg-slate-200 animate-pulse" />
           </div>
 
-          <nav className="accountant-nav" aria-label="Loading navigation">
+          <nav className="flex flex-col gap-2" aria-label="Loading navigation">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="dashboard-nav-skeleton-item">
-                <div className="skeleton-circle skeleton-circle-nav" />
-                <div className="skeleton-line dashboard-nav-skeleton-label" />
+              <div key={index} className="w-full h-12 px-2.5 py-2.5 flex items-center justify-start gap-3.5">
+                <div className="w-11 h-11 rounded-lg bg-slate-200 animate-pulse" />
+                <div className="w-24 h-4 bg-slate-200 rounded animate-pulse opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden" />
               </div>
             ))}
           </nav>
         </div>
 
-        <div className="accountant-sidebar-footer">
-          <div className="skeleton-circle skeleton-circle-sm" />
-          <div className="skeleton-stack dashboard-sidebar-profile-skeleton">
-            <div className="skeleton-line skeleton-line-md" />
-            <div className="skeleton-line skeleton-line-sm" />
+        <div className="flex items-center gap-3.5 w-full justify-start px-1.5 pt-4 border-t border-slate-200">
+          <div className="w-11 h-11 rounded-full bg-slate-200 animate-pulse" />
+          <div className="flex flex-col gap-1.5 text-left opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden">
+            <div className="w-20 h-3.5 bg-slate-200 rounded animate-pulse" />
+            <div className="w-16 h-2.5 bg-slate-200 rounded animate-pulse" />
           </div>
         </div>
       </aside>
@@ -195,6 +195,7 @@ const accountantMenuItems: PortalMenuItem[] = [
   },
   {
     id: "tasks",
+    href: "/dashboard/accountant/task",
     label: "Tasks",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -746,7 +747,7 @@ export default function DashboardLayout({
     router.push(`/dashboard?search=${encodeURIComponent(query)}`);
   }
 
-  function renderPortalMenuItem(item: PortalMenuItem) {
+  function renderPortalMenuItem(item: PortalMenuItem, isMobile: boolean = false) {
     const hrefPath = item.href ? item.href.split("?")[0] : "";
     const isActive = hrefPath
       ? hrefPath === "/dashboard/accountant" ||
@@ -757,16 +758,57 @@ export default function DashboardLayout({
         : pathname.startsWith(hrefPath)
       : false;
 
+    if (isMobile) {
+      if (!item.href) {
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className="accountant-nav-item accountant-nav-item-static"
+            aria-label={item.label}
+          >
+            <span className="accountant-nav-icon">{item.icon}</span>
+            <span className="accountant-nav-label">{item.label}</span>
+          </button>
+        );
+      }
+
+      return (
+        <Link
+          key={item.id}
+          href={item.href}
+          className={`accountant-nav-item${isActive ? " is-active" : ""}`}
+          aria-label={item.label}
+          onClick={() => setIsMobileNavOpen(false)}
+        >
+          <span className="accountant-nav-icon">{item.icon}</span>
+          <span className="accountant-nav-label">{item.label}</span>
+        </Link>
+      );
+    }
+
+    // Desktop styling with Tailwind
+    const navItemClass = `w-full h-12 px-2.5 py-2.5 rounded-xl flex items-center justify-start gap-3.5 transition-all duration-200 ${isActive
+      ? "bg-white text-[#2f3c82] shadow-lg shadow-black/10"
+      : "text-white/85 hover:text-white hover:bg-white/8"
+      }`;
+
+    const iconWrapperClass = `w-11 h-11 min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-[#2f3c82]" : "text-white/85"
+      }`;
+
+    const labelClass = `font-medium text-base tracking-wide transition-all duration-300 ${isActive ? "text-[#2f3c82]" : "text-white/85"
+      } opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`;
+
     if (!item.href) {
       return (
         <button
           key={item.id}
           type="button"
-          className="accountant-nav-item accountant-nav-item-static"
+          className={navItemClass}
           aria-label={item.label}
         >
-          <span className="accountant-nav-icon">{item.icon}</span>
-          <span className="accountant-nav-label">{item.label}</span>
+          <span className={iconWrapperClass}>{item.icon}</span>
+          <span className={labelClass}>{item.label}</span>
         </button>
       );
     }
@@ -775,12 +817,11 @@ export default function DashboardLayout({
       <Link
         key={item.id}
         href={item.href}
-        className={`accountant-nav-item${isActive ? " is-active" : ""}`}
+        className={navItemClass}
         aria-label={item.label}
-        onClick={() => setIsMobileNavOpen(false)}
       >
-        <span className="accountant-nav-icon">{item.icon}</span>
-        <span className="accountant-nav-label">{item.label}</span>
+        <span className={iconWrapperClass}>{item.icon}</span>
+        <span className={labelClass}>{item.label}</span>
       </Link>
     );
   }
@@ -798,11 +839,11 @@ export default function DashboardLayout({
   ) {
     return (
       <div className="accountant-shell">
-        <aside className="accountant-sidebar">
-          <div className="accountant-sidebar-top">
-            <div className="accountant-sidebar-header">
-              <div className="accountant-brand">
-                <div className="accountant-brand-icon">
+        <aside className="w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30">
+          <div className="flex flex-col gap-9 w-full">
+            <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
+              <div className="flex items-center gap-3.5 w-full">
+                <div className="w-11 h-11 min-w-11 flex items-center justify-center rounded-xl bg-gradient-to-b from-[#fbb228] to-[#f4a117] text-[#24316e] shadow-lg shadow-[#f4a117]/20 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="5" y="5" width="6" height="6" rx="1.2" />
                     <rect x="13" y="5" width="6" height="6" rx="1.2" />
@@ -810,23 +851,23 @@ export default function DashboardLayout({
                     <rect x="13" y="13" width="6" height="6" rx="1.2" />
                   </svg>
                 </div>
-                <div className="accountant-brand-copy">
+                <div className="flex flex-col text-left font-extrabold text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap">
                   <span>Clear <br /> Portfolio</span>
                 </div>
               </div>
             </div>
 
-            <nav className="accountant-nav">
-              {portalMenuItems.map(renderPortalMenuItem)}
+            <nav className="flex flex-col gap-2">
+              {portalMenuItems.map((item) => renderPortalMenuItem(item, false))}
             </nav>
           </div>
 
-          <div className="accountant-sidebar-footer">
-            <div className="accountant-avatar accountant-avatar-small">
+          <div className="flex items-center gap-3.5 w-full justify-start px-1.5 pt-4 border-t border-white/10">
+            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm">
               {initials}
             </div>
-            <div className="accountant-profile-copy">
-              <strong>
+            <div className="flex flex-col text-left opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden min-w-0">
+              <strong className="text-white font-semibold text-sm truncate">
                 {role === "super_admin"
                   ? "Super Admin Portal"
                   : role === "admin"
@@ -835,7 +876,7 @@ export default function DashboardLayout({
                       ? "Client Portal"
                       : "Accountant Portal"}
               </strong>
-              <span>{portalSubtitle}</span>
+              <span className="text-white/60 text-xs truncate">{portalSubtitle}</span>
             </div>
           </div>
         </aside>
@@ -857,7 +898,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          <header className="accountant-topbar border border-2 border-red-200">
+          <header className="accountant-topbar">
             <div className="accountant-search-container" ref={searchRef}>
               <form className="accountant-search" onSubmit={handleGlobalSearch}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -866,7 +907,7 @@ export default function DashboardLayout({
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search clients, transactions, or properties..."
+                  placeholder="Search clients, properties..."
                   aria-label="Search accountant dashboard"
                   value={globalSearch}
                   onChange={(event) => setGlobalSearch(event.target.value)}
@@ -940,7 +981,7 @@ export default function DashboardLayout({
             </div>
 
             <div className="accountant-topbar-actions">
-              <button
+              {/* <button
                 type="button"
                 className="accountant-icon-button"
                 aria-label="Notifications"
@@ -949,7 +990,7 @@ export default function DashboardLayout({
                   <path d="M15 17H5l1.4-1.4A2 2 0 0 0 7 14.2V10a5 5 0 0 1 10 0v4.2a2 2 0 0 0 .6 1.4L19 17h-4" />
                   <path d="M10 20a2 2 0 0 0 4 0" />
                 </svg>
-              </button>
+              </button> */}
 
               <div className="accountant-header-profile" ref={profileMenuRef}>
                 <button
@@ -1036,7 +1077,7 @@ export default function DashboardLayout({
               onClick={() => setIsMobileNavOpen(false)}
             />
 
-            <aside className="accountant-mobile-nav-sheet">
+            <aside className="accountant-mobile-nav-sheet border border-red-900">
               <div className="accountant-mobile-nav-header">
                 <div>
                   <strong>Clear Portfolio</strong>
@@ -1063,7 +1104,7 @@ export default function DashboardLayout({
               </div>
 
               <nav className="accountant-mobile-nav-list">
-                {portalMenuItems.map(renderPortalMenuItem)}
+                {portalMenuItems.map((item) => renderPortalMenuItem(item, true))}
               </nav>
             </aside>
           </div>
