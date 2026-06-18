@@ -103,6 +103,37 @@ export type CoreProperty = {
   owners: CorePropertyOwner[];
 };
 
+export type CoreTaskStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+export type CoreTaskPerson = {
+  id: string;
+  name: string;
+};
+
+export type CoreTask = {
+  id: string;
+  orgId: string;
+  name: string;
+  description: string;
+  assignedBy: CoreTaskPerson;
+  assignedTo: CoreTaskPerson;
+  deadline: string;
+  status: CoreTaskStatus;
+  actionFeedback: string | null;
+  completedAt: string | null;
+  // Derived per caller by the backend: "my" (caller is assignee) or
+  // "assigned" (caller is assigner).
+  type: "my" | "assigned";
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 function getCoreApiBaseUrl() {
   const baseUrl =
     process.env.CORE_API_BASE_URL || process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
@@ -593,6 +624,91 @@ export async function updateCoreEntity(
 
 export async function deleteCoreEntity(token: string, id: string) {
   await coreApiRequest(`/entities/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+function normalizeCoreTaskPerson(raw: unknown): CoreTaskPerson {
+  if (typeof raw !== "object" || raw === null) {
+    return { id: toStringValue(raw), name: "" };
+  }
+  const record = raw as RawRecord;
+  return {
+    id: toStringValue(record.id),
+    name: toStringValue(record.name),
+  };
+}
+
+export function normalizeCoreTask(raw: RawRecord): CoreTask {
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    name: toStringValue(raw.name),
+    description: toStringValue(raw.description),
+    assignedBy: normalizeCoreTaskPerson(raw.assigned_by ?? raw.assignedBy),
+    assignedTo: normalizeCoreTaskPerson(raw.assigned_to ?? raw.assignedTo),
+    deadline: toStringValue(raw.deadline),
+    status: (toStringValue(raw.status).toLowerCase() ||
+      "pending") as CoreTaskStatus,
+    actionFeedback:
+      raw.action_feedback == null && raw.actionFeedback == null
+        ? null
+        : toStringValue(raw.action_feedback ?? raw.actionFeedback) || null,
+    completedAt:
+      raw.completed_at == null && raw.completedAt == null
+        ? null
+        : toStringValue(raw.completed_at ?? raw.completedAt) || null,
+    type: toStringValue(raw.type) === "assigned" ? "assigned" : "my",
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy:
+      raw.updated_by == null && raw.updatedBy == null
+        ? null
+        : toStringValue(raw.updated_by ?? raw.updatedBy) || null,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export async function listCoreTasks(
+  token: string,
+  params?: { type?: string; status?: string },
+) {
+  const query = new URLSearchParams();
+  if (params?.type) query.set("type", params.type);
+  if (params?.status) query.set("status", params.status);
+  const qs = query.toString();
+  const payload = await coreApiRequest(`/tasks${qs ? `?${qs}` : ""}`, { token });
+  return getJsonArray(payload).map(normalizeCoreTask);
+}
+
+export async function createCoreTask(
+  token: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest("/tasks", {
+    method: "POST",
+    token,
+    body,
+  });
+  return normalizeCoreTask(getJsonObject(payload));
+}
+
+export async function updateCoreTask(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const payload = await coreApiRequest(`/tasks/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    token,
+    body,
+  });
+  return normalizeCoreTask(getJsonObject(payload));
+}
+
+export async function deleteCoreTask(token: string, id: string) {
+  await coreApiRequest(`/tasks/${encodeURIComponent(id)}`, {
     method: "DELETE",
     token,
   });

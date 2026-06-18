@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { getSession } from "../../../../src/lib/session";
+
+interface SessionWithIdToken {
+    getIdToken(): {
+        getJwtToken(): string;
+    };
+}
 
 interface Person {
     id: string;
@@ -10,7 +17,7 @@ interface Person {
 }
 
 interface Task {
-    id: number;
+    id: string;
     name: string;
     description: string;
     assignedBy?: Person;
@@ -21,71 +28,43 @@ interface Task {
     type: "my" | "assigned";
 }
 
-const TEAM_MEMBERS: Person[] = [
-    { id: "sarah-johnson", name: "Sarah Johnson (Me)" },
-    { id: "emily-torres", name: "Emily Torres" },
-    { id: "michael-chen", name: "Michael Chen" },
-    { id: "david-okafor", name: "David Okafor" },
-    { id: "priya-sharma", name: "Priya Sharma" },
-];
+// Shape returned by /api/tasks (normalized CoreTask).
+interface ApiTaskPerson {
+    id: string;
+    name: string;
+}
+interface ApiTask {
+    id: string;
+    name: string;
+    description: string;
+    assignedBy: ApiTaskPerson;
+    assignedTo: ApiTaskPerson;
+    deadline: string;
+    status: string;
+    actionFeedback: string | null;
+    type: "my" | "assigned";
+}
 
-const INITIAL_TASKS: Task[] = [
-    {
-        id: 1,
-        name: "Q2 Tax Filing Review",
-        description: "Review all documents submitted for Q2 tax filing and flag discrepancies.",
-        assignedBy: { id: "michael-chen", name: "Michael Chen" },
-        deadline: "15 Jul 2024",
-        status: "Pending",
-        type: "my",
-    },
-    {
-        id: 2,
-        name: "Client Ledger Reconciliation",
-        description: "Reconcile the ledger entries for Smith Family Trust for FY 2023–24.",
-        assignedBy: { id: "priya-sharma", name: "Priya Sharma" },
-        deadline: "20 Jul 2024",
-        status: "Pending",
-        type: "my",
-    },
-    {
-        id: 3,
-        name: "GST Return Submission",
-        description: "Prepare and submit the monthly GST return for ABC Properties LLC.",
-        assignedBy: { id: "david-okafor", name: "David Okafor" },
-        deadline: "10 Jul 2024",
-        status: "Completed",
-        actionFeedback: "Submitted successfully via portal.",
-        type: "my",
-    },
-    {
-        id: 4,
-        name: "Audit Trail Documentation",
-        description: "Compile audit trail documents for the last 3 quarters for partner review.",
-        assignedTo: { id: "emily-torres", name: "Emily Torres" },
-        deadline: "18 Jul 2024",
-        status: "Pending",
-        type: "assigned",
-    },
-    {
-        id: 5,
-        name: "Payroll Verification",
-        description: "Verify June payroll disbursements match approved salary structures.",
-        assignedTo: { id: "michael-chen", name: "Michael Chen" },
-        deadline: "12 Jul 2024",
-        status: "Completed",
-        type: "assigned",
-    },
-    {
-        id: 6,
-        name: "Depreciation Schedule Update",
-        description: "Update asset depreciation schedule for new acquisitions this quarter.",
-        assignedTo: { id: "david-okafor", name: "David Okafor" },
-        deadline: "22 Jul 2024",
-        status: "Pending",
-        type: "assigned",
-    },
-];
+const formatDeadline = (dateString: string) => {
+    if (!dateString) return "";
+    const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+    return new Date(dateString).toLocaleDateString("en-GB", options);
+};
+
+const personOrUndefined = (p: ApiTaskPerson): Person | undefined =>
+    p && p.id ? { id: p.id, name: p.name || p.id } : undefined;
+
+const toUiTask = (t: ApiTask): Task => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    assignedBy: personOrUndefined(t.assignedBy),
+    assignedTo: personOrUndefined(t.assignedTo),
+    deadline: formatDeadline(t.deadline),
+    status: t.status === "completed" ? "Completed" : "Pending",
+    actionFeedback: t.actionFeedback ?? undefined,
+    type: t.type,
+});
 
 const getInitials = (nameStr: string) => {
     const cleanName = nameStr.replace(/\(Me\)/i, "").trim();
@@ -113,14 +92,17 @@ const getAvatarColorClass = (id: string) => {
 };
 
 export default function TaskManagementPage() {
-    const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [teamMembers, setTeamMembers] = useState<Person[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"my" | "assigned">("my");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const [newTaskName, setNewTaskName] = useState("");
     const [newTaskDesc, setNewTaskDesc] = useState("");
-    const [newTaskAssignee, setNewTaskAssignee] = useState<Person>(TEAM_MEMBERS[0]);
+    const [newTaskAssignee, setNewTaskAssignee] = useState<Person | null>(null);
     const [newTaskDeadline, setNewTaskDeadline] = useState("");
 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -134,10 +116,60 @@ export default function TaskManagementPage() {
     const myTasksCount = tasks.filter((t) => t.type === "my").length;
     const assignedTasksCount = tasks.filter((t) => t.type === "assigned").length;
 
+    const getToken = useCallback(async () => {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) return null;
+        return session.getIdToken().getJwtToken();
+    }, []);
+
+    const loadTasks = useCallback(async () => {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch("/api/tasks", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { items?: ApiTask[] };
+        setTasks((data.items ?? []).map(toUiTask));
+    }, [getToken]);
+
     useEffect(() => {
         setMounted(true);
         return () => setMounted(false);
     }, []);
+
+    // Load tasks, the org's accountants (assignee options) and the current user.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const token = await getToken();
+            if (!token) return;
+            const headers = { Authorization: `Bearer ${token}` };
+
+            void loadTasks();
+
+            const meRes = await fetch("/api/users/me", { headers });
+            const me = meRes.ok ? await meRes.json() : null;
+            const meId: string = me?.id ?? "";
+            if (!cancelled && meId) setCurrentUserId(meId);
+
+            const accRes = await fetch("/api/users/me/accountants", { headers });
+            const accData = accRes.ok
+                ? ((await accRes.json()) as { accountants?: { id: string; name: string }[] })
+                : { accountants: [] };
+            if (cancelled) return;
+            const members: Person[] = (accData.accountants ?? []).map((a) => ({
+                id: a.id,
+                name: a.id === meId ? `${a.name || "You"} (Me)` : a.name || a.id,
+            }));
+            setTeamMembers(members);
+            const self = members.find((m) => m.id === meId);
+            setNewTaskAssignee(self ?? members[0] ?? null);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [getToken, loadTasks]);
 
     useEffect(() => {
         if (!isDropdownOpen) return;
@@ -152,63 +184,63 @@ export default function TaskManagementPage() {
         };
     }, [isDropdownOpen]);
 
-    const handleMarkComplete = (taskId: number) => {
-        setTasks((prevTasks) =>
-            prevTasks.map((task) => {
-                if (task.id === taskId) {
-                    return {
-                        ...task,
-                        status: "Completed",
-                        actionFeedback: task.name.includes("GST")
-                            ? "Submitted successfully via portal."
-                            : "Completed successfully.",
-                    };
-                }
-                return task;
-            })
-        );
+    const handleMarkComplete = async (taskId: string) => {
+        const task = tasks.find((t) => t.id === taskId);
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch(`/api/tasks/${taskId}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: "completed",
+                action_feedback: task?.name.includes("GST")
+                    ? "Submitted successfully via portal."
+                    : "Completed successfully.",
+            }),
+        });
+        if (res.ok) {
+            await loadTasks();
+        } else {
+            alert("Failed to mark task complete.");
+        }
     };
 
-    const handleCreateTask = (e: React.FormEvent) => {
+    const handleCreateTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTaskName.trim() || !newTaskDesc.trim() || !newTaskDeadline) {
+        if (!newTaskName.trim() || !newTaskDesc.trim() || !newTaskDeadline || !newTaskAssignee) {
             alert("Please fill in all required fields.");
             return;
         }
 
-        const isSelf = newTaskAssignee.name.includes("Sarah Johnson");
+        const token = await getToken();
+        if (!token) return;
 
-        const mockManager: Person = {
-            id: "michael-chen",
-            name: "Michael Chen"
-        };
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/tasks", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: newTaskName.trim(),
+                    description: newTaskDesc.trim(),
+                    assigned_to: newTaskAssignee.id,
+                    deadline: new Date(newTaskDeadline).toISOString(),
+                }),
+            });
+            if (!res.ok) {
+                alert("Failed to create task.");
+                return;
+            }
 
-        const newTask: Task = {
-            id: Date.now(),
-            name: newTaskName,
-            description: newTaskDesc,
-            deadline: formatDate(newTaskDeadline),
-            status: "Pending",
-            type: isSelf ? "my" : "assigned",
-            ...(isSelf
-                ? { assignedBy: mockManager }
-                : { assignedTo: newTaskAssignee, assignedBy: { id: "sarah-johnson", name: "Sarah Johnson" } }
-            ),
-        };
-
-        setTasks((prev) => [...prev, newTask]);
-        setIsModalOpen(false);
-
-        setNewTaskName("");
-        setNewTaskDesc("");
-        setNewTaskAssignee(TEAM_MEMBERS[0]);
-        setNewTaskDeadline("");
-    };
-
-    const formatDate = (dateString: string) => {
-        if (!dateString) return "";
-        const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
-        return new Date(dateString).toLocaleDateString("en-GB", options);
+            await loadTasks();
+            setIsModalOpen(false);
+            setNewTaskName("");
+            setNewTaskDesc("");
+            setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
+            setNewTaskDeadline("");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -360,7 +392,7 @@ export default function TaskManagementPage() {
                             {filteredTasks.length === 0 ? (
                                 <tr>
                                     <td colSpan={activeTab === "my" ? 7 : 6} className="text-center py-10 text-slate-400 font-medium">
-                                        No tasks found in this tab. Click "+ Create Task" to add one.
+                                        No tasks found in this tab. Click &ldquo;+ Create Task&rdquo; to add one.
                                     </td>
                                 </tr>
                             ) : (
@@ -523,10 +555,16 @@ export default function TaskManagementPage() {
                                         className="property-status-trigger"
                                     >
                                         <span className="flex items-center gap-2.5 font-semibold text-slate-700">
-                                            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.78rem] font-bold shadow-sm ${getAvatarColorClass(newTaskAssignee.id)}`}>
-                                                {getInitials(newTaskAssignee.name)}
-                                            </span>
-                                            <span>{newTaskAssignee.name}</span>
+                                            {newTaskAssignee ? (
+                                                <>
+                                                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.78rem] font-bold shadow-sm ${getAvatarColorClass(newTaskAssignee.id)}`}>
+                                                        {getInitials(newTaskAssignee.name)}
+                                                    </span>
+                                                    <span>{newTaskAssignee.name}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-slate-400">Select team member</span>
+                                            )}
                                         </span>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -535,8 +573,8 @@ export default function TaskManagementPage() {
 
                                     {isDropdownOpen && (
                                         <div className="property-status-menu" role="listbox">
-                                            {TEAM_MEMBERS.map((member) => {
-                                                const isSelected = member.name === newTaskAssignee.name;
+                                            {teamMembers.map((member) => {
+                                                const isSelected = member.id === newTaskAssignee?.id;
                                                 return (
                                                     <button
                                                         key={member.name}
@@ -591,12 +629,13 @@ export default function TaskManagementPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${newTaskName && newTaskDesc && newTaskDeadline
+                                    disabled={submitting}
+                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${newTaskName && newTaskDesc && newTaskDeadline && newTaskAssignee && !submitting
                                             ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
                                             : "bg-[#a5aec9]"
                                         }`}
                                 >
-                                    + Create Task
+                                    {submitting ? "Creating…" : "+ Create Task"}
                                 </button>
                             </div>
 
