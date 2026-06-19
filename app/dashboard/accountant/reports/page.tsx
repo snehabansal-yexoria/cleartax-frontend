@@ -1,18 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-    mockClients,
-    mockTimelineEvents,
-    mockTransactions,
-    mockProperties,
-    mockEntities,
-    mockDocuments,
-    mockRules,
-    filterDataByPeriod,
-} from "./mockData";
+    fetchReportClients,
+    fetchReportDocuments,
+    fetchReportEntities,
+    fetchReportProperties,
+    fetchReportRules,
+    fetchReportSummary,
+    fetchReportTimeline,
+    fetchReportTransactions,
+    type ReportClient,
+    type ReportDocument,
+    type ReportEntity,
+    type ReportProperty,
+    type ReportRule,
+    type ReportTimelineEvent,
+    type ReportTransaction,
+} from "./reportsApi";
 
 export default function ReportsDashboard() {
     const router = useRouter();
@@ -20,13 +27,30 @@ export default function ReportsDashboard() {
     const [fromDate, setFromDate] = useState<string>("2026-06-12");
     const [toDate, setToDate] = useState<string>("2026-06-19");
 
-    // Dynamic filtering of all mock data lists based on selected period
-    const filteredTransactions = filterDataByPeriod(mockTransactions, selectedPeriod, fromDate, toDate);
-    const filteredProperties = filterDataByPeriod(mockProperties, selectedPeriod, fromDate, toDate);
-    const filteredEntities = filterDataByPeriod(mockEntities, selectedPeriod, fromDate, toDate);
-    const filteredDocuments = filterDataByPeriod(mockDocuments, selectedPeriod, fromDate, toDate);
-    const filteredRules = filterDataByPeriod(mockRules, selectedPeriod, fromDate, toDate);
-    const filteredTimeline = filterDataByPeriod(mockTimelineEvents, selectedPeriod, fromDate, toDate);
+    const [filteredTransactions, setFilteredTransactions] = useState<ReportTransaction[]>([]);
+    const [filteredProperties, setFilteredProperties] = useState<ReportProperty[]>([]);
+    const [filteredEntities, setFilteredEntities] = useState<ReportEntity[]>([]);
+    const [filteredDocuments, setFilteredDocuments] = useState<ReportDocument[]>([]);
+    const [filteredRules, setFilteredRules] = useState<ReportRule[]>([]);
+    const [filteredTimeline, setFilteredTimeline] = useState<ReportTimelineEvent[]>([]);
+    const [clientsList, setClientsList] = useState<ReportClient[]>([]);
+    const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
+
+    useEffect(() => {
+        let active = true;
+        const opts = { from: fromDate, to: toDate };
+        fetchReportTransactions(selectedPeriod, opts).then((d) => active && setFilteredTransactions(d)).catch(() => active && setFilteredTransactions([]));
+        fetchReportProperties(selectedPeriod, opts).then((d) => active && setFilteredProperties(d)).catch(() => active && setFilteredProperties([]));
+        fetchReportEntities(selectedPeriod, opts).then((d) => active && setFilteredEntities(d)).catch(() => active && setFilteredEntities([]));
+        fetchReportDocuments(selectedPeriod, opts).then((d) => active && setFilteredDocuments(d)).catch(() => active && setFilteredDocuments([]));
+        fetchReportRules(selectedPeriod, opts).then((d) => active && setFilteredRules(d)).catch(() => active && setFilteredRules([]));
+        fetchReportTimeline(selectedPeriod, opts).then((d) => active && setFilteredTimeline(d)).catch(() => active && setFilteredTimeline([]));
+        fetchReportClients(selectedPeriod, opts).then((d) => active && setClientsList(d)).catch(() => active && setClientsList([]));
+        fetchReportSummary(selectedPeriod, opts).then((s) => active && setTotalClientsCount(s.clientsTotal)).catch(() => { });
+        return () => {
+            active = false;
+        };
+    }, [selectedPeriod, fromDate, toDate]);
 
     // Sum of all filtered actions
     const totalActions =
@@ -45,7 +69,6 @@ export default function ReportsDashboard() {
         ...filteredRules.map((r) => r.clientId),
     ]);
     const clientsTouchedCount = touchedClientIds.size;
-    const totalClientsCount = mockClients.length;
 
     // Records added & edited
     const addedCount =
@@ -101,31 +124,8 @@ export default function ReportsDashboard() {
     };
     const recon = getReconciliationProgress(selectedPeriod);
 
-    // Compute dynamic lists for "Clients Touched" table based on client actions in this period
-    const clientsTouchedList = mockClients.map((client) => {
-        const clientTx = filteredTransactions.filter((t) => t.clientId === client.id);
-        const clientProp = filteredProperties.filter((p) => p.clientId === client.id);
-        const clientEnt = filteredEntities.filter((e) => e.clientId === client.id);
-        const clientDoc = filteredDocuments.filter((d) => d.clientId === client.id);
-        const clientRules = filteredRules.filter((r) => r.clientId === client.id);
-        const clientTotalActions = clientTx.length + clientProp.length + clientEnt.length + clientDoc.length + clientRules.length;
-
-        // Last activity can be dynamic based on timeline
-        const clientEvents = filteredTimeline.filter((e) => e.clientId === client.id);
-        const lastActivity = clientEvents.length > 0 ? clientEvents[0].time : "No activity in this period";
-
-        return {
-            ...client,
-            propertiesCount: clientProp.length > 0 ? clientProp.length : "-",
-            entitiesCount: clientEnt.length > 0 ? clientEnt.length : "-",
-            transactionsCount: clientTx.length > 0 ? clientTx.length : "-",
-            totalActions: clientTotalActions,
-            lastActivity,
-        };
-    });
-
-    // Sort by total actions descending, displaying active clients first
-    const sortedClientsTouched = [...clientsTouchedList].sort((a, b) => b.totalActions - a.totalActions);
+    // Clients touched in the period (server-aggregated), most active first.
+    const sortedClientsTouched = [...clientsList].sort((a, b) => b.totalActions - a.totalActions);
 
     // Handle Export action
     const handleExport = () => {

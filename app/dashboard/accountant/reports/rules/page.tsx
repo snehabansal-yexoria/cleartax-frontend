@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { mockRules, filterDataByPeriod } from "../mockData";
+import React, { useEffect, useState } from "react";
+import { fetchReportRules, type ReportRule } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 
 export default function RulesReport() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const [filteredRules, setFilteredRules] = useState<ReportRule[]>([]);
 
-  // Dynamic filtering of rules based on selected period
-  const filteredRules = filterDataByPeriod(mockRules, selectedPeriod);
+  useEffect(() => {
+    let active = true;
+    fetchReportRules(selectedPeriod)
+      .then((data) => {
+        if (active) setFilteredRules(data);
+      })
+      .catch(() => {
+        if (active) setFilteredRules([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedPeriod]);
 
   // Counter calculations
   const addedCount = filteredRules.filter((r) => r.action === "Added").length;

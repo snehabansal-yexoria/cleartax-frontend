@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { mockEntities, filterDataByPeriod } from "../mockData";
+import React, { useEffect, useState } from "react";
+import { fetchReportEntities, type ReportEntity } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 
 export default function EntitiesReport() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const [filteredEntities, setFilteredEntities] = useState<ReportEntity[]>([]);
 
-  // Dynamic filtering of entities based on selected period
-  const filteredEntities = filterDataByPeriod(mockEntities, selectedPeriod);
+  useEffect(() => {
+    let active = true;
+    fetchReportEntities(selectedPeriod)
+      .then((data) => {
+        if (active) setFilteredEntities(data);
+      })
+      .catch(() => {
+        if (active) setFilteredEntities([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedPeriod]);
 
   // Counter calculations
   const addedCount = filteredEntities.filter((e) => e.action === "Added").length;

@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { mockProperties, filterDataByPeriod } from "../mockData";
+import React, { useEffect, useState } from "react";
+import { fetchReportProperties, type ReportProperty } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 
 export default function PropertiesReport() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const [filteredProperties, setFilteredProperties] = useState<ReportProperty[]>([]);
 
-  // Dynamic filtering of properties based on selected period
-  const filteredProperties = filterDataByPeriod(mockProperties, selectedPeriod);
+  useEffect(() => {
+    let active = true;
+    fetchReportProperties(selectedPeriod)
+      .then((data) => {
+        if (active) setFilteredProperties(data);
+      })
+      .catch(() => {
+        if (active) setFilteredProperties([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedPeriod]);
 
   // Counter calculations for cards
   const addedCount = filteredProperties.filter((p) => p.action === "Added").length;

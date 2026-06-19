@@ -1,60 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  mockClients,
-  mockTimelineEvents,
-  mockTransactions,
-  mockProperties,
-  mockEntities,
-  mockDocuments,
-  mockRules,
-  filterDataByPeriod,
-} from "../mockData";
+  fetchReportClients,
+  fetchReportSummary,
+  type ReportClient,
+} from "../reportsApi";
 
 export default function ClientsTouched() {
   const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const [clients, setClients] = useState<ReportClient[]>([]);
+  const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
 
-  // Dynamic filtering of all mock data lists based on selected period
-  const filteredTransactions = filterDataByPeriod(mockTransactions, selectedPeriod);
-  const filteredProperties = filterDataByPeriod(mockProperties, selectedPeriod);
-  const filteredEntities = filterDataByPeriod(mockEntities, selectedPeriod);
-  const filteredDocuments = filterDataByPeriod(mockDocuments, selectedPeriod);
-  const filteredRules = filterDataByPeriod(mockRules, selectedPeriod);
-  const filteredTimeline = filterDataByPeriod(mockTimelineEvents, selectedPeriod);
-
-  // Compute dynamic lists for Clients list
-  const clientsTouchedList = mockClients.map((client) => {
-    const clientTx = filteredTransactions.filter((t) => t.clientId === client.id);
-    const clientProp = filteredProperties.filter((p) => p.clientId === client.id);
-    const clientEnt = filteredEntities.filter((e) => e.clientId === client.id);
-    const clientDoc = filteredDocuments.filter((d) => d.clientId === client.id);
-    const clientRules = filteredRules.filter((r) => r.clientId === client.id);
-    const clientTotalActions = clientTx.length + clientProp.length + clientEnt.length + clientDoc.length + clientRules.length;
-
-    // Last activity can be dynamic based on timeline
-    const clientEvents = filteredTimeline.filter((e) => e.clientId === client.id);
-    const lastActivity = clientEvents.length > 0 ? clientEvents[0].time : "No activity in this period";
-
-    return {
-      ...client,
-      propertiesCount: clientProp.length > 0 ? clientProp.length : "-",
-      entitiesCount: clientEnt.length > 0 ? clientEnt.length : "-",
-      transactionsCount: clientTx.length > 0 ? clientTx.length : "-",
-      totalActions: clientTotalActions,
-      lastActivity,
+  useEffect(() => {
+    let active = true;
+    fetchReportClients(selectedPeriod)
+      .then((data) => {
+        if (active) setClients(data);
+      })
+      .catch(() => {
+        if (active) setClients([]);
+      });
+    fetchReportSummary(selectedPeriod)
+      .then((s) => {
+        if (active) setTotalClientsCount(s.clientsTotal);
+      })
+      .catch(() => {
+        /* leave denominator unchanged on error */
+      });
+    return () => {
+      active = false;
     };
-  });
+  }, [selectedPeriod]);
 
-  // Count active touched clients in this period
-  const touchedClientsCount = clientsTouchedList.filter((c) => c.totalActions > 0).length;
-  const totalClientsCount = mockClients.length;
+  // The backend returns only clients touched in the selected period.
+  const touchedClientsCount = clients.length;
 
   // Sort by total actions descending
-  const sortedClientsTouched = [...clientsTouchedList].sort((a, b) => b.totalActions - a.totalActions);
+  const sortedClientsTouched = [...clients].sort((a, b) => b.totalActions - a.totalActions);
 
   // Entity Type Badge Styling Map
   const getBadgeClass = (type: string) => {
