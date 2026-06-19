@@ -206,6 +206,7 @@ const accountantMenuItems: PortalMenuItem[] = [
   },
   {
     id: "reports",
+    href: "/dashboard/accountant/reports",
     label: "Reports",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
