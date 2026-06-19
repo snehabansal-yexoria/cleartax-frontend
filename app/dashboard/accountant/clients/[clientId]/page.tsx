@@ -314,12 +314,12 @@ function ClientDetailPageContent() {
       const headers = { Authorization: `Bearer ${token}` };
 
       // One call for the client (no scope=all + find), the entities-with-counts
-      // call, plus current user + accountants. No per-entity fan-out.
-      const [clientRes, entitiesRes, meRes, accountantsRes] = await Promise.all([
+      // call, plus current user. The accountants list is NOT fetched here — it's
+      // only needed for the transfer drawer, so it loads lazily on open.
+      const [clientRes, entitiesRes, meRes] = await Promise.all([
         fetch(`/api/users/me/clients/${encodeURIComponent(clientId)}`, { headers }),
         fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, { headers }),
         fetch("/api/users/me", { headers }),
-        fetch("/api/users/me/accountants", { headers }),
       ]);
 
       let canLoadEntities = false;
@@ -337,11 +337,6 @@ function ClientDetailPageContent() {
       if (meRes.ok) {
         const meData = await meRes.json();
         setCurrentUser(meData);
-      }
-
-      if (accountantsRes.ok) {
-        const accData = await accountantsRes.json();
-        setAccountants(accData.accountants || []);
       }
 
       setIsClientLoading(false);
@@ -396,7 +391,26 @@ function ClientDetailPageContent() {
     return accountants?.find((acc) => acc.id === client.assignedAccountantId) || null;
   }, [client, currentUser, accountants]);
 
-  function openTransferDrawer(c: ClientRecord) {
+  // The accountants list is only needed for the transfer dropdown, so it loads
+  // on demand (guarded so it fetches at most once) — not on page load.
+  const loadAccountants = useCallback(async () => {
+    if (accountants !== null) return;
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch("/api/users/me/accountants", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = res.ok ? await res.json() : { accountants: [] };
+      setAccountants(data.accountants || []);
+    } catch {
+      setAccountants([]);
+    }
+  }, [accountants]);
+
+  function openTransferDrawer() {
+    void loadAccountants();
     setTransferToAccountantId("");
     setTransferReason("");
     setTransferSuccess(false);
@@ -636,7 +650,7 @@ function ClientDetailPageContent() {
               <button
                 type="button"
                 className="accountant-transfer-btn"
-                onClick={() => openTransferDrawer(client)}
+                onClick={() => openTransferDrawer()}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
