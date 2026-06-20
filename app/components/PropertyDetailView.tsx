@@ -49,11 +49,12 @@ function titleCase(value: string) {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  const val = value || 0;
+  const formatted = new Intl.NumberFormat("en-AU", {
+    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value || 0);
+  }).format(Math.abs(val));
+  return `A$ ${val < 0 ? "-" : ""}${formatted}`;
 }
 
 function formatDate(value: string) {

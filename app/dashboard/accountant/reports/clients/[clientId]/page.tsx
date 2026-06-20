@@ -20,6 +20,50 @@ interface PageProps {
   params: Promise<{ clientId: string }>;
 }
 
+function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  let dotColor = "bg-blue-500";
+  if (event.type === "added") dotColor = "bg-emerald-500";
+  if (event.type === "deleted") dotColor = "bg-rose-500";
+
+  const shouldTruncate = event.detail && event.detail.length > 120;
+  const displayText = isExpanded ? event.detail : (shouldTruncate ? `${event.detail.slice(0, 110)}...` : event.detail);
+
+  return (
+    <div className="relative pl-6 group">
+      {/* Timeline node */}
+      <div
+        className={`absolute -left-[6px] top-1.5 w-3 h-3 rounded-full ring-4 ring-white ${dotColor} transition-transform group-hover:scale-125 duration-200`}
+      />
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-black text-slate-800">
+            {event.action}
+          </span>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1">
+            {displayText}
+            {shouldTruncate && (
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-[#28336e] hover:text-[#1b2559] text-[10px] font-bold ml-1.5 focus:outline-none transition-all inline-flex items-center gap-0.5 align-baseline bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-200/40"
+              >
+                <span>{isExpanded ? "Show less" : "View more"}</span>
+                <svg className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
+          </p>
+        </div>
+        <div className="flex-shrink-0 text-right mt-0.5">
+          <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap tracking-wide">{event.time}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ClientProfileReport({ params }: PageProps) {
   const router = useRouter();
   const { clientId } = use(params);
@@ -229,26 +273,9 @@ export default function ClientProfileReport({ params }: PageProps) {
 
         {clientTimeline.length > 0 ? (
           <div className="relative border-l border-slate-100 ml-4 space-y-6">
-            {clientTimeline.map((event) => {
-              let dotColor = "bg-blue-500";
-              if (event.type === "added") dotColor = "bg-emerald-500";
-              if (event.type === "deleted") dotColor = "bg-rose-500";
-
-              return (
-                <div key={event.id} className="relative pl-6 group">
-                  <div
-                    className={`absolute -left-[6px] top-1.5 w-3 h-3 rounded-full ring-4 ring-white ${dotColor} transition-transform group-hover:scale-125 duration-200`}
-                  />
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                    <div>
-                      <span className="text-xs font-black text-slate-800">{event.action}</span>
-                      <p className="text-xs text-slate-500 font-medium mt-1">{event.detail}</p>
-                    </div>
-                    <span className="text-[10px] font-semibold text-slate-400 sm:self-start mt-0.5">{event.time}</span>
-                  </div>
-                </div>
-              );
-            })}
+            {clientTimeline.map((event) => (
+              <TimelineEventItem key={event.id} event={event} />
+            ))}
           </div>
         ) : (
           <div className="text-center py-6 text-xs font-semibold text-slate-400">

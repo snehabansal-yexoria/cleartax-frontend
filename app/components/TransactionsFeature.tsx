@@ -76,20 +76,20 @@ function isSafeInternalHref(value: string | null) {
   return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
 }
 
-const NUMERIC_FORMATTER = new Intl.NumberFormat("en-AU", {
-  style: "currency",
-  currency: "AUD",
-  maximumFractionDigits: 2,
-});
-
 function formatCurrency(value: number) {
-  return NUMERIC_FORMATTER.format(value);
+  const val = value || 0;
+  const formatted = new Intl.NumberFormat("en-AU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(val));
+  return `A$ ${val < 0 ? "-" : ""}${formatted}`;
 }
 
 function formatTransactionCurrency(value: number, isRevenue: boolean) {
-  const amount = formatCurrency(Math.abs(value));
-  if (isRevenue || value === 0) return amount;
-  return `-${amount}`;
+  const val = Math.abs(value || 0);
+  const formatted = formatCurrency(val);
+  if (isRevenue || val === 0) return formatted;
+  return formatted.replace("A$ ", "A$ -");
 }
 
 function formatInvoiceDate(value: string) {

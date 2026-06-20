@@ -64,12 +64,11 @@ function formatJoinedDate(value: string | null) {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
+  const formatted = new Intl.NumberFormat("en-AU", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(Math.abs(value));
+  return `${value < 0 ? "-" : ""}A$ ${formatted}`;
 }
 
 export default function AccountantPage() {
@@ -150,9 +149,9 @@ export default function AccountantPage() {
   // Stat-card totals, in the shape the cards already read.
   const summaryStats = summary
     ? {
-        totalProperties: summary.totalProperties,
-        totalMarketValue: summary.totalMarketValue,
-      }
+      totalProperties: summary.totalProperties,
+      totalMarketValue: summary.totalMarketValue,
+    }
     : null;
 
   // Lazily load unassigned clients for the "add to my list" nudge — only when

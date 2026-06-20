@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState, useId, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -12,6 +12,11 @@ import {
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
+import {
+  dropdownRegistryEvent,
+  announceDropdownOpen,
+  isDropdownRegistryEvent,
+} from "@/src/lib/dropdownRegistry";
 import type {
   CoreEntity,
   CoreProperty,
@@ -103,6 +108,166 @@ function monthLabel(key: string) {
 // Removed static AVAILABLE_MANAGERS. Now loaded dynamically from API.
 
 
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '14px', height: '14px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+type SelectOption = {
+  label: string;
+  value: string;
+};
+
+type StaticSelectProps = {
+  label?: string;
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+  triggerClassName?: string;
+  disabled?: boolean;
+  horizontal?: boolean;
+};
+
+function StaticSelect({
+  label,
+  value,
+  options,
+  onChange,
+  placeholder,
+  required,
+  className = "",
+  triggerClassName = "",
+  disabled = false,
+  horizontal = false,
+}: StaticSelectProps) {
+  const reactId = useId();
+  const dropdownId = `transaction-select-${reactId}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (
+        isDropdownRegistryEvent(event) &&
+        event.detail?.id &&
+        event.detail.id !== dropdownId
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, [dropdownId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      announceDropdownOpen(dropdownId);
+    }
+  }, [dropdownId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      className={`transaction-field ${className}`}
+      style={{
+        minWidth: '200px',
+        ...(horizontal && {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: '12px',
+          minWidth: 'fit-content',
+        }),
+      }}
+    >
+      {label && (
+        <span
+          className="transaction-field-label"
+          style={horizontal ? { margin: 0, whiteSpace: 'nowrap' } : undefined}
+        >
+          {label}
+          {required && <em>*</em>}
+        </span>
+      )}
+      <div
+        ref={selectRef}
+        className={`property-status-select transaction-select${isOpen ? " is-open" : ""
+          }${disabled ? " is-disabled" : ""}`}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            setIsOpen(false);
+          }
+        }}
+      >
+        <button
+          type="button"
+          className={triggerClassName || "property-status-trigger"}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) {
+              setIsOpen((current) => !current);
+            }
+          }}
+        >
+          <span>{selected?.label || placeholder || "Select"}</span>
+          <ChevronIcon />
+        </button>
+        {isOpen && !disabled && (
+          <div className="property-status-menu" role="listbox" style={{ zIndex: 50 }}>
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={value === option.value}
+                className={value === option.value ? "is-selected" : ""}
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {value === option.value && (
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+                    <path d="M5 12l4 4 10-10" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 export default function EntityDetailView({
   entityId,
   backHref,
@@ -171,6 +336,13 @@ export default function EntityDetailView({
     }
     return null;
   }, [availableManagers, selectedRmId, entity]);
+
+  const rmOptions = useMemo(() => {
+    return [
+      { label: "Select Regional Manager", value: "" },
+      ...availableManagers.map((rm) => ({ label: rm.name, value: rm.id })),
+    ];
+  }, [availableManagers]);
 
   const avatarInitials = useMemo(() => {
     if (!selectedRm) return "";
@@ -648,45 +820,15 @@ export default function EntityDetailView({
           {/* Right Side: Select Input or Delete/Remove Button */}
           {!selectedRm ? (
             <div className="entity-rm-action-section">
-              <label className="entity-rm-label" htmlFor="rm-dropdown-select" style={{ fontSize: 12, fontWeight: 600, color: "#344054", marginBottom: 6 }}>
+              <label className="entity-rm-label" style={{ fontSize: 12, fontWeight: 600, color: "#344054", marginBottom: 6 }}>
                 Select Regional Manager
               </label>
-              <div className="entity-rm-select-wrapper">
-                <select
-                  id="rm-dropdown-select"
-                  className="entity-rm-select"
-                  value={selectedRmId}
-                  onChange={(e) => handleAssignRm(e.target.value)}
-                  style={{
-                    color: selectedRmId === "" ? "#98a2b3" : "#101828",
-                  }}
-                >
-                  <option value=""></option>
-                  {availableManagers.map((rm) => (
-                    <option key={rm.id} value={rm.id}>
-                      {rm.name}
-                    </option>
-                  ))}
-                </select>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 16,
-                    height: 16,
-                    pointerEvents: "none",
-                    stroke: "#667085",
-                    strokeWidth: 2,
-                    fill: "none"
-                  }}
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </div>
+              <StaticSelect
+                value={selectedRmId}
+                options={rmOptions}
+                onChange={handleAssignRm}
+                placeholder="Select Regional Manager"
+              />
             </div>
           ) : (
             <div className="entity-rm-action-section" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
