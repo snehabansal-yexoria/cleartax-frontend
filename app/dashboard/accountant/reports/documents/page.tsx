@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { mockDocuments, filterDataByPeriod } from "../mockData";
+import React, { useEffect, useState } from "react";
+import { fetchReportDocuments, type ReportDocument } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 
 export default function DocumentsReport() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const [filteredDocuments, setFilteredDocuments] = useState<ReportDocument[]>([]);
 
-  // Dynamic filtering of documents based on selected period
-  const filteredDocuments = filterDataByPeriod(mockDocuments, selectedPeriod);
+  useEffect(() => {
+    let active = true;
+    fetchReportDocuments(selectedPeriod)
+      .then((data) => {
+        if (active) setFilteredDocuments(data);
+      })
+      .catch(() => {
+        if (active) setFilteredDocuments([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedPeriod]);
 
   // Counter calculations
   const addedCount = filteredDocuments.filter((d) => d.action === "Added").length;

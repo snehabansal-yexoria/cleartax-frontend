@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { mockTransactions, filterDataByPeriod } from "../mockData";
+import React, { useEffect, useState } from "react";
+import { fetchReportTransactions, type ReportTransaction } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 
 export default function TransactionsReport() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const [filteredTransactions, setFilteredTransactions] = useState<ReportTransaction[]>([]);
 
-  // Dynamic filtering of transactions based on selected period
-  const filteredTransactions = filterDataByPeriod(mockTransactions, selectedPeriod);
+  useEffect(() => {
+    let active = true;
+    fetchReportTransactions(selectedPeriod)
+      .then((data) => {
+        if (active) setFilteredTransactions(data);
+      })
+      .catch(() => {
+        if (active) setFilteredTransactions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedPeriod]);
 
   // Counter calculations for cards
   const addedCount = filteredTransactions.filter((t) => t.action === "Added").length;

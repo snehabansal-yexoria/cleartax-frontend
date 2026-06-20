@@ -1,18 +1,20 @@
 "use client";
 
-import React, { use, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  mockClients,
-  mockTimelineEvents,
-  mockTransactions,
-  mockProperties,
-  mockDocuments,
-  mockEntities,
-  mockRules,
-  filterDataByPeriod,
-} from "../../mockData";
+  fetchReportClient,
+  fetchReportDocuments,
+  fetchReportProperties,
+  fetchReportTimeline,
+  fetchReportTransactions,
+  type ReportClient,
+  type ReportDocument,
+  type ReportProperty,
+  type ReportTimelineEvent,
+  type ReportTransaction,
+} from "../../reportsApi";
 
 interface PageProps {
   params: Promise<{ clientId: string }>;
@@ -23,10 +25,44 @@ export default function ClientProfileReport({ params }: PageProps) {
   const { clientId } = use(params);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
 
-  // Find client information
-  const client = mockClients.find((c) => c.id === clientId);
+  const [client, setClient] = useState<ReportClient | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [clientTimeline, setClientTimeline] = useState<ReportTimelineEvent[]>([]);
+  const [clientProperties, setClientProperties] = useState<ReportProperty[]>([]);
+  const [clientTransactions, setClientTransactions] = useState<ReportTransaction[]>([]);
+  const [clientDocuments, setClientDocuments] = useState<ReportDocument[]>([]);
 
-  if (!client) {
+  useEffect(() => {
+    let active = true;
+    fetchReportClient(clientId, selectedPeriod)
+      .then((c) => {
+        if (!active) return;
+        setClient(c);
+        setNotFound(false);
+      })
+      .catch((e: unknown) => {
+        if (!active) return;
+        setClient(null);
+        setNotFound((e as { status?: number }).status === 404);
+      });
+    fetchReportTimeline(selectedPeriod, { clientId })
+      .then((d) => active && setClientTimeline(d))
+      .catch(() => active && setClientTimeline([]));
+    fetchReportProperties(selectedPeriod, { clientId })
+      .then((d) => active && setClientProperties(d))
+      .catch(() => active && setClientProperties([]));
+    fetchReportTransactions(selectedPeriod, { clientId })
+      .then((d) => active && setClientTransactions(d))
+      .catch(() => active && setClientTransactions([]));
+    fetchReportDocuments(selectedPeriod, { clientId })
+      .then((d) => active && setClientDocuments(d))
+      .catch(() => active && setClientDocuments([]));
+    return () => {
+      active = false;
+    };
+  }, [clientId, selectedPeriod]);
+
+  if (notFound) {
     return (
       <div className="text-center py-12 max-w-md mx-auto">
         <h2 className="text-xl font-bold text-slate-800">Client Not Found</h2>
@@ -43,34 +79,19 @@ export default function ClientProfileReport({ params }: PageProps) {
     );
   }
 
-  // Dynamic filtering of all mock data lists based on selected period
-  const periodTransactions = filterDataByPeriod(mockTransactions, selectedPeriod);
-  const periodProperties = filterDataByPeriod(mockProperties, selectedPeriod);
-  const periodTimeline = filterDataByPeriod(mockTimelineEvents, selectedPeriod);
-  const periodDocuments = filterDataByPeriod(mockDocuments, selectedPeriod);
-  const periodEntities = filterDataByPeriod(mockEntities, selectedPeriod);
-  const periodRules = filterDataByPeriod(mockRules, selectedPeriod);
+  if (!client) {
+    return (
+      <div className="text-center py-12 text-sm font-semibold text-slate-400">
+        Loading client activity…
+      </div>
+    );
+  }
 
-  // Filter client-specific records in selected period
-  const clientTimeline = periodTimeline.filter((e) => e.clientId === client.id);
-  const clientProperties = periodProperties.filter((p) => p.clientId === client.id);
-  const clientTransactions = periodTransactions.filter((t) => t.clientId === client.id);
-  const clientDocuments = periodDocuments.filter((d) => d.clientId === client.id);
-  const clientEntities = periodEntities.filter((e) => e.clientId === client.id);
-  const clientRules = periodRules.filter((r) => r.clientId === client.id);
-
-  // Dynamic statistics
+  // Dynamic statistics for the selected period.
   const propertiesCount = clientProperties.length;
   const transactionsCount = clientTransactions.length;
-  const entitiesCount = clientEntities.length;
-  const documentsCount = clientDocuments.length;
-  
-  const clientTotalActions =
-    clientTransactions.length +
-    clientProperties.length +
-    clientEntities.length +
-    clientDocuments.length +
-    clientRules.length;
+  const entitiesCount = client.entitiesCount;
+  const clientTotalActions = client.totalActions;
 
   return (
     <div className="flex flex-col gap-6 w-full animate-fadeIn max-w-[1400px] mx-auto pb-10">

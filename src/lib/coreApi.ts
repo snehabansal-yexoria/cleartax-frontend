@@ -1685,3 +1685,297 @@ export async function listCoreTransactionSubcategories(
   );
   return getJsonArray(payload).map(normalizeCoreTransactionSubcategory);
 }
+
+// =============================================================================
+// Reports (accountant activity)
+//
+// The backend serves accountant-scoped activity reports under /reports/*,
+// derived from the audit_log. Responses are already camelCase and match the
+// types below; the normalizers stay defensive (null/number coercion) per the
+// conventions in this file.
+// =============================================================================
+
+export type ReportAction = "Added" | "Edited" | "Deleted";
+
+export type ReportTimelineType = "added" | "edited" | "deleted" | "reclassified";
+
+export type ReportSummary = {
+  totalActions: number;
+  clientsTouched: number;
+  clientsTotal: number;
+  recordsAdded: number;
+  recordsEdited: number;
+  recordsDeleted: number;
+  categories: {
+    transactions: number;
+    properties: number;
+    entities: number;
+    documents: number;
+    rules: number;
+  };
+};
+
+export type ReportTimelineEvent = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  action: string;
+  detail: string;
+  time: string;
+  type: ReportTimelineType;
+  timestamp: string;
+};
+
+export type ReportClient = {
+  id: string;
+  name: string;
+  initials: string;
+  entityType: string;
+  portfolio: string;
+  propertiesCount: number;
+  entitiesCount: number;
+  transactionsCount: number;
+  totalActions: number;
+  lastActivity: string;
+};
+
+type ReportRecordBase = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  clientInitials: string;
+  action: ReportAction;
+  date: string;
+  timestamp: string;
+};
+
+export type ReportTransaction = ReportRecordBase & {
+  transactionName: string;
+  category: string;
+  property: string;
+  amount: number;
+};
+
+export type ReportProperty = ReportRecordBase & {
+  property: string;
+  type: string;
+  change: string;
+};
+
+export type ReportEntity = ReportRecordBase & {
+  entityName: string;
+  type: string;
+  change: string;
+};
+
+export type ReportDocument = ReportRecordBase & {
+  documentName: string;
+  type: string;
+  size: string;
+};
+
+export type ReportRule = ReportRecordBase & {
+  ruleName: string;
+  change: string;
+};
+
+export type ReportQuery = {
+  period?: string;
+  from?: string;
+  to?: string;
+  clientId?: string;
+};
+
+function reportQueryString(q: ReportQuery = {}) {
+  const sp = new URLSearchParams();
+  if (q.period) sp.set("period", q.period);
+  if (q.from) sp.set("from", q.from);
+  if (q.to) sp.set("to", q.to);
+  if (q.clientId) sp.set("clientId", q.clientId);
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+function toReportAction(value: unknown): ReportAction {
+  const s = toStringValue(value);
+  return s === "Deleted" ? "Deleted" : s === "Edited" ? "Edited" : "Added";
+}
+
+function reportRecordBase(raw: RawRecord): ReportRecordBase {
+  return {
+    id: toStringValue(raw.id),
+    clientId: toStringValue(raw.clientId ?? raw.client_id),
+    clientName: toStringValue(raw.clientName ?? raw.client_name),
+    clientInitials: toStringValue(raw.clientInitials ?? raw.client_initials),
+    action: toReportAction(raw.action),
+    date: toStringValue(raw.date),
+    timestamp: toStringValue(raw.timestamp),
+  };
+}
+
+function normalizeReportSummary(raw: RawRecord): ReportSummary {
+  const cats = toRecord(raw.categories);
+  return {
+    totalActions: toNumberValue(raw.totalActions ?? raw.total_actions) ?? 0,
+    clientsTouched: toNumberValue(raw.clientsTouched ?? raw.clients_touched) ?? 0,
+    clientsTotal: toNumberValue(raw.clientsTotal ?? raw.clients_total) ?? 0,
+    recordsAdded: toNumberValue(raw.recordsAdded ?? raw.records_added) ?? 0,
+    recordsEdited: toNumberValue(raw.recordsEdited ?? raw.records_edited) ?? 0,
+    recordsDeleted: toNumberValue(raw.recordsDeleted ?? raw.records_deleted) ?? 0,
+    categories: {
+      transactions: toNumberValue(cats.transactions) ?? 0,
+      properties: toNumberValue(cats.properties) ?? 0,
+      entities: toNumberValue(cats.entities) ?? 0,
+      documents: toNumberValue(cats.documents) ?? 0,
+      rules: toNumberValue(cats.rules) ?? 0,
+    },
+  };
+}
+
+function normalizeReportTimelineEvent(raw: RawRecord): ReportTimelineEvent {
+  const type = toStringValue(raw.type);
+  return {
+    id: toStringValue(raw.id),
+    clientId: toStringValue(raw.clientId ?? raw.client_id),
+    clientName: toStringValue(raw.clientName ?? raw.client_name),
+    action: toStringValue(raw.action),
+    detail: toStringValue(raw.detail),
+    time: toStringValue(raw.time),
+    type: (["added", "edited", "deleted", "reclassified"].includes(type)
+      ? type
+      : "edited") as ReportTimelineType,
+    timestamp: toStringValue(raw.timestamp),
+  };
+}
+
+function normalizeReportClient(raw: RawRecord): ReportClient {
+  return {
+    id: toStringValue(raw.id),
+    name: toStringValue(raw.name),
+    initials: toStringValue(raw.initials),
+    entityType: toStringValue(raw.entityType ?? raw.entity_type),
+    portfolio: toStringValue(raw.portfolio),
+    propertiesCount: toNumberValue(raw.propertiesCount ?? raw.properties_count) ?? 0,
+    entitiesCount: toNumberValue(raw.entitiesCount ?? raw.entities_count) ?? 0,
+    transactionsCount:
+      toNumberValue(raw.transactionsCount ?? raw.transactions_count) ?? 0,
+    totalActions: toNumberValue(raw.totalActions ?? raw.total_actions) ?? 0,
+    lastActivity: toStringValue(raw.lastActivity ?? raw.last_activity),
+  };
+}
+
+function normalizeReportTransaction(raw: RawRecord): ReportTransaction {
+  return {
+    ...reportRecordBase(raw),
+    transactionName: toStringValue(raw.transactionName ?? raw.transaction_name),
+    category: toStringValue(raw.category),
+    property: toStringValue(raw.property),
+    amount: toFloatValue(raw.amount),
+  };
+}
+
+function normalizeReportProperty(raw: RawRecord): ReportProperty {
+  return {
+    ...reportRecordBase(raw),
+    property: toStringValue(raw.property),
+    type: toStringValue(raw.type),
+    change: toStringValue(raw.change),
+  };
+}
+
+function normalizeReportEntity(raw: RawRecord): ReportEntity {
+  return {
+    ...reportRecordBase(raw),
+    entityName: toStringValue(raw.entityName ?? raw.entity_name),
+    type: toStringValue(raw.type),
+    change: toStringValue(raw.change),
+  };
+}
+
+function normalizeReportDocument(raw: RawRecord): ReportDocument {
+  return {
+    ...reportRecordBase(raw),
+    documentName: toStringValue(raw.documentName ?? raw.document_name),
+    type: toStringValue(raw.type),
+    size: toStringValue(raw.size),
+  };
+}
+
+function normalizeReportRule(raw: RawRecord): ReportRule {
+  return {
+    ...reportRecordBase(raw),
+    ruleName: toStringValue(raw.ruleName ?? raw.rule_name),
+    change: toStringValue(raw.change),
+  };
+}
+
+export async function getReportSummary(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(`/reports/summary${reportQueryString(q)}`, {
+    token,
+  });
+  return normalizeReportSummary(getJsonObject(payload));
+}
+
+export async function listReportTimeline(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(`/reports/timeline${reportQueryString(q)}`, {
+    token,
+  });
+  return getJsonArray(payload).map(normalizeReportTimelineEvent);
+}
+
+export async function listReportClients(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(`/reports/clients${reportQueryString(q)}`, {
+    token,
+  });
+  return getJsonArray(payload).map(normalizeReportClient);
+}
+
+export async function getReportClient(
+  token: string,
+  id: string,
+  q: ReportQuery = {},
+) {
+  const payload = await coreApiRequest(
+    `/reports/clients/${encodeURIComponent(id)}${reportQueryString(q)}`,
+    { token },
+  );
+  return normalizeReportClient(getJsonObject(payload));
+}
+
+export async function listReportTransactions(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(
+    `/reports/transactions${reportQueryString(q)}`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeReportTransaction);
+}
+
+export async function listReportProperties(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(
+    `/reports/properties${reportQueryString(q)}`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeReportProperty);
+}
+
+export async function listReportEntities(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(`/reports/entities${reportQueryString(q)}`, {
+    token,
+  });
+  return getJsonArray(payload).map(normalizeReportEntity);
+}
+
+export async function listReportDocuments(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(
+    `/reports/documents${reportQueryString(q)}`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeReportDocument);
+}
+
+export async function listReportRules(token: string, q: ReportQuery = {}) {
+  const payload = await coreApiRequest(`/reports/rules${reportQueryString(q)}`, {
+    token,
+  });
+  return getJsonArray(payload).map(normalizeReportRule);
+}
