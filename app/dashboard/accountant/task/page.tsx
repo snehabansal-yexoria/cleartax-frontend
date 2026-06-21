@@ -613,6 +613,10 @@ export default function TaskManagementPage() {
                                 <input
                                     type="date"
                                     required
+                                    min={(() => {
+                                        const d = new Date();
+                                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                                    })()}
                                     value={newTaskDeadline}
                                     onChange={(e) => setNewTaskDeadline(e.target.value)}
                                     className="w-full h-[50px] px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#28336e]/10 focus:border-[#28336e] text-slate-800 text-sm transition font-medium"

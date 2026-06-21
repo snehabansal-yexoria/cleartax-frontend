@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+    fetchAssignedClients,
     fetchReportClients,
     fetchReportDocuments,
     fetchReportEntities,
@@ -20,6 +21,62 @@ import {
     type ReportTimelineEvent,
     type ReportTransaction,
 } from "./reportsApi";
+
+function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    let dotColor = "bg-blue-500";
+    if (event.type === "added") dotColor = "bg-emerald-500";
+    if (event.type === "deleted") dotColor = "bg-rose-500";
+
+    const hasClient = event.clientName && event.clientId;
+    const shouldTruncate = event.detail && event.detail.length > 120;
+    const displayText = isExpanded ? event.detail : (shouldTruncate ? `${event.detail.slice(0, 110)}...` : event.detail);
+
+    return (
+        <div className="relative pl-6 group">
+            {/* Timeline node */}
+            <div
+                className={`absolute -left-[6px] top-1.5 w-3 h-3 rounded-full ring-4 ring-white ${dotColor} transition-transform group-hover:scale-125 duration-200`}
+            />
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                    <span className="text-xs font-black text-slate-800">
+                        {event.action}
+                        {hasClient && (
+                            <>
+                                {" — "}
+                                <Link
+                                    href={`/dashboard/accountant/reports/clients/${event.clientId}`}
+                                    className="text-[#28336e] hover:underline"
+                                >
+                                    {event.clientName}
+                                </Link>
+                            </>
+                        )}
+                    </span>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1">
+                        {displayText}
+                        {shouldTruncate && (
+                            <button
+                                type="button"
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-[#28336e] hover:text-[#1b2559] text-[10px] font-bold ml-1.5 focus:outline-none transition-all inline-flex items-center gap-0.5 align-baseline bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-200/40"
+                            >
+                                <span>{isExpanded ? "Show less" : "View more"}</span>
+                                <svg className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        )}
+                    </p>
+                </div>
+                <div className="flex-shrink-0 text-right mt-0.5">
+                    <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap tracking-wide">{event.time}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function ReportsDashboard() {
     const router = useRouter();
@@ -46,7 +103,17 @@ export default function ReportsDashboard() {
         fetchReportRules(selectedPeriod, opts).then((d) => active && setFilteredRules(d)).catch(() => active && setFilteredRules([]));
         fetchReportTimeline(selectedPeriod, opts).then((d) => active && setFilteredTimeline(d)).catch(() => active && setFilteredTimeline([]));
         fetchReportClients(selectedPeriod, opts).then((d) => active && setClientsList(d)).catch(() => active && setClientsList([]));
-        fetchReportSummary(selectedPeriod, opts).then((s) => active && setTotalClientsCount(s.clientsTotal)).catch(() => { });
+        fetchAssignedClients()
+            .then((res) => {
+                if (active) setTotalClientsCount(res.clients.length);
+            })
+            .catch(() => {
+                fetchReportSummary(selectedPeriod, opts)
+                    .then((s) => {
+                        if (active) setTotalClientsCount(s.clientsTotal);
+                    })
+                    .catch(() => {});
+            });
         return () => {
             active = false;
         };
@@ -61,13 +128,15 @@ export default function ReportsDashboard() {
         filteredRules.length;
 
     // Unique clients touched in the selected period
-    const touchedClientIds = new Set([
-        ...filteredTransactions.map((t) => t.clientId),
-        ...filteredProperties.map((p) => p.clientId),
-        ...filteredEntities.map((e) => e.clientId),
-        ...filteredDocuments.map((d) => d.clientId),
-        ...filteredRules.map((r) => r.clientId),
-    ]);
+    const touchedClientIds = new Set(
+        [
+            ...filteredTransactions.map((t) => t.clientId),
+            ...filteredProperties.map((p) => p.clientId),
+            ...filteredEntities.map((e) => e.clientId),
+            ...filteredDocuments.map((d) => d.clientId),
+            ...filteredRules.map((r) => r.clientId),
+        ].filter((id): id is string => typeof id === "string" && id.trim() !== "")
+    );
     const clientsTouchedCount = touchedClientIds.size;
 
     // Records added & edited
@@ -231,7 +300,7 @@ export default function ReportsDashboard() {
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clients Touched</span>
-                            <div className="text-3xl font-black text-slate-900 mt-1.5">{clientsTouchedCount} / {totalClientsCount}</div>
+                            <div className="text-3xl font-black text-slate-900 mt-1.5"> {clientsTouchedCount} / {totalClientsCount} </div>
                         </div>
                         <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
                             <svg className="w-5 h-5 fill-none stroke-current stroke-[2]" viewBox="0 0 24 24">
@@ -427,7 +496,7 @@ export default function ReportsDashboard() {
                     </div>
 
                     {/* Graphical Horizontal Bar Charts */}
-                    <div className="space-y-4.5 mt-6">
+                    <div className="space-y-4 mt-6">
                         {[
                             { label: "Transactions", count: categories.transactions.count, pct: categories.transactions.pct, color: "from-blue-600 to-indigo-600" },
                             { label: "Properties", count: categories.properties.count, pct: categories.properties.pct, color: "from-amber-400 to-amber-500" },
@@ -534,35 +603,9 @@ export default function ReportsDashboard() {
 
                 {filteredTimeline.length > 0 ? (
                     <div className="relative border-l border-slate-100 ml-4 space-y-6">
-                        {filteredTimeline.map((event) => {
-                            let dotColor = "bg-blue-500";
-                            if (event.type === "added") dotColor = "bg-emerald-500";
-                            if (event.type === "deleted") dotColor = "bg-rose-500";
-
-                            return (
-                                <div key={event.id} className="relative pl-6 group">
-                                    {/* Timeline node */}
-                                    <div
-                                        className={`absolute -left-[6px] top-1.5 w-3 h-3 rounded-full ring-4 ring-white ${dotColor} transition-transform group-hover:scale-125 duration-200`}
-                                    />
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                                        <div>
-                                            <span className="text-xs font-black text-slate-800">
-                                                {event.action} —{" "}
-                                                <Link
-                                                    href={`/dashboard/accountant/reports/clients/${event.clientId}`}
-                                                    className="text-[#28336e] hover:underline"
-                                                >
-                                                    {event.clientName}
-                                                </Link>
-                                            </span>
-                                            <p className="text-xs text-slate-500 font-medium mt-1">{event.detail}</p>
-                                        </div>
-                                        <span className="text-[10px] font-semibold text-slate-400 sm:self-start mt-0.5">{event.time}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        {filteredTimeline.map((event) => (
+                            <TimelineEventItem key={event.id} event={event} />
+                        ))}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-xs font-semibold text-slate-400">

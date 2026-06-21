@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  fetchAssignedClients,
   fetchReportClients,
   fetchReportSummary,
   type ReportClient,
@@ -24,12 +25,18 @@ export default function ClientsTouched() {
       .catch(() => {
         if (active) setClients([]);
       });
-    fetchReportSummary(selectedPeriod)
-      .then((s) => {
-        if (active) setTotalClientsCount(s.clientsTotal);
+    fetchAssignedClients()
+      .then((res) => {
+        if (active) setTotalClientsCount(res.clients.length);
       })
       .catch(() => {
-        /* leave denominator unchanged on error */
+        fetchReportSummary(selectedPeriod)
+          .then((s) => {
+            if (active) setTotalClientsCount(s.clientsTotal);
+          })
+          .catch(() => {
+            /* leave denominator unchanged on error */
+          });
       });
     return () => {
       active = false;

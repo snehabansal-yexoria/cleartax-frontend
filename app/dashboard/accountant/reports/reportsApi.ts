@@ -141,3 +141,7 @@ export function fetchReportDocuments(period: string, opts?: PeriodOptions) {
 export function fetchReportRules(period: string, opts?: PeriodOptions) {
   return getJSON<ReportRule[]>(`/api/reports/rules${buildQuery(period, opts)}`);
 }
+
+export function fetchAssignedClients() {
+  return getJSON<{ clients: { id: string }[] }>("/api/users/me/clients?scope=mine");
+}
