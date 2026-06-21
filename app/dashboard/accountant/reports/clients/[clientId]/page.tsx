@@ -166,9 +166,9 @@ export default function ClientProfileReport({ params }: PageProps) {
               <span className="text-slate-300">·</span>
               <span>{client.portfolio}</span>
               <span className="text-slate-300">·</span>
-              <span>8 properties</span>
+              <span>{client.propertiesCount} properties</span>
               <span className="text-slate-300">·</span>
-              <span>4 entities</span>
+              <span>{client.entitiesCount} entities</span>
             </p>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function ClientProfileReport({ params }: PageProps) {
               </svg>
             </div>
           </div>
-          <span className="text-[10px] text-amber-600/80 font-bold tracking-wide">of 8 total</span>
+          <span className="text-[10px] text-amber-600/80 font-bold tracking-wide">of {client.propertiesCount} total</span>
         </div>
 
         {/* Entities Touched */}
@@ -241,7 +241,7 @@ export default function ClientProfileReport({ params }: PageProps) {
               </svg>
             </div>
           </div>
-          <span className="text-[10px] text-purple-600/80 font-bold tracking-wide">of 4 total</span>
+          <span className="text-[10px] text-purple-600/80 font-bold tracking-wide">of {client.entitiesCount} total</span>
         </div>
 
         {/* Transactions Touched */}

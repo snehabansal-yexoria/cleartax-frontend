@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useState, useRef } from "react";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
+import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import type {
   CoreAssetClass,
   CorePropertyTransactionRow,
@@ -76,21 +77,7 @@ function isSafeInternalHref(value: string | null) {
   return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
 }
 
-function formatCurrency(value: number) {
-  const val = value || 0;
-  const formatted = new Intl.NumberFormat("en-AU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(val));
-  return `A$ ${val < 0 ? "-" : ""}${formatted}`;
-}
 
-function formatTransactionCurrency(value: number, isRevenue: boolean) {
-  const val = Math.abs(value || 0);
-  const formatted = formatCurrency(val);
-  if (isRevenue || val === 0) return formatted;
-  return formatted.replace("A$ ", "A$ -");
-}
 
 function formatInvoiceDate(value: string) {
   if (!value) return "—";
@@ -2871,58 +2858,62 @@ function EntityPropertyHeaderCard({
 
   return (
     <section className="transaction-entity-header">
-      <div>
-        {isEditingEntity ? (
-          <StaticSelect
-            label="Entity Name"
-            required
-            value={activeEntityId}
-            options={[
-              { label: "Select Entity", value: "" },
-              ...entities.map((e) => ({ label: e.name, value: e.id })),
-            ]}
-            onChange={onSelectEntity}
-          />
-        ) : (
-          <span>
-            <small>Entity Name</small>
-            <b>{entityName}</b>
-          </span>
-        )}
-        {!isEditingEntity && isEntityLockable ? (
-          <button type="button" aria-label="Edit entity" onClick={onEditEntity}>
+      <div className="transaction-entity-row">
+        <div className="transaction-entity-col">
+          {isEditingEntity ? (
+            <StaticSelect
+              label="Entity Name"
+              required
+              value={activeEntityId}
+              options={[
+                { label: "Select Entity", value: "" },
+                ...entities.map((e) => ({ label: e.name, value: e.id })),
+              ]}
+              onChange={onSelectEntity}
+            />
+          ) : (
+            <span>
+              <small>Entity Name</small>
+              <b>{entityName}</b>
+            </span>
+          )}
+        </div>
+        {!isEditingEntity && isEntityLockable && (
+          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity}>
             <EditPencilIcon />
           </button>
-        ) : (
-          <span aria-hidden="true" />
         )}
-        {isEditingProperty ? (
-          <StaticSelect
-            label="Property Name"
-            required={isPropertyRequired}
-            value={activePropertyId}
-            options={[
-              { label: "Select Property", value: "" },
-              ...properties.map((p) => ({ label: p.name, value: p.id })),
-            ]}
-            onChange={onSelectProperty}
-          />
-        ) : (
-          <span>
-            <small>Property Name</small>
-            <b>{propertyName}</b>
-          </span>
-        )}
-        {!isEditingProperty && isPropertyLockable ? (
+      </div>
+
+      <div className="transaction-entity-row">
+        <div className="transaction-entity-col">
+          {isEditingProperty ? (
+            <StaticSelect
+              label="Property Name"
+              required={isPropertyRequired}
+              value={activePropertyId}
+              options={[
+                { label: "Select Property", value: "" },
+                ...properties.map((p) => ({ label: p.name, value: p.id })),
+              ]}
+              onChange={onSelectProperty}
+            />
+          ) : (
+            <span>
+              <small>Property Name</small>
+              <b>{propertyName}</b>
+            </span>
+          )}
+        </div>
+        {!isEditingProperty && isPropertyLockable && (
           <button
             type="button"
+            className="transaction-entity-edit-btn"
             aria-label="Edit property"
             onClick={onEditProperty}
           >
             <EditPencilIcon />
           </button>
-        ) : (
-          <span aria-hidden="true" />
         )}
       </div>
     </section>

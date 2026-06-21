@@ -80,7 +80,7 @@ type PortalMenuItem = {
 function DashboardShellSkeleton() {
   return (
     <div className="accountant-shell dashboard-shell-skeleton">
-      <aside className="w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-[#ffffff]/80 border border-[#ced5ec]/80 pt-7 pb-4 px-3.5 flex flex-col justify-between transition-all duration-300 ease-in-out group/sidebar z-30">
+      <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-[#ffffff]/80 border border-[#ced5ec]/80 pt-7 pb-4 px-3.5 flex-col justify-between transition-all duration-300 ease-in-out group/sidebar z-30">
         <div className="flex flex-col gap-9 w-full">
           <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
             <div className="w-11 h-11 rounded-xl bg-slate-200 animate-pulse" />
@@ -339,6 +339,71 @@ const clientMenuItems: PortalMenuItem[] = [
       </svg>
     ),
   },
+  {
+    id: "transactions",
+    href: "/dashboard/client/transactions",
+    label: "Transactions",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 8h8" />
+        <path d="M8 12h8" />
+        <path d="M10.5 16h3" />
+        <path d="M12 6v12" />
+      </svg>
+    ),
+  },
+  {
+    id: "entities",
+    href: "/dashboard/client/entities",
+    label: "Entities",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 21h18" />
+        <path d="M3 10h18" />
+        <path d="M5 6l7-3 7 3" />
+        <path d="M4 10v11" />
+        <path d="M20 10v11" />
+        <line x1="8" y1="14" x2="8" y2="17" />
+        <line x1="12" y1="14" x2="12" y2="17" />
+        <line x1="16" y1="14" x2="16" y2="17" />
+      </svg>
+    ),
+  },
+  {
+    id: "property",
+    href: "/dashboard/client/property",
+    label: "Properties",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+      </svg>
+    ),
+  },
+  {
+    id: "insights",
+    href: "/dashboard/client/insights",
+    label: "Insights",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
+    id: "profile",
+    href: "/dashboard/client/profile",
+    label: "Profile",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
 ];
 
 function highlightMatch(text: string, query: string) {
@@ -367,6 +432,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isClientPage = pathname.startsWith("/dashboard/client");
 
   const [email, setEmail] = useState<string>("");
   const [role, setRole] = useState<string>("");
@@ -840,7 +906,7 @@ export default function DashboardLayout({
   ) {
     return (
       <div className="accountant-shell">
-        <aside className="w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30">
+        <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30">
           <div className="flex flex-col gap-9 w-full">
             <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
               <div className="flex items-center gap-3.5 w-full">
@@ -900,6 +966,20 @@ export default function DashboardLayout({
           </div>
 
           <header className="accountant-topbar">
+            {/* Hamburger button on tablet/mobile where sidebar is hidden */}
+            <button
+              type="button"
+              className="lg:hidden mr-3 border border-[#eaeef4] bg-white rounded-lg p-2.5 flex items-center justify-center text-[#7b88ad] hover:bg-[#f7f8fe] focus:outline-none cursor-pointer"
+              onClick={() => setIsMobileNavOpen((current) => !current)}
+              aria-label="Toggle navigation menu"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+
             <div className="accountant-search-container" ref={searchRef}>
               <form className="accountant-search" onSubmit={handleGlobalSearch}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -908,8 +988,8 @@ export default function DashboardLayout({
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search clients, properties..."
-                  aria-label="Search accountant dashboard"
+                  placeholder={isClientPage ? "Search properties, transactions..." : "Search clients, properties..."}
+                  aria-label="Search dashboard"
                   value={globalSearch}
                   onChange={(event) => setGlobalSearch(event.target.value)}
                   onFocus={() => {
@@ -1055,19 +1135,21 @@ export default function DashboardLayout({
         </div>
         <ReconciliationJobMonitor />
 
-        <button
-          type="button"
-          className={`accountant-mobile-menu-button${isMobileNavOpen ? " is-open" : ""}`}
-          aria-label="Open navigation menu"
-          aria-expanded={isMobileNavOpen}
-          onClick={() =>
-            setIsMobileNavOpen((current) => !current)
-          }
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+        {!isClientPage && (
+          <button
+            type="button"
+            className={`accountant-mobile-menu-button${isMobileNavOpen ? " is-open" : ""}`}
+            aria-label="Open navigation menu"
+            aria-expanded={isMobileNavOpen}
+            onClick={() =>
+              setIsMobileNavOpen((current) => !current)
+            }
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        )}
 
         {isMobileNavOpen && (
           <div className="accountant-mobile-nav-layer">

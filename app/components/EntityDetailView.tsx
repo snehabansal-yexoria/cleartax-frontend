@@ -12,6 +12,7 @@ import {
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
+import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
@@ -85,11 +86,7 @@ function appendQueryParam(href: string, key: string, value: string) {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
+  return globalFormatCurrency(value, { decimals: 0 });
 }
 
 function monthKey(value: string) {

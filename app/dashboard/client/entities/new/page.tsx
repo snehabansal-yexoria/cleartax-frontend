@@ -71,7 +71,7 @@ export default function ClientAddEntityPage() {
   return (
     <AddEntityWizard
       createdFor={selfUserId}
-      backLabel="My Workspace"
+      backLabel="Entities"
       backHref="/dashboard/client"
       onSuccessHref="/dashboard/client"
       defaultBeneficiaryName={selfName}

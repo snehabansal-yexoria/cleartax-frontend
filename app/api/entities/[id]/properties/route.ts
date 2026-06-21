@@ -50,9 +50,6 @@ export async function POST(req: Request, context: RouteContext) {
   try {
     const requestBody = body as Record<string, unknown>;
     const entity = await getCoreEntity(token, id);
-    if (entity.entityType !== "individual") {
-      delete requestBody.owners;
-    }
 
     const property = await createCoreProperty(
       token,

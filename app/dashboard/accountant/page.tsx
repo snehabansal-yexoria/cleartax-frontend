@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { getSession } from "@/src/lib/session";
+import { getCurrencyPrefix } from "@/src/lib/currency";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -68,7 +69,7 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(Math.abs(value));
-  return `${value < 0 ? "-" : ""}A$ ${formatted}`;
+  return `${getCurrencyPrefix()}${value < 0 ? "-" : ""}${formatted}`;
 }
 
 export default function AccountantPage() {

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+    fetchAssignedClients,
     fetchReportClients,
     fetchReportDocuments,
     fetchReportEntities,
@@ -102,7 +103,17 @@ export default function ReportsDashboard() {
         fetchReportRules(selectedPeriod, opts).then((d) => active && setFilteredRules(d)).catch(() => active && setFilteredRules([]));
         fetchReportTimeline(selectedPeriod, opts).then((d) => active && setFilteredTimeline(d)).catch(() => active && setFilteredTimeline([]));
         fetchReportClients(selectedPeriod, opts).then((d) => active && setClientsList(d)).catch(() => active && setClientsList([]));
-        fetchReportSummary(selectedPeriod, opts).then((s) => active && setTotalClientsCount(s.clientsTotal)).catch(() => { });
+        fetchAssignedClients()
+            .then((res) => {
+                if (active) setTotalClientsCount(res.clients.length);
+            })
+            .catch(() => {
+                fetchReportSummary(selectedPeriod, opts)
+                    .then((s) => {
+                        if (active) setTotalClientsCount(s.clientsTotal);
+                    })
+                    .catch(() => {});
+            });
         return () => {
             active = false;
         };
@@ -117,13 +128,15 @@ export default function ReportsDashboard() {
         filteredRules.length;
 
     // Unique clients touched in the selected period
-    const touchedClientIds = new Set([
-        ...filteredTransactions.map((t) => t.clientId),
-        ...filteredProperties.map((p) => p.clientId),
-        ...filteredEntities.map((e) => e.clientId),
-        ...filteredDocuments.map((d) => d.clientId),
-        ...filteredRules.map((r) => r.clientId),
-    ]);
+    const touchedClientIds = new Set(
+        [
+            ...filteredTransactions.map((t) => t.clientId),
+            ...filteredProperties.map((p) => p.clientId),
+            ...filteredEntities.map((e) => e.clientId),
+            ...filteredDocuments.map((d) => d.clientId),
+            ...filteredRules.map((r) => r.clientId),
+        ].filter((id): id is string => typeof id === "string" && id.trim() !== "")
+    );
     const clientsTouchedCount = touchedClientIds.size;
 
     // Records added & edited
@@ -287,7 +300,7 @@ export default function ReportsDashboard() {
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clients Touched</span>
-                            <div className="text-3xl font-black text-slate-900 mt-1.5"> {totalClientsCount} / {clientsTouchedCount} </div>
+                            <div className="text-3xl font-black text-slate-900 mt-1.5"> {clientsTouchedCount} / {totalClientsCount} </div>
                         </div>
                         <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
                             <svg className="w-5 h-5 fill-none stroke-current stroke-[2]" viewBox="0 0 24 24">
@@ -483,7 +496,7 @@ export default function ReportsDashboard() {
                     </div>
 
                     {/* Graphical Horizontal Bar Charts */}
-                    <div className="space-y-4.5 mt-6">
+                    <div className="space-y-4 mt-6">
                         {[
                             { label: "Transactions", count: categories.transactions.count, pct: categories.transactions.pct, color: "from-blue-600 to-indigo-600" },
                             { label: "Properties", count: categories.properties.count, pct: categories.properties.pct, color: "from-amber-400 to-amber-500" },

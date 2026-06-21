@@ -11,6 +11,7 @@ import {
 } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
+import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import type {
   CoreEntity,
   CoreProperty,
@@ -49,12 +50,7 @@ function titleCase(value: string) {
 }
 
 function formatCurrency(value: number) {
-  const val = value || 0;
-  const formatted = new Intl.NumberFormat("en-AU", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.abs(val));
-  return `A$ ${val < 0 ? "-" : ""}${formatted}`;
+  return globalFormatCurrency(value, { decimals: 0 });
 }
 
 function formatDate(value: string) {
