@@ -86,6 +86,7 @@ export default function AccountantEditEntityPage() {
 
   return (
     <AddEntityWizard
+      role="accountant"
       mode="edit"
       initialEntity={entity}
       createdFor={entity.createdFor || clientId}

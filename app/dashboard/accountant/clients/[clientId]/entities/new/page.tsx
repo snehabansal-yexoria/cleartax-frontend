@@ -73,6 +73,7 @@ export default function NewEntityForClientPage() {
 
   return (
     <AddEntityWizard
+      role="accountant"
       createdFor={clientId}
       backLabel={clientName}
       backHref={`/dashboard/accountant/clients/${clientId}`}
