@@ -31,7 +31,7 @@ const entityTypeOptions: EntityTypeOption[] = [
   },
   {
     value: "company",
-    label: "Company (Pvt Ltd)",
+    label: "Company (Pty Ltd)",
     description: "Limited liability company structure with shareholders",
   },
   {
@@ -70,6 +70,7 @@ export type AddEntityWizardProps = {
   defaultBeneficiaryName?: string;
   mode?: "create" | "edit";
   initialEntity?: CoreEntity;
+  role?: "client" | "accountant";
 };
 
 export default function AddEntityWizard({
@@ -81,8 +82,10 @@ export default function AddEntityWizard({
   defaultBeneficiaryName = "",
   mode = "create",
   initialEntity,
+  role = "client",
 }: AddEntityWizardProps) {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [showHelpSidebar, setShowHelpSidebar] = useState(false);
   const [entityType, setEntityType] = useState<EntityType | null>(() => {
     if (initialEntity?.entityType === "smsf") {
@@ -150,9 +153,44 @@ export default function AddEntityWizard({
         );
       }));
 
+  const selectedTypeLabel = useMemo(() => {
+    if (entityType === "trust") {
+      const subLabel =
+        trustType === "unit"
+          ? "Unit Trust"
+          : trustType === "discretionary"
+            ? "Discretionary Trust"
+            : trustType === "hybrid"
+              ? "Hybrid Trust"
+              : "";
+      return subLabel ? `Trust (${subLabel})` : "Trust";
+    }
+    return (
+      entityTypeOptions.find((option) => option.value === entityType)?.label ??
+      ""
+    );
+  }, [entityType, trustType]);
+
   const beneficiaryNoun =
     entityType === "partnership" ? "Partner" : "Beneficiary";
+  const beneficiaryNounPlural =
+    entityType === "partnership" ? "Partners" : "Beneficiaries";
   const isEditMode = mode === "edit";
+  const stepMeta = useMemo(
+    () => [
+      { title: "Choose Entity Type", subtitle: "Select the entity that legally owns the investment property" },
+      { title: "Enter Entity Name", subtitle: "Name client entity" },
+      ...(needsBeneficiaries
+        ? [
+          {
+            title: `Add ${beneficiaryNounPlural}`,
+            subtitle: "Define ownership structure",
+          },
+        ]
+        : []),
+    ],
+    [beneficiaryNounPlural, needsBeneficiaries],
+  );
 
   const options = useMemo(() => {
     const list: {
@@ -214,6 +252,7 @@ export default function AddEntityWizard({
   }
 
   function resetState() {
+    setStep(1);
     setEntityType(null);
     setTrustType(null);
     setEntityName("");
@@ -305,12 +344,434 @@ export default function AddEntityWizard({
     if (entity) setSaved(true);
   }
 
+  function handleNameContinue() {
+    if (needsBeneficiaries) {
+      setStep(3);
+      return;
+    }
+
+    handleSave();
+  }
+
   async function handleAddAnother() {
     const entity = await submit();
     if (entity) {
       resetState();
       if (addAnotherHref) router.push(addAnotherHref);
     }
+  }
+
+  if (role === "accountant") {
+    return (
+      <section className="entity-wizard">
+        <div className="entity-wizard-top">
+          <Link href={backHref} className="entity-wizard-back">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+            Back to {backLabel}
+          </Link>
+        </div>
+
+        <ol className="entity-wizard-steps" aria-label="Entity creation steps">
+          {stepMeta.map((meta, index) => {
+            const position = (index + 1) as 1 | 2 | 3;
+            const state =
+              step === position
+                ? "current"
+                : step > position
+                  ? "done"
+                  : "pending";
+            return (
+              <Fragment key={meta.title}>
+                <li className={`entity-wizard-step is-${state}`}>
+                  <span className="entity-wizard-step-circle" aria-hidden="true">
+                    {state === "done" ? (
+                      <svg viewBox="0 0 24 24">
+                        <path d="M5 12l4 4 10-10" />
+                      </svg>
+                    ) : (
+                      position
+                    )}
+                  </span>
+                  <div className="entity-wizard-step-text">
+                    <strong>{meta.title}</strong>
+                    <span>{meta.subtitle}</span>
+                  </div>
+                </li>
+                {index < stepMeta.length - 1 && (
+                  <li
+                    className={`entity-wizard-connector ${step > position ? "is-done" : ""}`}
+                    aria-hidden="true"
+                  />
+                )}
+              </Fragment>
+            );
+          })}
+        </ol>
+
+        {step === 1 && (
+          <div className="entity-wizard-card">
+            <header>
+              <h2>Choose Entity Type</h2>
+              <p>
+                Select the type of entity you want to{" "}
+                {isEditMode ? "maintain" : "create"}
+              </p>
+            </header>
+
+            <div className="entity-type-grid">
+              {entityTypeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`entity-type-card${entityType === option.value ? " is-selected" : ""}`}
+                  onClick={() => {
+                    setEntityType(option.value);
+                    if (option.value !== "trust") {
+                      setTrustType(null);
+                    }
+                  }}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.description}</span>
+                </button>
+              ))}
+            </div>
+
+            {entityType === "trust" && (
+              <div className="entity-subtype-section" style={{ marginTop: "8px" }}>
+                <h3 style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "var(--primary, #28336e)",
+                  marginBottom: "12px",
+                  marginTop: "16px"
+                }}>
+                  Select Trust Type:
+                </h3>
+                <div className="entity-type-grid">
+                  {[
+                    {
+                      value: "discretionary",
+                      label: "Discretionary Trust",
+                      description: "Trustee has discretion over distributions to beneficiaries",
+                    },
+                    {
+                      value: "unit",
+                      label: "Unit Trust",
+                      description: "Beneficiaries hold fixed units with defined entitlements",
+                    },
+                    {
+                      value: "hybrid",
+                      label: "Hybrid Trust",
+                      description: "Combines features of both discretionary and unit trusts",
+                    },
+                  ].map((subOption) => (
+                    <button
+                      key={subOption.value}
+                      type="button"
+                      className={`entity-type-card${trustType === subOption.value ? " is-selected" : ""}`}
+                      onClick={() => setTrustType(subOption.value as any)}
+                    >
+                      <strong>
+                        {(
+                          subOption.label
+                        )}
+                      </strong>
+                      <span>{subOption.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="entity-wizard-footer">
+              <div />
+              <button
+                type="button"
+                className="entity-wizard-primary"
+                disabled={!entityType || (entityType === "trust" && !trustType)}
+                onClick={() => setStep(2)}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="entity-wizard-card">
+            <header>
+              <h2>
+                {entityType === "individual"
+                  ? "Individual"
+                  : entityType === "partnership"
+                    ? "Partnership"
+                    : entityType === "company"
+                      ? "Company (Pty Ltd)"
+                      : entityType === "smsf"
+                        ? "Self Managed Super Fund (SMSF)"
+                        : entityType === "trust"
+                          ? trustType === "unit"
+                            ? "Unit Trust"
+                            : trustType === "hybrid"
+                              ? "Hybrid Trust"
+                              : "Discretionary Trust"
+                          : "Enter Entity Name"}
+              </h2>
+              <p>
+                {entityType === "individual"
+                  ? "Enter the full legal name of the individual"
+                  : entityType === "partnership"
+                    ? "Enter the partnership name as per the partnership agreement"
+                    : entityType === "company"
+                      ? "Enter the company name as per the ASIC registration"
+                      : entityType === "smsf"
+                        ? "Enter the fund name as per the SMSF deed"
+                        : entityType === "trust"
+                          ? trustType === "unit"
+                            ? "Enter the full trust name as per the unit trust deed"
+                            : trustType === "hybrid"
+                              ? "Enter the full hybrid trust name as per the hybrid trust deed"
+                              : "Enter the full discretionary trust name as per the trust deed"
+                          : "Give client entity a clear, identifiable name"}
+              </p>
+            </header>
+
+            <label className="entity-wizard-label">
+              <span>
+                Entity Name <em>*</em>
+              </span>
+              <input
+                type="text"
+                placeholder={
+                  entityType === "individual"
+                    ? "e.g. John Smith"
+                    : entityType === "partnership"
+                      ? "e.g. Smith & Brown Partnership"
+                      : entityType === "company"
+                        ? "e.g. ABC Properties Pty Ltd"
+                        : entityType === "smsf"
+                          ? "e.g. Smith Super Fund"
+                          : entityType === "trust"
+                            ? trustType === "hybrid"
+                              ? "e.g. Smith Hybrid Trust"
+                              : "e.g. Smith Family/Unit Trust"
+                            : "e.g., Smith Family Trust, ABC Properties LLC"
+                }
+                value={entityName}
+                onChange={(event) => setEntityName(event.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <div className="entity-wizard-selected-chip">
+              Selected Type: <strong>{selectedTypeLabel}</strong>
+            </div>
+
+            {errorMessage && (
+              <p className="entity-wizard-error">{errorMessage}</p>
+            )}
+
+            <div className="entity-wizard-footer">
+              <button
+                type="button"
+                className="entity-wizard-link"
+                onClick={() => setStep(1)}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="entity-wizard-primary"
+                disabled={!entityName.trim() || isSaving}
+                onClick={handleNameContinue}
+              >
+                {needsBeneficiaries
+                  ? "Continue"
+                  : isSaving
+                    ? "Saving..."
+                    : isEditMode
+                      ? "Update Entity"
+                      : "Create Entity"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="entity-wizard-card">
+            <header>
+              <h2>Add {beneficiaryNounPlural}</h2>
+              <p>
+                Define the {beneficiaryNoun.toLowerCase()} ownership percentages
+                for this entity
+              </p>
+            </header>
+
+            <div className="entity-beneficiary-list">
+              {beneficiaries.map((row) => (
+                <div key={row.uid} className="entity-beneficiary-row">
+                  <input
+                    type="text"
+                    className="entity-beneficiary-name"
+                    placeholder={`${beneficiaryNoun} name`}
+                    value={row.name}
+                    onChange={(event) =>
+                      updateRow(row.uid, { name: event.target.value })
+                    }
+                  />
+                  <div className="entity-beneficiary-pct">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={100}
+                      placeholder="0"
+                      value={row.percentage}
+                      onChange={(event) =>
+                        updateRow(row.uid, { percentage: event.target.value })
+                      }
+                    />
+                    <span>%</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="entity-beneficiary-remove"
+                    aria-label="Remove beneficiary"
+                    onClick={() => removeRow(row.uid)}
+                    disabled={beneficiaries.length === 1}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12" />
+                      <path d="M18 6 6 18" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className="entity-beneficiary-add"
+                onClick={() =>
+                  setBeneficiaries((current) => [...current, newBeneficiaryRow()])
+                }
+              >
+                + Add Another {beneficiaryNoun}
+              </button>
+            </div>
+
+            <div
+              className={`entity-beneficiary-total${ownershipAboveZero && ownershipWithinLimit ? " is-complete" : ""
+                }${ownershipOverLimit ? " is-over" : ""}`}
+            >
+              <span>Total Ownership:</span>
+              <strong>{formatPercentage(totalOwnership)}</strong>
+            </div>
+
+            {ownershipOverLimit && (
+              <p className="entity-wizard-error">
+                Total ownership cannot exceed 100%.
+              </p>
+            )}
+
+            {errorMessage && (
+              <p className="entity-wizard-error">{errorMessage}</p>
+            )}
+
+            <div className="entity-wizard-footer">
+              <button
+                type="button"
+                className="entity-wizard-link"
+                onClick={() => setStep(2)}
+              >
+                Back
+              </button>
+              <div className="entity-wizard-footer-actions">
+                {!isEditMode && (
+                  <button
+                    type="button"
+                    className="entity-wizard-secondary"
+                    disabled={!beneficiariesValid || isSaving}
+                    onClick={addAnotherHref ? handleAddAnother : handleSave}
+                  >
+                    Add Another Entity
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="entity-wizard-primary"
+                  disabled={!beneficiariesValid || isSaving}
+                  onClick={handleSave}
+                >
+                  {isSaving
+                    ? "Saving…"
+                    : isEditMode
+                      ? "Save Changes"
+                      : "Save & Start Adding Property"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {saved && (
+          <div className="entity-success-layer" role="dialog" aria-modal="true">
+            <div className="entity-success-backdrop" aria-hidden="true" />
+            <div className="entity-success-card">
+              <div className="entity-success-animation" aria-hidden="true">
+                <span className="entity-success-confetti is-one" />
+                <span className="entity-success-confetti is-two" />
+                <span className="entity-success-confetti is-three" />
+                <span className="entity-success-confetti is-four" />
+                <svg viewBox="0 0 72 72">
+                  <circle
+                    className="entity-success-badge"
+                    cx="36"
+                    cy="36"
+                    r="28"
+                  />
+                  <path
+                    className="entity-success-check"
+                    d="M22 37.5 31.5 47 51 25"
+                  />
+                </svg>
+              </div>
+              <div className="entity-success-body">
+                <strong>
+                  Entity Successfully {isEditMode ? "Updated" : "Added"} !
+                </strong>
+                <p>
+                  {isEditMode ? (
+                    "Your entity details have been updated and are ready for property and transaction mapping."
+                  ) : (
+                    <>
+                      You&apos;ve successfully registered this entity. It&apos;s
+                      now ready for property and transaction mapping.
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="entity-success-footer">
+                <Link
+                  href={
+                    !isEditMode && (entityType === "individual" || entityType === "smsf") && savedEntity
+                      ? onSuccessHref.includes("/dashboard/accountant")
+                        ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
+                        : `/dashboard/client/entities/${savedEntity.id}/properties/new`
+                      : onSuccessHref
+                  }
+                  className="entity-wizard-primary"
+                >
+                  Continue
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    );
   }
 
   return (
