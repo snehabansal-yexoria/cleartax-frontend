@@ -3172,8 +3172,9 @@ p.darkBg {
 }
 
 .accountant-reconciliation-filter-card {
-  overflow: hidden;
-  background: #ffffff;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  width: 100% !important;
 }
 
 .accountant-reconciliation-tabs {
@@ -3208,86 +3209,167 @@ p.darkBg {
 }
 
 .accountant-reconciliation-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 16px 24px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 16px 24px !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #f1f3f5 !important;
+  width: 100% !important;
 }
 
-.accountant-reconciliation-controls label {
-  flex: 1;
-  min-width: 280px;
-  max-width: 480px;
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #94a3b8;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+.accountant-reconciliation-center-group {
+  grid-column: 2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  justify-self: center !important;
 }
 
-.accountant-reconciliation-controls label:focus-within {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+@media (max-width: 990px) {
+  .accountant-reconciliation-controls {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .accountant-reconciliation-controls label.accountant-reconciliation-search,
+  .accountant-reconciliation-center-group,
+  .accountant-reconciliation-controls button.accountant-reconciliation-sort {
+    grid-column: 1 !important;
+    justify-self: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 
-.accountant-reconciliation-controls label svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
+/* Rounded search input */
+.accountant-reconciliation-controls label.accountant-reconciliation-search {
+  flex: 1 !important;
+  min-width: 240px !important;
+  max-width: 380px !important;
+  min-height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 14px !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: #f4f5f7 !important;
+  color: #94a3b8 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
 }
 
-.accountant-reconciliation-controls input {
-  width: 100%;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: #0f172a;
-  font-size: 13px;
+.accountant-reconciliation-controls label.accountant-reconciliation-search:focus-within {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.03) !important;
 }
 
-.accountant-reconciliation-controls input::placeholder {
-  color: #94a3b8;
+.accountant-reconciliation-controls label.accountant-reconciliation-search svg {
+  width: 16px !important;
+  height: 16px !important;
+  fill: none !important;
+  stroke: #94a3b8 !important;
+  stroke-width: 2.2 !important;
 }
 
-.accountant-reconciliation-controls button {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #475569;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: all 0.15s ease;
+.accountant-reconciliation-controls label.accountant-reconciliation-search input {
+  width: 100% !important;
+  min-width: 0 !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  color: #1f2937 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
 }
 
-.accountant-reconciliation-controls button:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-  color: #0f172a;
+.accountant-reconciliation-controls label.accountant-reconciliation-search input::placeholder {
+  color: #adb5bd !important;
 }
 
-.accountant-reconciliation-controls button.is-active {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
+/* Segmented tab control styling */
+.accountant-reconciliation-segmented {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  background: #f4f5f7 !important;
+  padding: 4px !important;
+  border-radius: 8px !important;
+  min-height: 40px !important;
+}
+
+.accountant-reconciliation-segmented button {
+  min-height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 16px !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #4b5563 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.accountant-reconciliation-segmented button:hover {
+  color: #1f2937 !important;
+}
+
+.accountant-reconciliation-segmented button.is-active {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Date filter and Sort button */
+.accountant-reconciliation-controls button.accountant-reconciliation-date-filter,
+.accountant-reconciliation-controls button.accountant-reconciliation-sort {
+  min-height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 18px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+.accountant-reconciliation-controls button.accountant-reconciliation-date-filter:hover,
+.accountant-reconciliation-controls button.accountant-reconciliation-sort:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.accountant-reconciliation-controls button.accountant-reconciliation-date-filter.is-active {
+  background: #eff6ff !important;
+  border-color: #3b82f6 !important;
+  color: #1d4ed8 !important;
+}
+
+.accountant-reconciliation-controls button.accountant-reconciliation-sort {
+  gap: 6px !important;
+  justify-self: end !important;
+  grid-column: 3 !important;
+}
+
+.accountant-reconciliation-controls button.accountant-reconciliation-sort svg.sort-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
 }
 
 .accountant-reconciliation-table {
@@ -15444,5 +15526,523 @@ input:checked+.slider:before {
   .entity-wizard-secondary,
   .entity-wizard .entity-wizard-secondary {
     width: 100%;
+  }
+}
+
+/* Scoped UI Upgrades for Logit Review Form */
+.logit-review-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+  font-family: inherit;
+}
+
+.logit-review-head {
+  margin-bottom: 8px;
+}
+
+.logit-review-head h1 {
+  margin: 0 0 8px;
+  color: #101828;
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.logit-review-head p {
+  margin: 0;
+  color: #475467;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.logit-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Premium Card Design scoped to Logit page */
+.logit-review-page .entity-wizard-card.logit-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e4e7ef;
+  padding: 32px;
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.04),
+    0 1px 2px rgba(16, 24, 40, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.logit-review-page .entity-wizard-card.logit-card>header {
+  margin-bottom: 4px;
+}
+
+.logit-review-page .entity-wizard-card.logit-card>header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #101828;
+  margin: 0 0 6px 0;
+  line-height: 28px;
+}
+
+.logit-review-page .entity-wizard-card.logit-card>header p {
+  font-size: 14px;
+  color: #667085;
+  margin: 0;
+  line-height: 20px;
+}
+
+/* Scoped Entity Chip Banner */
+.logit-review-page .entity-wizard-selected-chip.property-entity-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  font-size: 14px;
+  color: #475467;
+  font-weight: 500;
+}
+
+.logit-review-page .entity-wizard-selected-chip.property-entity-chip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logit-review-page .entity-wizard-selected-chip.property-entity-chip strong {
+  color: #1e40af;
+  font-weight: 700;
+}
+
+/* Scoped Grid Configurations */
+.logit-review-page .logit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+}
+
+.logit-review-page .logit-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 24px;
+}
+
+/* Form Labels & Asterisks */
+.logit-review-page .entity-wizard-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.logit-review-page .entity-wizard-label span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logit-review-page .entity-wizard-label em {
+  color: #d92d20;
+  font-style: normal;
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+/* Premium Form Inputs */
+.logit-review-page .entity-wizard-label input {
+  height: 44px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 400;
+  color: #101828;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.logit-review-page .entity-wizard-label input::placeholder {
+  color: #98a2b3;
+}
+
+.logit-review-page .entity-wizard-label input:focus {
+  border-color: #84caff;
+  box-shadow: 0 0 0 4px rgba(158, 203, 255, 0.24);
+}
+
+/* Readonly Input State */
+.logit-review-page .entity-wizard-label input[readonly] {
+  background: #f9fafb;
+  color: #475467;
+  border-color: #eaecf0;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Scoped radio button alignment since wrapper div was removed */
+.logit-review-page .property-wizard-radio.logit-radio {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.logit-review-page .property-wizard-radio.logit-radio legend {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  color: #344054;
+  margin-bottom: 8px;
+}
+
+.logit-review-page .property-wizard-radio.logit-radio label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+}
+
+.logit-review-page .property-wizard-radio.logit-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d0d5dd;
+  border-radius: 50%;
+  cursor: pointer;
+  accent-color: #28336e;
+}
+
+/* Ownership details button */
+.logit-review-page .entity-beneficiary-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1.5px dashed #d0d5dd;
+  background: #ffffff;
+  color: #28336e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.logit-review-page .entity-beneficiary-add:hover {
+  border-color: #28336e;
+  background: #fafbff;
+}
+
+/* Tables Section Styling */
+.logit-review-page .logit-table {
+  overflow: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+.logit-review-page .logit-table-head,
+.logit-review-page .logit-table-row,
+.logit-review-page .logit-table-total {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 140px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+}
+
+.logit-review-page .logit-table-head {
+  background: #f9fafb;
+  border-bottom: 1px solid #eaecf0;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.logit-review-page .logit-table-head span:not(:first-child),
+.logit-review-page .logit-table-total span {
+  text-align: right;
+}
+
+.logit-review-page .logit-table-row {
+  min-height: 58px;
+  border-bottom: 1px solid #f2f4f7;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.logit-review-page .logit-table-row:last-of-type:not(.logit-subcategory-row) {
+  border-bottom: none;
+}
+
+.logit-review-page .logit-table-row>span {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.logit-review-page .logit-table-row b {
+  color: #667085;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.logit-review-page .logit-table-row input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  text-align: right;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.logit-review-page .logit-table-row input::placeholder {
+  color: #b8bec9;
+}
+
+.logit-review-page .logit-table-row input:focus {
+  outline: none;
+  border-color: #84caff;
+  box-shadow: 0 0 0 3px rgba(132, 202, 255, 0.24);
+}
+
+.logit-review-page .logit-table-total {
+  border-top: 1px solid #d1e9ff;
+  background: #f5faff;
+  color: #1e40af;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.logit-review-page .logit-row-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.logit-review-page .logit-table-row input.logit-parent-input-readonly {
+  background: #f9fafb;
+  color: #475467;
+  border-color: #eaecf0;
+  cursor: not-allowed;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.logit-review-page .logit-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  color: #475467;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 8px;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.logit-review-page .logit-expand-btn:hover {
+  color: #101828;
+  background: #f9fafb;
+  border-color: #98a2b3;
+}
+
+.logit-review-page .logit-subcategories-container {
+  display: flex;
+  flex-direction: column;
+  background: #f9fafb;
+  border-left: 4px solid #d0d5dd;
+}
+
+.logit-review-page .logit-subcategory-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 140px;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px 10px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.logit-review-page .logit-subcategory-row:last-child {
+  border-bottom: none;
+}
+
+.logit-review-page .logit-subcategory-label {
+  padding-left: 20px;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.logit-review-page .logit-subcategory-row input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  text-align: right;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.logit-review-page .logit-subcategory-row input::placeholder {
+  color: #b8bec9;
+}
+
+.logit-review-page .logit-subcategory-row input:focus {
+  outline: none;
+  border-color: #84caff;
+  box-shadow: 0 0 0 3px rgba(132, 202, 255, 0.24);
+}
+
+.logit-review-page .logit-grand-total {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 140px;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  background: #fef8e6;
+  color: #101828;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.logit-review-page .logit-grand-total span {
+  text-align: right;
+}
+
+.logit-review-page .logit-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px solid #e4e7ef;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+/* Scoped button fallback for secondary action */
+.logit-review-page .entity-wizard-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  min-height: 46px;
+  border-radius: 8px;
+  border: 1px solid #28336e;
+  background: #ffffff;
+  color: #28336e;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.logit-review-page .entity-wizard-secondary:hover:not(:disabled) {
+  background: #f5f6fb;
+}
+
+.logit-review-page .logit-alert {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.logit-review-page .logit-alert.is-error {
+  border: 1px solid #fda29b;
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.logit-review-page .logit-alert.is-success {
+  border: 1px solid #a6f0c6;
+  background: #ecfdf3;
+  color: #036b3c;
+}
+
+@media (max-width: 760px) {
+
+  .logit-review-page .entity-wizard-card.logit-card,
+  .logit-review-page .logit-form-actions {
+    padding: 20px;
+  }
+
+  .logit-review-page .logit-grid,
+  .logit-review-page .logit-grid-3,
+  .logit-review-page .logit-owner-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .logit-review-page .logit-table {
+    overflow-x: auto;
+  }
+
+  .logit-review-page .logit-table-head,
+  .logit-review-page .logit-table-row,
+  .logit-review-page .logit-table-total,
+  .logit-review-page .logit-subcategory-row,
+  .logit-review-page .logit-grand-total {
+    grid-template-columns: minmax(180px, 1fr) 110px 110px;
+    min-width: 440px;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .logit-review-page .logit-form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 }

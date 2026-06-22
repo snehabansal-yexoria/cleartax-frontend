@@ -48,7 +48,7 @@ async function getFreshToken(): Promise<string> {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ReconciliationFilter = "all" | "matched";
+type ReconciliationFilter = "all" | "matched" | "categorized";
 type ReconciliationSort = "desc" | "asc";
 
 type UploadStage =
@@ -314,6 +314,7 @@ export default function AccountantReconciliationSessionPage() {
   const [filter, setFilter] = useState<ReconciliationFilter>("all");
   const [query, setQuery] = useState("");
   const [sortDirection, setSortDirection] = useState<ReconciliationSort>("desc");
+  const [past30DaysOnly, setPast30DaysOnly] = useState(false);
 
   const [optimisticMatches, addOptimisticMatch] = useOptimistic<
     Map<MatchKey, ReconciliationMatch>,
@@ -857,20 +858,18 @@ export default function AccountantReconciliationSessionPage() {
         ? Math.round((uploadStage.pagesDone / uploadStage.pagesTotal) * 100)
         : uploadStage.type === "starting" ? 95 : 0;
 
-  // ── Derived rows for the combined table ──────────────────────────────────
-
   const candidateMatches = computeCandidateMatches(combinedRows, deferredEntityTxs);
-
   const reconciledCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "confirmed").length;
   const excludedCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "excluded").length;
 
-  const matchedCount = combinedRows.filter(({ reconId, bankTxIndex }) => {
-    const key = mkey(reconId, bankTxIndex);
-    const match = optimisticMatches.get(key);
-    const isConfirmed = match?.status === "confirmed";
-    const isResolved = match != null;
-    return isConfirmed || (!isResolved && candidateMatches.has(key));
-  }).length;
+  const latestTxDate = useMemo(() => {
+    let max = 0;
+    for (const { row } of combinedRows) {
+      const t = new Date(row.date).getTime();
+      if (!isNaN(t) && t > max) max = t;
+    }
+    return max > 0 ? max : new Date().getTime();
+  }, [combinedRows]);
 
   const q = query.trim().toLowerCase();
 
@@ -882,18 +881,33 @@ export default function AccountantReconciliationSessionPage() {
       const isConfirmed = match?.status === "confirmed";
       const isExcluded = match?.status === "excluded";
 
-      if (activeTab === "reviewed") return isConfirmed;
-      if (activeTab === "excluded") return isExcluded;
+      if (activeTab === "reviewed" && !isConfirmed) return false;
+      if (activeTab === "excluded" && !isExcluded) return false;
 
-      if (isResolved) {
-        if (filter === "matched" && isConfirmed) {
-          // keep
-        } else {
-          return false;
+      if (past30DaysOnly) {
+        const txTime = new Date(row.date).getTime();
+        if (!isNaN(txTime)) {
+          const now = new Date().getTime();
+          const anchor = (now - latestTxDate > 90 * 24 * 60 * 60 * 1000) ? latestTxDate : now;
+          const thirtyDaysAgo = anchor - 30 * 24 * 60 * 60 * 1000;
+          if (txTime < thirtyDaysAgo) return false;
         }
       }
 
-      if (filter === "matched" && !candidateMatches.has(key) && !isConfirmed) return false;
+      if (filter === "matched" && !candidateMatches.has(key)) return false;
+      if (filter === "categorized" && candidateMatches.has(key)) return false;
+
+      if (activeTab === "unreviewed") {
+        if (isResolved) {
+          if (filter === "matched" && isConfirmed) {
+            // keep
+          } else if (filter === "categorized" && isConfirmed) {
+            // keep
+          } else {
+            return false;
+          }
+        }
+      }
       if (
         q &&
         !row.description.toLowerCase().includes(q) &&
@@ -1133,42 +1147,59 @@ export default function AccountantReconciliationSessionPage() {
           </button>
         </div>
         <div className="accountant-reconciliation-controls">
-          <label>
+          <label className="accountant-reconciliation-search">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="m16 16 4 4" />
             </svg>
             <input
               type="text"
-              placeholder="Search by payee, description or statement…"
+              placeholder="Search by payee or reference..."
               value={query}
               onChange={(e) => { setQuery(e.target.value); setReconPage(1); }}
             />
           </label>
-          {activeTab === "unreviewed" && (
-            <>
+          <div className="accountant-reconciliation-center-group">
+            <div className="accountant-reconciliation-segmented">
               <button
                 type="button"
                 className={filter === "all" ? "is-active" : ""}
                 onClick={() => { setFilter("all"); setReconPage(1); }}
               >
-                All ({unreviewedCount})
+                {activeTab === "reviewed" ? "All Reviewed" : "All"}
               </button>
               <button
                 type="button"
                 className={filter === "matched" ? "is-active" : ""}
                 onClick={() => { setFilter("matched"); setReconPage(1); }}
               >
-                Matched ({entityTxsLoading ? "…" : matchedCount})
+                {activeTab === "reviewed" ? "Matched Only" : "Matched"}
               </button>
-            </>
-          )}
+              <button
+                type="button"
+                className={filter === "categorized" ? "is-active" : ""}
+                onClick={() => { setFilter("categorized"); setReconPage(1); }}
+              >
+                {activeTab === "reviewed" ? "Categorized Only" : "Categorized"}
+              </button>
+            </div>
+            <button
+              type="button"
+              className={`accountant-reconciliation-date-filter${past30DaysOnly ? " is-active" : ""}`}
+              onClick={() => { setPast30DaysOnly((cur) => !cur); setReconPage(1); }}
+            >
+              Past 30 Days
+            </button>
+          </div>
           <button
             type="button"
+            className="accountant-reconciliation-sort"
             onClick={() => { setSortDirection((cur) => (cur === "desc" ? "asc" : "desc")); setReconPage(1); }}
           >
-            Sort: Date {sortDirection === "desc" ? "↓" : "↑"}
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            Sort: Date
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-chevron">
+              <path d={sortDirection === "desc" ? "m6 9 6 6 6-6" : "m6 15 6-6 6 6"} />
+            </svg>
           </button>
         </div>
       </section>
