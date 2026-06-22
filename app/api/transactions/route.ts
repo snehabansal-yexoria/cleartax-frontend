@@ -176,10 +176,18 @@ export async function GET(req: Request) {
       );
     }
 
-    const clients = await listDirectoryUsers({
+    const orgClients = await listDirectoryUsers({
       orgId: requester.orgId,
       roleIds: clientRoleIds,
     });
+    // Accountants only see transactions for clients assigned to them
+    // (users.assigned_accountant_id). Admins keep org-wide visibility.
+    const clients =
+      requesterRole === "accountant"
+        ? orgClients.filter(
+            (client) => client.assignedAccountantId === requester.id,
+          )
+        : orgClients;
     const responses = await Promise.all(
       clients.map(async (client) => {
         try {

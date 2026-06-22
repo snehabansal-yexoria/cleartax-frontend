@@ -2952,6 +2952,11 @@ export function AddTransactionView({
   // them once their option lists arrive (instead of resetting to the default).
   const pendingRuleRef = useRef<{ categoryId: number; subcategoryId: number } | null>(null);
 
+  // The id of the rule that matched the current extraction, stamped onto the
+  // transaction at create time so the listing shows which rule was applied.
+  // Lives from extraction → submit; cleared when the extraction is discarded.
+  const appliedRuleIdRef = useRef<number | null>(null);
+
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId ?? "");
   const [entities, setEntities] = useState<EntityOption[]>([]);
@@ -3421,6 +3426,9 @@ export function AddTransactionView({
     // subcategory in pendingRuleRef BEFORE setType triggers the async category
     // load, so the load effects apply the rule's values instead of defaults.
     const rule = meta?.matchedRule ?? null;
+    // Remember the matched rule's id (or clear it if this extraction matched no
+    // rule) so handleSubmit can stamp it onto the created transaction.
+    appliedRuleIdRef.current = rule?.rule_id ?? null;
     const ruleType =
       rule?.assigned_type === "expense" || rule?.assigned_type === "revenue"
         ? rule.assigned_type
@@ -3943,6 +3951,9 @@ export function AddTransactionView({
       if (documentId) {
         body.document_id = documentId;
       }
+      if (appliedRuleIdRef.current) {
+        body.rule_id = appliedRuleIdRef.current;
+      }
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
@@ -4104,6 +4115,7 @@ export function AddTransactionView({
             onReset={() => {
               setDocumentId(null);
               setUploadedFilename(null);
+              appliedRuleIdRef.current = null;
             }}
           />
         ) : (
@@ -4536,15 +4548,16 @@ function RuleModal({
   const mode = rule ? "edit" : "create";
 
   const [token, setToken] = useState<string | null>(null);
-  const [entities, setEntities] = useState<{ id: string; name: string }[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [entities, setEntities] = useState<EntityOption[]>([]);
   const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
 
   const [ruleName, setRuleName] = useState(rule?.name ?? "");
+  const [clientId, setClientId] = useState("");
   const [entityId, setEntityId] = useState(fixedEntityId ?? rule?.entityId ?? "");
   const [propertyId, setPropertyId] = useState(rule?.propertyId ?? "");
-  const [clientName, setClientName] = useState(rule?.clientName ?? "");
   const [matchMode, setMatchMode] = useState(rule?.matchMode ?? "all");
   const [conditions, setConditions] = useState<ConditionRow[]>(() =>
     rule && rule.conditions.length > 0
@@ -4577,18 +4590,57 @@ function RuleModal({
       const t = session?.getIdToken().getJwtToken() ?? null;
       if (cancelled) return;
       setToken(t);
-      if (!t) return;
-
-      if (!fixedEntityId) {
-        const res = await fetch("/api/entities", { headers: { Authorization: `Bearer ${t}` } });
-        if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { items?: { id: string; name: string }[] };
-        if (!cancelled) setEntities(data.items ?? []);
-      }
     }
     init();
     return () => { cancelled = true; };
-  }, [fixedEntityId]);
+  }, []);
+
+  // Load the accountant's clients to drive the client → entity → property cascade.
+  useEffect(() => {
+    if (fixedEntityId || !token) return;
+    let cancelled = false;
+    fetch("/api/users/me/clients?scope=mine", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { clients?: ClientOption[] } | null) => {
+        if (!cancelled && data) setClients(data.clients ?? []);
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+  }, [fixedEntityId, token]);
+
+  // Load entities for the selected client.
+  useEffect(() => {
+    if (fixedEntityId || !token) return;
+    if (!clientId) { setEntities([]); return; }
+    let cancelled = false;
+    fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { items?: EntityOption[] } | null) => {
+        if (!cancelled && data) setEntities(data.items ?? []);
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+  }, [fixedEntityId, token, clientId]);
+
+  // Edit mode: resolve the client owning the rule's entity so the cascade is pre-filled.
+  useEffect(() => {
+    if (fixedEntityId || !token || !rule?.entityId || clientId) return;
+    let cancelled = false;
+    fetch(`/api/entities/${encodeURIComponent(rule.entityId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { createdFor?: string } | null) => {
+        if (!cancelled && data?.createdFor) setClientId(String(data.createdFor));
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixedEntityId, token, rule?.entityId]);
 
   useEffect(() => {
     if (!token || !entityId) { setProperties([]); return; }
@@ -4727,6 +4779,11 @@ function RuleModal({
     }
   }
 
+  const clientSelectOptions: SelectOption[] = [
+    { label: "Select client", value: "" },
+    ...clients.map((c) => ({ label: c.name, value: c.id })),
+  ];
+
   const entitySelectOptions: SelectOption[] = fixedEntityId
     ? []
     : [
@@ -4793,13 +4850,16 @@ function RuleModal({
           </label>
 
           <h3>Entity & Property</h3>
-          <div><StaticSelect
+          {!fixedEntityId && (
+            <div><StaticSelect
               label="Client Name"
-              value={clientName}
-              options={propertySelectOptions}
-              onChange={setClientName}
+              value={clientId}
+              options={clientSelectOptions}
+              onChange={(v) => { setClientId(v); setEntityId(""); setPropertyId(""); }}
+              showSearch
               className="is-full-width"
             /></div>
+          )}
           <div className="transaction-two-grid">
             {!fixedEntityId && (
               <StaticSelect
@@ -4807,7 +4867,8 @@ function RuleModal({
                 required
                 value={entityId}
                 options={entitySelectOptions}
-                onChange={setEntityId}
+                onChange={(v) => { setEntityId(v); setPropertyId(""); }}
+                disabled={!clientId}
               />
             )}
             <StaticSelect
