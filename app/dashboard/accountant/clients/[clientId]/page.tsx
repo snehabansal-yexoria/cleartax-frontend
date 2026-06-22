@@ -763,7 +763,7 @@ function ClientDetailPageContent() {
                 <p>Create your first entity to get started</p>
                 <Link
                   href={`/dashboard/accountant/clients/${clientId}/entities/new`}
-                  className="entity-wizard-primary"
+                  className="entity-wizard-primary "
                 >
                   + Add Entity
                 </Link>

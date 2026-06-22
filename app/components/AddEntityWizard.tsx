@@ -22,27 +22,27 @@ const entityTypeOptions: EntityTypeOption[] = [
   {
     value: "individual",
     label: "Individual",
-    description: "Single person ownership with direct asset control",
+    description: "Property owned in your personal name",
   },
   {
     value: "partnership",
     label: "Partnership",
-    description: "Shared ownership between two or more partners",
+    description: "Joint ownership between two or more parties",
   },
   {
     value: "company",
     label: "Company (Pty Ltd)",
-    description: "Limited liability company structure with shareholders",
+    description: "Property owned through a company entity",
   },
   {
     value: "trust",
-    label: "Trust (Discretionary/ Unit)",
-    description: "Asset protection and flexible distribution to beneficiaries",
+    label: "Trust (Discretionary / Unit Trust)",
+    description: "Property held within a trust structure",
   },
   {
     value: "smsf",
     label: "Self Managed Super Fund (SMSF)",
-    description: "Tax-effective retirement savings and investment vehicle",
+    description: "Property owned through an SMSF for retirement investment",
   },
 ];
 
@@ -265,7 +265,7 @@ export default function AddEntityWizard({
   async function submit(): Promise<CoreEntity | null> {
     setErrorMessage("");
     if (!entityType || !entityName.trim() || !beneficiariesValid) {
-      setErrorMessage("Please complete every field before saving.");
+      setErrorMessage("Please complete every step before saving.");
       return null;
     }
 

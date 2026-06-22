@@ -1,5 +1,5 @@
-import { EntityWizardSkeleton } from "@/app/components/PortalSkeletons";
+import { PropertyWizardSkeleton } from "@/app/components/PortalSkeletons";
 
 export default function Loading() {
-  return <EntityWizardSkeleton />;
+  return <PropertyWizardSkeleton />;
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import AddPropertyWizard from "@/app/components/AddPropertyWizard";
-import { EntityWizardSkeleton } from "@/app/components/PortalSkeletons";
+import { PropertyWizardSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity } from "@/src/lib/coreApi";
 
@@ -66,9 +66,9 @@ export default function AccountantAddPropertyPage() {
       <Skeleton
         name="accountant-add-property-page"
         loading
-        fallback={<EntityWizardSkeleton />}
+        fallback={<PropertyWizardSkeleton />}
       >
-        <EntityWizardSkeleton />
+        <PropertyWizardSkeleton />
       </Skeleton>
     );
   }

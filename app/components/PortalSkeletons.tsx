@@ -423,6 +423,78 @@ export function EntityWizardSkeleton() {
   );
 }
 
+export function PropertyWizardSkeleton() {
+  return (
+    <section className="entity-wizard property-wizard boneyard-fallback">
+      <div className="entity-wizard-top">
+        <div className="skeleton-pill" style={{ width: 80, height: 20 }} />
+      </div>
+
+      <div className="entity-wizard-steps skeleton-wizard-steps">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="entity-wizard-step">
+            <div className="skeleton-circle skeleton-circle-sm" />
+            <div className="skeleton-stack">
+              <div className="skeleton-line skeleton-line-md" />
+              <div className="skeleton-line skeleton-line-sm" />
+            </div>
+            {index < 2 && <div className="skeleton-connector" />}
+          </div>
+        ))}
+      </div>
+
+      <div className="entity-wizard-card">
+        <header className="skeleton-stack">
+          <div className="skeleton-line skeleton-line-lg" />
+          <div className="skeleton-line skeleton-line-md" />
+        </header>
+
+        <div className="entity-wizard-selected-chip property-entity-chip skeleton-row" style={{ gap: 16, marginBottom: 24 }}>
+          <div className="skeleton-pill" style={{ width: 140, height: 28 }} />
+          <div className="skeleton-pill" style={{ width: 100, height: 28 }} />
+        </div>
+
+        <div className="entity-wizard-label" style={{ marginBottom: 20 }}>
+          <div className="skeleton-line skeleton-line-sm" style={{ marginBottom: 8, width: 120 }} />
+          <div className="skeleton-input" style={{ height: 42 }} />
+        </div>
+
+        <div className="property-wizard-grid">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="entity-wizard-label">
+              <div className="skeleton-line skeleton-line-sm" style={{ marginBottom: 8, width: index % 2 === 0 ? 110 : 150 }} />
+              <div className="skeleton-input" style={{ height: 42 }} />
+            </div>
+          ))}
+          <div className="entity-wizard-label">
+            <div className="skeleton-line skeleton-line-sm" style={{ marginBottom: 8, width: 140 }} />
+            <div style={{ display: "flex", gap: 16, marginTop: 8, height: 20, alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="skeleton-circle" style={{ width: 16, height: 16 }} />
+                <div className="skeleton-line" style={{ width: 40, height: 14 }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="skeleton-circle" style={{ width: 16, height: 16 }} />
+                <div className="skeleton-line" style={{ width: 40, height: 14 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="property-image-section" style={{ marginTop: 24 }}>
+          <div className="skeleton-line skeleton-line-sm" style={{ marginBottom: 8, width: 130 }} />
+          <div className="skeleton-panel" style={{ height: 120, borderRadius: 12 }} />
+        </div>
+
+        <div className="entity-wizard-footer">
+          <div />
+          <div className="skeleton-pill skeleton-pill-wide" style={{ height: 40, width: 120 }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function EntityPropertyListSkeleton() {
   return (
     <ul className="entity-property-list boneyard-fallback">
