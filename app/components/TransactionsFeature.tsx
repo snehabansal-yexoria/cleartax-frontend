@@ -4679,8 +4679,6 @@ function RuleModal({
             const valid = (data.items ?? []).some((c) => String(c.id) === prev);
             return valid ? prev : "";
           });
-          setSubcategoryId("");
-          setSubcategories([]);
         }
       })
       .catch(() => null);
