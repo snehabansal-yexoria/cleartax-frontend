@@ -994,7 +994,7 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="text"
-                placeholder="$0"
+                placeholder="A$0"
                 value={estimatedMarketValue}
                 onChange={(event) =>
                   handleEstimatedMarketValueChange(event.target.value)
@@ -1042,7 +1042,7 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="text"
-                placeholder="$0"
+                placeholder="A$0"
                 value={purchaseAmount}
                 onChange={(event) => handlePurchaseAmountChange(event.target.value)}
               />

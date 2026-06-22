@@ -212,6 +212,23 @@ export default function TaskManagementPage() {
             return;
         }
 
+        let validatedDeadline = newTaskDeadline;
+        const parts = validatedDeadline.split("-");
+        if (parts.length === 3) {
+            let [year, month, day] = parts;
+            if (year.length > 4) {
+                year = year.substring(0, 4);
+            }
+            validatedDeadline = `${year}-${month}-${day}`;
+        }
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        if (validatedDeadline < todayStr) {
+            alert("Deadline cannot be in the past.");
+            return;
+        }
+
         const token = await getToken();
         if (!token) return;
 
@@ -224,7 +241,7 @@ export default function TaskManagementPage() {
                     name: newTaskName.trim(),
                     description: newTaskDesc.trim(),
                     assigned_to: newTaskAssignee.id,
-                    deadline: new Date(newTaskDeadline).toISOString(),
+                    deadline: new Date(validatedDeadline).toISOString(),
                 }),
             });
             if (!res.ok) {
@@ -617,8 +634,43 @@ export default function TaskManagementPage() {
                                         const d = new Date();
                                         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                                     })()}
+                                    max="9999-12-31"
                                     value={newTaskDeadline}
-                                    onChange={(e) => setNewTaskDeadline(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (!val) {
+                                            setNewTaskDeadline("");
+                                            return;
+                                        }
+                                        const parts = val.split("-");
+                                        if (parts.length === 3) {
+                                            let [year, month, day] = parts;
+                                            if (year.length > 4) {
+                                                year = year.substring(0, 4);
+                                            }
+                                            setNewTaskDeadline(`${year}-${month}-${day}`);
+                                        } else {
+                                            setNewTaskDeadline(val);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (!newTaskDeadline) return;
+                                        const parts = newTaskDeadline.split("-");
+                                        if (parts.length === 3) {
+                                            let [year, month, day] = parts;
+                                            if (year.length > 4) {
+                                                year = year.substring(0, 4);
+                                            }
+                                            const today = new Date();
+                                            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                                            const newVal = `${year}-${month}-${day}`;
+                                            if (newVal < todayStr) {
+                                                setNewTaskDeadline(todayStr);
+                                            } else {
+                                                setNewTaskDeadline(newVal);
+                                            }
+                                        }
+                                    }}
                                     className="w-full h-[50px] px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#28336e]/10 focus:border-[#28336e] text-slate-800 text-sm transition font-medium"
                                 />
                             </div>

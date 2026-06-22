@@ -84,6 +84,9 @@ export default function ReportsDashboard() {
     const [fromDate, setFromDate] = useState<string>("2026-06-12");
     const [toDate, setToDate] = useState<string>("2026-06-19");
 
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
     const [filteredTransactions, setFilteredTransactions] = useState<ReportTransaction[]>([]);
     const [filteredProperties, setFilteredProperties] = useState<ReportProperty[]>([]);
     const [filteredEntities, setFilteredEntities] = useState<ReportEntity[]>([]);
@@ -256,21 +259,97 @@ export default function ReportsDashboard() {
                 </div>
                 <input
                     type="date"
+                    max={todayStr}
                     value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                            setFromDate("");
+                            return;
+                        }
+                        const parts = val.split("-");
+                        if (parts.length === 3) {
+                            let [year, month, day] = parts;
+                            if (year.length > 4) {
+                                year = year.substring(0, 4);
+                            }
+                            const newVal = `${year}-${month}-${day}`;
+                            if (newVal > todayStr) {
+                                setFromDate(todayStr);
+                            } else {
+                                setFromDate(newVal);
+                            }
+                        } else {
+                            setFromDate(val);
+                        }
+                    }}
+                    onBlur={() => {
+                        if (!fromDate) return;
+                        const parts = fromDate.split("-");
+                        if (parts.length === 3) {
+                            let [year, month, day] = parts;
+                            if (year.length > 4) {
+                                year = year.substring(0, 4);
+                            }
+                            const newVal = `${year}-${month}-${day}`;
+                            if (newVal > todayStr) {
+                                setFromDate(todayStr);
+                            } else {
+                                setFromDate(newVal);
+                            }
+                        }
+                    }}
                     className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600"
                 />
                 <span className="text-xs text-slate-400">To</span>
                 <input
                     type="date"
+                    max={todayStr}
                     value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                            setToDate("");
+                            return;
+                        }
+                        const parts = val.split("-");
+                        if (parts.length === 3) {
+                            let [year, month, day] = parts;
+                            if (year.length > 4) {
+                                year = year.substring(0, 4);
+                            }
+                            const newVal = `${year}-${month}-${day}`;
+                            if (newVal > todayStr) {
+                                setToDate(todayStr);
+                            } else {
+                                setToDate(newVal);
+                            }
+                        } else {
+                            setToDate(val);
+                        }
+                    }}
+                    onBlur={() => {
+                        if (!toDate) return;
+                        const parts = toDate.split("-");
+                        if (parts.length === 3) {
+                            let [year, month, day] = parts;
+                            if (year.length > 4) {
+                                year = year.substring(0, 4);
+                            }
+                            const newVal = `${year}-${month}-${day}`;
+                            if (newVal > todayStr) {
+                                setToDate(todayStr);
+                            } else {
+                                setToDate(newVal);
+                            }
+                        }
+                    }}
                     className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600"
                 />
                 <button
                     type="button"
                     onClick={() => setSelectedPeriod("custom")}
-                    className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto md:ml-0 ${selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
+                    className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
                         }`}
                 >
                     Apply

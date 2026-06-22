@@ -108,6 +108,7 @@ type CoreTransactionRule = {
   updatedBy: string;
   createdAt: string;
   updatedAt: string;
+  clientName?: string;
 };
 
 type SelectOption = {
@@ -154,6 +155,7 @@ function normalizeRule(raw: Record<string, unknown>): CoreTransactionRule {
     updatedBy: String(raw.updated_by ?? ""),
     createdAt: String(raw.created_at ?? ""),
     updatedAt: String(raw.updated_at ?? ""),
+    clientName: raw.clientName != null ? String(raw.clientName) : (raw.client_name != null ? String(raw.client_name) : undefined),
   };
 }
 
@@ -4542,6 +4544,7 @@ function RuleModal({
   const [ruleName, setRuleName] = useState(rule?.name ?? "");
   const [entityId, setEntityId] = useState(fixedEntityId ?? rule?.entityId ?? "");
   const [propertyId, setPropertyId] = useState(rule?.propertyId ?? "");
+  const [clientName, setClientName] = useState(rule?.clientName ?? "");
   const [matchMode, setMatchMode] = useState(rule?.matchMode ?? "all");
   const [conditions, setConditions] = useState<ConditionRow[]>(() =>
     rule && rule.conditions.length > 0
@@ -4790,6 +4793,13 @@ function RuleModal({
           </label>
 
           <h3>Entity & Property</h3>
+          <div><StaticSelect
+              label="Client Name"
+              value={clientName}
+              options={propertySelectOptions}
+              onChange={setClientName}
+              className="is-full-width"
+            /></div>
           <div className="transaction-two-grid">
             {!fixedEntityId && (
               <StaticSelect
