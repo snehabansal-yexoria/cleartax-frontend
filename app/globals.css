@@ -9985,7 +9985,7 @@ p.darkBg {
 }
 
 .entity-wizard-primary.is-green:hover {
-  background: #0f6f32;
+  background: transparent;
 }
 
 .entity-property-list {
