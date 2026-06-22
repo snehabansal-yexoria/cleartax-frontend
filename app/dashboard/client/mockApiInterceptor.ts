@@ -97,6 +97,7 @@ interface Rule {
 
 interface MockDB {
   user: {
+    id: string;
     fullName: string;
     email: string;
     phoneNumber: string;
@@ -168,6 +169,7 @@ const subcategories: Record<number, { id: number; name: string }[]> = {
 function getInitialDB(): MockDB {
   const db: MockDB = {
     user: {
+      id: "demo-client",
       fullName: "Sarah Johnson",
       email: "sarah.johnson@email.com",
       phoneNumber: "+61 400 123 456",
@@ -305,15 +307,7 @@ function getInitialDB(): MockDB {
     ],
   };
 
-  // Generate 6 months of historical transactions to matches insights & page summaries
-  // Nov (5 months ago), Dec (4 months ago), Jan (3 months ago), Feb (2 months ago), Mar (1 month ago), Apr (0 months ago)
-  // Let's configure income and expenses per month:
-  // Nov: Income 12000, Expense 3000 -> Net 9000
-  // Dec: Income 7000, Expense 7000 -> Net 0
-  // Jan: Income 10000, Expense 4000 -> Net 6000
-  // Feb: Income 15000, Expense 800 -> Net 14200
-  // Mar: Income 6000, Expense 7500 -> Net -1500
-  // Apr (Current/June-ish): Income 13800, Expense 5380 -> Net 8420
+
   
   const targetMonthlyData = [
     { monthsAgo: 5, income: 12000, expense: 3000 },
@@ -525,7 +519,10 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
 
   // 1. GET /api/users/me
   if (path === "/api/users/me" && method === "GET") {
-    return jsonResponse(db.user);
+    return jsonResponse({
+      ...db.user,
+      id: db.user.id || "demo-client"
+    });
   }
 
   // 2. GET /api/entities
