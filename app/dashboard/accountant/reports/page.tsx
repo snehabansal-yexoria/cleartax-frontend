@@ -236,7 +236,7 @@ export default function ReportsDashboard() {
                     <button
                         type="button"
                         onClick={handleExport}
-                        className="inline-flex items-center gap-2 bg-[#1b2559] hover:bg-[#253275] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-950/15"
+                        className="inline-flex items-center gap-2 bg-[#1b2559] hover:bg-[#253275] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-950/15 !hidden"
                     >
                         <svg
                             className="w-4 h-4 fill-none stroke-current stroke-[2] stroke-round stroke-linejoin"
@@ -554,7 +554,8 @@ export default function ReportsDashboard() {
             {/* Progress & Category Chart Layout Row */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Left Side: Activity by Category */}
-                <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                {/* remove from 32 to make it like before  */}
+                <div className="lg:col-span-32  bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
                     <div>
                         <h2 className="text-lg font-bold text-slate-900">Activity by Category</h2>
                         <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
@@ -610,7 +611,7 @@ export default function ReportsDashboard() {
                 </div>
 
                 {/* Right Side: Reconciliation Progress */}
-                <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between !hidden">
                     <h2 className="text-lg font-bold text-slate-900 mb-4">Reconciliation Progress</h2>
 
                     <div className="space-y-4">

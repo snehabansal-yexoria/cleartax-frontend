@@ -170,11 +170,9 @@ export default function ClientProfileReport({ params }: PageProps) {
             <p className="text-xs font-semibold text-slate-500 mt-1 space-x-1.5">
               <span>{client.entityType}</span>
               <span className="text-slate-300">·</span>
-              <span>{client.portfolio}</span>
+              <span>{client.entitiesCount} entities</span>
               <span className="text-slate-300">·</span>
               <span>{client.propertiesCount} properties</span>
-              <span className="text-slate-300">·</span>
-              <span>{client.entitiesCount} entities</span>
             </p>
           </div>
         </div>
@@ -290,6 +288,83 @@ export default function ClientProfileReport({ params }: PageProps) {
         )}
       </div>
 
+ {/* Entities Section */}
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 text-purple-500">
+              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <line x1="9" y1="9" x2="15" y2="9" />
+                <line x1="9" y1="13" x2="15" y2="13" />
+              </svg>
+            </div>
+            <h2 className="text-base font-bold text-slate-800">Entities</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400 font-semibold">{entitiesCount} changes</span>
+            <Link
+              href={`/dashboard/accountant/reports/entities?backUrl=/dashboard/accountant/reports/clients/${clientId}&backLabel=go back to clients`}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 group/lnk"
+            >
+              View all entities
+              <span className="transition-transform group-hover/lnk:translate-x-0.5">→</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto -mx-6 border-t border-slate-50">
+          <table className="w-full border-collapse text-left text-xs text-slate-500">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/30">
+                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider w-32">Action</th>
+                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider">Record</th>
+                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider">Detail</th>
+                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider text-right">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 font-medium">
+              {clientEntities.length > 0 ? (
+                clientEntities.map((ent, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/20">
+                    <td className="py-3.5 px-6">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                          ent.action === "Added"
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                            : ent.action === "Edited"
+                            ? "bg-blue-50 text-blue-600 border-blue-100"
+                            : "bg-rose-50 text-rose-600 border-rose-100"
+                        }`}
+                      >
+                        {ent.action === "Added" ? "+ Added" : ent.action === "Edited" ? "✎ Edited" : "🗑 Deleted"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-6 font-bold text-slate-800">{ent.entityName}</td>
+                    <td className="py-3.5 px-6">
+                      <span className="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-purple-50 text-purple-600 border-purple-100 mr-2">
+                        {ent.type}
+                      </span>
+                      {ent.change.includes("→") ? (
+                        <span className="text-slate-500 font-semibold">{ent.change}</span>
+                      ) : (
+                        <span className="text-slate-500">{ent.change}</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-6 text-right text-slate-400">{ent.date}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-slate-400 font-semibold">
+                    No entities modified today.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {/* Properties Section */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
         <div className="flex justify-between items-center mb-4">
@@ -304,7 +379,7 @@ export default function ClientProfileReport({ params }: PageProps) {
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-400 font-semibold">{propertiesCount} changes</span>
             <Link
-              href="/dashboard/accountant/reports/properties"
+              href={`/dashboard/accountant/reports/properties?backUrl=/dashboard/accountant/reports/clients/${clientId}&backLabel=go back to clients`}
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 group/lnk"
             >
               View all properties
@@ -367,84 +442,6 @@ export default function ClientProfileReport({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Entities Section */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 text-purple-500">
-              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-                <line x1="9" y1="9" x2="15" y2="9" />
-                <line x1="9" y1="13" x2="15" y2="13" />
-              </svg>
-            </div>
-            <h2 className="text-base font-bold text-slate-800">Entities</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 font-semibold">{entitiesCount} changes</span>
-            <Link
-              href="/dashboard/accountant/reports/entities"
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 group/lnk"
-            >
-              View all entities
-              <span className="transition-transform group-hover/lnk:translate-x-0.5">→</span>
-            </Link>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto -mx-6 border-t border-slate-50">
-          <table className="w-full border-collapse text-left text-xs text-slate-500">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/30">
-                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider w-32">Action</th>
-                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider">Record</th>
-                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider">Detail</th>
-                <th className="py-3 px-6 font-bold text-slate-400 uppercase tracking-wider text-right">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 font-medium">
-              {clientEntities.length > 0 ? (
-                clientEntities.map((ent, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/20">
-                    <td className="py-3.5 px-6">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
-                          ent.action === "Added"
-                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                            : ent.action === "Edited"
-                            ? "bg-blue-50 text-blue-600 border-blue-100"
-                            : "bg-rose-50 text-rose-600 border-rose-100"
-                        }`}
-                      >
-                        {ent.action === "Added" ? "+ Added" : ent.action === "Edited" ? "✎ Edited" : "🗑 Deleted"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-6 font-bold text-slate-800">{ent.entityName}</td>
-                    <td className="py-3.5 px-6">
-                      <span className="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-purple-50 text-purple-600 border-purple-100 mr-2">
-                        {ent.type}
-                      </span>
-                      {ent.change.includes("→") ? (
-                        <span className="text-slate-500 font-semibold">{ent.change}</span>
-                      ) : (
-                        <span className="text-slate-500">{ent.change}</span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-6 text-right text-slate-400">{ent.date}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-slate-400 font-semibold">
-                    No entities modified today.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Transactions Section */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
         <div className="flex justify-between items-center mb-4">
@@ -460,7 +457,7 @@ export default function ClientProfileReport({ params }: PageProps) {
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-400 font-semibold">{transactionsCount} changes</span>
             <Link
-              href="/dashboard/accountant/reports/transactions"
+              href={`/dashboard/accountant/reports/transactions?backUrl=/dashboard/accountant/reports/clients/${clientId}&backLabel=go back to clients`}
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 group/lnk"
             >
               View all transactions
@@ -536,7 +533,7 @@ export default function ClientProfileReport({ params }: PageProps) {
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-400 font-semibold">{clientDocuments.length} changes</span>
             <Link
-              href="/dashboard/accountant/reports/documents"
+              href={`/dashboard/accountant/reports/documents?backUrl=/dashboard/accountant/reports/clients/${clientId}&backLabel=go back to clients`}
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 group/lnk"
             >
               View all documents

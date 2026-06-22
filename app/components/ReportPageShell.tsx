@@ -14,6 +14,8 @@ interface ReportPageShellProps {
   editedCount: number;
   deletedCount: number;
   children: React.ReactNode;
+  backUrl?: string;
+  backLabel?: string;
 }
 
 export default function ReportPageShell({
@@ -27,19 +29,42 @@ export default function ReportPageShell({
   editedCount,
   deletedCount,
   children,
+  backUrl: propBackUrl,
+  backLabel: propBackLabel,
 }: ReportPageShellProps) {
+  const [backUrl, setBackUrl] = React.useState(propBackUrl || "/dashboard/accountant/reports");
+  const [backLabel, setBackLabel] = React.useState(propBackLabel || "Back to My Activity");
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const url = params.get("backUrl");
+      const label = params.get("backLabel");
+      if (url) {
+        setBackUrl(url);
+      } else if (propBackUrl) {
+        setBackUrl(propBackUrl);
+      }
+      if (label) {
+        setBackLabel(label);
+      } else if (propBackLabel) {
+        setBackLabel(propBackLabel);
+      }
+    }
+  }, [propBackUrl, propBackLabel]);
+
   return (
     <div className="flex flex-col gap-6 w-full animate-fadeIn max-w-[1400px] mx-auto pb-10">
       {/* Breadcrumb */}
       <div>
         <Link
-          href="/dashboard/accountant/reports"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+          href={backUrl}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors capitalize"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Back to My Activity
+          {backLabel}
         </Link>
       </div>
 

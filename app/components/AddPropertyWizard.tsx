@@ -1029,6 +1029,7 @@ export default function AddPropertyWizard({
               <input
                 type="date"
                 className="property-date-input"
+                max="9999-12-31"
                 value={settlementDate}
                 onChange={(event) => handleDateChange(event.target.value, setSettlementDate, false)}
                 onPaste={(event) => handleDatePaste(event, setSettlementDate, false)}
@@ -1239,6 +1240,7 @@ export default function AddPropertyWizard({
                 <input
                   type="date"
                   className="property-date-input"
+                  max="9999-12-31"
                   value={availableForRentDate}
                   onChange={(event) =>
                     handleDateChange(event.target.value, setAvailableForRentDate)
@@ -1255,6 +1257,7 @@ export default function AddPropertyWizard({
                   <input
                     type="date"
                     className="property-date-input"
+                    max="9999-12-31"
                     value={firstRentalIncomeDate}
                     onChange={(event) =>
                       handleDateChange(event.target.value, setFirstRentalIncomeDate)
@@ -1276,6 +1279,7 @@ export default function AddPropertyWizard({
                 <input
                   type="date"
                   className="property-date-input"
+                  max="9999-12-31"
                   value={renovationStartDate}
                   onChange={(event) =>
                     handleDateChange(event.target.value, setRenovationStartDate)
@@ -1289,6 +1293,7 @@ export default function AddPropertyWizard({
                 <input
                   type="date"
                   className="property-date-input"
+                  max="9999-12-31"
                   value={renovationEndDate}
                   onChange={(event) => handleDateChange(event.target.value, setRenovationEndDate)}
                   onPaste={(event) => handleDatePaste(event, setRenovationEndDate)}

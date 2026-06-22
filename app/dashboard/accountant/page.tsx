@@ -74,12 +74,149 @@ function formatCurrency(value: number) {
   return `${getCurrencyPrefix()}${value < 0 ? "-" : ""}${formatted}`;
 }
 
-// Mirrors the dot-color convention used by the reports timeline
-// (TimelineEventItem): added=emerald, deleted=rose, everything else=blue.
-function activityDotColor(type: ReportTimelineEvent["type"]) {
-  if (type === "added") return "bg-emerald-500";
-  if (type === "deleted") return "bg-rose-500";
-  return "bg-blue-500";
+// Activity category styling and icon utilities
+const DEMO_ACTIVITIES: ReportTimelineEvent[] = [
+  {
+    id: "act-1",
+    clientId: "client-1",
+    clientName: "Sarah Jenkins",
+    action: "Invitation Accepted",
+    detail: "Sarah Jenkins (sarah.j@example.com) joined as a client.",
+    time: "10:30 AM",
+    type: "added",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "act-2",
+    clientId: "client-1",
+    clientName: "Sarah Jenkins",
+    action: "Document Uploaded",
+    detail: "New tax document 'Tax_Return_2025.pdf' uploaded.",
+    time: "2:15 PM",
+    type: "edited",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "act-3",
+    clientId: "client-2",
+    clientName: "Michael Chang",
+    action: "Entity Created",
+    detail: "Entity 'Acme Holdings Pty Ltd' created.",
+    time: "Yesterday",
+    type: "added",
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: "act-4",
+    clientId: "",
+    clientName: "",
+    action: "Client Invited",
+    detail: "Invitation sent to emily.brown@example.com by Admin.",
+    time: "2 days ago",
+    type: "edited",
+    timestamp: new Date(Date.now() - 172800000).toISOString(),
+  },
+  {
+    id: "act-5",
+    clientId: "client-3",
+    clientName: "John Doe",
+    action: "Property Updated",
+    detail: "Updated estimated market value for '74 Park Road' to $1.2M.",
+    time: "3 days ago",
+    type: "edited",
+    timestamp: new Date(Date.now() - 259200000).toISOString(),
+  },
+  {
+    id: "act-6",
+    clientId: "client-4",
+    clientName: "Robert Smith",
+    action: "Document Uploaded",
+    detail: "Rental Statement for '12 Elm St' uploaded.",
+    time: "4 days ago",
+    type: "edited",
+    timestamp: new Date(Date.now() - 345600000).toISOString(),
+  },
+  {
+    id: "act-7",
+    clientId: "client-5",
+    clientName: "John Doe",
+    action: "Bank Account Linked",
+    detail: "ANZ Bank feed connected.",
+    time: "5 days ago",
+    type: "edited",
+    timestamp: new Date(Date.now() - 432000000).toISOString(),
+  },
+];
+
+function getActivityCategory(action: string, type: ReportTimelineEvent["type"]): "invite" | "document" | "entity" | "property" | "bank" {
+  const act = action.toLowerCase();
+  if (act.includes("invite") || act.includes("invitation")) return "invite";
+  if (act.includes("document") || act.includes("invoice") || act.includes("tax")) return "document";
+  if (act.includes("entity") || act.includes("organisation") || act.includes("company")) return "entity";
+  if (act.includes("property") || act.includes("portfolio")) return "property";
+  if (act.includes("bank") || act.includes("feed") || act.includes("reconcil")) return "bank";
+  
+  if (type === "added") return "invite";
+  if (type === "deleted") return "property";
+  return "entity";
+}
+
+function getActivityCategoryStyles(category: "invite" | "document" | "entity" | "property" | "bank") {
+  switch (category) {
+    case "invite":
+      return "bg-blue-50 text-blue-600 border border-blue-100/50";
+    case "document":
+      return "bg-purple-50 text-purple-600 border border-purple-100/50";
+    case "entity":
+      return "bg-amber-50 text-amber-600 border border-amber-100/50";
+    case "property":
+      return "bg-emerald-50 text-emerald-600 border border-emerald-100/50";
+    case "bank":
+      return "bg-cyan-50 text-cyan-600 border border-cyan-100/50";
+    default:
+      return "bg-slate-50 text-slate-600 border border-slate-100/50";
+  }
+}
+
+function getActivityIcon(category: "invite" | "document" | "entity" | "property" | "bank") {
+  switch (category) {
+    case "invite":
+      return (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      );
+    case "document":
+      return (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
+    case "entity":
+      return (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      );
+    case "property":
+      return (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      );
+    case "bank":
+      return (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+  }
 }
 
 export default function AccountantPage() {
@@ -661,7 +798,7 @@ export default function AccountantPage() {
         </section>
 
         <aside className="accountant-activity-panel">
-          <div className="accountant-panel-header">
+          <div className="accountant-panel-header" style={{ marginBottom: "12px" }}>
             <div>
               <h3>Recent Activity</h3>
               <p>Latest updates and actions</p>
@@ -684,56 +821,106 @@ export default function AccountantPage() {
           >
             {recentActivity && recentActivity.length > 0 ? (
               <>
-                <ul className="flex flex-col gap-4">
-                  {recentActivity.map((event) => (
-                    <li key={event.id} className="relative pl-5">
-                      <span
-                        className={`absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-white ${activityDotColor(event.type)}`}
-                        aria-hidden="true"
-                      />
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-slate-800">
-                            {event.action}
-                            {event.clientName && event.clientId ? (
-                              <>
-                                {" — "}
-                                <Link
-                                  href={`/dashboard/accountant/reports/clients/${event.clientId}`}
-                                  className="font-semibold text-[#28336e] hover:underline"
-                                >
-                                  {event.clientName}
-                                </Link>
-                              </>
+                <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[390px] pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                  {recentActivity.map((event) => {
+                    const cat = getActivityCategory(event.action, event.type);
+                    return (
+                      <div
+                        key={event.id}
+                        className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 ${getActivityCategoryStyles(cat)}`}>
+                            {getActivityIcon(cat)}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-semibold text-slate-800 leading-snug mb-0.5">
+                              {event.action}
+                              {event.clientName && event.clientId ? (
+                                <>
+                                  {" — "}
+                                  <Link
+                                    href={`/dashboard/accountant/reports/clients/${event.clientId}`}
+                                    className="font-bold text-[#28336e] hover:underline"
+                                  >
+                                    {event.clientName}
+                                  </Link>
+                                </>
+                              ) : null}
+                            </h4>
+                            {event.detail ? (
+                              <p className="text-[11px] text-slate-500 leading-normal m-0 font-normal truncate">
+                                {event.detail}
+                              </p>
                             ) : null}
-                          </p>
-                          {event.detail ? (
-                            <p className="mt-0.5 truncate text-xs text-slate-500">
-                              {event.detail}
-                            </p>
-                          ) : null}
+                          </div>
                         </div>
-                        <span className="flex-shrink-0 whitespace-nowrap text-[10px] font-semibold text-slate-400">
-                          {event.time}
-                        </span>
+                        <div className="flex flex-col items-end shrink-0 text-right min-w-[56px] mt-0.5">
+                          <span className="text-[10px] font-semibold text-slate-600 leading-none">
+                            {event.time}
+                          </span>
+                        </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    );
+                  })}
+                </div>
                 <Link
                   href="/dashboard/accountant/reports"
-                  className="mt-1 inline-block text-xs font-semibold text-[#28336e] hover:underline"
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#28336e] hover:underline self-start"
                 >
-                  View all →
+                  View all reports
+                  <svg className="w-3.5 h-3.5 stroke-current stroke-[2] fill-none" viewBox="0 0 24 24">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
                 </Link>
               </>
             ) : (
-              <div className="accountant-empty-state">
-                <p>
-                  No recent activity yet. Your latest actions across clients
-                  will appear here.
-                </p>
-              </div>
+              <>
+                <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[390px] pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                  {DEMO_ACTIVITIES.map((activity) => {
+                    const cat = getActivityCategory(activity.action, activity.type);
+                    return (
+                      <div
+                        key={activity.id}
+                        className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 ${getActivityCategoryStyles(cat)}`}>
+                            {getActivityIcon(cat)}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-semibold text-slate-800 leading-snug mb-0.5">
+                              {activity.action}
+                              {activity.clientName && activity.clientId ? (
+                                <>
+                                  {" — "}
+                                  <span className="font-bold text-[#28336e]">
+                                    {activity.clientName}
+                                  </span>
+                                </>
+                              ) : null}
+                            </h4>
+                            {activity.detail ? (
+                              <p className="text-[11px] text-slate-500 leading-normal m-0 font-normal truncate">
+                                {activity.detail}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end shrink-0 text-right min-w-[56px] mt-0.5">
+                          <span className="text-[10px] font-semibold text-slate-600 leading-none">
+                            {activity.time}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 text-[10px] text-slate-400 font-semibold italic text-center w-full">
+                  Showing demo activity data
+                </div>
+              </>
             )}
           </Skeleton>
         </aside>
