@@ -341,7 +341,7 @@ export default function AccountantPage() {
               </p>
             </div>
 
-            <div className="accountant-view-toggle">
+            {/* <div className="accountant-view-toggle">
               <button
                 type="button"
                 className={viewMode === "card" ? "is-active" : ""}
@@ -386,7 +386,7 @@ export default function AccountantPage() {
                 </svg>
                 List View
               </button>
-            </div>
+            </div> */}
           </div>
 
           <div className="accountant-panel-content-wrapper" style={{ position: "relative", minHeight: "250px" }}>
