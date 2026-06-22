@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { getSession } from "@/src/lib/session";
 import { getCurrencyPrefix } from "@/src/lib/currency";
+import { fetchReportTimeline } from "./reports/reportsApi";
+import type { ReportTimelineEvent } from "./reports/reportsApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -72,6 +74,14 @@ function formatCurrency(value: number) {
   return `${getCurrencyPrefix()}${value < 0 ? "-" : ""}${formatted}`;
 }
 
+// Mirrors the dot-color convention used by the reports timeline
+// (TimelineEventItem): added=emerald, deleted=rose, everything else=blue.
+function activityDotColor(type: ReportTimelineEvent["type"]) {
+  if (type === "added") return "bg-emerald-500";
+  if (type === "deleted") return "bg-rose-500";
+  return "bg-blue-500";
+}
+
 export default function AccountantPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
@@ -85,6 +95,11 @@ export default function AccountantPage() {
     useState("");
   const [isAssigningClient, setIsAssigningClient] = useState(false);
   const [assignMessage, setAssignMessage] = useState("");
+  // Recent Activity panel: null = loading, [] = loaded-empty, otherwise the
+  // accountant's 10 most recent audit-log actions (actor-scoped by the backend).
+  const [recentActivity, setRecentActivity] = useState<
+    ReportTimelineEvent[] | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +154,21 @@ export default function AccountantPage() {
         .catch(() => { if (!cancelled) setMyClients([]); });
     }).catch(() => { });
 
+    return () => { cancelled = true; };
+  }, []);
+
+  // Recent Activity: the accountant's own latest actions. Reuses the reports
+  // timeline endpoint (actor-scoped, newest-first) over a 3-month window and
+  // keeps the top 10. fetchReportTimeline handles its own auth via getSession.
+  useEffect(() => {
+    let cancelled = false;
+    fetchReportTimeline("3 months")
+      .then((events) => {
+        if (!cancelled) setRecentActivity(events.slice(0, 10));
+      })
+      .catch(() => {
+        if (!cancelled) setRecentActivity([]);
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -638,12 +668,74 @@ export default function AccountantPage() {
             </div>
           </div>
 
-          <div className="accountant-empty-state">
-            <p>
-              No activity feed yet. Once we wire up the activity stream this
-              is where new documents, invites and entity changes will land.
-            </p>
-          </div>
+          <Skeleton
+            name="accountant-recent-activity"
+            loading={recentActivity === null}
+            fallback={
+              <div className="boneyard-fallback flex flex-col gap-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="flex flex-col gap-1.5">
+                    <div className="skeleton-line skeleton-line-md" />
+                    <div className="skeleton-line skeleton-line-sm" />
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            {recentActivity && recentActivity.length > 0 ? (
+              <>
+                <ul className="flex flex-col gap-4">
+                  {recentActivity.map((event) => (
+                    <li key={event.id} className="relative pl-5">
+                      <span
+                        className={`absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-white ${activityDotColor(event.type)}`}
+                        aria-hidden="true"
+                      />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-slate-800">
+                            {event.action}
+                            {event.clientName && event.clientId ? (
+                              <>
+                                {" — "}
+                                <Link
+                                  href={`/dashboard/accountant/reports/clients/${event.clientId}`}
+                                  className="font-semibold text-[#28336e] hover:underline"
+                                >
+                                  {event.clientName}
+                                </Link>
+                              </>
+                            ) : null}
+                          </p>
+                          {event.detail ? (
+                            <p className="mt-0.5 truncate text-xs text-slate-500">
+                              {event.detail}
+                            </p>
+                          ) : null}
+                        </div>
+                        <span className="flex-shrink-0 whitespace-nowrap text-[10px] font-semibold text-slate-400">
+                          {event.time}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/dashboard/accountant/reports"
+                  className="mt-1 inline-block text-xs font-semibold text-[#28336e] hover:underline"
+                >
+                  View all →
+                </Link>
+              </>
+            ) : (
+              <div className="accountant-empty-state">
+                <p>
+                  No recent activity yet. Your latest actions across clients
+                  will appear here.
+                </p>
+              </div>
+            )}
+          </Skeleton>
         </aside>
       </div>
     </section>
