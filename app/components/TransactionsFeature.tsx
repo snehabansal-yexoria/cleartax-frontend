@@ -291,7 +291,15 @@ function StaticSelect({
         className={`property-status-select transaction-select${isOpen ? " is-open" : ""
           }${disabled ? " is-disabled" : ""}`}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
+          // Only close when focus genuinely moves to an element outside this
+          // select. A null relatedTarget (e.g. Safari/Firefox not focusing the
+          // clicked option button) must NOT close the menu here, or the option's
+          // click is lost before it registers — outside clicks are handled by the
+          // document mousedown listener instead.
+          if (
+            event.relatedTarget &&
+            !event.currentTarget.contains(event.relatedTarget)
+          ) {
             setIsOpen(false);
             setLocalSearch("");
           }
@@ -388,6 +396,7 @@ function StaticSelect({
                   role="option"
                   aria-selected={value === option.value}
                   className={value === option.value ? "is-selected" : ""}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange(option.value);
                     setIsOpen(false);
@@ -4851,14 +4860,14 @@ function RuleModal({
 
           <h3>Entity & Property</h3>
           {!fixedEntityId && (
-            <div><StaticSelect
+            <StaticSelect
               label="Client Name"
               value={clientId}
               options={clientSelectOptions}
               onChange={(v) => { setClientId(v); setEntityId(""); setPropertyId(""); }}
               showSearch
               className="is-full-width"
-            /></div>
+            />
           )}
           <div className="transaction-two-grid">
             {!fixedEntityId && (
