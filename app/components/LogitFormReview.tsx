@@ -169,13 +169,14 @@ function titleCase(value: string) {
     .join(" ");
 }
 
+const CURRENCY_SYMBOL = "A$ ";
+
 function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  const formattedNumber = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
+  return `${CURRENCY_SYMBOL}${formattedNumber}`;
 }
 
 function toInputDate(value: string | null | undefined) {
@@ -284,6 +285,7 @@ export default function LogitFormReview({
   const [subcategoryOptionsMap, setSubcategoryOptionsMap] = useState<
     Record<string, { id: number; name: string }[]>
   >({});
+  const [subSums, setSubSums] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -443,27 +445,73 @@ export default function LogitFormReview({
           );
 
           const sums: Record<string, number> = {};
+          const computedSubSums: Record<string, number> = {};
           for (const tx of txs) {
             const rowId = CATEGORY_TO_ROW_ID[tx.categoryName.toLowerCase().trim()];
             if (rowId) {
               sums[rowId] = (sums[rowId] ?? 0) + Math.abs(tx.grossAmount);
             }
+            if (tx.subcategoryId) {
+              const key = String(tx.subcategoryId);
+              computedSubSums[key] = (computedSubSums[key] ?? 0) + Math.abs(tx.grossAmount);
+            }
+            if (tx.subcategoryName) {
+              const keyName = tx.subcategoryName.toLowerCase().trim();
+              computedSubSums[keyName] = (computedSubSums[keyName] ?? 0) + Math.abs(tx.grossAmount);
+            }
           }
+          setSubSums(computedSubSums);
 
           const applyTxSums = (rows: ReviewLine[]) =>
             rows.map((row) => {
-              if (row.amount !== "0.00" && row.amount !== "0" && row.amount !== "") return row;
+              // 1. Fill empty subcategories with their transaction amounts
+              let hasChangedSub = false;
+              const updatedSubcategories = row.subcategories?.map((sub) => {
+                const isAmountEmpty = sub.amount === "0.00" || sub.amount === "0" || sub.amount === "";
+                if (!isAmountEmpty) return sub;
+
+                const subId = String(sub.subcategoryId);
+                const subName = sub.label.toLowerCase().trim();
+                const subSum = computedSubSums[subId] ?? computedSubSums[subName];
+
+                if (subSum != null && subSum > 0) {
+                  hasChangedSub = true;
+                  return { ...sub, amount: subSum.toFixed(2) };
+                }
+                return sub;
+              });
+
+              let rowWithUpdatedSubs: ReviewLine = {
+                ...row,
+                subcategories: updatedSubcategories,
+              };
+
+              // 2. Adjust parent amount to avoid double counting the subcategories
+              if (hasChangedSub && updatedSubcategories && updatedSubcategories.length > 0) {
+                const subcategoriesTotal = updatedSubcategories.reduce((sum, sub) => sum + (parseFloat(sub.amount) || 0), 0);
+                const parentInitial = parseFloat(row.initialParentAmount || "0.00") || 0;
+                
+                // Subtract subcategories sum from initial parent amount
+                const newInitial = Math.max(0, parentInitial - subcategoriesTotal);
+                rowWithUpdatedSubs.initialParentAmount = newInitial.toFixed(2);
+                rowWithUpdatedSubs = syncParentWithSubcategories(rowWithUpdatedSubs);
+              }
+
+              if (rowWithUpdatedSubs.amount !== "0.00" && rowWithUpdatedSubs.amount !== "0" && rowWithUpdatedSubs.amount !== "") {
+                return rowWithUpdatedSubs;
+              }
+
               const sum = sums[row.id];
               if (sum != null && sum > 0) {
                 const amtStr = sum.toFixed(2);
-                const hasSavedSubs = !!(row.subcategories && row.subcategories.length > 0);
+                const hasSavedSubs = !!(rowWithUpdatedSubs.subcategories && rowWithUpdatedSubs.subcategories.length > 0);
                 return {
-                  ...row,
+                  ...rowWithUpdatedSubs,
                   amount: amtStr,
                   initialParentAmount: hasSavedSubs ? "0.00" : amtStr,
                 };
               }
-              return row;
+              return rowWithUpdatedSubs;
             });
 
           setRentedIncome(applyTxSums);
@@ -686,16 +734,24 @@ export default function LogitFormReview({
             }));
             const mergedSubs = [...currentSubs];
 
+            const wasEmpty = !row.subcategories || row.subcategories.length === 0;
+
             for (const opt of options) {
               const exists = currentSubs.some(
                 (s) => s.subcategoryId === opt.id || s.label.toLowerCase().trim() === opt.name.toLowerCase().trim()
               );
               if (!exists) {
+                // Get transaction sum for this subcategory option
+                const subId = String(opt.id);
+                const subName = opt.name.toLowerCase().trim();
+                const subSum = subSums[subId] ?? subSums[subName];
+                const amountStr = subSum != null && subSum > 0 ? subSum.toFixed(2) : "0.00";
+
                 mergedSubs.push({
                   id: crypto.randomUUID(),
                   subcategoryId: opt.id,
                   label: opt.name,
-                  amount: "0.00",
+                  amount: amountStr,
                   use: "0.00",
                 });
               }
@@ -712,6 +768,15 @@ export default function LogitFormReview({
               ...row,
               subcategories: mergedSubs,
             };
+
+            // If we are showing subcategories for the first time, adjust initial parent amount to prevent doubling
+            if (wasEmpty) {
+              const subcategoriesTotal = mergedSubs.reduce((sum, sub) => sum + (parseFloat(sub.amount) || 0), 0);
+              const parentInitial = parseFloat(row.initialParentAmount || "0.00") || 0;
+              const newInitial = Math.max(0, parentInitial - subcategoriesTotal);
+              updatedRow.initialParentAmount = newInitial.toFixed(2);
+            }
+
             return syncParentWithSubcategories(updatedRow);
           });
 
@@ -1027,7 +1092,7 @@ export default function LogitFormReview({
               <input
                 type="number"
                 min="0"
-                placeholder="$"
+                placeholder={CURRENCY_SYMBOL.trim()}
                 value={acquisitionCost}
                 onChange={(event) => setAcquisitionCost(event.target.value)}
                 onFocus={(event) => {
@@ -1058,7 +1123,7 @@ export default function LogitFormReview({
               <input
                 type="number"
                 min="0"
-                placeholder="$"
+                placeholder={CURRENCY_SYMBOL.trim()}
                 value={disposalProceeds}
                 onChange={(event) => setDisposalProceeds(event.target.value)}
                 onFocus={(event) => {
@@ -1160,6 +1225,7 @@ export default function LogitFormReview({
                 <input
                   type="number"
                   min="0"
+                  placeholder={CURRENCY_SYMBOL.trim()}
                   defaultValue={getLoanDetail(property, "loan_amount")}
                 />
               </label>
@@ -1229,7 +1295,6 @@ export default function LogitFormReview({
           onSubcategoryChange={updateSubcategoryLine}
           group="income"
         />
-
         <LogitTable
           title="Rented Expense Categories"
           subtitle="Track all rental property expenses"

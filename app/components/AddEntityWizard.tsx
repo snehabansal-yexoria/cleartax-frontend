@@ -531,10 +531,10 @@ export default function AddEntityWizard({
                         ? "Enter the fund name as per the SMSF deed"
                         : entityType === "trust"
                           ? trustType === "unit"
-                            ? "Enter the full trust name as per the unit trust deed"
+                            ? "Enter the full name as per the trust deed"
                             : trustType === "hybrid"
-                              ? "Enter the full hybrid trust name as per the hybrid trust deed"
-                              : "Enter the full discretionary trust name as per the trust deed"
+                              ? "Enter the full name as per the trust deed"
+                              : "Enter the full name as per the trust deed"
                           : "Give client entity a clear, identifiable name"}
               </p>
             </header>
