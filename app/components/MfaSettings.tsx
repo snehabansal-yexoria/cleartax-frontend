@@ -5,8 +5,11 @@ import QRCode from "qrcode";
 import {
   associateTotp,
   buildOtpAuthUri,
+  disableEmailMfa,
   disableTotp,
+  enableEmailMfa,
   getAuthenticatedUser,
+  getEmailMfaStatus,
   getMfaStatus,
   verifyAndEnableTotp,
 } from "../../src/lib/mfa";
@@ -20,6 +23,8 @@ function getErrorMessage(error: unknown, fallback: string) {
 export default function MfaSettings({ email }: { email: string }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [enabled, setEnabled] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [emailBusy, setEmailBusy] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -33,6 +38,15 @@ export default function MfaSettings({ email }: { email: string }) {
       const user = await getAuthenticatedUser();
       const status = await getMfaStatus(user);
       setEnabled(status.enabled);
+
+      // Don't let an email-status failure hide the TOTP controls.
+      try {
+        const emailStatus = await getEmailMfaStatus();
+        setEmailEnabled(emailStatus.enabled);
+      } catch {
+        setEmailEnabled(false);
+      }
+
       setPhase("idle");
     } catch (err) {
       setError(getErrorMessage(err, "Could not load security settings."));
@@ -112,6 +126,41 @@ export default function MfaSettings({ email }: { email: string }) {
     setCode("");
     setError("");
     setPhase("idle");
+  }
+
+  async function turnOnEmail() {
+    setEmailBusy(true);
+    setError("");
+    try {
+      await enableEmailMfa();
+      setEmailEnabled(true);
+    } catch (err) {
+      setError(
+        getErrorMessage(
+          err,
+          "Could not enable email authentication. Make sure your email is verified.",
+        ),
+      );
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
+  async function turnOffEmail() {
+    if (!window.confirm("Turn off email authentication for your account?")) {
+      return;
+    }
+
+    setEmailBusy(true);
+    setError("");
+    try {
+      await disableEmailMfa();
+      setEmailEnabled(false);
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not disable email authentication."));
+    } finally {
+      setEmailBusy(false);
+    }
   }
 
   return (
@@ -232,6 +281,49 @@ export default function MfaSettings({ email }: { email: string }) {
                 {busy ? "Working…" : "Enable MFA"}
               </button>
             ))}
+        </div>
+      )}
+
+      {phase === "idle" && (
+        <div
+          className="accountant-admin-info"
+          style={{
+            marginTop: "16px",
+            borderTop: "1px solid #eef0f4",
+            paddingTop: "16px",
+          }}
+        >
+          <div>
+            <span>Email authentication</span>
+            <strong style={{ color: emailEnabled ? "#2ea86b" : "#717182" }}>
+              {emailEnabled ? "Active" : "Not enabled"}
+            </strong>
+          </div>
+
+          <p style={{ fontSize: "0.85rem", color: "#717182" }}>
+            Receive a one-time code at {email} when you sign in.
+          </p>
+
+          {emailEnabled ? (
+            <button
+              type="button"
+              className="accountant-admin-cta"
+              onClick={turnOffEmail}
+              disabled={emailBusy}
+              style={{ background: "#dc2626" }}
+            >
+              {emailBusy ? "Working…" : "Disable email codes"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="accountant-admin-cta"
+              onClick={turnOnEmail}
+              disabled={emailBusy}
+            >
+              {emailBusy ? "Working…" : "Enable email codes"}
+            </button>
+          )}
         </div>
       )}
 

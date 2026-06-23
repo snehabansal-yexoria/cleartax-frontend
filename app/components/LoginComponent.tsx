@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, completeNewPassword, sendMfaCode } from "../../src/lib/auth";
+import {
+  login,
+  completeNewPassword,
+  respondTotp,
+  respondEmailOtp,
+  selectMfa,
+  type LoginResult,
+} from "../../src/lib/auth";
 import { normalizeRoleName } from "../../src/lib/roleNames";
 import { saveSessionBootstrap } from "../../src/lib/sessionBootstrap";
-import { CognitoUser } from "amazon-cognito-identity-js";
 import Image from "next/image";
 import logo from "../../public/clear-tax.svg";
 import logoBlue from "../../public/clear-tax-blue.svg";
@@ -16,26 +22,12 @@ import analytics from "../../public/analytics.svg";
 import users from "../../public/users.svg";
 import realTime from "../../public/real-time.svg";
 
-interface NewPasswordResult {
-  type: "NEW_PASSWORD_REQUIRED";
-  user: CognitoUser;
-  userAttributes?: Record<string, string>;
+// Carries the Cognito Session token + username between an interrupted login and
+// the challenge step that completes it (TOTP, email OTP, new password).
+interface PendingChallenge {
+  session: string;
+  username: string;
 }
-
-interface LoginSuccessResult {
-  type: "SUCCESS";
-  idToken: string;
-}
-
-interface TotpRequiredResult {
-  type: "TOTP_REQUIRED";
-  user: CognitoUser;
-}
-
-type LoginResult =
-  | NewPasswordResult
-  | LoginSuccessResult
-  | TotpRequiredResult;
 
 // SET THIS TO false TO DISABLE THE PREMIUM FULL-SCREEN LOADING SCREEN AND TRANSITION DELAY
 const ENABLE_LOADING_TRANSITION = true;
@@ -99,10 +91,12 @@ export default function LoginComponent({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [requireNewPassword, setRequireNewPassword] = useState(false);
-  const [user, setUser] = useState<CognitoUser | null>(null);
+  const [challenge, setChallenge] = useState<PendingChallenge | null>(null);
   const [attributes, setAttributes] = useState<Record<string, string>>({});
 
   const [requireTotp, setRequireTotp] = useState(false);
+  const [requireEmailOtp, setRequireEmailOtp] = useState(false);
+  const [selectMfaChoice, setSelectMfaChoice] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -145,6 +139,45 @@ export default function LoginComponent({
     [allowedRoles, router],
   );
 
+  // Routes a login / challenge result to the right next step. Returns whether
+  // the flow is still pending a user-entered code (caller stops the spinner),
+  // or — on SUCCESS — any error from the post-login profile/role check.
+  const routeResult = useCallback(
+    async (
+      result: LoginResult,
+    ): Promise<{ pending: true } | { pending: false; error: string | null }> => {
+      setRequireNewPassword(false);
+      setRequireTotp(false);
+      setRequireEmailOtp(false);
+      setSelectMfaChoice(false);
+
+      switch (result.type) {
+        case "NEW_PASSWORD_REQUIRED":
+          setChallenge({ session: result.session, username: result.username });
+          setAttributes({ name: result.username });
+          setRequireNewPassword(true);
+          return { pending: true };
+        case "TOTP_REQUIRED":
+          setChallenge({ session: result.session, username: result.username });
+          setMfaCode("");
+          setRequireTotp(true);
+          return { pending: true };
+        case "EMAIL_OTP_REQUIRED":
+          setChallenge({ session: result.session, username: result.username });
+          setMfaCode("");
+          setRequireEmailOtp(true);
+          return { pending: true };
+        case "SELECT_MFA":
+          setChallenge({ session: result.session, username: result.username });
+          setSelectMfaChoice(true);
+          return { pending: true };
+        case "SUCCESS":
+          return { pending: false, error: await completeLogin(result.idToken) };
+      }
+    },
+    [completeLogin],
+  );
+
   const handleLogin = useCallback(
     async (
       loginEmail = email,
@@ -165,44 +198,22 @@ export default function LoginComponent({
       };
 
       try {
-        const result = (await login(loginEmail, loginPassword)) as LoginResult;
+        setEmail(loginEmail);
+        const result = await login(loginEmail, loginPassword);
+        const outcome = await routeResult(result);
 
-        if (result.type === "NEW_PASSWORD_REQUIRED") {
-          setEmail(loginEmail);
-          setUser(result.user);
+        await delayAtLeast2s();
 
-          const requiredAttributes: Record<string, string> = {};
-          requiredAttributes.name = loginEmail;
-
-          setAttributes(requiredAttributes);
-          setRequireNewPassword(true);
-
-          await delayAtLeast2s();
+        if (outcome.pending) {
           setLoading(false);
           return;
         }
 
-        if (result.type === "TOTP_REQUIRED") {
-          setUser(result.user);
-          setRequireTotp(true);
-          setMfaCode("");
-
-          await delayAtLeast2s();
+        if (outcome.error) {
+          setError(outcome.error);
           setLoading(false);
-          return;
         }
-
-        if (result.type === "SUCCESS") {
-          const errorMessage = await completeLogin(result.idToken);
-
-          await delayAtLeast2s();
-
-          if (errorMessage) {
-            setError(errorMessage);
-            setLoading(false);
-          }
-          return; // On success keep loading true during redirection to avoid flickering
-        }
+        return; // On success keep loading true during redirection to avoid flickering
       } catch (error: unknown) {
         await delayAtLeast2s();
         setError(
@@ -214,7 +225,7 @@ export default function LoginComponent({
 
       setLoading(false);
     },
-    [completeLogin, email, password],
+    [routeResult, email, password],
   );
 
   useEffect(() => {
@@ -241,20 +252,18 @@ export default function LoginComponent({
       return;
     }
 
-    if (!user) return;
+    if (!challenge) return;
 
     setLoading(true);
     setError("");
 
     try {
-      const result = await completeNewPassword(user, newPassword, attributes);
-      const idToken =
-        typeof result === "object" &&
-          result !== null &&
-          "getIdToken" in result &&
-          typeof result.getIdToken === "function"
-          ? result.getIdToken().getJwtToken()
-          : "";
+      const { idToken } = await completeNewPassword(
+        challenge.session,
+        challenge.username,
+        newPassword,
+        attributes,
+      );
 
       if (idToken) {
         acceptInvitationInBackground(idToken);
@@ -269,8 +278,23 @@ export default function LoginComponent({
     setLoading(false);
   };
 
+  // Shared tail for the challenge-submit handlers: apply the routed outcome.
+  const applyChallengeOutcome = (
+    outcome: { pending: true } | { pending: false; error: string | null },
+  ) => {
+    if (outcome.pending) {
+      setLoading(false);
+      return;
+    }
+    if (outcome.error) {
+      setError(outcome.error);
+      setLoading(false);
+    }
+    // On success keep loading true while the redirect happens.
+  };
+
   const handleSubmitTotp = async () => {
-    if (!user) return;
+    if (!challenge) return;
 
     const code = mfaCode.trim();
     if (!code) {
@@ -282,16 +306,52 @@ export default function LoginComponent({
     setError("");
 
     try {
-      const result = (await sendMfaCode(user, code)) as LoginSuccessResult;
-      const errorMessage = await completeLogin(result.idToken);
-
-      if (errorMessage) {
-        setError(errorMessage);
-        setLoading(false);
-      }
-      // On success keep loading true while the redirect happens.
+      const result = await respondTotp(challenge.session, challenge.username, code);
+      applyChallengeOutcome(await routeResult(result));
     } catch (error: unknown) {
       setError(getErrorMessage(error, "Invalid code. Please try again."));
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitEmailOtp = async () => {
+    if (!challenge) return;
+
+    const code = mfaCode.trim();
+    if (!code) {
+      setError("Enter the 6-digit code we emailed to you.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await respondEmailOtp(
+        challenge.session,
+        challenge.username,
+        code,
+      );
+      applyChallengeOutcome(await routeResult(result));
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Invalid code. Please try again."));
+      setLoading(false);
+    }
+  };
+
+  const handleSelectMfa = async (answer: "EMAIL_OTP" | "SOFTWARE_TOKEN_MFA") => {
+    if (!challenge) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await selectMfa(challenge.session, challenge.username, answer);
+      applyChallengeOutcome(await routeResult(result));
+    } catch (error: unknown) {
+      setError(
+        getErrorMessage(error, "Could not start verification. Please try again."),
+      );
       setLoading(false);
     }
   };
@@ -604,7 +664,10 @@ export default function LoginComponent({
                 </div>
               </div>
               <div className="lr-form">
-                {!requireNewPassword && !requireTotp && (
+                {!requireNewPassword &&
+                  !requireTotp &&
+                  !requireEmailOtp &&
+                  !selectMfaChoice && (
                   <form
                     className="login-form-wrap"
                     onSubmit={(e) => {
@@ -752,6 +815,68 @@ export default function LoginComponent({
                       </button>
                     </div>
                   </form>
+                )}
+
+                {requireEmailOtp && (
+                  <form
+                    className="login-form-wrap"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleSubmitEmailOtp();
+                    }}
+                  >
+                    <div className="login-element">
+                      <label htmlFor="email_mfa_code">Email Verification Code</label>
+                      <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                        Enter the 6-digit code we emailed to you.
+                      </p>
+                      <input
+                        type="text"
+                        id="email_mfa_code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="123456"
+                        value={mfaCode}
+                        onChange={(e) =>
+                          setMfaCode(e.target.value.replace(/\D/g, ""))
+                        }
+                        autoFocus
+                      />
+                    </div>
+                    <div className="login-submit">
+                      <button type="submit" disabled={loading}>
+                        {loading ? "Verifying..." : "Verify & Continue"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {selectMfaChoice && (
+                  <div className="login-form-wrap">
+                    <div className="login-element">
+                      <label>Choose a verification method</label>
+                      <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                        How would you like to receive your one-time code?
+                      </p>
+                    </div>
+                    <div className="login-submit" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => void handleSelectMfa("EMAIL_OTP")}
+                      >
+                        {loading ? "Please wait..." : "Email me a code"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => void handleSelectMfa("SOFTWARE_TOKEN_MFA")}
+                      >
+                        {loading ? "Please wait..." : "Use authenticator app"}
+                      </button>
+                    </div>
+                  </div>
                 )}
 
                 {error && (
