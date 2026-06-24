@@ -1,8 +1,14 @@
 import { CognitoUser } from "amazon-cognito-identity-js";
-import { userPool } from "./cognito";
+import {
+  GetUserCommand,
+  SetUserMFAPreferenceCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
+import { userPool, cognitoIdp } from "./cognito";
+import { getSession } from "./session";
 
-// Cognito's TOTP factor is identified by this string everywhere in the API.
+// Cognito's factors are identified by these strings everywhere in the API.
 const SOFTWARE_TOKEN_MFA = "SOFTWARE_TOKEN_MFA";
+const EMAIL_OTP = "EMAIL_OTP";
 
 export interface MfaStatus {
   enabled: boolean;
@@ -118,4 +124,52 @@ export function buildOtpAuthUri(
   const label = encodeURIComponent(`${issuer}:${email}`);
   const params = new URLSearchParams({ secret, issuer });
   return `otpauth://totp/${label}?${params.toString()}`;
+}
+
+// --- Email (SES) MFA -------------------------------------------------------
+// amazon-cognito-identity-js's setUserMfaPreference()/getUserData() only know
+// about SMS and TOTP — there is no email parameter — so the email factor is
+// managed directly through the SDK using the current access token.
+
+async function currentAccessToken(): Promise<string> {
+  const session = await getSession();
+
+  if (!session) {
+    throw new Error("Your session has expired. Please log in again.");
+  }
+
+  return session.getAccessToken().getJwtToken();
+}
+
+export async function getEmailMfaStatus(): Promise<MfaStatus> {
+  const AccessToken = await currentAccessToken();
+  const data = await cognitoIdp.send(new GetUserCommand({ AccessToken }));
+  const list = data.UserMFASettingList ?? [];
+
+  return {
+    enabled: list.includes(EMAIL_OTP),
+    preferred: data.PreferredMfaSetting === EMAIL_OTP,
+  };
+}
+
+// Turn on email MFA and mark it preferred so future logins are challenged.
+// Requires the user's email to be verified, or Cognito rejects the request.
+export async function enableEmailMfa(): Promise<void> {
+  const AccessToken = await currentAccessToken();
+  await cognitoIdp.send(
+    new SetUserMFAPreferenceCommand({
+      AccessToken,
+      EmailMfaSettings: { Enabled: true, PreferredMfa: true },
+    }),
+  );
+}
+
+export async function disableEmailMfa(): Promise<void> {
+  const AccessToken = await currentAccessToken();
+  await cognitoIdp.send(
+    new SetUserMFAPreferenceCommand({
+      AccessToken,
+      EmailMfaSettings: { Enabled: false, PreferredMfa: false },
+    }),
+  );
 }
