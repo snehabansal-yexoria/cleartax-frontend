@@ -5,6 +5,7 @@ import {
   listCoreUsers,
   updateCoreUser,
 } from "../../../../src/lib/coreApi";
+import { getRequestToken } from "../../../../src/lib/coreApiProxy";
 import { pool } from "../../../../src/lib/db";
 
 type VerifiedToken = {
@@ -14,13 +15,12 @@ type VerifiedToken = {
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
+    const token = getRequestToken(req);
 
-    if (!authHeader) {
+    if (!token) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
     const decoded = (await verifyToken(token)) as VerifiedToken | null;
     const apiToken = getCoreApiBearerFromRequest(req, token);
 

@@ -5,6 +5,7 @@ import {
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
 import { verifyToken } from "@/src/lib/verifyToken";
+import { getRequestToken } from "@/src/lib/coreApiProxy";
 import { pool } from "@/src/lib/db";
 import {
   CognitoIdentityProviderClient,
@@ -36,12 +37,14 @@ function getBackendUrl() {
 
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    const token = getRequestToken(req);
+    if (!token) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1] || "";
+    // Rebuild the bearer header for forwarding: the inbound Authorization
+    // header may have been stripped (Amplify) and the token taken from cookie.
+    const authHeader = `Bearer ${token}`;
 
     const upstream = await fetch(`${getBackendUrl()}/users/me`, {
       headers: {
@@ -105,15 +108,13 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    const token = getRequestToken(req);
+    if (!token) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1] || "";
-    const decoded = token
-      ? ((await verifyToken(token)) as VerifiedTokenLike | null)
-      : null;
+    const authHeader = `Bearer ${token}`;
+    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
 
     if (!decoded || (!decoded.sub && !decoded.email)) {
       return NextResponse.json(

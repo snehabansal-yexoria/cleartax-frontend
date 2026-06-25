@@ -9,6 +9,23 @@ export function getBearerToken(req: Request): string | null {
   return value;
 }
 
+// Resolve the caller's JWT from the request, preferring the Authorization
+// header but falling back to the `idToken` cookie set at login. AWS Amplify's
+// CloudFront strips the Authorization header from SSR/API requests by default,
+// so same-origin calls arrive without it there; the cookie is forwarded, which
+// keeps bearer-token auth working. (Vercel forwards the header, so it wins.)
+export function getRequestToken(req: Request): string | null {
+  const fromHeader = getBearerToken(req);
+  if (fromHeader) return fromHeader;
+
+  const cookie = req.headers.get("cookie");
+  if (cookie) {
+    const match = cookie.match(/(?:^|;\s*)idToken=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
+}
+
 export function summarizeBody(body: unknown): string | undefined {
   if (body === undefined) return undefined;
   try {
