@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { normalizeRoleName } from "@/src/lib/roleNames";
 import {
   findDirectoryUserByIdentity,
+  type DirectoryUser,
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
 import { verifyToken } from "@/src/lib/verifyToken";
-import { getRequestToken } from "@/src/lib/coreApiProxy";
 import { pool } from "@/src/lib/db";
 import {
   CognitoIdentityProviderClient,
@@ -37,14 +37,12 @@ function getBackendUrl() {
 
 export async function GET(req: Request) {
   try {
-    const token = getRequestToken(req);
-    if (!token) {
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    // Rebuild the bearer header for forwarding: the inbound Authorization
-    // header may have been stripped (Amplify) and the token taken from cookie.
-    const authHeader = `Bearer ${token}`;
+    const token = authHeader.split(" ")[1] || "";
 
     const upstream = await fetch(`${getBackendUrl()}/users/me`, {
       headers: {
@@ -66,10 +64,22 @@ export async function GET(req: Request) {
     const decoded = token
       ? ((await verifyToken(token)) as VerifiedTokenLike | null)
       : null;
-    const directoryUser = await findDirectoryUserByIdentity({
-      id: decoded?.sub || data?.id,
-      email: decoded?.email || data?.email,
-    });
+
+    // Directory enrichment is best-effort. If the direct DB lookup fails (e.g.
+    // the DB isn't reachable from this host), degrade to the backend's data
+    // instead of failing the whole request.
+    let directoryUser: DirectoryUser | null = null;
+    try {
+      directoryUser = await findDirectoryUserByIdentity({
+        id: decoded?.sub || data?.id,
+        email: decoded?.email || data?.email,
+      });
+    } catch (dirErr) {
+      console.error(
+        "Directory lookup failed; using backend data only:",
+        dirErr,
+      );
+    }
     const role = normalizeRoleName(
       data.role_name || data.role || directoryUser?.role,
     );
@@ -108,13 +118,15 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const token = getRequestToken(req);
-    if (!token) {
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
       return NextResponse.json({ error: "No token" }, { status: 401 });
     }
 
-    const authHeader = `Bearer ${token}`;
-    const decoded = (await verifyToken(token)) as VerifiedTokenLike | null;
+    const token = authHeader.split(" ")[1] || "";
+    const decoded = token
+      ? ((await verifyToken(token)) as VerifiedTokenLike | null)
+      : null;
 
     if (!decoded || (!decoded.sub && !decoded.email)) {
       return NextResponse.json(
