@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     });
 
     try {
-      const origin = new URL(req.url).origin;
+      const origin = "https://optimisation.d3s91afc7xd1hm.amplifyapp.com";
       const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(result.email)}&role=${encodeURIComponent(result.role)}`;
       await sendInviteEmail(apiToken, { email: result.email, role: result.role, invite_link: inviteLink });
     } catch (emailErr) {
