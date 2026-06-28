@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { normalizeRoleName } from "@/src/lib/roleNames";
 import {
   findDirectoryUserByIdentity,
+  type DirectoryUser,
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
 import { verifyToken } from "@/src/lib/verifyToken";
@@ -63,10 +64,22 @@ export async function GET(req: Request) {
     const decoded = token
       ? ((await verifyToken(token)) as VerifiedTokenLike | null)
       : null;
-    const directoryUser = await findDirectoryUserByIdentity({
-      id: decoded?.sub || data?.id,
-      email: decoded?.email || data?.email,
-    });
+
+    // Directory enrichment is best-effort. If the direct DB lookup fails (e.g.
+    // the DB isn't reachable from this host), degrade to the backend's data
+    // instead of failing the whole request.
+    let directoryUser: DirectoryUser | null = null;
+    try {
+      directoryUser = await findDirectoryUserByIdentity({
+        id: decoded?.sub || data?.id,
+        email: decoded?.email || data?.email,
+      });
+    } catch (dirErr) {
+      console.error(
+        "Directory lookup failed; using backend data only:",
+        dirErr,
+      );
+    }
     const role = normalizeRoleName(
       data.role_name || data.role || directoryUser?.role,
     );
