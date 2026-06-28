@@ -17,6 +17,8 @@ type VerifiedToken = {
 
 // Mirrors getDashboardPath in app/components/LoginComponent.tsx
 // (note: super_admin maps to the hyphenated "super-admin" segment).
+// Temporarily unused — the welcome link is hardcoded to accountant for now.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function dashboardSegmentForRole(role: string) {
   if (role === "super_admin") return "super-admin";
   if (role === "admin") return "admin";
@@ -69,7 +71,9 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as { welcome?: boolean };
 
     if (body.welcome === true) {
-      const segment = dashboardSegmentForRole(currentUser?.role || "client");
+      // TODO(temporary): force the accountant dashboard for now. Restore
+      // dashboardSegmentForRole(currentUser?.role) once role-based routing is ready.
+      const segment = "accountant";
       const dashboardLink = `${APP_BASE_URL}/dashboard/${segment}`;
 
       await sendWelcomeEmail(apiToken, {
