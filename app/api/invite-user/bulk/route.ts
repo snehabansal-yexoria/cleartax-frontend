@@ -121,7 +121,7 @@ export async function POST(req: Request) {
           fullName: String(row.full_name || "").trim(),
         });
 
-        const origin = new URL(req.url).origin;
+        const origin = "https://optimisation.d3s91afc7xd1hm.amplifyapp.com";
         const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(requestedRole)}`;
         const apiToken = req.headers.get("authorization")?.split(" ")[1] ?? "";
         try {

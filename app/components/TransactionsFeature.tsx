@@ -4858,14 +4858,21 @@ function RuleModal({
 
           <h3>Entity & Property</h3>
           {!fixedEntityId && (
-            <StaticSelect
-              label="Client Name"
-              value={clientId}
-              options={clientSelectOptions}
-              onChange={(v) => { setClientId(v); setEntityId(""); setPropertyId(""); }}
-              showSearch
-              className="is-full-width"
-            />
+            <>
+              <StaticSelect
+                label="Client Name"
+                value={clientId}
+                options={clientSelectOptions}
+                onChange={(v) => { setClientId(v); setEntityId(""); setPropertyId(""); }}
+                showSearch
+                className="is-full-width"
+              />
+              {clients.length === 0 && (
+                <p style={{ color: "#d92d20", fontSize: "14px", marginTop: "6px", marginBottom: "0px" }}>
+                  To create a rule, please add a client to your account first.
+                </p>
+              )}
+            </>
           )}
           <div className="transaction-two-grid">
             {!fixedEntityId && (
