@@ -122,7 +122,7 @@ export async function POST(req: Request) {
         });
 
         const origin = "https://optimisation.d3s91afc7xd1hm.amplifyapp.com";
-        const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(requestedRole)}`;
+        const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(requestedRole)}#temporary_password=${encodeURIComponent(result.temporaryPassword)}`;
         const apiToken = req.headers.get("authorization")?.split(" ")[1] ?? "";
         try {
           await sendInviteEmail(apiToken, { email, role: requestedRole, invite_link: inviteLink });

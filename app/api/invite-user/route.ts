@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     try {
       const origin = "https://optimisation.d3s91afc7xd1hm.amplifyapp.com";
-      const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(result.email)}&role=${encodeURIComponent(result.role)}`;
+      const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(result.email)}&role=${encodeURIComponent(result.role)}#temporary_password=${encodeURIComponent(result.temporaryPassword)}`;
       await sendInviteEmail(apiToken, { email: result.email, role: result.role, invite_link: inviteLink });
     } catch (emailErr) {
       console.error("invite email failed (non-fatal):", emailErr);
