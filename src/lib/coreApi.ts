@@ -1540,6 +1540,13 @@ export async function sendInviteEmail(
   await coreApiRequest("/invitations/email", { method: "POST", token, body });
 }
 
+export async function sendWelcomeEmail(
+  token: string,
+  body: { email: string; dashboard_link: string },
+): Promise<void> {
+  await coreApiRequest("/invitations/welcome", { method: "POST", token, body });
+}
+
 export async function deleteReconciliationMatch(
   token: string,
   entityId: string,

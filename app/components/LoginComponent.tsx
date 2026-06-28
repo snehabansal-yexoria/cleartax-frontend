@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   login,
   completeNewPassword,
@@ -58,10 +59,17 @@ function getInvitePasswordFromUrl() {
   );
 }
 
-function acceptInvitationInBackground(token: string) {
+function acceptInvitationInBackground(
+  token: string,
+  options: { welcome?: boolean } = {},
+) {
   void fetch("/api/invitations/accept", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ welcome: options.welcome === true }),
   }).catch((error) => {
     console.warn("Invitation acceptance did not complete:", error);
   });
@@ -266,7 +274,8 @@ export default function LoginComponent({
       );
 
       if (idToken) {
-        acceptInvitationInBackground(idToken);
+        // Setting the password is the one moment we send the welcome email.
+        acceptInvitationInBackground(idToken, { welcome: true });
       }
 
       alert("Password updated successfully. Please login again.");
@@ -711,6 +720,14 @@ export default function LoginComponent({
                       >
                         {loading ? "Logging in..." : "Log In to Dashboard"}
                       </button>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <Link
+                        href={`/login/forgot-password?role=${encodeURIComponent(role)}`}
+                        style={{ color: "#2f3c82", fontWeight: 600, fontSize: "0.95rem" }}
+                      >
+                        Forgot password?
+                      </Link>
                     </div>
                   </form>
                 )}

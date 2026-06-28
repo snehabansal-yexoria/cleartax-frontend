@@ -4,6 +4,7 @@ import { sendInviteEmail } from "@/src/lib/coreApi";
 import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
 import { pool } from "@/src/lib/db";
 import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
+import { APP_BASE_URL } from "@/src/lib/appConfig";
 
 type BulkInviteRow = {
   email?: string;
@@ -121,7 +122,7 @@ export async function POST(req: Request) {
           fullName: String(row.full_name || "").trim(),
         });
 
-        const origin = "https://optimisation.d3s91afc7xd1hm.amplifyapp.com";
+        const origin = APP_BASE_URL;
         const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(requestedRole)}#temporary_password=${encodeURIComponent(result.temporaryPassword)}`;
         const apiToken = req.headers.get("authorization")?.split(" ")[1] ?? "";
         try {
