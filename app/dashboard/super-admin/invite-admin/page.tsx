@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getSession } from "../../../../src/lib/session";
+import { SHOW_INVITE_CREDENTIALS } from "../../../../src/lib/appConfig";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -207,22 +208,26 @@ export default function InviteAdminPage() {
           <h3>User Created</h3>
 
           <p>
-            Send this invite link to the user. It includes the temporary
-            password and will take them straight to the create password step.
+            An invitation email has been sent to the user with a secure link to
+            set their password and access their workspace.
           </p>
 
-          <p>
-            <strong>Invite Link:</strong>
-          </p>
+          {SHOW_INVITE_CREDENTIALS && (
+            <>
+              <p>
+                <strong>Invite Link:</strong>
+              </p>
 
-          <a href={inviteLink} target="_blank" style={{ color: "#2563eb" }}>
-            {inviteLink}
-          </a>
+              <a href={inviteLink} target="_blank" style={{ color: "#2563eb" }}>
+                {inviteLink}
+              </a>
 
-          <p style={{ marginTop: "10px" }}>
-            <strong>Backup Temporary Password:</strong>
-          </p>
-          <pre>{tempPassword}</pre>
+              <p style={{ marginTop: "10px" }}>
+                <strong>Backup Temporary Password:</strong>
+              </p>
+              <pre>{tempPassword}</pre>
+            </>
+          )}
         </div>
       )}
     </div>
