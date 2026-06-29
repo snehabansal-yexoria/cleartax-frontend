@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getSession } from "@/src/lib/session";
+import { SHOW_INVITE_CREDENTIALS } from "@/src/lib/appConfig";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -667,49 +668,54 @@ export default function InviteUserByAdmin() {
                 </div>
 
                 <h3 style={{ color: "#0f172a", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
-                  Invitation Ready to Send
+                  Invitation Sent
                 </h3>
 
-                <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "16px" }}>
-                  The account credentials have been successfully created. Copy and share the secure login link below with the user.
+                <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "0px" }}>
+                  An invitation email has been sent to the user with a secure link
+                  to set their password and access their workspace.
                 </p>
 
-                <div>
-                  <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Secure Invite Link</span>
-                  <div className="copy-box">
-                    <span className="copy-box-text">{inviteLink}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(inviteLink, setCopiedLink)}
-                      className={`copy-btn${copiedLink ? " copied" : ""}`}
-                    >
-                      {copiedLink ? "Copied!" : (
-                        <>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+                {SHOW_INVITE_CREDENTIALS && (
+                  <>
+                    <div>
+                      <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Secure Invite Link</span>
+                      <div className="copy-box">
+                        <span className="copy-box-text">{inviteLink}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(inviteLink, setCopiedLink)}
+                          className={`copy-btn${copiedLink ? " copied" : ""}`}
+                        >
+                          {copiedLink ? "Copied!" : (
+                            <>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                              Copy
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
 
-                <div>
-                  <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Backup Temporary Password</span>
-                  <div className="password-pre">
-                    <span>{tempPassword}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(tempPassword, setCopiedPassword)}
-                      className={`copy-btn${copiedPassword ? " copied" : ""}`}
-                      style={{ background: "#ffffff" }}
-                    >
-                      {copiedPassword ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                </div>
+                    <div>
+                      <span className="custom-input-label" style={{ fontSize: "0.8rem" }}>Backup Temporary Password</span>
+                      <div className="password-pre">
+                        <span>{tempPassword}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(tempPassword, setCopiedPassword)}
+                          className={`copy-btn${copiedPassword ? " copied" : ""}`}
+                          style={{ background: "#ffffff" }}
+                        >
+                          {copiedPassword ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>

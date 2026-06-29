@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSession } from "../../../../src/lib/session";
 import { parseCsv, parseFlexibleRows } from "../../../../src/lib/csv";
+import { SHOW_INVITE_CREDENTIALS } from "../../../../src/lib/appConfig";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -381,9 +382,9 @@ export default function AdminBulkUploadPage() {
                 </div>
                 <div>
                   {result.success
-                    ? result.temporaryPassword
+                    ? SHOW_INVITE_CREDENTIALS && result.temporaryPassword
                       ? `Temp password: ${result.temporaryPassword}`
-                      : result.message || "Already invited"
+                      : result.message || "Invitation sent"
                     : result.error}
                 </div>
               </article>

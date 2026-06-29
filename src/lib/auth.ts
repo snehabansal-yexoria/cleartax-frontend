@@ -1,4 +1,6 @@
 import {
+  ConfirmForgotPasswordCommand,
+  ForgotPasswordCommand,
   InitiateAuthCommand,
   RespondToAuthChallengeCommand,
   type AuthenticationResultType,
@@ -183,6 +185,35 @@ export async function completeNewPassword(
   // The existing UX asks the user to log in again afterwards, so we only need
   // the id token (if any) for the best-effort invitation acceptance.
   return { idToken: res.AuthenticationResult?.IdToken ?? "" };
+}
+
+// Start a self-service password reset for an already-active user. Cognito emails
+// a confirmation code (the message is configured on the user pool's verification
+// template). Like login, this uses the public client id with no SecretHash
+// because the app client has no secret. Throws InvalidParameterException for
+// users still in FORCE_CHANGE_PASSWORD (invited but never activated).
+export async function requestPasswordReset(email: string): Promise<void> {
+  await cognitoIdp.send(
+    new ForgotPasswordCommand({ ClientId: clientId, Username: email }),
+  );
+}
+
+// Finish the reset by exchanging the emailed code for a new password. Cognito
+// enforces the pool's password policy here (InvalidPasswordException) and the
+// code's validity (CodeMismatchException / ExpiredCodeException).
+export async function confirmPasswordReset(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  await cognitoIdp.send(
+    new ConfirmForgotPasswordCommand({
+      ClientId: clientId,
+      Username: email,
+      ConfirmationCode: code,
+      Password: newPassword,
+    }),
+  );
 }
 
 export function signUp(params: {

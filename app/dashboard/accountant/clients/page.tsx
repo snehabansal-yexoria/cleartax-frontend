@@ -9,6 +9,7 @@ import {
   announceDropdownOpen,
   isDropdownRegistryEvent,
 } from "../../../../src/lib/dropdownRegistry";
+import { SHOW_INVITE_CREDENTIALS } from "../../../../src/lib/appConfig";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -1213,7 +1214,7 @@ function AccountantClientsContent() {
                   That&apos;s another client invitation in the books. You can
                   track their onboarding status directly from your portfolio.
                 </p>
-                {temporaryPassword && (
+                {SHOW_INVITE_CREDENTIALS && temporaryPassword && (
                   <div className="accountant-temp-password-card">
                     <span>Invite Link</span>
                     {inviteLink ? (
