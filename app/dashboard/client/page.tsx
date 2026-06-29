@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useId, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
+import ThemeToggle from "@/app/components/ThemeToggle";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
@@ -722,6 +723,7 @@ export default function ClientPage() {
               </div>
             </div>
             <div className="m-db-actions-section">
+              <ThemeToggle />
               <button type="button" className="m-db-bell-btn" aria-label="Notifications">
                 <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />

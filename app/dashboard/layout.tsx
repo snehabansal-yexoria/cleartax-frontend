@@ -57,6 +57,7 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -1062,6 +1063,7 @@ export default function DashboardLayout({
             </div>
 
             <div className="accountant-topbar-actions">
+              {isClientPage && <ThemeToggle />}
               {/* <button
                 type="button"
                 className="accountant-icon-button"
