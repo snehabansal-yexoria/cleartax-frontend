@@ -77,7 +77,13 @@ function isSafeInternalHref(value: string | null) {
   return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
 }
 
-
+function getLocalDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function formatInvoiceDate(value: string) {
   if (!value) return "—";
@@ -579,6 +585,7 @@ function TransactionDetailPopup({
   const [categoryId, setCategoryId] = useState<number | null>(row.categoryId);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(row.subcategoryId);
   const [invoiceDate, setInvoiceDate] = useState(row.invoiceDate?.slice(0, 10) || "");
+  const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
   const [grossAmount, setGrossAmount] = useState(String(row.grossAmount || ""));
   const [showGstBreakdown, setShowGstBreakdown] = useState(row.gstAmount > 0);
   const [gstAmount, setGstAmount] = useState(String(row.gstAmount || ""));
@@ -612,6 +619,23 @@ function TransactionDetailPopup({
       }))
       : [{ id: makeSplitRowId(), propertyId: "", amount: String(row.grossAmount || "") }],
   );
+  const invoiceDateError = useMemo(() => {
+    if (!invoiceDate) {
+      return "Invoice date is required.";
+    }
+    const yearPart = invoiceDate.split("-")[0];
+    if (yearPart && yearPart.length > 4) {
+      return "Year cannot exceed 4 digits.";
+    }
+    const todayStr = getLocalDateString();
+    if (invoiceDate > todayStr) {
+      return "Invoice date cannot be in the future.";
+    }
+    return "";
+  }, [invoiceDate]);
+
+  const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
+
   const [editError, setEditError] = useState("");
   const [isOpeningInvoice, setIsOpeningInvoice] = useState(false);
 
@@ -625,6 +649,7 @@ function TransactionDetailPopup({
     setCategoryId(source.categoryId);
     setSubcategoryId(source.subcategoryId);
     setInvoiceDate(source.invoiceDate?.slice(0, 10) || "");
+    setInvoiceDateTouched(false);
     setGrossAmount(String(source.grossAmount || ""));
     setShowGstBreakdown(source.gstAmount > 0);
     setGstAmount(String(source.gstAmount || ""));
@@ -869,7 +894,13 @@ function TransactionDetailPopup({
   async function handleSave() {
     const grossNum = Number.parseFloat(grossAmount);
     if (!type || !categoryId || !subcategoryId || !invoiceDate) {
+      setInvoiceDateTouched(true);
       setEditError("Please complete type, category, sub-category, and date.");
+      return;
+    }
+    if (invoiceDateError) {
+      setInvoiceDateTouched(true);
+      setEditError(invoiceDateError);
       return;
     }
     if (Number.isNaN(grossNum) || grossNum <= 0) {
@@ -1120,13 +1151,27 @@ function TransactionDetailPopup({
                     />
                   </div>
                 )}
-                <label className="transaction-field">
+                <label className={`transaction-field${showDateError ? " has-error" : ""}`}>
                   <span className="transaction-field-label">Invoice Date<em>*</em></span>
                   <input
                     type="date"
                     value={invoiceDate}
-                    onChange={(event) => setInvoiceDate(event.target.value)}
+                    onChange={(event) => {
+                      setInvoiceDate(event.target.value);
+                      setInvoiceDateTouched(true);
+                    }}
+                    onBlur={() => setInvoiceDateTouched(true)}
                   />
+                  {showDateError && (
+                    <p className="transaction-field-error">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      {invoiceDateError}
+                    </p>
+                  )}
                 </label>
                 <label className="transaction-field">
                   <span className="transaction-field-label">Amount<em>*</em></span>
@@ -2979,6 +3024,7 @@ export function AddTransactionView({
   const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
 
   const [invoiceDate, setInvoiceDate] = useState("");
+  const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
   const [grossAmount, setGrossAmount] = useState("");
 
   const [showGstBreakdown, setShowGstBreakdown] = useState(false);
@@ -3314,6 +3360,23 @@ export function AddTransactionView({
 
 
 
+  const invoiceDateError = useMemo(() => {
+    if (!invoiceDate) {
+      return "Invoice date is required.";
+    }
+    const yearPart = invoiceDate.split("-")[0];
+    if (yearPart && yearPart.length > 4) {
+      return "Year cannot exceed 4 digits.";
+    }
+    const todayStr = getLocalDateString();
+    if (invoiceDate > todayStr) {
+      return "Invoice date cannot be in the future.";
+    }
+    return "";
+  }, [invoiceDate]);
+
+  const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
+
   const canSubmit =
     !mustChooseClientFirst &&
     !hasNoProperties &&
@@ -3322,6 +3385,7 @@ export function AddTransactionView({
     (lockAssetPurchaseCategory || !!categoryId) &&
     (lockAssetPurchaseCategory || !!subcategoryId) &&
     !!invoiceDate &&
+    !invoiceDateError &&
     !!grossAmount &&
     !!modeOfTransaction &&
     (!isAssetPurchase ||
@@ -3460,6 +3524,7 @@ export function AddTransactionView({
     }
     if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
       setInvoiceDate(data.date);
+      setInvoiceDateTouched(false);
       filled.add("invoiceDate");
     }
     if (typeof data.amount === "number" && Number.isFinite(data.amount)) {
@@ -3879,6 +3944,11 @@ export function AddTransactionView({
       return;
     }
     setSubmitError("");
+    if (invoiceDateError) {
+      setInvoiceDateTouched(true);
+      setSubmitError(invoiceDateError);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
@@ -4284,15 +4354,29 @@ export function AddTransactionView({
                 />
               </div>
             )}
-            <label className={"transaction-field" + flashClass("invoiceDate")}>
+            <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
               <span className="transaction-field-label">
                 Invoice Date<em>*</em>
               </span>
               <input
                 type="date"
                 value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
+                onChange={(e) => {
+                  setInvoiceDate(e.target.value);
+                  setInvoiceDateTouched(true);
+                }}
+                onBlur={() => setInvoiceDateTouched(true)}
               />
+              {showDateError && (
+                <p className="transaction-field-error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {invoiceDateError}
+                </p>
+              )}
             </label>
             <label className={"transaction-field" + flashClass("grossAmount")}>
               <span className="transaction-field-label">
