@@ -396,6 +396,97 @@ export default function AddPropertyWizard({
   const [errorMessage, setErrorMessage] = useState("");
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingDoc, setIsDraggingDoc] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+
+  const markTouched = (field: string) => {
+    setTouchedFields((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const dateErrors = useMemo(() => {
+    const errors: {
+      purchaseDate?: string;
+      settlementDate?: string;
+      availableForRentDate?: string;
+      firstRentalIncomeDate?: string;
+      renovationStartDate?: string;
+      renovationEndDate?: string;
+    } = {};
+
+    const today = getTodayString();
+
+    // 1. Contract Date (purchaseDate) validation
+    if (!purchaseDate) {
+      errors.purchaseDate = "Contract Date is required.";
+    } else {
+      const parts = purchaseDate.split("-");
+      if (parts.length !== 3 || parts[0].length !== 4 || parts[1].length !== 2 || parts[2].length !== 2) {
+        errors.purchaseDate = "Please enter a valid date (YYYY-MM-DD).";
+      } else if (purchaseDate > today) {
+        errors.purchaseDate = "Contract Date cannot be in the future.";
+      }
+    }
+
+    // 2. Settlement Date validation
+    if (settlementDate) {
+      const parts = settlementDate.split("-");
+      if (parts.length !== 3 || parts[0].length !== 4 || parts[1].length !== 2 || parts[2].length !== 2) {
+        errors.settlementDate = "Please enter a valid date (YYYY-MM-DD).";
+      } else if (purchaseDate && settlementDate < purchaseDate) {
+        errors.settlementDate = "Settlement Date must be on or after the Contract Date.";
+      }
+    }
+
+    // 3. Status-specific validations
+    if (status === "Available for Rent" || status === "Rented") {
+      if (!availableForRentDate) {
+        errors.availableForRentDate = "Available for Rent Date is required.";
+      } else {
+        const parts = availableForRentDate.split("-");
+        if (parts.length !== 3 || parts[0].length !== 4 || parts[1].length !== 2 || parts[2].length !== 2) {
+          errors.availableForRentDate = "Please enter a valid date (YYYY-MM-DD).";
+        } else if (purchaseDate && availableForRentDate < purchaseDate) {
+          errors.availableForRentDate = "Available for Rent Date cannot be before the Contract Date.";
+        }
+      }
+    }
+
+    if (status === "Rented") {
+      if (!firstRentalIncomeDate) {
+        errors.firstRentalIncomeDate = "First Rental Income Date is required.";
+      } else {
+        const parts = firstRentalIncomeDate.split("-");
+        if (parts.length !== 3 || parts[0].length !== 4 || parts[1].length !== 2 || parts[2].length !== 2) {
+          errors.firstRentalIncomeDate = "Please enter a valid date (YYYY-MM-DD).";
+        } else if (availableForRentDate && firstRentalIncomeDate < availableForRentDate) {
+          errors.firstRentalIncomeDate = "First Rental Income Date cannot be before the Available for Rent Date.";
+        }
+      }
+    }
+
+    if (status === "Under Renovation") {
+      if (!renovationStartDate) {
+        errors.renovationStartDate = "Renovation Start Date is required.";
+      } else {
+        const parts = renovationStartDate.split("-");
+        if (parts.length !== 3 || parts[0].length !== 4 || parts[1].length !== 2 || parts[2].length !== 2) {
+          errors.renovationStartDate = "Please enter a valid date (YYYY-MM-DD).";
+        } else if (purchaseDate && renovationStartDate < purchaseDate) {
+          errors.renovationStartDate = "Renovation Start Date cannot be before the Contract Date.";
+        }
+      }
+
+      if (renovationEndDate) {
+        const parts = renovationEndDate.split("-");
+        if (parts.length !== 3 || parts[0].length !== 4 || parts[1].length !== 2 || parts[2].length !== 2) {
+          errors.renovationEndDate = "Please enter a valid date (YYYY-MM-DD).";
+        } else if (renovationStartDate && renovationEndDate < renovationStartDate) {
+          errors.renovationEndDate = "Renovation End Date cannot be before the Renovation Start Date.";
+        }
+      }
+    }
+
+    return errors;
+  }, [purchaseDate, settlementDate, availableForRentDate, firstRentalIncomeDate, renovationStartDate, renovationEndDate, status]);
 
   const isBankNameValid = !bankName || /^[a-zA-Z\s]*$/.test(bankName);
   const isBsbValid = !bsbNumber || bsbNumber.length === 6;
@@ -453,13 +544,6 @@ export default function AddPropertyWizard({
       parts[0] = parts[0].slice(0, 4);
       val = parts.join("-");
     }
-
-    if (limitToToday) {
-      const today = getTodayString();
-      if (val > today) {
-        val = today;
-      }
-    }
     setter(val);
   };
 
@@ -472,13 +556,6 @@ export default function AddPropertyWizard({
     const text = event.clipboardData.getData("text");
     const parsed = parseDateString(text);
     if (parsed) {
-      if (limitToToday) {
-        const today = getTodayString();
-        if (parsed > today) {
-          setter(today);
-          return;
-        }
-      }
       setter(parsed);
     }
   };
@@ -493,12 +570,6 @@ export default function AddPropertyWizard({
     if (parts[0] && parts[0].length > 4) {
       parts[0] = parts[0].slice(0, 4);
       val = parts.join("-");
-    }
-    if (limitToToday) {
-      const today = getTodayString();
-      if (val > today) {
-        val = today;
-      }
     }
     setter(val);
   };
@@ -540,7 +611,8 @@ export default function AddPropertyWizard({
     purchaseAmount.trim() &&
     isPurchaseAmountValid &&
     status.trim() &&
-    statusDetailsValid,
+    statusDetailsValid &&
+    Object.keys(dateErrors).length === 0
   );
 
   const ownershipAboveZero = totalOwnership > 0;
@@ -919,8 +991,22 @@ export default function AddPropertyWizard({
               type="text"
               placeholder="e.g., Sunset District Residence"
               value={propertyName}
+              className={`border ${
+                touchedFields.propertyName && !propertyName.trim()
+                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                  : ""
+              }`}
               onChange={(event) => setPropertyName(event.target.value)}
+              onBlur={() => markTouched("propertyName")}
             />
+            {touchedFields.propertyName && !propertyName.trim() && (
+              <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[0.78rem] font-medium tracking-tight">Property Name is required.</span>
+              </div>
+            )}
           </label>
 
           <div className="property-wizard-grid">
@@ -996,8 +1082,22 @@ export default function AddPropertyWizard({
                 type="text"
                 placeholder="Search location..."
                 value={locationText}
+                className={`border ${
+                  touchedFields.locationText && !locationText.trim()
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                }`}
                 onChange={(event) => setLocationText(event.target.value)}
+                onBlur={() => markTouched("locationText")}
               />
+              {touchedFields.locationText && !locationText.trim() && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                  <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[0.78rem] font-medium tracking-tight">Property Location is required.</span>
+                </div>
+              )}
             </label>
 
             <label className="entity-wizard-label">
@@ -1008,14 +1108,23 @@ export default function AddPropertyWizard({
                 type="text"
                 placeholder={`${CURRENCY_SYMBOL}0`}
                 value={estimatedMarketValue}
+                className={`border ${
+                  touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                }`}
                 onChange={(event) =>
                   handleEstimatedMarketValueChange(event.target.value)
                 }
+                onBlur={() => markTouched("estimatedMarketValue")}
               />
-              {!isEstimatedMarketValueValid && (
-                <span className="entity-wizard-inline-error">
-                  Estimated Market Value must accept only currency format ({CURRENCY_SYMBOL.trim()}).
-                </span>
+              {touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                  <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[0.78rem] font-medium tracking-tight">Estimated Market Value must accept only currency format ({CURRENCY_SYMBOL.trim()}).</span>
+                </div>
               )}
             </label>
 
@@ -1025,13 +1134,28 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="date"
-                className="property-date-input"
+                className={`property-date-input border ${
+                  dateErrors.purchaseDate && (touchedFields.purchaseDate || purchaseDate)
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                }`}
                 max={getTodayString()}
                 value={purchaseDate}
                 onChange={(event) => handleDateChange(event.target.value, setPurchaseDate, true)}
                 onPaste={(event) => handleDatePaste(event, setPurchaseDate, true)}
-                onBlur={(event) => handleDateBlur(event.target.value, setPurchaseDate, true)}
+                onBlur={(event) => {
+                  handleDateBlur(event.target.value, setPurchaseDate, true);
+                  markTouched("purchaseDate");
+                }}
               />
+              {dateErrors.purchaseDate && (touchedFields.purchaseDate || purchaseDate) && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                  <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[0.78rem] font-medium tracking-tight">{dateErrors.purchaseDate}</span>
+                </div>
+              )}
             </label>
 
             <label className="entity-wizard-label">
@@ -1040,13 +1164,28 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="date"
-                className="property-date-input"
+                className={`property-date-input border ${
+                  dateErrors.settlementDate && (touchedFields.settlementDate || settlementDate)
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                }`}
                 max="9999-12-31"
                 value={settlementDate}
                 onChange={(event) => handleDateChange(event.target.value, setSettlementDate, false)}
                 onPaste={(event) => handleDatePaste(event, setSettlementDate, false)}
-                onBlur={(event) => handleDateBlur(event.target.value, setSettlementDate, false)}
+                onBlur={(event) => {
+                  handleDateBlur(event.target.value, setSettlementDate, false);
+                  markTouched("settlementDate");
+                }}
               />
+              {dateErrors.settlementDate && (touchedFields.settlementDate || settlementDate) && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                  <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[0.78rem] font-medium tracking-tight">{dateErrors.settlementDate}</span>
+                </div>
+              )}
             </label>
 
             <label className="entity-wizard-label">
@@ -1057,12 +1196,25 @@ export default function AddPropertyWizard({
                 type="text"
                 placeholder={`${CURRENCY_SYMBOL}0`}
                 value={purchaseAmount}
+                className={`border ${
+                  touchedFields.purchaseAmount && (!purchaseAmount.trim() || !isPurchaseAmountValid)
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                }`}
                 onChange={(event) => handlePurchaseAmountChange(event.target.value)}
+                onBlur={() => markTouched("purchaseAmount")}
               />
-              {!isPurchaseAmountValid && (
-                <span className="entity-wizard-inline-error">
-                  Property Purchase Amount must accept only currency format ({CURRENCY_SYMBOL.trim()}).
-                </span>
+              {touchedFields.purchaseAmount && (!purchaseAmount.trim() || !isPurchaseAmountValid) && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                  <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[0.78rem] font-medium tracking-tight">
+                    {!purchaseAmount.trim()
+                      ? "Property Purchase Amount is required."
+                      : `Property Purchase Amount must accept only currency format (${CURRENCY_SYMBOL.trim()}).`}
+                  </span>
+                </div>
               )}
             </label>
 
@@ -1251,15 +1403,30 @@ export default function AddPropertyWizard({
                 </span>
                 <input
                   type="date"
-                  className="property-date-input"
+                  className={`property-date-input border ${
+                    dateErrors.availableForRentDate && (touchedFields.availableForRentDate || availableForRentDate)
+                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                      : ""
+                  }`}
                   max="9999-12-31"
                   value={availableForRentDate}
                   onChange={(event) =>
                     handleDateChange(event.target.value, setAvailableForRentDate)
                   }
                   onPaste={(event) => handleDatePaste(event, setAvailableForRentDate)}
-                  onBlur={(event) => handleDateBlur(event.target.value, setAvailableForRentDate)}
+                  onBlur={(event) => {
+                    handleDateBlur(event.target.value, setAvailableForRentDate);
+                    markTouched("availableForRentDate");
+                  }}
                 />
+                {dateErrors.availableForRentDate && (touchedFields.availableForRentDate || availableForRentDate) && (
+                  <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                    <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[0.78rem] font-medium tracking-tight">{dateErrors.availableForRentDate}</span>
+                  </div>
+                )}
               </label>
               {status === "Rented" && (
                 <label className="entity-wizard-label">
@@ -1268,15 +1435,30 @@ export default function AddPropertyWizard({
                   </span>
                   <input
                     type="date"
-                    className="property-date-input"
+                    className={`property-date-input border ${
+                      dateErrors.firstRentalIncomeDate && (touchedFields.firstRentalIncomeDate || firstRentalIncomeDate)
+                        ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                        : ""
+                    }`}
                     max="9999-12-31"
                     value={firstRentalIncomeDate}
                     onChange={(event) =>
                       handleDateChange(event.target.value, setFirstRentalIncomeDate)
                     }
                     onPaste={(event) => handleDatePaste(event, setFirstRentalIncomeDate)}
-                    onBlur={(event) => handleDateBlur(event.target.value, setFirstRentalIncomeDate)}
+                    onBlur={(event) => {
+                      handleDateBlur(event.target.value, setFirstRentalIncomeDate);
+                      markTouched("firstRentalIncomeDate");
+                    }}
                   />
+                  {dateErrors.firstRentalIncomeDate && (touchedFields.firstRentalIncomeDate || firstRentalIncomeDate) && (
+                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                      <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-[0.78rem] font-medium tracking-tight">{dateErrors.firstRentalIncomeDate}</span>
+                    </div>
+                  )}
                 </label>
               )}
             </div>
@@ -1290,27 +1472,57 @@ export default function AddPropertyWizard({
                 </span>
                 <input
                   type="date"
-                  className="property-date-input"
+                  className={`property-date-input border ${
+                    dateErrors.renovationStartDate && (touchedFields.renovationStartDate || renovationStartDate)
+                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                      : ""
+                  }`}
                   max="9999-12-31"
                   value={renovationStartDate}
                   onChange={(event) =>
                     handleDateChange(event.target.value, setRenovationStartDate)
                   }
                   onPaste={(event) => handleDatePaste(event, setRenovationStartDate)}
-                  onBlur={(event) => handleDateBlur(event.target.value, setRenovationStartDate)}
+                  onBlur={(event) => {
+                    handleDateBlur(event.target.value, setRenovationStartDate);
+                    markTouched("renovationStartDate");
+                  }}
                 />
+                {dateErrors.renovationStartDate && (touchedFields.renovationStartDate || renovationStartDate) && (
+                  <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                    <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[0.78rem] font-medium tracking-tight">{dateErrors.renovationStartDate}</span>
+                  </div>
+                )}
               </label>
               <label className="entity-wizard-label">
                 Renovation End Date <small>(Optional)</small>
                 <input
                   type="date"
-                  className="property-date-input"
+                  className={`property-date-input border ${
+                    dateErrors.renovationEndDate && (touchedFields.renovationEndDate || renovationEndDate)
+                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                      : ""
+                  }`}
                   max="9999-12-31"
                   value={renovationEndDate}
                   onChange={(event) => handleDateChange(event.target.value, setRenovationEndDate)}
                   onPaste={(event) => handleDatePaste(event, setRenovationEndDate)}
-                  onBlur={(event) => handleDateBlur(event.target.value, setRenovationEndDate)}
+                  onBlur={(event) => {
+                    handleDateBlur(event.target.value, setRenovationEndDate);
+                    markTouched("renovationEndDate");
+                  }}
                 />
+                {dateErrors.renovationEndDate && (touchedFields.renovationEndDate || renovationEndDate) && (
+                  <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                    <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[0.78rem] font-medium tracking-tight">{dateErrors.renovationEndDate}</span>
+                  </div>
+                )}
               </label>
             </div>
           )}
@@ -1408,17 +1620,44 @@ export default function AddPropertyWizard({
             )}
           </div>
 
+          {errorMessage && (
+            <div className="flex items-center gap-2.5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-sm mt-4 font-medium animate-fadeIn">
+              <svg className="w-4 h-4 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <div className="entity-wizard-footer">
             <div />
             <button
               type="button"
               className="entity-wizard-primary"
               disabled={
-                !propertyDetailsValid ||
                 isUploadingPropertyImage ||
                 isUploadingDepreciationSchedule
               }
-              onClick={() => setStep(takesOwnershipDetails ? 2 : 3)}
+              onClick={() => {
+                if (!propertyDetailsValid) {
+                  setTouchedFields({
+                    propertyName: true,
+                    locationText: true,
+                    estimatedMarketValue: true,
+                    purchaseDate: true,
+                    settlementDate: true,
+                    purchaseAmount: true,
+                    availableForRentDate: true,
+                    firstRentalIncomeDate: true,
+                    renovationStartDate: true,
+                    renovationEndDate: true,
+                  });
+                  setErrorMessage("Please fix the highlighted validation errors before continuing.");
+                  return;
+                }
+                setErrorMessage("");
+                setStep(takesOwnershipDetails ? 2 : 3);
+              }}
             >
               Continue
             </button>
@@ -1488,7 +1727,10 @@ export default function AddPropertyWizard({
             <button
               type="button"
               className="entity-wizard-link"
-              onClick={() => setStep(1)}
+              onClick={() => {
+                setErrorMessage("");
+                setStep(1);
+              }}
             >
               Back
             </button>
@@ -1637,7 +1879,10 @@ export default function AddPropertyWizard({
             <button
               type="button"
               className="entity-wizard-link"
-              onClick={() => setStep(takesOwnershipDetails ? 2 : 1)}
+              onClick={() => {
+                setErrorMessage("");
+                setStep(takesOwnershipDetails ? 2 : 1);
+              }}
             >
               Back
             </button>
