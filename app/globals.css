@@ -2443,9 +2443,11 @@ p.darkBg {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   text-align: center;
   padding: 32px 28px;
+  max-height: 70dvh;
+  overflow-y: auto;
 }
 
 .accountant-invite-success-icon {
@@ -6358,10 +6360,15 @@ p.darkBg {
   display: flex;
   align-items: center;
   border-bottom: 1px solid #d0d5dd;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
-.client-portfolio-tabs {
-  overflow-x: auto;
+.client-portfolio-tabs::-webkit-scrollbar,
+.entity-resource-tabs::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .client-portfolio-tabs button,
@@ -8288,6 +8295,45 @@ p.darkBg {
   margin: -4px 0 0;
   color: #b42318;
   font-size: 13px;
+}
+
+.transaction-field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #b42318;
+  font-size: 13px;
+  margin-top: -2px;
+  animation: fieldErrorFadeIn 0.15s ease-out;
+}
+
+.transaction-field-error svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: #b42318;
+}
+
+.transaction-field.has-error input {
+  border-color: #fda29b !important;
+  background-color: #fffbfa !important;
+}
+
+.transaction-field.has-error input:focus {
+  border-color: #fda29b !important;
+  box-shadow: 0 0 0 4px #fee4e2 !important;
+}
+
+@keyframes fieldErrorFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .transaction-split-footer {

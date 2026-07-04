@@ -172,7 +172,7 @@ function titleCase(value: string) {
 const CURRENCY_SYMBOL = "A$ ";
 
 function formatMoney(value: number) {
-  const formattedNumber = new Intl.NumberFormat("en-US", {
+  const formattedNumber = new Intl.NumberFormat("en-AU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);

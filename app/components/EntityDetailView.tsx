@@ -302,6 +302,7 @@ export default function EntityDetailView({
   const [trendView, setTrendView] = useState<"graph" | "table">("graph");
   const [selectedRmId, setSelectedRmId] = useState<string>("");
   const [availableManagers, setAvailableManagers] = useState<any[]>([]);
+  const [rmError, setRmError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionToken) return;
@@ -354,6 +355,7 @@ export default function EntityDetailView({
     if (!sessionToken || !entityId) return;
 
     try {
+      setRmError(null);
       setSelectedRmId(rmId);
       const res = await fetch(`/api/entities/${encodeURIComponent(entityId)}`, {
         method: "PATCH",
@@ -374,7 +376,8 @@ export default function EntityDetailView({
       setEntity(updatedEntity);
     } catch (err) {
       console.error("Error assigning regional manager:", err);
-      alert("Failed to assign Regional Manager. Please try again.");
+      setRmError("Failed to assign Regional Manager. Please try again.");
+      setSelectedRmId((entity as any)?.regionalManager?.id || "");
     }
   }
 
@@ -775,6 +778,65 @@ export default function EntityDetailView({
         <div className="entity-trend-head" style={{ marginBottom: 20 }}>
           <h2>Regional Manager</h2>
         </div>
+
+        {rmError && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              padding: "12px 16px",
+              background: "#fef2f2",
+              border: "1px solid #fca5a5",
+              borderRadius: "8px",
+              marginBottom: "16px",
+              color: "#991b1b",
+              fontSize: "14px",
+            }}
+            role="alert"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+              <svg
+                viewBox="0 0 24 24"
+                width={20}
+                height={20}
+                style={{ flexShrink: 0 }}
+                stroke="#dc2626"
+                fill="none"
+                strokeWidth={2}
+              >
+                <circle cx="12" cy="12" r="10" stroke="#fca5a5" fill="#fee2e2" />
+                <path d="M12 8v4" stroke="#dc2626" strokeLinecap="round" />
+                <path d="M12 16h.01" stroke="#dc2626" strokeLinecap="round" strokeWidth={3} />
+              </svg>
+              <span style={{ fontWeight: 500, lineHeight: 1.4 }}>{rmError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRmError(null)}
+              aria-label="Dismiss error"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px",
+                color: "#991b1b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: 0.7,
+                transition: "opacity 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+            >
+              <svg viewBox="0 0 24 24" width={16} height={16} stroke="currentColor" fill="none" strokeWidth={2}>
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         <div className="entity-rm-content">
           {/* Left Side: Avatar + Details */}
