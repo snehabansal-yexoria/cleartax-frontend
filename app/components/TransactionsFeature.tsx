@@ -1156,8 +1156,14 @@ function TransactionDetailPopup({
                   <input
                     type="date"
                     value={invoiceDate}
+                    max="9999-12-31"
                     onChange={(event) => {
-                      setInvoiceDate(event.target.value);
+                      const val = event.target.value;
+                      const yearPart = val.split("-")[0];
+                      if (yearPart && yearPart.length > 4) {
+                        return;
+                      }
+                      setInvoiceDate(val);
                       setInvoiceDateTouched(true);
                     }}
                     onBlur={() => setInvoiceDateTouched(true)}
@@ -3795,6 +3801,10 @@ export function AddTransactionView({
         if (!invoiceDateValue) {
           throw new Error(`Row ${rowNumber}: invoice_date is required.`);
         }
+        const yearPart = invoiceDateValue.split("-")[0];
+        if (yearPart && yearPart.length > 4) {
+          throw new Error(`Row ${rowNumber}: year cannot exceed 4 digits.`);
+        }
         const splits = resolveBulkSplits(
           row,
           bulkPropertyId,
@@ -4361,8 +4371,14 @@ export function AddTransactionView({
               <input
                 type="date"
                 value={invoiceDate}
+                max="9999-12-31"
                 onChange={(e) => {
-                  setInvoiceDate(e.target.value);
+                  const val = e.target.value;
+                  const yearPart = val.split("-")[0];
+                  if (yearPart && yearPart.length > 4) {
+                    return;
+                  }
+                  setInvoiceDate(val);
                   setInvoiceDateTouched(true);
                 }}
                 onBlur={() => setInvoiceDateTouched(true)}

@@ -2443,9 +2443,11 @@ p.darkBg {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   text-align: center;
   padding: 32px 28px;
+  max-height: 70dvh;
+  overflow-y: auto;
 }
 
 .accountant-invite-success-icon {
@@ -6358,10 +6360,15 @@ p.darkBg {
   display: flex;
   align-items: center;
   border-bottom: 1px solid #d0d5dd;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
-.client-portfolio-tabs {
-  overflow-x: auto;
+.client-portfolio-tabs::-webkit-scrollbar,
+.entity-resource-tabs::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .client-portfolio-tabs button,
@@ -8322,6 +8329,7 @@ p.darkBg {
     opacity: 0;
     transform: translateY(-2px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
