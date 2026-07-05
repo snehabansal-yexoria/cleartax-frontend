@@ -70,10 +70,12 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   try {
+    const { assignedRegionalManagerId, ...coreBody } = body || {};
+
     // Save assigned regional manager to the database if passed
     if (body && typeof body === "object" && "assignedRegionalManagerId" in body) {
-      const assignedId = body.assignedRegionalManagerId
-        ? String(body.assignedRegionalManagerId).trim()
+      const assignedId = assignedRegionalManagerId
+        ? String(assignedRegionalManagerId).trim()
         : null;
 
       await pool.query(
@@ -84,7 +86,10 @@ export async function PATCH(req: Request, context: RouteContext) {
       );
     }
 
-    const entity = await updateCoreEntity(token, id, body as Record<string, unknown>);
+    // Only call updateCoreEntity if there are core entity fields to update
+    const entity = Object.keys(coreBody).length > 0
+      ? await updateCoreEntity(token, id, coreBody as Record<string, unknown>)
+      : await getCoreEntity(token, id);
 
     // Fetch updated regional manager details
     const dbRes = await pool.query(

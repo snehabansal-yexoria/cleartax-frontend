@@ -106,9 +106,19 @@ function matchReducer(
   return next;
 }
 
+const CURRENCY_SYMBOL = "A$ ";
+
 function fmtAud(v: number | null | undefined): string {
   if (v == null) return "—";
-  return `$${Math.abs(v).toLocaleString("en-AU", { minimumFractionDigits: 2 })}`;
+  const isNegative = v < 0;
+  const absVal = Math.abs(v);
+  const formattedNumber = new Intl.NumberFormat("en-AU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(absVal);
+  return isNegative
+    ? `${CURRENCY_SYMBOL}- ${formattedNumber}`
+    : `${CURRENCY_SYMBOL}${formattedNumber}`;
 }
 
 function shortId(id: string): string {
@@ -1396,11 +1406,11 @@ export default function AccountantReconciliationSessionPage() {
                   <div>{categoryDisplay}</div>
 
                   <strong style={{ color: row.debit != null ? "#dc2626" : undefined }}>
-                    {row.debit != null ? `-${fmtAud(row.debit)}` : "—"}
+                    {row.debit != null ? fmtAud(-row.debit) : "— "}
                   </strong>
 
                   <strong className={row.credit != null ? "is-good-text" : ""}>
-                    {row.credit != null ? fmtAud(row.credit) : "—"}
+                    {row.credit != null ? fmtAud(row.credit) : "— "}
                   </strong>
 
                   {actionCell}

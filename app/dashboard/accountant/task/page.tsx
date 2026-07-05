@@ -209,6 +209,12 @@ export default function TaskManagementPage() {
                 id: a.id,
                 name: a.id === meId ? `${a.name || "You"} (Me)` : a.name || a.id,
             }));
+            if (meId && !members.some((m) => m.id === meId)) {
+                members.unshift({
+                    id: meId,
+                    name: `${me?.full_name || me?.name || "You"} (Me)`
+                });
+            }
             setTeamMembers(members);
             const self = members.find((m) => m.id === meId);
             setNewTaskAssignee(self ?? members[0] ?? null);
@@ -334,7 +340,7 @@ export default function TaskManagementPage() {
         setIsEditModalOpen(true);
     };
 
-    const handleSaveEdit = (e: React.FormEvent) => {
+    const handleSaveEdit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingTask) return;
         if (!editTaskName.trim() || !editTaskDesc.trim() || !editTaskDeadline || !editTaskAssignee) {
@@ -349,31 +355,40 @@ export default function TaskManagementPage() {
         }
 
         const cleanedDeadline = getCleanedDate(editTaskDeadline);
+        const token = await getToken();
+        if (!token) return;
 
-        setTasks((prevTasks) =>
-            prevTasks.map((t) => {
-                if (t.id !== editingTask.id) return t;
-
-                const type: "my" | "assigned" = editTaskAssignee.id === currentUserId ? "my" : "assigned";
-
-                return {
-                    ...t,
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/tasks/${editingTask.id}`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
                     name: editTaskName.trim(),
                     description: editTaskDesc.trim(),
-                    assignedTo: editTaskAssignee,
-                    deadline: formatDeadline(cleanedDeadline),
-                    type,
-                };
-            })
-        );
+                    assigned_to: editTaskAssignee.id,
+                    deadline: new Date(cleanedDeadline).toISOString(),
+                }),
+            });
+            if (!res.ok) {
+                alert("Failed to update task.");
+                return;
+            }
 
-        setIsEditModalOpen(false);
-        setEditingTask(null);
-        setEditTaskName("");
-        setEditTaskDesc("");
-        setEditTaskAssignee(null);
-        setEditTaskDeadline("");
-        setEditTaskDeadlineError("");
+            await loadTasks();
+            setIsEditModalOpen(false);
+            setEditingTask(null);
+            setEditTaskName("");
+            setEditTaskDesc("");
+            setEditTaskAssignee(null);
+            setEditTaskDeadline("");
+            setEditTaskDeadlineError("");
+        } catch (err) {
+            console.error("Failed to save edit:", err);
+            alert("An error occurred while updating the task.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -611,7 +626,7 @@ export default function TaskManagementPage() {
                                                             </span>
                                                         )
                                                     )}
-                                                    {task.assignedBy?.id === currentUserId && (
+                                                    {task.assignedBy?.id === currentUserId && task.status !== "Completed" && (
                                                         <button
                                                             onClick={() => handleOpenEditModal(task)}
                                                             className="inline-flex items-center justify-center gap-1.5 h-9 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 px-3.5 rounded-xl text-xs font-bold border border-indigo-100/50 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
@@ -1111,13 +1126,13 @@ export default function TaskManagementPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={!!editTaskDeadlineError}
-                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${editTaskName && editTaskDesc && editTaskDeadline && editTaskAssignee && !editTaskDeadlineError
+                                    disabled={submitting || !!editTaskDeadlineError}
+                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${editTaskName && editTaskDesc && editTaskDeadline && editTaskAssignee && !editTaskDeadlineError && !submitting
                                             ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
                                             : "bg-[#a5aec9] cursor-not-allowed"
                                         }`}
                                 >
-                                    Save Changes
+                                    {submitting ? "Saving…" : "Save Changes"}
                                 </button>
                             </div>
 
