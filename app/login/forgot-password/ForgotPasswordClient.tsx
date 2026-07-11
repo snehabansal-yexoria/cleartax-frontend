@@ -77,6 +77,32 @@ export default function ForgotPasswordClient({
     setInfo("");
 
     try {
+      // Check the app database before asking Cognito to send anything —
+      // Cognito can hold accounts the users table no longer knows about, and
+      // no reset email should go out for those.
+      let existsInDb = false;
+      try {
+        const res = await fetch("/api/forgot-password/check-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail }),
+        });
+        if (!res.ok) {
+          throw new Error(`Email check failed with status ${res.status}`);
+        }
+        existsInDb = Boolean(
+          ((await res.json()) as { exists?: boolean }).exists,
+        );
+      } catch {
+        setError("We couldn't start the reset. Please try again.");
+        return;
+      }
+
+      if (!existsInDb) {
+        setError(EMAIL_NOT_FOUND_MESSAGE);
+        return;
+      }
+
       await requestPasswordReset(normalizedEmail);
       setEmail(normalizedEmail);
       setStep("confirm");
