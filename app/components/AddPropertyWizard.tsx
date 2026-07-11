@@ -4,6 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useState, ClipboardEvent } from "r
 import Link from "next/link";
 import type { CoreEntity, CoreProperty, PropertyType } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
+import AddressAutocomplete from "./AddressAutocomplete";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -1078,17 +1079,16 @@ export default function AddPropertyWizard({
               <span>
                 Property Location <em>*</em>
               </span>
-              <input
-                type="text"
-                placeholder="Search location..."
+              <AddressAutocomplete
                 value={locationText}
-                className={`border ${
+                onChange={setLocationText}
+                onBlur={() => markTouched("locationText")}
+                placeholder="Search location..."
+                inputClassName={`border ${
                   touchedFields.locationText && !locationText.trim()
                     ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
                     : ""
                 }`}
-                onChange={(event) => setLocationText(event.target.value)}
-                onBlur={() => markTouched("locationText")}
               />
               {touchedFields.locationText && !locationText.trim() && (
                 <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
