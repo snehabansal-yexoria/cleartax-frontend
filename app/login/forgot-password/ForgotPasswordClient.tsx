@@ -10,10 +10,11 @@ import {
   confirmPasswordReset,
 } from "../../../src/lib/auth";
 
-// Same generic copy whether the account exists or not — never confirm at the
-// request step whether an email is registered.
 const CODE_SENT_MESSAGE =
-  "If an account exists for that email, we've sent a reset code. Check your inbox.";
+  "We've sent a reset code to your email. Check your inbox.";
+
+const EMAIL_NOT_FOUND_MESSAGE =
+  "No account exists with that email address. Please check the email and try again.";
 
 // Maps the internal role name (passed as ?role= from the login page) back to its
 // login route segment. Note client -> /login/user and super_admin -> /login/super-admin.
@@ -83,10 +84,7 @@ export default function ForgotPasswordClient({
     } catch (error: unknown) {
       const name = errName(error);
       if (name === "UserNotFoundException") {
-        // Don't reveal whether the account exists — advance with the same message.
-        setEmail(normalizedEmail);
-        setStep("confirm");
-        setInfo(CODE_SENT_MESSAGE);
+        setError(EMAIL_NOT_FOUND_MESSAGE);
       } else if (name === "InvalidParameterException") {
         setError(
           "This account can't be reset automatically yet. If you were recently invited, please use your invitation link, or contact your administrator.",
