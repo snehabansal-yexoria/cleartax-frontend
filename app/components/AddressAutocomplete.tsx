@@ -37,6 +37,7 @@ export type AddressAutocompleteProps = {
   minChars?: number;
   /** Debounce window in ms between keystroke and lookup. */
   debounceMs?: number;
+  maxLength?: number;
 };
 
 const DEFAULT_MIN_CHARS = 3;
@@ -78,6 +79,7 @@ export default function AddressAutocomplete({
   id,
   minChars = DEFAULT_MIN_CHARS,
   debounceMs = DEFAULT_DEBOUNCE_MS,
+  maxLength,
 }: AddressAutocompleteProps) {
   const generatedId = useId();
   const dropdownId = id ?? `location-autocomplete-${generatedId}`;
@@ -226,7 +228,8 @@ export default function AddressAutocomplete({
         spellCheck={false}
         placeholder={placeholder}
         value={value}
-        className={inputClassName}
+        className={`w-full ${inputClassName || ""}`}
+        maxLength={maxLength}
         onChange={(event) => handleInputChange(event.target.value)}
         onFocus={() => {
           if (suggestions.length > 0 && value.trim().length >= minChars) {
