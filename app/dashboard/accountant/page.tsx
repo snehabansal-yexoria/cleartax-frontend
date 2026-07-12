@@ -67,11 +67,24 @@ function formatJoinedDate(value: string | null) {
 }
 
 function formatCurrency(value: number) {
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  const prefix = getCurrencyPrefix();
+
+  if (absValue >= 1e9) {
+    const formatted = (absValue / 1e9).toFixed(2).replace(/\.?0+$/, "");
+    return `${prefix}${sign}${formatted}B`;
+  }
+  if (absValue >= 1e6) {
+    const formatted = (absValue / 1e6).toFixed(2).replace(/\.?0+$/, "");
+    return `${prefix}${sign}${formatted}M`;
+  }
+
   const formatted = new Intl.NumberFormat("en-AU", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(Math.abs(value));
-  return `${getCurrencyPrefix()}${value < 0 ? "-" : ""}${formatted}`;
+  }).format(absValue);
+  return `${prefix}${sign}${formatted}`;
 }
 
 // Activity category styling and icon utilities
@@ -155,7 +168,7 @@ function getActivityCategory(action: string, type: ReportTimelineEvent["type"]):
   if (act.includes("entity") || act.includes("organisation") || act.includes("company")) return "entity";
   if (act.includes("property") || act.includes("portfolio")) return "property";
   if (act.includes("bank") || act.includes("feed") || act.includes("reconcil")) return "bank";
-  
+
   if (type === "added") return "invite";
   if (type === "deleted") return "property";
   return "entity";
@@ -410,12 +423,12 @@ export default function AccountantPage() {
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
             </article>
-            <article className="accountant-summary-card accountant-summary-card-purple">
+            <article className="accountant-summary-card accountant-summary-card-blue">
               <div className="skeleton-line skeleton-line-sm" />
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
             </article>
-            <article className="accountant-summary-card accountant-summary-card-green">
+            <article className="accountant-summary-card accountant-summary-card-gold">
               <div className="skeleton-line skeleton-line-sm" />
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
@@ -425,8 +438,20 @@ export default function AccountantPage() {
       >
         <div className="accountant-summary-grid">
           <article className="accountant-summary-card accountant-summary-card-blue">
-            <div>
+            <div className="accountant-summary-card-header">
               <p className="accountant-eyebrow">Invitation Pending</p>
+              <Link
+                href="/dashboard/accountant/clients?invite=1"
+                className="accountant-summary-card-action"
+                title="Invite Client"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </Link>
+            </div>
+            <div className="accountant-summary-card-body">
               <h2>{invitationPending}</h2>
               <span>
                 {invitationPending === 1
@@ -434,61 +459,55 @@ export default function AccountantPage() {
                   : "Clients still to accept"}
               </span>
             </div>
-            <Link
-              href="/dashboard/accountant/clients?invite=1"
-              className="accountant-primary-cta accountant-summary-cta"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14" />
-                <path d="M5 12h14" />
-              </svg>
-              Invite Client
-            </Link>
           </article>
 
           <article className="accountant-summary-card accountant-summary-card-gold">
-            <div>
+            <div className="accountant-summary-card-header">
               <p className="accountant-eyebrow">Registered Clients</p>
+              <div className="accountant-summary-card-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                  <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+                  <circle cx="9.5" cy="7" r="4" />
+                  <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
+                  <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
+                </svg>
+              </div>
+            </div>
+            <div className="accountant-summary-card-body">
               <h2>{registeredClients}</h2>
               <span>{managedClients.length} added to your list</span>
             </div>
-            <div className="accountant-summary-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
-                <circle cx="9.5" cy="7" r="4" />
-                <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
-                <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
-              </svg>
-            </div>
           </article>
 
-          <article className="accountant-summary-card accountant-summary-card-purple">
-            <div>
+          <article className="accountant-summary-card accountant-summary-card-blue">
+            <div className="accountant-summary-card-header">
               <p className="accountant-eyebrow">Properties Managed</p>
+              <div className="accountant-summary-card-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </div>
+            </div>
+            <div className="accountant-summary-card-body">
               <h2>{summaryStats?.totalProperties ?? 0}</h2>
               <span>Across client portfolios</span>
             </div>
-            <div className="accountant-summary-icon accountant-summary-icon-purple">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </div>
           </article>
 
-          <article className="accountant-summary-card accountant-summary-card-green">
-            <div>
+          <article className="accountant-summary-card accountant-summary-card-gold">
+            <div className="accountant-summary-card-header">
               <p className="accountant-eyebrow">Total Market Value</p>
-              <h2 style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.4rem)", marginTop: "4px", marginBottom: "4px" }}>
-                {formatCurrency(summaryStats?.totalMarketValue ?? 0)}
-              </h2>
-              <span>Estimated asset valuation</span>
+              <div className="accountant-summary-card-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
             </div>
-            <div className="accountant-summary-icon accountant-summary-icon-green">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
+            <div className="accountant-summary-card-body">
+              <h2>{formatCurrency(summaryStats?.totalMarketValue ?? 0)}</h2>
+              <span>Estimated asset valuation</span>
             </div>
           </article>
         </div>

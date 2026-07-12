@@ -767,127 +767,271 @@ function AccountantClientsContent() {
               </div>
             ))}
           </div>
-        ) : displayedClients.map((client) => {
-          const canOpenClient = true;
-          return (
-            <article
-              key={client.id}
-              className={`accountant-client-table-row${client.isAssignedToAnotherAccountant ? " is-muted" : ""
-                }${client.isAssignedToCurrentAccountant ? " is-assigned" : ""}`}
-              role={canOpenClient ? "link" : undefined}
-              tabIndex={canOpenClient ? 0 : undefined}
-              onClick={() => {
-                if (canOpenClient) {
-                  router.push(`/dashboard/accountant/clients/${client.id}`);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (
-                  canOpenClient &&
-                  (event.key === "Enter" || event.key === " ")
-                ) {
-                  event.preventDefault();
-                  router.push(`/dashboard/accountant/clients/${client.id}`);
-                }
-              }}
-            >
-              <div>
-                {currentTab === "mine" ? (
-                  <span className="accountant-client-selection-empty" />
-                ) : client.isAssignedToAnotherAccountant ? (
-                  <span className="accountant-client-selection-empty" />
-                ) : client.isAssignedToCurrentAccountant ? (
-                  <span
-                    className="accountant-client-assignment-icon"
-                    title="Assigned to you"
-                    role="img"
-                    aria-label="Assigned to you"
+        ) : displayedClients.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-[#f0f3fa] text-[#2f3c82] mb-5 shadow-inner">
+              {searchValue.trim() ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-7 h-7"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  <line x1="8" y1="11" x2="14" y2="11" />
+                </svg>
+              ) : currentTab === "mine" ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-7 h-7"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="16" y1="11" x2="22" y2="11" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-7 h-7"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              )}
+            </div>
+
+            <h3 className="text-lg font-bold text-[#101828] mb-2">
+              {searchValue.trim()
+                ? "No clients match your search"
+                : currentTab === "mine"
+                ? "No clients assigned yet"
+                : "Your client list is empty"}
+            </h3>
+
+            <p className="text-sm text-[#667085] max-w-[420px] leading-relaxed mb-6">
+              {searchValue.trim()
+                ? `We couldn't find any clients matching "${searchValue}". Check the spelling or try searching for a different term.`
+                : currentTab === "mine"
+                ? "You haven't assigned any clients to yourself yet. Add existing clients to your list or invite a new client to get started."
+                : "Get started by inviting your first client to manage and view their property portfolios."}
+            </p>
+
+            <div className="flex items-center gap-3">
+              {searchValue.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchValue("")}
+                  className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#d5dceb] bg-white text-[#49567a] hover:bg-[#f8f9fb] active:bg-[#f1f3f7] transition-colors duration-200 cursor-pointer"
+                >
+                  Clear Search
+                </button>
+              ) : currentTab === "mine" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push("/dashboard/accountant/clients");
+                      setCurrentTab("all");
+                      setSelectedClientIds([]);
+                      setAssignMessage("");
+                      setPageSize("20");
+                      setCurrentPage(1);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#d5dceb] bg-white text-[#49567a] hover:bg-[#f8f9fb] active:bg-[#f1f3f7] transition-colors duration-200 cursor-pointer"
+                  >
+                    Browse All Clients
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemporaryPassword("");
+                      setInviteLink("");
+                      setInviteSuccess(false);
+                      setInviteDrawerOpen(true);
+                      setInviteError("");
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl bg-[#2f3b82] text-white hover:bg-[#37489c] active:bg-[#252f69] transition-colors duration-200 cursor-pointer shadow-sm"
                   >
                     <svg
                       viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 3 }}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className="w-4 h-4"
                     >
-                      <path d="M5 12l4 4 10-10" />
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
                     </svg>
-                  </span>
-                ) : (
-                  <input
-                    type="checkbox"
-                    checked={selectedClientIds.includes(client.id)}
-                    onChange={() => toggleClientSelection(client.id)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                )}
-              </div>
-
-              <div className="accountant-client-cell accountant-client-cell-primary">
-                <div className="accountant-client-pill">
-                  {getInitials(client.name)}
-                </div>
-                <div>
-                  {canOpenClient ? (
-                    <strong className="accountant-client-name-link">
-                      {client.name}
-                    </strong>
-                  ) : (
-                    <strong>{client.name}</strong>
-                  )}
-                  {client.phoneNumber && <span>{client.phoneNumber}</span>}
-                </div>
-              </div>
-
-              <div className="accountant-client-cell">
-                <span>{client.email}</span>
-              </div>
-
-              <div className="accountant-client-cell">
-                <span style={statusStyle(client.status)}>
-                  {formatStatus(client.status)}
-                </span>
-              </div>
-
-              <div className="accountant-client-cell">
-                {client.isAssignedToCurrentAccountant ? (
-                  <span style={{ color: "#2f3c82", fontWeight: 600, fontSize: "13px" }}>
-                    You
-                  </span>
-                ) : client.assignedAccountantName ? (
-                  <span title={client.assignedAccountantId}>
-                    {client.assignedAccountantName}
-                  </span>
-                ) : (
-                  <span style={{ color: "#98a2b3" }}>Unassigned</span>
-                )}
-              </div>
-
-              <div className="accountant-client-cell flex justify-center">
-                <span className="inline-flex items-center justify-center px-[10px] py-[3px] rounded-lg bg-[#f0f3fa] text-[#2f3c82] font-bold text-[13px] min-w-[32px] border border-[#e1e7f3] transition-all duration-150 ease-in-out group-hover:bg-[#e5ecfb] group-hover:border-[#cbd5e1] group-hover:text-[#2f3c82]">
-                  {client.propertiesCount ?? 0}
-                </span>
-              </div>
-
-              <div className="accountant-client-cell" style={{ flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
-                <span>{formatJoinedDate(client.joinedAt)}</span>
-                {currentTab === "mine" && (
-                  <button
-                    type="button"
-                    className="accountant-transfer-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openTransferDrawer(client);
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
-                    </svg>
-                    Transfer
+                    Invite Client
                   </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemporaryPassword("");
+                    setInviteLink("");
+                    setInviteSuccess(false);
+                    setInviteDrawerOpen(true);
+                    setInviteError("");
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl bg-[#2f3b82] text-white hover:bg-[#37489c] active:bg-[#252f69] transition-colors duration-200 cursor-pointer shadow-sm"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className="w-4 h-4"
+                  >
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  Invite Client
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          displayedClients.map((client) => {
+            const canOpenClient = true;
+            return (
+              <article
+                key={client.id}
+                className={`accountant-client-table-row${client.isAssignedToAnotherAccountant ? " is-muted" : ""
+                  }${client.isAssignedToCurrentAccountant ? " is-assigned" : ""}`}
+                role={canOpenClient ? "link" : undefined}
+                tabIndex={canOpenClient ? 0 : undefined}
+                onClick={() => {
+                  if (canOpenClient) {
+                    router.push(`/dashboard/accountant/clients/${client.id}`);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    canOpenClient &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    event.preventDefault();
+                    router.push(`/dashboard/accountant/clients/${client.id}`);
+                  }
+                }}
+              >
+                <div>
+                  {currentTab === "mine" ? (
+                    <span className="accountant-client-selection-empty" />
+                  ) : client.isAssignedToAnotherAccountant ? (
+                    <span className="accountant-client-selection-empty" />
+                  ) : client.isAssignedToCurrentAccountant ? (
+                    <span
+                      className="accountant-client-assignment-icon"
+                      title="Assigned to you"
+                      role="img"
+                      aria-label="Assigned to you"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 3 }}
+                      >
+                        <path d="M5 12l4 4 10-10" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={selectedClientIds.includes(client.id)}
+                      onChange={() => toggleClientSelection(client.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                </div>
+
+                <div className="accountant-client-cell accountant-client-cell-primary">
+                  <div className="accountant-client-pill">
+                    {getInitials(client.name)}
+                  </div>
+                  <div>
+                    {canOpenClient ? (
+                      <strong className="accountant-client-name-link">
+                        {client.name}
+                      </strong>
+                    ) : (
+                      <strong>{client.name}</strong>
+                    )}
+                    {client.phoneNumber && <span>{client.phoneNumber}</span>}
+                  </div>
+                </div>
+
+                <div className="accountant-client-cell">
+                  <span>{client.email}</span>
+                </div>
+
+                <div className="accountant-client-cell">
+                  <span style={statusStyle(client.status)}>
+                    {formatStatus(client.status)}
+                  </span>
+                </div>
+
+                <div className="accountant-client-cell">
+                  {client.isAssignedToCurrentAccountant ? (
+                    <span style={{ color: "#2f3c82", fontWeight: 600, fontSize: "13px" }}>
+                      You
+                    </span>
+                  ) : client.assignedAccountantName ? (
+                    <span title={client.assignedAccountantId}>
+                      {client.assignedAccountantName}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#98a2b3" }}>Unassigned</span>
+                  )}
+                </div>
+
+                <div className="accountant-client-cell flex justify-center">
+                  <span className="inline-flex items-center justify-center px-[10px] py-[3px] rounded-lg bg-[#f0f3fa] text-[#2f3c82] font-bold text-[13px] min-w-[32px] border border-[#e1e7f3] transition-all duration-150 ease-in-out group-hover:bg-[#e5ecfb] group-hover:border-[#cbd5e1] group-hover:text-[#2f3c82]">
+                    {client.propertiesCount ?? 0}
+                  </span>
+                </div>
+
+                <div className="accountant-client-cell" style={{ flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
+                  <span>{formatJoinedDate(client.joinedAt)}</span>
+                  {currentTab === "mine" && (
+                    <button
+                      type="button"
+                      className="accountant-transfer-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTransferDrawer(client);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+                      </svg>
+                      Transfer
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        )}
 
         {/* Pagination Footer */}
         {allClients !== null && myClients !== null && totalItems > 0 && (

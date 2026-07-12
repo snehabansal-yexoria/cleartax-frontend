@@ -1185,7 +1185,7 @@ function TransactionDetailPopup({
                     type="number"
                     inputMode="decimal"
                     step="0.01"
-                    min="0"
+                    min="0.01"
                     value={grossAmount}
                     onChange={(event) => setGrossAmount(event.target.value)}
                   />
@@ -1272,7 +1272,7 @@ function TransactionDetailPopup({
                             type="number"
                             inputMode="decimal"
                             step="0.01"
-                            min="0"
+                            min="0.01"
                             value={split.amount}
                             onChange={(event) =>
                               updateEditSplitRow(split.id, {
@@ -3962,8 +3962,8 @@ export function AddTransactionView({
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
-      if (Number.isNaN(grossNum) || grossNum < 0) {
-        setSubmitError("Amount must be a non-negative number.");
+      if (Number.isNaN(grossNum) || grossNum <= 0) {
+        setSubmitError("Amount must be a positive number.");
         return;
       }
 
@@ -4402,7 +4402,7 @@ export function AddTransactionView({
                 type="number"
                 inputMode="decimal"
                 step="0.01"
-                min="0"
+                min="0.01"
                 placeholder="0.00"
                 value={grossAmount}
                 onChange={(e) => setGrossAmount(e.target.value)}
@@ -4484,7 +4484,7 @@ export function AddTransactionView({
                           type="number"
                           inputMode="decimal"
                           step="0.01"
-                          min="0"
+                          min="0.01"
                           placeholder="0.00"
                           value={row.amount}
                           onChange={(e) =>

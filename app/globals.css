@@ -4362,8 +4362,14 @@ p.darkBg {
 
 .accountant-summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .accountant-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 650px) {
@@ -4373,124 +4379,112 @@ p.darkBg {
 }
 
 .accountant-summary-card {
-  min-height: 140px;
-  border-radius: 22px;
-  padding: 22px 24px;
+  border-radius: 24px;
+  padding: 24px;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   justify-content: space-between;
-  gap: 18px;
+  gap: 24px;
   min-width: 0;
-  border: 1px solid rgba(197, 204, 233, 0.9);
-  box-shadow: 0 12px 32px rgba(47, 58, 112, 0.08);
+  border: none;
+  box-shadow: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .accountant-summary-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 42px rgba(47, 58, 112, 0.13);
-}
-
-.accountant-summary-card>div {
-  min-width: 0;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
 }
 
 .accountant-summary-card-blue {
-  background: linear-gradient(180deg, #dfe6fb 0%, #d8def5 100%);
+  background: #eef2fc;
 }
 
 .accountant-summary-card-gold {
-  background: linear-gradient(180deg, #fff5cf 0%, #fff2bf 100%);
+  background: #faf2de;
 }
 
-.accountant-summary-card-purple {
-  background: linear-gradient(180deg, #f0e6ff 0%, #e6d5ff 100%);
-}
-
-.accountant-summary-card-green {
-  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+.accountant-summary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .accountant-eyebrow {
-  margin-bottom: 8px;
+  margin: 0;
   font-weight: 700;
   font-size: 0.95rem;
-  color: #3a4575;
+  line-height: 1.2;
+}
+
+.accountant-summary-card-blue .accountant-eyebrow {
+  color: #1a2656;
+}
+
+.accountant-summary-card-gold .accountant-eyebrow {
+  color: #cc962c;
+}
+
+.accountant-summary-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .accountant-summary-card h2 {
-  font-size: clamp(2.7rem, 5vw, 3.4rem);
-  line-height: 0.95;
-  color: #2d3878;
+  font-size: clamp(2.2rem, 3.5vw, 2.6rem);
+  line-height: 1;
+  color: #1a2656;
   font-weight: 800;
-  letter-spacing: -0.05em;
+  margin: 0;
+  letter-spacing: -0.03em;
 }
 
-.accountant-summary-card-gold h2,
-.accountant-summary-card-gold .accountant-eyebrow {
-  color: #935119;
-}
-
-.accountant-summary-card-purple h2,
-.accountant-summary-card-purple .accountant-eyebrow {
-  color: #5b21b6;
-}
-
-.accountant-summary-card-green h2,
-.accountant-summary-card-green .accountant-eyebrow {
-  color: #15803d;
-}
-
-.accountant-summary-card span {
+.accountant-summary-card-body span {
   display: block;
-  margin-top: 10px;
-  color: #62709a;
+  margin: 0;
+  color: #64748b;
   font-family: "Inter", sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.35;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
-.accountant-summary-cta {
-  flex: 0 0 auto;
-  align-self: center;
-  padding: 12px 16px;
-  white-space: nowrap;
-}
-
-.accountant-summary-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffb425 0%, #f4a117 100%);
-  color: #ffffff;
-  display: inline-flex;
+.accountant-summary-card-action,
+.accountant-summary-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16px 28px rgba(244, 161, 23, 0.22);
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+  border: none;
+  cursor: pointer;
 }
 
-.accountant-summary-icon-purple {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+.accountant-summary-card-blue .accountant-summary-card-action,
+.accountant-summary-card-blue .accountant-summary-card-icon {
+  background: #1a2656;
   color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 16px 28px rgba(124, 58, 237, 0.22);
 }
 
-.accountant-summary-icon-green {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+.accountant-summary-card-gold .accountant-summary-card-action,
+.accountant-summary-card-gold .accountant-summary-card-icon {
+  background: #cc962c;
   color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 16px 28px rgba(5, 150, 105, 0.22);
+}
+
+.accountant-summary-card-action:hover {
+  opacity: 0.9;
+}
+
+.accountant-summary-card-action svg,
+.accountant-summary-card-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .accountant-primary-cta {

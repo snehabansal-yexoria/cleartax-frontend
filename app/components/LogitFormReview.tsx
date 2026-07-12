@@ -850,6 +850,22 @@ export default function LogitFormReview({
       return;
     }
 
+    if (weeksRented !== "") {
+      const rentedWeeks = Number(weeksRented);
+      if (Number.isNaN(rentedWeeks) || rentedWeeks < 0 || rentedWeeks > 52) {
+        setFormError("Weeks rented during year must be between 0 and 52.");
+        return;
+      }
+    }
+
+    if (weeksAvailable !== "") {
+      const availableWeeks = Number(weeksAvailable);
+      if (Number.isNaN(availableWeeks) || availableWeeks < 0 || availableWeeks > 52) {
+        setFormError("Weeks available for rent must be between 0 and 52.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const session = (await getSession()) as SessionWithIdToken | null;
@@ -1165,7 +1181,23 @@ export default function LogitFormReview({
                 min="0"
                 max="52"
                 value={weeksRented}
-                onChange={(event) => setWeeksRented(event.target.value)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  if (val === "") {
+                    setWeeksRented("");
+                    return;
+                  }
+                  const num = Number(val);
+                  if (!Number.isNaN(num)) {
+                    if (num > 52) {
+                      setWeeksRented("52");
+                    } else if (num < 0) {
+                      setWeeksRented("0");
+                    } else {
+                      setWeeksRented(val);
+                    }
+                  }
+                }}
               />
             </label>
             <label className="entity-wizard-label">
@@ -1175,7 +1207,23 @@ export default function LogitFormReview({
                 min="0"
                 max="52"
                 value={weeksAvailable}
-                onChange={(event) => setWeeksAvailable(event.target.value)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  if (val === "") {
+                    setWeeksAvailable("");
+                    return;
+                  }
+                  const num = Number(val);
+                  if (!Number.isNaN(num)) {
+                    if (num > 52) {
+                      setWeeksAvailable("52");
+                    } else if (num < 0) {
+                      setWeeksAvailable("0");
+                    } else {
+                      setWeeksAvailable(val);
+                    }
+                  }
+                }}
               />
             </label>
           </div>
@@ -1227,6 +1275,16 @@ export default function LogitFormReview({
                   min="0"
                   placeholder={CURRENCY_SYMBOL.trim()}
                   defaultValue={getLoanDetail(property, "loan_amount")}
+                  onChange={(event) => {
+                    const val = event.target.value;
+                    if (val === "") return;
+                    const num = Number(val);
+                    if (!Number.isNaN(num)) {
+                      if (num < 0) {
+                        event.target.value = "0";
+                      }
+                    }
+                  }}
                 />
               </label>
             </div>
