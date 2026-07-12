@@ -607,6 +607,7 @@ export default function AddPropertyWizard({
     propertyName.trim() &&
     propertyType &&
     locationText.trim() &&
+    locationText.length <= 500 &&
     isEstimatedMarketValueValid &&
     purchaseDate &&
     purchaseAmount.trim() &&
@@ -1076,8 +1077,18 @@ export default function AddPropertyWizard({
             </div>
 
             <label className="entity-wizard-label">
-              <span>
-                Property Location <em>*</em>
+              <span className="flex justify-between items-center">
+                <span>
+                  Property Location <em>*</em>
+                </span>
+                <span
+                  className={`text-[0.75rem] font-normal ${
+                    locationText.length > 500 ? "text-rose-600 font-semibold" : "text-slate-400"
+                  }`}
+                  aria-live="polite"
+                >
+                  {locationText.length} / 500
+                </span>
               </span>
               <AddressAutocomplete
                 value={locationText}
@@ -1085,7 +1096,7 @@ export default function AddPropertyWizard({
                 onBlur={() => markTouched("locationText")}
                 placeholder="Search location..."
                 inputClassName={`border ${
-                  touchedFields.locationText && !locationText.trim()
+                  (touchedFields.locationText && !locationText.trim()) || locationText.length > 500
                     ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
                     : ""
                 }`}
@@ -1096,6 +1107,14 @@ export default function AddPropertyWizard({
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                   </svg>
                   <span className="text-[0.78rem] font-medium tracking-tight">Property Location is required.</span>
+                </div>
+              )}
+              {locationText.length > 500 && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                  <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[0.78rem] font-medium tracking-tight">Property Location cannot exceed 500 characters.</span>
                 </div>
               )}
             </label>

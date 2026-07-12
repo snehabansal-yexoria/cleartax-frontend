@@ -240,8 +240,12 @@ export default function AddEntityWizard({
   }, [initialEntity]);
 
   function updateRow(uid: string, patch: Partial<BeneficiaryRow>) {
+    const finalPatch = { ...patch };
+    if (patch.percentage !== undefined) {
+      finalPatch.percentage = formatPercentageInput(patch.percentage);
+    }
     setBeneficiaries((current) =>
-      current.map((row) => (row.uid === uid ? { ...row, ...patch } : row)),
+      current.map((row) => (row.uid === uid ? { ...row, ...finalPatch } : row)),
     );
   }
 
@@ -1179,7 +1183,7 @@ function getInitialBeneficiaries(entity?: CoreEntity): BeneficiaryRow[] {
         Math.round(beneficiary.ownershipPercentage),
       ) < 0.001
         ? String(Math.round(beneficiary.ownershipPercentage))
-        : String(beneficiary.ownershipPercentage),
+        : String(Number(beneficiary.ownershipPercentage.toFixed(2))),
   }));
 }
 
@@ -1187,5 +1191,25 @@ function formatPercentage(value: number) {
   if (Math.abs(value - Math.round(value)) < 0.001) {
     return `${Math.round(value)}%`;
   }
-  return `${value.toFixed(1)}%`;
+  return `${Number(value.toFixed(2))}%`;
+}
+
+function formatPercentageInput(val: string): string {
+  if (!val) return "";
+
+  // Remove everything except digits and one decimal point
+  let cleaned = val.replace(/[^0-9.]/g, "");
+
+  // Handle multiple decimals (only keep the first one)
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    cleaned = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  // Limit decimal places to 2
+  const [integer, decimal] = cleaned.split(".");
+  if (decimal !== undefined) {
+    return integer + "." + decimal.slice(0, 2);
+  }
+  return integer;
 }
