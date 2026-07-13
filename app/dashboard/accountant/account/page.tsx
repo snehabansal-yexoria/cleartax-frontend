@@ -311,7 +311,7 @@ export default function AccountantAccountPage() {
                 </div>
               </div>
 
-              <div className="accountant-profile-field">
+              {/* <div className="accountant-profile-field">
                 <label>Alternate Name</label>
                 <div className="accountant-profile-input accountant-profile-input-editable">
                   <span>{displayName.split(" ")[0]} J.</span>
@@ -325,7 +325,7 @@ export default function AccountantAccountPage() {
                   <span>Level 12, 456 Collins</span>
                   <button type="button">Edit</button>
                 </div>
-              </div>
+              </div> */}
             </div>
           </section>
 

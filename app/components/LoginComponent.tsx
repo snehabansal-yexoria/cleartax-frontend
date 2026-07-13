@@ -101,6 +101,7 @@ export default function LoginComponent({
   const [requireNewPassword, setRequireNewPassword] = useState(false);
   const [challenge, setChallenge] = useState<PendingChallenge | null>(null);
   const [attributes, setAttributes] = useState<Record<string, string>>({});
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const [requireTotp, setRequireTotp] = useState(false);
   const [requireEmailOtp, setRequireEmailOtp] = useState(false);
@@ -278,7 +279,7 @@ export default function LoginComponent({
         acceptInvitationInBackground(idToken, { welcome: true });
       }
 
-      alert("Password updated successfully. Please login again.");
+      setAlertMessage("Password updated successfully. Please login again.");
       setRequireNewPassword(false);
     } catch (error: unknown) {
       setError(getErrorMessage(error, "Password update failed"));
@@ -914,6 +915,135 @@ export default function LoginComponent({
           </div>
         </div>
       </div>
+      {alertMessage && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.45)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            animation: "fadeIn 0.2s ease-out",
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "24px",
+              padding: "36px 32px 32px 32px",
+              width: "420px",
+              maxWidth: "90%",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 40px 0 rgba(0, 0, 0, 0.03)",
+              border: "1px solid rgba(226, 232, 240, 0.8)",
+              textAlign: "center",
+              transform: "scale(1)",
+              animation: "scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            {/* Success Checkmark Icon */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "72px",
+                height: "72px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)",
+                marginBottom: "24px",
+                boxShadow: "0 8px 16px rgba(16, 185, 129, 0.12)",
+              }}
+            >
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#10B981"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+
+            {/* Title */}
+            <h3
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                color: "#0F172A",
+                margin: "0 0 10px 0",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Password Updated!
+            </h3>
+
+            {/* Description */}
+            <p
+              style={{
+                fontSize: "0.95rem",
+                lineHeight: "1.6",
+                color: "#475569",
+                margin: "0 0 28px 0",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+              }}
+            >
+              Your password has been successfully reset. Please sign in again with your new credentials.
+            </p>
+
+            {/* Button */}
+            <button
+              onClick={() => setAlertMessage(null)}
+              style={{
+                width: "100%",
+                padding: "14px 28px",
+                background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "14px",
+                fontSize: "1rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
+                transition: "all 0.2s ease",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.35)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.25)";
+              }}
+            >
+              Continue to Login
+            </button>
+          </div>
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes scaleIn {
+              from { transform: scale(0.9) translateY(10px); opacity: 0; }
+              to { transform: scale(1) translateY(0); opacity: 1; }
+            }
+          `}} />
+        </div>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ type SubcategoryLine = {
 
 type ReviewLine = {
   id: string;
+  categoryId?: number;
   label: string;
   amount: string;
   use: string;
@@ -49,117 +50,44 @@ type LogitFormReviewProps = {
   backHref: string;
 };
 
-const incomeRows: ReviewLine[] = [
-  { id: "rental-income", label: "Rental income", amount: "0.00", use: "0.00" },
-  {
-    id: "other-rental-income",
-    label: "Other rental income",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-];
+function getCategoryRowId(name: string): string {
+  const legacyMap: Record<string, string> = {
+    "advertising for tenants": "advertising",
+    "body corporate fees / strata levy": "body-corporate",
+    "cleaning": "cleaning",
+    "council rates": "council-rates",
+    "gardening / lawn mowing": "gardening-a",
+    "insurance": "insurance",
+    "land tax": "land-tax",
+    "legal fees": "legal-fees",
+    "pest control": "pest-control",
+    "property agent fees / commission": "agent-fees",
+    "repairs and maintenance": "repairs",
+    "water charges": "water",
+    "sundry rental expenses": "sundry",
+    "interest on loans - tbd": "interest",
+    "borrowing expenses": "borrowing",
+    "capital allowances": "capital-allowances",
+    "capital works deductions": "capital-works",
+    "rental income": "rental-income",
+    "other rental income": "other-rental-income",
+  };
+  const norm = name.toLowerCase().trim();
+  return legacyMap[norm] || norm.replace(/[^a-z0-9]+/g, "-");
+}
 
-const expenseRows: ReviewLine[] = [
-  { id: "advertising", label: "Advertising for tenants", amount: "0.00", use: "0.00" },
-  { id: "body-corporate", label: "Body corporate fees", amount: "0.00", use: "0.00" },
-  { id: "cleaning", label: "Cleaning", amount: "0.00", use: "0.00" },
-  { id: "council-rates", label: "Council Rates", amount: "0.00", use: "0.00" },
-  { id: "gardening-a", label: "Gardening/lawn mowing", amount: "0.00", use: "0.00" },
-  { id: "gardening-b", label: "Gardening/lawn mowing", amount: "0.00", use: "0.00" },
-  {
-    id: "insurance",
-    label: "Insurance",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-  { id: "land-tax", label: "Land Tax", amount: "0.00", use: "0.00" },
-  {
-    id: "legal-fees",
-    label: "Legal fees",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-  { id: "pest-control", label: "Pest Control", amount: "0.00", use: "0.00" },
-  {
-    id: "agent-fees",
-    label: "Property Agent Fees/ commission",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-  {
-    id: "repairs",
-    label: "Repairs and Maintenance",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-  { id: "water", label: "Water charges", amount: "0.00", use: "0.00" },
-  {
-    id: "sundry",
-    label: "Sundry Rental Expenses",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-];
+const EXPANDABLE_CATEGORY_NAMES = new Set([
+  "other rental income",
+  "insurance",
+  "legal fees",
+  "property agent fees / commission",
+  "repairs and maintenance",
+  "sundry rental expenses",
+  "interest on loans - tbd",
+  "borrowing expenses",
+]);
 
-const borrowingRows: ReviewLine[] = [
-  {
-    id: "interest",
-    label: "Interest on loans",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-  {
-    id: "borrowing",
-    label: "Borrowing expense",
-    amount: "0.00",
-    use: "0.00",
-    expandable: true,
-  },
-];
 
-const depreciationRows: ReviewLine[] = [
-  {
-    id: "capital-allowances",
-    label: "Capital allowances",
-    amount: "0.00",
-    use: "0.00",
-  },
-  {
-    id: "capital-works",
-    label: "Capital works deductions",
-    amount: "0.00",
-    use: "0.00",
-  },
-];
-
-const CATEGORY_TO_ROW_ID: Record<string, string> = {
-  "advertising for tenants": "advertising",
-  "body corporate fees / strata levy": "body-corporate",
-  "cleaning": "cleaning",
-  "council rates": "council-rates",
-  "gardening / lawn mowing": "gardening-a",
-  "insurance": "insurance",
-  "land tax": "land-tax",
-  "legal fees": "legal-fees",
-  "pest control": "pest-control",
-  "property agent fees / commission": "agent-fees",
-  "repairs and maintenance": "repairs",
-  "water charges": "water",
-  "sundry rental expenses": "sundry",
-  "interest on loans - tbd": "interest",
-  "borrowing expenses": "borrowing",
-  "capital allowances": "capital-allowances",
-  "capital works deductions": "capital-works",
-  "rental income": "rental-income",
-  "other rental income": "other-rental-income",
-};
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -259,12 +187,14 @@ export default function LogitFormReview({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [locality, setLocality] = useState("");
   const [stateValue, setStateValue] = useState("");
   const [postcode, setPostcode] = useState("");
+  const [locationText, setLocationText] = useState("");
   const [acquisitionDate, setAcquisitionDate] = useState("");
   const [acquisitionCost, setAcquisitionCost] = useState("");
   const [disposalDate, setDisposalDate] = useState("");
@@ -275,12 +205,10 @@ export default function LogitFormReview({
   const [dateAvailable, setDateAvailable] = useState("");
   const [hasLoan, setHasLoan] = useState(false);
   const [owners, setOwners] = useState<OwnerLine[]>([]);
-  const [rentedIncome, setRentedIncome] = useState<ReviewLine[]>(incomeRows);
-  const [rentedExpenses, setRentedExpenses] =
-    useState<ReviewLine[]>(expenseRows);
-  const [borrowings, setBorrowings] = useState<ReviewLine[]>(borrowingRows);
-  const [depreciation, setDepreciation] =
-    useState<ReviewLine[]>(depreciationRows);
+  const [rentedIncome, setRentedIncome] = useState<ReviewLine[]>([]);
+  const [rentedExpenses, setRentedExpenses] = useState<ReviewLine[]>([]);
+  const [borrowings, setBorrowings] = useState<ReviewLine[]>([]);
+  const [depreciation, setDepreciation] = useState<ReviewLine[]>([]);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [subcategoryOptionsMap, setSubcategoryOptionsMap] = useState<
     Record<string, { id: number; name: string }[]>
@@ -299,10 +227,19 @@ export default function LogitFormReview({
         }
 
         const token = session.getIdToken().getJwtToken();
-        const propertyRes = await fetch(
-          `/api/properties/${encodeURIComponent(propertyId)}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+
+        // 1. Fetch property and categories
+        const [propertyRes, categoriesRes, revenueRes] = await Promise.all([
+          fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/transactions/categories?type=expense`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/transactions/categories?type=revenue`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
         if (cancelled) return;
         if (!propertyRes.ok) {
@@ -323,10 +260,67 @@ export default function LogitFormReview({
             : [{ id: "primary", name: "", percentage: "100" }],
         );
 
+        let fetchedCategories: CoreTransactionCategory[] = [];
+        if (categoriesRes.ok) {
+          const catData = (await categoriesRes.json()) as { items?: CoreTransactionCategory[] };
+          fetchedCategories = [...fetchedCategories, ...(catData.items ?? [])];
+        }
+        if (revenueRes.ok) {
+          const revData = (await revenueRes.json()) as { items?: CoreTransactionCategory[] };
+          fetchedCategories = [...fetchedCategories, ...(revData.items ?? [])];
+        }
+
+        // Sort categories by database ID numerically to keep consistent rendering order
+        fetchedCategories.sort((a, b) => Number(a.id) - Number(b.id));
+
+        if (cancelled) return;
+
+        // 2. Build dynamic row arrays
+        const initialIncome: ReviewLine[] = [];
+        const initialExpenses: ReviewLine[] = [];
+        const initialBorrowings: ReviewLine[] = [];
+        const initialDepreciation: ReviewLine[] = [];
+
+        for (const cat of fetchedCategories) {
+          const nameLower = cat.name.toLowerCase().trim();
+          const rowId = getCategoryRowId(cat.name);
+
+          // Determine expandability: check if name is in EXPANDABLE_CATEGORY_NAMES Set
+          const isExpandable = EXPANDABLE_CATEGORY_NAMES.has(nameLower);
+
+          const row: ReviewLine = {
+            id: rowId,
+            categoryId: cat.id,
+            label: cat.name,
+            amount: "0.00",
+            use: "0.00",
+            expandable: isExpandable,
+          };
+
+          if (cat.type === "revenue") {
+            initialIncome.push(row);
+          } else {
+            if (nameLower === "interest on loans - tbd" || nameLower === "borrowing expenses") {
+              initialBorrowings.push(row);
+            } else if (nameLower === "capital allowances" || nameLower === "capital works deductions") {
+              initialDepreciation.push(row);
+            } else {
+              initialExpenses.push(row);
+            }
+          }
+        }
+
+        // 4. Fetch Logit data & merge with the categories
         const logitRes = await fetch(
           `/api/properties/${encodeURIComponent(propertyId)}/logit`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
+
+        let savedIncome = [...initialIncome];
+        let savedExpenses = [...initialExpenses];
+        let savedBorrowings = [...initialBorrowings];
+        let savedDepreciation = [...initialDepreciation];
+
         if (!cancelled && logitRes.ok) {
           const saved = (await logitRes.json()) as Record<string, unknown>;
           const addr = saved.address as Record<string, string> | undefined;
@@ -353,6 +347,7 @@ export default function LogitFormReview({
           setLocality(addr?.locality ?? "");
           setStateValue(addr?.state ?? "");
           setPostcode(addr?.postcode ?? "");
+          setLocationText(addr?.locationText ?? loadedProperty.locationText ?? "");
           setAcquisitionDate(acq?.date ?? toInputDate(loadedProperty.purchaseDate));
           setAcquisitionCost(acq?.cost ?? inputNumber(loadedProperty.purchaseAmount));
           setDisposalDate(disp?.date ?? "");
@@ -362,14 +357,17 @@ export default function LogitFormReview({
           setWeeksAvailable(rent?.weeks_available ?? "");
           setDateAvailable(rent?.date_available ?? "");
 
-          const mapSubcategories = (subs: any[]) =>
+          const mapSubcategories = (subs: SubcategoryLine[]) =>
             subs.map((s) => ({
               ...s,
               amount: s.amount === "" || !s.amount ? "0.00" : Number.parseFloat(s.amount).toFixed(2),
               use: s.use === "" || !s.use ? "0.00" : Number.parseFloat(s.use).toFixed(2),
             }));
 
-          const loadRowData = (prev: ReviewLine[], savedRows: any[]) =>
+          const loadRowData = (
+            prev: ReviewLine[],
+            savedRows: { id: string; amount: string; use: string; subcategories?: SubcategoryLine[] }[],
+          ) =>
             prev.map((row) => {
               const saved = savedRows.find((r) => r.id === row.id);
               if (saved) {
@@ -390,41 +388,44 @@ export default function LogitFormReview({
             });
 
           if (incRows && incRows.length > 0) {
-            setRentedIncome((prev) => loadRowData(prev, incRows));
+            savedIncome = loadRowData(savedIncome, incRows);
           } else {
-            setRentedIncome((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+            savedIncome = savedIncome.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
             setAddressLine1(loadedProperty.locationText || loadedProperty.name);
+            setLocationText(loadedProperty.locationText || "");
             setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
             setAcquisitionCost(loadedProperty.purchaseAmount != null ? Number(loadedProperty.purchaseAmount).toFixed(2) : "");
           }
 
           if (expRows && expRows.length > 0) {
-            setRentedExpenses((prev) => loadRowData(prev, expRows));
+            savedExpenses = loadRowData(savedExpenses, expRows);
           } else {
-            setRentedExpenses((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+            savedExpenses = savedExpenses.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
           }
 
           if (borRows && borRows.length > 0) {
-            setBorrowings((prev) => loadRowData(prev, borRows));
+            savedBorrowings = loadRowData(savedBorrowings, borRows);
           } else {
-            setBorrowings((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+            savedBorrowings = savedBorrowings.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
           }
 
           if (depRows && depRows.length > 0) {
-            setDepreciation((prev) => loadRowData(prev, depRows));
+            savedDepreciation = loadRowData(savedDepreciation, depRows);
           } else {
-            setDepreciation((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+            savedDepreciation = savedDepreciation.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
           }
         } else {
-          setRentedIncome((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
-          setRentedExpenses((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
-          setBorrowings((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
-          setDepreciation((prev) => prev.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" })));
+          savedIncome = savedIncome.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
+          savedExpenses = savedExpenses.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
+          savedBorrowings = savedBorrowings.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
+          savedDepreciation = savedDepreciation.map((row) => ({ ...row, amount: "0.00", use: "0.00", initialParentAmount: "0.00" }));
           setAddressLine1(loadedProperty.locationText || loadedProperty.name);
+          setLocationText(loadedProperty.locationText || "");
           setAcquisitionDate(toInputDate(loadedProperty.purchaseDate));
           setAcquisitionCost(loadedProperty.purchaseAmount != null ? Number(loadedProperty.purchaseAmount).toFixed(2) : "");
         }
 
+        // 5. Fetch transactions & apply dynamic sums
         const [entityRes, txRes] = await Promise.all([
           fetch(`/api/entities/${encodeURIComponent(loadedProperty.entityId)}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -447,7 +448,7 @@ export default function LogitFormReview({
           const sums: Record<string, number> = {};
           const computedSubSums: Record<string, number> = {};
           for (const tx of txs) {
-            const rowId = CATEGORY_TO_ROW_ID[tx.categoryName.toLowerCase().trim()];
+            const rowId = getCategoryRowId(tx.categoryName);
             if (rowId) {
               sums[rowId] = (sums[rowId] ?? 0) + Math.abs(tx.grossAmount);
             }
@@ -490,7 +491,7 @@ export default function LogitFormReview({
               if (hasChangedSub && updatedSubcategories && updatedSubcategories.length > 0) {
                 const subcategoriesTotal = updatedSubcategories.reduce((sum, sub) => sum + (parseFloat(sub.amount) || 0), 0);
                 const parentInitial = parseFloat(row.initialParentAmount || "0.00") || 0;
-                
+
                 // Subtract subcategories sum from initial parent amount
                 const newInitial = Math.max(0, parentInitial - subcategoriesTotal);
                 rowWithUpdatedSubs.initialParentAmount = newInitial.toFixed(2);
@@ -514,127 +515,19 @@ export default function LogitFormReview({
               return rowWithUpdatedSubs;
             });
 
-          setRentedIncome(applyTxSums);
-          setRentedExpenses(applyTxSums);
-          setBorrowings(applyTxSums);
-          setDepreciation(applyTxSums);
+          savedIncome = applyTxSums(savedIncome);
+          savedExpenses = applyTxSums(savedExpenses);
+          savedBorrowings = applyTxSums(savedBorrowings);
+          savedDepreciation = applyTxSums(savedDepreciation);
         }
 
-        // Fetch categories and subcategories
-        const [categoriesRes, revenueRes] = await Promise.all([
-          fetch(`/api/transactions/categories?type=expense`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/transactions/categories?type=revenue`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
-        let categories: CoreTransactionCategory[] = [];
-        if (!cancelled && categoriesRes.ok) {
-          const catData = (await categoriesRes.json()) as { items?: CoreTransactionCategory[] };
-          categories = [...categories, ...(catData.items ?? [])];
-        }
-        if (!cancelled && revenueRes.ok) {
-          const revData = (await revenueRes.json()) as { items?: CoreTransactionCategory[] };
-          categories = [...categories, ...(revData.items ?? [])];
+        if (!cancelled) {
+          setRentedIncome(savedIncome);
+          setRentedExpenses(savedExpenses);
+          setBorrowings(savedBorrowings);
+          setDepreciation(savedDepreciation);
         }
 
-        if (!cancelled && (categoriesRes.ok || revenueRes.ok)) {
-          const expandableMappings: Record<string, string> = {
-            "insurance": "insurance",
-            "legal-fees": "legal fees",
-            "agent-fees": "property agent fees / commission",
-            "repairs": "repairs and maintenance",
-            "sundry": "sundry rental expenses",
-            "interest": "interest on loans - tbd",
-            "borrowing": "borrowing expenses",
-            "other-rental-income": "other rental income",
-          };
-
-          const optionsMap: Record<string, { id: number; name: string }[]> = {};
-
-          await Promise.all(
-            Object.entries(expandableMappings).map(async ([rowId, catName]) => {
-              const matchedCat = categories.find(
-                (c) => c.name.toLowerCase().trim() === catName,
-              );
-              if (matchedCat) {
-                const subRes = await fetch(
-                  `/api/transactions/categories/${matchedCat.id}/sub-categories`,
-                  { headers: { Authorization: `Bearer ${token}` } },
-                );
-                if (subRes.ok) {
-                  const subData = (await subRes.json()) as { items?: CoreTransactionSubcategory[] };
-                  optionsMap[rowId] = (subData.items ?? []).map((s) => ({
-                    id: s.id,
-                    name: s.name,
-                  }));
-                }
-              }
-            }),
-          );
-
-          const fallbackSubcategories: Record<string, { id: number; name: string }[]> = {
-            "insurance": [
-              { id: 10001, name: "Building Insurance" },
-              { id: 10002, name: "Landlord Insurance" },
-              { id: 10003, name: "Contents Insurance" },
-              { id: 10004, name: "Public Liability Insurance" },
-            ],
-            "legal-fees": [
-              { id: 10011, name: "Conveyancing Fees" },
-              { id: 10012, name: "Tenancy Agreement Preparation" },
-              { id: 10013, name: "Eviction Legal Costs" },
-              { id: 10014, name: "Lease Dispute Advice" },
-            ],
-            "agent-fees": [
-              { id: 10021, name: "Property Management Fee" },
-              { id: 10022, name: "Leasing Commission" },
-              { id: 10023, name: "Advertising & Marketing" },
-              { id: 10024, name: "Statement & Admin Fee" },
-            ],
-            "repairs": [
-              { id: 10031, name: "Plumbing Repairs" },
-              { id: 10032, name: "Electrical Work" },
-              { id: 10033, name: "Painting & Decorating" },
-              { id: 10034, name: "Handyman Services" },
-              { id: 10035, name: "Gardening & Lawn Care" },
-            ],
-            "sundry": [
-              { id: 10041, name: "Postage & Stationery" },
-              { id: 10042, name: "Travel & Mileage" },
-              { id: 10043, name: "Bank & Credit Fees" },
-              { id: 10044, name: "Subscriptions & Software" },
-            ],
-            "interest": [
-              { id: 10051, name: "Bank Interest" },
-              { id: 10052, name: "Line of Credit Interest" },
-            ],
-            "borrowing": [
-              { id: 10061, name: "Loan Establishment Fee" },
-              { id: 10062, name: "Valuation Fee" },
-              { id: 10063, name: "Mortgage Broker Fee" },
-              { id: 10064, name: "Mortgage Registration Fee" },
-            ],
-            "other-rental-income": [
-              { id: 10071, name: "Shared Property Services" },
-              { id: 10072, name: "Solar Feed-in Tariffs" },
-              { id: 10073, name: "Water Usage Reimbursements" },
-              { id: 10074, name: "Insurance Claim Payouts" },
-            ],
-          };
-
-          const mergedOptionsMap: Record<string, { id: number; name: string }[]> = {};
-          for (const rowId of Object.keys(expandableMappings)) {
-            const fetched = optionsMap[rowId] || [];
-            mergedOptionsMap[rowId] = fetched.length > 0 ? fetched : fallbackSubcategories[rowId];
-          }
-
-          if (!cancelled) {
-            setSubcategoryOptionsMap(mergedOptionsMap);
-          }
-        }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to load logit form review:", error);
@@ -715,79 +608,108 @@ export default function LogitFormReview({
     if (group === "depreciation") setDepreciation(updater);
   }
 
-  function onToggleExpand(rowId: string) {
+  async function onToggleExpand(rowId: string) {
+    const allRows = [...rentedIncome, ...rentedExpenses, ...borrowings, ...depreciation];
+    const row = allRows.find((r) => r.id === rowId);
+    if (!row) return;
+
     setExpandedRows((prev) => {
       const isExpanded = !prev[rowId];
-
-      if (isExpanded) {
-        const options = subcategoryOptionsMap[rowId] || [];
-
-        const initializeSubs = (rows: ReviewLine[]) =>
-          rows.map((row) => {
-            if (row.id !== rowId) return row;
-
-            // Merge previously saved subcategories with missing options
-            const currentSubs = (row.subcategories ?? []).map((sub) => ({
-              ...sub,
-              amount: sub.amount === "" || !sub.amount ? "0.00" : Number.parseFloat(sub.amount).toFixed(2),
-              use: sub.use === "" || !sub.use ? "0.00" : Number.parseFloat(sub.use).toFixed(2),
-            }));
-            const mergedSubs = [...currentSubs];
-
-            const wasEmpty = !row.subcategories || row.subcategories.length === 0;
-
-            for (const opt of options) {
-              const exists = currentSubs.some(
-                (s) => s.subcategoryId === opt.id || s.label.toLowerCase().trim() === opt.name.toLowerCase().trim()
-              );
-              if (!exists) {
-                // Get transaction sum for this subcategory option
-                const subId = String(opt.id);
-                const subName = opt.name.toLowerCase().trim();
-                const subSum = subSums[subId] ?? subSums[subName];
-                const amountStr = subSum != null && subSum > 0 ? subSum.toFixed(2) : "0.00";
-
-                mergedSubs.push({
-                  id: crypto.randomUUID(),
-                  subcategoryId: opt.id,
-                  label: opt.name,
-                  amount: amountStr,
-                  use: "0.00",
-                });
-              }
-            }
-
-            // Keep sort order matching options list
-            mergedSubs.sort((a, b) => {
-              const aIdx = options.findIndex((o) => o.id === a.subcategoryId || o.name.toLowerCase().trim() === a.label.toLowerCase().trim());
-              const bIdx = options.findIndex((o) => o.id === b.subcategoryId || o.name.toLowerCase().trim() === b.label.toLowerCase().trim());
-              return aIdx - bIdx;
-            });
-
-            const updatedRow = {
-              ...row,
-              subcategories: mergedSubs,
-            };
-
-            // If we are showing subcategories for the first time, adjust initial parent amount to prevent doubling
-            if (wasEmpty) {
-              const subcategoriesTotal = mergedSubs.reduce((sum, sub) => sum + (parseFloat(sub.amount) || 0), 0);
-              const parentInitial = parseFloat(row.initialParentAmount || "0.00") || 0;
-              const newInitial = Math.max(0, parentInitial - subcategoriesTotal);
-              updatedRow.initialParentAmount = newInitial.toFixed(2);
-            }
-
-            return syncParentWithSubcategories(updatedRow);
-          });
-
-        setRentedIncome(initializeSubs);
-        setRentedExpenses(initializeSubs);
-        setBorrowings(initializeSubs);
-        setDepreciation(initializeSubs);
-      }
-
       return { ...prev, [rowId]: isExpanded };
     });
+
+    const optionsExist = !!subcategoryOptionsMap[rowId];
+
+    const applyOptionsToRow = (options: { id: number; name: string }[]) => {
+      const initializeSubs = (rows: ReviewLine[]) =>
+        rows.map((r) => {
+          if (r.id !== rowId) return r;
+
+          const currentSubs = (r.subcategories ?? []).map((sub) => ({
+            ...sub,
+            amount: sub.amount === "" || !sub.amount ? "0.00" : Number.parseFloat(sub.amount).toFixed(2),
+            use: sub.use === "" || !sub.use ? "0.00" : Number.parseFloat(sub.use).toFixed(2),
+          }));
+          const mergedSubs = [...currentSubs];
+          const wasEmpty = !r.subcategories || r.subcategories.length === 0;
+
+          for (const opt of options) {
+            const exists = currentSubs.some(
+              (s) => s.subcategoryId === opt.id || s.label.toLowerCase().trim() === opt.name.toLowerCase().trim()
+            );
+            if (!exists) {
+              const subId = String(opt.id);
+              const subName = opt.name.toLowerCase().trim();
+              const subSum = subSums[subId] ?? subSums[subName];
+              const amountStr = subSum != null && subSum > 0 ? subSum.toFixed(2) : "0.00";
+
+              mergedSubs.push({
+                id: crypto.randomUUID(),
+                subcategoryId: opt.id,
+                label: opt.name,
+                amount: amountStr,
+                use: "0.00",
+              });
+            }
+          }
+
+          mergedSubs.sort((a, b) => {
+            const aIdx = options.findIndex((o) => o.id === a.subcategoryId || o.name.toLowerCase().trim() === a.label.toLowerCase().trim());
+            const bIdx = options.findIndex((o) => o.id === b.subcategoryId || o.name.toLowerCase().trim() === b.label.toLowerCase().trim());
+            return aIdx - bIdx;
+          });
+
+          const updatedRow = {
+            ...r,
+            subcategories: mergedSubs,
+          };
+
+          if (wasEmpty) {
+            const subcategoriesTotal = mergedSubs.reduce((sum, sub) => sum + (parseFloat(sub.amount) || 0), 0);
+            const parentInitial = parseFloat(r.initialParentAmount || "0.00") || 0;
+            const newInitial = Math.max(0, parentInitial - subcategoriesTotal);
+            updatedRow.initialParentAmount = newInitial.toFixed(2);
+          }
+
+          return syncParentWithSubcategories(updatedRow);
+        });
+
+      setRentedIncome(initializeSubs);
+      setRentedExpenses(initializeSubs);
+      setBorrowings(initializeSubs);
+      setDepreciation(initializeSubs);
+    };
+
+    if (!optionsExist && row.categoryId) {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (session) {
+          const token = session.getIdToken().getJwtToken();
+          const subRes = await fetch(
+            `/api/transactions/categories/${row.categoryId}/sub-categories`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (subRes.ok) {
+            const subData = (await subRes.json()) as { items?: CoreTransactionSubcategory[] };
+            const options = (subData.items ?? []).map((s) => ({
+              id: s.id,
+              name: s.name,
+            }));
+
+            setSubcategoryOptionsMap((prev) => ({
+              ...prev,
+              [rowId]: options,
+            }));
+
+            applyOptionsToRow(options);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch subcategories on demand:", err);
+      }
+    } else if (optionsExist) {
+      applyOptionsToRow(subcategoryOptionsMap[rowId]);
+    }
   }
 
   function updateSubcategoryLine(
@@ -819,6 +741,7 @@ export default function LogitFormReview({
 
   async function handleSubmit() {
     setFormError("");
+    setFieldErrors({});
     setSuccessMessage("");
 
     const ownershipTotal = owners.reduce((sum, owner) => {
@@ -826,44 +749,55 @@ export default function LogitFormReview({
       return sum + (Number.isFinite(value) ? value : 0);
     }, 0);
 
-    if (
-      !addressLine1.trim() ||
-      !locality.trim() ||
-      !stateValue.trim() ||
-      !postcode.trim()
-    ) {
-      setFormError("Complete the required address fields before lodging.");
-      return;
+    const newFieldErrors: Record<string, string> = {};
+
+    if (!locationText.trim()) {
+      newFieldErrors.locationText = "Property Location is required.";
+    }
+    if (!addressLine1.trim()) {
+      newFieldErrors.addressLine1 = "Address Line 1 is required.";
+    }
+    if (!locality.trim()) {
+      newFieldErrors.locality = "Locality is required.";
+    }
+    if (!stateValue.trim()) {
+      newFieldErrors.stateValue = "State is required.";
+    }
+    if (!postcode.trim()) {
+      newFieldErrors.postcode = "Postcode is required.";
     }
 
-    if (
-      owners.some((owner) => !owner.name.trim() || !owner.percentage.trim())
-    ) {
-      setFormError("Each owner needs a name and ownership percentage.");
-      return;
-    }
-
-    if (ownershipTotal <= 0 || ownershipTotal > 100) {
-      setFormError(
-        "Ownership percentage must be greater than 0 and no more than 100.",
-      );
-      return;
+    if (owners.some((owner) => !owner.name.trim() || !owner.percentage.trim())) {
+      newFieldErrors.owners = "Each owner needs a name and ownership percentage.";
+    } else if (ownershipTotal <= 0 || ownershipTotal > 100) {
+      newFieldErrors.owners = "Ownership percentage must be greater than 0 and no more than 100.";
     }
 
     if (weeksRented !== "") {
       const rentedWeeks = Number(weeksRented);
       if (Number.isNaN(rentedWeeks) || rentedWeeks < 0 || rentedWeeks > 52) {
-        setFormError("Weeks rented during year must be between 0 and 52.");
-        return;
+        newFieldErrors.weeksRented = "Weeks rented during year must be between 0 and 52.";
       }
     }
 
     if (weeksAvailable !== "") {
       const availableWeeks = Number(weeksAvailable);
       if (Number.isNaN(availableWeeks) || availableWeeks < 0 || availableWeeks > 52) {
-        setFormError("Weeks available for rent must be between 0 and 52.");
-        return;
+        newFieldErrors.weeksAvailable = "Weeks available for rent must be between 0 and 52.";
       }
+    }
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      setFormError("Complete the required fields before lodging.");
+      
+      const firstErrorKey = Object.keys(newFieldErrors)[0];
+      const element = document.getElementById(firstErrorKey);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        element.focus();
+      }
+      return;
     }
 
     setIsSubmitting(true);
@@ -881,6 +815,7 @@ export default function LogitFormReview({
           locality,
           state: stateValue,
           postcode,
+          locationText,
         },
         acquisition: { date: acquisitionDate, cost: acquisitionCost },
         disposal: { date: disposalDate, proceeds: disposalProceeds },
@@ -1038,15 +973,34 @@ export default function LogitFormReview({
             </span>
             <input value={property.name} readOnly />
           </label>
+          <label className="entity-wizard-label">
+            <span>
+              Property Location <em>*</em>
+            </span>
+            <input
+              id="locationText"
+              className={fieldErrors.locationText ? "has-error" : ""}
+              value={locationText}
+              onChange={(event) => setLocationText(event.target.value)}
+            />
+            {fieldErrors.locationText && (
+              <span className="logit-field-error">{fieldErrors.locationText}</span>
+            )}
+          </label>
           <div className="logit-grid">
             <label className="entity-wizard-label">
               <span>
                 Address Line 1 <em>*</em>
               </span>
               <input
+                id="addressLine1"
+                className={fieldErrors.addressLine1 ? "has-error" : ""}
                 value={addressLine1}
                 onChange={(event) => setAddressLine1(event.target.value)}
               />
+              {fieldErrors.addressLine1 && (
+                <span className="logit-field-error">{fieldErrors.addressLine1}</span>
+              )}
             </label>
             <label className="entity-wizard-label">
               Address Line 2
@@ -1063,27 +1017,42 @@ export default function LogitFormReview({
                 Locality <em>*</em>
               </span>
               <input
+                id="locality"
+                className={fieldErrors.locality ? "has-error" : ""}
                 value={locality}
                 onChange={(event) => setLocality(event.target.value)}
               />
+              {fieldErrors.locality && (
+                <span className="logit-field-error">{fieldErrors.locality}</span>
+              )}
             </label>
             <label className="entity-wizard-label">
               <span>
                 State <em>*</em>
               </span>
               <input
+                id="stateValue"
+                className={fieldErrors.stateValue ? "has-error" : ""}
                 value={stateValue}
                 onChange={(event) => setStateValue(event.target.value)}
               />
+              {fieldErrors.stateValue && (
+                <span className="logit-field-error">{fieldErrors.stateValue}</span>
+              )}
             </label>
             <label className="entity-wizard-label">
               <span>
                 Postcode <em>*</em>
               </span>
               <input
+                id="postcode"
+                className={fieldErrors.postcode ? "has-error" : ""}
                 value={postcode}
                 onChange={(event) => setPostcode(event.target.value)}
               />
+              {fieldErrors.postcode && (
+                <span className="logit-field-error">{fieldErrors.postcode}</span>
+              )}
             </label>
           </div>
         </section>
@@ -1177,6 +1146,8 @@ export default function LogitFormReview({
             <label className="entity-wizard-label">
               Weeks rented during year
               <input
+                id="weeksRented"
+                className={fieldErrors.weeksRented ? "has-error" : ""}
                 type="number"
                 min="0"
                 max="52"
@@ -1199,10 +1170,15 @@ export default function LogitFormReview({
                   }
                 }}
               />
+              {fieldErrors.weeksRented && (
+                <span className="logit-field-error">{fieldErrors.weeksRented}</span>
+              )}
             </label>
             <label className="entity-wizard-label">
               Weeks available for rent
               <input
+                id="weeksAvailable"
+                className={fieldErrors.weeksAvailable ? "has-error" : ""}
                 type="number"
                 min="0"
                 max="52"
@@ -1225,6 +1201,9 @@ export default function LogitFormReview({
                   }
                 }}
               />
+              {fieldErrors.weeksAvailable && (
+                <span className="logit-field-error">{fieldErrors.weeksAvailable}</span>
+              )}
             </label>
           </div>
           <label className="entity-wizard-label">
@@ -1291,7 +1270,7 @@ export default function LogitFormReview({
           )}
         </section>
 
-        <section className="entity-wizard-card logit-card">
+        <section id="owners" className="entity-wizard-card logit-card">
           <header>
             <h2>Ownership Details</h2>
             <p>Define ownership structure</p>
@@ -1305,6 +1284,7 @@ export default function LogitFormReview({
                   </span>
                   <input
                     placeholder="Enter owner name"
+                    className={fieldErrors.owners ? "has-error" : ""}
                     value={owner.name}
                     onChange={(event) =>
                       updateOwner(owner.id, "name", event.target.value)
@@ -1320,6 +1300,7 @@ export default function LogitFormReview({
                     min="0"
                     max="100"
                     placeholder="%"
+                    className={fieldErrors.owners ? "has-error" : ""}
                     value={owner.percentage}
                     onChange={(event) =>
                       updateOwner(owner.id, "percentage", event.target.value)
@@ -1336,6 +1317,9 @@ export default function LogitFormReview({
           >
             + Add Owner
           </button>
+          {fieldErrors.owners && (
+            <span className="logit-field-error">{fieldErrors.owners}</span>
+          )}
         </section>
 
         <LogitTable
@@ -1348,7 +1332,6 @@ export default function LogitFormReview({
           totalUse={totals.incomeUse}
           onChange={(id, key, value) => updateLine("income", id, key, value)}
           expandedRows={expandedRows}
-          subcategoryOptionsMap={subcategoryOptionsMap}
           onToggleExpand={onToggleExpand}
           onSubcategoryChange={updateSubcategoryLine}
           group="income"
@@ -1363,7 +1346,6 @@ export default function LogitFormReview({
           totalUse={totals.rentalExpenseUse}
           onChange={(id, key, value) => updateLine("expenses", id, key, value)}
           expandedRows={expandedRows}
-          subcategoryOptionsMap={subcategoryOptionsMap}
           onToggleExpand={onToggleExpand}
           onSubcategoryChange={updateSubcategoryLine}
           group="expenses"
@@ -1381,7 +1363,6 @@ export default function LogitFormReview({
             updateLine("borrowings", id, key, value)
           }
           expandedRows={expandedRows}
-          subcategoryOptionsMap={subcategoryOptionsMap}
           onToggleExpand={onToggleExpand}
           onSubcategoryChange={updateSubcategoryLine}
           group="borrowings"
@@ -1399,7 +1380,6 @@ export default function LogitFormReview({
             updateLine("depreciation", id, key, value)
           }
           expandedRows={expandedRows}
-          subcategoryOptionsMap={subcategoryOptionsMap}
           onToggleExpand={onToggleExpand}
           onSubcategoryChange={updateSubcategoryLine}
           group="depreciation"
@@ -1443,7 +1423,6 @@ function LogitTable({
   totalUse,
   onChange,
   expandedRows,
-  subcategoryOptionsMap,
   onToggleExpand,
   onSubcategoryChange,
   group,
@@ -1457,7 +1436,6 @@ function LogitTable({
   totalUse: number;
   onChange: (id: string, key: "amount" | "use", value: string) => void;
   expandedRows: Record<string, boolean>;
-  subcategoryOptionsMap: Record<string, { id: number; name: string }[]>;
   onToggleExpand: (rowId: string) => void;
   onSubcategoryChange: (
     group: "income" | "expenses" | "borrowings" | "depreciation",
