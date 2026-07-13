@@ -318,6 +318,7 @@ export default function AccountantReconciliationSessionPage() {
   // Session completion
   const [completingSession, setCompletingSession] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
   // Table filter/sort
   const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed" | "excluded">("unreviewed");
@@ -345,6 +346,34 @@ export default function AccountantReconciliationSessionPage() {
   const [categorizeSubcategories, setCategorizeSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categorizeSaving, setCategorizeSaving] = useState(false);
   const [categorizeError, setCategorizeError] = useState<string | null>(null);
+
+  const handleConfirmComplete = async () => {
+    setShowCompleteConfirm(false);
+    setCompleteError(null);
+    setCompletingSession(true);
+    try {
+      const token = await getFreshToken();
+      const res = await fetch(
+        `/api/entities/${entityId}/reconciliation-sessions/${sessionId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ status: "completed" }),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
+        setCompleteError(body.message ?? body.error ?? "Failed to complete reconciliation.");
+        return;
+      }
+      playReconSound();
+      router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}?tab=reconciliation`);
+    } catch {
+      setCompleteError("Something went wrong. Please try again.");
+    } finally {
+      setCompletingSession(false);
+    }
+  };
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -1714,84 +1743,66 @@ export default function AccountantReconciliationSessionPage() {
             </div>
           )}
         </div>
-        <div>
-          <button
-            type="button"
-            disabled={combinedRows.length === 0}
-            onClick={() => {
-              if (combinedRows.length === 0) return;
-              const headers = ["statement", "date", "payee", "description", "debit", "credit", "balance", "reconciled"];
-              const csv = [
-                headers.join(","),
-                ...visibleRows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
-                  const m = optimisticMatches.get(mkey(reconId, bankTxIndex));
-                  return [
-                    `"${statementLabel.replace(/"/g, '""')}"`,
-                    row.date,
-                    `"${(row.payee ?? "").replace(/"/g, '""')}"`,
-                    `"${row.description.replace(/"/g, '""')}"`,
-                    row.debit ?? "",
-                    row.credit ?? "",
-                    row.balance ?? "",
-                    m?.status ?? "unreconciled",
-                  ].join(",");
-                }),
-              ].join("\n");
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-              a.download = `reconciliation-${session.id}.csv`;
-              a.click();
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v12" />
-              <path d="m7 10 5 5 5-5" />
-              <path d="M5 21h14" />
-            </svg>
-            Export CSV
-          </button>
+        <div className="accountant-reconciliation-footer-actions">
           {completeError && (
-            <span style={{ fontSize: 12, color: "#dc2626" }} role="alert">
-              {completeError}
-            </span>
+            <div className="accountant-reconciliation-error-alert" role="alert">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{completeError}</span>
+            </div>
           )}
-          {!isSessionCompleted && (
+          <div>
             <button
               type="button"
-              disabled={completingSession}
-              onClick={async () => {
-                if (!window.confirm("Mark this reconciliation as completed? You can still create new reconciliations for this entity later, but no more statements can be uploaded into this one.")) return;
-                setCompleteError(null);
-                setCompletingSession(true);
-                try {
-                  const token = await getFreshToken();
-                  const res = await fetch(
-                    `/api/entities/${entityId}/reconciliation-sessions/${sessionId}`,
-                    {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                      body: JSON.stringify({ status: "completed" }),
-                    },
-                  );
-                  if (!res.ok) {
-                    const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
-                    setCompleteError(body.message ?? body.error ?? "Failed to complete reconciliation.");
-                    return;
-                  }
-                  playReconSound();
-                  router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}?tab=reconciliation`);
-                } catch {
-                  setCompleteError("Something went wrong. Please try again.");
-                } finally {
-                  setCompletingSession(false);
-                }
+              disabled={combinedRows.length === 0}
+              onClick={() => {
+                if (combinedRows.length === 0) return;
+                const headers = ["statement", "date", "payee", "description", "debit", "credit", "balance", "reconciled"];
+                const csv = [
+                  headers.join(","),
+                  ...visibleRows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
+                    const m = optimisticMatches.get(mkey(reconId, bankTxIndex));
+                    return [
+                      `"${statementLabel.replace(/"/g, '""')}"`,
+                      row.date,
+                      `"${(row.payee ?? "").replace(/"/g, '""')}"`,
+                      `"${row.description.replace(/"/g, '""')}"`,
+                      row.debit ?? "",
+                      row.credit ?? "",
+                      row.balance ?? "",
+                      m?.status ?? "unreconciled",
+                    ].join(",");
+                  }),
+                ].join("\n");
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+                a.download = `reconciliation-${session.id}.csv`;
+                a.click();
               }}
             >
-              {completingSession ? (
-                <><span className="recon-btn-spinner" aria-hidden="true" />Completing…</>
-              ) : "Complete Reconciliation"}
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
+              Export CSV
             </button>
-          )}
+            {!isSessionCompleted && (
+              <button
+                type="button"
+                disabled={completingSession}
+                onClick={() => {
+                  setCompleteError(null);
+                  setShowCompleteConfirm(true);
+                }}
+              >
+                {completingSession ? (
+                  <><span className="recon-btn-spinner" aria-hidden="true" />Completing…</>
+                ) : "Complete Reconciliation"}
+              </button>
+            )}
+          </div>
         </div>
       </footer>
       </div>
@@ -1801,6 +1812,42 @@ export default function AccountantReconciliationSessionPage() {
           href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation/${sessionId}?id=${encodeURIComponent(toastReconId)}`}
           onClose={() => setToastReconId(null)}
         />
+      )}
+
+      {showCompleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#fef3c7] text-[#d97706] shrink-0 self-center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-1 text-center">
+              <h3 className="text-lg font-extrabold text-[#233152]">Complete Reconciliation</h3>
+              <p className="text-xs text-slate-500 leading-normal mt-1">
+                Mark this reconciliation as completed? You can still create new reconciliations for this entity later, but no more statements can be uploaded into this one.
+              </p>
+            </div>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                className="flex-1 min-h-[44px] rounded-xl border border-slate-200 bg-transparent text-slate-600 font-bold hover:bg-slate-50 active:scale-[0.98] transition-all duration-150 text-sm cursor-pointer"
+                onClick={() => setShowCompleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="flex-1 min-h-[44px] rounded-xl font-bold text-white bg-[#28336e] hover:bg-[#1f2858] active:scale-[0.98] transition-all duration-150 text-sm shadow-sm cursor-pointer"
+                onClick={handleConfirmComplete}
+              >
+                Complete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

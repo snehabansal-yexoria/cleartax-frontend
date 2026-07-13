@@ -415,7 +415,18 @@ export default function AddEntityWizard({
         </ol>
 
         {step === 1 && (
-          <div className="entity-wizard-card">
+          <div
+            className="entity-wizard-card"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const canContinue = entityType && (entityType !== "trust" || trustType);
+                if (canContinue) {
+                  e.preventDefault();
+                  setStep(2);
+                }
+              }
+            }}
+          >
             <header>
               <h2>Choose Entity Type</h2>
               <p>
@@ -505,7 +516,15 @@ export default function AddEntityWizard({
         )}
 
         {step === 2 && (
-          <div className="entity-wizard-card">
+          <div
+            className="entity-wizard-card"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && entityName.trim() && !isSaving) {
+                e.preventDefault();
+                handleNameContinue();
+              }
+            }}
+          >
             <header>
               <h2>
                 {entityType === "individual"
@@ -605,7 +624,15 @@ export default function AddEntityWizard({
         )}
 
         {step === 3 && (
-          <div className="entity-wizard-card">
+          <div
+            className="entity-wizard-card"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && beneficiariesValid && !isSaving) {
+                e.preventDefault();
+                handleSave();
+              }
+            }}
+          >
             <header>
               <h2>Add {beneficiaryNounPlural}</h2>
               <p>
@@ -692,30 +719,18 @@ export default function AddEntityWizard({
               >
                 Back
               </button>
-              <div className="entity-wizard-footer-actions">
-                {!isEditMode && (
-                  <button
-                    type="button"
-                    className="entity-wizard-secondary"
-                    disabled={!beneficiariesValid || isSaving}
-                    onClick={addAnotherHref ? handleAddAnother : handleSave}
-                  >
-                    Add Another Entity
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="entity-wizard-primary"
-                  disabled={!beneficiariesValid || isSaving}
-                  onClick={handleSave}
-                >
-                  {isSaving
-                    ? "Saving…"
-                    : isEditMode
-                      ? "Save Changes"
-                      : "Save & Start Adding Property"}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="entity-wizard-primary"
+                disabled={!beneficiariesValid || isSaving}
+                onClick={handleSave}
+              >
+                {isSaving
+                  ? "Saving..."
+                  : isEditMode
+                    ? "Update Entity"
+                    : "Create Entity"}
+              </button>
             </div>
           </div>
         )}
@@ -850,6 +865,20 @@ export default function AddEntityWizard({
                   onChange={(event) => setEntityName(event.target.value)}
                   className="entity-wizard-input"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (needsBeneficiaries) {
+                        e.preventDefault();
+                        const firstBeneficiaryInput = document.querySelector(".entity-beneficiary-name") as HTMLInputElement | null;
+                        if (firstBeneficiaryInput) {
+                          firstBeneficiaryInput.focus();
+                        }
+                      } else if (entityName.trim() && entityType && !isSaving) {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }
+                  }}
                 />
               </div>
 
@@ -901,6 +930,12 @@ export default function AddEntityWizard({
                         onChange={(event) =>
                           updateRow(row.uid, { name: event.target.value })
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && entityName.trim() && entityType && beneficiariesValid && !isSaving) {
+                            e.preventDefault();
+                            handleSave();
+                          }
+                        }}
                       />
                       <div className="entity-beneficiary-pct">
                         <input
@@ -913,6 +948,12 @@ export default function AddEntityWizard({
                           onChange={(event) =>
                             updateRow(row.uid, { percentage: event.target.value })
                           }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && entityName.trim() && entityType && beneficiariesValid && !isSaving) {
+                              e.preventDefault();
+                              handleSave();
+                            }
+                          }}
                         />
                         <span>%</span>
                       </div>

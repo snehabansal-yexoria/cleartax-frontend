@@ -294,7 +294,7 @@ function AccountantClientsContent() {
     phoneNumber: "",
   });
   const [pageSize, setPageSize] = useState<string>("20");
-  const [sortBy, setSortBy] = useState<string>("properties");
+  const [sortBy, setSortBy] = useState<string>("properties-desc");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
@@ -304,6 +304,9 @@ function AccountantClientsContent() {
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [accountants, setAccountants] = useState<AccountantRecord[] | null>(null);
+
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (searchParams.get("invite") === "1") {
@@ -426,10 +429,14 @@ function AccountantClientsContent() {
         if (!a.joinedAt) return 1;
         if (!b.joinedAt) return -1;
         return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
-      } else if (sortBy === "properties") {
+      } else if (sortBy === "properties" || sortBy === "properties-desc") {
         const countA = a.propertiesCount || 0;
         const countB = b.propertiesCount || 0;
         return countB - countA;
+      } else if (sortBy === "properties-asc") {
+        const countA = a.propertiesCount || 0;
+        const countB = b.propertiesCount || 0;
+        return countA - countB;
       }
       return 0;
     });
@@ -711,7 +718,8 @@ function AccountantClientsContent() {
             { label: "Sort by Name (Z-A)", value: "name-desc" },
             { label: "Sort by Date (Oldest)", value: "joined-asc" },
             { label: "Sort by Date (Newest)", value: "joined-desc" },
-            { label: "Sort by Properties", value: "properties" },
+            { label: "Sort by Properties (Most)", value: "properties-desc" },
+            { label: "Sort by Properties (Least)", value: "properties-asc" },
           ]}
           onChange={(value) => setSortBy(value)}
         />
@@ -1429,6 +1437,12 @@ function AccountantClientsContent() {
                         fullName: event.target.value,
                       }));
                     }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        emailInputRef.current?.focus();
+                      }
+                    }}
                   />
                 </label>
 
@@ -1437,6 +1451,7 @@ function AccountantClientsContent() {
                     Email Address <span className="imp">*</span>
                   </span>
                   <input
+                    ref={emailInputRef}
                     type="email"
                     placeholder="client@example.com"
                     value={inviteForm.email}
@@ -1447,6 +1462,12 @@ function AccountantClientsContent() {
                         email: event.target.value,
                       }));
                     }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        phoneInputRef.current?.focus();
+                      }
+                    }}
                   />
                 </label>
 
@@ -1455,6 +1476,7 @@ function AccountantClientsContent() {
                     Phone Number <small>(Optional)</small>
                   </span>
                   <input
+                    ref={phoneInputRef}
                     type="tel"
                     placeholder="+61 2 9342 5678"
                     value={inviteForm.phoneNumber}
@@ -1464,6 +1486,18 @@ function AccountantClientsContent() {
                         ...current,
                         phoneNumber: event.target.value,
                       }));
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        if (
+                          !inviteLoading &&
+                          inviteForm.fullName.trim() &&
+                          inviteForm.email.trim()
+                        ) {
+                          void handleInviteClient();
+                        }
+                      }
                     }}
                   />
                 </label>
