@@ -236,6 +236,7 @@ export default function AccountantPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
+  const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   // Unassigned clients for the "add to my list" nudge — loaded lazily only when
   // the empty state is shown, so the dashboard never queries all clients on load.
@@ -302,6 +303,28 @@ export default function AccountantPage() {
           if (!cancelled) setMyClients(data.clients || []);
         })
         .catch(() => { if (!cancelled) setMyClients([]); });
+
+      // Fetch all clients org-wide to align with the clients page count logic
+      fetch("/api/users/me/clients?scope=all", { headers })
+        .then((res) => (res.ok ? res.json() : { clients: [] }))
+        .then((data: { clients?: ClientRecord[] }) => {
+          if (!cancelled) {
+            const clients = data.clients || [];
+            setAllClients(clients);
+            setAvailableClients(
+              clients.filter(
+                (c) =>
+                  !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant,
+              ),
+            );
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setAllClients([]);
+            setAvailableClients([]);
+          }
+        });
     }).catch(() => { });
 
     return () => { cancelled = true; };
@@ -323,7 +346,7 @@ export default function AccountantPage() {
   }, []);
 
   const invitationPending = summary?.pendingInvitations ?? 0;
-  const registeredClients = summary?.registeredClients ?? 0;
+  const registeredClients = allClients !== null ? allClients.length : (summary?.registeredClients ?? 0);
   const managedClients = myClients ?? [];
   const suggestedClients = (availableClients ?? []).slice(0, 3);
 
@@ -334,35 +357,6 @@ export default function AccountantPage() {
       totalMarketValue: summary.totalMarketValue,
     }
     : null;
-
-  // Lazily load unassigned clients for the "add to my list" nudge — only when
-  // the empty state is on screen, never on the normal (has-clients) dashboard.
-  const loadAvailableClients = useCallback(async () => {
-    if (availableClients !== null) return;
-    try {
-      const session = (await getSession()) as SessionWithIdToken | null;
-      if (!session) return;
-      const token = session.getIdToken().getJwtToken();
-      const res = await fetch("/api/users/me/clients?scope=all", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const clients = (res.ok ? (await res.json()).clients : []) as ClientRecord[];
-      setAvailableClients(
-        clients.filter(
-          (c) =>
-            !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant,
-        ),
-      );
-    } catch {
-      setAvailableClients([]);
-    }
-  }, [availableClients]);
-
-  useEffect(() => {
-    if (myClients !== null && managedClients.length === 0) {
-      void loadAvailableClients();
-    }
-  }, [myClients, managedClients.length, loadAvailableClients]);
 
   async function handleAssignSuggestedClient() {
     if (!selectedAvailableClientId || isAssigningClient) {
@@ -404,7 +398,7 @@ export default function AccountantPage() {
     }
   }
 
-  const summaryLoading = summary === null || myClients === null;
+  const summaryLoading = summary === null || myClients === null || allClients === null;
 
   return (
     <section className="accountant-dashboard">
@@ -439,7 +433,9 @@ export default function AccountantPage() {
         <div className="accountant-summary-grid">
           <article className="accountant-summary-card accountant-summary-card-blue">
             <div className="accountant-summary-card-header">
-              <p className="accountant-eyebrow">Invitation Pending</p>
+              <p className="accountant-eyebrow">
+                {invitationPending === 1 ? "Invitation Pending" : "Invitations Pending"}
+              </p>
               <Link
                 href="/dashboard/accountant/clients?invite=1"
                 className="accountant-summary-card-action"
@@ -463,7 +459,9 @@ export default function AccountantPage() {
 
           <article className="accountant-summary-card accountant-summary-card-gold">
             <div className="accountant-summary-card-header">
-              <p className="accountant-eyebrow">Registered Clients</p>
+              <p className="accountant-eyebrow">
+                {registeredClients === 1 ? "Registered Client" : "Registered Clients"}
+              </p>
               <div className="accountant-summary-card-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
                   <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
@@ -475,13 +473,19 @@ export default function AccountantPage() {
             </div>
             <div className="accountant-summary-card-body">
               <h2>{registeredClients}</h2>
-              <span>{managedClients.length} added to your list</span>
+              <span>
+                {managedClients.length === 1
+                  ? "1 client added to your list"
+                  : `${managedClients.length} clients added to your list`}
+              </span>
             </div>
           </article>
 
           <article className="accountant-summary-card accountant-summary-card-blue">
             <div className="accountant-summary-card-header">
-              <p className="accountant-eyebrow">Properties Managed</p>
+              <p className="accountant-eyebrow">
+                {summaryStats?.totalProperties === 1 ? "Property Managed" : "Properties Managed"}
+              </p>
               <div className="accountant-summary-card-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -491,7 +495,11 @@ export default function AccountantPage() {
             </div>
             <div className="accountant-summary-card-body">
               <h2>{summaryStats?.totalProperties ?? 0}</h2>
-              <span>Across client portfolios</span>
+              <span>
+                {summaryStats?.totalProperties === 1
+                  ? "Across client portfolio"
+                  : "Across client portfolios"}
+              </span>
             </div>
           </article>
 
