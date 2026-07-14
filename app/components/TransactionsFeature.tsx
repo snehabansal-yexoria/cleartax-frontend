@@ -277,11 +277,11 @@ function StaticSelect({
 
   const filteredOptions = showSearch
     ? options.filter(
-        (option) =>
-          option.label.toLowerCase().includes(localSearch.toLowerCase()) ||
-          option.value === "all" ||
-          option.value === "",
-      )
+      (option) =>
+        option.label.toLowerCase().includes(localSearch.toLowerCase()) ||
+        option.value === "all" ||
+        option.value === "",
+    )
     : options;
 
   return (
@@ -903,9 +903,17 @@ function TransactionDetailPopup({
       setEditError(invoiceDateError);
       return;
     }
-    if (Number.isNaN(grossNum) || grossNum <= 0) {
-      setEditError("Amount must be a positive number.");
-      return;
+    const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
+    if (!allBlank) {
+      if (Number.isNaN(grossNum) || grossNum <= 0) {
+        setEditError("Amount must be a positive number.");
+        return;
+      }
+    } else {
+      if (!Number.isNaN(grossNum) && grossNum <= 0) {
+        setEditError("Amount must be a positive number.");
+        return;
+      }
     }
     let gstNum: number | null = null;
     if (showGstBreakdown && gstAmount) {
@@ -939,7 +947,7 @@ function TransactionDetailPopup({
       (sum, split) => sum + (Number.parseFloat(split.amount) || 0),
       0,
     );
-    if (isSplit && Math.abs(splitTotal - grossNum) >= 0.01) {
+    if (isSplit && !allBlank && Math.abs(splitTotal - grossNum) >= 0.01) {
       setEditError(`Split amounts must total ${grossNum.toFixed(2)}.`);
       return;
     }
@@ -952,21 +960,23 @@ function TransactionDetailPopup({
       return;
     }
     const splits = isSplit
-      ? selectedSplits.map((split) => {
-        const amount = Number.parseFloat(split.amount);
-        return {
-          property_id: split.propertyId,
-          split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
-          split_gross_amount: Number(amount.toFixed(2)),
-        };
-      })
+      ? (allBlank
+        ? selectedSplits.map((split) => ({ property_id: split.propertyId }))
+        : selectedSplits.map((split) => {
+          const amount = Number.parseFloat(split.amount);
+          return {
+            property_id: split.propertyId,
+            split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
+            split_gross_amount: Number(amount.toFixed(2)),
+          };
+        }))
       : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
       subcategory_id: subcategoryId,
       invoice_date: invoiceDate,
-      gross_amount: grossNum,
+      gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
       internal_remarks: internalRemarks.trim() || null,
       review_status: reviewStatus,
@@ -3330,12 +3340,13 @@ export function AddTransactionView({
       errors.__form = "Add at least two property rows for a split transaction.";
     }
     const seen = new Set<string>();
+    const allBlank = splitRows.every((row) => !row.amount || !row.amount.trim());
     for (const r of splitRows) {
       if (!r.propertyId) {
         errors[r.id] = "Choose a property.";
       } else if (seen.has(r.propertyId)) {
         errors[r.id] = "Property already used in another split.";
-      } else if (!r.amount || Number.parseFloat(r.amount) <= 0) {
+      } else if (!allBlank && (!r.amount || Number.parseFloat(r.amount) <= 0)) {
         errors[r.id] = "Enter a positive amount.";
       }
       if (r.propertyId) seen.add(r.propertyId);
@@ -3962,9 +3973,17 @@ export function AddTransactionView({
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
-      if (Number.isNaN(grossNum) || grossNum <= 0) {
-        setSubmitError("Amount must be a positive number.");
-        return;
+      const allBlank = isSplit && splitRows.every((row) => !row.amount || !row.amount.trim());
+      if (!allBlank) {
+        if (Number.isNaN(grossNum) || grossNum <= 0) {
+          setSubmitError("Amount must be a positive number.");
+          return;
+        }
+      } else {
+        if (!Number.isNaN(grossNum) && grossNum <= 0) {
+          setSubmitError("Amount must be a positive number.");
+          return;
+        }
       }
 
       let gstNum: number | null = null;
@@ -3989,7 +4008,7 @@ export function AddTransactionView({
           setSubmitError("Fix the errors in the split rows.");
           return;
         }
-        if (!splitMatches) {
+        if (!allBlank && !splitMatches) {
           setSubmitError(
             `Split amounts must total ${grossNum.toFixed(
               2,
@@ -3997,14 +4016,22 @@ export function AddTransactionView({
           );
           return;
         }
-        splits = splitRows.map((r) => {
-          const rowAmount = Number.parseFloat(r.amount);
-          return {
-            property_id: r.propertyId,
-            split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
-            split_gross_amount: Number(rowAmount.toFixed(2)),
-          };
-        });
+        if (allBlank) {
+          splits = splitRows.map((r) => {
+            return {
+              property_id: r.propertyId,
+            };
+          });
+        } else {
+          splits = splitRows.map((r) => {
+            const rowAmount = Number.parseFloat(r.amount);
+            return {
+              property_id: r.propertyId,
+              split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
+              split_gross_amount: Number(rowAmount.toFixed(2)),
+            };
+          });
+        }
       } else {
         if (!propertyId) {
           setSubmitError("Please select a property.");
@@ -4031,7 +4058,7 @@ export function AddTransactionView({
         category_id: resolvedCategoryId,
         subcategory_id: resolvedSubcategoryId,
         invoice_date: invoiceDate,
-        gross_amount: grossNum,
+        gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
         internal_remarks: internalRemarks.trim() || null,
         is_asset_purchase: isAssetPurchase,
@@ -4487,11 +4514,17 @@ export function AddTransactionView({
                           min="0.01"
                           placeholder="0.00"
                           value={row.amount}
-                          onChange={(e) =>
-                            updateSplitRow(row.id, { amount: e.target.value })
-                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === "Minus") {
+                              e.preventDefault();
+                            }
+                          }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/-/g, "");
+                            updateSplitRow(row.id, { amount: val });
+                          }}
                         />
-                        <b>$</b>
+                        <b>A$</b>
                       </span>
                       {amountError && (
                         <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
