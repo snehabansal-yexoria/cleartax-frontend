@@ -299,6 +299,7 @@ export default function EntityDetailView({
   const [newSessionTo, setNewSessionTo] = useState("");
   const [newSessionSaving, setNewSessionSaving] = useState(false);
   const [newSessionError, setNewSessionError] = useState<string | null>(null);
+  const [labelError, setLabelError] = useState<string | null>(null);
   const [trendView, setTrendView] = useState<"graph" | "table">("graph");
   const [selectedRmId, setSelectedRmId] = useState<string>("");
   const [availableManagers, setAvailableManagers] = useState<any[]>([]);
@@ -470,14 +471,19 @@ export default function EntityDetailView({
 
   async function handleCreateSession(e: FormEvent) {
     e.preventDefault();
+    setLabelError(null);
+    setNewSessionError(null);
     if (!sessionToken || !entityId) return;
     const label = newSessionLabel.trim();
     if (!label) {
-      setNewSessionError("Label is required");
+      setLabelError("Label is required");
+      return;
+    }
+    if (newSessionFrom && newSessionTo && newSessionFrom > newSessionTo) {
+      setNewSessionError("Start date cannot be after end date");
       return;
     }
     setNewSessionSaving(true);
-    setNewSessionError(null);
     try {
       const res = await fetch(
         `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`,
@@ -504,6 +510,7 @@ export default function EntityDetailView({
       setNewSessionLabel("");
       setNewSessionFrom("");
       setNewSessionTo("");
+      setLabelError(null);
       if (reconciliationHref) {
         router.push(`${reconciliationHref}/${encodeURIComponent(created.id)}`);
       }
@@ -1074,7 +1081,18 @@ export default function EntityDetailView({
               <button
                 type="button"
                 className="entity-wizard-primary is-green"
-                onClick={() => setNewSessionOpen((v) => !v)}
+                onClick={() => {
+                  setNewSessionOpen((v) => {
+                    if (v) {
+                      setNewSessionLabel("");
+                      setNewSessionFrom("");
+                      setNewSessionTo("");
+                      setLabelError(null);
+                      setNewSessionError(null);
+                    }
+                    return !v;
+                  });
+                }}
               >
                 {newSessionOpen ? "Cancel" : "+ New Reconciliation"}
               </button>
@@ -1084,6 +1102,7 @@ export default function EntityDetailView({
               <form
                 onSubmit={handleCreateSession}
                 className="recon-session-form"
+                noValidate
                 style={{
                   display: "grid",
                   gap: 12,
@@ -1098,12 +1117,25 @@ export default function EntityDetailView({
                   <input
                     type="text"
                     value={newSessionLabel}
-                    onChange={(e) => setNewSessionLabel(e.target.value)}
+                    onChange={(e) => {
+                      setNewSessionLabel(e.target.value);
+                      if (labelError) setLabelError(null);
+                    }}
                     placeholder="e.g. FY26 Q1"
                     maxLength={120}
                     required
-                    style={{ padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{
+                      padding: "8px 10px",
+                      border: labelError ? "1px solid #fda4af" : "1px solid #d1d5db",
+                      borderRadius: 6,
+                      outlineColor: labelError ? "#f43f5e" : undefined,
+                    }}
                   />
+                  {labelError && (
+                    <span style={{ color: "#e11d48", fontSize: 12, marginTop: 4, fontWeight: 500 }}>
+                      {labelError}
+                    </span>
+                  )}
                 </label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
@@ -1126,7 +1158,26 @@ export default function EntityDetailView({
                   </label>
                 </div>
                 {newSessionError && (
-                  <p style={{ color: "#dc2626", fontSize: 13, margin: 0 }}>{newSessionError}</p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      backgroundColor: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      borderRadius: 6,
+                      color: "#b91c1c",
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                    role="alert"
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" style={{ width: 16, height: 16, color: "#f87171", flexShrink: 0 }}>
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{newSessionError}</span>
+                  </div>
                 )}
                 <div>
                   <button

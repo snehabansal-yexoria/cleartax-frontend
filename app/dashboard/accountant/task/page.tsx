@@ -422,7 +422,7 @@ export default function TaskManagementPage() {
     return (
         <div className="flex flex-col gap-6 w-full animate-fadeIn max-w-[1400px] mx-auto pb-10">
 
-            <div className="flex items-center">
+            {/* <div className="flex items-center">
                 <Link
                     href="/dashboard/accountant/transactions"
                     className="group flex items-center gap-2 text-slate-500 font-medium text-sm transition-colors duration-200 hover:text-[#28336e]"
@@ -441,7 +441,7 @@ export default function TaskManagementPage() {
                     </svg>
                     Back to transactions
                 </Link>
-            </div>
+            </div> */}
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -746,8 +746,8 @@ export default function TaskManagementPage() {
                                             setNewTaskNameError(validateTaskName(newTaskName));
                                         }}
                                         className={`w-full h-[50px] pl-3 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${newTaskNameError
-                                                ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                                : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
                                             }`}
                                     />
                                 </div>
@@ -896,8 +896,8 @@ export default function TaskManagementPage() {
                                             setNewTaskDeadlineError(validateDeadline(newTaskDeadline));
                                         }}
                                         className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${newTaskDeadlineError
-                                                ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                                : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
                                             }`}
                                     />
                                 </div>
@@ -1026,8 +1026,8 @@ export default function TaskManagementPage() {
                                             setEditTaskNameError(validateTaskName(editTaskName));
                                         }}
                                         className={`w-full h-[50px] pl-3 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${editTaskNameError
-                                                ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                                : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
                                             }`}
                                     />
                                 </div>
@@ -1176,8 +1176,8 @@ export default function TaskManagementPage() {
                                             setEditTaskDeadlineError(validateDeadline(editTaskDeadline));
                                         }}
                                         className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${editTaskDeadlineError
-                                                ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                                : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
                                             }`}
                                     />
                                 </div>

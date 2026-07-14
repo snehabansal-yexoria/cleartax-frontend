@@ -346,7 +346,7 @@ export default function AddPropertyWizard({
     initialProperty?.hasDepreciationSchedule ?? false,
   );
   const [status, setStatus] = useState(
-    initialProperty?.status || "Listed for Sale",
+    initialProperty?.status || "Self Occupied",
   );
   const [isPropertyTypeOpen, setIsPropertyTypeOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -402,6 +402,8 @@ export default function AddPropertyWizard({
   const markTouched = (field: string) => {
     setTouchedFields((prev) => ({ ...prev, [field]: true }));
   };
+
+
 
   const dateErrors = useMemo(() => {
     const errors: {
@@ -663,7 +665,7 @@ export default function AddPropertyWizard({
         : "",
     );
     setHasDepreciationSchedule(initialProperty.hasDepreciationSchedule);
-    setStatus(initialProperty.status || "Listed for Sale");
+    setStatus(initialProperty.status || "Self Occupied");
     setAvailableForRentDate(
       getStatusDetail(initialProperty, "available_for_rent_date"),
     );
@@ -922,6 +924,40 @@ export default function AddPropertyWizard({
     if (property) setSaved(true);
   }
 
+  function handleStep1Continue() {
+    if (isUploadingPropertyImage || isUploadingDepreciationSchedule) return;
+    if (!propertyDetailsValid) {
+      setTouchedFields({
+        propertyName: true,
+        locationText: true,
+        estimatedMarketValue: true,
+        purchaseDate: true,
+        settlementDate: true,
+        purchaseAmount: true,
+        availableForRentDate: true,
+        firstRentalIncomeDate: true,
+        renovationStartDate: true,
+        renovationEndDate: true,
+      });
+      setErrorMessage("Please fix the highlighted validation errors before continuing.");
+      return;
+    }
+    setErrorMessage("");
+    setStep(takesOwnershipDetails ? 2 : 3);
+  }
+
+  function handleStep3Save() {
+    if (
+      isSaving ||
+      isUploadingPropertyImage ||
+      isUploadingDepreciationSchedule ||
+      !isLoanDetailsValid
+    ) {
+      return;
+    }
+    handleSave();
+  }
+
   return (
     <section className="entity-wizard property-wizard">
       <div className="entity-wizard-top">
@@ -970,7 +1006,13 @@ export default function AddPropertyWizard({
       </ol>
 
       {step === 1 && (
-        <div className="entity-wizard-card">
+        <form
+          className="entity-wizard-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleStep1Continue();
+          }}
+        >
           <header>
             <h2>Property Details</h2>
             <p>Enter the basic information about the property</p>
@@ -993,11 +1035,10 @@ export default function AddPropertyWizard({
               type="text"
               placeholder="e.g., Sunset District Residence"
               value={propertyName}
-              className={`border ${
-                touchedFields.propertyName && !propertyName.trim()
-                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                  : ""
-              }`}
+              className={`border ${touchedFields.propertyName && !propertyName.trim()
+                ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                : ""
+                }`}
               onChange={(event) => setPropertyName(event.target.value)}
               onBlur={() => markTouched("propertyName")}
             />
@@ -1082,9 +1123,8 @@ export default function AddPropertyWizard({
                   Property Location <em>*</em>
                 </span>
                 <span
-                  className={`text-[0.75rem] font-normal ${
-                    locationText.length > 500 ? "text-rose-600 font-semibold" : "text-slate-400"
-                  }`}
+                  className={`text-[0.75rem] font-normal ${locationText.length > 500 ? "text-rose-600 font-semibold" : "text-slate-400"
+                    }`}
                   aria-live="polite"
                 >
                   {locationText.length} / 500
@@ -1095,11 +1135,10 @@ export default function AddPropertyWizard({
                 onChange={setLocationText}
                 onBlur={() => markTouched("locationText")}
                 placeholder="Search location..."
-                inputClassName={`border ${
-                  (touchedFields.locationText && !locationText.trim()) || locationText.length > 500
-                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                    : ""
-                }`}
+                inputClassName={`border ${(touchedFields.locationText && !locationText.trim()) || locationText.length > 500
+                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                  : ""
+                  }`}
               />
               {touchedFields.locationText && !locationText.trim() && (
                 <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
@@ -1127,11 +1166,10 @@ export default function AddPropertyWizard({
                 type="text"
                 placeholder={`${CURRENCY_SYMBOL}0`}
                 value={estimatedMarketValue}
-                className={`border ${
-                  touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid
-                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                    : ""
-                }`}
+                className={`border ${touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid
+                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                  : ""
+                  }`}
                 onChange={(event) =>
                   handleEstimatedMarketValueChange(event.target.value)
                 }
@@ -1153,11 +1191,10 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="date"
-                className={`property-date-input border ${
-                  dateErrors.purchaseDate && (touchedFields.purchaseDate || purchaseDate)
-                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                    : ""
-                }`}
+                className={`property-date-input border ${dateErrors.purchaseDate && (touchedFields.purchaseDate || purchaseDate)
+                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                  : ""
+                  }`}
                 max={getTodayString()}
                 value={purchaseDate}
                 onChange={(event) => handleDateChange(event.target.value, setPurchaseDate, true)}
@@ -1183,11 +1220,10 @@ export default function AddPropertyWizard({
               </span>
               <input
                 type="date"
-                className={`property-date-input border ${
-                  dateErrors.settlementDate && (touchedFields.settlementDate || settlementDate)
-                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                    : ""
-                }`}
+                className={`property-date-input border ${dateErrors.settlementDate && (touchedFields.settlementDate || settlementDate)
+                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                  : ""
+                  }`}
                 max="9999-12-31"
                 value={settlementDate}
                 onChange={(event) => handleDateChange(event.target.value, setSettlementDate, false)}
@@ -1215,11 +1251,10 @@ export default function AddPropertyWizard({
                 type="text"
                 placeholder={`${CURRENCY_SYMBOL}0`}
                 value={purchaseAmount}
-                className={`border ${
-                  touchedFields.purchaseAmount && (!purchaseAmount.trim() || !isPurchaseAmountValid)
-                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                    : ""
-                }`}
+                className={`border ${touchedFields.purchaseAmount && (!purchaseAmount.trim() || !isPurchaseAmountValid)
+                  ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                  : ""
+                  }`}
                 onChange={(event) => handlePurchaseAmountChange(event.target.value)}
                 onBlur={() => markTouched("purchaseAmount")}
               />
@@ -1422,11 +1457,10 @@ export default function AddPropertyWizard({
                 </span>
                 <input
                   type="date"
-                  className={`property-date-input border ${
-                    dateErrors.availableForRentDate && (touchedFields.availableForRentDate || availableForRentDate)
-                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                      : ""
-                  }`}
+                  className={`property-date-input border ${dateErrors.availableForRentDate && (touchedFields.availableForRentDate || availableForRentDate)
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                    }`}
                   max="9999-12-31"
                   value={availableForRentDate}
                   onChange={(event) =>
@@ -1454,11 +1488,10 @@ export default function AddPropertyWizard({
                   </span>
                   <input
                     type="date"
-                    className={`property-date-input border ${
-                      dateErrors.firstRentalIncomeDate && (touchedFields.firstRentalIncomeDate || firstRentalIncomeDate)
-                        ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                        : ""
-                    }`}
+                    className={`property-date-input border ${dateErrors.firstRentalIncomeDate && (touchedFields.firstRentalIncomeDate || firstRentalIncomeDate)
+                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                      : ""
+                      }`}
                     max="9999-12-31"
                     value={firstRentalIncomeDate}
                     onChange={(event) =>
@@ -1491,11 +1524,10 @@ export default function AddPropertyWizard({
                 </span>
                 <input
                   type="date"
-                  className={`property-date-input border ${
-                    dateErrors.renovationStartDate && (touchedFields.renovationStartDate || renovationStartDate)
-                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                      : ""
-                  }`}
+                  className={`property-date-input border ${dateErrors.renovationStartDate && (touchedFields.renovationStartDate || renovationStartDate)
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                    }`}
                   max="9999-12-31"
                   value={renovationStartDate}
                   onChange={(event) =>
@@ -1520,11 +1552,10 @@ export default function AddPropertyWizard({
                 Renovation End Date <small>(Optional)</small>
                 <input
                   type="date"
-                  className={`property-date-input border ${
-                    dateErrors.renovationEndDate && (touchedFields.renovationEndDate || renovationEndDate)
-                      ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                      : ""
-                  }`}
+                  className={`property-date-input border ${dateErrors.renovationEndDate && (touchedFields.renovationEndDate || renovationEndDate)
+                    ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                    : ""
+                    }`}
                   max="9999-12-31"
                   value={renovationEndDate}
                   onChange={(event) => handleDateChange(event.target.value, setRenovationEndDate)}
@@ -1651,41 +1682,29 @@ export default function AddPropertyWizard({
           <div className="entity-wizard-footer">
             <div />
             <button
-              type="button"
+              type="submit"
               className="entity-wizard-primary"
               disabled={
                 isUploadingPropertyImage ||
                 isUploadingDepreciationSchedule
               }
-              onClick={() => {
-                if (!propertyDetailsValid) {
-                  setTouchedFields({
-                    propertyName: true,
-                    locationText: true,
-                    estimatedMarketValue: true,
-                    purchaseDate: true,
-                    settlementDate: true,
-                    purchaseAmount: true,
-                    availableForRentDate: true,
-                    firstRentalIncomeDate: true,
-                    renovationStartDate: true,
-                    renovationEndDate: true,
-                  });
-                  setErrorMessage("Please fix the highlighted validation errors before continuing.");
-                  return;
-                }
-                setErrorMessage("");
-                setStep(takesOwnershipDetails ? 2 : 3);
-              }}
             >
               Continue
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {takesOwnershipDetails && step === 2 && (
-        <div className="entity-wizard-card">
+        <form
+          className="entity-wizard-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (ownersValid) {
+              setStep(3);
+            }
+          }}
+        >
           <header>
             <h2>Ownership Details</h2>
             <p>Define who owns this property and their ownership percentages</p>
@@ -1754,19 +1773,24 @@ export default function AddPropertyWizard({
               Back
             </button>
             <button
-              type="button"
+              type="submit"
               className="entity-wizard-primary"
               disabled={!ownersValid}
-              onClick={() => setStep(3)}
             >
               Continue
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {step === 3 && (
-        <div className="entity-wizard-card">
+        <form
+          className="entity-wizard-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleStep3Save();
+          }}
+        >
           <header>
             <h2>Loan Details</h2>
             <p>Add loan information for this property</p>
@@ -1906,7 +1930,7 @@ export default function AddPropertyWizard({
               Back
             </button>
             <button
-              type="button"
+              type="submit"
               className="entity-wizard-primary"
               disabled={
                 isSaving ||
@@ -1914,7 +1938,6 @@ export default function AddPropertyWizard({
                 isUploadingDepreciationSchedule ||
                 !isLoanDetailsValid
               }
-              onClick={handleSave}
             >
               {isSaving
                 ? "Saving..."
@@ -1923,7 +1946,7 @@ export default function AddPropertyWizard({
                   : "Add Property"}
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {saved && (
