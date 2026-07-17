@@ -2908,6 +2908,7 @@ function EntityPropertyHeaderCard({
   onSelectProperty,
   onEditEntity,
   onEditProperty,
+  disabled = false,
 }: {
   entities: EntityOption[];
   properties: PropertyOption[];
@@ -2922,6 +2923,7 @@ function EntityPropertyHeaderCard({
   onSelectProperty: (id: string) => void;
   onEditEntity: () => void;
   onEditProperty: () => void;
+  disabled?: boolean;
 }) {
   const entityName =
     entities.find((e) => e.id === activeEntityId)?.name || "Not selected";
@@ -2942,6 +2944,7 @@ function EntityPropertyHeaderCard({
                 ...entities.map((e) => ({ label: e.name, value: e.id })),
               ]}
               onChange={onSelectEntity}
+              disabled={disabled}
             />
           ) : (
             <span>
@@ -2951,7 +2954,7 @@ function EntityPropertyHeaderCard({
           )}
         </div>
         {!isEditingEntity && isEntityLockable && (
-          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity}>
+          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity} disabled={disabled}>
             <EditPencilIcon />
           </button>
         )}
@@ -2969,6 +2972,7 @@ function EntityPropertyHeaderCard({
                 ...properties.map((p) => ({ label: p.name, value: p.id })),
               ]}
               onChange={onSelectProperty}
+              disabled={disabled}
             />
           ) : (
             <span>
@@ -2983,6 +2987,7 @@ function EntityPropertyHeaderCard({
             className="transaction-entity-edit-btn"
             aria-label="Edit property"
             onClick={onEditProperty}
+            disabled={disabled}
           >
             <EditPencilIcon />
           </button>
@@ -3030,6 +3035,7 @@ export function AddTransactionView({
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId ?? "");
   const [entities, setEntities] = useState<EntityOption[]>([]);
+  const [entitiesLoaded, setEntitiesLoaded] = useState(false);
   const [activeEntityId, setActiveEntityId] = useState<string>(entityId ?? "");
   const [isEditingEntity, setIsEditingEntity] = useState<boolean>(!entityId);
 
@@ -3139,29 +3145,37 @@ export function AddTransactionView({
     if (!token) return;
     if (requireClientSelection && !activeClientId) {
       setEntities([]);
+      setEntitiesLoaded(true);
       setActiveEntityId("");
       setIsEditingEntity(true);
       return;
     }
     let cancelled = false;
     async function loadEntities() {
-      const query = activeClientId
-        ? `?client_id=${encodeURIComponent(activeClientId)}`
-        : "";
-      const res = await fetch(`/api/entities${query}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok || cancelled) return;
-      const data = (await res.json()) as { items?: EntityOption[] };
-      if (!cancelled) {
-        const loadedEntities = data.items || [];
-        setEntities(loadedEntities);
-        if (
-          activeEntityId &&
-          !loadedEntities.some((entity) => entity.id === activeEntityId)
-        ) {
-          setActiveEntityId("");
-          setIsEditingEntity(true);
+      setEntitiesLoaded(false);
+      try {
+        const query = activeClientId
+          ? `?client_id=${encodeURIComponent(activeClientId)}`
+          : "";
+        const res = await fetch(`/api/entities${query}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { items?: EntityOption[] };
+        if (!cancelled) {
+          const loadedEntities = data.items || [];
+          setEntities(loadedEntities);
+          if (
+            activeEntityId &&
+            !loadedEntities.some((entity) => entity.id === activeEntityId)
+          ) {
+            setActiveEntityId("");
+            setIsEditingEntity(true);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setEntitiesLoaded(true);
         }
       }
     }
@@ -4196,6 +4210,31 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
+  const isSelectionComplete = !!activeEntityId && (isSplit ? true : !!propertyId);
+  const showSelectionMessage = !isSelectionComplete && (!requireClientSelection || !!activeClientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!tokenLoaded) return null;
+
+    const clientSelectedIfNeeded = !requireClientSelection || !!activeClientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!activeEntityId) {
+      const zeroEntities = entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "Select an entity to proceed";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "Select a property to proceed";
+  }, [isSelectionComplete, tokenLoaded, requireClientSelection, activeClientId, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
+
   return (
     <section className="transactions-page transaction-add-page">
       <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
@@ -4261,6 +4300,17 @@ export function AddTransactionView({
             />
           ) : null}
 
+          {requireClientSelection && !activeClientId && (
+            <p className="transaction-field-error" style={{ marginTop: "-12px", marginBottom: "4px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Select a client to proceed
+            </p>
+          )}
+
           <EntityPropertyHeaderCard
             entities={entities}
             properties={properties}
@@ -4275,9 +4325,22 @@ export function AddTransactionView({
             onSelectProperty={handlePropertyPicked}
             onEditEntity={() => setIsEditingEntity(true)}
             onEditProperty={() => setIsEditingProperty(true)}
+            disabled={requireClientSelection && !activeClientId}
           />
 
-          <div className={"transaction-type-control" + flashClass("type")}>
+          {showSelectionMessage && selectionMessage && (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px", flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{selectionMessage}</span>
+            </div>
+          )}
+
+          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
+            <div className={"transaction-type-control" + flashClass("type")}>
             <span className="transaction-field-label">
               Transaction Type<em>*</em>
             </span>
@@ -4625,6 +4688,7 @@ export function AddTransactionView({
               {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
             </button>
           </div>
+          </fieldset>
         </form>
       </div>
 
@@ -4724,6 +4788,39 @@ function RuleModal({
   const [enabled, setEnabled] = useState(rule?.isEnabled ?? true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [entitiesLoaded, setEntitiesLoaded] = useState(false);
+  const [propertiesLoaded, setPropertiesLoaded] = useState(false);
+
+  const isSelectionComplete = !!entityId && (!propertiesLoaded || properties.length > 0);
+  const showSelectionMessage = !isSelectionComplete && (!!fixedEntityId || !!clientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!token) return null;
+
+    const clientSelectedIfNeeded = fixedEntityId || !!clientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!entityId) {
+      const zeroEntities = !fixedEntityId && entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "Select an entity to proceed";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "Select a property to proceed";
+  }, [isSelectionComplete, token, fixedEntityId, clientId, entitiesLoaded, entities.length, entityId, propertiesLoaded, properties.length]);
+
+  useEffect(() => {
+    if (fixedEntityId) {
+      setEntitiesLoaded(true);
+    }
+  }, [fixedEntityId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4755,8 +4852,9 @@ function RuleModal({
   // Load entities for the selected client.
   useEffect(() => {
     if (fixedEntityId || !token) return;
-    if (!clientId) { setEntities([]); return; }
+    if (!clientId) { setEntities([]); setEntitiesLoaded(true); return; }
     let cancelled = false;
+    setEntitiesLoaded(false);
     fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -4764,7 +4862,10 @@ function RuleModal({
       .then((data: { items?: EntityOption[] } | null) => {
         if (!cancelled && data) setEntities(data.items ?? []);
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setEntitiesLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [fixedEntityId, token, clientId]);
 
@@ -4785,8 +4886,9 @@ function RuleModal({
   }, [fixedEntityId, token, rule?.entityId]);
 
   useEffect(() => {
-    if (!token || !entityId) { setProperties([]); return; }
+    if (!token || !entityId) { setProperties([]); setPropertiesLoaded(false); return; }
     let cancelled = false;
+    setPropertiesLoaded(false);
     fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -4794,7 +4896,10 @@ function RuleModal({
       .then((data: { items?: { id: string; name: string }[] } | null) => {
         if (!cancelled && data) setProperties(data.items ?? []);
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setPropertiesLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [token, entityId]);
 
@@ -4860,6 +4965,7 @@ function RuleModal({
   }
 
   const canSave =
+    isSelectionComplete &&
     Boolean(ruleName.trim()) &&
     Boolean(entityId) &&
     conditions.every((c) => c.field && c.operator && c.value.trim()) &&
@@ -5000,6 +5106,16 @@ function RuleModal({
                 showSearch
                 className="is-full-width"
               />
+              {clients.length > 0 && !clientId && (
+                <p className="transaction-field-error" style={{ marginTop: "6px", marginBottom: "0px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  Select a client to proceed
+                </p>
+              )}
               {clients.length === 0 && (
                 <p style={{ color: "#d92d20", fontSize: "14px", marginTop: "6px", marginBottom: "0px" }}>
                   To create a rule, please add a client to your account first.
@@ -5023,10 +5139,23 @@ function RuleModal({
               value={propertyId}
               options={propertySelectOptions}
               onChange={setPropertyId}
+              disabled={!fixedEntityId && !clientId}
             />
           </div>
 
-          <h3>If</h3>
+          {showSelectionMessage && selectionMessage && (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", marginBottom: "12px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px", flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{selectionMessage}</span>
+            </div>
+          )}
+
+          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
+            <h3>If</h3>
           <section className="rule-condition-card">
             <div className="rule-match-row">
               <span>Match</span>
@@ -5133,6 +5262,7 @@ function RuleModal({
           {saveError && (
             <p className="transaction-warning-card" role="alert">{saveError}</p>
           )}
+          </fieldset>
         </div>
 
         <footer className="transaction-modal-footer">

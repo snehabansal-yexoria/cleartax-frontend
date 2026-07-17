@@ -117,6 +117,17 @@ export default function AddEntityWizard({
   const [savedEntity, setSavedEntity] = useState<CoreEntity | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
+  useEffect(() => {
+    if (saved) {
+      setTimeout(() => {
+        const successLink = document.querySelector(
+          ".entity-success-layer a, .entity-success-layer button"
+        ) as HTMLElement | null;
+        successLink?.focus();
+      }, 0);
+    }
+  }, [saved]);
+
   const totalOwnership = useMemo(
     () =>
       beneficiaries.reduce((sum, row) => {
@@ -417,7 +428,7 @@ export default function AddEntityWizard({
         {step === 1 && (
           <div
             className="entity-wizard-card"
-            onKeyDown={(e) => {
+            onKeyDown={saved ? undefined : (e) => {
               if (e.key === "Enter") {
                 const canContinue = entityType && (entityType !== "trust" || trustType);
                 if (canContinue) {
@@ -506,7 +517,7 @@ export default function AddEntityWizard({
               <button
                 type="button"
                 className="entity-wizard-primary"
-                disabled={!entityType || (entityType === "trust" && !trustType)}
+                disabled={!entityType || (entityType === "trust" && !trustType) || saved}
                 onClick={() => setStep(2)}
               >
                 Continue
@@ -518,7 +529,7 @@ export default function AddEntityWizard({
         {step === 2 && (
           <div
             className="entity-wizard-card"
-            onKeyDown={(e) => {
+            onKeyDown={saved ? undefined : (e) => {
               if (e.key === "Enter" && entityName.trim() && !isSaving) {
                 e.preventDefault();
                 handleNameContinue();
@@ -602,13 +613,14 @@ export default function AddEntityWizard({
                 type="button"
                 className="entity-wizard-link"
                 onClick={() => setStep(1)}
+                disabled={saved}
               >
                 Back
               </button>
               <button
                 type="button"
                 className="entity-wizard-primary"
-                disabled={!entityName.trim() || isSaving}
+                disabled={!entityName.trim() || isSaving || saved}
                 onClick={handleNameContinue}
               >
                 {needsBeneficiaries
@@ -626,7 +638,7 @@ export default function AddEntityWizard({
         {step === 3 && (
           <div
             className="entity-wizard-card"
-            onKeyDown={(e) => {
+            onKeyDown={saved ? undefined : (e) => {
               if (e.key === "Enter" && beneficiariesValid && !isSaving) {
                 e.preventDefault();
                 handleSave();
@@ -716,13 +728,14 @@ export default function AddEntityWizard({
                 type="button"
                 className="entity-wizard-link"
                 onClick={() => setStep(2)}
+                disabled={saved}
               >
                 Back
               </button>
               <button
                 type="button"
                 className="entity-wizard-primary"
-                disabled={!beneficiariesValid || isSaving}
+                disabled={!beneficiariesValid || isSaving || saved}
                 onClick={handleSave}
               >
                 {isSaving
@@ -865,7 +878,7 @@ export default function AddEntityWizard({
                   onChange={(event) => setEntityName(event.target.value)}
                   className="entity-wizard-input"
                   autoFocus
-                  onKeyDown={(e) => {
+                  onKeyDown={saved ? undefined : (e) => {
                     if (e.key === "Enter") {
                       if (needsBeneficiaries) {
                         e.preventDefault();
@@ -930,7 +943,7 @@ export default function AddEntityWizard({
                         onChange={(event) =>
                           updateRow(row.uid, { name: event.target.value })
                         }
-                        onKeyDown={(e) => {
+                        onKeyDown={saved ? undefined : (e) => {
                           if (e.key === "Enter" && entityName.trim() && entityType && beneficiariesValid && !isSaving) {
                             e.preventDefault();
                             handleSave();
@@ -948,7 +961,7 @@ export default function AddEntityWizard({
                           onChange={(event) =>
                             updateRow(row.uid, { percentage: event.target.value })
                           }
-                          onKeyDown={(e) => {
+                          onKeyDown={saved ? undefined : (e) => {
                             if (e.key === "Enter" && entityName.trim() && entityType && beneficiariesValid && !isSaving) {
                               e.preventDefault();
                               handleSave();
@@ -1011,7 +1024,7 @@ export default function AddEntityWizard({
 
             {/* Form Actions (Cancel / Save) */}
             <div className="entity-wizard-actions">
-              <Link href={backHref} className="entity-wizard-btn-cancel">
+              <Link href={backHref} className={`entity-wizard-btn-cancel${saved ? " pointer-events-none opacity-50" : ""}`}>
                 Cancel
               </Link>
               <div className="entity-wizard-btn-group">
@@ -1019,7 +1032,7 @@ export default function AddEntityWizard({
                   <button
                     type="button"
                     className="entity-wizard-btn-secondary"
-                    disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving}
+                    disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving || saved}
                     onClick={handleAddAnother}
                   >
                     Add Another Entity
@@ -1028,7 +1041,7 @@ export default function AddEntityWizard({
                 <button
                   type="button"
                   className="entity-wizard-btn-save"
-                  disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving}
+                  disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving || saved}
                   onClick={handleSave}
                 >
                   {isSaving
