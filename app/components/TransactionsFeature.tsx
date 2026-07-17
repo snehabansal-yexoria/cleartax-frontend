@@ -443,8 +443,11 @@ function StaticSelect({
         )}
       </div>
       {error && (
-        <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
-          {error}
+        <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          <span>{error}</span>
         </p>
       )}
     </div>
@@ -1028,7 +1031,14 @@ function TransactionDetailPopup({
               <span className="skeleton-line skeleton-line-xl" />
             </div>
           ) : null}
-          {error ? <p className="transaction-detail-error">{error}</p> : null}
+          {error ? (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
           <DetailField label="Transaction ID">
             <a>{display.id.slice(0, 8).toUpperCase()}</a>
@@ -1046,7 +1056,14 @@ function TransactionDetailPopup({
 
           {mode === "edit" ? (
             <div className="transaction-detail-edit">
-              {editError ? <p className="transaction-detail-error">{editError}</p> : null}
+              {editError ? (
+                <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span>{editError}</span>
+                </div>
+              ) : null}
               <div className="transaction-type-control">
                 <span className="transaction-field-label">Transaction Type<em>*</em></span>
                 <div>
@@ -1180,10 +1197,8 @@ function TransactionDetailPopup({
                   />
                   {showDateError && (
                     <p className="transaction-field-error">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
                       {invoiceDateError}
                     </p>
@@ -1197,7 +1212,15 @@ function TransactionDetailPopup({
                     step="0.01"
                     min="0.01"
                     value={grossAmount}
-                    onChange={(event) => setGrossAmount(event.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "-" || e.key === "Minus") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const val = event.target.value.replace(/-/g, "");
+                      setGrossAmount(val);
+                    }}
                   />
                 </label>
               </div>
@@ -1218,7 +1241,15 @@ function TransactionDetailPopup({
                     step="0.01"
                     min="0"
                     value={gstAmount}
-                    onChange={(event) => setGstAmount(event.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "-" || e.key === "Minus") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const val = event.target.value.replace(/-/g, "");
+                      setGstAmount(val);
+                    }}
                   />
                 </label>
               ) : null}
@@ -1284,11 +1315,17 @@ function TransactionDetailPopup({
                             step="0.01"
                             min="0.01"
                             value={split.amount}
-                            onChange={(event) =>
+                            onKeyDown={(e) => {
+                              if (e.key === "-" || e.key === "Minus") {
+                                e.preventDefault();
+                              }
+                            }}
+                            onChange={(event) => {
+                              const val = event.target.value.replace(/-/g, "");
                               updateEditSplitRow(split.id, {
-                                amount: event.target.value,
-                              })
-                            }
+                                amount: val,
+                              });
+                            }}
                           />
                           <b>$</b>
                         </span>
@@ -2720,7 +2757,14 @@ function BulkImportModal({
                 {rows.length} row{rows.length === 1 ? "" : "s"} ready to import
               </span>
             ) : null}
-            {error ? <p className="transaction-detail-error">{error}</p> : null}
+            {error ? (
+              <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -4239,7 +4283,7 @@ export function AddTransactionView({
     <section className="transactions-page transaction-add-page">
       <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6" />
+          <path d="M15 18l-6-6 6-6" />
         </svg>
         {backLabel}
       </Link>
@@ -4302,10 +4346,8 @@ export function AddTransactionView({
 
           {requireClientSelection && !activeClientId && (
             <p className="transaction-field-error" style={{ marginTop: "-12px", marginBottom: "4px" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
+              <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               Select a client to proceed
             </p>
@@ -4330,10 +4372,8 @@ export function AddTransactionView({
 
           {showSelectionMessage && selectionMessage && (
             <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px", flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <span>{selectionMessage}</span>
             </div>
@@ -4341,353 +4381,373 @@ export function AddTransactionView({
 
           <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
             <div className={"transaction-type-control" + flashClass("type")}>
-            <span className="transaction-field-label">
-              Transaction Type<em>*</em>
-            </span>
-            <div>
-              <button
-                type="button"
-                className={type === "expense" ? "is-selected" : ""}
-                onClick={() => setType("expense")}
-              >
-                Expense
-              </button>
-              <button
-                type="button"
-                className={
-                  type === "revenue" ? "is-selected is-revenue" : ""
-                }
-                onClick={() => setType("revenue")}
-              >
-                Revenue
-              </button>
-            </div>
-          </div>
-
-          {type === "expense" ? (
-            <div className="transaction-asset-card">
-              <label className="transaction-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={isAssetPurchase}
-                  onChange={(e) => setIsAssetPurchase(e.target.checked)}
-                />
-                <span>Is this an asset purchase?</span>
-              </label>
-              <small>Select if this expense should be depreciated over time</small>
-              {isAssetPurchase ? (
-                <div className="transaction-asset-options">
-                  <label className="transaction-field">
-                    <span className="transaction-field-label">
-                      Purchased Asset
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="e.g., Fridge, AC, dishwasher"
-                      value={assetItemName}
-                      onChange={(e) => setAssetItemName(e.target.value)}
-                    />
-                  </label>
-                  <label className="transaction-radio-card">
-                    <input
-                      type="radio"
-                      checked={assetClass === "capital_allowance"}
-                      onChange={() => setAssetClass("capital_allowance")}
-                    />
-                    <span>
-                      <b>Capital Allowance</b>
-                      <small>Depreciate assets over their effective life</small>
-                    </span>
-                  </label>
-                  {assetClass === "capital_allowance" ? (
-                    <label className="transaction-field">
-                      <span className="transaction-field-label">
-                        Effective life (years)<em>*</em>
-                      </span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        min="0"
-                        placeholder="Select years"
-                        value={effectiveLifeYears}
-                        onChange={(e) => setEffectiveLifeYears(e.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                  <label className="transaction-radio-card">
-                    <input
-                      type="radio"
-                      checked={assetClass === "capital_works"}
-                      onChange={() => setAssetClass("capital_works")}
-                    />
-                    <span>
-                      <b>Capital Works</b>
-                      <small>Fixed depreciation period for capital improvements</small>
-                    </span>
-                  </label>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="transaction-form-grid">
-            <StaticSelect
-              label="Category"
-              required
-              value={categoryId == null ? "" : String(categoryId)}
-              options={categorySelectOptions}
-              onChange={(value) => setCategoryId(value ? Number(value) : null)}
-              disabled={lockAssetPurchaseCategory}
-            />
-            {showSubcategorySelect && (
-              <div className="transaction-field-animate">
-                <StaticSelect
-                  label="Sub-Category"
-                  required
-                  value={subcategoryId == null ? "" : String(subcategoryId)}
-                  options={subcategorySelectOptions}
-                  onChange={(value) =>
-                    setSubcategoryId(value ? Number(value) : null)
-                  }
-                  disabled={lockAssetPurchaseCategory}
-                />
-              </div>
-            )}
-            <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
               <span className="transaction-field-label">
-                Invoice Date<em>*</em>
+                Transaction Type<em>*</em>
               </span>
-              <input
-                type="date"
-                value={invoiceDate}
-                max="9999-12-31"
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const yearPart = val.split("-")[0];
-                  if (yearPart && yearPart.length > 4) {
-                    return;
-                  }
-                  setInvoiceDate(val);
-                  setInvoiceDateTouched(true);
-                }}
-                onBlur={() => setInvoiceDateTouched(true)}
-              />
-              {showDateError && (
-                <p className="transaction-field-error">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  {invoiceDateError}
-                </p>
-              )}
-            </label>
-            <label className={"transaction-field" + flashClass("grossAmount")}>
-              <span className="transaction-field-label">
-                Amount<em>*</em>
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0.01"
-                placeholder="0.00"
-                value={grossAmount}
-                onChange={(e) => setGrossAmount(e.target.value)}
-              />
-            </label>
-          </div>
-
-          <label className="transaction-checkbox-row">
-            <input
-              type="checkbox"
-              checked={showGstBreakdown}
-              onChange={(e) => setShowGstBreakdown(e.target.checked)}
-            />
-            <span>Add GST Breakdown</span>
-          </label>
-
-          {showGstBreakdown ? (
-            <label className={"transaction-field" + flashClass("gstAmount")}>
-              <span className="transaction-field-label">
-                GST Amount<em>*</em>
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={gstAmount}
-                onChange={(e) => setGstAmount(e.target.value)}
-              />
-            </label>
-          ) : null}
-
-          <label className="transaction-checkbox-row">
-            <input
-              type="checkbox"
-              checked={isSplit}
-              onChange={(e) => handleSplitToggle(e.target.checked)}
-            />
-            <span>Is this a split transaction?</span>
-          </label>
-
-          {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-            <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
-              {submitError}
-            </p>
-          ) : null}
-
-          {isSplit ? (
-            <div className="transaction-split-section">
-              {splitRows.map((row, index) => {
-                const rowError = splitErrors[row.id];
-                const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
-
-                return (
-                  <div key={row.id} className="transaction-split-row">
-                    <StaticSelect
-                      label={index === 0 ? "Property Name" : undefined}
-                      required
-                      value={row.propertyId}
-                      options={[
-                        { label: "Select Property", value: "" },
-                        ...splitPropertyBaseOptions,
-                      ]}
-                      onChange={(value) =>
-                        updateSplitRow(row.id, { propertyId: value })
-                      }
-                      error={propertyError}
-                    />
-                    <label className="transaction-field">
-                      {index === 0 ? (
-                        <span className="transaction-field-label">
-                          Amount<em>*</em>
-                        </span>
-                      ) : null}
-                      <span className="transaction-money-input">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0.01"
-                          placeholder="0.00"
-                          value={row.amount}
-                          onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === "Minus") {
-                              e.preventDefault();
-                            }
-                          }}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/-/g, "");
-                            updateSplitRow(row.id, { amount: val });
-                          }}
-                        />
-                        <b>A$</b>
-                      </span>
-                      {amountError && (
-                        <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
-                          {amountError}
-                        </p>
-                      )}
-                    </label>
-                    <button
-                      type="button"
-                      className="transaction-split-remove"
-                      aria-label="Remove split row"
-                      disabled={splitRows.length <= 1}
-                      onClick={() => removeSplitRow(row.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                );
-              })}
-              {splitErrors.__form ? (
-                <p className="transaction-split-row-error">
-                  {splitErrors.__form}
-                </p>
-              ) : null}
-              <div className="transaction-split-footer">
-                <span
-                  className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
-                    }`}
-                >
-                  {grossAmount && !Number.isNaN(grossNumberValue)
-                    ? `Split total: ${splitTotal.toFixed(
-                      2,
-                    )} of ${grossNumberValue.toFixed(2)}`
-                    : "Enter the total amount above to validate splits."}
-                </span>
+              <div>
                 <button
                   type="button"
-                  className="transaction-split-add"
-                  onClick={addSplitRow}
-                  disabled={properties.length < 2}
+                  className={type === "expense" ? "is-selected" : ""}
+                  onClick={() => setType("expense")}
                 >
-                  + Add Property
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={
+                    type === "revenue" ? "is-selected is-revenue" : ""
+                  }
+                  onClick={() => setType("revenue")}
+                >
+                  Revenue
                 </button>
               </div>
             </div>
-          ) : null}
 
-          {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-            <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
-              {submitError}
-            </p>
-          ) : null}
+            {type === "expense" ? (
+              <div className="transaction-asset-card">
+                <label className="transaction-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={isAssetPurchase}
+                    onChange={(e) => setIsAssetPurchase(e.target.checked)}
+                  />
+                  <span>Is this an asset purchase?</span>
+                </label>
+                <small>Select if this expense should be depreciated over time</small>
+                {isAssetPurchase ? (
+                  <div className="transaction-asset-options">
+                    <label className="transaction-field">
+                      <span className="transaction-field-label">
+                        Purchased Asset
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="e.g., Fridge, AC, dishwasher"
+                        value={assetItemName}
+                        onChange={(e) => setAssetItemName(e.target.value)}
+                      />
+                    </label>
+                    <label className="transaction-radio-card">
+                      <input
+                        type="radio"
+                        checked={assetClass === "capital_allowance"}
+                        onChange={() => setAssetClass("capital_allowance")}
+                      />
+                      <span>
+                        <b>Capital Allowance</b>
+                        <small>Depreciate assets over their effective life</small>
+                      </span>
+                    </label>
+                    {assetClass === "capital_allowance" ? (
+                      <label className="transaction-field">
+                        <span className="transaction-field-label">
+                          Effective life (years)<em>*</em>
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.1"
+                          min="0"
+                          placeholder="Select years"
+                          value={effectiveLifeYears}
+                          onChange={(e) => setEffectiveLifeYears(e.target.value)}
+                        />
+                      </label>
+                    ) : null}
+                    <label className="transaction-radio-card">
+                      <input
+                        type="radio"
+                        checked={assetClass === "capital_works"}
+                        onChange={() => setAssetClass("capital_works")}
+                      />
+                      <span>
+                        <b>Capital Works</b>
+                        <small>Fixed depreciation period for capital improvements</small>
+                      </span>
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
-          <StaticSelect
-            label="Mode of Transaction"
-            required
-            value={modeOfTransaction}
-            options={MODE_OF_TRANSACTION_OPTIONS}
-            onChange={setModeOfTransaction}
-          />
+            <div className="transaction-form-grid">
+              <StaticSelect
+                label="Category"
+                required
+                value={categoryId == null ? "" : String(categoryId)}
+                options={categorySelectOptions}
+                onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                disabled={lockAssetPurchaseCategory}
+              />
+              {showSubcategorySelect && (
+                <div className="transaction-field-animate">
+                  <StaticSelect
+                    label="Sub-Category"
+                    required
+                    value={subcategoryId == null ? "" : String(subcategoryId)}
+                    options={subcategorySelectOptions}
+                    onChange={(value) =>
+                      setSubcategoryId(value ? Number(value) : null)
+                    }
+                    disabled={lockAssetPurchaseCategory}
+                  />
+                </div>
+              )}
+              <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
+                <span className="transaction-field-label">
+                  Invoice Date<em>*</em>
+                </span>
+                <input
+                  type="date"
+                  value={invoiceDate}
+                  max="9999-12-31"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const yearPart = val.split("-")[0];
+                    if (yearPart && yearPart.length > 4) {
+                      return;
+                    }
+                    setInvoiceDate(val);
+                    setInvoiceDateTouched(true);
+                  }}
+                  onBlur={() => setInvoiceDateTouched(true)}
+                />
+                {showDateError && (
+                  <p className="transaction-field-error">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    {invoiceDateError}
+                  </p>
+                )}
+              </label>
+              <label className={"transaction-field" + flashClass("grossAmount")}>
+                <span className="transaction-field-label">
+                  Amount<em>*</em>
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  value={grossAmount}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === "Minus") {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/-/g, "");
+                    setGrossAmount(val);
+                  }}
+                />
+              </label>
+            </div>
 
-          <label className={"transaction-field" + flashClass("description")}>
-            <span className="transaction-field-label">Description</span>
-            <textarea
-              placeholder="Add description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+            <label className="transaction-checkbox-row">
+              <input
+                type="checkbox"
+                checked={showGstBreakdown}
+                onChange={(e) => setShowGstBreakdown(e.target.checked)}
+              />
+              <span>Add GST Breakdown</span>
+            </label>
+
+            {showGstBreakdown ? (
+              <label className={"transaction-field" + flashClass("gstAmount")}>
+                <span className="transaction-field-label">
+                  GST Amount<em>*</em>
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={gstAmount}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === "Minus") {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/-/g, "");
+                    setGstAmount(val);
+                  }}
+                />
+              </label>
+            ) : null}
+
+            <label className="transaction-checkbox-row">
+              <input
+                type="checkbox"
+                checked={isSplit}
+                onChange={(e) => handleSplitToggle(e.target.checked)}
+              />
+              <span>Is this a split transaction?</span>
+            </label>
+
+            {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
+              <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
+                {submitError}
+              </p>
+            ) : null}
+
+            {isSplit ? (
+              <div className="transaction-split-section">
+                {splitRows.map((row, index) => {
+                  const rowError = splitErrors[row.id];
+                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                  return (
+                    <div key={row.id} className="transaction-split-row">
+                      <StaticSelect
+                        label={index === 0 ? "Property Name" : undefined}
+                        required
+                        value={row.propertyId}
+                        options={[
+                          { label: "Select Property", value: "" },
+                          ...splitPropertyBaseOptions,
+                        ]}
+                        onChange={(value) =>
+                          updateSplitRow(row.id, { propertyId: value })
+                        }
+                        error={propertyError}
+                      />
+                      <label className="transaction-field">
+                        {index === 0 ? (
+                          <span className="transaction-field-label">
+                            Amount<em>*</em>
+                          </span>
+                        ) : null}
+                        <span className="transaction-money-input">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="0.00"
+                            value={row.amount}
+                            onKeyDown={(e) => {
+                              if (e.key === "-" || e.key === "Minus") {
+                                e.preventDefault();
+                              }
+                            }}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/-/g, "");
+                              updateSplitRow(row.id, { amount: val });
+                            }}
+                          />
+                          <b>A$</b>
+                        </span>
+                        {amountError && (
+                          <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                            </svg>
+                            <span>{amountError}</span>
+                          </p>
+                        )}
+                      </label>
+                      <button
+                        type="button"
+                        className="transaction-split-remove"
+                        aria-label="Remove split row"
+                        disabled={splitRows.length <= 1}
+                        onClick={() => removeSplitRow(row.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+                {splitErrors.__form ? (
+                  <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{splitErrors.__form}</span>
+                  </p>
+                ) : null}
+                <div className="transaction-split-footer">
+                  <span
+                    className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
+                      }`}
+                  >
+                    {grossAmount && !Number.isNaN(grossNumberValue)
+                      ? `Split total: ${splitTotal.toFixed(
+                        2,
+                      )} of ${grossNumberValue.toFixed(2)}`
+                      : "Enter the total amount above to validate splits."}
+                  </span>
+                  <button
+                    type="button"
+                    className="transaction-split-add"
+                    onClick={addSplitRow}
+                    disabled={properties.length < 2}
+                  >
+                    + Add Property
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
+              <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
+                {submitError}
+              </p>
+            ) : null}
+
+            <StaticSelect
+              label="Mode of Transaction"
+              required
+              value={modeOfTransaction}
+              options={MODE_OF_TRANSACTION_OPTIONS}
+              onChange={setModeOfTransaction}
             />
-          </label>
 
-          <label
-            className={"transaction-field" + flashClass("internalRemarks")}
-          >
-            <span className="transaction-field-label">Add Internal Remarks</span>
-            <input
-              type="text"
-              placeholder="Add Remarks"
-              value={internalRemarks}
-              onChange={(e) => setInternalRemarks(e.target.value)}
-            />
-          </label>
+            <label className={"transaction-field" + flashClass("description")}>
+              <span className="transaction-field-label">Description</span>
+              <textarea
+                placeholder="Add description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </label>
 
-          {submitError && !submitError.toLowerCase().includes("split") ? (
-            <p className="transaction-warning-card" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-
-          <div className="transaction-form-actions">
-            <Link href={effectiveBackHref} className="transaction-cancel-button">
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              className="transaction-save-button"
-              disabled={!canSubmit || isSubmitting}
+            <label
+              className={"transaction-field" + flashClass("internalRemarks")}
             >
-              {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
-            </button>
-          </div>
+              <span className="transaction-field-label">Add Internal Remarks</span>
+              <input
+                type="text"
+                placeholder="Add Remarks"
+                value={internalRemarks}
+                onChange={(e) => setInternalRemarks(e.target.value)}
+              />
+            </label>
+
+            {submitError && !submitError.toLowerCase().includes("split") ? (
+              <p className="transaction-warning-card" role="alert">
+                {submitError}
+              </p>
+            ) : null}
+
+            <div className="transaction-form-actions">
+              <Link href={effectiveBackHref} className="transaction-cancel-button">
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                className="transaction-save-button"
+                disabled={!canSubmit || isSubmitting}
+              >
+                {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
+              </button>
+            </div>
           </fieldset>
         </form>
       </div>
@@ -5108,10 +5168,8 @@ function RuleModal({
               />
               {clients.length > 0 && !clientId && (
                 <p className="transaction-field-error" style={{ marginTop: "6px", marginBottom: "0px" }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                   </svg>
                   Select a client to proceed
                 </p>
@@ -5145,10 +5203,8 @@ function RuleModal({
 
           {showSelectionMessage && selectionMessage && (
             <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", marginBottom: "12px" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px", flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <span>{selectionMessage}</span>
             </div>
@@ -5156,112 +5212,112 @@ function RuleModal({
 
           <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
             <h3>If</h3>
-          <section className="rule-condition-card">
-            <div className="rule-match-row">
-              <span>Match</span>
-              <StaticSelect
-                value={matchMode}
-                options={[
-                  { label: "All", value: "all" },
-                  { label: "Any", value: "any" },
-                ]}
-                onChange={setMatchMode}
-                className="is-mini"
-              />
-              <span>of the following:</span>
-            </div>
-            {conditions.map((cond, idx) => (
-              <div key={cond.id} className={`rule-condition-row${conditions.length > 1 ? " has-remove-button" : ""}`}>
+            <section className="rule-condition-card">
+              <div className="rule-match-row">
+                <span>Match</span>
                 <StaticSelect
-                  value={cond.field}
-                  options={fieldSelectOptions}
-                  onChange={(v) => updateCondition(cond.id, { field: v })}
+                  value={matchMode}
+                  options={[
+                    { label: "All", value: "all" },
+                    { label: "Any", value: "any" },
+                  ]}
+                  onChange={setMatchMode}
+                  className="is-mini"
                 />
-                <StaticSelect
-                  value={cond.operator}
-                  options={operatorSelectOptions}
-                  onChange={(v) => updateCondition(cond.id, { operator: v })}
-                />
-                <input
-                  type="text"
-                  placeholder="Enter value"
-                  value={cond.value}
-                  onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
-                />
-                {conditions.length > 1 && (
-                  <button
-                    type="button"
-                    className="rule-condition-remove-btn"
-                    aria-label={`Remove condition ${idx + 1}`}
-                    onClick={() => removeCondition(cond.id)}
-                    title="Remove condition"
-                  >
-                    <TrashIcon />
-                  </button>
-                )}
+                <span>of the following:</span>
               </div>
-            ))}
-            <button type="button" className="rule-add-condition" onClick={addCondition}>
-              + Add a condition
-            </button>
-          </section>
-
-          <h3>Then Assign</h3>
-          <div className="transaction-type-control">
-            <span className="transaction-field-label">Transaction Type<em>*</em></span>
-            <div>
-              <button
-                type="button"
-                className={assignedType === "expense" ? "is-selected" : ""}
-                onClick={() => { setAssignedType("expense"); setCategoryId(""); setSubcategoryId(""); }}
-              >
-                Expense
+              {conditions.map((cond, idx) => (
+                <div key={cond.id} className={`rule-condition-row${conditions.length > 1 ? " has-remove-button" : ""}`}>
+                  <StaticSelect
+                    value={cond.field}
+                    options={fieldSelectOptions}
+                    onChange={(v) => updateCondition(cond.id, { field: v })}
+                  />
+                  <StaticSelect
+                    value={cond.operator}
+                    options={operatorSelectOptions}
+                    onChange={(v) => updateCondition(cond.id, { operator: v })}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter value"
+                    value={cond.value}
+                    onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
+                  />
+                  {conditions.length > 1 && (
+                    <button
+                      type="button"
+                      className="rule-condition-remove-btn"
+                      aria-label={`Remove condition ${idx + 1}`}
+                      onClick={() => removeCondition(cond.id)}
+                      title="Remove condition"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="rule-add-condition" onClick={addCondition}>
+                + Add a condition
               </button>
-              <button
-                type="button"
-                className={assignedType === "revenue" ? "is-selected is-revenue" : ""}
-                onClick={() => { setAssignedType("revenue"); setCategoryId(""); setSubcategoryId(""); }}
-              >
-                Revenue
-              </button>
-            </div>
-          </div>
-          <StaticSelect
-            label="Category"
-            required
-            value={categoryId}
-            options={categorySelectOptions}
-            onChange={(v) => { setCategoryId(v); setSubcategoryId(""); }}
-          />
-          {showSubcategorySelect && (
-            <div className="transaction-field-animate">
-              <StaticSelect
-                label="Sub Category"
-                required
-                value={subcategoryId}
-                options={subcategorySelectOptions}
-                onChange={setSubcategoryId}
-              />
-            </div>
-          )}
+            </section>
 
-          <ToggleCard
-            checked={autoConfirm}
-            onChange={setAutoConfirm}
-            title="Automatically confirm transactions this rule applies to"
-            subtitle="If disabled, the rule will suggest the category but require manual confirmation"
-          />
-          <ToggleCard
-            checked={enabled}
-            onChange={setEnabled}
-            title="Enable this rule"
-            subtitle="If disabled, the rule will not be applied to transactions"
-            green
-          />
+            <h3>Then Assign</h3>
+            <div className="transaction-type-control">
+              <span className="transaction-field-label">Transaction Type<em>*</em></span>
+              <div>
+                <button
+                  type="button"
+                  className={assignedType === "expense" ? "is-selected" : ""}
+                  onClick={() => { setAssignedType("expense"); setCategoryId(""); setSubcategoryId(""); }}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={assignedType === "revenue" ? "is-selected is-revenue" : ""}
+                  onClick={() => { setAssignedType("revenue"); setCategoryId(""); setSubcategoryId(""); }}
+                >
+                  Revenue
+                </button>
+              </div>
+            </div>
+            <StaticSelect
+              label="Category"
+              required
+              value={categoryId}
+              options={categorySelectOptions}
+              onChange={(v) => { setCategoryId(v); setSubcategoryId(""); }}
+            />
+            {showSubcategorySelect && (
+              <div className="transaction-field-animate">
+                <StaticSelect
+                  label="Sub Category"
+                  required
+                  value={subcategoryId}
+                  options={subcategorySelectOptions}
+                  onChange={setSubcategoryId}
+                />
+              </div>
+            )}
 
-          {saveError && (
-            <p className="transaction-warning-card" role="alert">{saveError}</p>
-          )}
+            <ToggleCard
+              checked={autoConfirm}
+              onChange={setAutoConfirm}
+              title="Automatically confirm transactions this rule applies to"
+              subtitle="If disabled, the rule will suggest the category but require manual confirmation"
+            />
+            <ToggleCard
+              checked={enabled}
+              onChange={setEnabled}
+              title="Enable this rule"
+              subtitle="If disabled, the rule will not be applied to transactions"
+              green
+            />
+
+            {saveError && (
+              <p className="transaction-warning-card" role="alert">{saveError}</p>
+            )}
           </fieldset>
         </div>
 
@@ -5418,7 +5474,7 @@ export function TransactionRulesView({
     <section className="transactions-page transaction-rules-page">
       <Link href={backHref} className="entity-wizard-back transaction-back-link">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6" />
+          <path d="M15 18l-6-6 6-6" />
         </svg>
         Back to transactions
       </Link>
