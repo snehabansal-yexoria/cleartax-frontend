@@ -576,7 +576,7 @@ function TransactionDetailPopup({
   onEdit: () => void;
   onCancelEdit: () => void;
   onSave: (body: Record<string, unknown>) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete: () => void;
 }) {
   const [description, setDescription] = useState(row.description || "");
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
@@ -641,6 +641,69 @@ function TransactionDetailPopup({
 
   const [editError, setEditError] = useState("");
   const [isOpeningInvoice, setIsOpeningInvoice] = useState(false);
+  const [pendingExitAction, setPendingExitAction] = useState<"cancel" | "close" | null>(null);
+
+  const hasChanges = useMemo(() => {
+    if (mode !== "edit") return false;
+    const initial = detail ? transactionDetailToRow(detail, row) : row;
+    
+    if ((description || "") !== (initial.description || "")) return true;
+    if ((internalRemarks || "") !== (initial.internalRemarks || "")) return true;
+    if (reviewStatus !== initial.reviewStatus) return true;
+    if (isAssetPurchase !== initial.isAssetPurchase) return true;
+    if (type !== initial.type) return true;
+    if (categoryId !== initial.categoryId) return true;
+    if (subcategoryId !== initial.subcategoryId) return true;
+    if (invoiceDate !== (initial.invoiceDate?.slice(0, 10) || "")) return true;
+    if (grossAmount !== String(initial.grossAmount || "")) return true;
+    if (gstAmount !== String(initial.gstAmount || "")) return true;
+    
+    const initialMode = typeof initial.metadata.mode_of_transaction === "string" ? initial.metadata.mode_of_transaction : "";
+    if (modeOfTransaction !== initialMode) return true;
+    
+    const initialAssetName = typeof initial.metadata.asset_item_name === "string" ? initial.metadata.asset_item_name : "";
+    if (assetItemName !== initialAssetName) return true;
+    
+    if ((assetClass || "") !== (initial.assetClass || "")) return true;
+    
+    const initialLife = initial.effectiveLifeYears == null ? "" : String(initial.effectiveLifeYears);
+    if (effectiveLifeYears !== initialLife) return true;
+    
+    const initialSplits = detail?.splits || [];
+    if (isSplit !== (initialSplits.length > 1)) return true;
+    
+    if (editSplitRows.length !== (initialSplits.length || 1)) return true;
+    for (let i = 0; i < editSplitRows.length; i++) {
+      const editRow = editSplitRows[i];
+      if (initialSplits.length > 0) {
+        const initSplit = initialSplits[i];
+        if (editRow.propertyId !== initSplit.propertyId) return true;
+        if (editRow.amount !== String(initSplit.splitGrossAmount || "")) return true;
+      } else {
+        const initPropId = initial.propertyIds[0] || "";
+        if (editRow.propertyId !== initPropId) return true;
+        if (editRow.amount !== String(initial.grossAmount || "")) return true;
+      }
+    }
+    
+    return false;
+  }, [
+    mode, detail, row, description, internalRemarks, reviewStatus, isAssetPurchase,
+    type, categoryId, subcategoryId, invoiceDate, grossAmount, gstAmount,
+    modeOfTransaction, assetItemName, assetClass, effectiveLifeYears, isSplit, editSplitRows
+  ]);
+
+  function handleAttemptExit(action: "cancel" | "close") {
+    if (hasChanges) {
+      setPendingExitAction(action);
+    } else {
+      if (action === "cancel") {
+        onCancelEdit();
+      } else {
+        onClose();
+      }
+    }
+  }
 
   useEffect(() => {
     const source = detail ? transactionDetailToRow(detail, row) : row;
@@ -1013,12 +1076,12 @@ function TransactionDetailPopup({
         type="button"
         className="transaction-modal-backdrop"
         aria-label="Close transaction details"
-        onClick={onClose}
+        onClick={() => handleAttemptExit("close")}
       />
       <section className="transaction-detail-modal" aria-label="Transaction Details">
         <header className="transaction-detail-header">
           <h2>Transaction Details</h2>
-          <button type="button" aria-label="Close transaction details" onClick={onClose}>
+          <button type="button" aria-label="Close transaction details" onClick={() => handleAttemptExit("close")}>
             <CloseIcon />
           </button>
         </header>
@@ -1558,7 +1621,7 @@ function TransactionDetailPopup({
               <button
                 type="button"
                 className="transaction-cancel-button"
-                onClick={onCancelEdit}
+                onClick={() => handleAttemptExit("cancel")}
                 disabled={isSaving}
               >
                 Cancel
@@ -1598,6 +1661,25 @@ function TransactionDetailPopup({
           )}
         </footer>
       </section>
+      {pendingExitAction && (
+        <ConfirmationDialog
+          title="Discard Changes"
+          message="You have unsaved changes. Are you sure you want to discard them and exit?"
+          confirmLabel="Yes, Discard"
+          cancelLabel="No, Keep Editing"
+          onConfirm={() => {
+            const action = pendingExitAction;
+            setPendingExitAction(null);
+            if (action === "cancel") {
+              onCancelEdit();
+            } else {
+              onClose();
+            }
+          }}
+          onCancel={() => setPendingExitAction(null)}
+          isDanger={false}
+        />
+      )}
     </div>
   );
 }
@@ -2097,6 +2179,7 @@ export function AllTransactionsView({
   const [isDetailSaving, setIsDetailSaving] = useState(false);
   const [isDetailDeleting, setIsDetailDeleting] = useState(false);
   const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
+  const [transactionToDelete, setTransactionToDelete] = useState<DisplayTransactionRow | null>(null);
   const contextKind = context.kind;
   const contextId =
     context.kind === "client"
@@ -2413,13 +2496,12 @@ export function AllTransactionsView({
     }
   }
 
-  async function deleteTransaction(row = selectedTransaction) {
+  function deleteTransaction(row = selectedTransaction) {
     if (!row) return;
-    const confirmed = window.confirm(
-      "Delete this transaction? This action cannot be undone.",
-    );
-    if (!confirmed) return;
+    setTransactionToDelete(row);
+  }
 
+  async function performDeleteTransaction(row: DisplayTransactionRow) {
     setDetailError("");
     setIsDetailDeleting(true);
     try {
@@ -2602,6 +2684,21 @@ export function AllTransactionsView({
           onDelete={() => deleteTransaction()}
         />
       ) : null}
+      {transactionToDelete && (
+        <ConfirmationDialog
+          title="Delete Transaction"
+          message="Are you sure you want to delete this transaction? This action is permanent and cannot be undone."
+          confirmLabel="Yes, Delete"
+          cancelLabel="No, Keep Transaction"
+          onConfirm={() => {
+            const row = transactionToDelete;
+            setTransactionToDelete(null);
+            performDeleteTransaction(row);
+          }}
+          onCancel={() => setTransactionToDelete(null)}
+          isDanger={true}
+        />
+      )}
     </section>
   );
 }
@@ -4092,7 +4189,7 @@ export function AddTransactionView({
         }
       } else {
         if (!propertyId) {
-          setSubmitError("Please select a property.");
+          setSubmitError("A property must be selected to continue.");
           return;
         }
         splits = [{ property_id: propertyId, split_percentage: 100 }];
@@ -4269,14 +4366,14 @@ export function AddTransactionView({
       if (zeroEntities) {
         return "Add an entity to proceed";
       }
-      return "Select an entity to proceed";
+      return "An entity must be selected to continue.";
     }
 
     const zeroProperties = propertiesLoaded && properties.length === 0;
     if (zeroProperties) {
       return "Add a property to proceed";
     }
-    return "Select a property to proceed";
+    return "A property must be selected to continue.";
   }, [isSelectionComplete, tokenLoaded, requireClientSelection, activeClientId, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
 
   return (
@@ -4349,7 +4446,7 @@ export function AddTransactionView({
               <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="white">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
-              Select a client to proceed
+              A client must be selected to continue.
             </p>
           )}
 
@@ -4866,14 +4963,14 @@ function RuleModal({
       if (zeroEntities) {
         return "Add an entity to proceed";
       }
-      return "Select an entity to proceed";
+      return "An entity must be selected to continue.";
     }
 
     const zeroProperties = propertiesLoaded && properties.length === 0;
     if (zeroProperties) {
       return "Add a property to proceed";
     }
-    return "Select a property to proceed";
+    return "A property must be selected to continue.";
   }, [isSelectionComplete, token, fixedEntityId, clientId, entitiesLoaded, entities.length, entityId, propertiesLoaded, properties.length]);
 
   useEffect(() => {
@@ -5171,7 +5268,7 @@ function RuleModal({
                   <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                   </svg>
-                  Select a client to proceed
+                  A client must be selected to continue.
                 </p>
               )}
               {clients.length === 0 && (
@@ -5604,3 +5701,93 @@ export function TransactionRulesView({
     </section>
   );
 }
+
+interface ConfirmationDialogProps {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDanger?: boolean;
+}
+
+function ConfirmationDialog({
+  title,
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+  isDanger = false,
+}: ConfirmationDialogProps) {
+  return (
+    <div className="transaction-modal-layer" style={{ zIndex: 9999 }}>
+      <div
+        className="transaction-modal-backdrop"
+        style={{
+          background: "rgba(15, 23, 42, 0.4)",
+          cursor: "default",
+        }}
+      />
+      <div
+        className="transaction-detail-modal"
+        style={{
+          width: "min(100%, 380px)",
+          padding: "24px",
+          gap: "16px",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: "12px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+            {title}
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#475569" }}>
+            {message}
+          </p>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
+          <button
+            type="button"
+            className="transaction-cancel-button"
+            onClick={onCancel}
+            style={{
+              minWidth: "auto",
+              minHeight: "36px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 800,
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            className={isDanger ? "transaction-detail-delete-button" : "transaction-detail-edit-button"}
+            onClick={onConfirm}
+            style={{
+              minWidth: "auto",
+              minHeight: "36px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 800,
+              borderRadius: "8px",
+              cursor: "pointer",
+              boxShadow: "none",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
