@@ -277,11 +277,11 @@ function StaticSelect({
 
   const filteredOptions = showSearch
     ? options.filter(
-        (option) =>
-          option.label.toLowerCase().includes(localSearch.toLowerCase()) ||
-          option.value === "all" ||
-          option.value === "",
-      )
+      (option) =>
+        option.label.toLowerCase().includes(localSearch.toLowerCase()) ||
+        option.value === "all" ||
+        option.value === "",
+    )
     : options;
 
   return (
@@ -903,9 +903,17 @@ function TransactionDetailPopup({
       setEditError(invoiceDateError);
       return;
     }
-    if (Number.isNaN(grossNum) || grossNum <= 0) {
-      setEditError("Amount must be a positive number.");
-      return;
+    const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
+    if (!allBlank) {
+      if (Number.isNaN(grossNum) || grossNum <= 0) {
+        setEditError("Amount must be a positive number.");
+        return;
+      }
+    } else {
+      if (!Number.isNaN(grossNum) && grossNum <= 0) {
+        setEditError("Amount must be a positive number.");
+        return;
+      }
     }
     let gstNum: number | null = null;
     if (showGstBreakdown && gstAmount) {
@@ -939,7 +947,7 @@ function TransactionDetailPopup({
       (sum, split) => sum + (Number.parseFloat(split.amount) || 0),
       0,
     );
-    if (isSplit && Math.abs(splitTotal - grossNum) >= 0.01) {
+    if (isSplit && !allBlank && Math.abs(splitTotal - grossNum) >= 0.01) {
       setEditError(`Split amounts must total ${grossNum.toFixed(2)}.`);
       return;
     }
@@ -952,21 +960,23 @@ function TransactionDetailPopup({
       return;
     }
     const splits = isSplit
-      ? selectedSplits.map((split) => {
-        const amount = Number.parseFloat(split.amount);
-        return {
-          property_id: split.propertyId,
-          split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
-          split_gross_amount: Number(amount.toFixed(2)),
-        };
-      })
+      ? (allBlank
+        ? selectedSplits.map((split) => ({ property_id: split.propertyId }))
+        : selectedSplits.map((split) => {
+          const amount = Number.parseFloat(split.amount);
+          return {
+            property_id: split.propertyId,
+            split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
+            split_gross_amount: Number(amount.toFixed(2)),
+          };
+        }))
       : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
       subcategory_id: subcategoryId,
       invoice_date: invoiceDate,
-      gross_amount: grossNum,
+      gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
       internal_remarks: internalRemarks.trim() || null,
       review_status: reviewStatus,
@@ -2898,6 +2908,7 @@ function EntityPropertyHeaderCard({
   onSelectProperty,
   onEditEntity,
   onEditProperty,
+  disabled = false,
 }: {
   entities: EntityOption[];
   properties: PropertyOption[];
@@ -2912,6 +2923,7 @@ function EntityPropertyHeaderCard({
   onSelectProperty: (id: string) => void;
   onEditEntity: () => void;
   onEditProperty: () => void;
+  disabled?: boolean;
 }) {
   const entityName =
     entities.find((e) => e.id === activeEntityId)?.name || "Not selected";
@@ -2932,6 +2944,7 @@ function EntityPropertyHeaderCard({
                 ...entities.map((e) => ({ label: e.name, value: e.id })),
               ]}
               onChange={onSelectEntity}
+              disabled={disabled}
             />
           ) : (
             <span>
@@ -2941,7 +2954,7 @@ function EntityPropertyHeaderCard({
           )}
         </div>
         {!isEditingEntity && isEntityLockable && (
-          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity}>
+          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity} disabled={disabled}>
             <EditPencilIcon />
           </button>
         )}
@@ -2959,6 +2972,7 @@ function EntityPropertyHeaderCard({
                 ...properties.map((p) => ({ label: p.name, value: p.id })),
               ]}
               onChange={onSelectProperty}
+              disabled={disabled}
             />
           ) : (
             <span>
@@ -2973,6 +2987,7 @@ function EntityPropertyHeaderCard({
             className="transaction-entity-edit-btn"
             aria-label="Edit property"
             onClick={onEditProperty}
+            disabled={disabled}
           >
             <EditPencilIcon />
           </button>
@@ -3020,6 +3035,7 @@ export function AddTransactionView({
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId ?? "");
   const [entities, setEntities] = useState<EntityOption[]>([]);
+  const [entitiesLoaded, setEntitiesLoaded] = useState(false);
   const [activeEntityId, setActiveEntityId] = useState<string>(entityId ?? "");
   const [isEditingEntity, setIsEditingEntity] = useState<boolean>(!entityId);
 
@@ -3129,29 +3145,37 @@ export function AddTransactionView({
     if (!token) return;
     if (requireClientSelection && !activeClientId) {
       setEntities([]);
+      setEntitiesLoaded(true);
       setActiveEntityId("");
       setIsEditingEntity(true);
       return;
     }
     let cancelled = false;
     async function loadEntities() {
-      const query = activeClientId
-        ? `?client_id=${encodeURIComponent(activeClientId)}`
-        : "";
-      const res = await fetch(`/api/entities${query}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok || cancelled) return;
-      const data = (await res.json()) as { items?: EntityOption[] };
-      if (!cancelled) {
-        const loadedEntities = data.items || [];
-        setEntities(loadedEntities);
-        if (
-          activeEntityId &&
-          !loadedEntities.some((entity) => entity.id === activeEntityId)
-        ) {
-          setActiveEntityId("");
-          setIsEditingEntity(true);
+      setEntitiesLoaded(false);
+      try {
+        const query = activeClientId
+          ? `?client_id=${encodeURIComponent(activeClientId)}`
+          : "";
+        const res = await fetch(`/api/entities${query}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { items?: EntityOption[] };
+        if (!cancelled) {
+          const loadedEntities = data.items || [];
+          setEntities(loadedEntities);
+          if (
+            activeEntityId &&
+            !loadedEntities.some((entity) => entity.id === activeEntityId)
+          ) {
+            setActiveEntityId("");
+            setIsEditingEntity(true);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setEntitiesLoaded(true);
         }
       }
     }
@@ -3330,12 +3354,13 @@ export function AddTransactionView({
       errors.__form = "Add at least two property rows for a split transaction.";
     }
     const seen = new Set<string>();
+    const allBlank = splitRows.every((row) => !row.amount || !row.amount.trim());
     for (const r of splitRows) {
       if (!r.propertyId) {
         errors[r.id] = "Choose a property.";
       } else if (seen.has(r.propertyId)) {
         errors[r.id] = "Property already used in another split.";
-      } else if (!r.amount || Number.parseFloat(r.amount) <= 0) {
+      } else if (!allBlank && (!r.amount || Number.parseFloat(r.amount) <= 0)) {
         errors[r.id] = "Enter a positive amount.";
       }
       if (r.propertyId) seen.add(r.propertyId);
@@ -3962,9 +3987,17 @@ export function AddTransactionView({
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
-      if (Number.isNaN(grossNum) || grossNum <= 0) {
-        setSubmitError("Amount must be a positive number.");
-        return;
+      const allBlank = isSplit && splitRows.every((row) => !row.amount || !row.amount.trim());
+      if (!allBlank) {
+        if (Number.isNaN(grossNum) || grossNum <= 0) {
+          setSubmitError("Amount must be a positive number.");
+          return;
+        }
+      } else {
+        if (!Number.isNaN(grossNum) && grossNum <= 0) {
+          setSubmitError("Amount must be a positive number.");
+          return;
+        }
       }
 
       let gstNum: number | null = null;
@@ -3989,7 +4022,7 @@ export function AddTransactionView({
           setSubmitError("Fix the errors in the split rows.");
           return;
         }
-        if (!splitMatches) {
+        if (!allBlank && !splitMatches) {
           setSubmitError(
             `Split amounts must total ${grossNum.toFixed(
               2,
@@ -3997,14 +4030,22 @@ export function AddTransactionView({
           );
           return;
         }
-        splits = splitRows.map((r) => {
-          const rowAmount = Number.parseFloat(r.amount);
-          return {
-            property_id: r.propertyId,
-            split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
-            split_gross_amount: Number(rowAmount.toFixed(2)),
-          };
-        });
+        if (allBlank) {
+          splits = splitRows.map((r) => {
+            return {
+              property_id: r.propertyId,
+            };
+          });
+        } else {
+          splits = splitRows.map((r) => {
+            const rowAmount = Number.parseFloat(r.amount);
+            return {
+              property_id: r.propertyId,
+              split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
+              split_gross_amount: Number(rowAmount.toFixed(2)),
+            };
+          });
+        }
       } else {
         if (!propertyId) {
           setSubmitError("Please select a property.");
@@ -4031,7 +4072,7 @@ export function AddTransactionView({
         category_id: resolvedCategoryId,
         subcategory_id: resolvedSubcategoryId,
         invoice_date: invoiceDate,
-        gross_amount: grossNum,
+        gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
         internal_remarks: internalRemarks.trim() || null,
         is_asset_purchase: isAssetPurchase,
@@ -4169,6 +4210,31 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
+  const isSelectionComplete = !!activeEntityId && (isSplit ? true : !!propertyId);
+  const showSelectionMessage = !isSelectionComplete && (!requireClientSelection || !!activeClientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!tokenLoaded) return null;
+
+    const clientSelectedIfNeeded = !requireClientSelection || !!activeClientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!activeEntityId) {
+      const zeroEntities = entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "Select an entity to proceed";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "Select a property to proceed";
+  }, [isSelectionComplete, tokenLoaded, requireClientSelection, activeClientId, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
+
   return (
     <section className="transactions-page transaction-add-page">
       <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
@@ -4234,6 +4300,17 @@ export function AddTransactionView({
             />
           ) : null}
 
+          {requireClientSelection && !activeClientId && (
+            <p className="transaction-field-error" style={{ marginTop: "-12px", marginBottom: "4px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Select a client to proceed
+            </p>
+          )}
+
           <EntityPropertyHeaderCard
             entities={entities}
             properties={properties}
@@ -4248,9 +4325,22 @@ export function AddTransactionView({
             onSelectProperty={handlePropertyPicked}
             onEditEntity={() => setIsEditingEntity(true)}
             onEditProperty={() => setIsEditingProperty(true)}
+            disabled={requireClientSelection && !activeClientId}
           />
 
-          <div className={"transaction-type-control" + flashClass("type")}>
+          {showSelectionMessage && selectionMessage && (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px", flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{selectionMessage}</span>
+            </div>
+          )}
+
+          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
+            <div className={"transaction-type-control" + flashClass("type")}>
             <span className="transaction-field-label">
               Transaction Type<em>*</em>
             </span>
@@ -4487,11 +4577,17 @@ export function AddTransactionView({
                           min="0.01"
                           placeholder="0.00"
                           value={row.amount}
-                          onChange={(e) =>
-                            updateSplitRow(row.id, { amount: e.target.value })
-                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === "Minus") {
+                              e.preventDefault();
+                            }
+                          }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/-/g, "");
+                            updateSplitRow(row.id, { amount: val });
+                          }}
                         />
-                        <b>$</b>
+                        <b>A$</b>
                       </span>
                       {amountError && (
                         <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
@@ -4592,6 +4688,7 @@ export function AddTransactionView({
               {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
             </button>
           </div>
+          </fieldset>
         </form>
       </div>
 
@@ -4691,6 +4788,39 @@ function RuleModal({
   const [enabled, setEnabled] = useState(rule?.isEnabled ?? true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [entitiesLoaded, setEntitiesLoaded] = useState(false);
+  const [propertiesLoaded, setPropertiesLoaded] = useState(false);
+
+  const isSelectionComplete = !!entityId && (!propertiesLoaded || properties.length > 0);
+  const showSelectionMessage = !isSelectionComplete && (!!fixedEntityId || !!clientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!token) return null;
+
+    const clientSelectedIfNeeded = fixedEntityId || !!clientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!entityId) {
+      const zeroEntities = !fixedEntityId && entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "Select an entity to proceed";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "Select a property to proceed";
+  }, [isSelectionComplete, token, fixedEntityId, clientId, entitiesLoaded, entities.length, entityId, propertiesLoaded, properties.length]);
+
+  useEffect(() => {
+    if (fixedEntityId) {
+      setEntitiesLoaded(true);
+    }
+  }, [fixedEntityId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4722,8 +4852,9 @@ function RuleModal({
   // Load entities for the selected client.
   useEffect(() => {
     if (fixedEntityId || !token) return;
-    if (!clientId) { setEntities([]); return; }
+    if (!clientId) { setEntities([]); setEntitiesLoaded(true); return; }
     let cancelled = false;
+    setEntitiesLoaded(false);
     fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -4731,7 +4862,10 @@ function RuleModal({
       .then((data: { items?: EntityOption[] } | null) => {
         if (!cancelled && data) setEntities(data.items ?? []);
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setEntitiesLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [fixedEntityId, token, clientId]);
 
@@ -4752,8 +4886,9 @@ function RuleModal({
   }, [fixedEntityId, token, rule?.entityId]);
 
   useEffect(() => {
-    if (!token || !entityId) { setProperties([]); return; }
+    if (!token || !entityId) { setProperties([]); setPropertiesLoaded(false); return; }
     let cancelled = false;
+    setPropertiesLoaded(false);
     fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -4761,7 +4896,10 @@ function RuleModal({
       .then((data: { items?: { id: string; name: string }[] } | null) => {
         if (!cancelled && data) setProperties(data.items ?? []);
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setPropertiesLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [token, entityId]);
 
@@ -4827,6 +4965,7 @@ function RuleModal({
   }
 
   const canSave =
+    isSelectionComplete &&
     Boolean(ruleName.trim()) &&
     Boolean(entityId) &&
     conditions.every((c) => c.field && c.operator && c.value.trim()) &&
@@ -4967,6 +5106,16 @@ function RuleModal({
                 showSearch
                 className="is-full-width"
               />
+              {clients.length > 0 && !clientId && (
+                <p className="transaction-field-error" style={{ marginTop: "6px", marginBottom: "0px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  Select a client to proceed
+                </p>
+              )}
               {clients.length === 0 && (
                 <p style={{ color: "#d92d20", fontSize: "14px", marginTop: "6px", marginBottom: "0px" }}>
                   To create a rule, please add a client to your account first.
@@ -4990,10 +5139,23 @@ function RuleModal({
               value={propertyId}
               options={propertySelectOptions}
               onChange={setPropertyId}
+              disabled={!fixedEntityId && !clientId}
             />
           </div>
 
-          <h3>If</h3>
+          {showSelectionMessage && selectionMessage && (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", marginBottom: "12px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px", flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{selectionMessage}</span>
+            </div>
+          )}
+
+          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
+            <h3>If</h3>
           <section className="rule-condition-card">
             <div className="rule-match-row">
               <span>Match</span>
@@ -5100,6 +5262,7 @@ function RuleModal({
           {saveError && (
             <p className="transaction-warning-card" role="alert">{saveError}</p>
           )}
+          </fieldset>
         </div>
 
         <footer className="transaction-modal-footer">

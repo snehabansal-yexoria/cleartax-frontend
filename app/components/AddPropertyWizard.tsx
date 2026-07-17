@@ -399,6 +399,17 @@ export default function AddPropertyWizard({
   const [isDraggingDoc, setIsDraggingDoc] = useState(false);
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    if (saved) {
+      setTimeout(() => {
+        const successLink = document.querySelector(
+          ".entity-success-layer a, .entity-success-layer button"
+        ) as HTMLElement | null;
+        successLink?.focus();
+      }, 0);
+    }
+  }, [saved]);
+
   const markTouched = (field: string) => {
     setTouchedFields((prev) => ({ ...prev, [field]: true }));
   };
@@ -1008,7 +1019,7 @@ export default function AddPropertyWizard({
       {step === 1 && (
         <form
           className="entity-wizard-card"
-          onSubmit={(e) => {
+          onSubmit={saved ? (e) => e.preventDefault() : (e) => {
             e.preventDefault();
             handleStep1Continue();
           }}
@@ -1686,7 +1697,8 @@ export default function AddPropertyWizard({
               className="entity-wizard-primary"
               disabled={
                 isUploadingPropertyImage ||
-                isUploadingDepreciationSchedule
+                isUploadingDepreciationSchedule ||
+                saved
               }
             >
               Continue
@@ -1698,7 +1710,7 @@ export default function AddPropertyWizard({
       {takesOwnershipDetails && step === 2 && (
         <form
           className="entity-wizard-card"
-          onSubmit={(e) => {
+          onSubmit={saved ? (e) => e.preventDefault() : (e) => {
             e.preventDefault();
             if (ownersValid) {
               setStep(3);
@@ -1769,13 +1781,14 @@ export default function AddPropertyWizard({
                 setErrorMessage("");
                 setStep(1);
               }}
+              disabled={saved}
             >
               Back
             </button>
             <button
               type="submit"
               className="entity-wizard-primary"
-              disabled={!ownersValid}
+              disabled={!ownersValid || saved}
             >
               Continue
             </button>
@@ -1786,7 +1799,7 @@ export default function AddPropertyWizard({
       {step === 3 && (
         <form
           className="entity-wizard-card"
-          onSubmit={(e) => {
+          onSubmit={saved ? (e) => e.preventDefault() : (e) => {
             e.preventDefault();
             handleStep3Save();
           }}
@@ -1926,6 +1939,7 @@ export default function AddPropertyWizard({
                 setErrorMessage("");
                 setStep(takesOwnershipDetails ? 2 : 1);
               }}
+              disabled={saved}
             >
               Back
             </button>
@@ -1936,7 +1950,8 @@ export default function AddPropertyWizard({
                 isSaving ||
                 isUploadingPropertyImage ||
                 isUploadingDepreciationSchedule ||
-                !isLoanDetailsValid
+                !isLoanDetailsValid ||
+                saved
               }
             >
               {isSaving
