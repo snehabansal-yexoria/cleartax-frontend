@@ -304,6 +304,8 @@ function AccountantClientsContent() {
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [accountants, setAccountants] = useState<AccountantRecord[] | null>(null);
+  const [pendingTransferExit, setPendingTransferExit] = useState<"cancel" | "close" | null>(null);
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
@@ -599,9 +601,26 @@ function AccountantClientsContent() {
     setTransferToAccountantId("");
     setTransferReason("");
     setTransferSuccess(false);
+    setPendingTransferExit(null);
+    setShowTransferConfirm(false);
   }
 
-  async function handleTransferClient() {
+  const hasTransferChanges = transferToAccountantId !== "" || transferReason !== "";
+
+  function handleAttemptTransferExit(action: "cancel" | "close") {
+    if (!transferSuccess && hasTransferChanges) {
+      setPendingTransferExit(action);
+    } else {
+      resetTransferState();
+    }
+  }
+
+  function handleTransferClient() {
+    if (!transferClient || !transferToAccountantId || isTransferring) return;
+    setShowTransferConfirm(true);
+  }
+
+  async function performTransferClient() {
     if (!transferClient || !transferToAccountantId || isTransferring) return;
     try {
       setIsTransferring(true);
@@ -1103,7 +1122,19 @@ function AccountantClientsContent() {
                   type="number"
                   className="premium-pagination-page-input"
                   value={pageInputValue}
-                  onChange={(e) => setPageInputValue(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === "") {
+                      setPageInputValue("");
+                      return;
+                    }
+                    if (/^[1-9]\d*$/.test(value)) {
+                      const pageNum = Number(value);
+                      if (pageNum <= totalPages) {
+                        setPageInputValue(value);
+                      }
+                    }
+                  }}
                   onBlur={() => {
                     const pageNum = Number(pageInputValue);
                     if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
@@ -1113,6 +1144,10 @@ function AccountantClientsContent() {
                     }
                   }}
                   onKeyDown={(e) => {
+                    if (["e", "E", "-", "+", "."].includes(e.key)) {
+                      e.preventDefault();
+                      return;
+                    }
                     if (e.key === "Enter") {
                       const pageNum = Number(pageInputValue);
                       if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
@@ -1122,6 +1157,12 @@ function AccountantClientsContent() {
                         setPageInputValue(String(activePage));
                         e.currentTarget.blur();
                       }
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const pastedData = e.clipboardData.getData("text");
+                    if (!/^[1-9]\d*$/.test(pastedData) || Number(pastedData) > totalPages) {
+                      e.preventDefault();
                     }
                   }}
                   min={1}
@@ -1167,7 +1208,7 @@ function AccountantClientsContent() {
             type="button"
             className="accountant-drawer-backdrop"
             aria-label="Close transfer drawer"
-            onClick={resetTransferState}
+            onClick={() => handleAttemptTransferExit("close")}
           />
           <aside className="accountant-invite-drawer">
             <div className="accountant-invite-drawer-header">
@@ -1179,7 +1220,7 @@ function AccountantClientsContent() {
                   another accountant
                 </p>
               </div>
-              <button type="button" onClick={resetTransferState}>
+              <button type="button" onClick={() => handleAttemptTransferExit("close")}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M6 6l12 12" />
                   <path d="M18 6 6 18" />
@@ -1311,7 +1352,16 @@ function AccountantClientsContent() {
             )}
 
             <div className="accountant-invite-drawer-footer">
-              <button type="button" onClick={resetTransferState}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (transferSuccess) {
+                    resetTransferState();
+                  } else {
+                    handleAttemptTransferExit("cancel");
+                  }
+                }}
+              >
                 {transferSuccess ? "Close" : "Cancel"}
               </button>
               {!transferSuccess && (
@@ -1326,6 +1376,35 @@ function AccountantClientsContent() {
               )}
             </div>
           </aside>
+          {pendingTransferExit && (
+            <ConfirmationDialog
+              title="Discard Changes"
+              message="You have unsaved changes. Are you sure you want to discard them and exit?"
+              confirmLabel="Yes, Discard"
+              cancelLabel="No, Keep Editing"
+              onConfirm={() => {
+                resetTransferState();
+              }}
+              onCancel={() => setPendingTransferExit(null)}
+              isDanger={false}
+            />
+          )}
+          {showTransferConfirm && (
+            <ConfirmationDialog
+              title="Transfer Client"
+              message={`Are you sure you want to transfer ${transferClient?.name} to ${
+                accountants?.find((a) => a.id === transferToAccountantId)?.name ?? "the selected accountant"
+              }? This reassigns ownership of the client.`}
+              confirmLabel="Yes, Transfer"
+              cancelLabel="No, Cancel"
+              onConfirm={() => {
+                setShowTransferConfirm(false);
+                performTransferClient();
+              }}
+              onCancel={() => setShowTransferConfirm(false)}
+              isDanger={false}
+            />
+          )}
         </div>
       )}
 
@@ -1556,3 +1635,97 @@ export default function AccountantClientsPage() {
     </Suspense>
   );
 }
+
+interface ConfirmationDialogProps {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDanger?: boolean;
+}
+
+function ConfirmationDialog({
+  title,
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+  isDanger = false,
+}: ConfirmationDialogProps) {
+  return (
+    <div className="accountant-drawer-layer" style={{ zIndex: 9999, alignItems: "center", justifyContent: "center" }}>
+      <div
+        className="accountant-drawer-backdrop"
+        style={{
+          background: "rgba(15, 23, 52, 0.4)",
+          cursor: "default",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "min(100%, 380px)",
+          padding: "24px",
+          gap: "16px",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: "16px",
+          border: "1px solid #dde4f2",
+          background: "#ffffff",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
+          margin: "0 16px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#101828" }}>
+            {title}
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#667085" }}>
+            {message}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              minHeight: "40px",
+              border: "1px solid #dde4f2",
+              background: "#ffffff",
+              color: "#5d6987",
+              fontWeight: 700,
+              fontSize: "14px",
+              borderRadius: "10px",
+              cursor: "pointer",
+            }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              minHeight: "40px",
+              border: `1px solid ${isDanger ? "#e11d48" : "#2f3c82"}`,
+              background: isDanger ? "#e11d48" : "#2f3c82",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "14px",
+              borderRadius: "10px",
+              cursor: "pointer",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

@@ -117,6 +117,36 @@ export default function AddEntityWizard({
   const [savedEntity, setSavedEntity] = useState<CoreEntity | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [nextStep, setNextStep] = useState<"client" | "property">("client");
+  const [existingEntities, setExistingEntities] = useState<CoreEntity[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadExistingEntities() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) return;
+        const token = session.getIdToken().getJwtToken();
+
+        const url = role === "accountant"
+          ? `/api/entities?client_id=${encodeURIComponent(createdFor)}`
+          : "/api/entities";
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setExistingEntities(data.items || []);
+      } catch (error) {
+        console.error("Failed to load existing entities for validation:", error);
+      }
+    }
+    loadExistingEntities();
+    return () => {
+      cancelled = true;
+    };
+  }, [createdFor, role]);
 
   useEffect(() => {
     if (saved) {
@@ -279,10 +309,25 @@ export default function AddEntityWizard({
     setNextStep("client");
   }
 
+  const isDuplicateName = (name: string) => {
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed) return false;
+    return existingEntities.some(
+      (entity) =>
+        entity.name.trim().toLowerCase() === trimmed &&
+        (!isEditMode || entity.id !== initialEntity?.id),
+    );
+  };
+
   async function submit(): Promise<CoreEntity | null> {
     setErrorMessage("");
     if (!entityType || !entityName.trim() || !beneficiariesValid) {
       setErrorMessage("Please complete every step before saving.");
+      return null;
+    }
+
+    if (isDuplicateName(entityName)) {
+      setErrorMessage("An entity with this name already exists.");
       return null;
     }
 
@@ -363,6 +408,11 @@ export default function AddEntityWizard({
   }
 
   function handleNameContinue() {
+    if (isDuplicateName(entityName)) {
+      setErrorMessage("An entity with this name already exists.");
+      return;
+    }
+
     if (needsBeneficiaries) {
       setStep(3);
       return;
@@ -598,7 +648,10 @@ export default function AddEntityWizard({
                             : "e.g., Smith Family Trust, ABC Properties LLC"
                 }
                 value={entityName}
-                onChange={(event) => setEntityName(event.target.value)}
+                onChange={(event) => {
+                  setEntityName(event.target.value);
+                  setErrorMessage("");
+                }}
                 autoFocus
               />
             </label>
@@ -939,7 +992,10 @@ export default function AddEntityWizard({
                               : "e.g., Smith Family Trust, ABC Properties LLC"
                   }
                   value={entityName}
-                  onChange={(event) => setEntityName(event.target.value)}
+                  onChange={(event) => {
+                    setEntityName(event.target.value);
+                    setErrorMessage("");
+                  }}
                   className="entity-wizard-input"
                   autoFocus
                   onKeyDown={saved ? undefined : (e) => {
