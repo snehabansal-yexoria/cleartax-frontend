@@ -849,11 +849,11 @@ export default function AccountantPage() {
             {recentActivity && recentActivity.length > 0 ? (
               <>
                 <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[390px] pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  {recentActivity.map((event) => {
+                  {recentActivity.map((event, index) => {
                     const cat = getActivityCategory(event.action, event.type);
                     return (
                       <div
-                        key={event.id}
+                        key={index}
                         className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
                       >
                         <div className="flex items-start gap-3 min-w-0">
