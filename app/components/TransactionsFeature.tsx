@@ -4280,6 +4280,31 @@ export function AddTransactionView({
     }
   }
 
+  const isSelectionComplete = !!activeEntityId && (isSplit ? true : !!propertyId);
+  const showSelectionMessage = !isSelectionComplete && (!requireClientSelection || !!activeClientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!tokenLoaded) return null;
+
+    const clientSelectedIfNeeded = !requireClientSelection || !!activeClientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!activeEntityId) {
+      const zeroEntities = entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "An entity must be selected to continue.";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "A property must be selected to continue.";
+  }, [isSelectionComplete, tokenLoaded, requireClientSelection, activeClientId, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
+
   if (isMarked) {
     return (
       <section className="transactions-page">
@@ -4351,30 +4376,7 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
-  const isSelectionComplete = !!activeEntityId && (isSplit ? true : !!propertyId);
-  const showSelectionMessage = !isSelectionComplete && (!requireClientSelection || !!activeClientId);
 
-  const selectionMessage = useMemo(() => {
-    if (isSelectionComplete) return null;
-    if (!tokenLoaded) return null;
-
-    const clientSelectedIfNeeded = !requireClientSelection || !!activeClientId;
-    if (!clientSelectedIfNeeded) return null;
-
-    if (!activeEntityId) {
-      const zeroEntities = entitiesLoaded && entities.length === 0;
-      if (zeroEntities) {
-        return "Add an entity to proceed";
-      }
-      return "An entity must be selected to continue.";
-    }
-
-    const zeroProperties = propertiesLoaded && properties.length === 0;
-    if (zeroProperties) {
-      return "Add a property to proceed";
-    }
-    return "A property must be selected to continue.";
-  }, [isSelectionComplete, tokenLoaded, requireClientSelection, activeClientId, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
 
   return (
     <section className="transactions-page transaction-add-page">
