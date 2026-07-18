@@ -283,6 +283,8 @@ function ClientDetailPageContent() {
   const [transferReason, setTransferReason] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferSuccess, setTransferSuccess] = useState(false);
+  const [pendingTransferExit, setPendingTransferExit] = useState<"cancel" | "close" | null>(null);
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
 
   useEffect(() => {
     const tab = searchParams?.get("tab");
@@ -422,9 +424,26 @@ function ClientDetailPageContent() {
     setTransferToAccountantId("");
     setTransferReason("");
     setTransferSuccess(false);
+    setPendingTransferExit(null);
+    setShowTransferConfirm(false);
   }
 
-  async function handleTransferClient() {
+  const hasTransferChanges = transferToAccountantId !== "" || transferReason !== "";
+
+  function handleAttemptTransferExit(action: "cancel" | "close") {
+    if (!transferSuccess && hasTransferChanges) {
+      setPendingTransferExit(action);
+    } else {
+      resetTransferState();
+    }
+  }
+
+  function handleTransferClient() {
+    if (!client || !transferToAccountantId || isTransferring) return;
+    setShowTransferConfirm(true);
+  }
+
+  async function performTransferClient() {
     if (!client || !transferToAccountantId || isTransferring) return;
     try {
       setIsTransferring(true);
@@ -889,7 +908,7 @@ function ClientDetailPageContent() {
             type="button"
             className="accountant-drawer-backdrop"
             aria-label="Close transfer drawer"
-            onClick={resetTransferState}
+            onClick={() => handleAttemptTransferExit("close")}
           />
           <aside className="accountant-invite-drawer">
             <div className="accountant-invite-drawer-header">
@@ -901,7 +920,7 @@ function ClientDetailPageContent() {
                   another accountant
                 </p>
               </div>
-              <button type="button" onClick={resetTransferState}>
+              <button type="button" onClick={() => handleAttemptTransferExit("close")}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M6 6l12 12" />
                   <path d="M18 6 6 18" />
@@ -1033,7 +1052,16 @@ function ClientDetailPageContent() {
             )}
 
             <div className="accountant-invite-drawer-footer">
-              <button type="button" onClick={resetTransferState}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (transferSuccess) {
+                    resetTransferState();
+                  } else {
+                    handleAttemptTransferExit("cancel");
+                  }
+                }}
+              >
                 {transferSuccess ? "Close" : "Cancel"}
               </button>
               {!transferSuccess && (
@@ -1048,6 +1076,35 @@ function ClientDetailPageContent() {
               )}
             </div>
           </aside>
+          {pendingTransferExit && (
+            <ConfirmationDialog
+              title="Discard Changes"
+              message="You have unsaved changes. Are you sure you want to discard them and exit?"
+              confirmLabel="Yes, Discard"
+              cancelLabel="No, Keep Editing"
+              onConfirm={() => {
+                resetTransferState();
+              }}
+              onCancel={() => setPendingTransferExit(null)}
+              isDanger={false}
+            />
+          )}
+          {showTransferConfirm && (
+            <ConfirmationDialog
+              title="Transfer Client"
+              message={`Are you sure you want to transfer ${client?.name} to ${
+                accountants?.find((a) => a.id === transferToAccountantId)?.name ?? "the selected accountant"
+              }? This reassigns ownership of the client.`}
+              confirmLabel="Yes, Transfer"
+              cancelLabel="No, Cancel"
+              onConfirm={() => {
+                setShowTransferConfirm(false);
+                performTransferClient();
+              }}
+              onCancel={() => setShowTransferConfirm(false)}
+              isDanger={false}
+            />
+          )}
         </div>
       )}
     </section>
@@ -1061,3 +1118,97 @@ export default function ClientDetailPage() {
     </Suspense>
   );
 }
+
+interface ConfirmationDialogProps {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDanger?: boolean;
+}
+
+function ConfirmationDialog({
+  title,
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+  isDanger = false,
+}: ConfirmationDialogProps) {
+  return (
+    <div className="accountant-drawer-layer" style={{ zIndex: 9999, alignItems: "center", justifyContent: "center" }}>
+      <div
+        className="accountant-drawer-backdrop"
+        style={{
+          background: "rgba(15, 23, 52, 0.4)",
+          cursor: "default",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "min(100%, 380px)",
+          padding: "24px",
+          gap: "16px",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: "16px",
+          border: "1px solid #dde4f2",
+          background: "#ffffff",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
+          margin: "0 16px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#101828" }}>
+            {title}
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#667085" }}>
+            {message}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              minHeight: "40px",
+              border: "1px solid #dde4f2",
+              background: "#ffffff",
+              color: "#5d6987",
+              fontWeight: 700,
+              fontSize: "14px",
+              borderRadius: "10px",
+              cursor: "pointer",
+            }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              minHeight: "40px",
+              border: `1px solid ${isDanger ? "#e11d48" : "#2f3c82"}`,
+              background: isDanger ? "#e11d48" : "#2f3c82",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "14px",
+              borderRadius: "10px",
+              cursor: "pointer",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
