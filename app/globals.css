@@ -16251,3 +16251,98 @@ input:checked+.slider:before {
   border-color: #fda29b !important;
   background-color: #fef3f2;
 }
+
+/* Scoped rules for Property Page Transaction Rules Empty State */
+.property-rules-tab-wrapper {
+  margin-top: 18px;
+  width: 100%;
+}
+
+.property-page-rules-container {
+  width: 100%;
+}
+
+.property-page-rules-container .property-rules-empty-card {
+  background: #ffffff;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  box-shadow: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.property-page-rules-container .property-rules-empty-header {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.property-page-rules-container .property-rules-empty-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #101828;
+  margin: 0;
+  text-align: left;
+}
+
+.property-page-rules-container .property-rules-empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 16px 64px 16px;
+}
+
+.property-page-rules-container .property-rules-icon-box {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background-color: #f2f4f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.property-page-rules-container .property-rules-gear-icon {
+  width: 28px;
+  height: 28px;
+  color: #344054;
+}
+
+.property-page-rules-container .property-rules-empty-content h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #101828;
+  margin: 0 0 8px 0;
+}
+
+.property-page-rules-container .property-rules-empty-content p {
+  font-size: 14px;
+  color: #667085;
+  max-width: 420px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.property-page-rules-container .property-rules-create-button {
+  background-color: #1e293b; /* Dark blue/navy slate from Figma */
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.property-page-rules-container .property-rules-create-button:hover {
+  background-color: #0f172a;
+}
+
+.property-page-rules-container .property-rules-create-button:active {
+  transform: translateY(1px);
+}

@@ -88,79 +88,6 @@ function formatCurrency(value: number) {
 }
 
 // Activity category styling and icon utilities
-const DEMO_ACTIVITIES: ReportTimelineEvent[] = [
-  {
-    id: "act-1",
-    clientId: "client-1",
-    clientName: "Sarah Jenkins",
-    action: "Invitation Accepted",
-    detail: "Sarah Jenkins (sarah.j@example.com) joined as a client.",
-    time: "10:30 AM",
-    type: "added",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "act-2",
-    clientId: "client-1",
-    clientName: "Sarah Jenkins",
-    action: "Document Uploaded",
-    detail: "New tax document 'Tax_Return_2025.pdf' uploaded.",
-    time: "2:15 PM",
-    type: "edited",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "act-3",
-    clientId: "client-2",
-    clientName: "Michael Chang",
-    action: "Entity Created",
-    detail: "Entity 'Acme Holdings Pty Ltd' created.",
-    time: "Yesterday",
-    type: "added",
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "act-4",
-    clientId: "",
-    clientName: "",
-    action: "Client Invited",
-    detail: "Invitation sent to emily.brown@example.com by Admin.",
-    time: "2 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: "act-5",
-    clientId: "client-3",
-    clientName: "John Doe",
-    action: "Property Updated",
-    detail: "Updated estimated market value for '74 Park Road' to $1.2M.",
-    time: "3 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 259200000).toISOString(),
-  },
-  {
-    id: "act-6",
-    clientId: "client-4",
-    clientName: "Robert Smith",
-    action: "Document Uploaded",
-    detail: "Rental Statement for '12 Elm St' uploaded.",
-    time: "4 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 345600000).toISOString(),
-  },
-  {
-    id: "act-7",
-    clientId: "client-5",
-    clientName: "John Doe",
-    action: "Bank Account Linked",
-    detail: "ANZ Bank feed connected.",
-    time: "5 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 432000000).toISOString(),
-  },
-];
-
 function getActivityCategory(action: string, type: ReportTimelineEvent["type"]): "invite" | "document" | "entity" | "property" | "bank" {
   const act = action.toLowerCase();
   if (act.includes("invite") || act.includes("invitation")) return "invite";
@@ -345,7 +272,12 @@ export default function AccountantPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const invitationPending = summary?.pendingInvitations ?? 0;
+  const invitationPending =
+    myClients !== null
+      ? myClients.filter(
+          (client) => client.status?.toUpperCase() === "PENDING",
+        ).length
+      : (summary?.pendingInvitations ?? 0);
   const registeredClients = allClients !== null ? allClients.length : (summary?.registeredClients ?? 0);
   const managedClients = myClients ?? [];
   const suggestedClients = (availableClients ?? []).slice(0, 3);
@@ -472,11 +404,9 @@ export default function AccountantPage() {
               </div>
             </div>
             <div className="accountant-summary-card-body">
-              <h2>{registeredClients}</h2>
+              <h2>{managedClients.length} </h2>
               <span>
-                {managedClients.length === 1
-                  ? "1 client added to your list"
-                  : `${managedClients.length} clients added to your list`}
+                clients added to your list
               </span>
             </div>
           </article>
@@ -903,51 +833,10 @@ export default function AccountantPage() {
                 </Link>
               </>
             ) : (
-              <>
-                <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[390px] pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  {DEMO_ACTIVITIES.map((activity) => {
-                    const cat = getActivityCategory(activity.action, activity.type);
-                    return (
-                      <div
-                        key={activity.id}
-                        className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 ${getActivityCategoryStyles(cat)}`}>
-                            {getActivityIcon(cat)}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-semibold text-slate-800 leading-snug mb-0.5">
-                              {activity.action}
-                              {activity.clientName && activity.clientId ? (
-                                <>
-                                  {" — "}
-                                  <span className="font-bold text-[#28336e]">
-                                    {activity.clientName}
-                                  </span>
-                                </>
-                              ) : null}
-                            </h4>
-                            {activity.detail ? (
-                              <p className="text-[11px] text-slate-500 leading-normal m-0 font-normal truncate">
-                                {activity.detail}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end shrink-0 text-right min-w-[56px] mt-0.5">
-                          <span className="text-[10px] font-semibold text-slate-600 leading-none">
-                            {activity.time}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 text-[10px] text-slate-400 font-semibold italic text-center w-full">
-                  Showing demo activity data
-                </div>
-              </>
+              <div className="py-8 text-center text-slate-500">
+                <p className="text-xs font-medium text-slate-500">No recent activity</p>
+                <p className="text-[11px] text-slate-400 mt-1">Actions and updates will appear here.</p>
+              </div>
             )}
           </Skeleton>
         </aside>
