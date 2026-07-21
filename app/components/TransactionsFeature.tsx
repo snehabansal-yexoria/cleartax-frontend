@@ -646,7 +646,7 @@ function TransactionDetailPopup({
   const hasChanges = useMemo(() => {
     if (mode !== "edit") return false;
     const initial = detail ? transactionDetailToRow(detail, row) : row;
-    
+
     if ((description || "") !== (initial.description || "")) return true;
     if ((internalRemarks || "") !== (initial.internalRemarks || "")) return true;
     if (reviewStatus !== initial.reviewStatus) return true;
@@ -657,21 +657,21 @@ function TransactionDetailPopup({
     if (invoiceDate !== (initial.invoiceDate?.slice(0, 10) || "")) return true;
     if (grossAmount !== String(initial.grossAmount || "")) return true;
     if (gstAmount !== String(initial.gstAmount || "")) return true;
-    
+
     const initialMode = typeof initial.metadata.mode_of_transaction === "string" ? initial.metadata.mode_of_transaction : "";
     if (modeOfTransaction !== initialMode) return true;
-    
+
     const initialAssetName = typeof initial.metadata.asset_item_name === "string" ? initial.metadata.asset_item_name : "";
     if (assetItemName !== initialAssetName) return true;
-    
+
     if ((assetClass || "") !== (initial.assetClass || "")) return true;
-    
+
     const initialLife = initial.effectiveLifeYears == null ? "" : String(initial.effectiveLifeYears);
     if (effectiveLifeYears !== initialLife) return true;
-    
+
     const initialSplits = detail?.splits || [];
     if (isSplit !== (initialSplits.length > 1)) return true;
-    
+
     if (editSplitRows.length !== (initialSplits.length || 1)) return true;
     for (let i = 0; i < editSplitRows.length; i++) {
       const editRow = editSplitRows[i];
@@ -685,7 +685,7 @@ function TransactionDetailPopup({
         if (editRow.amount !== String(initial.grossAmount || "")) return true;
       }
     }
-    
+
     return false;
   }, [
     mode, detail, row, description, internalRemarks, reviewStatus, isAssetPurchase,
@@ -5475,9 +5475,11 @@ function ToggleCard({
 export function TransactionRulesView({
   backHref = "/dashboard/accountant/transactions",
   entityId,
+  isPropertyPage = false,
 }: {
   backHref?: string;
   entityId?: string;
+  isPropertyPage?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [rules, setRules] = useState<CoreTransactionRule[]>([]);
@@ -5568,6 +5570,168 @@ export function TransactionRulesView({
       rule.conditions.some((c) => `${c.field} ${c.operator} ${c.value}`.toLowerCase().includes(normalized)),
     );
   }, [query, rules]);
+
+  if (isPropertyPage) {
+    return (
+      <div className="property-page-rules-container">
+        {deleteError && (
+          <p className="transaction-warning-card" role="alert">{deleteError}</p>
+        )}
+
+        {isLoading ? (
+          <div className="transactions-showing-copy py-10">Loading rules…</div>
+        ) : loadError ? (
+          <div className="transactions-showing-copy">{loadError}</div>
+        ) : rules.length === 0 ? (
+          <div className="property-rules-empty-card">
+            <div className="property-rules-empty-header">
+              {/* <h2>Transaction Rules</h2> */}
+            </div>
+            <div className="property-rules-empty-content">
+              <div className="property-rules-icon-box">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="property-rules-gear-icon"
+                >
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <h3>No transaction rules yet</h3>
+              <p>
+                Create rules to automatically classify your transactions by category, subcategory, and type.
+              </p>
+              <button
+                type="button"
+                className="premium-docs-upload-btn"
+                onClick={() => { setSelectedRule(null); setShowModal("create"); }}
+              >
+                Create Rule
+              </button>
+            </div>
+          </div>
+        ) : (
+          <section className="transactions-page transaction-rules-page">
+            <div className="transactions-page-head">
+              <div>
+                <h1>Transaction Rules</h1>
+                <p>Automate transaction categorisation with custom rules</p>
+              </div>
+              <button
+                type="button"
+                className="transaction-green-button"
+                onClick={() => { setSelectedRule(null); setShowModal("create"); }}
+              >
+                <span>+</span>
+                New Rule
+              </button>
+            </div>
+
+            <section className="transaction-rule-search-card">
+              <div className="transaction-rule-search">
+                <SearchIcon />
+                <input
+                  type="text"
+                  value={query}
+                  placeholder="Search by name or conditions"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </div>
+            </section>
+
+            <div className="transaction-rule-table-wrap">
+              <table className="transaction-rule-table">
+                <thead>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Conditions</th>
+                    <th>Assigns</th>
+                    <th>Auto-Confirm</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRules.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div className="transactions-empty-state">
+                          <strong>No rules match your search.</strong>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredRules.map((rule) => (
+                    <tr key={rule.id}>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
+                        >
+                          {rule.name}
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                      </td>
+                      <td>
+                        {rule.conditions.map((c, i) => (
+                          <span key={i} className="rule-property-pill">
+                            {RULE_FIELD_LABELS[c.field] ?? c.field}{" "}
+                            {RULE_OPERATOR_LABELS[c.operator] ?? c.operator}{" "}
+                            &ldquo;{String(c.value)}&rdquo;
+                          </span>
+                        ))}
+                      </td>
+                      <td>
+                        {rule.assignedType} — #{rule.assignedCategoryId} / #{rule.assignedSubcategoryId}
+                      </td>
+                      <td>{rule.autoConfirm ? "Yes" : "No"}</td>
+                      <td>
+                        <span className="rule-status-pill">{rule.isEnabled ? "Active" : "Inactive"}</span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="transaction-detail-delete-button"
+                          disabled={deletingId === rule.id}
+                          onClick={() => handleDelete(rule)}
+                          aria-label={`Delete rule ${rule.name}`}
+                        >
+                          {deletingId === rule.id ? "…" : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination copy={`Showing ${filteredRules.length} of ${rules.length} items`} />
+          </section>
+        )}
+
+        {showModal && (
+          <RuleModal
+            entityId={entityId}
+            rule={showModal === "edit" ? selectedRule : null}
+            onClose={() => { setShowModal(null); setSelectedRule(null); }}
+            onSaved={handleSaved}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <section className="transactions-page transaction-rules-page">

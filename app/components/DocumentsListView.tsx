@@ -16,10 +16,10 @@ type DocumentListItem = {
 
 export type DocumentsListViewProps = {
   context:
-    | { kind: "entity"; entityId: string }
-    | { kind: "property"; propertyId: string }
-    | { kind: "client"; clientId: string }
-    | { kind: "owner" };
+  | { kind: "entity"; entityId: string }
+  | { kind: "property"; propertyId: string }
+  | { kind: "client"; clientId: string }
+  | { kind: "owner" };
   token: string;
 };
 
@@ -339,7 +339,7 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
         <button
           type="button"
           onClick={triggerFileUpload}
-          className="premium-docs-upload-btn"
+          className="premium-docs-upload-btn space-x-2"
         >
           <UploadIcon />
           <span>Upload Document</span>
