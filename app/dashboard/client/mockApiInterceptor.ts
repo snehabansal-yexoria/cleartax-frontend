@@ -992,8 +992,16 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
   });
 }
 
-// Global flag to enable/disable mocking easily for backend developer
-const ENABLE_MOCK_API = true;
+// Global flag to enable/disable the client-dashboard mock API layer.
+//
+// Defaults OFF: the client dashboard talks to the real /api/* backend routes
+// (which proxy to the Go core API). Set NEXT_PUBLIC_ENABLE_MOCK_CLIENT_API=true
+// to re-enable the localStorage-backed demo mock for offline/UI-only work. This
+// is the single switch for the mock↔real toggle — flip it per-environment
+// rather than editing this constant.
+const ENABLE_MOCK_API =
+  (process.env.NEXT_PUBLIC_ENABLE_MOCK_CLIENT_API ?? "false").toLowerCase() ===
+  "true";
 
 let originalFetch: typeof window.fetch | null = null;
 
