@@ -835,8 +835,7 @@ function TransactionDetailPopup({
   ];
   const showSubcategorySelect =
     !!categoryId &&
-    (subcategories.length === 0 ||
-      subcategories.some((s) => s.name.toLowerCase() !== "general"));
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
     ...properties.map((property) => ({ label: property.name, value: property.id })),
@@ -886,6 +885,7 @@ function TransactionDetailPopup({
   }, [type]);
 
   useEffect(() => {
+    setSubcategories([]);
     let cancelled = false;
     async function loadSubcategories() {
       const session = (await getSession()) as SessionWithIdToken | null;
@@ -3402,8 +3402,8 @@ export function AddTransactionView({
 
   // Load subcategories whenever the category changes.
   useEffect(() => {
+    setSubcategories([]);
     if (!token || !categoryId) {
-      setSubcategories([]);
       setSubcategoryId(null);
       return;
     }
@@ -4367,8 +4367,7 @@ export function AddTransactionView({
   ];
   const showSubcategorySelect =
     !!categoryId &&
-    (subcategories.length === 0 ||
-      subcategories.some((s) => s.name.toLowerCase() !== "general"));
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: p.name,
     value: p.id,
@@ -5083,7 +5082,8 @@ function RuleModal({
   }, [token, assignedType]);
 
   useEffect(() => {
-    if (!token || !categoryId) { setSubcategories([]); return; }
+    setSubcategories([]);
+    if (!token || !categoryId) { return; }
     let cancelled = false;
     fetch(`/api/transactions/categories/${encodeURIComponent(categoryId)}/sub-categories`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -5212,8 +5212,7 @@ function RuleModal({
   ];
   const showSubcategorySelect =
     !!categoryId &&
-    (subcategories.length === 0 ||
-      subcategories.some((s) => s.name.toLowerCase() !== "general"));
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
 
   const fieldSelectOptions: SelectOption[] = RULE_FIELDS.map((f) => ({
     label: RULE_FIELD_LABELS[f] ?? f,

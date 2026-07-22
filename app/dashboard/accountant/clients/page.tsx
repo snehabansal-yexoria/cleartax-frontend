@@ -1417,7 +1417,19 @@ function AccountantClientsContent() {
             onClick={resetInviteState}
           />
 
-          <aside className="accountant-invite-drawer">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (
+                !inviteLoading &&
+                inviteForm.fullName.trim() &&
+                inviteForm.email.trim()
+              ) {
+                void handleInviteClient();
+              }
+            }}
+            className="accountant-invite-drawer z-90"
+          >
             <div className="accountant-invite-drawer-header">
               <div>
                 <h2>Invite New Client</h2>
@@ -1507,6 +1519,8 @@ function AccountantClientsContent() {
                   </span>
                   <input
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     placeholder="Enter client's full name"
                     value={inviteForm.fullName}
                     onChange={(event) => {
@@ -1532,6 +1546,8 @@ function AccountantClientsContent() {
                   <input
                     ref={emailInputRef}
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     placeholder="client@example.com"
                     value={inviteForm.email}
                     onChange={(event) => {
@@ -1557,6 +1573,8 @@ function AccountantClientsContent() {
                   <input
                     ref={phoneInputRef}
                     type="tel"
+                    name="tel"
+                    autoComplete="tel"
                     placeholder="+61 2 9342 5678"
                     value={inviteForm.phoneNumber}
                     onChange={(event) => {
@@ -1597,9 +1615,8 @@ function AccountantClientsContent() {
               </button>
               {!inviteSuccess && (
                 <button
-                  type="button"
+                  type="submit"
                   className="is-primary"
-                  onClick={handleInviteClient}
                   disabled={
                     inviteLoading ||
                     !inviteForm.fullName.trim() ||
@@ -1610,7 +1627,7 @@ function AccountantClientsContent() {
                 </button>
               )}
             </div>
-          </aside>
+          </form>
         </div>
       )}
     </section>
