@@ -231,18 +231,6 @@ function getInitialDB(): MockDB {
           { entityBeneficiaryId: 1, ownerName: "Sarah Johnson", ownershipPercentage: 60 },
           { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
-        loanDetails: {
-          bank_name: "CBA",
-          bsb_number: "062900",
-          loan_account_number: "12345678",
-          loan_allocation_percentage: 100,
-          loan_amount: 680000,
-          property_status_details: {
-            status: "Rented",
-            available_for_rent_date: getPastDateString(60, 15),
-            first_rental_income_date: getPastDateString(59, 1),
-          },
-        },
       },
       {
         id: "demo-prop-2",
@@ -258,16 +246,6 @@ function getInitialDB(): MockDB {
           { entityBeneficiaryId: 1, ownerName: "Sarah Johnson", ownershipPercentage: 60 },
           { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
-        loanDetails: {
-          bank_name: "Westpac",
-          bsb_number: "032000",
-          loan_account_number: "87654321",
-          loan_allocation_percentage: 100,
-          loan_amount: 420000,
-          property_status_details: {
-            status: "Self Occupied",
-          },
-        },
       },
       {
         id: "demo-prop-3",
@@ -282,17 +260,6 @@ function getInitialDB(): MockDB {
         owners: [
           { entityBeneficiaryId: 3, ownerName: "Sarah Johnson", ownershipPercentage: 100 },
         ],
-        loanDetails: {
-          bank_name: "CBA",
-          bsb_number: "062900",
-          loan_account_number: "23456789",
-          loan_allocation_percentage: 100,
-          loan_amount: 280000,
-          property_status_details: {
-            status: "Available for Rent",
-            available_for_rent_date: getPastDateString(11, 1),
-          },
-        },
       },
     ],
     transactions: [],

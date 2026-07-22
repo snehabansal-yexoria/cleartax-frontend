@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-import { formatCurrencyShort } from "@/src/lib/currency";
+import { formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {

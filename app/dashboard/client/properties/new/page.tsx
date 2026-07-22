@@ -562,7 +562,7 @@ export default function NewPropertyPage() {
     } else if (step === 2) {
       setStep(1);
     } else {
-      router.push("/dashboard/client/property");
+      router.push("/dashboard/client/properties");
     }
   }
 
@@ -1600,7 +1600,7 @@ export default function NewPropertyPage() {
                 <strong>{propertyName}</strong> has been added successfully.
               </p>
               <Link
-                href="/dashboard/client/property"
+                href="/dashboard/client/properties"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1630,7 +1630,7 @@ export default function NewPropertyPage() {
       <div style={{ background: "#f7f9fc", minHeight: "100vh", padding: "40px", fontFamily: '"Inter", sans-serif' }}>
         <div style={{ marginBottom: "24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#667085", fontWeight: 500, marginBottom: "8px" }}>
-            <Link href="/dashboard/client/property" style={{ color: "#2f3c82", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
+            <Link href="/dashboard/client/properties" style={{ color: "#2f3c82", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px" }}>
                 <path d="M15 19l-7-7 7-7" />
               </svg>
@@ -2067,7 +2067,7 @@ export default function NewPropertyPage() {
               {/* Step 1 Footer */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: "1px solid #eaeef4", paddingTop: "24px" }}>
                 <Link
-                  href="/dashboard/client/property"
+                  href="/dashboard/client/properties"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -2566,7 +2566,7 @@ export default function NewPropertyPage() {
               <p style={{ fontSize: "14px", color: "#667085", margin: "0 0 28px 0" }}>
                 <strong>{propertyName}</strong> is now linked to <strong>{selectedEntity?.name}</strong>.
               </p>
-              <Link href="/dashboard/client/property" style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: "#1a235a", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#ffffff", textDecoration: "none" }}>View Properties List</Link>
+              <Link href="/dashboard/client/properties" style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: "#1a235a", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#ffffff", textDecoration: "none" }}>View Properties List</Link>
             </div>
           </div>
         )}

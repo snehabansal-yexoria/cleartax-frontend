@@ -374,7 +374,7 @@ const clientMenuItems: PortalMenuItem[] = [
   },
   {
     id: "property",
-    href: "/dashboard/client/property",
+    href: "/dashboard/client/properties",
     label: "Properties",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">

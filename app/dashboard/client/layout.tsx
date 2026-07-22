@@ -53,7 +53,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     } else if (view === 'activity') {
       router.push('/dashboard/client/transactions');
     } else if (view === 'property') {
-      router.push('/dashboard/client/property');
+      router.push('/dashboard/client/properties');
     } else if (view === 'entity') {
       router.push('/dashboard/client/entities');
     } else if (view === 'insights') {

@@ -7,7 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency as globalFormatCurrency, getCurrencyPrefix } from "@/src/lib/currency";
+import { formatCurrency as globalFormatCurrency, getCurrencyPrefix, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -510,9 +510,7 @@ export default function ClientInsightsPage() {
   }, [properties, transactions, periodBounds]);
 
   const formatKCurrency = (val: number) => {
-    const sign = val >= 0 ? "+" : "-";
-    const kVal = Math.abs(val) / 1000;
-    return `${sign}${getCurrencyPrefix()}${kVal.toFixed(1)}K`;
+    return formatClientCurrency(val, { short: true, showPlus: true, decimals: 1 });
   };
 
   // Doughnut Chart circle properties
