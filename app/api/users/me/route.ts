@@ -106,6 +106,14 @@ export async function GET(req: Request) {
         data.phoneNumber ||
         directoryUser?.phoneNumber ||
         "",
+      assignedAccountant:
+        data.assigned_accountant_id || data.assigned_accountant_name
+          ? {
+              id: data.assigned_accountant_id || null,
+              name: data.assigned_accountant_name || null,
+              email: data.assigned_accountant_email || null,
+            }
+          : null,
     });
   } catch (error) {
     console.error("Proxy /users/me error:", error);

@@ -15,7 +15,17 @@ interface SessionWithIdToken {
 
 export default function ClientProfilePage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string; phoneNumber?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    fullName?: string;
+    email?: string;
+    phoneNumber?: string;
+    orgName?: string;
+    assignedAccountant?: {
+      id?: string | null;
+      name?: string | null;
+      email?: string | null;
+    } | null;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailSummariesEnabled, setEmailSummariesEnabled] = useState(true);
@@ -84,6 +94,14 @@ export default function ClientProfilePage() {
   }
 
   const initials = getInitials(fullName);
+
+  // Assigned accountant (nil until one is assigned). No fake fallback — an
+  // unassigned client should see an honest empty state, not a placeholder.
+  const accountant = currentUser?.assignedAccountant ?? null;
+  const accountantName = accountant?.name || "";
+  const accountantSubtitle = accountant?.email || currentUser?.orgName || "";
+  const hasAccountant = Boolean(accountantName);
+  const accountantInitials = hasAccountant ? getInitials(accountantName) : "";
 
   // Self-contained CSS styles for mobile styling reliability
   const inlineStyles = {
@@ -355,13 +373,25 @@ export default function ClientProfilePage() {
 
             {/* Your Accountant */}
             <h3 style={inlineStyles.sectionTitle}>Your Accountant</h3>
-            <div style={inlineStyles.accountantCard}>
-              <div style={inlineStyles.accountantAvatar}>MC</div>
-              <div style={inlineStyles.accountantInfo}>
-                <h4 style={inlineStyles.accountantName}>Michael Chen</h4>
-                <p style={inlineStyles.accountantSubtitle}>Chen & Associates CPA</p>
+            {hasAccountant ? (
+              <div style={inlineStyles.accountantCard}>
+                <div style={inlineStyles.accountantAvatar}>{accountantInitials}</div>
+                <div style={inlineStyles.accountantInfo}>
+                  <h4 style={inlineStyles.accountantName}>{accountantName}</h4>
+                  {accountantSubtitle ? (
+                    <p style={inlineStyles.accountantSubtitle}>{accountantSubtitle}</p>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={inlineStyles.accountantCard}>
+                <div style={inlineStyles.accountantInfo}>
+                  <p style={inlineStyles.accountantSubtitle}>
+                    No accountant has been assigned to you yet.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Personal Details */}
             <h3 style={inlineStyles.sectionTitle}>Personal Details</h3>
@@ -812,18 +842,25 @@ export default function ClientProfilePage() {
               {/* Accountant */}
               <div className="profile-section-container">
                 <div className="profile-section-title">Your Accountant</div>
-                <div className="profile-accountant-card">
-                  <div className="profile-accountant-avatar">MC</div>
-                  <div className="profile-accountant-info">
-                    <h4 className="profile-accountant-name">Michael Chen</h4>
-                    <p className="profile-accountant-subtitle">Chen & Associates CPA</p>
+                {hasAccountant ? (
+                  <div className="profile-accountant-card">
+                    <div className="profile-accountant-avatar">{accountantInitials}</div>
+                    <div className="profile-accountant-info">
+                      <h4 className="profile-accountant-name">{accountantName}</h4>
+                      {accountantSubtitle ? (
+                        <p className="profile-accountant-subtitle">{accountantSubtitle}</p>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="profile-chevron-right">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
+                ) : (
+                  <div className="profile-accountant-card">
+                    <div className="profile-accountant-info">
+                      <p className="profile-accountant-subtitle">
+                        No accountant has been assigned to you yet.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Personal Details */}
