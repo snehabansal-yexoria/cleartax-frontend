@@ -488,6 +488,14 @@ export default function PropertyDetailView({
               token={sessionToken}
             />
           </div>
+        ) : currentTab === "rules" ? (
+          <div className="property-rules-tab-wrapper">
+            <TransactionRulesView
+              backHref={backHref}
+              entityId={entityId || property?.entityId}
+              isPropertyPage={true}
+            />
+          </div>
         ) : (
           <div className="property-detail-tab-body">
             {currentTab === "transactions" ? (
@@ -496,8 +504,6 @@ export default function PropertyDetailView({
                 addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
                 compact
               />
-            ) : currentTab === "rules" ? (
-              <TransactionRulesView backHref={backHref} entityId={entityId} />
             ) : (
               <>
                 <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
