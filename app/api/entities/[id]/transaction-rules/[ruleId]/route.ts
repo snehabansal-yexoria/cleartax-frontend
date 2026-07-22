@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import {
+  coreApiRequest,
+  normalizeCoreTransactionRule,
+} from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type RouteContext = { params: Promise<{ id: string; ruleId: string }> };
@@ -21,7 +24,9 @@ export async function PATCH(req: Request, context: RouteContext) {
       `/entities/${encodeURIComponent(id)}/transaction-rules/${encodeURIComponent(ruleId)}`,
       { token, method: "PATCH", body },
     );
-    return NextResponse.json(data);
+    return NextResponse.json(
+      normalizeCoreTransactionRule(data as Record<string, unknown>),
+    );
   } catch (error) {
     return renderUpstreamError(
       `PATCH /api/entities/${id}/transaction-rules/${ruleId}`,

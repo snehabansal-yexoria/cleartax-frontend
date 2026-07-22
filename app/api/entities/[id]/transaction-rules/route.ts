@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import {
+  coreApiRequest,
+  normalizeCoreTransactionRule,
+  normalizeCoreTransactionRuleList,
+} from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 import { scopeRulesForAccountant } from "@/src/lib/ruleScope";
 
@@ -15,8 +19,10 @@ export async function GET(req: Request, context: RouteContext) {
       `/entities/${encodeURIComponent(id)}/transaction-rules`,
       { token },
     );
-    // Accountants only see rules they created; admins keep full visibility.
-    return NextResponse.json(await scopeRulesForAccountant(token, data));
+    // Accountants only see rules they created (filters on the raw snake_case
+    // `created_by`), so scope first, then normalize the payload to camelCase.
+    const scoped = await scopeRulesForAccountant(token, data);
+    return NextResponse.json(normalizeCoreTransactionRuleList(scoped));
   } catch (error) {
     return renderUpstreamError(`GET /api/entities/${id}/transaction-rules`, error);
   }
@@ -39,7 +45,10 @@ export async function POST(req: Request, context: RouteContext) {
       `/entities/${encodeURIComponent(id)}/transaction-rules`,
       { token, method: "POST", body },
     );
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(
+      normalizeCoreTransactionRule(data as Record<string, unknown>),
+      { status: 201 },
+    );
   } catch (error) {
     return renderUpstreamError(`POST /api/entities/${id}/transaction-rules`, error, body);
   }

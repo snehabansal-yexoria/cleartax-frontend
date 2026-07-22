@@ -1261,6 +1261,96 @@ export function normalizeCoreTransactionSubcategory(
   };
 }
 
+// =============================================================================
+// Transaction rules
+// =============================================================================
+
+export type CoreTransactionRuleCondition = {
+  field: string;
+  operator: string;
+  value: unknown;
+};
+
+export type CoreTransactionRule = {
+  id: number;
+  orgId: string;
+  entityId: string;
+  propertyId: string | null;
+  name: string;
+  matchMode: string;
+  conditions: CoreTransactionRuleCondition[];
+  assignedType: string;
+  assignedCategoryId: number;
+  assignedSubcategoryId: number;
+  autoConfirm: boolean;
+  isEnabled: boolean;
+  metadata: Record<string, unknown>;
+  createdBy: string;
+  updatedBy: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function normalizeRuleCondition(raw: unknown): CoreTransactionRuleCondition {
+  const r = toRecord(raw);
+  return {
+    field: toStringValue(r.field),
+    operator: toStringValue(r.operator),
+    value: r.value,
+  };
+}
+
+export function normalizeCoreTransactionRule(
+  raw: RawRecord,
+): CoreTransactionRule {
+  const conditionsRaw = Array.isArray(raw.conditions) ? raw.conditions : [];
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    propertyId: toNullableString(raw.property_id ?? raw.propertyId),
+    name: toStringValue(raw.name),
+    matchMode: toStringValue(raw.match_mode ?? raw.matchMode),
+    conditions: conditionsRaw.map(normalizeRuleCondition),
+    assignedType: toStringValue(raw.assigned_type ?? raw.assignedType),
+    assignedCategoryId:
+      toNumberValue(raw.assigned_category_id ?? raw.assignedCategoryId) ?? 0,
+    assignedSubcategoryId:
+      toNumberValue(raw.assigned_subcategory_id ?? raw.assignedSubcategoryId) ??
+      0,
+    autoConfirm: Boolean(raw.auto_confirm ?? raw.autoConfirm),
+    isEnabled: Boolean(raw.is_enabled ?? raw.isEnabled),
+    metadata: toRecord(raw.metadata),
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy: toStringValue(raw.updated_by ?? raw.updatedBy),
+    isDeleted: Boolean(raw.is_deleted ?? raw.isDeleted),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+// Normalizes a `{ items: [...] }` rules list payload to camelCase, preserving
+// any other top-level keys. Non-list payloads pass through untouched, so this
+// is safe to chain after scopeRulesForAccountant (which filters on the raw
+// snake_case `created_by` and must therefore run first).
+export function normalizeCoreTransactionRuleList(payload: unknown): unknown {
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    !Array.isArray((payload as { items?: unknown }).items)
+  ) {
+    return payload;
+  }
+  const items = (payload as { items: unknown[] }).items;
+  return {
+    ...(payload as object),
+    items: items
+      .filter((i): i is RawRecord => typeof i === "object" && i !== null)
+      .map(normalizeCoreTransactionRule),
+  };
+}
+
 export async function listCoreTransactionsByClient(
   token: string,
   clientId: string,
