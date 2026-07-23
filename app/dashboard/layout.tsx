@@ -57,6 +57,7 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -217,18 +218,19 @@ const accountantMenuItems: PortalMenuItem[] = [
       </svg>
     ),
   },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1 0 2.8 2 2 0 0 1-2.8 0l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z" />
-      </svg>
-    ),
-  },
+
 ];
 
+// {
+//     id: "settings",
+//     label: "Settings",
+//     icon: (
+//       <svg viewBox="0 0 24 24" aria-hidden="true">
+//         <circle cx="12" cy="12" r="3" />
+//         <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1 0 2.8 2 2 0 0 1-2.8 0l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z" />
+//       </svg>
+//     ),
+//   },
 const adminMenuItems: PortalMenuItem[] = [
   {
     id: "dashboard",
@@ -372,7 +374,7 @@ const clientMenuItems: PortalMenuItem[] = [
   },
   {
     id: "property",
-    href: "/dashboard/client/property",
+    href: "/dashboard/client/properties",
     label: "Properties",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -678,10 +680,6 @@ export default function DashboardLayout({
 
     if (role === "accountant") {
       actions.push(
-        { id: "nav-dash", type: "nav", title: "Go to Dashboard", href: "/dashboard/accountant", keywords: ["dashboard", "home", "main"] },
-        { id: "nav-clients", type: "nav", title: "View All Clients", href: "/dashboard/accountant/clients", keywords: ["clients", "customers", "users", "list"] },
-        { id: "nav-invite", type: "action", title: "Invite Client", href: "/dashboard/accountant/clients?invite=1", keywords: ["invite", "new client", "add client", "create"] },
-        { id: "nav-txs", type: "nav", title: "View Transactions", href: "/dashboard/accountant/transactions", keywords: ["transactions", "payments", "money", "history"] }
       );
     } else if (role === "admin") {
       actions.push(
@@ -1062,6 +1060,7 @@ export default function DashboardLayout({
             </div>
 
             <div className="accountant-topbar-actions">
+              {isClientPage && <ThemeToggle />}
               {/* <button
                 type="button"
                 className="accountant-icon-button"

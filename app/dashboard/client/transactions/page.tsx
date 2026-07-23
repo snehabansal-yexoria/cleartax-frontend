@@ -7,6 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
+import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -78,83 +79,29 @@ export default function ClientTransactionsPage() {
     };
   }, [router]);
 
-  // Fallback demo data if no transactions exist in the account
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
   const todayStr = today.toISOString().split('T')[0];
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-  const demoTransactions = [
-    {
-      id: "demo-t1",
-      description: "Rent - 24 Darling St",
-      categoryName: "Rental Income",
-      meta: "XX3421",
-      type: "revenue",
-      amount: 4200,
-      invoiceDate: todayStr,
-      entityName: "Johnson Family Trust",
-      entityId: "demo-ent1",
-    },
-    {
-      id: "demo-t2",
-      description: "Water Bill",
-      categoryName: "Utilities",
-      meta: "Water 24 Darling Street",
-      type: "expense",
-      amount: 312,
-      invoiceDate: todayStr,
-      entityName: "Johnson Family Trust",
-      entityId: "demo-ent1",
-    },
-    {
-      id: "demo-t3",
-      description: "Water Bill",
-      categoryName: "Utilities",
-      meta: "Water 24 Darling Street",
-      type: "expense",
-      amount: 312,
-      invoiceDate: yesterdayStr,
-      entityName: "Johnson Family Trust",
-      entityId: "demo-ent1",
-    },
-    {
-      id: "demo-t4",
-      description: "Cleaning Bill",
-      categoryName: "Utilities",
-      meta: "12 Church Avenue",
-      type: "expense",
-      amount: 670,
-      invoiceDate: yesterdayStr,
-      entityName: "SJ Holdings Pvt Ltd.",
-      entityId: "demo-ent2",
-    }
-  ];
-
-  const listData = transactions.length > 0
-    ? transactions.map(tx => ({
-        id: tx.id,
-        description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
-        categoryName: tx.categoryName,
-        meta: tx.propertyName || tx.propertyNames?.[0] || "",
-        type: tx.type,
-        amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
-        invoiceDate: tx.invoiceDate ? tx.invoiceDate.split('T')[0] : "",
-        entityName: tx.entityName || "Individual",
-        entityId: tx.entityId || "",
-      }))
-    : demoTransactions;
+  const listData = transactions.map(tx => ({
+    id: tx.id,
+    description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+    categoryName: tx.categoryName,
+    meta: tx.propertyName || tx.propertyNames?.[0] || "",
+    type: tx.type,
+    amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
+    invoiceDate: tx.invoiceDate ? tx.invoiceDate.split('T')[0] : "",
+    entityName: tx.entityName || "Individual",
+    entityId: tx.entityId || "",
+  }));
 
   // Unique entities list for bottom sheet filters
-  const uniqueEntitiesList = listData === demoTransactions
-    ? ["Johnson Family Trust", "SJ Holdings Pvt Ltd.", "Sarah Johnson"]
-    : Array.from(new Set(listData.map(tx => tx.entityName).filter(Boolean)));
+  const uniqueEntitiesList = Array.from(new Set(listData.map(tx => tx.entityName).filter(Boolean)));
 
   // Unique properties list for bottom sheet filters
-  const uniquePropertiesList = listData === demoTransactions
-    ? ["24 Darling Street", "12 Church Ave", "8 Harbour Road"]
-    : Array.from(new Set(listData.map(tx => tx.meta).filter(Boolean)));
+  const uniquePropertiesList = Array.from(new Set(listData.map(tx => tx.meta).filter(Boolean)));
 
   // MTD calculations based on active calendar month
   const currentMonth = today.getMonth();
@@ -175,8 +122,8 @@ export default function ClientTransactionsPage() {
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   // Fallbacks if no data exists
-  const displayIncomeMtd = listData === demoTransactions ? 18400 : incomeMtd;
-  const displayExpenseMtd = listData === demoTransactions ? 6120 : expenseMtd;
+  const displayIncomeMtd = incomeMtd;
+  const displayExpenseMtd = expenseMtd;
 
   // Filter listData based on all active filters
   let filtered = listData;
@@ -256,7 +203,7 @@ export default function ClientTransactionsPage() {
   const groupTransactionsByDate = (itemsList: any[]) => {
     const groups: { [key: string]: any[] } = {};
     const sorted = [...itemsList].sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate));
-    
+
     sorted.forEach(item => {
       if (!item.invoiceDate) return;
       const dateLabel = formatDateGroupHeader(item.invoiceDate);
@@ -276,7 +223,7 @@ export default function ClientTransactionsPage() {
         month: "long",
         year: "numeric",
       });
-      
+
       if (dateStr === todayStr) {
         return `Today - ${formattedDate}`;
       } else if (dateStr === yesterdayStr) {
@@ -350,7 +297,7 @@ export default function ClientTransactionsPage() {
         fallback={<ClientEntitiesSkeleton />}
       >
         <div className="mobile-client-dashboard" style={{ padding: '0 16px 90px 16px', background: '#f7f9fc', position: 'relative' }}>
-          
+
           {/* Keyframe Animations */}
           <style>{`
             @keyframes fadeIn {
@@ -372,8 +319,8 @@ export default function ClientTransactionsPage() {
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0 16px 0' }}>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#101828', margin: 0 }}>Transactions</h1>
-            <Link 
-              href="/dashboard/client/transactions/new" 
+            <Link
+              href="/dashboard/client/transactions/new"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -400,7 +347,7 @@ export default function ClientTransactionsPage() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </div>
-            <input 
+            <input
               type="text"
               placeholder="Search Transactions"
               value={searchQuery}
@@ -451,8 +398,8 @@ export default function ClientTransactionsPage() {
 
           {/* Filter Pills */}
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '4px 0 16px 0', WebkitOverflowScrolling: 'touch' }}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('all')}
               style={{
                 padding: '8px 16px',
@@ -469,8 +416,8 @@ export default function ClientTransactionsPage() {
             >
               All
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('income')}
               style={{
                 padding: '8px 16px',
@@ -487,8 +434,8 @@ export default function ClientTransactionsPage() {
             >
               Income
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('expense')}
               style={{
                 padding: '8px 16px',
@@ -505,8 +452,8 @@ export default function ClientTransactionsPage() {
             >
               Expense
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('month')}
               style={{
                 padding: '8px 16px',
@@ -530,13 +477,13 @@ export default function ClientTransactionsPage() {
             <div style={{ paddingRight: '16px' }}>
               <span style={{ fontSize: '13px', color: '#667085', fontWeight: 600 }}>Income (MTD)</span>
               <div style={{ fontSize: '20px', fontWeight: 700, color: '#12b76a', marginTop: '6px' }}>
-                +${displayIncomeMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {formatClientCurrency(displayIncomeMtd)}
               </div>
             </div>
             <div style={{ paddingLeft: '16px', borderLeft: '1px solid #eaeef4' }}>
               <span style={{ fontSize: '13px', color: '#667085', fontWeight: 600 }}>Expense (MTD)</span>
               <div style={{ fontSize: '20px', fontWeight: 700, color: '#f04438', marginTop: '6px' }}>
-                -${displayExpenseMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {formatClientCurrency(-displayExpenseMtd)}
               </div>
             </div>
           </div>
@@ -552,7 +499,7 @@ export default function ClientTransactionsPage() {
                 <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#667085', margin: '0 0 10px 0' }}>
                   {dateLabel}
                 </h4>
-                
+
                 <div className="m-db-activity-list-card">
                   {items.map((tx, idx) => (
                     <div key={tx.id} className="m-db-activity-row" style={{ borderBottom: idx < items.length - 1 ? '1px solid #f2f4f7' : 'none' }}>
@@ -578,7 +525,7 @@ export default function ClientTransactionsPage() {
                         </div>
                       </div>
                       <span className={`m-db-activity-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {tx.type === 'revenue' ? '+' : '-'}${tx.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
                       </span>
                     </div>
                   ))}
@@ -591,7 +538,7 @@ export default function ClientTransactionsPage() {
           {isFilterSheetOpen && (
             <>
               {/* Backdrop */}
-              <div 
+              <div
                 className="m-filter-backdrop"
                 onClick={handleCancelFilters}
                 style={{
@@ -604,9 +551,9 @@ export default function ClientTransactionsPage() {
                   zIndex: 1000
                 }}
               />
-              
+
               {/* Sheet Drawer */}
-              <div 
+              <div
                 className="m-filter-sheet"
                 style={{
                   position: 'fixed',
@@ -628,12 +575,12 @@ export default function ClientTransactionsPage() {
               >
                 {/* Drag Handle */}
                 <div style={{ width: '40px', height: '4px', background: '#eaeef4', borderRadius: '2px', margin: '0 auto 16px auto' }} />
-                
+
                 {/* Header Row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#101828', margin: 0 }}>Filters</h2>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleClearAll}
                     style={{ border: 'none', background: 'none', color: '#1a235a', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
                   >
@@ -803,8 +750,8 @@ export default function ClientTransactionsPage() {
 
                 {/* Footer buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleCancelFilters}
                     style={{
                       padding: '12px 16px',
@@ -820,8 +767,8 @@ export default function ClientTransactionsPage() {
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleApplyFilters}
                     style={{
                       padding: '12px 16px',
@@ -854,7 +801,7 @@ export default function ClientTransactionsPage() {
       fallback={<ClientEntitiesSkeleton />}
     >
       <div className="desktop-client-dashboard" style={{ background: '#f7f9fc', minHeight: '100vh', paddingBottom: '40px' }}>
-        
+
         {/* Scoped CSS Styles */}
         <style>{`
           .desktop-client-dashboard {
@@ -1170,7 +1117,7 @@ export default function ClientTransactionsPage() {
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </div>
-              <input 
+              <input
                 type="text"
                 placeholder="Search transactions"
                 value={searchQuery}
@@ -1200,29 +1147,29 @@ export default function ClientTransactionsPage() {
 
           {/* Filter Pills */}
           <div className="d-tx-pills-row">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('all')}
               className={`d-tx-pill ${activeFilter === 'all' ? 'active' : 'inactive'}`}
             >
               All
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('income')}
               className={`d-tx-pill ${activeFilter === 'income' ? 'active' : 'inactive'}`}
             >
               Income
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('expense')}
               className={`d-tx-pill ${activeFilter === 'expense' ? 'active' : 'inactive'}`}
             >
               Expense
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => handleQuickFilterChange('month')}
               className={`d-tx-pill ${activeFilter === 'month' ? 'active' : 'inactive'}`}
             >
@@ -1235,13 +1182,13 @@ export default function ClientTransactionsPage() {
             <div className="d-tx-mtd-card">
               <span className="d-tx-mtd-label">Income (MTD)</span>
               <div className="d-tx-mtd-value income">
-                +${displayIncomeMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {formatClientCurrency(displayIncomeMtd)}
               </div>
             </div>
             <div className="d-tx-mtd-card">
               <span className="d-tx-mtd-label">Expense (MTD)</span>
               <div className="d-tx-mtd-value expense">
-                -${displayExpenseMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {formatClientCurrency(-displayExpenseMtd)}
               </div>
             </div>
           </div>
@@ -1257,7 +1204,7 @@ export default function ClientTransactionsPage() {
                 <h4 className="d-tx-group-title">
                   {dateLabel}
                 </h4>
-                
+
                 <div className="d-tx-list-card">
                   {items.map((tx, idx) => (
                     <div key={tx.id} className="d-tx-row">
@@ -1283,7 +1230,7 @@ export default function ClientTransactionsPage() {
                         </div>
                       </div>
                       <span className={`d-tx-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {tx.type === 'revenue' ? '+' : '-'}${tx.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
                       </span>
                     </div>
                   ))}
@@ -1297,12 +1244,12 @@ export default function ClientTransactionsPage() {
         {isFilterSheetOpen && (
           <div className="d-filter-modal-overlay" onClick={handleCancelFilters}>
             <div className="d-filter-modal-card" onClick={(e) => e.stopPropagation()}>
-              
+
               {/* Header Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#101828', margin: 0 }}>Filters</h2>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleClearAll}
                   style={{ border: 'none', background: 'none', color: '#1a235a', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
                 >
@@ -1478,8 +1425,8 @@ export default function ClientTransactionsPage() {
 
               {/* Footer buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCancelFilters}
                   style={{
                     padding: '12px 16px',
@@ -1496,8 +1443,8 @@ export default function ClientTransactionsPage() {
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleApplyFilters}
                   style={{
                     padding: '12px 16px',

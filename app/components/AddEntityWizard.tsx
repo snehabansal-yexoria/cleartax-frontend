@@ -116,6 +116,48 @@ export default function AddEntityWizard({
   const [saved, setSaved] = useState(false);
   const [savedEntity, setSavedEntity] = useState<CoreEntity | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [nextStep, setNextStep] = useState<"client" | "property">("client");
+  const [existingEntities, setExistingEntities] = useState<CoreEntity[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadExistingEntities() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) return;
+        const token = session.getIdToken().getJwtToken();
+
+        const url = role === "accountant"
+          ? `/api/entities?client_id=${encodeURIComponent(createdFor)}`
+          : "/api/entities";
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setExistingEntities(data.items || []);
+      } catch (error) {
+        console.error("Failed to load existing entities for validation:", error);
+      }
+    }
+    loadExistingEntities();
+    return () => {
+      cancelled = true;
+    };
+  }, [createdFor, role]);
+
+  useEffect(() => {
+    if (saved) {
+      setTimeout(() => {
+        const successLink = document.querySelector(
+          ".entity-success-layer a, .entity-success-layer button"
+        ) as HTMLElement | null;
+        successLink?.focus();
+      }, 0);
+    }
+  }, [saved]);
 
   const totalOwnership = useMemo(
     () =>
@@ -200,13 +242,13 @@ export default function AddEntityWizard({
       entityType: EntityType;
       trustType: "discretionary" | "unit" | "hybrid" | null;
     }[] = [
-      { id: "individual", label: "Individual", desc: "Personal", entityType: "individual", trustType: null },
-      { id: "company", label: "Company", desc: "Pty Ltd", entityType: "company", trustType: null },
-      { id: "partnership", label: "Partnership", desc: "Business", entityType: "partnership", trustType: null },
-      { id: "smsf", label: "SMSF", desc: "Super fund", entityType: "smsf", trustType: null },
-      { id: "trust_discretionary", label: "Trust", desc: "Type — Discretionary", entityType: "trust", trustType: "discretionary" },
-      { id: "trust_unit", label: "Trust", desc: "Type — Unit", entityType: "trust", trustType: "unit" },
-    ];
+        { id: "individual", label: "Individual", desc: "Personal", entityType: "individual", trustType: null },
+        { id: "company", label: "Company", desc: "Pty Ltd", entityType: "company", trustType: null },
+        { id: "partnership", label: "Partnership", desc: "Business", entityType: "partnership", trustType: null },
+        { id: "smsf", label: "SMSF", desc: "Super fund", entityType: "smsf", trustType: null },
+        { id: "trust_discretionary", label: "Trust", desc: "Type — Discretionary", entityType: "trust", trustType: "discretionary" },
+        { id: "trust_unit", label: "Trust", desc: "Type — Unit", entityType: "trust", trustType: "unit" },
+      ];
     if (entityType === "trust" && trustType === "hybrid") {
       list.push({ id: "trust_hybrid", label: "Trust", desc: "Type — Hybrid", entityType: "trust", trustType: "hybrid" });
     }
@@ -240,8 +282,12 @@ export default function AddEntityWizard({
   }, [initialEntity]);
 
   function updateRow(uid: string, patch: Partial<BeneficiaryRow>) {
+    const finalPatch = { ...patch };
+    if (patch.percentage !== undefined) {
+      finalPatch.percentage = formatPercentageInput(patch.percentage);
+    }
     setBeneficiaries((current) =>
-      current.map((row) => (row.uid === uid ? { ...row, ...patch } : row)),
+      current.map((row) => (row.uid === uid ? { ...row, ...finalPatch } : row)),
     );
   }
 
@@ -260,12 +306,28 @@ export default function AddEntityWizard({
     setSaved(false);
     setSavedEntity(null);
     setErrorMessage("");
+    setNextStep("client");
   }
+
+  const isDuplicateName = (name: string) => {
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed) return false;
+    return existingEntities.some(
+      (entity) =>
+        entity.name.trim().toLowerCase() === trimmed &&
+        (!isEditMode || entity.id !== initialEntity?.id),
+    );
+  };
 
   async function submit(): Promise<CoreEntity | null> {
     setErrorMessage("");
     if (!entityType || !entityName.trim() || !beneficiariesValid) {
       setErrorMessage("Please complete every step before saving.");
+      return null;
+    }
+
+    if (isDuplicateName(entityName)) {
+      setErrorMessage("An entity with this name already exists.");
       return null;
     }
 
@@ -339,18 +401,24 @@ export default function AddEntityWizard({
     }
   }
 
-  async function handleSave() {
+  async function handleSave(goTo: "client" | "property" = "client") {
+    setNextStep(goTo);
     const entity = await submit();
     if (entity) setSaved(true);
   }
 
   function handleNameContinue() {
+    if (isDuplicateName(entityName)) {
+      setErrorMessage("An entity with this name already exists.");
+      return;
+    }
+
     if (needsBeneficiaries) {
       setStep(3);
       return;
     }
 
-    handleSave();
+    handleSave("client");
   }
 
   async function handleAddAnother() {
@@ -367,7 +435,7 @@ export default function AddEntityWizard({
         <div className="entity-wizard-top">
           <Link href={backHref} className="entity-wizard-back">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M15 6l-6 6 6 6" />
+              <path d="M15 18l-6-6 6-6" />
             </svg>
             Back to {backLabel}
           </Link>
@@ -411,7 +479,18 @@ export default function AddEntityWizard({
         </ol>
 
         {step === 1 && (
-          <div className="entity-wizard-card">
+          <div
+            className="entity-wizard-card"
+            onKeyDown={saved ? undefined : (e) => {
+              if (e.key === "Enter") {
+                const canContinue = entityType && (entityType !== "trust" || trustType);
+                if (canContinue) {
+                  e.preventDefault();
+                  setStep(2);
+                }
+              }
+            }}
+          >
             <header>
               <h2>Choose Entity Type</h2>
               <p>
@@ -491,7 +570,7 @@ export default function AddEntityWizard({
               <button
                 type="button"
                 className="entity-wizard-primary"
-                disabled={!entityType || (entityType === "trust" && !trustType)}
+                disabled={!entityType || (entityType === "trust" && !trustType) || saved}
                 onClick={() => setStep(2)}
               >
                 Continue
@@ -501,7 +580,15 @@ export default function AddEntityWizard({
         )}
 
         {step === 2 && (
-          <div className="entity-wizard-card">
+          <div
+            className="entity-wizard-card"
+            onKeyDown={saved ? undefined : (e) => {
+              if (e.key === "Enter" && entityName.trim() && !isSaving) {
+                e.preventDefault();
+                handleNameContinue();
+              }
+            }}
+          >
             <header>
               <h2>
                 {entityType === "individual"
@@ -561,7 +648,10 @@ export default function AddEntityWizard({
                             : "e.g., Smith Family Trust, ABC Properties LLC"
                 }
                 value={entityName}
-                onChange={(event) => setEntityName(event.target.value)}
+                onChange={(event) => {
+                  setEntityName(event.target.value);
+                  setErrorMessage("");
+                }}
                 autoFocus
               />
             </label>
@@ -571,7 +661,12 @@ export default function AddEntityWizard({
             </div>
 
             {errorMessage && (
-              <p className="entity-wizard-error">{errorMessage}</p>
+              <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">
+                <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[0.78rem] font-medium tracking-tight">{errorMessage}</span>
+              </div>
             )}
 
             <div className="entity-wizard-footer">
@@ -579,29 +674,62 @@ export default function AddEntityWizard({
                 type="button"
                 className="entity-wizard-link"
                 onClick={() => setStep(1)}
+                disabled={saved}
               >
                 Back
               </button>
-              <button
-                type="button"
-                className="entity-wizard-primary"
-                disabled={!entityName.trim() || isSaving}
-                onClick={handleNameContinue}
-              >
-                {needsBeneficiaries
-                  ? "Continue"
-                  : isSaving
-                    ? "Saving..."
-                    : isEditMode
-                      ? "Update Entity"
-                      : "Create Entity"}
-              </button>
+              {needsBeneficiaries ? (
+                <button
+                  type="button"
+                  className="entity-wizard-primary"
+                  disabled={!entityName.trim() || isSaving || saved}
+                  onClick={handleNameContinue}
+                >
+                  Continue
+                </button>
+              ) : isEditMode ? (
+                <button
+                  type="button"
+                  className="entity-wizard-primary"
+                  disabled={!entityName.trim() || isSaving || saved}
+                  onClick={() => handleSave("client")}
+                >
+                  {isSaving ? "Saving..." : "Update Entity"}
+                </button>
+              ) : (
+                <div className="entity-wizard-footer-actions">
+                  <button
+                    type="button"
+                    className="entity-wizard-secondary"
+                    disabled={!entityName.trim() || isSaving || saved}
+                    onClick={() => handleSave("client")}
+                  >
+                    {isSaving && nextStep === "client" ? "Saving..." : "Save Entity"}
+                  </button>
+                  <button
+                    type="button"
+                    className="entity-wizard-primary"
+                    disabled={!entityName.trim() || isSaving || saved}
+                    onClick={() => handleSave("property")}
+                  >
+                    {isSaving && nextStep === "property" ? "Saving..." : "Save and start adding property"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div className="entity-wizard-card">
+          <div
+            className="entity-wizard-card"
+            onKeyDown={saved ? undefined : (e) => {
+              if (e.key === "Enter" && beneficiariesValid && !isSaving) {
+                e.preventDefault();
+                handleSave();
+              }
+            }}
+          >
             <header>
               <h2>Add {beneficiaryNounPlural}</h2>
               <p>
@@ -644,8 +772,10 @@ export default function AddEntityWizard({
                     disabled={beneficiaries.length === 1}
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M6 6l12 12" />
-                      <path d="M18 6 6 18" />
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
                     </svg>
                   </button>
                 </div>
@@ -657,8 +787,13 @@ export default function AddEntityWizard({
                 onClick={() =>
                   setBeneficiaries((current) => [...current, newBeneficiaryRow()])
                 }
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
-                + Add Another {beneficiaryNoun}
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block" }}>
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Another {beneficiaryNoun}
               </button>
             </div>
 
@@ -671,13 +806,21 @@ export default function AddEntityWizard({
             </div>
 
             {ownershipOverLimit && (
-              <p className="entity-wizard-error">
-                Total ownership cannot exceed 100%.
-              </p>
+              <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">
+                <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[0.78rem] font-medium tracking-tight">Total ownership cannot exceed 100%.</span>
+              </div>
             )}
 
             {errorMessage && (
-              <p className="entity-wizard-error">{errorMessage}</p>
+              <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">
+                <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[0.78rem] font-medium tracking-tight">{errorMessage}</span>
+              </div>
             )}
 
             <div className="entity-wizard-footer">
@@ -685,33 +828,39 @@ export default function AddEntityWizard({
                 type="button"
                 className="entity-wizard-link"
                 onClick={() => setStep(2)}
+                disabled={saved}
               >
                 Back
               </button>
-              <div className="entity-wizard-footer-actions">
-                {!isEditMode && (
-                  <button
-                    type="button"
-                    className="entity-wizard-secondary"
-                    disabled={!beneficiariesValid || isSaving}
-                    onClick={addAnotherHref ? handleAddAnother : handleSave}
-                  >
-                    Add Another Entity
-                  </button>
-                )}
+              {isEditMode ? (
                 <button
                   type="button"
                   className="entity-wizard-primary"
-                  disabled={!beneficiariesValid || isSaving}
-                  onClick={handleSave}
+                  disabled={!beneficiariesValid || isSaving || saved}
+                  onClick={() => handleSave("client")}
                 >
-                  {isSaving
-                    ? "Saving…"
-                    : isEditMode
-                      ? "Save Changes"
-                      : "Save & Start Adding Property"}
+                  {isSaving ? "Saving..." : "Update Entity"}
                 </button>
-              </div>
+              ) : (
+                <div className="entity-wizard-footer-actions">
+                  <button
+                    type="button"
+                    className="entity-wizard-secondary"
+                    disabled={!beneficiariesValid || isSaving || saved}
+                    onClick={() => handleSave("client")}
+                  >
+                    {isSaving && nextStep === "client" ? "Saving..." : "Save Entity"}
+                  </button>
+                  <button
+                    type="button"
+                    className="entity-wizard-primary"
+                    disabled={!beneficiariesValid || isSaving || saved}
+                    onClick={() => handleSave("property")}
+                  >
+                    {isSaving && nextStep === "property" ? "Saving..." : "Save and start adding property"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -756,7 +905,7 @@ export default function AddEntityWizard({
               <div className="entity-success-footer">
                 <Link
                   href={
-                    !isEditMode && (entityType === "individual" || entityType === "smsf") && savedEntity
+                    !isEditMode && nextStep === "property" && savedEntity
                       ? onSuccessHref.includes("/dashboard/accountant")
                         ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
                         : `/dashboard/client/entities/${savedEntity.id}/properties/new`
@@ -804,8 +953,8 @@ export default function AddEntityWizard({
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", marginRight: "6px", verticalAlign: "middle" }}>
               <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             Confused about entity?
           </button>
@@ -819,7 +968,7 @@ export default function AddEntityWizard({
             {/* STEP 1 - ENTITY DETAILS */}
             <div className="entity-wizard-section">
               <span className="entity-wizard-section-tag">STEP 1 — ENTITY DETAILS</span>
-              
+
               <div className="entity-wizard-field">
                 <label className="entity-wizard-label" htmlFor="entityName">
                   Entity name <span className="required-asterisk">*</span>
@@ -843,9 +992,26 @@ export default function AddEntityWizard({
                               : "e.g., Smith Family Trust, ABC Properties LLC"
                   }
                   value={entityName}
-                  onChange={(event) => setEntityName(event.target.value)}
+                  onChange={(event) => {
+                    setEntityName(event.target.value);
+                    setErrorMessage("");
+                  }}
                   className="entity-wizard-input"
                   autoFocus
+                  onKeyDown={saved ? undefined : (e) => {
+                    if (e.key === "Enter") {
+                      if (needsBeneficiaries) {
+                        e.preventDefault();
+                        const firstBeneficiaryInput = document.querySelector(".entity-beneficiary-name") as HTMLInputElement | null;
+                        if (firstBeneficiaryInput) {
+                          firstBeneficiaryInput.focus();
+                        }
+                      } else if (entityName.trim() && entityType && !isSaving) {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }
+                  }}
                 />
               </div>
 
@@ -879,7 +1045,7 @@ export default function AddEntityWizard({
             {needsBeneficiaries && (
               <div className="entity-wizard-section border-t border-[#eaecf0] pt-6 mt-2">
                 <span className="entity-wizard-section-tag">STEP 2 — BENEFICIARIES</span>
-                
+
                 <div className="entity-beneficiary-headers">
                   <span className="beneficiary-header-name">BENEFICIARY NAME</span>
                   <span className="beneficiary-header-pct">OWNERSHIP %</span>
@@ -897,6 +1063,12 @@ export default function AddEntityWizard({
                         onChange={(event) =>
                           updateRow(row.uid, { name: event.target.value })
                         }
+                        onKeyDown={saved ? undefined : (e) => {
+                          if (e.key === "Enter" && entityName.trim() && entityType && beneficiariesValid && !isSaving) {
+                            e.preventDefault();
+                            handleSave();
+                          }
+                        }}
                       />
                       <div className="entity-beneficiary-pct">
                         <input
@@ -909,6 +1081,12 @@ export default function AddEntityWizard({
                           onChange={(event) =>
                             updateRow(row.uid, { percentage: event.target.value })
                           }
+                          onKeyDown={saved ? undefined : (e) => {
+                            if (e.key === "Enter" && entityName.trim() && entityType && beneficiariesValid && !isSaving) {
+                              e.preventDefault();
+                              handleSave();
+                            }
+                          }}
                         />
                         <span>%</span>
                       </div>
@@ -919,7 +1097,7 @@ export default function AddEntityWizard({
                         onClick={() => removeRow(row.uid)}
                         disabled={beneficiaries.length === 1}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
                           <polyline points="3 6 5 6 21 6" />
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                           <line x1="10" y1="11" x2="10" y2="17" />
@@ -953,45 +1131,70 @@ export default function AddEntityWizard({
                 </div>
 
                 {ownershipOverLimit && (
-                  <p className="entity-wizard-error">
-                    Total ownership cannot exceed 100%.
-                  </p>
+                  <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">
+                    <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[0.78rem] font-medium tracking-tight">Total ownership cannot exceed 100%.</span>
+                  </div>
                 )}
               </div>
             )}
 
             {errorMessage && (
-              <p className="entity-wizard-error">{errorMessage}</p>
+              <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">
+                <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[0.78rem] font-medium tracking-tight">{errorMessage}</span>
+              </div>
             )}
 
             {/* Form Actions (Cancel / Save) */}
             <div className="entity-wizard-actions">
-              <Link href={backHref} className="entity-wizard-btn-cancel">
+              <Link href={backHref} className={`entity-wizard-btn-cancel${saved ? " pointer-events-none opacity-50" : ""}`}>
                 Cancel
               </Link>
               <div className="entity-wizard-btn-group">
-                {!isEditMode && addAnotherHref && (
+                {isEditMode ? (
                   <button
                     type="button"
-                    className="entity-wizard-btn-secondary"
-                    disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving}
-                    onClick={handleAddAnother}
+                    className="entity-wizard-btn-save"
+                    disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving || saved}
+                    onClick={() => handleSave("client")}
                   >
-                    Add Another Entity
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </button>
+                ) : (
+                  <>
+                    {!isEditMode && addAnotherHref && (
+                      <button
+                        type="button"
+                        className="entity-wizard-btn-secondary"
+                        disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving || saved}
+                        onClick={handleAddAnother}
+                      >
+                        Add Another Entity
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="entity-wizard-btn-secondary"
+                      disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving || saved}
+                      onClick={() => handleSave("client")}
+                    >
+                      {isSaving && nextStep === "client" ? "Saving..." : "Save Entity"}
+                    </button>
+                    <button
+                      type="button"
+                      className="entity-wizard-btn-save"
+                      disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving || saved}
+                      onClick={() => handleSave("property")}
+                    >
+                      {isSaving && nextStep === "property" ? "Saving..." : "Save and start adding property"}
+                    </button>
+                  </>
                 )}
-                <button
-                  type="button"
-                  className="entity-wizard-btn-save"
-                  disabled={!entityName.trim() || !entityType || !beneficiariesValid || isSaving}
-                  onClick={handleSave}
-                >
-                  {isSaving
-                    ? "Saving..."
-                    : isEditMode
-                      ? "Save Changes"
-                      : "Save entity"}
-                </button>
               </div>
             </div>
           </div>
@@ -1039,7 +1242,7 @@ export default function AddEntityWizard({
             <div className="entity-success-footer">
               <Link
                 href={
-                  !isEditMode && (entityType === "individual" || entityType === "smsf") && savedEntity
+                  !isEditMode && nextStep === "property" && savedEntity
                     ? onSuccessHref.includes("/dashboard/accountant")
                       ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
                       : `/dashboard/client/entities/${savedEntity.id}/properties/new`
@@ -1066,12 +1269,12 @@ export default function AddEntityWizard({
               onClick={() => setShowHelpSidebar(false)}
               aria-label="Close help modal"
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
-            
+
             <div className="entity-help-card">
               <h4>What&apos;s an entity?</h4>
               <p>
@@ -1106,62 +1309,6 @@ export default function AddEntityWizard({
         </div>
       )}
 
-      {/* Success layer dialog (same state flow, styled with backdrop) */}
-      {saved && (
-        <div className="entity-success-layer" role="dialog" aria-modal="true">
-          <div className="entity-success-backdrop" aria-hidden="true" />
-          <div className="entity-success-card">
-            <div className="entity-success-animation" aria-hidden="true">
-              <span className="entity-success-confetti is-one" />
-              <span className="entity-success-confetti is-two" />
-              <span className="entity-success-confetti is-three" />
-              <span className="entity-success-confetti is-four" />
-              <svg viewBox="0 0 72 72">
-                <circle
-                  className="entity-success-badge"
-                  cx="36"
-                  cy="36"
-                  r="28"
-                />
-                <path
-                  className="entity-success-check"
-                  d="M22 37.5 31.5 47 51 25"
-                />
-              </svg>
-            </div>
-            <div className="entity-success-body">
-              <strong>
-                Entity Successfully {isEditMode ? "Updated" : "Added"}!
-              </strong>
-              <p>
-                {isEditMode ? (
-                  "Your entity details have been updated and are ready for property and transaction mapping."
-                ) : (
-                  <>
-                    You&apos;ve successfully registered this entity. It&apos;s
-                    now ready for property and transaction mapping.
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="entity-success-footer">
-              <Link
-                href={
-                  !isEditMode && (entityType === "individual" || entityType === "smsf") && savedEntity
-                    ? onSuccessHref.includes("/dashboard/accountant")
-                      ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
-                      : `/dashboard/client/entities/${savedEntity.id}/properties/new`
-                    : onSuccessHref
-                }
-                className="entity-wizard-btn-save"
-                style={{ textAlign: "center", display: "inline-block" }}
-              >
-                Continue
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1179,7 +1326,7 @@ function getInitialBeneficiaries(entity?: CoreEntity): BeneficiaryRow[] {
         Math.round(beneficiary.ownershipPercentage),
       ) < 0.001
         ? String(Math.round(beneficiary.ownershipPercentage))
-        : String(beneficiary.ownershipPercentage),
+        : String(Number(beneficiary.ownershipPercentage.toFixed(2))),
   }));
 }
 
@@ -1187,5 +1334,25 @@ function formatPercentage(value: number) {
   if (Math.abs(value - Math.round(value)) < 0.001) {
     return `${Math.round(value)}%`;
   }
-  return `${value.toFixed(1)}%`;
+  return `${Number(value.toFixed(2))}%`;
+}
+
+function formatPercentageInput(val: string): string {
+  if (!val) return "";
+
+  // Remove everything except digits and one decimal point
+  let cleaned = val.replace(/[^0-9.]/g, "");
+
+  // Handle multiple decimals (only keep the first one)
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    cleaned = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  // Limit decimal places to 2
+  const [integer, decimal] = cleaned.split(".");
+  if (decimal !== undefined) {
+    return integer + "." + decimal.slice(0, 2);
+  }
+  return integer;
 }

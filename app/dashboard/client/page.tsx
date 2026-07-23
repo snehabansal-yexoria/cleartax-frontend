@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useId, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
+import ThemeToggle from "@/app/components/ThemeToggle";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
-import { formatCurrencyShort } from "@/src/lib/currency";
+import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 import {
   dropdownRegistryEvent,
@@ -722,6 +723,7 @@ export default function ClientPage() {
               </div>
             </div>
             <div className="m-db-actions-section">
+              <ThemeToggle />
               <button type="button" className="m-db-bell-btn" aria-label="Notifications">
                 <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -951,7 +953,7 @@ export default function ClientPage() {
                         </div>
                       </div>
                       <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {item.type === 'revenue' ? '+' : '-'}${item.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                       </span>
                     </div>
                   ))}
@@ -1084,7 +1086,7 @@ export default function ClientPage() {
                   <button 
                     type="button" 
                     className="m-db-activity-view-all"
-                    onClick={() => router.push('/dashboard/client/property')}
+                    onClick={() => router.push('/dashboard/client/properties')}
                     style={{ background: 'none', border: 'none', padding: 0 }}
                   >
                     View all
@@ -1133,9 +1135,9 @@ export default function ClientPage() {
                       </div>
                       
                       <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
-                        <span style={{ color: '#475467' }}>Income <strong style={{ color: '#12b76a' }}>+{formatCurrencyShort(item.income)}</strong></span>
-                        <span style={{ color: '#475467' }}>Expense <strong style={{ color: '#344054' }}>-{formatCurrencyShort(item.expense).replace('$', '')}</strong></span>
-                        <span style={{ color: '#475467' }}>Net <strong style={{ color: item.net >= 0 ? '#12b76a' : '#f04438' }}>{item.net >= 0 ? '+' : ''}{formatCurrencyShort(item.net)}</strong></span>
+                        <span style={{ color: '#475467' }}>Income <strong style={{ color: '#12b76a' }}>{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
+                        <span style={{ color: '#475467' }}>Expense <strong style={{ color: '#344054' }}>{formatClientCurrency(-item.expense, { short: true })}</strong></span>
+                        <span style={{ color: '#475467' }}>Net <strong style={{ color: item.net >= 0 ? '#12b76a' : '#f04438' }}>{formatClientCurrency(item.net, { short: true, showPlus: true })}</strong></span>
                       </div>
                     </div>
                   ))}
@@ -1258,7 +1260,7 @@ export default function ClientPage() {
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Outstanding Loans</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {displayOutstandingLoans > 0 ? '-' : ''}{formatCurrencyShort(displayOutstandingLoans)}
+                {formatClientCurrency(displayOutstandingLoans > 0 ? -displayOutstandingLoans : displayOutstandingLoans, { short: true })}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
@@ -1270,7 +1272,7 @@ export default function ClientPage() {
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Cash Flow (This Month)</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {displayCashFlow >= 0 ? '+' : ''}{formatCurrencyShort(displayCashFlow)}
+                {formatClientCurrency(displayCashFlow, { short: true, showPlus: true })}
               </span>
             </div>
           </div>
@@ -1461,7 +1463,7 @@ export default function ClientPage() {
                     </div>
                   </div>
                   <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
-                    {item.type === 'revenue' ? '+' : '-'}${item.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                   </span>
                 </div>
               ))}
@@ -1523,7 +1525,7 @@ export default function ClientPage() {
           <div className="md:col-span-2 xl:col-span-2 order-4 xl:order-4 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="text-[#101828] text-base font-bold">By property</h3>
-              <Link href="/dashboard/client/property" className="text-[#175cd3] text-xs font-bold hover:underline">
+              <Link href="/dashboard/client/properties" className="text-[#175cd3] text-xs font-bold hover:underline">
                 View all
               </Link>
             </div>
@@ -1559,14 +1561,14 @@ export default function ClientPage() {
                     </div>
                     
                     {/* Net value in Figma is "Net +$24.2K" or dynamic */}
-                    <span className="text-[#12b76a] text-[14px] font-bold">Net +${(item.net / 1000).toFixed(1)}K</span>
+                    <span className="text-[#12b76a] text-[14px] font-bold">Net {formatClientCurrency(item.net, { short: true, showPlus: true, decimals: 1 })}</span>
                   </div>
                   
                   <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] mt-1">
                     <span>Value <strong className="text-[#101828]">{formatCurrencyShort(item.marketValue)}</strong></span>
                     <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                    <span>Income <strong className="text-[#12b76a]">+{formatCurrencyShort(item.income)}</strong></span>
-                    <span>Expenses <strong className="text-[#f04438]">{item.expense > 0 ? '-' : ''}{formatCurrencyShort(item.expense)}</strong></span>
+                    <span>Income <strong className="text-[#12b76a]">{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
+                    <span>Expenses <strong className="text-[#f04438]">{formatClientCurrency(-item.expense, { short: true })}</strong></span>
                   </div>
                 </div>
               ))}

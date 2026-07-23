@@ -277,11 +277,11 @@ function StaticSelect({
 
   const filteredOptions = showSearch
     ? options.filter(
-        (option) =>
-          option.label.toLowerCase().includes(localSearch.toLowerCase()) ||
-          option.value === "all" ||
-          option.value === "",
-      )
+      (option) =>
+        option.label.toLowerCase().includes(localSearch.toLowerCase()) ||
+        option.value === "all" ||
+        option.value === "",
+    )
     : options;
 
   return (
@@ -443,8 +443,11 @@ function StaticSelect({
         )}
       </div>
       {error && (
-        <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
-          {error}
+        <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          <span>{error}</span>
         </p>
       )}
     </div>
@@ -573,7 +576,7 @@ function TransactionDetailPopup({
   onEdit: () => void;
   onCancelEdit: () => void;
   onSave: (body: Record<string, unknown>) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete: () => void;
 }) {
   const [description, setDescription] = useState(row.description || "");
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
@@ -638,6 +641,69 @@ function TransactionDetailPopup({
 
   const [editError, setEditError] = useState("");
   const [isOpeningInvoice, setIsOpeningInvoice] = useState(false);
+  const [pendingExitAction, setPendingExitAction] = useState<"cancel" | "close" | null>(null);
+
+  const hasChanges = useMemo(() => {
+    if (mode !== "edit") return false;
+    const initial = detail ? transactionDetailToRow(detail, row) : row;
+
+    if ((description || "") !== (initial.description || "")) return true;
+    if ((internalRemarks || "") !== (initial.internalRemarks || "")) return true;
+    if (reviewStatus !== initial.reviewStatus) return true;
+    if (isAssetPurchase !== initial.isAssetPurchase) return true;
+    if (type !== initial.type) return true;
+    if (categoryId !== initial.categoryId) return true;
+    if (subcategoryId !== initial.subcategoryId) return true;
+    if (invoiceDate !== (initial.invoiceDate?.slice(0, 10) || "")) return true;
+    if (grossAmount !== String(initial.grossAmount || "")) return true;
+    if (gstAmount !== String(initial.gstAmount || "")) return true;
+
+    const initialMode = typeof initial.metadata.mode_of_transaction === "string" ? initial.metadata.mode_of_transaction : "";
+    if (modeOfTransaction !== initialMode) return true;
+
+    const initialAssetName = typeof initial.metadata.asset_item_name === "string" ? initial.metadata.asset_item_name : "";
+    if (assetItemName !== initialAssetName) return true;
+
+    if ((assetClass || "") !== (initial.assetClass || "")) return true;
+
+    const initialLife = initial.effectiveLifeYears == null ? "" : String(initial.effectiveLifeYears);
+    if (effectiveLifeYears !== initialLife) return true;
+
+    const initialSplits = detail?.splits || [];
+    if (isSplit !== (initialSplits.length > 1)) return true;
+
+    if (editSplitRows.length !== (initialSplits.length || 1)) return true;
+    for (let i = 0; i < editSplitRows.length; i++) {
+      const editRow = editSplitRows[i];
+      if (initialSplits.length > 0) {
+        const initSplit = initialSplits[i];
+        if (editRow.propertyId !== initSplit.propertyId) return true;
+        if (editRow.amount !== String(initSplit.splitGrossAmount || "")) return true;
+      } else {
+        const initPropId = initial.propertyIds[0] || "";
+        if (editRow.propertyId !== initPropId) return true;
+        if (editRow.amount !== String(initial.grossAmount || "")) return true;
+      }
+    }
+
+    return false;
+  }, [
+    mode, detail, row, description, internalRemarks, reviewStatus, isAssetPurchase,
+    type, categoryId, subcategoryId, invoiceDate, grossAmount, gstAmount,
+    modeOfTransaction, assetItemName, assetClass, effectiveLifeYears, isSplit, editSplitRows
+  ]);
+
+  function handleAttemptExit(action: "cancel" | "close") {
+    if (hasChanges) {
+      setPendingExitAction(action);
+    } else {
+      if (action === "cancel") {
+        onCancelEdit();
+      } else {
+        onClose();
+      }
+    }
+  }
 
   useEffect(() => {
     const source = detail ? transactionDetailToRow(detail, row) : row;
@@ -769,8 +835,7 @@ function TransactionDetailPopup({
   ];
   const showSubcategorySelect =
     !!categoryId &&
-    (subcategories.length === 0 ||
-      subcategories.some((s) => s.name.toLowerCase() !== "general"));
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
     ...properties.map((property) => ({ label: property.name, value: property.id })),
@@ -820,6 +885,7 @@ function TransactionDetailPopup({
   }, [type]);
 
   useEffect(() => {
+    setSubcategories([]);
     let cancelled = false;
     async function loadSubcategories() {
       const session = (await getSession()) as SessionWithIdToken | null;
@@ -903,9 +969,17 @@ function TransactionDetailPopup({
       setEditError(invoiceDateError);
       return;
     }
-    if (Number.isNaN(grossNum) || grossNum <= 0) {
-      setEditError("Amount must be a positive number.");
-      return;
+    const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
+    if (!allBlank) {
+      if (Number.isNaN(grossNum) || grossNum <= 0) {
+        setEditError("Amount must be a positive number.");
+        return;
+      }
+    } else {
+      if (!Number.isNaN(grossNum) && grossNum <= 0) {
+        setEditError("Amount must be a positive number.");
+        return;
+      }
     }
     let gstNum: number | null = null;
     if (showGstBreakdown && gstAmount) {
@@ -939,7 +1013,7 @@ function TransactionDetailPopup({
       (sum, split) => sum + (Number.parseFloat(split.amount) || 0),
       0,
     );
-    if (isSplit && Math.abs(splitTotal - grossNum) >= 0.01) {
+    if (isSplit && !allBlank && Math.abs(splitTotal - grossNum) >= 0.01) {
       setEditError(`Split amounts must total ${grossNum.toFixed(2)}.`);
       return;
     }
@@ -952,21 +1026,23 @@ function TransactionDetailPopup({
       return;
     }
     const splits = isSplit
-      ? selectedSplits.map((split) => {
-        const amount = Number.parseFloat(split.amount);
-        return {
-          property_id: split.propertyId,
-          split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
-          split_gross_amount: Number(amount.toFixed(2)),
-        };
-      })
+      ? (allBlank
+        ? selectedSplits.map((split) => ({ property_id: split.propertyId }))
+        : selectedSplits.map((split) => {
+          const amount = Number.parseFloat(split.amount);
+          return {
+            property_id: split.propertyId,
+            split_percentage: Number(((amount / grossNum) * 100).toFixed(4)),
+            split_gross_amount: Number(amount.toFixed(2)),
+          };
+        }))
       : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
       subcategory_id: subcategoryId,
       invoice_date: invoiceDate,
-      gross_amount: grossNum,
+      gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
       internal_remarks: internalRemarks.trim() || null,
       review_status: reviewStatus,
@@ -1000,12 +1076,12 @@ function TransactionDetailPopup({
         type="button"
         className="transaction-modal-backdrop"
         aria-label="Close transaction details"
-        onClick={onClose}
+        onClick={() => handleAttemptExit("close")}
       />
       <section className="transaction-detail-modal" aria-label="Transaction Details">
         <header className="transaction-detail-header">
           <h2>Transaction Details</h2>
-          <button type="button" aria-label="Close transaction details" onClick={onClose}>
+          <button type="button" aria-label="Close transaction details" onClick={() => handleAttemptExit("close")}>
             <CloseIcon />
           </button>
         </header>
@@ -1018,7 +1094,14 @@ function TransactionDetailPopup({
               <span className="skeleton-line skeleton-line-xl" />
             </div>
           ) : null}
-          {error ? <p className="transaction-detail-error">{error}</p> : null}
+          {error ? (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
           <DetailField label="Transaction ID">
             <a>{display.id.slice(0, 8).toUpperCase()}</a>
@@ -1036,7 +1119,14 @@ function TransactionDetailPopup({
 
           {mode === "edit" ? (
             <div className="transaction-detail-edit">
-              {editError ? <p className="transaction-detail-error">{editError}</p> : null}
+              {editError ? (
+                <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span>{editError}</span>
+                </div>
+              ) : null}
               <div className="transaction-type-control">
                 <span className="transaction-field-label">Transaction Type<em>*</em></span>
                 <div>
@@ -1170,10 +1260,8 @@ function TransactionDetailPopup({
                   />
                   {showDateError && (
                     <p className="transaction-field-error">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
                       {invoiceDateError}
                     </p>
@@ -1185,9 +1273,17 @@ function TransactionDetailPopup({
                     type="number"
                     inputMode="decimal"
                     step="0.01"
-                    min="0"
+                    min="0.01"
                     value={grossAmount}
-                    onChange={(event) => setGrossAmount(event.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "-" || e.key === "Minus") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const val = event.target.value.replace(/-/g, "");
+                      setGrossAmount(val);
+                    }}
                   />
                 </label>
               </div>
@@ -1208,7 +1304,15 @@ function TransactionDetailPopup({
                     step="0.01"
                     min="0"
                     value={gstAmount}
-                    onChange={(event) => setGstAmount(event.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "-" || e.key === "Minus") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const val = event.target.value.replace(/-/g, "");
+                      setGstAmount(val);
+                    }}
                   />
                 </label>
               ) : null}
@@ -1272,13 +1376,19 @@ function TransactionDetailPopup({
                             type="number"
                             inputMode="decimal"
                             step="0.01"
-                            min="0"
+                            min="0.01"
                             value={split.amount}
-                            onChange={(event) =>
+                            onKeyDown={(e) => {
+                              if (e.key === "-" || e.key === "Minus") {
+                                e.preventDefault();
+                              }
+                            }}
+                            onChange={(event) => {
+                              const val = event.target.value.replace(/-/g, "");
                               updateEditSplitRow(split.id, {
-                                amount: event.target.value,
-                              })
-                            }
+                                amount: val,
+                              });
+                            }}
                           />
                           <b>$</b>
                         </span>
@@ -1511,7 +1621,7 @@ function TransactionDetailPopup({
               <button
                 type="button"
                 className="transaction-cancel-button"
-                onClick={onCancelEdit}
+                onClick={() => handleAttemptExit("cancel")}
                 disabled={isSaving}
               >
                 Cancel
@@ -1551,6 +1661,25 @@ function TransactionDetailPopup({
           )}
         </footer>
       </section>
+      {pendingExitAction && (
+        <ConfirmationDialog
+          title="Discard Changes"
+          message="You have unsaved changes. Are you sure you want to discard them and exit?"
+          confirmLabel="Yes, Discard"
+          cancelLabel="No, Keep Editing"
+          onConfirm={() => {
+            const action = pendingExitAction;
+            setPendingExitAction(null);
+            if (action === "cancel") {
+              onCancelEdit();
+            } else {
+              onClose();
+            }
+          }}
+          onCancel={() => setPendingExitAction(null)}
+          isDanger={false}
+        />
+      )}
     </div>
   );
 }
@@ -2050,6 +2179,7 @@ export function AllTransactionsView({
   const [isDetailSaving, setIsDetailSaving] = useState(false);
   const [isDetailDeleting, setIsDetailDeleting] = useState(false);
   const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
+  const [transactionToDelete, setTransactionToDelete] = useState<DisplayTransactionRow | null>(null);
   const contextKind = context.kind;
   const contextId =
     context.kind === "client"
@@ -2366,13 +2496,12 @@ export function AllTransactionsView({
     }
   }
 
-  async function deleteTransaction(row = selectedTransaction) {
+  function deleteTransaction(row = selectedTransaction) {
     if (!row) return;
-    const confirmed = window.confirm(
-      "Delete this transaction? This action cannot be undone.",
-    );
-    if (!confirmed) return;
+    setTransactionToDelete(row);
+  }
 
+  async function performDeleteTransaction(row: DisplayTransactionRow) {
     setDetailError("");
     setIsDetailDeleting(true);
     try {
@@ -2555,6 +2684,21 @@ export function AllTransactionsView({
           onDelete={() => deleteTransaction()}
         />
       ) : null}
+      {transactionToDelete && (
+        <ConfirmationDialog
+          title="Delete Transaction"
+          message="Are you sure you want to delete this transaction? This action is permanent and cannot be undone."
+          confirmLabel="Yes, Delete"
+          cancelLabel="No, Keep Transaction"
+          onConfirm={() => {
+            const row = transactionToDelete;
+            setTransactionToDelete(null);
+            performDeleteTransaction(row);
+          }}
+          onCancel={() => setTransactionToDelete(null)}
+          isDanger={true}
+        />
+      )}
     </section>
   );
 }
@@ -2710,7 +2854,14 @@ function BulkImportModal({
                 {rows.length} row{rows.length === 1 ? "" : "s"} ready to import
               </span>
             ) : null}
-            {error ? <p className="transaction-detail-error">{error}</p> : null}
+            {error ? (
+              <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -2898,6 +3049,7 @@ function EntityPropertyHeaderCard({
   onSelectProperty,
   onEditEntity,
   onEditProperty,
+  disabled = false,
 }: {
   entities: EntityOption[];
   properties: PropertyOption[];
@@ -2912,6 +3064,7 @@ function EntityPropertyHeaderCard({
   onSelectProperty: (id: string) => void;
   onEditEntity: () => void;
   onEditProperty: () => void;
+  disabled?: boolean;
 }) {
   const entityName =
     entities.find((e) => e.id === activeEntityId)?.name || "Not selected";
@@ -2932,6 +3085,7 @@ function EntityPropertyHeaderCard({
                 ...entities.map((e) => ({ label: e.name, value: e.id })),
               ]}
               onChange={onSelectEntity}
+              disabled={disabled}
             />
           ) : (
             <span>
@@ -2941,7 +3095,7 @@ function EntityPropertyHeaderCard({
           )}
         </div>
         {!isEditingEntity && isEntityLockable && (
-          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity}>
+          <button type="button" className="transaction-entity-edit-btn" aria-label="Edit entity" onClick={onEditEntity} disabled={disabled}>
             <EditPencilIcon />
           </button>
         )}
@@ -2959,6 +3113,7 @@ function EntityPropertyHeaderCard({
                 ...properties.map((p) => ({ label: p.name, value: p.id })),
               ]}
               onChange={onSelectProperty}
+              disabled={disabled}
             />
           ) : (
             <span>
@@ -2973,6 +3128,7 @@ function EntityPropertyHeaderCard({
             className="transaction-entity-edit-btn"
             aria-label="Edit property"
             onClick={onEditProperty}
+            disabled={disabled}
           >
             <EditPencilIcon />
           </button>
@@ -3020,6 +3176,7 @@ export function AddTransactionView({
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId ?? "");
   const [entities, setEntities] = useState<EntityOption[]>([]);
+  const [entitiesLoaded, setEntitiesLoaded] = useState(false);
   const [activeEntityId, setActiveEntityId] = useState<string>(entityId ?? "");
   const [isEditingEntity, setIsEditingEntity] = useState<boolean>(!entityId);
 
@@ -3129,29 +3286,37 @@ export function AddTransactionView({
     if (!token) return;
     if (requireClientSelection && !activeClientId) {
       setEntities([]);
+      setEntitiesLoaded(true);
       setActiveEntityId("");
       setIsEditingEntity(true);
       return;
     }
     let cancelled = false;
     async function loadEntities() {
-      const query = activeClientId
-        ? `?client_id=${encodeURIComponent(activeClientId)}`
-        : "";
-      const res = await fetch(`/api/entities${query}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok || cancelled) return;
-      const data = (await res.json()) as { items?: EntityOption[] };
-      if (!cancelled) {
-        const loadedEntities = data.items || [];
-        setEntities(loadedEntities);
-        if (
-          activeEntityId &&
-          !loadedEntities.some((entity) => entity.id === activeEntityId)
-        ) {
-          setActiveEntityId("");
-          setIsEditingEntity(true);
+      setEntitiesLoaded(false);
+      try {
+        const query = activeClientId
+          ? `?client_id=${encodeURIComponent(activeClientId)}`
+          : "";
+        const res = await fetch(`/api/entities${query}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { items?: EntityOption[] };
+        if (!cancelled) {
+          const loadedEntities = data.items || [];
+          setEntities(loadedEntities);
+          if (
+            activeEntityId &&
+            !loadedEntities.some((entity) => entity.id === activeEntityId)
+          ) {
+            setActiveEntityId("");
+            setIsEditingEntity(true);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setEntitiesLoaded(true);
         }
       }
     }
@@ -3237,8 +3402,8 @@ export function AddTransactionView({
 
   // Load subcategories whenever the category changes.
   useEffect(() => {
+    setSubcategories([]);
     if (!token || !categoryId) {
-      setSubcategories([]);
       setSubcategoryId(null);
       return;
     }
@@ -3330,12 +3495,13 @@ export function AddTransactionView({
       errors.__form = "Add at least two property rows for a split transaction.";
     }
     const seen = new Set<string>();
+    const allBlank = splitRows.every((row) => !row.amount || !row.amount.trim());
     for (const r of splitRows) {
       if (!r.propertyId) {
         errors[r.id] = "Choose a property.";
       } else if (seen.has(r.propertyId)) {
         errors[r.id] = "Property already used in another split.";
-      } else if (!r.amount || Number.parseFloat(r.amount) <= 0) {
+      } else if (!allBlank && (!r.amount || Number.parseFloat(r.amount) <= 0)) {
         errors[r.id] = "Enter a positive amount.";
       }
       if (r.propertyId) seen.add(r.propertyId);
@@ -3962,9 +4128,17 @@ export function AddTransactionView({
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
-      if (Number.isNaN(grossNum) || grossNum < 0) {
-        setSubmitError("Amount must be a non-negative number.");
-        return;
+      const allBlank = isSplit && splitRows.every((row) => !row.amount || !row.amount.trim());
+      if (!allBlank) {
+        if (Number.isNaN(grossNum) || grossNum <= 0) {
+          setSubmitError("Amount must be a positive number.");
+          return;
+        }
+      } else {
+        if (!Number.isNaN(grossNum) && grossNum <= 0) {
+          setSubmitError("Amount must be a positive number.");
+          return;
+        }
       }
 
       let gstNum: number | null = null;
@@ -3989,7 +4163,7 @@ export function AddTransactionView({
           setSubmitError("Fix the errors in the split rows.");
           return;
         }
-        if (!splitMatches) {
+        if (!allBlank && !splitMatches) {
           setSubmitError(
             `Split amounts must total ${grossNum.toFixed(
               2,
@@ -3997,17 +4171,25 @@ export function AddTransactionView({
           );
           return;
         }
-        splits = splitRows.map((r) => {
-          const rowAmount = Number.parseFloat(r.amount);
-          return {
-            property_id: r.propertyId,
-            split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
-            split_gross_amount: Number(rowAmount.toFixed(2)),
-          };
-        });
+        if (allBlank) {
+          splits = splitRows.map((r) => {
+            return {
+              property_id: r.propertyId,
+            };
+          });
+        } else {
+          splits = splitRows.map((r) => {
+            const rowAmount = Number.parseFloat(r.amount);
+            return {
+              property_id: r.propertyId,
+              split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
+              split_gross_amount: Number(rowAmount.toFixed(2)),
+            };
+          });
+        }
       } else {
         if (!propertyId) {
-          setSubmitError("Please select a property.");
+          setSubmitError("A property must be selected to continue.");
           return;
         }
         splits = [{ property_id: propertyId, split_percentage: 100 }];
@@ -4031,7 +4213,7 @@ export function AddTransactionView({
         category_id: resolvedCategoryId,
         subcategory_id: resolvedSubcategoryId,
         invoice_date: invoiceDate,
-        gross_amount: grossNum,
+        gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
         internal_remarks: internalRemarks.trim() || null,
         is_asset_purchase: isAssetPurchase,
@@ -4098,6 +4280,31 @@ export function AddTransactionView({
     }
   }
 
+  const isSelectionComplete = !!activeEntityId && (isSplit ? true : !!propertyId);
+  const showSelectionMessage = !isSelectionComplete && (!requireClientSelection || !!activeClientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!tokenLoaded) return null;
+
+    const clientSelectedIfNeeded = !requireClientSelection || !!activeClientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!activeEntityId) {
+      const zeroEntities = entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "An entity must be selected to continue.";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "A property must be selected to continue.";
+  }, [isSelectionComplete, tokenLoaded, requireClientSelection, activeClientId, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
+
   if (isMarked) {
     return (
       <section className="transactions-page">
@@ -4160,8 +4367,7 @@ export function AddTransactionView({
   ];
   const showSubcategorySelect =
     !!categoryId &&
-    (subcategories.length === 0 ||
-      subcategories.some((s) => s.name.toLowerCase() !== "general"));
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: p.name,
     value: p.id,
@@ -4169,11 +4375,13 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
+
+
   return (
     <section className="transactions-page transaction-add-page">
       <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6" />
+          <path d="M15 18l-6-6 6-6" />
         </svg>
         {backLabel}
       </Link>
@@ -4234,6 +4442,15 @@ export function AddTransactionView({
             />
           ) : null}
 
+          {requireClientSelection && !activeClientId && (
+            <p className="transaction-field-error" style={{ marginTop: "-12px", marginBottom: "4px" }}>
+              <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              A client must be selected to continue.
+            </p>
+          )}
+
           <EntityPropertyHeaderCard
             entities={entities}
             properties={properties}
@@ -4248,350 +4465,388 @@ export function AddTransactionView({
             onSelectProperty={handlePropertyPicked}
             onEditEntity={() => setIsEditingEntity(true)}
             onEditProperty={() => setIsEditingProperty(true)}
+            disabled={requireClientSelection && !activeClientId}
           />
 
-          <div className={"transaction-type-control" + flashClass("type")}>
-            <span className="transaction-field-label">
-              Transaction Type<em>*</em>
-            </span>
-            <div>
-              <button
-                type="button"
-                className={type === "expense" ? "is-selected" : ""}
-                onClick={() => setType("expense")}
-              >
-                Expense
-              </button>
-              <button
-                type="button"
-                className={
-                  type === "revenue" ? "is-selected is-revenue" : ""
-                }
-                onClick={() => setType("revenue")}
-              >
-                Revenue
-              </button>
+          {showSelectionMessage && selectionMessage && (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{selectionMessage}</span>
             </div>
-          </div>
+          )}
 
-          {type === "expense" ? (
-            <div className="transaction-asset-card">
-              <label className="transaction-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={isAssetPurchase}
-                  onChange={(e) => setIsAssetPurchase(e.target.checked)}
-                />
-                <span>Is this an asset purchase?</span>
-              </label>
-              <small>Select if this expense should be depreciated over time</small>
-              {isAssetPurchase ? (
-                <div className="transaction-asset-options">
-                  <label className="transaction-field">
-                    <span className="transaction-field-label">
-                      Purchased Asset
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="e.g., Fridge, AC, dishwasher"
-                      value={assetItemName}
-                      onChange={(e) => setAssetItemName(e.target.value)}
-                    />
-                  </label>
-                  <label className="transaction-radio-card">
-                    <input
-                      type="radio"
-                      checked={assetClass === "capital_allowance"}
-                      onChange={() => setAssetClass("capital_allowance")}
-                    />
-                    <span>
-                      <b>Capital Allowance</b>
-                      <small>Depreciate assets over their effective life</small>
-                    </span>
-                  </label>
-                  {assetClass === "capital_allowance" ? (
-                    <label className="transaction-field">
-                      <span className="transaction-field-label">
-                        Effective life (years)<em>*</em>
-                      </span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        min="0"
-                        placeholder="Select years"
-                        value={effectiveLifeYears}
-                        onChange={(e) => setEffectiveLifeYears(e.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                  <label className="transaction-radio-card">
-                    <input
-                      type="radio"
-                      checked={assetClass === "capital_works"}
-                      onChange={() => setAssetClass("capital_works")}
-                    />
-                    <span>
-                      <b>Capital Works</b>
-                      <small>Fixed depreciation period for capital improvements</small>
-                    </span>
-                  </label>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="transaction-form-grid">
-            <StaticSelect
-              label="Category"
-              required
-              value={categoryId == null ? "" : String(categoryId)}
-              options={categorySelectOptions}
-              onChange={(value) => setCategoryId(value ? Number(value) : null)}
-              disabled={lockAssetPurchaseCategory}
-            />
-            {showSubcategorySelect && (
-              <div className="transaction-field-animate">
-                <StaticSelect
-                  label="Sub-Category"
-                  required
-                  value={subcategoryId == null ? "" : String(subcategoryId)}
-                  options={subcategorySelectOptions}
-                  onChange={(value) =>
-                    setSubcategoryId(value ? Number(value) : null)
-                  }
-                  disabled={lockAssetPurchaseCategory}
-                />
-              </div>
-            )}
-            <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
+          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
+            <div className={"transaction-type-control" + flashClass("type")}>
               <span className="transaction-field-label">
-                Invoice Date<em>*</em>
+                Transaction Type<em>*</em>
               </span>
-              <input
-                type="date"
-                value={invoiceDate}
-                max="9999-12-31"
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const yearPart = val.split("-")[0];
-                  if (yearPart && yearPart.length > 4) {
-                    return;
-                  }
-                  setInvoiceDate(val);
-                  setInvoiceDateTouched(true);
-                }}
-                onBlur={() => setInvoiceDateTouched(true)}
-              />
-              {showDateError && (
-                <p className="transaction-field-error">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  {invoiceDateError}
-                </p>
-              )}
-            </label>
-            <label className={"transaction-field" + flashClass("grossAmount")}>
-              <span className="transaction-field-label">
-                Amount<em>*</em>
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={grossAmount}
-                onChange={(e) => setGrossAmount(e.target.value)}
-              />
-            </label>
-          </div>
-
-          <label className="transaction-checkbox-row">
-            <input
-              type="checkbox"
-              checked={showGstBreakdown}
-              onChange={(e) => setShowGstBreakdown(e.target.checked)}
-            />
-            <span>Add GST Breakdown</span>
-          </label>
-
-          {showGstBreakdown ? (
-            <label className={"transaction-field" + flashClass("gstAmount")}>
-              <span className="transaction-field-label">
-                GST Amount<em>*</em>
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={gstAmount}
-                onChange={(e) => setGstAmount(e.target.value)}
-              />
-            </label>
-          ) : null}
-
-          <label className="transaction-checkbox-row">
-            <input
-              type="checkbox"
-              checked={isSplit}
-              onChange={(e) => handleSplitToggle(e.target.checked)}
-            />
-            <span>Is this a split transaction?</span>
-          </label>
-
-          {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-            <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
-              {submitError}
-            </p>
-          ) : null}
-
-          {isSplit ? (
-            <div className="transaction-split-section">
-              {splitRows.map((row, index) => {
-                const rowError = splitErrors[row.id];
-                const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
-
-                return (
-                  <div key={row.id} className="transaction-split-row">
-                    <StaticSelect
-                      label={index === 0 ? "Property Name" : undefined}
-                      required
-                      value={row.propertyId}
-                      options={[
-                        { label: "Select Property", value: "" },
-                        ...splitPropertyBaseOptions,
-                      ]}
-                      onChange={(value) =>
-                        updateSplitRow(row.id, { propertyId: value })
-                      }
-                      error={propertyError}
-                    />
-                    <label className="transaction-field">
-                      {index === 0 ? (
-                        <span className="transaction-field-label">
-                          Amount<em>*</em>
-                        </span>
-                      ) : null}
-                      <span className="transaction-money-input">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={row.amount}
-                          onChange={(e) =>
-                            updateSplitRow(row.id, { amount: e.target.value })
-                          }
-                        />
-                        <b>$</b>
-                      </span>
-                      {amountError && (
-                        <p className="transaction-split-row-error" style={{ marginTop: "4.5px" }}>
-                          {amountError}
-                        </p>
-                      )}
-                    </label>
-                    <button
-                      type="button"
-                      className="transaction-split-remove"
-                      aria-label="Remove split row"
-                      disabled={splitRows.length <= 1}
-                      onClick={() => removeSplitRow(row.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                );
-              })}
-              {splitErrors.__form ? (
-                <p className="transaction-split-row-error">
-                  {splitErrors.__form}
-                </p>
-              ) : null}
-              <div className="transaction-split-footer">
-                <span
-                  className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
-                    }`}
-                >
-                  {grossAmount && !Number.isNaN(grossNumberValue)
-                    ? `Split total: ${splitTotal.toFixed(
-                      2,
-                    )} of ${grossNumberValue.toFixed(2)}`
-                    : "Enter the total amount above to validate splits."}
-                </span>
+              <div>
                 <button
                   type="button"
-                  className="transaction-split-add"
-                  onClick={addSplitRow}
-                  disabled={properties.length < 2}
+                  className={type === "expense" ? "is-selected" : ""}
+                  onClick={() => setType("expense")}
                 >
-                  + Add Property
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={
+                    type === "revenue" ? "is-selected is-revenue" : ""
+                  }
+                  onClick={() => setType("revenue")}
+                >
+                  Revenue
                 </button>
               </div>
             </div>
-          ) : null}
 
-          {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-            <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
-              {submitError}
-            </p>
-          ) : null}
+            {type === "expense" ? (
+              <div className="transaction-asset-card">
+                <label className="transaction-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={isAssetPurchase}
+                    onChange={(e) => setIsAssetPurchase(e.target.checked)}
+                  />
+                  <span>Is this an asset purchase?</span>
+                </label>
+                <small>Select if this expense should be depreciated over time</small>
+                {isAssetPurchase ? (
+                  <div className="transaction-asset-options">
+                    <label className="transaction-field">
+                      <span className="transaction-field-label">
+                        Purchased Asset
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="e.g., Fridge, AC, dishwasher"
+                        value={assetItemName}
+                        onChange={(e) => setAssetItemName(e.target.value)}
+                      />
+                    </label>
+                    <label className="transaction-radio-card">
+                      <input
+                        type="radio"
+                        checked={assetClass === "capital_allowance"}
+                        onChange={() => setAssetClass("capital_allowance")}
+                      />
+                      <span>
+                        <b>Capital Allowance</b>
+                        <small>Depreciate assets over their effective life</small>
+                      </span>
+                    </label>
+                    {assetClass === "capital_allowance" ? (
+                      <label className="transaction-field">
+                        <span className="transaction-field-label">
+                          Effective life (years)<em>*</em>
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.1"
+                          min="0"
+                          placeholder="Select years"
+                          value={effectiveLifeYears}
+                          onChange={(e) => setEffectiveLifeYears(e.target.value)}
+                        />
+                      </label>
+                    ) : null}
+                    <label className="transaction-radio-card">
+                      <input
+                        type="radio"
+                        checked={assetClass === "capital_works"}
+                        onChange={() => setAssetClass("capital_works")}
+                      />
+                      <span>
+                        <b>Capital Works</b>
+                        <small>Fixed depreciation period for capital improvements</small>
+                      </span>
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
-          <StaticSelect
-            label="Mode of Transaction"
-            required
-            value={modeOfTransaction}
-            options={MODE_OF_TRANSACTION_OPTIONS}
-            onChange={setModeOfTransaction}
-          />
+            <div className="transaction-form-grid">
+              <StaticSelect
+                label="Category"
+                required
+                value={categoryId == null ? "" : String(categoryId)}
+                options={categorySelectOptions}
+                onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                disabled={lockAssetPurchaseCategory}
+              />
+              {showSubcategorySelect && (
+                <div className="transaction-field-animate">
+                  <StaticSelect
+                    label="Sub-Category"
+                    required
+                    value={subcategoryId == null ? "" : String(subcategoryId)}
+                    options={subcategorySelectOptions}
+                    onChange={(value) =>
+                      setSubcategoryId(value ? Number(value) : null)
+                    }
+                    disabled={lockAssetPurchaseCategory}
+                  />
+                </div>
+              )}
+              <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
+                <span className="transaction-field-label">
+                  Invoice Date<em>*</em>
+                </span>
+                <input
+                  type="date"
+                  value={invoiceDate}
+                  max="9999-12-31"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const yearPart = val.split("-")[0];
+                    if (yearPart && yearPart.length > 4) {
+                      return;
+                    }
+                    setInvoiceDate(val);
+                    setInvoiceDateTouched(true);
+                  }}
+                  onBlur={() => setInvoiceDateTouched(true)}
+                />
+                {showDateError && (
+                  <p className="transaction-field-error">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    {invoiceDateError}
+                  </p>
+                )}
+              </label>
+              <label className={"transaction-field" + flashClass("grossAmount")}>
+                <span className="transaction-field-label">
+                  Amount<em>*</em>
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  value={grossAmount}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === "Minus") {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/-/g, "");
+                    setGrossAmount(val);
+                  }}
+                />
+              </label>
+            </div>
 
-          <label className={"transaction-field" + flashClass("description")}>
-            <span className="transaction-field-label">Description</span>
-            <textarea
-              placeholder="Add description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+            <label className="transaction-checkbox-row">
+              <input
+                type="checkbox"
+                checked={showGstBreakdown}
+                onChange={(e) => setShowGstBreakdown(e.target.checked)}
+              />
+              <span>Add GST Breakdown</span>
+            </label>
+
+            {showGstBreakdown ? (
+              <label className={"transaction-field" + flashClass("gstAmount")}>
+                <span className="transaction-field-label">
+                  GST Amount<em>*</em>
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={gstAmount}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === "Minus") {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/-/g, "");
+                    setGstAmount(val);
+                  }}
+                />
+              </label>
+            ) : null}
+
+            <label className="transaction-checkbox-row">
+              <input
+                type="checkbox"
+                checked={isSplit}
+                onChange={(e) => handleSplitToggle(e.target.checked)}
+              />
+              <span>Is this a split transaction?</span>
+            </label>
+
+            {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
+              <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
+                {submitError}
+              </p>
+            ) : null}
+
+            {isSplit ? (
+              <div className="transaction-split-section">
+                {splitRows.map((row, index) => {
+                  const rowError = splitErrors[row.id];
+                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                  return (
+                    <div key={row.id} className="transaction-split-row">
+                      <StaticSelect
+                        label={index === 0 ? "Property Name" : undefined}
+                        required
+                        value={row.propertyId}
+                        options={[
+                          { label: "Select Property", value: "" },
+                          ...splitPropertyBaseOptions,
+                        ]}
+                        onChange={(value) =>
+                          updateSplitRow(row.id, { propertyId: value })
+                        }
+                        error={propertyError}
+                      />
+                      <label className="transaction-field">
+                        {index === 0 ? (
+                          <span className="transaction-field-label">
+                            Amount<em>*</em>
+                          </span>
+                        ) : null}
+                        <span className="transaction-money-input">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="0.00"
+                            value={row.amount}
+                            onKeyDown={(e) => {
+                              if (e.key === "-" || e.key === "Minus") {
+                                e.preventDefault();
+                              }
+                            }}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/-/g, "");
+                              updateSplitRow(row.id, { amount: val });
+                            }}
+                          />
+                          <b>A$</b>
+                        </span>
+                        {amountError && (
+                          <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                            </svg>
+                            <span>{amountError}</span>
+                          </p>
+                        )}
+                      </label>
+                      <button
+                        type="button"
+                        className="transaction-split-remove"
+                        aria-label="Remove split row"
+                        disabled={splitRows.length <= 1}
+                        onClick={() => removeSplitRow(row.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+                {splitErrors.__form ? (
+                  <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{splitErrors.__form}</span>
+                  </p>
+                ) : null}
+                <div className="transaction-split-footer">
+                  <span
+                    className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
+                      }`}
+                  >
+                    {grossAmount && !Number.isNaN(grossNumberValue)
+                      ? `Split total: ${splitTotal.toFixed(
+                        2,
+                      )} of ${grossNumberValue.toFixed(2)}`
+                      : "Enter the total amount above to validate splits."}
+                  </span>
+                  <button
+                    type="button"
+                    className="transaction-split-add"
+                    onClick={addSplitRow}
+                    disabled={properties.length < 2}
+                  >
+                    + Add Property
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
+              <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
+                {submitError}
+              </p>
+            ) : null}
+
+            <StaticSelect
+              label="Mode of Transaction"
+              required
+              value={modeOfTransaction}
+              options={MODE_OF_TRANSACTION_OPTIONS}
+              onChange={setModeOfTransaction}
             />
-          </label>
 
-          <label
-            className={"transaction-field" + flashClass("internalRemarks")}
-          >
-            <span className="transaction-field-label">Add Internal Remarks</span>
-            <input
-              type="text"
-              placeholder="Add Remarks"
-              value={internalRemarks}
-              onChange={(e) => setInternalRemarks(e.target.value)}
-            />
-          </label>
+            <label className={"transaction-field" + flashClass("description")}>
+              <span className="transaction-field-label">Description</span>
+              <textarea
+                placeholder="Add description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </label>
 
-          {submitError && !submitError.toLowerCase().includes("split") ? (
-            <p className="transaction-warning-card" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-
-          <div className="transaction-form-actions">
-            <Link href={effectiveBackHref} className="transaction-cancel-button">
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              className="transaction-save-button"
-              disabled={!canSubmit || isSubmitting}
+            <label
+              className={"transaction-field" + flashClass("internalRemarks")}
             >
-              {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
-            </button>
-          </div>
+              <span className="transaction-field-label">Add Internal Remarks</span>
+              <input
+                type="text"
+                placeholder="Add Remarks"
+                value={internalRemarks}
+                onChange={(e) => setInternalRemarks(e.target.value)}
+              />
+            </label>
+
+            {submitError && !submitError.toLowerCase().includes("split") ? (
+              <p className="transaction-warning-card" role="alert">
+                {submitError}
+              </p>
+            ) : null}
+
+            <div className="transaction-form-actions">
+              <Link href={effectiveBackHref} className="transaction-cancel-button">
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                className="transaction-save-button"
+                disabled={!canSubmit || isSubmitting}
+              >
+                {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
+              </button>
+            </div>
+          </fieldset>
         </form>
       </div>
 
@@ -4691,6 +4946,39 @@ function RuleModal({
   const [enabled, setEnabled] = useState(rule?.isEnabled ?? true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [entitiesLoaded, setEntitiesLoaded] = useState(false);
+  const [propertiesLoaded, setPropertiesLoaded] = useState(false);
+
+  const isSelectionComplete = !!entityId && (!propertiesLoaded || properties.length > 0);
+  const showSelectionMessage = !isSelectionComplete && (!!fixedEntityId || !!clientId);
+
+  const selectionMessage = useMemo(() => {
+    if (isSelectionComplete) return null;
+    if (!token) return null;
+
+    const clientSelectedIfNeeded = fixedEntityId || !!clientId;
+    if (!clientSelectedIfNeeded) return null;
+
+    if (!entityId) {
+      const zeroEntities = !fixedEntityId && entitiesLoaded && entities.length === 0;
+      if (zeroEntities) {
+        return "Add an entity to proceed";
+      }
+      return "An entity must be selected to continue.";
+    }
+
+    const zeroProperties = propertiesLoaded && properties.length === 0;
+    if (zeroProperties) {
+      return "Add a property to proceed";
+    }
+    return "A property must be selected to continue.";
+  }, [isSelectionComplete, token, fixedEntityId, clientId, entitiesLoaded, entities.length, entityId, propertiesLoaded, properties.length]);
+
+  useEffect(() => {
+    if (fixedEntityId) {
+      setEntitiesLoaded(true);
+    }
+  }, [fixedEntityId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4722,8 +5010,9 @@ function RuleModal({
   // Load entities for the selected client.
   useEffect(() => {
     if (fixedEntityId || !token) return;
-    if (!clientId) { setEntities([]); return; }
+    if (!clientId) { setEntities([]); setEntitiesLoaded(true); return; }
     let cancelled = false;
+    setEntitiesLoaded(false);
     fetch(`/api/entities?client_id=${encodeURIComponent(clientId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -4731,7 +5020,10 @@ function RuleModal({
       .then((data: { items?: EntityOption[] } | null) => {
         if (!cancelled && data) setEntities(data.items ?? []);
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setEntitiesLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [fixedEntityId, token, clientId]);
 
@@ -4752,8 +5044,9 @@ function RuleModal({
   }, [fixedEntityId, token, rule?.entityId]);
 
   useEffect(() => {
-    if (!token || !entityId) { setProperties([]); return; }
+    if (!token || !entityId) { setProperties([]); setPropertiesLoaded(false); return; }
     let cancelled = false;
+    setPropertiesLoaded(false);
     fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -4761,7 +5054,10 @@ function RuleModal({
       .then((data: { items?: { id: string; name: string }[] } | null) => {
         if (!cancelled && data) setProperties(data.items ?? []);
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => {
+        if (!cancelled) setPropertiesLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [token, entityId]);
 
@@ -4786,7 +5082,8 @@ function RuleModal({
   }, [token, assignedType]);
 
   useEffect(() => {
-    if (!token || !categoryId) { setSubcategories([]); return; }
+    setSubcategories([]);
+    if (!token || !categoryId) { return; }
     let cancelled = false;
     fetch(`/api/transactions/categories/${encodeURIComponent(categoryId)}/sub-categories`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -4827,6 +5124,7 @@ function RuleModal({
   }
 
   const canSave =
+    isSelectionComplete &&
     Boolean(ruleName.trim()) &&
     Boolean(entityId) &&
     conditions.every((c) => c.field && c.operator && c.value.trim()) &&
@@ -4914,8 +5212,7 @@ function RuleModal({
   ];
   const showSubcategorySelect =
     !!categoryId &&
-    (subcategories.length === 0 ||
-      subcategories.some((s) => s.name.toLowerCase() !== "general"));
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
 
   const fieldSelectOptions: SelectOption[] = RULE_FIELDS.map((f) => ({
     label: RULE_FIELD_LABELS[f] ?? f,
@@ -4967,6 +5264,14 @@ function RuleModal({
                 showSearch
                 className="is-full-width"
               />
+              {clients.length > 0 && !clientId && (
+                <p className="transaction-field-error" style={{ marginTop: "6px", marginBottom: "0px" }}>
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  A client must be selected to continue.
+                </p>
+              )}
               {clients.length === 0 && (
                 <p style={{ color: "#d92d20", fontSize: "14px", marginTop: "6px", marginBottom: "0px" }}>
                   To create a rule, please add a client to your account first.
@@ -4990,116 +5295,128 @@ function RuleModal({
               value={propertyId}
               options={propertySelectOptions}
               onChange={setPropertyId}
+              disabled={!fixedEntityId && !clientId}
             />
           </div>
 
-          <h3>If</h3>
-          <section className="rule-condition-card">
-            <div className="rule-match-row">
-              <span>Match</span>
-              <StaticSelect
-                value={matchMode}
-                options={[
-                  { label: "All", value: "all" },
-                  { label: "Any", value: "any" },
-                ]}
-                onChange={setMatchMode}
-                className="is-mini"
-              />
-              <span>of the following:</span>
+          {showSelectionMessage && selectionMessage && (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", marginBottom: "12px" }}>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{selectionMessage}</span>
             </div>
-            {conditions.map((cond, idx) => (
-              <div key={cond.id} className={`rule-condition-row${conditions.length > 1 ? " has-remove-button" : ""}`}>
+          )}
+
+          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
+            <h3>If</h3>
+            <section className="rule-condition-card">
+              <div className="rule-match-row">
+                <span>Match</span>
                 <StaticSelect
-                  value={cond.field}
-                  options={fieldSelectOptions}
-                  onChange={(v) => updateCondition(cond.id, { field: v })}
+                  value={matchMode}
+                  options={[
+                    { label: "All", value: "all" },
+                    { label: "Any", value: "any" },
+                  ]}
+                  onChange={setMatchMode}
+                  className="is-mini"
                 />
-                <StaticSelect
-                  value={cond.operator}
-                  options={operatorSelectOptions}
-                  onChange={(v) => updateCondition(cond.id, { operator: v })}
-                />
-                <input
-                  type="text"
-                  placeholder="Enter value"
-                  value={cond.value}
-                  onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
-                />
-                {conditions.length > 1 && (
-                  <button
-                    type="button"
-                    className="rule-condition-remove-btn"
-                    aria-label={`Remove condition ${idx + 1}`}
-                    onClick={() => removeCondition(cond.id)}
-                    title="Remove condition"
-                  >
-                    <TrashIcon />
-                  </button>
-                )}
+                <span>of the following:</span>
               </div>
-            ))}
-            <button type="button" className="rule-add-condition" onClick={addCondition}>
-              + Add a condition
-            </button>
-          </section>
-
-          <h3>Then Assign</h3>
-          <div className="transaction-type-control">
-            <span className="transaction-field-label">Transaction Type<em>*</em></span>
-            <div>
-              <button
-                type="button"
-                className={assignedType === "expense" ? "is-selected" : ""}
-                onClick={() => { setAssignedType("expense"); setCategoryId(""); setSubcategoryId(""); }}
-              >
-                Expense
+              {conditions.map((cond, idx) => (
+                <div key={cond.id} className={`rule-condition-row${conditions.length > 1 ? " has-remove-button" : ""}`}>
+                  <StaticSelect
+                    value={cond.field}
+                    options={fieldSelectOptions}
+                    onChange={(v) => updateCondition(cond.id, { field: v })}
+                  />
+                  <StaticSelect
+                    value={cond.operator}
+                    options={operatorSelectOptions}
+                    onChange={(v) => updateCondition(cond.id, { operator: v })}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter value"
+                    value={cond.value}
+                    onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
+                  />
+                  {conditions.length > 1 && (
+                    <button
+                      type="button"
+                      className="rule-condition-remove-btn"
+                      aria-label={`Remove condition ${idx + 1}`}
+                      onClick={() => removeCondition(cond.id)}
+                      title="Remove condition"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="rule-add-condition" onClick={addCondition}>
+                + Add a condition
               </button>
-              <button
-                type="button"
-                className={assignedType === "revenue" ? "is-selected is-revenue" : ""}
-                onClick={() => { setAssignedType("revenue"); setCategoryId(""); setSubcategoryId(""); }}
-              >
-                Revenue
-              </button>
-            </div>
-          </div>
-          <StaticSelect
-            label="Category"
-            required
-            value={categoryId}
-            options={categorySelectOptions}
-            onChange={(v) => { setCategoryId(v); setSubcategoryId(""); }}
-          />
-          {showSubcategorySelect && (
-            <div className="transaction-field-animate">
-              <StaticSelect
-                label="Sub Category"
-                required
-                value={subcategoryId}
-                options={subcategorySelectOptions}
-                onChange={setSubcategoryId}
-              />
-            </div>
-          )}
+            </section>
 
-          <ToggleCard
-            checked={autoConfirm}
-            onChange={setAutoConfirm}
-            title="Automatically confirm transactions this rule applies to"
-            subtitle="If disabled, the rule will suggest the category but require manual confirmation"
-          />
-          <ToggleCard
-            checked={enabled}
-            onChange={setEnabled}
-            title="Enable this rule"
-            subtitle="If disabled, the rule will not be applied to transactions"
-            green
-          />
+            <h3>Then Assign</h3>
+            <div className="transaction-type-control">
+              <span className="transaction-field-label">Transaction Type<em>*</em></span>
+              <div>
+                <button
+                  type="button"
+                  className={assignedType === "expense" ? "is-selected" : ""}
+                  onClick={() => { setAssignedType("expense"); setCategoryId(""); setSubcategoryId(""); }}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={assignedType === "revenue" ? "is-selected is-revenue" : ""}
+                  onClick={() => { setAssignedType("revenue"); setCategoryId(""); setSubcategoryId(""); }}
+                >
+                  Revenue
+                </button>
+              </div>
+            </div>
+            <StaticSelect
+              label="Category"
+              required
+              value={categoryId}
+              options={categorySelectOptions}
+              onChange={(v) => { setCategoryId(v); setSubcategoryId(""); }}
+            />
+            {showSubcategorySelect && (
+              <div className="transaction-field-animate">
+                <StaticSelect
+                  label="Sub Category"
+                  required
+                  value={subcategoryId}
+                  options={subcategorySelectOptions}
+                  onChange={setSubcategoryId}
+                />
+              </div>
+            )}
 
-          {saveError && (
-            <p className="transaction-warning-card" role="alert">{saveError}</p>
-          )}
+            <ToggleCard
+              checked={autoConfirm}
+              onChange={setAutoConfirm}
+              title="Automatically confirm transactions this rule applies to"
+              subtitle="If disabled, the rule will suggest the category but require manual confirmation"
+            />
+            <ToggleCard
+              checked={enabled}
+              onChange={setEnabled}
+              title="Enable this rule"
+              subtitle="If disabled, the rule will not be applied to transactions"
+              green
+            />
+
+            {saveError && (
+              <p className="transaction-warning-card" role="alert">{saveError}</p>
+            )}
+          </fieldset>
         </div>
 
         <footer className="transaction-modal-footer">
@@ -5157,9 +5474,11 @@ function ToggleCard({
 export function TransactionRulesView({
   backHref = "/dashboard/accountant/transactions",
   entityId,
+  isPropertyPage = false,
 }: {
   backHref?: string;
   entityId?: string;
+  isPropertyPage?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [rules, setRules] = useState<CoreTransactionRule[]>([]);
@@ -5251,11 +5570,173 @@ export function TransactionRulesView({
     );
   }, [query, rules]);
 
+  if (isPropertyPage) {
+    return (
+      <div className="property-page-rules-container">
+        {deleteError && (
+          <p className="transaction-warning-card" role="alert">{deleteError}</p>
+        )}
+
+        {isLoading ? (
+          <div className="transactions-showing-copy py-10">Loading rules…</div>
+        ) : loadError ? (
+          <div className="transactions-showing-copy">{loadError}</div>
+        ) : rules.length === 0 ? (
+          <div className="property-rules-empty-card">
+            <div className="property-rules-empty-header">
+              {/* <h2>Transaction Rules</h2> */}
+            </div>
+            <div className="property-rules-empty-content">
+              <div className="property-rules-icon-box">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="property-rules-gear-icon"
+                >
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <h3>No transaction rules yet</h3>
+              <p>
+                Create rules to automatically classify your transactions by category, subcategory, and type.
+              </p>
+              <button
+                type="button"
+                className="premium-docs-upload-btn"
+                onClick={() => { setSelectedRule(null); setShowModal("create"); }}
+              >
+                Create Rule
+              </button>
+            </div>
+          </div>
+        ) : (
+          <section className="transactions-page transaction-rules-page">
+            <div className="transactions-page-head">
+              <div>
+                <h1>Transaction Rules</h1>
+                <p>Automate transaction categorisation with custom rules</p>
+              </div>
+              <button
+                type="button"
+                className="transaction-green-button"
+                onClick={() => { setSelectedRule(null); setShowModal("create"); }}
+              >
+                <span>+</span>
+                New Rule
+              </button>
+            </div>
+
+            <section className="transaction-rule-search-card">
+              <div className="transaction-rule-search">
+                <SearchIcon />
+                <input
+                  type="text"
+                  value={query}
+                  placeholder="Search by name or conditions"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </div>
+            </section>
+
+            <div className="transaction-rule-table-wrap">
+              <table className="transaction-rule-table">
+                <thead>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Conditions</th>
+                    <th>Assigns</th>
+                    <th>Auto-Confirm</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRules.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div className="transactions-empty-state">
+                          <strong>No rules match your search.</strong>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredRules.map((rule) => (
+                    <tr key={rule.id}>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
+                        >
+                          {rule.name}
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                      </td>
+                      <td>
+                        {rule.conditions.map((c, i) => (
+                          <span key={i} className="rule-property-pill">
+                            {RULE_FIELD_LABELS[c.field] ?? c.field}{" "}
+                            {RULE_OPERATOR_LABELS[c.operator] ?? c.operator}{" "}
+                            &ldquo;{String(c.value)}&rdquo;
+                          </span>
+                        ))}
+                      </td>
+                      <td>
+                        {rule.assignedType} — #{rule.assignedCategoryId} / #{rule.assignedSubcategoryId}
+                      </td>
+                      <td>{rule.autoConfirm ? "Yes" : "No"}</td>
+                      <td>
+                        <span className="rule-status-pill">{rule.isEnabled ? "Active" : "Inactive"}</span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="transaction-detail-delete-button"
+                          disabled={deletingId === rule.id}
+                          onClick={() => handleDelete(rule)}
+                          aria-label={`Delete rule ${rule.name}`}
+                        >
+                          {deletingId === rule.id ? "…" : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination copy={`Showing ${filteredRules.length} of ${rules.length} items`} />
+          </section>
+        )}
+
+        {showModal && (
+          <RuleModal
+            entityId={entityId}
+            rule={showModal === "edit" ? selectedRule : null}
+            onClose={() => { setShowModal(null); setSelectedRule(null); }}
+            onSaved={handleSaved}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <section className="transactions-page transaction-rules-page">
       <Link href={backHref} className="entity-wizard-back transaction-back-link">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6" />
+          <path d="M15 18l-6-6 6-6" />
         </svg>
         Back to transactions
       </Link>
@@ -5385,3 +5866,93 @@ export function TransactionRulesView({
     </section>
   );
 }
+
+interface ConfirmationDialogProps {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDanger?: boolean;
+}
+
+function ConfirmationDialog({
+  title,
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+  isDanger = false,
+}: ConfirmationDialogProps) {
+  return (
+    <div className="transaction-modal-layer" style={{ zIndex: 9999 }}>
+      <div
+        className="transaction-modal-backdrop"
+        style={{
+          background: "rgba(15, 23, 42, 0.4)",
+          cursor: "default",
+        }}
+      />
+      <div
+        className="transaction-detail-modal"
+        style={{
+          width: "min(100%, 380px)",
+          padding: "24px",
+          gap: "16px",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: "12px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+            {title}
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#475569" }}>
+            {message}
+          </p>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
+          <button
+            type="button"
+            className="transaction-cancel-button"
+            onClick={onCancel}
+            style={{
+              minWidth: "auto",
+              minHeight: "36px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 800,
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            className={isDanger ? "transaction-detail-delete-button" : "transaction-detail-edit-button"}
+            onClick={onConfirm}
+            style={{
+              minWidth: "auto",
+              minHeight: "36px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 800,
+              borderRadius: "8px",
+              cursor: "pointer",
+              boxShadow: "none",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

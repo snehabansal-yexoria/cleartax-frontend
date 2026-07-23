@@ -127,6 +127,17 @@ const validateDeadline = (dateVal: string): string => {
     return "";
 };
 
+const validateTaskName = (name: string): string => {
+    const trimmed = name.trim();
+    if (trimmed.length > 0 && trimmed.length < 10) {
+        return "Task name must be at least 10 characters.";
+    }
+    if (trimmed.length > 150) {
+        return "Task name cannot exceed 150 characters.";
+    }
+    return "";
+};
+
 export default function TaskManagementPage() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [teamMembers, setTeamMembers] = useState<Person[]>([]);
@@ -137,10 +148,12 @@ export default function TaskManagementPage() {
     const [submitting, setSubmitting] = useState(false);
 
     const [newTaskName, setNewTaskName] = useState("");
+    const [newTaskNameError, setNewTaskNameError] = useState("");
     const [newTaskDesc, setNewTaskDesc] = useState("");
     const [newTaskAssignee, setNewTaskAssignee] = useState<Person | null>(null);
     const [newTaskDeadline, setNewTaskDeadline] = useState("");
     const [newTaskDeadlineError, setNewTaskDeadlineError] = useState("");
+    const [editTaskNameError, setEditTaskNameError] = useState("");
     const [editTaskDeadlineError, setEditTaskDeadlineError] = useState("");
 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -278,6 +291,12 @@ export default function TaskManagementPage() {
             return;
         }
 
+        const nameError = validateTaskName(newTaskName);
+        if (nameError) {
+            setNewTaskNameError(nameError);
+            return;
+        }
+
         const error = validateDeadline(newTaskDeadline);
         if (error) {
             setNewTaskDeadlineError(error);
@@ -308,6 +327,7 @@ export default function TaskManagementPage() {
             await loadTasks();
             setIsModalOpen(false);
             setNewTaskName("");
+            setNewTaskNameError("");
             setNewTaskDesc("");
             setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
             setNewTaskDeadline("");
@@ -321,7 +341,7 @@ export default function TaskManagementPage() {
         setEditingTask(task);
         setEditTaskName(task.name);
         setEditTaskDesc(task.description);
-        
+
         const assignee = teamMembers.find((m) => m.id === task.assignedTo?.id) || null;
         setEditTaskAssignee(assignee);
 
@@ -337,6 +357,7 @@ export default function TaskManagementPage() {
         }
         setEditTaskDeadline(dateVal);
         setEditTaskDeadlineError("");
+        setEditTaskNameError("");
         setIsEditModalOpen(true);
     };
 
@@ -345,6 +366,12 @@ export default function TaskManagementPage() {
         if (!editingTask) return;
         if (!editTaskName.trim() || !editTaskDesc.trim() || !editTaskDeadline || !editTaskAssignee) {
             alert("Please fill in all required fields.");
+            return;
+        }
+
+        const nameError = validateTaskName(editTaskName);
+        if (nameError) {
+            setEditTaskNameError(nameError);
             return;
         }
 
@@ -379,6 +406,7 @@ export default function TaskManagementPage() {
             setIsEditModalOpen(false);
             setEditingTask(null);
             setEditTaskName("");
+            setEditTaskNameError("");
             setEditTaskDesc("");
             setEditTaskAssignee(null);
             setEditTaskDeadline("");
@@ -394,7 +422,7 @@ export default function TaskManagementPage() {
     return (
         <div className="flex flex-col gap-6 w-full animate-fadeIn max-w-[1400px] mx-auto pb-10">
 
-            <div className="flex items-center">
+            {/* <div className="flex items-center">
                 <Link
                     href="/dashboard/accountant/transactions"
                     className="group flex items-center gap-2 text-slate-500 font-medium text-sm transition-colors duration-200 hover:text-[#28336e]"
@@ -413,7 +441,7 @@ export default function TaskManagementPage() {
                     </svg>
                     Back to transactions
                 </Link>
-            </div>
+            </div> */}
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -487,8 +515,8 @@ export default function TaskManagementPage() {
                         <button
                             onClick={() => setActiveTab("my")}
                             className={`flex items-center gap-2 pb-3 transition-all duration-200 focus:outline-none border-b-2 ${activeTab === "my"
-                                    ? "border-[#28336e] text-[#28336e] font-extrabold"
-                                    : "border-transparent text-slate-400 hover:text-slate-600 font-semibold"
+                                ? "border-[#28336e] text-[#28336e] font-extrabold"
+                                : "border-transparent text-slate-400 hover:text-slate-600 font-semibold"
                                 }`}
                         >
                             <span>My Tasks</span>
@@ -500,8 +528,8 @@ export default function TaskManagementPage() {
                         <button
                             onClick={() => setActiveTab("assigned")}
                             className={`flex items-center gap-2 pb-3 transition-all duration-200 focus:outline-none border-b-2 ${activeTab === "assigned"
-                                    ? "border-[#28336e] text-[#28336e] font-extrabold"
-                                    : "border-transparent text-slate-400 hover:text-slate-600 font-semibold"
+                                ? "border-[#28336e] text-[#28336e] font-extrabold"
+                                : "border-transparent text-slate-400 hover:text-slate-600 font-semibold"
                                 }`}
                         >
                             <span>Assigned Tasks</span>
@@ -659,6 +687,7 @@ export default function TaskManagementPage() {
                         onClick={() => {
                             setIsModalOpen(false);
                             setNewTaskDeadlineError("");
+                            setNewTaskNameError("");
                         }}
                     />
 
@@ -677,6 +706,7 @@ export default function TaskManagementPage() {
                                 onClick={() => {
                                     setIsModalOpen(false);
                                     setNewTaskDeadlineError("");
+                                    setNewTaskNameError("");
                                 }}
                                 className="w-8 h-8 text-slate-400 flex items-center justify-center hover:text-slate-600 transition focus:outline-none"
                                 aria-label="Close dialog"
@@ -691,20 +721,44 @@ export default function TaskManagementPage() {
                         <form onSubmit={handleCreateTask} className="flex flex-col gap-5">
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Task Name <span className="text-red-500 ml-1">*</span>
+                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center justify-between">
+                                    <span>Task Name <span className="text-red-500 ml-1">*</span></span>
+                                    {newTaskName.length > 0 && (
+                                        <span className={`text-xs font-semibold ${newTaskNameError ? "text-rose-500" : "text-slate-400"}`}>
+                                            {newTaskName.length}/150
+                                        </span>
+                                    )}
                                 </label>
                                 <div className="relative flex items-center">
-                                  
                                     <input
                                         type="text"
                                         required
+                                        minLength={10}
+                                        maxLength={150}
                                         placeholder="e.g., Q2 Tax Filing Review"
                                         value={newTaskName}
-                                        onChange={(e) => setNewTaskName(e.target.value)}
-                                        className="w-full h-[50px] pl-3 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#28336e]/10 focus:border-[#28336e] text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80"
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setNewTaskName(val);
+                                            setNewTaskNameError(validateTaskName(val));
+                                        }}
+                                        onBlur={() => {
+                                            setNewTaskNameError(validateTaskName(newTaskName));
+                                        }}
+                                        className={`w-full h-[50px] pl-3 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${newTaskNameError
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            }`}
                                     />
                                 </div>
+                                {newTaskNameError && (
+                                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
+                                        <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="text-[0.78rem] font-medium tracking-tight">{newTaskNameError}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col gap-1.5">
@@ -841,11 +895,10 @@ export default function TaskManagementPage() {
                                             }
                                             setNewTaskDeadlineError(validateDeadline(newTaskDeadline));
                                         }}
-                                        className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${
-                                            newTaskDeadlineError
-                                                ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                                : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
-                                        }`}
+                                        className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${newTaskDeadlineError
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            }`}
                                     />
                                 </div>
                                 {newTaskDeadlineError && (
@@ -864,6 +917,7 @@ export default function TaskManagementPage() {
                                     onClick={() => {
                                         setIsModalOpen(false);
                                         setNewTaskDeadlineError("");
+                                        setNewTaskNameError("");
                                     }}
                                     className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-transparent border-0 cursor-pointer transition mr-2 focus:outline-none"
                                 >
@@ -871,10 +925,10 @@ export default function TaskManagementPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || !!newTaskDeadlineError}
-                                    className={`inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${newTaskName && newTaskDesc && newTaskDeadline && newTaskAssignee && !newTaskDeadlineError && !submitting
-                                            ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
-                                            : "bg-[#a5aec9] cursor-not-allowed"
+                                    disabled={submitting || !!newTaskDeadlineError || !!newTaskNameError || newTaskName.trim().length < 10 || newTaskName.trim().length > 150}
+                                    className={`inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${newTaskName && newTaskDesc && newTaskDeadline && newTaskAssignee && !newTaskDeadlineError && !newTaskNameError && newTaskName.trim().length >= 10 && newTaskName.trim().length <= 150 && !submitting
+                                        ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
+                                        : "bg-[#a5aec9] cursor-not-allowed"
                                         }`}
                                 >
                                     {submitting ? (
@@ -913,6 +967,7 @@ export default function TaskManagementPage() {
                             setIsEditModalOpen(false);
                             setEditingTask(null);
                             setEditTaskDeadlineError("");
+                            setEditTaskNameError("");
                         }}
                     />
 
@@ -932,6 +987,7 @@ export default function TaskManagementPage() {
                                     setIsEditModalOpen(false);
                                     setEditingTask(null);
                                     setEditTaskDeadlineError("");
+                                    setEditTaskNameError("");
                                 }}
                                 className="w-8 h-8 text-slate-400 flex items-center justify-center hover:text-slate-600 transition focus:outline-none"
                                 aria-label="Close dialog"
@@ -945,20 +1001,44 @@ export default function TaskManagementPage() {
 
                         <form onSubmit={handleSaveEdit} className="flex flex-col gap-5">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Task Name <span className="text-red-500 ml-1">*</span>
+                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center justify-between">
+                                    <span>Task Name <span className="text-red-500 ml-1">*</span></span>
+                                    {editTaskName.length > 0 && (
+                                        <span className={`text-xs font-semibold ${editTaskNameError ? "text-rose-500" : "text-slate-400"}`}>
+                                            {editTaskName.length}/150
+                                        </span>
+                                    )}
                                 </label>
                                 <div className="relative flex items-center">
-                                  
                                     <input
                                         type="text"
                                         required
+                                        minLength={10}
+                                        maxLength={150}
                                         placeholder="e.g., Q2 Tax Filing Review"
                                         value={editTaskName}
-                                        onChange={(e) => setEditTaskName(e.target.value)}
-                                        className="w-full h-[50px] pl-3 pr-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#28336e]/10 focus:border-[#28336e] text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80"
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditTaskName(val);
+                                            setEditTaskNameError(validateTaskName(val));
+                                        }}
+                                        onBlur={() => {
+                                            setEditTaskNameError(validateTaskName(editTaskName));
+                                        }}
+                                        className={`w-full h-[50px] pl-3 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${editTaskNameError
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            }`}
                                     />
                                 </div>
+                                {editTaskNameError && (
+                                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
+                                        <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="text-[0.78rem] font-medium tracking-tight">{editTaskNameError}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col gap-1.5">
@@ -1095,11 +1175,10 @@ export default function TaskManagementPage() {
                                             }
                                             setEditTaskDeadlineError(validateDeadline(editTaskDeadline));
                                         }}
-                                        className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${
-                                            editTaskDeadlineError
-                                                ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                                : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
-                                        }`}
+                                        className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${editTaskDeadlineError
+                                            ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            }`}
                                     />
                                 </div>
                                 {editTaskDeadlineError && (
@@ -1119,6 +1198,7 @@ export default function TaskManagementPage() {
                                         setIsEditModalOpen(false);
                                         setEditingTask(null);
                                         setEditTaskDeadlineError("");
+                                        setEditTaskNameError("");
                                     }}
                                     className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-transparent border-0 cursor-pointer transition mr-2 focus:outline-none"
                                 >
@@ -1126,10 +1206,10 @@ export default function TaskManagementPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || !!editTaskDeadlineError}
-                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${editTaskName && editTaskDesc && editTaskDeadline && editTaskAssignee && !editTaskDeadlineError && !submitting
-                                            ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
-                                            : "bg-[#a5aec9] cursor-not-allowed"
+                                    disabled={submitting || !!editTaskDeadlineError || !!editTaskNameError || editTaskName.trim().length < 10 || editTaskName.trim().length > 150}
+                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${editTaskName && editTaskDesc && editTaskDeadline && editTaskAssignee && !editTaskDeadlineError && !editTaskNameError && editTaskName.trim().length >= 10 && editTaskName.trim().length <= 150 && !submitting
+                                        ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
+                                        : "bg-[#a5aec9] cursor-not-allowed"
                                         }`}
                                 >
                                     {submitting ? "Saving…" : "Save Changes"}

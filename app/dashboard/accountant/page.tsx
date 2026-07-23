@@ -67,87 +67,27 @@ function formatJoinedDate(value: string | null) {
 }
 
 function formatCurrency(value: number) {
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  const prefix = getCurrencyPrefix();
+
+  if (absValue >= 1e9) {
+    const formatted = (absValue / 1e9).toFixed(2).replace(/\.?0+$/, "");
+    return `${prefix}${sign}${formatted}B`;
+  }
+  if (absValue >= 1e6) {
+    const formatted = (absValue / 1e6).toFixed(2).replace(/\.?0+$/, "");
+    return `${prefix}${sign}${formatted}M`;
+  }
+
   const formatted = new Intl.NumberFormat("en-AU", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(Math.abs(value));
-  return `${getCurrencyPrefix()}${value < 0 ? "-" : ""}${formatted}`;
+  }).format(absValue);
+  return `${prefix}${sign}${formatted}`;
 }
 
 // Activity category styling and icon utilities
-const DEMO_ACTIVITIES: ReportTimelineEvent[] = [
-  {
-    id: "act-1",
-    clientId: "client-1",
-    clientName: "Sarah Jenkins",
-    action: "Invitation Accepted",
-    detail: "Sarah Jenkins (sarah.j@example.com) joined as a client.",
-    time: "10:30 AM",
-    type: "added",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "act-2",
-    clientId: "client-1",
-    clientName: "Sarah Jenkins",
-    action: "Document Uploaded",
-    detail: "New tax document 'Tax_Return_2025.pdf' uploaded.",
-    time: "2:15 PM",
-    type: "edited",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "act-3",
-    clientId: "client-2",
-    clientName: "Michael Chang",
-    action: "Entity Created",
-    detail: "Entity 'Acme Holdings Pty Ltd' created.",
-    time: "Yesterday",
-    type: "added",
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "act-4",
-    clientId: "",
-    clientName: "",
-    action: "Client Invited",
-    detail: "Invitation sent to emily.brown@example.com by Admin.",
-    time: "2 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: "act-5",
-    clientId: "client-3",
-    clientName: "John Doe",
-    action: "Property Updated",
-    detail: "Updated estimated market value for '74 Park Road' to $1.2M.",
-    time: "3 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 259200000).toISOString(),
-  },
-  {
-    id: "act-6",
-    clientId: "client-4",
-    clientName: "Robert Smith",
-    action: "Document Uploaded",
-    detail: "Rental Statement for '12 Elm St' uploaded.",
-    time: "4 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 345600000).toISOString(),
-  },
-  {
-    id: "act-7",
-    clientId: "client-5",
-    clientName: "John Doe",
-    action: "Bank Account Linked",
-    detail: "ANZ Bank feed connected.",
-    time: "5 days ago",
-    type: "edited",
-    timestamp: new Date(Date.now() - 432000000).toISOString(),
-  },
-];
-
 function getActivityCategory(action: string, type: ReportTimelineEvent["type"]): "invite" | "document" | "entity" | "property" | "bank" {
   const act = action.toLowerCase();
   if (act.includes("invite") || act.includes("invitation")) return "invite";
@@ -155,7 +95,7 @@ function getActivityCategory(action: string, type: ReportTimelineEvent["type"]):
   if (act.includes("entity") || act.includes("organisation") || act.includes("company")) return "entity";
   if (act.includes("property") || act.includes("portfolio")) return "property";
   if (act.includes("bank") || act.includes("feed") || act.includes("reconcil")) return "bank";
-  
+
   if (type === "added") return "invite";
   if (type === "deleted") return "property";
   return "entity";
@@ -223,6 +163,7 @@ export default function AccountantPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
+  const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   // Unassigned clients for the "add to my list" nudge — loaded lazily only when
   // the empty state is shown, so the dashboard never queries all clients on load.
@@ -289,6 +230,28 @@ export default function AccountantPage() {
           if (!cancelled) setMyClients(data.clients || []);
         })
         .catch(() => { if (!cancelled) setMyClients([]); });
+
+      // Fetch all clients org-wide to align with the clients page count logic
+      fetch("/api/users/me/clients?scope=all", { headers })
+        .then((res) => (res.ok ? res.json() : { clients: [] }))
+        .then((data: { clients?: ClientRecord[] }) => {
+          if (!cancelled) {
+            const clients = data.clients || [];
+            setAllClients(clients);
+            setAvailableClients(
+              clients.filter(
+                (c) =>
+                  !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant,
+              ),
+            );
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setAllClients([]);
+            setAvailableClients([]);
+          }
+        });
     }).catch(() => { });
 
     return () => { cancelled = true; };
@@ -309,8 +272,13 @@ export default function AccountantPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const invitationPending = summary?.pendingInvitations ?? 0;
-  const registeredClients = summary?.registeredClients ?? 0;
+  const invitationPending =
+    myClients !== null
+      ? myClients.filter(
+          (client) => client.status?.toUpperCase() === "PENDING",
+        ).length
+      : (summary?.pendingInvitations ?? 0);
+  const registeredClients = allClients !== null ? allClients.length : (summary?.registeredClients ?? 0);
   const managedClients = myClients ?? [];
   const suggestedClients = (availableClients ?? []).slice(0, 3);
 
@@ -321,35 +289,6 @@ export default function AccountantPage() {
       totalMarketValue: summary.totalMarketValue,
     }
     : null;
-
-  // Lazily load unassigned clients for the "add to my list" nudge — only when
-  // the empty state is on screen, never on the normal (has-clients) dashboard.
-  const loadAvailableClients = useCallback(async () => {
-    if (availableClients !== null) return;
-    try {
-      const session = (await getSession()) as SessionWithIdToken | null;
-      if (!session) return;
-      const token = session.getIdToken().getJwtToken();
-      const res = await fetch("/api/users/me/clients?scope=all", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const clients = (res.ok ? (await res.json()).clients : []) as ClientRecord[];
-      setAvailableClients(
-        clients.filter(
-          (c) =>
-            !c.isAssignedToCurrentAccountant && !c.isAssignedToAnotherAccountant,
-        ),
-      );
-    } catch {
-      setAvailableClients([]);
-    }
-  }, [availableClients]);
-
-  useEffect(() => {
-    if (myClients !== null && managedClients.length === 0) {
-      void loadAvailableClients();
-    }
-  }, [myClients, managedClients.length, loadAvailableClients]);
 
   async function handleAssignSuggestedClient() {
     if (!selectedAvailableClientId || isAssigningClient) {
@@ -391,7 +330,7 @@ export default function AccountantPage() {
     }
   }
 
-  const summaryLoading = summary === null || myClients === null;
+  const summaryLoading = summary === null || myClients === null || allClients === null;
 
   return (
     <section className="accountant-dashboard">
@@ -410,12 +349,12 @@ export default function AccountantPage() {
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
             </article>
-            <article className="accountant-summary-card accountant-summary-card-purple">
+            <article className="accountant-summary-card accountant-summary-card-blue">
               <div className="skeleton-line skeleton-line-sm" />
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
             </article>
-            <article className="accountant-summary-card accountant-summary-card-green">
+            <article className="accountant-summary-card accountant-summary-card-gold">
               <div className="skeleton-line skeleton-line-sm" />
               <div className="skeleton-line skeleton-line-xl" />
               <div className="skeleton-circle" />
@@ -425,8 +364,22 @@ export default function AccountantPage() {
       >
         <div className="accountant-summary-grid">
           <article className="accountant-summary-card accountant-summary-card-blue">
-            <div>
-              <p className="accountant-eyebrow">Invitation Pending</p>
+            <div className="accountant-summary-card-header">
+              <p className="accountant-eyebrow">
+                {invitationPending === 1 ? "Invitation Pending" : "Invitations Pending"}
+              </p>
+              <Link
+                href="/dashboard/accountant/clients?invite=1"
+                className="accountant-summary-card-action"
+                title="Invite Client"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </Link>
+            </div>
+            <div className="accountant-summary-card-body">
               <h2>{invitationPending}</h2>
               <span>
                 {invitationPending === 1
@@ -434,61 +387,65 @@ export default function AccountantPage() {
                   : "Clients still to accept"}
               </span>
             </div>
-            <Link
-              href="/dashboard/accountant/clients?invite=1"
-              className="accountant-primary-cta accountant-summary-cta"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14" />
-                <path d="M5 12h14" />
-              </svg>
-              Invite Client
-            </Link>
           </article>
 
           <article className="accountant-summary-card accountant-summary-card-gold">
-            <div>
-              <p className="accountant-eyebrow">Registered Clients</p>
-              <h2>{registeredClients}</h2>
-              <span>{managedClients.length} added to your list</span>
+            <div className="accountant-summary-card-header">
+              <p className="accountant-eyebrow">
+                {registeredClients === 1 ? "Registered Client" : "Registered Clients"}
+              </p>
+              <div className="accountant-summary-card-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                  <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+                  <circle cx="9.5" cy="7" r="4" />
+                  <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
+                  <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
+                </svg>
+              </div>
             </div>
-            <div className="accountant-summary-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
-                <circle cx="9.5" cy="7" r="4" />
-                <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
-                <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
-              </svg>
+            <div className="accountant-summary-card-body">
+              <h2>{managedClients.length} </h2>
+              <span>
+                clients added to your list
+              </span>
             </div>
           </article>
 
-          <article className="accountant-summary-card accountant-summary-card-purple">
-            <div>
-              <p className="accountant-eyebrow">Properties Managed</p>
+          <article className="accountant-summary-card accountant-summary-card-blue">
+            <div className="accountant-summary-card-header">
+              <p className="accountant-eyebrow">
+                {summaryStats?.totalProperties === 1 ? "Property Managed" : "Properties Managed"}
+              </p>
+              <div className="accountant-summary-card-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </div>
+            </div>
+            <div className="accountant-summary-card-body">
               <h2>{summaryStats?.totalProperties ?? 0}</h2>
-              <span>Across client portfolios</span>
-            </div>
-            <div className="accountant-summary-icon accountant-summary-icon-purple">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
+              <span>
+                {summaryStats?.totalProperties === 1
+                  ? "Across client portfolio"
+                  : "Across client portfolios"}
+              </span>
             </div>
           </article>
 
-          <article className="accountant-summary-card accountant-summary-card-green">
-            <div>
+          <article className="accountant-summary-card accountant-summary-card-gold">
+            <div className="accountant-summary-card-header">
               <p className="accountant-eyebrow">Total Market Value</p>
-              <h2 style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.4rem)", marginTop: "4px", marginBottom: "4px" }}>
-                {formatCurrency(summaryStats?.totalMarketValue ?? 0)}
-              </h2>
-              <span>Estimated asset valuation</span>
+              <div className="accountant-summary-card-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
             </div>
-            <div className="accountant-summary-icon accountant-summary-icon-green">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
+            <div className="accountant-summary-card-body">
+              <h2>{formatCurrency(summaryStats?.totalMarketValue ?? 0)}</h2>
+              <span>Estimated asset valuation</span>
             </div>
           </article>
         </div>
@@ -822,11 +779,11 @@ export default function AccountantPage() {
             {recentActivity && recentActivity.length > 0 ? (
               <>
                 <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[390px] pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  {recentActivity.map((event) => {
+                  {recentActivity.map((event, index) => {
                     const cat = getActivityCategory(event.action, event.type);
                     return (
                       <div
-                        key={event.id}
+                        key={index}
                         className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
                       >
                         <div className="flex items-start gap-3 min-w-0">
@@ -876,51 +833,10 @@ export default function AccountantPage() {
                 </Link>
               </>
             ) : (
-              <>
-                <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[390px] pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  {DEMO_ACTIVITIES.map((activity) => {
-                    const cat = getActivityCategory(activity.action, activity.type);
-                    return (
-                      <div
-                        key={activity.id}
-                        className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 ${getActivityCategoryStyles(cat)}`}>
-                            {getActivityIcon(cat)}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-semibold text-slate-800 leading-snug mb-0.5">
-                              {activity.action}
-                              {activity.clientName && activity.clientId ? (
-                                <>
-                                  {" — "}
-                                  <span className="font-bold text-[#28336e]">
-                                    {activity.clientName}
-                                  </span>
-                                </>
-                              ) : null}
-                            </h4>
-                            {activity.detail ? (
-                              <p className="text-[11px] text-slate-500 leading-normal m-0 font-normal truncate">
-                                {activity.detail}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end shrink-0 text-right min-w-[56px] mt-0.5">
-                          <span className="text-[10px] font-semibold text-slate-600 leading-none">
-                            {activity.time}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 text-[10px] text-slate-400 font-semibold italic text-center w-full">
-                  Showing demo activity data
-                </div>
-              </>
+              <div className="py-8 text-center text-slate-500">
+                <p className="text-xs font-medium text-slate-500">No recent activity</p>
+                <p className="text-[11px] text-slate-400 mt-1">Actions and updates will appear here.</p>
+              </div>
             )}
           </Skeleton>
         </aside>

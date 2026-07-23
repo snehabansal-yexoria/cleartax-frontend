@@ -237,11 +237,17 @@ export default function NewPropertyPage() {
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>([]);
 
   // Loan details
+  const [hasLoan, setHasLoan] = useState(false);
   const [bankName, setBankName] = useState("");
   const [bsbNumber, setBsbNumber] = useState("");
   const [loanAccountNumber, setLoanAccountNumber] = useState("");
   const [loanAllocationPercentage, setLoanAllocationPercentage] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+
+  const markTouched = (field: string) => {
+    setTouchedFields((prev) => ({ ...prev, [field]: true }));
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -321,11 +327,11 @@ export default function NewPropertyPage() {
   // Field validations
   const isEstimatedMarketValueValid = !estimatedMarketValue || (estimatedMarketValue !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(estimatedMarketValue));
   const isPurchaseAmountValid = !purchaseAmount || (purchaseAmount !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(purchaseAmount));
-  const isBankNameValid = !bankName || /^[a-zA-Z\s]*$/.test(bankName);
-  const isBsbValid = !bsbNumber || bsbNumber.length === 6;
-  const isLoanAccountNumberValid = !loanAccountNumber || /^\d*$/.test(loanAccountNumber);
-  const isLoanAllocationValid = !loanAllocationPercentage || (Number(loanAllocationPercentage) >= 0 && Number(loanAllocationPercentage) <= 100);
-  const isLoanAmountValid = !loanAmount || (loanAmount !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(loanAmount));
+  const isBankNameValid = !hasLoan || (!!bankName.trim() && /^[a-zA-Z\s]+$/.test(bankName));
+  const isBsbValid = !hasLoan || (!!bsbNumber.trim() && bsbNumber.trim().length === 6);
+  const isLoanAccountNumberValid = !hasLoan || (!!loanAccountNumber.trim() && /^\d+$/.test(loanAccountNumber.trim()));
+  const isLoanAllocationValid = !hasLoan || (!!loanAllocationPercentage.trim() && Number(loanAllocationPercentage) > 0 && Number(loanAllocationPercentage) <= 100);
+  const isLoanAmountValid = !hasLoan || (!!loanAmount.trim() && loanAmount !== "$" && /^\$\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(loanAmount));
 
   const totalOwnership = beneficiaries.reduce((sum, b) => {
     const val = Number.parseFloat(b.percentage);
@@ -443,6 +449,16 @@ export default function NewPropertyPage() {
   async function handleSave() {
     setErrorMessage("");
     if (!isStep1Valid || !isStep2Valid || !isLoanDetailsValid) {
+      if (hasLoan && !isLoanDetailsValid) {
+        setTouchedFields((prev) => ({
+          ...prev,
+          bankName: true,
+          bsbNumber: true,
+          loanAccountNumber: true,
+          loanAllocationPercentage: true,
+          loanAmount: true,
+        }));
+      }
       setErrorMessage("Please complete all required fields and correct errors.");
       return;
     }
@@ -469,14 +485,16 @@ export default function NewPropertyPage() {
         property_status_details: propertyStatusDetails,
       };
 
-      if (bankName.trim()) loanDetails.bank_name = bankName.trim();
-      if (bsbNumber.trim()) loanDetails.bsb_number = bsbNumber.trim();
-      if (loanAccountNumber.trim()) loanDetails.loan_account_number = loanAccountNumber.trim();
-      if (loanAllocationPercentage.trim()) {
-        loanDetails.loan_allocation_percentage = Number.parseFloat(loanAllocationPercentage);
-      }
-      if (loanAmount.trim()) {
-        loanDetails.loan_amount = Number.parseFloat(loanAmount.replace(/[^0-9.]/g, ""));
+      if (hasLoan) {
+        if (bankName.trim()) loanDetails.bank_name = bankName.trim();
+        if (bsbNumber.trim()) loanDetails.bsb_number = bsbNumber.trim();
+        if (loanAccountNumber.trim()) loanDetails.loan_account_number = loanAccountNumber.trim();
+        if (loanAllocationPercentage.trim()) {
+          loanDetails.loan_allocation_percentage = Number.parseFloat(loanAllocationPercentage);
+        }
+        if (loanAmount.trim()) {
+          loanDetails.loan_amount = Number.parseFloat(loanAmount.replace(/[^0-9.]/g, ""));
+        }
       }
 
       if (depreciationScheduleDocument) {
@@ -544,7 +562,7 @@ export default function NewPropertyPage() {
     } else if (step === 2) {
       setStep(1);
     } else {
-      router.push("/dashboard/client/property");
+      router.push("/dashboard/client/properties");
     }
   }
 
@@ -1301,132 +1319,228 @@ export default function NewPropertyPage() {
           {step === 3 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div style={{ fontSize: "11px", fontWeight: 800, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                LOAN DETAILS - OPTIONAL
+                LOAN DETAILS — OPTIONAL
               </div>
 
-              {/* Bank Name */}
+              {/* Does the property have a loan? checkbox */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", marginBottom: "10px" }}>
+                <input
+                  type="checkbox"
+                  id="has-loan-checkbox-mobile"
+                  checked={hasLoan}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setHasLoan(checked);
+                    if (!checked) {
+                      setBankName("");
+                      setBsbNumber("");
+                      setLoanAccountNumber("");
+                      setLoanAllocationPercentage("");
+                      setLoanAmount("");
+                      setTouchedFields((prev) => {
+                        const updated = { ...prev };
+                        delete updated.bankName;
+                        delete updated.bsbNumber;
+                        delete updated.loanAccountNumber;
+                        delete updated.loanAllocationPercentage;
+                        delete updated.loanAmount;
+                        return updated;
+                      });
+                    }
+                  }}
+                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                />
+                <label htmlFor="has-loan-checkbox-mobile" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", cursor: "pointer", userSelect: "none" }}>
+                  Does the property have a loan?
+                </label>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px", opacity: hasLoan ? 1 : 0.5, pointerEvents: hasLoan ? "auto" : "none", transition: "opacity 0.2s" }}>
+                {/* Bank Name */}
               <div>
                 <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Bank Name
+                  Bank Name {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                 </label>
                 <input
                   type="text"
-                  placeholder="eg., Wells Fargo"
+                  placeholder={hasLoan ? "eg., Wells Fargo" : "No loan details required"}
                   value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
+                  disabled={!hasLoan}
+                  onChange={(e) => setBankName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
+                  onBlur={() => markTouched("bankName")}
                   style={{
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: "#f4f6fa",
-                    border: "1px solid #eaeef4",
+                    background: hasLoan ? "#ffffff" : "#f1f5f9",
+                    border: touchedFields.bankName && !isBankNameValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: "#101828",
-                    outline: "none"
+                    color: hasLoan ? "#101828" : "#94a3b8",
+                    outline: "none",
+                    cursor: hasLoan ? "text" : "not-allowed"
                   }}
                 />
+                {touchedFields.bankName && !isBankNameValid && (
+                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    {!bankName.trim() ? "Bank Name is required." : "Bank Name must contain letters and spaces only."}
+                  </div>
+                )}
               </div>
 
               {/* BSB Number and Loan % Allocation */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                    BSB Number
+                    BSB Number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g., 123-456"
+                    placeholder={hasLoan ? "e.g., 123456" : "No loan"}
                     value={bsbNumber}
+                    disabled={!hasLoan}
                     onChange={(e) => setBsbNumber(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onBlur={() => markTouched("bsbNumber")}
                     style={{
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: "#f4f6fa",
-                      border: "1px solid #eaeef4",
+                      background: hasLoan ? "#ffffff" : "#f1f5f9",
+                      border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: "#101828",
-                      outline: "none"
+                      color: hasLoan ? "#101828" : "#94a3b8",
+                      outline: "none",
+                      cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
+                  {touchedFields.bsbNumber && !isBsbValid && (
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      {!bsbNumber.trim() ? "BSB Number is required." : "BSB Number must be exactly 6 digits."}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                    Loan % Allocation
+                    Loan % Allocation {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                   </label>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     <input
                       type="number"
-                      placeholder="0 %"
-                      min="0"
-                      max="100"
+                      placeholder={hasLoan ? "0 %" : "No loan"}
+                      disabled={!hasLoan}
+                      onKeyDown={(e) => {
+                        if (e.key === "0" && !loanAllocationPercentage) {
+                          e.preventDefault();
+                        }
+                        if (e.key === "-" || e.key === "e" || e.key === "+") {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (val.startsWith("0")) {
+                          if (!val.startsWith("0.")) {
+                            val = val.replace(/^0+/, "");
+                          }
+                        }
+                        if (Number(val) > 100) {
+                          val = "100";
+                        }
+                        setLoanAllocationPercentage(val);
+                      }}
+                      onBlur={() => markTouched("loanAllocationPercentage")}
                       value={loanAllocationPercentage}
-                      onChange={(e) => setLoanAllocationPercentage(e.target.value)}
                       style={{
                         width: "100%",
                         height: "48px",
                         padding: "0 24px 0 12px",
-                        background: "#f4f6fa",
-                        border: "1px solid #eaeef4",
+                        background: hasLoan ? "#ffffff" : "#f1f5f9",
+                        border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
                         borderRadius: "12px",
                         fontSize: "14px",
-                        color: "#101828",
-                        outline: "none"
+                        color: hasLoan ? "#101828" : "#94a3b8",
+                        outline: "none",
+                        cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
                     <span style={{ position: "absolute", right: "12px", fontSize: "14px", color: "#667085", fontWeight: 500 }}>%</span>
                   </div>
+                  {touchedFields.loanAllocationPercentage && !isLoanAllocationValid && (
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      {!loanAllocationPercentage
+                        ? "Loan allocation is required."
+                        : Number(loanAllocationPercentage) === 0
+                        ? "Loan allocation percentage cannot be 0."
+                        : "Loan Allocation percentage must be greater than 0% and at most 100%."}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Loan Account Number */}
               <div>
                 <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Loan Account Number
+                  Loan Account Number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter account number"
+                  placeholder={hasLoan ? "Enter account number" : "No loan"}
                   value={loanAccountNumber}
+                  disabled={!hasLoan}
                   onChange={(e) => setLoanAccountNumber(e.target.value.replace(/\D/g, ""))}
+                  onBlur={() => markTouched("loanAccountNumber")}
                   style={{
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: "#f4f6fa",
-                    border: "1px solid #eaeef4",
+                    background: hasLoan ? "#ffffff" : "#f1f5f9",
+                    border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: "#101828",
-                    outline: "none"
+                    color: hasLoan ? "#101828" : "#94a3b8",
+                    outline: "none",
+                    cursor: hasLoan ? "text" : "not-allowed"
                   }}
                 />
+                {touchedFields.loanAccountNumber && !isLoanAccountNumberValid && (
+                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    {!loanAccountNumber.trim() ? "Loan Account Number is required." : "Loan Account Number must contain numeric values only."}
+                  </div>
+                )}
               </div>
 
               {/* Loan Amount */}
               <div>
                 <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Loan Amount
+                  Loan Amount {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter amount"
+                  placeholder={hasLoan ? "Enter amount" : "No loan"}
                   value={loanAmount}
+                  disabled={!hasLoan}
                   onChange={(e) => setLoanAmount(formatAUD(e.target.value))}
+                  onBlur={() => markTouched("loanAmount")}
                   style={{
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: "#f4f6fa",
-                    border: "1px solid #eaeef4",
+                    background: hasLoan ? "#ffffff" : "#f1f5f9",
+                    border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: "#101828",
-                    outline: "none"
+                    color: hasLoan ? "#101828" : "#94a3b8",
+                    outline: "none",
+                    cursor: hasLoan ? "text" : "not-allowed"
                   }}
                 />
+                {touchedFields.loanAmount && !isLoanAmountValid && (
+                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    {!loanAmount.trim() ? "Loan Amount is required." : "Loan Amount must accept only currency format."}
+                  </div>
+                )}
+              </div>
               </div>
             </div>
           )}
@@ -1486,7 +1600,7 @@ export default function NewPropertyPage() {
                 <strong>{propertyName}</strong> has been added successfully.
               </p>
               <Link
-                href="/dashboard/client/property"
+                href="/dashboard/client/properties"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1516,7 +1630,7 @@ export default function NewPropertyPage() {
       <div style={{ background: "#f7f9fc", minHeight: "100vh", padding: "40px", fontFamily: '"Inter", sans-serif' }}>
         <div style={{ marginBottom: "24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#667085", fontWeight: 500, marginBottom: "8px" }}>
-            <Link href="/dashboard/client/property" style={{ color: "#2f3c82", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
+            <Link href="/dashboard/client/properties" style={{ color: "#2f3c82", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px" }}>
                 <path d="M15 19l-7-7 7-7" />
               </svg>
@@ -1953,7 +2067,7 @@ export default function NewPropertyPage() {
               {/* Step 1 Footer */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: "1px solid #eaeef4", paddingTop: "24px" }}>
                 <Link
-                  href="/dashboard/client/property"
+                  href="/dashboard/client/properties"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -2206,33 +2320,220 @@ export default function NewPropertyPage() {
                   STEP 3 — LOAN DETAILS (OPTIONAL)
                 </div>
 
+                {/* Does the property have a loan? checkbox */}
+                <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px" }}>
+                  <input
+                    type="checkbox"
+                    id="has-loan-checkbox-desktop"
+                    checked={hasLoan}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setHasLoan(checked);
+                      if (!checked) {
+                        setBankName("");
+                        setBsbNumber("");
+                        setLoanAccountNumber("");
+                        setLoanAllocationPercentage("");
+                        setLoanAmount("");
+                        setTouchedFields((prev) => {
+                          const updated = { ...prev };
+                          delete updated.bankName;
+                          delete updated.bsbNumber;
+                          delete updated.loanAccountNumber;
+                          delete updated.loanAllocationPercentage;
+                          delete updated.loanAmount;
+                          return updated;
+                        });
+                      }
+                    }}
+                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                  />
+                  <label htmlFor="has-loan-checkbox-desktop" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", cursor: "pointer", userSelect: "none" }}>
+                    Does the property have a loan?
+                  </label>
+                </div>
+
+                <div style={{ opacity: hasLoan ? 1 : 0.5, pointerEvents: hasLoan ? "auto" : "none", transition: "opacity 0.2s" }}>
                 <div style={{ marginBottom: "20px" }}>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>Bank name</label>
-                  <input type="text" placeholder="e.g. Wells Fargo" value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: "100%", height: "44px", padding: "0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828", outline: "none" }} />
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
+                    Bank name {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={hasLoan ? "e.g. Wells Fargo" : "No loan details required"}
+                    value={bankName}
+                    disabled={!hasLoan}
+                    onChange={(e) => setBankName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
+                    onBlur={() => markTouched("bankName")}
+                    style={{
+                      width: "100%",
+                      height: "44px",
+                      padding: "0 16px",
+                      background: hasLoan ? "#ffffff" : "#f1f5f9",
+                      border: touchedFields.bankName && !isBankNameValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      color: hasLoan ? "#101828" : "#94a3b8",
+                      outline: "none",
+                      cursor: hasLoan ? "text" : "not-allowed"
+                    }}
+                  />
+                  {touchedFields.bankName && !isBankNameValid && (
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      {!bankName.trim() ? "Bank Name is required." : "Bank Name must contain letters and spaces only."}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>BSB number</label>
-                    <input type="text" placeholder="e.g. 123-456" value={bsbNumber} onChange={(e) => setBsbNumber(e.target.value.replace(/\D/g, "").slice(0, 6))} style={{ width: "100%", height: "44px", padding: "0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828", outline: "none" }} />
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
+                      BSB number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={hasLoan ? "e.g. 123-456" : "No loan"}
+                      value={bsbNumber}
+                      disabled={!hasLoan}
+                      onChange={(e) => setBsbNumber(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onBlur={() => markTouched("bsbNumber")}
+                      style={{
+                        width: "100%",
+                        height: "44px",
+                        padding: "0 16px",
+                        background: hasLoan ? "#ffffff" : "#f1f5f9",
+                        border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        color: hasLoan ? "#101828" : "#94a3b8",
+                        outline: "none",
+                        cursor: hasLoan ? "text" : "not-allowed"
+                      }}
+                    />
+                    {touchedFields.bsbNumber && !isBsbValid && (
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                        {!bsbNumber.trim() ? "BSB Number is required." : "BSB Number must be exactly 6 digits."}
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>Loan % allocation</label>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
+                      Loan % allocation {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                    </label>
                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                      <input type="number" placeholder="0 %" value={loanAllocationPercentage} onChange={(e) => setLoanAllocationPercentage(e.target.value)} style={{ width: "100%", height: "44px", padding: "0 32px 0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828" }} />
+                      <input
+                        type="number"
+                        placeholder={hasLoan ? "0 %" : "No loan"}
+                        disabled={!hasLoan}
+                        onKeyDown={(e) => {
+                          if (e.key === "0" && !loanAllocationPercentage) {
+                            e.preventDefault();
+                          }
+                          if (e.key === "-" || e.key === "e" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (val.startsWith("0")) {
+                            if (!val.startsWith("0.")) {
+                              val = val.replace(/^0+/, "");
+                            }
+                          }
+                          if (Number(val) > 100) {
+                            val = "100";
+                          }
+                          setLoanAllocationPercentage(val);
+                        }}
+                        onBlur={() => markTouched("loanAllocationPercentage")}
+                        value={loanAllocationPercentage}
+                        style={{
+                          width: "100%",
+                          height: "44px",
+                          padding: "0 32px 0 16px",
+                          background: hasLoan ? "#ffffff" : "#f1f5f9",
+                          border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                          borderRadius: "8px",
+                          fontSize: "14px",
+                          color: hasLoan ? "#101828" : "#94a3b8",
+                          cursor: hasLoan ? "text" : "not-allowed"
+                        }}
+                      />
                       <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: "#667085" }}>%</span>
                     </div>
+                    {touchedFields.loanAllocationPercentage && !isLoanAllocationValid && (
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                        {!loanAllocationPercentage
+                          ? "Loan allocation is required."
+                          : Number(loanAllocationPercentage) === 0
+                          ? "Loan allocation percentage cannot be 0."
+                          : "Loan Allocation percentage must be greater than 0% and at most 100%."}
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>Loan account number</label>
-                    <input type="text" placeholder="Enter account number" value={loanAccountNumber} onChange={(e) => setLoanAccountNumber(e.target.value.replace(/\D/g, ""))} style={{ width: "100%", height: "44px", padding: "0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828", outline: "none" }} />
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
+                      Loan account number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={hasLoan ? "Enter account number" : "No loan"}
+                      value={loanAccountNumber}
+                      disabled={!hasLoan}
+                      onChange={(e) => setLoanAccountNumber(e.target.value.replace(/\D/g, ""))}
+                      onBlur={() => markTouched("loanAccountNumber")}
+                      style={{
+                        width: "100%",
+                        height: "44px",
+                        padding: "0 16px",
+                        background: hasLoan ? "#ffffff" : "#f1f5f9",
+                        border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        color: hasLoan ? "#101828" : "#94a3b8",
+                        outline: "none",
+                        cursor: hasLoan ? "text" : "not-allowed"
+                      }}
+                    />
+                    {touchedFields.loanAccountNumber && !isLoanAccountNumberValid && (
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                        {!loanAccountNumber.trim() ? "Loan Account Number is required." : "Loan Account Number must contain numeric values only."}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div style={{ marginBottom: "10px" }}>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>Loan amount</label>
-                  <input type="text" placeholder="Enter amount" value={loanAmount} onChange={(e) => setLoanAmount(formatAUD(e.target.value))} style={{ width: "100%", height: "44px", padding: "0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828", outline: "none" }} />
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
+                    Loan amount {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={hasLoan ? "Enter amount" : "No loan"}
+                    value={loanAmount}
+                    disabled={!hasLoan}
+                    onChange={(e) => setLoanAmount(formatAUD(e.target.value))}
+                    onBlur={() => markTouched("loanAmount")}
+                    style={{
+                      width: "100%",
+                      height: "44px",
+                      padding: "0 16px",
+                      background: hasLoan ? "#ffffff" : "#f1f5f9",
+                      border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      color: hasLoan ? "#101828" : "#94a3b8",
+                      outline: "none",
+                      cursor: hasLoan ? "text" : "not-allowed"
+                    }}
+                  />
+                  {touchedFields.loanAmount && !isLoanAmountValid && (
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      {!loanAmount.trim() ? "Loan Amount is required." : "Loan Amount must accept only currency format."}
+                    </div>
+                  )}
                 </div>
+              </div>
               </div>
 
               {errorMessage && (
@@ -2265,7 +2566,7 @@ export default function NewPropertyPage() {
               <p style={{ fontSize: "14px", color: "#667085", margin: "0 0 28px 0" }}>
                 <strong>{propertyName}</strong> is now linked to <strong>{selectedEntity?.name}</strong>.
               </p>
-              <Link href="/dashboard/client/property" style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: "#1a235a", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#ffffff", textDecoration: "none" }}>View Properties List</Link>
+              <Link href="/dashboard/client/properties" style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: "#1a235a", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#ffffff", textDecoration: "none" }}>View Properties List</Link>
             </div>
           </div>
         )}
