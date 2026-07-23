@@ -521,7 +521,7 @@ export default function ClientInsightsPage() {
     return globalFormatCurrency(val, { decimals: 0 });
   };
 
-  const isDemoMode = properties.length === 0 && transactions.length === 0;
+  const isDemoMode = false;
 
   // 1. Cash flow metrics
   const displayCashFlowMetrics = isDemoMode ? {

@@ -1,0 +1,1907 @@
+/* Client Dashboard Specific Theme Tokens */
+
+@theme {
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-t-primary: var(--text-primary);
+  --color-t-secondary: var(--text-secondary);
+  --color-t-muted: var(--text-muted);
+  --color-b-border: var(--border);
+  --color-b-brand: var(--brand);
+  --color-a-accent: var(--accent);
+  --color-s-success: var(--success);
+  --color-d-danger: var(--danger);
+}
+
+:root {
+  --surface-0: #F7F8FC;
+  --surface-1: #FFFFFF;
+  --surface-2: #FFFFFF;
+  --text-primary: #14172E;
+  --text-secondary: #5C639A;
+  --text-muted: #8891C4;
+  --border: rgba(20, 23, 46, 0.08);
+  --accent: #F4A117;
+  --brand: #28336E;
+  --success: #0F6E56;
+  --danger: #A32D2D;
+}
+
+.dark {
+  --surface-0: #0F1330;
+  --surface-1: #1B2050;
+  --surface-2: #242C68;
+  --text-primary: #FDFDFF;
+  --text-secondary: #B9C0E8;
+  --text-muted: #6F76A6;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #F4A117;
+  --brand: #38417F;
+  --success: #5DCAA5;
+  --danger: #F09595;
+}
+
+/* ==========================================================================
+   GLOBAL DARK MODE OVERRIDES (Scoped to Client Dashboard pages)
+   ========================================================================== */
+
+/* Main Layout & Shell */
+html.dark,
+html.dark body {
+  background-color: var(--surface-0) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .accountant-shell {
+  background: var(--surface-0) !important;
+}
+
+/* Desktop Sidebar */
+html.dark aside.group\/sidebar {
+  background: var(--surface-1) !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark aside.group\/sidebar .border-t {
+  border-color: var(--border) !important;
+}
+
+html.dark aside.group\/sidebar .bg-white\/12 {
+  background-color: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Desktop Topbar Header */
+html.dark .accountant-topbar {
+  background-color: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+}
+
+html.dark .accountant-header-copy strong {
+  color: var(--text-primary) !important;
+}
+
+html.dark .accountant-header-copy span {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .accountant-avatar {
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+/* Desktop Search Input */
+html.dark .accountant-search {
+  background-color: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+}
+
+html.dark .accountant-search input {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+html.dark .accountant-search svg {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .accountant-search:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.25) !important;
+}
+
+/* Autocomplete Dropdown List */
+html.dark .search-suggestions-dropdown {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .suggestion-item {
+  color: var(--text-primary) !important;
+}
+
+html.dark .suggestion-item:hover,
+html.dark .suggestion-item.is-highlighted {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .suggestion-title {
+  color: var(--text-primary) !important;
+}
+
+html.dark .suggestion-subtitle {
+  color: var(--text-muted) !important;
+}
+
+html.dark .suggestion-icon-wrapper {
+  background: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .suggestion-enter-badge {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-muted) !important;
+}
+
+html.dark .search-highlight {
+  background-color: rgba(244, 161, 23, 0.25) !important;
+  color: var(--accent) !important;
+}
+
+/* ==========================================================================
+   MOBILE CLIENT LAYOUT
+   ========================================================================== */
+
+html.dark .mobile-client-dashboard {
+  background-color: var(--surface-0) !important;
+}
+
+html.dark .m-db-header {
+  background: var(--surface-1) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+html.dark .m-db-name {
+  color: var(--text-primary) !important;
+}
+
+html.dark .m-db-kicker {
+  color: var(--text-muted) !important;
+}
+
+html.dark .m-db-bell-btn {
+  background: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .m-db-bell-btn:active {
+  background: var(--surface-0) !important;
+}
+
+/* Bottom Navigation Bar */
+html.dark .m-db-nav-bar {
+  background: rgba(27, 32, 80, 0.95) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+html.dark .m-db-nav-item {
+  color: var(--text-muted) !important;
+}
+
+html.dark .m-db-nav-item.is-active {
+  color: var(--text-primary) !important;
+}
+
+/* ==========================================================================
+   COMPONENTS & PAGES STYLING
+   ========================================================================== */
+
+/* Card Containers */
+html.dark .bg-white {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+/* Border Overrides */
+html.dark .border-\[\#eaeef4\],
+html.dark .border-b-\[\#eaeef4\],
+html.dark .border-t-\[\#eaeef4\],
+html.dark .border-l-\[\#eaeef4\],
+html.dark .border-r-\[\#eaeef4\] {
+  border-color: var(--border) !important;
+}
+
+html.dark .border-b {
+  border-color: var(--border) !important;
+}
+
+/* Net Equity / Position Card */
+html.dark .m-db-net-card {
+  background-color: var(--surface-1) !important;
+  background-image: none !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .m-db-net-label {
+  color: var(--text-muted) !important;
+}
+
+html.dark .m-db-net-date-badge {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .m-db-net-value {
+  color: var(--text-primary) !important;
+}
+
+html.dark .m-db-net-divider {
+  background: var(--border) !important;
+}
+
+html.dark .m-db-net-stat-value {
+  color: var(--text-primary) !important;
+}
+
+html.dark .m-db-net-stat-label {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .m-db-net-card.is-detailed-theme {
+  background-color: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+}
+
+html.dark .m-db-net-card.is-detailed-theme .m-db-net-stat-col {
+  border-color: var(--border) !important;
+}
+
+html.dark .m-db-net-stat-col {
+  border-color: var(--border) !important;
+}
+
+/* Typography Color Mappings */
+html.dark .text-\[\#101828\] {
+  color: var(--text-primary) !important;
+}
+
+html.dark .text-\[\#667085\] {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .text-\[\#475467\] {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .text-\[\#344054\] {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .text-slate-800 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .text-slate-600 {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+/* Tabs & Toggles */
+html.dark .bg-slate-100 {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .bg-gray-100 {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .bg-gray-55 {
+  background-color: var(--surface-0) !important;
+}
+
+html.dark .bg-\[\#f7f9fc\] {
+  background-color: var(--surface-0) !important;
+}
+
+/* Quick Action / View Tabs selector */
+html.dark .bg-white.text-\[\#101828\].shadow-sm {
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dropdown Field Selects */
+html.dark .transaction-select,
+html.dark .property-status-trigger {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .property-status-menu {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .property-status-item {
+  color: var(--text-primary) !important;
+}
+
+html.dark .property-status-item:hover,
+html.dark .property-status-item.is-selected {
+  background-color: var(--surface-2) !important;
+}
+
+/* Tables & Lists */
+html.dark .accountant-client-table-head,
+html.dark .accountant-client-table-row {
+  border-color: var(--border) !important;
+}
+
+html.dark .accountant-client-table-row:hover {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .accountant-client-name-link {
+  color: var(--text-primary) !important;
+}
+
+html.dark .m-db-activity-row {
+  border-color: var(--border) !important;
+}
+
+html.dark .m-db-activity-title {
+  color: var(--text-primary) !important;
+}
+
+html.dark .m-db-activity-meta {
+  color: var(--text-muted) !important;
+}
+
+/* Chart Axis Lines */
+html.dark .border-\[\#f2f4f7\] {
+  border-color: var(--border) !important;
+}
+
+html.dark .border-dashed {
+  border-color: var(--border) !important;
+}
+
+/* Portfolio Summary Card in Entities Subpage */
+.entities-portfolio-summary-card {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(135deg, #1b265c 0%, #2f3e8b 100%) !important;
+  background-size: 16px 16px, 16px 16px, 100% 100% !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.entities-portfolio-summary-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  background-color: rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+html.dark .entities-portfolio-summary-card {
+  background-image: none !important;
+  background-color: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .entities-portfolio-summary-card::before {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ==========================================================================
+   TABLES & TRANSACTION LIST OVERRIDES
+   ========================================================================== */
+
+html.dark .property-trend-table-full {
+  background: var(--surface-1) !important;
+}
+
+html.dark .property-trend-table-full th {
+  border-bottom: 1.5px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+  background: var(--surface-2) !important;
+}
+
+html.dark .property-trend-table-full td {
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-primary);
+}
+
+html.dark .property-trend-table-full td:first-child {
+  color: var(--text-primary);
+}
+
+html.dark .property-trend-table-full .total-row td {
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary);
+}
+
+html.dark .transactions-table-wrap,
+html.dark .transaction-rule-table-wrap {
+  border-color: var(--border) !important;
+  background: var(--surface-1) !important;
+}
+
+html.dark .transactions-table td,
+html.dark .transaction-rule-table td {
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-primary);
+}
+
+html.dark .transactions-table th,
+html.dark .transaction-rule-table th {
+  background: var(--surface-2) !important;
+  border-bottom: 2px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Status Pills */
+html.dark .transaction-type-pill.is-expense {
+  color: var(--danger) !important;
+  background: rgba(240, 149, 149, 0.15) !important;
+}
+
+html.dark .transaction-type-pill.is-income {
+  color: var(--success) !important;
+  background: rgba(93, 202, 165, 0.15) !important;
+}
+
+html.dark .transaction-rule-pill.is-yes {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+}
+
+html.dark .transaction-rule-pill.is-no {
+  color: var(--text-muted) !important;
+  background: var(--surface-2) !important;
+}
+
+/* Filters & Search Panels */
+html.dark .transaction-filter-card,
+html.dark .transaction-rule-search-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .transaction-filter-title {
+  color: var(--text-primary) !important;
+}
+
+/* ==========================================================================
+   FORM WIZARDS (Entity/Property Setup Forms)
+   ========================================================================== */
+
+html.dark .entity-wizard-card,
+html.dark .property-wizard-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .entity-wizard-input,
+html.dark .property-wizard-input,
+html.dark select.entity-wizard-input {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .entity-wizard-input:focus,
+html.dark .property-wizard-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.25) !important;
+}
+
+html.dark .entity-wizard-label,
+html.dark .property-wizard-label {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .entity-wizard-section-tag,
+html.dark .property-wizard-section-tag {
+  color: var(--text-muted) !important;
+}
+
+/* Wizard Buttons */
+html.dark .entity-wizard-btn-cancel,
+html.dark .entity-wizard-btn-secondary {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .entity-wizard-btn-cancel:hover,
+html.dark .entity-wizard-btn-secondary:hover {
+  background: var(--surface-0) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Wizard Breadcrumbs */
+html.dark .entity-wizard-breadcrumb-link {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .entity-wizard-breadcrumb-link:hover {
+  color: var(--text-primary) !important;
+}
+
+html.dark .entity-wizard-breadcrumb-current {
+  color: var(--text-muted) !important;
+}
+
+html.dark .entity-wizard-breadcrumb-separator {
+  color: var(--text-muted) !important;
+}
+
+/* ==========================================================================
+   SKELETONS (Loading States)
+   ========================================================================== */
+
+html.dark .skeleton-line,
+html.dark .skeleton-circle,
+html.dark .skeleton-pill,
+html.dark .skeleton-input,
+html.dark .skeleton-panel {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-1) 50%, var(--surface-2) 100%) !important;
+}
+
+/* ==========================================================================
+   PROGRESS BARS & OTHER GENERAL ELEMENTS
+   ========================================================================== */
+
+/* Progress bar Track */
+html.dark .bg-gray-200 {
+  background-color: var(--surface-2) !important;
+}
+
+/* Progress bar Fill (upload progress) */
+html.dark .bg-\[\#1b2559\] {
+  background-color: var(--accent) !important;
+}
+
+/* Typography general utility mappings */
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+
+/* Background general utility mappings */
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: var(--surface-0) !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .bg-slate-200 {
+  background-color: var(--surface-2) !important;
+}
+
+/* Dark Mode Overrides for Mobile Activity and Icon Boxes */
+html.dark .m-db-activity-list-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .m-db-activity-icon-box.income {
+  background: rgba(93, 202, 165, 0.15) !important;
+  color: var(--success) !important;
+}
+
+html.dark .m-db-activity-icon-box.expense {
+  background: rgba(240, 149, 149, 0.15) !important;
+  color: var(--danger) !important;
+}
+
+html.dark .m-db-activity-amount.income {
+  color: var(--success) !important;
+}
+
+html.dark .m-db-activity-amount.expense {
+  color: var(--danger) !important;
+}
+
+/* Dark Mode Overrides for Add Transaction Form Components (scoped to client-transaction-add-page to avoid affecting other layouts) */
+html.dark .client-transaction-add-page {
+  background-color: var(--surface-0) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page h1 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page p {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-entry-form {
+  background-color: transparent !important;
+}
+
+html.dark .client-transaction-add-page .transaction-entity-header {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-entity-row b {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-entity-row small {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-entity-edit-btn {
+  color: var(--brand) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-type-control span.transaction-field-label {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-type-control button {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-type-control button.is-selected {
+  color: var(--brand) !important;
+  border-color: var(--brand) !important;
+  background: var(--surface-2) !important;
+  box-shadow: 0 0 0 3px rgba(56, 65, 127, 0.15) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-type-control button.is-selected.is-revenue {
+  color: var(--success) !important;
+  border-color: var(--success) !important;
+  background: var(--surface-2) !important;
+  box-shadow: 0 0 0 3px rgba(93, 202, 165, 0.15) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-asset-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-asset-card small {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-asset-options {
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-radio-card {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-radio-card small {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-field span.transaction-field-label {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-field input,
+html.dark .client-transaction-add-page .transaction-field textarea {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-field input:focus,
+html.dark .client-transaction-add-page .transaction-field textarea:focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px rgba(56, 65, 127, 0.15) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-checkbox-row span {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-checkbox-row input[type="checkbox"] {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-checkbox-row input[type="checkbox"]:checked {
+  background-color: var(--brand) !important;
+  border-color: var(--brand) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-split-section {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-split-row {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-money-input b {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-split-footer {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-split-total {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-split-total.is-mismatch {
+  color: var(--danger) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-split-add {
+  color: var(--brand) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-cancel-button {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-cancel-button:hover {
+  background: var(--surface-0) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-save-button {
+  background: var(--brand) !important;
+  color: #ffffff !important;
+}
+
+html.dark .client-transaction-add-page .transaction-save-button:disabled {
+  background: var(--surface-2) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+html.dark .client-transaction-add-page .transaction-outline-button {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--brand) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-outline-button:hover {
+  background: var(--surface-2) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-outline-button.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--surface-2) !important;
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-transaction-add-page .entity-success-card {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .client-transaction-add-page .entity-success-body {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .entity-success-body p {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-warning-card {
+  border-color: rgba(244, 161, 23, 0.3) !important;
+  background: rgba(244, 161, 23, 0.1) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-warning-card>strong {
+  color: var(--accent) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-warning-card small {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-warning-card b {
+  color: var(--text-primary) !important;
+}
+
+/* Scoped Dropzone and Preview dark mode rules specifically for client add transaction layout */
+html.dark .client-transaction-add-page .transaction-document-drop {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop:hover:not([data-status="uploading"]):not([data-status="extracting"]):not([data-status="done"]):not([data-status="error"]) {
+  border-color: var(--brand) !important;
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop svg {
+  stroke: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop[data-status="dragover"] {
+  border-color: var(--brand) !important;
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop strong {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop small {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop__percentage-bar-outer {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop__percentage-bar-inner {
+  background-color: var(--brand) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-document-drop__percentage-label {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-panel {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-header {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-filename {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-action-btn {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-action-btn:hover {
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-reset-btn {
+  background-color: var(--brand) !important;
+  color: #ffffff !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-iframe {
+  border-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-skeleton {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .client-transaction-add-page .doc-preview-skeleton-shimmer {
+  background-color: var(--surface-1) !important;
+}
+
+/* Scoped Transaction Modal dark mode rules specifically for client add transaction layout */
+html.dark .client-transaction-add-page .transaction-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-header {
+  border-bottom-color: var(--border) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-header h2 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-header p {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-header button {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-header button:hover {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-body h3 {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-modal-footer {
+  border-top-color: var(--border) !important;
+}
+
+/* Scoped Feedback Modal dark mode rules */
+html.dark .client-transaction-add-page .transaction-feedback-backdrop {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-feedback-card {
+  background-color: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-feedback-card h1 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-feedback-card p {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-feedback-icon {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-feedback-card.is-success .transaction-feedback-icon svg {
+  stroke: var(--success) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-feedback-card.is-warning .transaction-feedback-icon svg {
+  stroke: var(--danger) !important;
+}
+
+html.dark .client-transaction-add-page .transaction-primary-button {
+  background-color: var(--brand) !important;
+  color: #ffffff !important;
+}
+
+/* Scoped Dropdown Menu and Trigger overrides for dark mode inside client transactions */
+html.dark .client-transaction-add-page .property-status-trigger {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-transaction-add-page .property-status-trigger:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--brand) !important;
+}
+
+html.dark .client-transaction-add-page .property-status-select.is-open .property-status-trigger {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px rgba(56, 65, 127, 0.15) !important;
+}
+
+html.dark .client-transaction-add-page .property-status-menu {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+}
+
+html.dark .client-transaction-add-page .property-status-menu button {
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+html.dark .client-transaction-add-page .property-status-menu button:last-child {
+  border-bottom: 0 !important;
+}
+
+html.dark .client-transaction-add-page .property-status-menu button.is-selected {
+  color: var(--brand) !important;
+}
+
+/* ==========================================================================
+   CLIENT ENTITY DETAIL VIEW STYLES
+   ========================================================================== */
+
+/* Header Card Grid Background */
+.client-entity-header-card {
+  position: relative;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(135deg, #1b265c 0%, #151c3f 100%) !important;
+  background-size: 16px 16px, 16px 16px, 100% 100% !important;
+  border-radius: 20px;
+  color: #ffffff;
+  padding: 32px;
+  box-shadow: 0 10px 30px rgba(27, 38, 92, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html.dark .client-entity-header-card {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(135deg, #0e122b 0%, #080a18 100%) !important;
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.client-entity-kicker {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(244, 161, 23, 0.15);
+  color: #ffb83d;
+  margin-bottom: 12px;
+}
+
+.client-entity-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.client-entity-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.client-entity-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.client-entity-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Metric Stats Grid */
+.client-entity-stats-grid {
+  display: flex;
+  flex-direction: row;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 24px;
+}
+
+.client-entity-stat-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 24px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.client-entity-stat-col:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.client-entity-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.client-entity-stat-val {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Cash Flow Bar Chart Card Wrapper */
+.client-entity-chart-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
+}
+
+html.dark .client-entity-chart-card {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+.client-entity-chart-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* Beneficiaries Widget styling */
+.client-entity-beneficiaries-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
+}
+
+html.dark .client-entity-beneficiaries-card {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+.client-beneficiary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.client-beneficiary-row:last-child {
+  border-bottom: none;
+}
+
+.client-beneficiary-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.client-beneficiary-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.client-beneficiary-percent {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.client-beneficiary-percent.total {
+  color: #12b76a;
+}
+
+/* Document Cards section */
+.client-entity-doc-section-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
+}
+
+html.dark .client-entity-doc-section-card {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+.client-entity-doc-grid {
+  display: grid;
+  grid-template-cols: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.client-entity-doc-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-0);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.client-entity-doc-card:hover {
+  background: var(--surface-2);
+  border-color: var(--brand);
+}
+
+.client-entity-doc-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.client-entity-doc-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(27, 32, 80, 0.06);
+  color: var(--brand);
+}
+
+html.dark .client-entity-doc-icon-box {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.client-entity-doc-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.client-entity-doc-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Property cards */
+.client-entity-property-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
+  transition: all 0.2s ease;
+}
+
+.client-entity-property-card:hover {
+  border-color: var(--brand);
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.04);
+}
+
+html.dark .client-entity-property-card {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+.client-entity-property-img-placeholder {
+  width: 100%;
+  height: 140px;
+  border-radius: 12px;
+  background: var(--surface-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  overflow: hidden;
+  position: relative;
+}
+
+.client-entity-property-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 20px;
+}
+
+.client-entity-property-badge.rented {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.client-entity-property-badge.self-occupied {
+  background: #f8f9fc;
+  color: #344054;
+}
+
+html.dark .client-entity-property-badge.rented {
+  background: rgba(93, 202, 165, 0.15);
+  color: var(--success);
+}
+
+html.dark .client-entity-property-badge.self-occupied {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   UPLOAD DOCUMENT MODAL DIALOG
+   ========================================================================== */
+
+.client-upload-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 19, 48, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.client-upload-modal {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(15, 19, 48, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+html.dark .client-upload-modal {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+}
+
+.client-upload-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.client-upload-modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.client-upload-modal-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand);
+  background: none;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+html.dark .client-upload-modal-back-btn {
+  color: var(--text-secondary);
+}
+
+.client-upload-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Upload drag zone */
+.client-upload-drag-zone {
+  border: 2px dashed #ced5ec;
+  background: rgba(247, 248, 252, 0.8);
+  border-radius: 16px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.client-upload-drag-zone:hover {
+  border-color: var(--brand);
+  background: rgba(40, 51, 110, 0.04);
+}
+
+html.dark .client-upload-drag-zone {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+html.dark .client-upload-drag-zone:hover {
+  border-color: var(--accent);
+}
+
+.client-upload-drag-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.03);
+}
+
+html.dark .client-upload-drag-icon-wrap {
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.client-upload-drag-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.client-upload-drag-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Tag Select List */
+.client-upload-tags-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.client-upload-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.client-upload-tag-pill {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.client-upload-tag-pill:hover {
+  background: var(--surface-2);
+}
+
+.client-upload-tag-pill.is-selected {
+  background: #ffffff;
+  color: var(--brand);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+html.dark .client-upload-tag-pill.is-selected {
+  background: var(--surface-2);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Input Fields */
+.client-upload-form-group {
+  margin-bottom: 20px;
+}
+
+.client-upload-field-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.client-upload-field-label em {
+  color: var(--d-danger, #ef4444);
+  font-style: normal;
+  margin-left: 3px;
+}
+
+.client-upload-input,
+.client-upload-select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.client-upload-input:focus,
+.client-upload-select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.15);
+}
+
+html.dark .client-upload-input,
+html.dark .client-upload-select {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Footer & Buttons */
+.client-upload-modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-0);
+}
+
+html.dark .client-upload-modal-footer {
+  background: var(--surface-1);
+}
+
+.client-upload-submit-btn {
+  width: 100%;
+  background: var(--brand);
+  color: #ffffff;
+  border: none;
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.client-upload-submit-btn:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.client-upload-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+html.dark .client-upload-submit-btn {
+  background: var(--brand);
+}
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+  .client-entity-stats-grid {
+    display: grid;
+    grid-template-cols: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .client-entity-stat-col {
+    padding-left: 0;
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .client-entity-stat-col:nth-child(2),
+  .client-entity-stat-col:last-child {
+    border-right: none;
+  }
+
+  .client-upload-modal {
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+    height: 100%;
+    max-width: 100%;
+  }
+
+  .client-upload-modal-backdrop {
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .client-entity-stats-grid {
+    display: grid;
+    grid-template-cols: 1fr;
+    gap: 12px;
+  }
+
+  .client-entity-stat-col {
+    padding-left: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+  }
+
+  .client-entity-stat-col:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+/* ==========================================================================
+   DESKTOP PROPERTIES LIST (HORIZONTAL ROWS)
+   ========================================================================== */
+
+.client-properties-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.client-property-horizontal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  gap: 20px;
+}
+
+.client-property-horizontal-row:hover {
+  border-color: var(--brand);
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.02);
+}
+
+html.dark .client-property-horizontal-row {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+.client-property-row-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.client-property-row-img-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  background: var(--surface-0);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.client-property-row-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.client-property-row-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-property-row-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.client-property-row-name:hover {
+  text-decoration: underline;
+}
+
+.client-property-row-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.client-property-row-metrics {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.client-property-metric-item {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.client-property-metric-item strong {
+  color: var(--text-primary);
+  margin-left: 4px;
+}
+
+.client-property-row-net {
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.client-property-net-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: block;
+}
+
+.client-property-net-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: #12b76a;
+}
+
+/* Responsive properties fallback */
+@media (max-width: 991px) {
+  .client-property-horizontal-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .client-property-row-metrics {
+    margin-left: 0;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    width: 100%;
+  }
+
+  .client-property-row-net {
+    text-align: left;
+    min-width: auto;
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
+  }
+}
+
+/* ==========================================================================
+   DESKTOP DOCUMENTS SECTION (HORIZONTAL CARDS GRID)
+   ========================================================================== */
+
+.client-documents-horizontal-list {
+  display: grid;
+  grid-template-cols: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 991px) {
+  .client-documents-horizontal-list {
+    grid-template-cols: 1fr;
+  }
+}
+
+/* ==========================================================================
+   QUICK ACTION BUTTONS
+   ========================================================================== */
+
+.client-quick-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #28336e !important;
+  background: #f4a117;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(244, 161, 23, 0.12);
+  text-decoration: none;
+}
+
+.client-quick-action-btn:hover {
+  background: #e09210;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(244, 161, 23, 0.2);
+}
+
+html.dark .client-quick-action-btn {
+  background: #f4a117;
+  color: #0f1330 !important;
+}
+
+html.dark .client-quick-action-btn:hover {
+  background: #e09210;
+}

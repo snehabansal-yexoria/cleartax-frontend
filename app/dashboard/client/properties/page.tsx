@@ -114,90 +114,43 @@ export default function ClientPropertyPage() {
 
 
 
-  const isDemoDetailed = properties.length === 0;
-
-  const propertyListItems = isDemoDetailed
-    ? [
-        {
-          id: "demo-prop-1",
-          name: "24 Darling Street",
-          entityName: "Johnson Family Trust",
-          marketValue: 1200000,
-          outstandingLoans: 680000,
-          income: 54600,
-          expense: 30400,
-          net: 24200,
-          status: "Rented",
-          imageUrl: "/house_darling_st.png",
-          isReal: false,
-          entityId: "demo-entity-1",
-        },
-        {
-          id: "demo-prop-2",
-          name: "12 Church Ave",
-          entityName: "Johnson Family Trust",
-          marketValue: 1050000,
-          outstandingLoans: 420000,
-          income: 45600,
-          expense: 24000,
-          net: 21600,
-          status: "Self Occupied",
-          imageUrl: "/house_church_ave.png",
-          isReal: false,
-          entityId: "demo-entity-1",
-        },
-        {
-          id: "demo-prop-3",
-          name: "8 Harbour Road",
-          entityName: "SJ Holdings Pty Ltd",
-          marketValue: 1000000,
-          outstandingLoans: 280000,
-          income: 39000,
-          expense: 18400,
-          net: 20600,
-          status: "Available for Rent",
-          imageUrl: "/house_harbour_rd.png",
-          isReal: false,
-          entityId: "demo-entity-2",
-        }
-      ]
-    : properties.map((prop, idx) => {
-        const ent = entities.find(e => e.id === prop.entityId);
-        const entName = ent ? ent.name : "Individual";
-        const mValue = prop.estimatedMarketValue || 0;
-        const oLoans = prop.loanDetails ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0) : 0;
-        
-        const propTxs = transactions.filter(tx => {
-          return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
-        });
-        
-        const inc = propTxs
-          .filter(tx => tx.type === "revenue")
-          .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-          
-        const exp = propTxs
-          .filter(tx => tx.type === "expense")
-          .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-          
-        const netVal = inc - exp;
-        const statusVal = prop.status || "Rented";
-        const imageUrlVal = prop.imageUrl || null;
-        
-        return {
-          id: prop.id,
-          name: prop.name,
-          entityName: entName,
-          marketValue: mValue,
-          outstandingLoans: oLoans,
-          income: inc,
-          expense: exp,
-          net: netVal,
-          status: statusVal,
-          imageUrl: imageUrlVal,
-          isReal: true,
-          entityId: prop.entityId,
-        };
-      });
+  const propertyListItems = properties.map((prop, idx) => {
+    const ent = entities.find(e => e.id === prop.entityId);
+    const entName = ent ? ent.name : "Individual";
+    const mValue = prop.estimatedMarketValue || 0;
+    const oLoans = prop.loanDetails ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0) : 0;
+    
+    const propTxs = transactions.filter(tx => {
+      return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
+    });
+    
+    const inc = propTxs
+      .filter(tx => tx.type === "revenue")
+      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+      
+    const exp = propTxs
+      .filter(tx => tx.type === "expense")
+      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+      
+    const netVal = inc - exp;
+    const statusVal = prop.status || "Rented";
+    const imageUrlVal = prop.imageUrl || null;
+    
+    return {
+      id: prop.id,
+      name: prop.name,
+      entityName: entName,
+      marketValue: mValue,
+      outstandingLoans: oLoans,
+      income: inc,
+      expense: exp,
+      net: netVal,
+      status: statusVal,
+      imageUrl: imageUrlVal,
+      isReal: true,
+      entityId: prop.entityId,
+    };
+  });
 
   // Filter properties
   let filteredProperties = propertyListItems;
@@ -218,23 +171,14 @@ export default function ClientPropertyPage() {
   const portfolioNetSum = filteredProperties.reduce((sum, p) => sum + p.net, 0);
   const calculatedReturnRate = portfolioValueSum > 0 ? (portfolioNetSum / portfolioValueSum) * 100 : 0;
 
-  // Use Figma spec returns in demo mode, calculate dynamically in live mode
-  const portfolioAvgReturn = properties.length === 0
-    ? (selectedEntityFilter === "all" ? 4.7 : selectedEntityFilter === "Johnson Family Trust" ? 4.6 : 4.8)
-    : (calculatedReturnRate > 0 ? calculatedReturnRate : 4.7);
+  // Calculate average return rate
+  const portfolioAvgReturn = calculatedReturnRate;
 
   // Entities list for properties filter row
-  const propertiesEntityPills = properties.length === 0
-    ? [
-        { id: "all", name: "All Entities" },
-        { id: "Johnson Family Trust", name: "Johnson Family Trust" },
-        { id: "SJ Holdings Pty Ltd", name: "SJ Holdings Pty Ltd" },
-        { id: "Sarah Johnson", name: "Sarah Johnson" }
-      ]
-    : [
-        { id: "all", name: "All Entities" },
-        ...entities.map(e => ({ id: e.id, name: e.name }))
-      ];
+  const propertiesEntityPills = [
+    { id: "all", name: "All Entities" },
+    ...entities.map(e => ({ id: e.id, name: e.name }))
+  ];
 
   const getBadgeStyles = (status: string) => {
     const norm = status?.toLowerCase() || "";
@@ -493,7 +437,7 @@ export default function ClientPropertyPage() {
         {/* Properties List */}
         {filteredProperties.length === 0 ? (
           <div style={{ textAlign: "center", padding: "32px 16px", color: "#667085", background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "16px" }}>
-            No properties found matching search or filter criteria.
+            {properties.length === 0 ? "No properties available. Click the '+' button in the top right to register your first property." : "No properties found matching search or filter criteria."}
           </div>
         ) : (
           <div className="property-cards-container">

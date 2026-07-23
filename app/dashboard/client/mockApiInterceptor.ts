@@ -106,6 +106,7 @@ interface MockDB {
   properties: Property[];
   transactions: Transaction[];
   rules: Rule[];
+  documents?: any[];
 }
 
 // Helpers to generate last 6 months of dates
@@ -182,7 +183,7 @@ function getInitialDB(): MockDB {
         name: "Johnson Family Trust",
         createdAt: getPastDateString(6, 1),
         reconciled: false,
-        propertiesCount: 2,
+        propertiesCount: 3,
         transactionsCount: 0,
         beneficiaries: [
           { id: 1, name: "Sarah Johnson", ownershipPercentage: 60 },
@@ -196,7 +197,7 @@ function getInitialDB(): MockDB {
         name: "SJ Holdings Pty Ltd",
         createdAt: getPastDateString(5, 1),
         reconciled: false,
-        propertiesCount: 1,
+        propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: [
           { id: 3, name: "Sarah Johnson", ownershipPercentage: 100 },
@@ -231,10 +232,13 @@ function getInitialDB(): MockDB {
           { entityBeneficiaryId: 1, ownerName: "Sarah Johnson", ownershipPercentage: 60 },
           { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
+        loanDetails: {
+          loan_amount: 680000,
+        },
       },
       {
         id: "demo-prop-2",
-        name: "12 Church Ave",
+        name: "12 Church Avenue",
         entityId: "demo-entity-1",
         estimatedMarketValue: 980000,
         purchaseAmount: 800000,
@@ -246,20 +250,65 @@ function getInitialDB(): MockDB {
           { entityBeneficiaryId: 1, ownerName: "Sarah Johnson", ownershipPercentage: 60 },
           { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
+        loanDetails: {
+          loan_amount: 420000,
+        },
       },
       {
         id: "demo-prop-3",
         name: "8 Harbour Road",
-        entityId: "demo-entity-2",
-        estimatedMarketValue: 850000,
+        entityId: "demo-entity-1",
+        estimatedMarketValue: 450000,
         purchaseAmount: 750000,
         purchaseDate: getPastDateString(12, 10),
         hasDepreciationSchedule: false,
         status: "Available for Rent",
         imageUrl: "/house_harbour_rd.png",
         owners: [
-          { entityBeneficiaryId: 3, ownerName: "Sarah Johnson", ownershipPercentage: 100 },
+          { entityBeneficiaryId: 1, ownerName: "Sarah Johnson", ownershipPercentage: 60 },
+          { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
+        loanDetails: {
+          loan_amount: 510000,
+        },
+      },
+    ],
+    documents: [
+      {
+        id: "doc-1",
+        file_name: "Trust Deed 2019.pdf",
+        original_file_name: "Trust Deed 2019.pdf",
+        document_type: "trust_deed",
+        processing_status: "processed",
+        file_size: 1420456,
+        mime_type: "application/pdf",
+        created_at: "2026-03-12T14:30:00Z",
+        source: "direct",
+        entityId: "demo-entity-1",
+      },
+      {
+        id: "doc-2",
+        file_name: "Depreciation Schedule.pdf",
+        original_file_name: "Depreciation Schedule.pdf",
+        document_type: "depreciation_schedule",
+        processing_status: "processed",
+        file_size: 852938,
+        mime_type: "application/pdf",
+        created_at: "2026-03-12T15:45:00Z",
+        source: "direct",
+        entityId: "demo-entity-1",
+      },
+      {
+        id: "doc-3",
+        file_name: "FY24 Tax Return.pdf",
+        original_file_name: "FY24 Tax Return.pdf",
+        document_type: "tax_return",
+        processing_status: "processed",
+        file_size: 2104958,
+        mime_type: "application/pdf",
+        created_at: "2026-02-28T09:15:00Z",
+        source: "direct",
+        entityId: "demo-entity-1",
       },
     ],
     transactions: [],
@@ -274,155 +323,260 @@ function getInitialDB(): MockDB {
     ],
   };
 
+  // Helper to enrich TypeScript transactions
+  const enrichTx = (t: any): Transaction => {
+    return {
+      id: t.id,
+      type: t.type,
+      categoryId: t.categoryId,
+      categoryName: t.categoryName,
+      subcategoryId: t.subcategoryId,
+      subcategoryName: t.subcategoryName,
+      invoiceDate: t.invoiceDate,
+      grossAmount: t.grossAmount,
+      gstAmount: t.gstAmount,
+      netAmount: t.netAmount,
+      description: t.description || null,
+      internalRemarks: null,
+      isAssetPurchase: false,
+      assetClass: null,
+      effectiveLifeYears: null,
+      ruleId: null,
+      reviewStatus: "reviewed",
+      clientId: t.clientId,
+      clientName: t.clientName,
+      entityId: t.entityId,
+      entityName: t.entityName,
+      propertyIds: t.propertyIds || [],
+      propertyNames: t.propertyNames || [],
+      clientShareGross: t.clientShareGross ?? t.grossAmount,
+      clientShareGst: t.clientShareGst ?? 0,
+      clientShareNet: t.clientShareNet ?? t.netAmount,
+    };
+  };
 
-  
-  const targetMonthlyData = [
-    { monthsAgo: 5, income: 12000, expense: 3000 },
-    { monthsAgo: 4, income: 7000, expense: 7000 },
-    { monthsAgo: 3, income: 10000, expense: 4000 },
-    { monthsAgo: 2, income: 15000, expense: 800 },
-    { monthsAgo: 1, income: 6000, expense: 7500 },
-    { monthsAgo: 0, income: 13800, expense: 5380 },
+  // Seed the 5 recent transactions from Figma
+  const todayDate = new Date();
+  const todayStr = getPastDateString(0, todayDate.getDate());
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = getPastDateString(0, yesterdayDate.getDate());
+
+  const rawRecentTxs = [
+    {
+      id: "tx-recent-1",
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: todayStr,
+      grossAmount: 4200,
+      gstAmount: 0,
+      netAmount: 4200,
+      description: "Rent — 24 Darling St",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    },
+    {
+      id: "tx-recent-2",
+      type: "expense",
+      categoryId: 12,
+      categoryName: "Utilities",
+      subcategoryId: 1201,
+      subcategoryName: "Water Bill",
+      invoiceDate: todayStr,
+      grossAmount: 312,
+      gstAmount: 0,
+      netAmount: 312,
+      description: "Water bill",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    },
+    {
+      id: "tx-recent-3",
+      type: "expense",
+      categoryId: 11,
+      categoryName: "Loan interest",
+      subcategoryId: 1101,
+      subcategoryName: "Monthly CBA Interest",
+      invoiceDate: todayStr,
+      grossAmount: 2180,
+      gstAmount: 0,
+      netAmount: 2180,
+      description: "Loan interest",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    },
+    {
+      id: "tx-recent-4",
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: yesterdayStr,
+      grossAmount: 3800,
+      gstAmount: 0,
+      netAmount: 3800,
+      description: "Rent — 12 Church Ave",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    },
+    {
+      id: "tx-recent-5",
+      type: "expense",
+      categoryId: 12,
+      categoryName: "Utilities",
+      subcategoryId: 1201,
+      subcategoryName: "Cleaning Services",
+      invoiceDate: yesterdayStr,
+      grossAmount: 670,
+      gstAmount: 0,
+      netAmount: 670,
+      description: "Cleaning bill",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    },
+    {
+      id: "tx-recent-6",
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: getPastDateString(0, 1),
+      grossAmount: 7442,
+      gstAmount: 0,
+      netAmount: 7442,
+      description: "Rent - 24 Darling St",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    }
   ];
 
-  let txIdCounter = 1;
+  db.transactions.push(...rawRecentTxs.map(enrichTx));
 
-  for (const target of targetMonthlyData) {
-    const { monthsAgo, income, expense } = target;
-    
-    // Add revenue items to sum to target income
-    if (income > 0) {
-      // Split into Rent Darling St and Rent Harbour Rd
-      const part1 = Math.round(income * 0.55);
-      const part2 = income - part1;
+  const historicalData = [
+    { monthsAgo: 1, p1Inc: 7000, p2Inc: 6500, p1Exp: 4500, p2Exp: 3800 },
+    { monthsAgo: 2, p1Inc: 8000, p2Inc: 7500, p1Exp: 5000, p2Exp: 4200 },
+    { monthsAgo: 3, p1Inc: 6500, p2Inc: 6500, p1Exp: 4200, p2Exp: 3800 },
+    { monthsAgo: 4, p1Inc: 7500, p2Inc: 7000, p1Exp: 4500, p2Exp: 3800 },
+    { monthsAgo: 5, p1Inc: 8000, p2Inc: 7500, p1Exp: 5000, p2Exp: 4000 },
+    { monthsAgo: 6, p1Inc: 5958, p2Inc: 6800, p1Exp: 4708, p2Exp: 3730 },
+  ];
 
-      db.transactions.push({
-        id: `tx-${txIdCounter++}`,
-        type: "revenue",
-        categoryId: 1,
-        categoryName: "Rental Income",
-        subcategoryId: 101,
-        subcategoryName: "Residential Rent",
-        invoiceDate: getPastDateString(monthsAgo, 15),
-        grossAmount: part1,
-        gstAmount: 0,
-        netAmount: part1,
-        description: `Rent - 24 Darling St`,
-        internalRemarks: null,
-        isAssetPurchase: false,
-        assetClass: null,
-        effectiveLifeYears: null,
-        ruleId: null,
-        reviewStatus: "reviewed",
-        clientId: "demo-client",
-        clientName: "Sarah Johnson",
-        entityId: "demo-entity-1",
-        entityName: "Johnson Family Trust",
-        propertyIds: ["demo-prop-1"],
-        propertyNames: ["24 Darling Street"],
-        clientShareGross: part1,
-        clientShareGst: 0,
-        clientShareNet: part1,
-      });
+  let txIdCounter = 7;
+  for (const hist of historicalData) {
+    const { monthsAgo, p1Inc, p2Inc, p1Exp, p2Exp } = hist;
 
-      if (part2 > 0) {
-        db.transactions.push({
-          id: `tx-${txIdCounter++}`,
-          type: "revenue",
-          categoryId: 1,
-          categoryName: "Rental Income",
-          subcategoryId: 101,
-          subcategoryName: "Residential Rent",
-          invoiceDate: getPastDateString(monthsAgo, 18),
-          grossAmount: part2,
-          gstAmount: 0,
-          netAmount: part2,
-          description: `Rent - 8 Harbour Road`,
-          internalRemarks: null,
-          isAssetPurchase: false,
-          assetClass: null,
-          effectiveLifeYears: null,
-          ruleId: null,
-          reviewStatus: "reviewed",
-          clientId: "demo-client",
-          clientName: "Sarah Johnson",
-          entityId: "demo-entity-2",
-          entityName: "SJ Holdings Pty Ltd",
-          propertyIds: ["demo-prop-3"],
-          propertyNames: ["8 Harbour Road"],
-          clientShareGross: part2,
-          clientShareGst: 0,
-          clientShareNet: part2,
-        });
-      }
-    }
+    // Prop 1 Income
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: getPastDateString(monthsAgo, 15),
+      grossAmount: p1Inc,
+      gstAmount: 0,
+      netAmount: p1Inc,
+      description: "Rent - 24 Darling St",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    }));
 
-    // Add expense items to sum to target expense
-    if (expense > 0) {
-      // Split into Interest and Utilities
-      const part1 = Math.round(expense * 0.7);
-      const part2 = expense - part1;
+    // Prop 2 Income
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: getPastDateString(monthsAgo, 15),
+      grossAmount: p2Inc,
+      gstAmount: 0,
+      netAmount: p2Inc,
+      description: "Rent - 12 Church Ave",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    }));
 
-      db.transactions.push({
-        id: `tx-${txIdCounter++}`,
-        type: "expense",
-        categoryId: 11,
-        categoryName: "Loan interest",
-        subcategoryId: 1101,
-        subcategoryName: "Monthly CBA Interest",
-        invoiceDate: getPastDateString(monthsAgo, 28),
-        grossAmount: part1,
-        gstAmount: 0,
-        netAmount: part1,
-        description: `Loan interest CBA`,
-        internalRemarks: null,
-        isAssetPurchase: false,
-        assetClass: null,
-        effectiveLifeYears: null,
-        ruleId: 1,
-        reviewStatus: "reviewed",
-        clientId: "demo-client",
-        clientName: "Sarah Johnson",
-        entityId: "demo-entity-1",
-        entityName: "Johnson Family Trust",
-        propertyIds: ["demo-prop-1"],
-        propertyNames: ["24 Darling Street"],
-        clientShareGross: part1,
-        clientShareGst: 0,
-        clientShareNet: part1,
-      });
+    // Prop 1 Expense
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "expense",
+      categoryId: 11,
+      categoryName: "Loan interest",
+      subcategoryId: 1101,
+      subcategoryName: "Monthly CBA Interest",
+      invoiceDate: getPastDateString(monthsAgo, 28),
+      grossAmount: p1Exp,
+      gstAmount: 0,
+      netAmount: p1Exp,
+      description: "Loan interest",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    }));
 
-      if (part2 > 0) {
-        db.transactions.push({
-          id: `tx-${txIdCounter++}`,
-          type: "expense",
-          categoryId: 12,
-          categoryName: "Utilities",
-          subcategoryId: 1201,
-          subcategoryName: "Water Bill",
-          invoiceDate: getPastDateString(monthsAgo, 5),
-          grossAmount: part2,
-          gstAmount: 0,
-          netAmount: part2,
-          description: `Water Bill - 24 Darling St`,
-          internalRemarks: null,
-          isAssetPurchase: false,
-          assetClass: null,
-          effectiveLifeYears: null,
-          ruleId: null,
-          reviewStatus: "reviewed",
-          clientId: "demo-client",
-          clientName: "Sarah Johnson",
-          entityId: "demo-entity-1",
-          entityName: "Johnson Family Trust",
-          propertyIds: ["demo-prop-1"],
-          propertyNames: ["24 Darling Street"],
-          clientShareGross: part2,
-          clientShareGst: 0,
-          clientShareNet: part2,
-        });
-      }
-    }
+    // Prop 2 Expense
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "expense",
+      categoryId: 12,
+      categoryName: "Utilities",
+      subcategoryId: 1201,
+      subcategoryName: "Cleaning Services",
+      invoiceDate: getPastDateString(monthsAgo, 28),
+      grossAmount: p2Exp,
+      gstAmount: 0,
+      netAmount: p2Exp,
+      description: "Utilities bill",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    }));
   }
 
   return db;
@@ -919,10 +1073,33 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
   // 24. GET /api/documents/presign
   if (path === "/api/documents/presign" && method === "GET") {
     const filename = parsedUrl.searchParams.get("filename") || "file.jpg";
+    const docType = parsedUrl.searchParams.get("document_type") || "other";
+    const entityId = parsedUrl.searchParams.get("entity_id") || "";
+    const propertyId = parsedUrl.searchParams.get("property_id") || "";
+
+    const docId = `doc-${Date.now()}`;
+    
+    // Add to mock database
+    if (!db.documents) db.documents = [];
+    db.documents.unshift({
+      id: docId,
+      file_name: filename,
+      original_file_name: filename,
+      document_type: docType,
+      processing_status: "processed",
+      file_size: 1420456,
+      mime_type: filename.endsWith(".pdf") ? "application/pdf" : "image/jpeg",
+      created_at: new Date().toISOString(),
+      source: "direct",
+      entityId,
+      propertyId,
+    });
+    writeDB(db);
+
     return jsonResponse({
       upload_url: `/api/documents/mock-upload?file=${encodeURIComponent(filename)}`,
       s3_key: `mock-s3-key-${Date.now()}-${filename}`,
-      document_id: `doc-${Date.now()}`,
+      document_id: docId,
     });
   }
 
@@ -933,7 +1110,6 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
 
   // 26. GET /api/documents/download
   if (path === "/api/documents/download" && method === "GET") {
-    // Redirect to a placeholder image or a local route
     const key = parsedUrl.searchParams.get("key") || "";
     if (key.includes("darling")) {
       return jsonResponse({ url: "/house_darling_st.png" });
@@ -945,6 +1121,21 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       return jsonResponse({ url: "/house_harbour_rd.png" });
     }
     return jsonResponse({ url: "/house_darling_st.png" });
+  }
+
+  // 26b. GET /api/documents/list
+  if (path === "/api/documents/list" && method === "GET") {
+    const entityId = parsedUrl.searchParams.get("entity_id") || "";
+    const propertyId = parsedUrl.searchParams.get("property_id") || "";
+    
+    let filtered = db.documents || [];
+    if (entityId) {
+      filtered = filtered.filter((d: any) => d.entityId === entityId);
+    }
+    if (propertyId) {
+      filtered = filtered.filter((d: any) => d.propertyId === propertyId);
+    }
+    return jsonResponse({ items: filtered });
   }
 
   // 27. GET /api/users/me/clients?scope=mine

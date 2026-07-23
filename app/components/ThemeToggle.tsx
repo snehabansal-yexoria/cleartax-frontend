@@ -1,58 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // Initialize dark mode state based on localStorage on client-side mount
-    const savedDarkMode = localStorage.getItem("clearPortfolio.darkMode") === "true";
-    setIsDark(savedDarkMode);
-    
-    if (savedDarkMode) {
-      // Dynamic import DarkReader to prevent SSR issues
-      import("darkreader").then((DarkReader) => {
-        DarkReader.enable({
-          brightness: 100,
-          contrast: 95,
-          sepia: 0,
-        });
-      });
-    }
   }, []);
-
-  const handleToggle = async () => {
-    const DarkReader = await import("darkreader");
-    if (isDark) {
-      DarkReader.disable();
-      localStorage.setItem("clearPortfolio.darkMode", "false");
-      setIsDark(false);
-    } else {
-      DarkReader.enable({
-        brightness: 100,
-        contrast: 95,
-        sepia: 0,
-      });
-      localStorage.setItem("clearPortfolio.darkMode", "true");
-      setIsDark(true);
-    }
-  };
 
   if (!mounted) {
     return (
-      <div 
-        style={{ 
-          width: "40px", 
-          height: "40px", 
-          borderRadius: "50%", 
-          background: "rgba(0,0,0,0.03)" 
-        }} 
+      <div
+        style={{
+          width: "40px",
+          height: "40px",
+          borderRadius: "50%",
+          background: "rgba(0,0,0,0.03)"
+        }}
       />
     );
   }
+
+  const isDark = theme === "dark";
+
+  const handleToggle = () => {
+    setTheme(isDark ? "light" : "dark");
+  };
 
   return (
     <button
@@ -64,9 +40,9 @@ export default function ThemeToggle() {
         width: "40px",
         height: "40px",
         borderRadius: "50%",
-        border: "1px solid #eaeef4",
-        background: "#ffffff",
-        color: "#475467",
+        border: "1px solid var(--border)",
+        background: "var(--surface-1)",
+        color: "var(--text-primary)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
