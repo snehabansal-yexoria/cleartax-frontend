@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import ClientTransactionsSkeleton from "@/app/components/clients/ClientTransactionsSkeleton";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
@@ -294,9 +295,9 @@ export default function ClientTransactionsPage() {
       <Skeleton
         name="client-transactions-page-skeleton"
         loading={isLoading}
-        fallback={<ClientEntitiesSkeleton />}
+        fallback={<ClientTransactionsSkeleton />}
       >
-        <div className="mobile-client-dashboard" style={{ padding: '0 16px 90px 16px', background: '#f7f9fc', position: 'relative' }}>
+        <div className="mobile-client-dashboard" style={{ padding: '0 16px 90px 16px', background: 'var(--surface-0)', position: 'relative' }}>
 
           {/* Keyframe Animations */}
           <style>{`
@@ -318,7 +319,7 @@ export default function ClientTransactionsPage() {
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0 16px 0' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#101828', margin: 0 }}>Transactions</h1>
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
             <Link
               href="/dashboard/client/transactions/new"
               style={{
@@ -328,7 +329,7 @@ export default function ClientTransactionsPage() {
                 width: '40px',
                 height: '40px',
                 borderRadius: '20px',
-                background: '#1a235a',
+                background: 'var(--brand)',
                 color: '#ffffff',
                 textDecoration: 'none',
                 fontSize: '24px',
@@ -342,7 +343,7 @@ export default function ClientTransactionsPage() {
           {/* Search Box */}
           <div style={{ position: 'relative', margin: '8px 0 16px 0' }}>
             <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: '#98a2b3' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: 'var(--text-muted)' }}>
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -356,10 +357,10 @@ export default function ClientTransactionsPage() {
                 width: '100%',
                 padding: '12px 40px 12px 40px',
                 borderRadius: '12px',
-                border: '1px solid #eaeef4',
+                border: '1px solid var(--border)',
                 fontSize: '15px',
-                background: '#ffffff',
-                color: '#101828',
+                background: 'var(--surface-1)',
+                color: 'var(--text-primary)',
                 outline: 'none',
                 boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
               }}
@@ -382,7 +383,7 @@ export default function ClientTransactionsPage() {
               }}
               aria-label="Filter transactions"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: '#1a235a' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: 'var(--brand)' }}>
                 <line x1="4" y1="21" x2="4" y2="14" />
                 <line x1="4" y1="10" x2="4" y2="3" />
                 <line x1="12" y1="21" x2="12" y2="12" />
@@ -406,9 +407,9 @@ export default function ClientTransactionsPage() {
                 borderRadius: '20px',
                 fontSize: '14px',
                 fontWeight: 600,
-                border: '1px solid #1a235a',
-                background: activeFilter === 'all' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'all' ? '#ffffff' : '#1a235a',
+                border: '1px solid var(--brand)',
+                background: activeFilter === 'all' ? 'var(--brand)' : 'var(--surface-1)',
+                color: activeFilter === 'all' ? '#ffffff' : 'var(--text-primary)',
                 whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 outline: 'none'
@@ -424,9 +425,9 @@ export default function ClientTransactionsPage() {
                 borderRadius: '20px',
                 fontSize: '14px',
                 fontWeight: 600,
-                border: '1px solid #d0d5dd',
-                background: activeFilter === 'income' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'income' ? '#ffffff' : '#344054',
+                border: `1px solid ${activeFilter === 'income' ? 'var(--brand)' : 'var(--border)'}`,
+                background: activeFilter === 'income' ? 'var(--brand)' : 'var(--surface-1)',
+                color: activeFilter === 'income' ? '#ffffff' : 'var(--text-secondary)',
                 whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 outline: 'none'
@@ -442,9 +443,9 @@ export default function ClientTransactionsPage() {
                 borderRadius: '20px',
                 fontSize: '14px',
                 fontWeight: 600,
-                border: '1px solid #d0d5dd',
-                background: activeFilter === 'expense' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'expense' ? '#ffffff' : '#344054',
+                border: `1px solid ${activeFilter === 'expense' ? 'var(--brand)' : 'var(--border)'}`,
+                background: activeFilter === 'expense' ? 'var(--brand)' : 'var(--surface-1)',
+                color: activeFilter === 'expense' ? '#ffffff' : 'var(--text-secondary)',
                 whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 outline: 'none'
@@ -460,9 +461,9 @@ export default function ClientTransactionsPage() {
                 borderRadius: '20px',
                 fontSize: '14px',
                 fontWeight: 600,
-                border: '1px solid #d0d5dd',
-                background: activeFilter === 'month' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'month' ? '#ffffff' : '#344054',
+                border: `1px solid ${activeFilter === 'month' ? 'var(--brand)' : 'var(--border)'}`,
+                background: activeFilter === 'month' ? 'var(--brand)' : 'var(--surface-1)',
+                color: activeFilter === 'month' ? '#ffffff' : 'var(--text-secondary)',
                 whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 outline: 'none'
@@ -473,16 +474,16 @@ export default function ClientTransactionsPage() {
           </div>
 
           {/* MTD Card */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '16px', borderRadius: '16px', background: '#ffffff', border: '1px solid #eaeef4', marginBottom: '20px', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', marginBottom: '20px', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
             <div style={{ paddingRight: '16px' }}>
-              <span style={{ fontSize: '13px', color: '#667085', fontWeight: 600 }}>Income (MTD)</span>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#12b76a', marginTop: '6px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>Income (MTD)</span>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--success)', marginTop: '6px' }}>
                 {formatClientCurrency(displayIncomeMtd)}
               </div>
             </div>
-            <div style={{ paddingLeft: '16px', borderLeft: '1px solid #eaeef4' }}>
-              <span style={{ fontSize: '13px', color: '#667085', fontWeight: 600 }}>Expense (MTD)</span>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#f04438', marginTop: '6px' }}>
+            <div style={{ paddingLeft: '16px', borderLeft: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>Expense (MTD)</span>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--danger)', marginTop: '6px' }}>
                 {formatClientCurrency(-displayExpenseMtd)}
               </div>
             </div>
@@ -490,19 +491,19 @@ export default function ClientTransactionsPage() {
 
           {/* Grouped Transactions List */}
           {Object.keys(groupedTransactions).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 16px', color: '#667085', background: '#ffffff', border: '1px solid #eaeef4', borderRadius: '16px' }}>
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
               No transactions found matching search or filter criteria.
             </div>
           ) : (
             Object.entries(groupedTransactions).map(([dateLabel, items]) => (
               <div key={dateLabel} style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#667085', margin: '0 0 10px 0' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 10px 0' }}>
                   {dateLabel}
                 </h4>
 
                 <div className="m-db-activity-list-card">
                   {items.map((tx, idx) => (
-                    <div key={tx.id} className="m-db-activity-row" style={{ borderBottom: idx < items.length - 1 ? '1px solid #f2f4f7' : 'none' }}>
+                    <div key={tx.id} className="m-db-activity-row" style={{ borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none' }}>
                       <div className="m-db-activity-left">
                         <div className={`m-db-activity-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
                           {tx.type === 'revenue' ? (
@@ -561,10 +562,11 @@ export default function ClientTransactionsPage() {
                   bottom: 0,
                   width: '100%',
                   maxHeight: '88vh',
-                  background: '#ffffff',
+                  background: 'var(--surface-1)',
+                  borderTop: '1px solid var(--border)',
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  boxShadow: '0 -8px 24px rgba(16, 24, 40, 0.15)',
+                  boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.25)',
                   padding: '8px 16px 24px 16px',
                   boxSizing: 'border-box',
                   display: 'flex',
@@ -574,15 +576,15 @@ export default function ClientTransactionsPage() {
                 }}
               >
                 {/* Drag Handle */}
-                <div style={{ width: '40px', height: '4px', background: '#eaeef4', borderRadius: '2px', margin: '0 auto 16px auto' }} />
+                <div style={{ width: '40px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0 auto 16px auto' }} />
 
                 {/* Header Row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#101828', margin: 0 }}>Filters</h2>
+                  <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Filters</h2>
                   <button
                     type="button"
                     onClick={handleClearAll}
-                    style={{ border: 'none', background: 'none', color: '#1a235a', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
+                    style={{ border: 'none', background: 'none', color: 'var(--brand)', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
                   >
                     Clear all
                   </button>
@@ -592,7 +594,7 @@ export default function ClientTransactionsPage() {
                 <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
                   {/* Type Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Type</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Type</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {['all', 'income', 'expense'].map((t) => (
                         <button
@@ -604,9 +606,9 @@ export default function ClientTransactionsPage() {
                             borderRadius: '20px',
                             fontSize: '14px',
                             fontWeight: 600,
-                            border: `1px solid ${tempType === t ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempType === t ? '#1a235a' : '#ffffff',
-                            color: tempType === t ? '#ffffff' : '#344054',
+                            border: `1px solid ${tempType === t ? 'var(--brand)' : 'var(--border)'}`,
+                            background: tempType === t ? 'var(--brand)' : 'var(--surface-2)',
+                            color: tempType === t ? '#ffffff' : 'var(--text-primary)',
                             textTransform: 'capitalize',
                             cursor: 'pointer',
                             outline: 'none'
@@ -618,11 +620,11 @@ export default function ClientTransactionsPage() {
                     </div>
                   </div>
 
-                  <div style={{ height: '1px', background: '#eaeef4', margin: '12px 0' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
 
                   {/* Date Range Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {[
                         { label: 'All', value: 'all' },
@@ -640,9 +642,9 @@ export default function ClientTransactionsPage() {
                             borderRadius: '20px',
                             fontSize: '14px',
                             fontWeight: 600,
-                            border: `1px solid ${tempDateRange === d.value ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempDateRange === d.value ? '#1a235a' : '#ffffff',
-                            color: tempDateRange === d.value ? '#ffffff' : '#344054',
+                            border: `1px solid ${tempDateRange === d.value ? 'var(--brand)' : 'var(--border)'}`,
+                            background: tempDateRange === d.value ? 'var(--brand)' : 'var(--surface-2)',
+                            color: tempDateRange === d.value ? '#ffffff' : 'var(--text-primary)',
                             cursor: 'pointer',
                             outline: 'none'
                           }}
@@ -653,11 +655,11 @@ export default function ClientTransactionsPage() {
                     </div>
                   </div>
 
-                  <div style={{ height: '1px', background: '#eaeef4', margin: '12px 0' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
 
                   {/* Entity Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       <button
                         type="button"
@@ -667,9 +669,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempEntity === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempEntity === 'all' ? '#1a235a' : '#ffffff',
-                          color: tempEntity === 'all' ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempEntity === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempEntity === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempEntity === 'all' ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none'
                         }}
@@ -686,9 +688,9 @@ export default function ClientTransactionsPage() {
                             borderRadius: '20px',
                             fontSize: '14px',
                             fontWeight: 600,
-                            border: `1px solid ${tempEntity === ent ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempEntity === ent ? '#1a235a' : '#ffffff',
-                            color: tempEntity === ent ? '#ffffff' : '#344054',
+                            border: `1px solid ${tempEntity === ent ? 'var(--brand)' : 'var(--border)'}`,
+                            background: tempEntity === ent ? 'var(--brand)' : 'var(--surface-2)',
+                            color: tempEntity === ent ? '#ffffff' : 'var(--text-primary)',
                             cursor: 'pointer',
                             outline: 'none'
                           }}
@@ -699,11 +701,11 @@ export default function ClientTransactionsPage() {
                     </div>
                   </div>
 
-                  <div style={{ height: '1px', background: '#eaeef4', margin: '12px 0' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
 
                   {/* Properties Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       <button
                         type="button"
@@ -713,9 +715,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempProperty === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempProperty === 'all' ? '#1a235a' : '#ffffff',
-                          color: tempProperty === 'all' ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempProperty === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempProperty === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempProperty === 'all' ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none'
                         }}
@@ -732,9 +734,9 @@ export default function ClientTransactionsPage() {
                             borderRadius: '20px',
                             fontSize: '14px',
                             fontWeight: 600,
-                            border: `1px solid ${tempProperty === prop ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempProperty === prop ? '#1a235a' : '#ffffff',
-                            color: tempProperty === prop ? '#ffffff' : '#344054',
+                            border: `1px solid ${tempProperty === prop ? 'var(--brand)' : 'var(--border)'}`,
+                            background: tempProperty === prop ? 'var(--brand)' : 'var(--surface-2)',
+                            color: tempProperty === prop ? '#ffffff' : 'var(--text-primary)',
                             cursor: 'pointer',
                             outline: 'none'
                           }}
@@ -746,7 +748,7 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '16px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
 
                 {/* Footer buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
@@ -756,9 +758,9 @@ export default function ClientTransactionsPage() {
                     style={{
                       padding: '12px 16px',
                       borderRadius: '16px',
-                      border: '1px solid #d0d5dd',
-                      background: '#ffffff',
-                      color: '#344054',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface-2)',
+                      color: 'var(--text-secondary)',
                       fontSize: '15px',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -774,7 +776,7 @@ export default function ClientTransactionsPage() {
                       padding: '12px 16px',
                       borderRadius: '16px',
                       border: 'none',
-                      background: '#1a235a',
+                      background: 'var(--brand)',
                       color: '#ffffff',
                       fontSize: '15px',
                       fontWeight: 600,
@@ -798,15 +800,15 @@ export default function ClientTransactionsPage() {
     <Skeleton
       name="client-transactions-page-skeleton-desktop"
       loading={isLoading}
-      fallback={<ClientEntitiesSkeleton />}
+      fallback={<ClientTransactionsSkeleton />}
     >
-      <div className="desktop-client-dashboard" style={{ background: '#f7f9fc', minHeight: '100vh', paddingBottom: '40px' }}>
+      <div className="desktop-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '40px' }}>
 
         {/* Scoped CSS Styles */}
         <style>{`
           .desktop-client-dashboard {
             min-height: 100vh;
-            background-color: #f7f9fc;
+            background-color: var(--surface-0);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           }
           .d-tx-header {
@@ -835,7 +837,7 @@ export default function ClientTransactionsPage() {
             width: 40px;
             height: 40px;
             border-radius: 20px;
-            background: #1a235a;
+            background: var(--brand);
             color: #ffffff;
             text-decoration: none;
             font-size: 24px;
@@ -843,7 +845,8 @@ export default function ClientTransactionsPage() {
             transition: all 0.2s ease;
           }
           .d-tx-add-btn:hover {
-            background: #2f3e8b;
+            background: var(--brand);
+            filter: brightness(1.15);
             transform: scale(1.05);
           }
           .d-tx-search-container {
@@ -860,17 +863,17 @@ export default function ClientTransactionsPage() {
             width: 100%;
             padding: 12px 16px 12px 44px;
             border-radius: 12px;
-            border: 1px solid #eaeef4;
+            border: 1px solid var(--border);
             font-size: 15px;
-            background: #ffffff;
-            color: #101828;
+            background: var(--surface-1);
+            color: var(--text-primary);
             outline: none;
             box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
             transition: all 0.2s ease;
           }
           .d-tx-search-input:focus {
-            border-color: #1a235a;
-            box-shadow: 0 4px 12px rgba(26, 35, 90, 0.08);
+            border-color: var(--brand);
+            box-shadow: 0 4px 12px var(--border);
           }
           .d-tx-search-icon-box {
             position: absolute;
@@ -885,8 +888,8 @@ export default function ClientTransactionsPage() {
             width: 46px;
             height: 46px;
             border-radius: 12px;
-            border: 1px solid #eaeef4;
-            background: #ffffff;
+            border: 1px solid var(--border);
+            background: var(--surface-1);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -894,11 +897,11 @@ export default function ClientTransactionsPage() {
             outline: none;
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
-            color: #1a235a;
+            color: var(--brand);
           }
           .d-tx-filter-btn:hover {
-            border-color: #1a235a;
-            background: #fcfdff;
+            border-color: var(--brand);
+            background: var(--surface-2);
             transform: scale(1.02);
           }
           .d-tx-pills-row {
@@ -915,22 +918,22 @@ export default function ClientTransactionsPage() {
             cursor: pointer;
             outline: none;
             transition: all 0.2s ease;
-            border: 1px solid #eaeef4;
+            border: 1px solid var(--border);
           }
           .d-tx-pill.active {
-            background: #1a235a;
+            background: var(--brand);
             color: #ffffff;
-            border-color: #1a235a;
+            border-color: var(--brand);
           }
           .d-tx-pill.inactive {
-            background: #ffffff;
-            color: #344054;
-            border-color: #d0d5dd;
+            background: var(--surface-1);
+            color: var(--text-secondary);
+            border-color: var(--border);
           }
           .d-tx-pill.inactive:hover {
-            border-color: #1a235a;
-            color: #1a235a;
-            background: #fcfdff;
+            border-color: var(--brand);
+            color: var(--brand);
+            background: var(--surface-2);
           }
           .d-tx-mtd-grid {
             display: grid;
@@ -939,8 +942,8 @@ export default function ClientTransactionsPage() {
             margin-bottom: 28px;
           }
           .d-tx-mtd-card {
-            background: #ffffff;
-            border: 1px solid #eaeef4;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
@@ -951,33 +954,34 @@ export default function ClientTransactionsPage() {
           }
           .d-tx-mtd-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
           .d-tx-mtd-label {
             font-size: 13px;
-            color: #667085;
+            color: var(--text-secondary);
             font-weight: 600;
           }
           .d-tx-mtd-value {
             font-size: 28px;
             font-weight: 800;
             margin-top: 4px;
+            color: var(--text-primary);
           }
           .d-tx-mtd-value.income {
-            color: #12b76a;
+            color: var(--success);
           }
           .d-tx-mtd-value.expense {
-            color: #f04438;
+            color: var(--danger);
           }
           .d-tx-group-title {
             font-size: 14px;
             font-weight: 600;
-            color: #667085;
+            color: var(--text-secondary);
             margin: 0 0 12px 0;
           }
           .d-tx-list-card {
-            background: #ffffff;
-            border: 1px solid #eaeef4;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
             display: flex;
@@ -990,14 +994,14 @@ export default function ClientTransactionsPage() {
             align-items: center;
             justify-content: space-between;
             padding: 16px 24px;
-            border-bottom: 1px solid #f2f4f7;
+            border-bottom: 1px solid var(--border);
             transition: background-color 0.2s ease;
           }
           .d-tx-row:last-child {
             border-bottom: none;
           }
           .d-tx-row:hover {
-            background-color: #fcfdff;
+            background-color: var(--surface-2);
           }
           .d-tx-left {
             display: flex;
@@ -1020,12 +1024,12 @@ export default function ClientTransactionsPage() {
             transform: scale(1.05);
           }
           .d-tx-icon-box.income {
-            background: #ecfdf3;
-            color: #12b76a;
+            background: rgba(93, 202, 165, 0.15);
+            color: var(--success);
           }
           .d-tx-icon-box.expense {
-            background: #fef3f2;
-            color: #f04438;
+            background: rgba(240, 149, 149, 0.15);
+            color: var(--danger);
           }
           .d-tx-info {
             display: flex;
@@ -1035,7 +1039,7 @@ export default function ClientTransactionsPage() {
           .d-tx-desc {
             font-size: 15px;
             font-weight: 700;
-            color: #101828;
+            color: var(--text-primary);
             margin: 0;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1043,7 +1047,7 @@ export default function ClientTransactionsPage() {
           }
           .d-tx-meta {
             font-size: 13px;
-            color: #667085;
+            color: var(--text-secondary);
             margin: 4px 0 0 0;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1056,10 +1060,10 @@ export default function ClientTransactionsPage() {
             flex-shrink: 0;
           }
           .d-tx-amount.income {
-            color: #12b76a;
+            color: var(--success);
           }
           .d-tx-amount.expense {
-            color: #f04438;
+            color: var(--danger);
           }
           .d-filter-modal-overlay {
             position: fixed;
@@ -1067,7 +1071,7 @@ export default function ClientTransactionsPage() {
             top: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(16, 24, 40, 0.4);
+            background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
@@ -1078,9 +1082,10 @@ export default function ClientTransactionsPage() {
           .d-filter-modal-card {
             width: 480px;
             max-width: 90vw;
-            background: #ffffff;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 20px;
-            box-shadow: 0 12px 32px rgba(16, 24, 40, 0.15);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
             padding: 28px;
             display: flex;
             flex-direction: column;
@@ -1100,7 +1105,7 @@ export default function ClientTransactionsPage() {
 
         {/* Header */}
         <div className="d-tx-header">
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#101828', margin: 0 }}>Transactions</h1>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
           <Link href="/dashboard/client/transactions/new" className="d-tx-add-btn">
             +
           </Link>
@@ -1195,7 +1200,7 @@ export default function ClientTransactionsPage() {
 
           {/* Grouped Transactions List */}
           {Object.keys(groupedTransactions).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px', color: '#667085', background: '#ffffff', border: '1px solid #eaeef4', borderRadius: '16px', fontSize: '15px' }}>
+            <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px', fontSize: '15px' }}>
               No transactions found matching search or filter criteria.
             </div>
           ) : (
@@ -1247,11 +1252,11 @@ export default function ClientTransactionsPage() {
 
               {/* Header Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#101828', margin: 0 }}>Filters</h2>
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Filters</h2>
                 <button
                   type="button"
                   onClick={handleClearAll}
-                  style={{ border: 'none', background: 'none', color: '#1a235a', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
+                  style={{ border: 'none', background: 'none', color: 'var(--brand)', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
                 >
                   Clear all
                 </button>
@@ -1261,7 +1266,7 @@ export default function ClientTransactionsPage() {
               <div style={{ overflowY: 'auto', maxHeight: '55vh', paddingRight: '4px' }}>
                 {/* Type Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Type</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Type</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {['all', 'income', 'expense'].map((t) => (
                       <button
@@ -1273,9 +1278,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempType === t ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempType === t ? '#1a235a' : '#ffffff',
-                          color: tempType === t ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempType === t ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempType === t ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempType === t ? '#ffffff' : 'var(--text-primary)',
                           textTransform: 'capitalize',
                           cursor: 'pointer',
                           outline: 'none',
@@ -1288,11 +1293,11 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '14px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }} />
 
                 {/* Date Range Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {[
                       { label: 'All', value: 'all' },
@@ -1310,9 +1315,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempDateRange === d.value ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempDateRange === d.value ? '#1a235a' : '#ffffff',
-                          color: tempDateRange === d.value ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempDateRange === d.value ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempDateRange === d.value ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempDateRange === d.value ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1324,11 +1329,11 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '14px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }} />
 
                 {/* Entity Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     <button
                       type="button"
@@ -1338,9 +1343,9 @@ export default function ClientTransactionsPage() {
                         borderRadius: '20px',
                         fontSize: '14px',
                         fontWeight: 600,
-                        border: `1px solid ${tempEntity === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                        background: tempEntity === 'all' ? '#1a235a' : '#ffffff',
-                        color: tempEntity === 'all' ? '#ffffff' : '#344054',
+                        border: `1px solid ${tempEntity === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                        background: tempEntity === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                        color: tempEntity === 'all' ? '#ffffff' : 'var(--text-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'all 0.15s ease'
@@ -1358,9 +1363,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempEntity === ent ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempEntity === ent ? '#1a235a' : '#ffffff',
-                          color: tempEntity === ent ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempEntity === ent ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempEntity === ent ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempEntity === ent ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1372,11 +1377,11 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '14px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }} />
 
                 {/* Properties Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     <button
                       type="button"
@@ -1386,9 +1391,9 @@ export default function ClientTransactionsPage() {
                         borderRadius: '20px',
                         fontSize: '14px',
                         fontWeight: 600,
-                        border: `1px solid ${tempProperty === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                        background: tempProperty === 'all' ? '#1a235a' : '#ffffff',
-                        color: tempProperty === 'all' ? '#ffffff' : '#344054',
+                        border: `1px solid ${tempProperty === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                        background: tempProperty === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                        color: tempProperty === 'all' ? '#ffffff' : 'var(--text-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'all 0.15s ease'
@@ -1406,9 +1411,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempProperty === prop ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempProperty === prop ? '#1a235a' : '#ffffff',
-                          color: tempProperty === prop ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempProperty === prop ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempProperty === prop ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempProperty === prop ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1421,7 +1426,7 @@ export default function ClientTransactionsPage() {
                 </div>
               </div>
 
-              <div style={{ height: '1px', background: '#eaeef4', margin: '16px 0' }} />
+              <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
 
               {/* Footer buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1431,9 +1436,9 @@ export default function ClientTransactionsPage() {
                   style={{
                     padding: '12px 16px',
                     borderRadius: '12px',
-                    border: '1px solid #d0d5dd',
-                    background: '#ffffff',
-                    color: '#344054',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-2)',
+                    color: 'var(--text-secondary)',
                     fontSize: '15px',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -1450,7 +1455,7 @@ export default function ClientTransactionsPage() {
                     padding: '12px 16px',
                     borderRadius: '12px',
                     border: 'none',
-                    background: '#1a235a',
+                    background: 'var(--brand)',
                     color: '#ffffff',
                     fontSize: '15px',
                     fontWeight: 600,

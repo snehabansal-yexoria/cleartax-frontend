@@ -10,6 +10,7 @@ import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
+import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
@@ -209,11 +210,12 @@ export default function ClientPage() {
   const [properties, setProperties] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string } | null>(null);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [sortBy, setSortBy] = useState<string>("name-asc");
   const [pageSize, setPageSize] = useState<string>("20");
+  const [cashFlowView, setCashFlowView] = useState<'graph' | 'table'>('graph');
 
   // Mobile layout state
   const [isMobile, setIsMobile] = useState(false);
@@ -366,7 +368,7 @@ export default function ClientPage() {
     })
     .reduce((sum, tx) => sum + Math.abs(tx.netAmount || tx.grossAmount || 0), 0);
 
-  const displayRepayments = properties.length === 0 ? 5420 : (transactions.length === 0 ? 5420 : repaymentsThisMonth);
+  const displayRepayments = repaymentsThisMonth;
 
   // 6 Month historical logic
   const months: string[] = [];
@@ -378,7 +380,7 @@ export default function ClientPage() {
     d.setMonth(d.getMonth() - i);
     const m = d.getMonth();
     const y = d.getFullYear();
-    
+
     const label = d.toLocaleDateString("en-US", { month: "short" });
     months.push(label);
 
@@ -400,215 +402,89 @@ export default function ClientPage() {
     expenseHistory.push(exp);
   }
 
-  // Merge mock data if there are no properties or transactions
-  const isDemo = properties.length === 0;
-  const displayMarketValue = isDemo ? 3250000 : marketValue;
-  const displayOutstandingLoans = isDemo ? 1380000 : outstandingLoans;
-  const displayNetPosition = isDemo ? 1870000 : netPosition;
-  const displayCashFlow = isDemo ? 8420 : (transactions.length === 0 ? 8420 : cashFlowThisMonth);
+  // Compute actual values based on real data
+  const displayMarketValue = marketValue;
+  const displayOutstandingLoans = outstandingLoans;
+  const displayNetPosition = netPosition;
+  const displayCashFlow = cashFlowThisMonth;
   const displayLoansValue = displayOutstandingLoans;
-  const displayIncomeThisMonth = isDemo ? 13800 : (transactions.length === 0 ? 13800 : incomeThisMonth);
-  const displayExpenseThisMonth = isDemo ? 5380 : (transactions.length === 0 ? 5380 : expenseThisMonth);
+  const displayIncomeThisMonth = incomeThisMonth;
+  const displayExpenseThisMonth = expenseThisMonth;
 
-  const hasTxData = transactions.length > 0;
-  const displayMonths = hasTxData ? months : ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr"];
-  const displayIncome = hasTxData ? incomeHistory : [12000, 7000, 10000, 15000, 6000, 11000];
-  const displayExpense = hasTxData ? expenseHistory : [3000, 7000, 4000, 800, 7500, 4500];
+  const displayMonths = months;
+  const displayIncome = incomeHistory;
+  const displayExpense = expenseHistory;
 
   const maxMonthSum = Math.max(...displayIncome.map((inc, idx) => inc + displayExpense[idx]), 1);
 
-  const demoActivity = [
-    {
-      id: "demo-1",
-      description: "Rent — 24 Darling St",
-      categoryName: "Rental income",
-      meta: "today",
-      type: "revenue",
-      amount: 4200,
-    },
-    {
-      id: "demo-2",
-      description: "Loan interest",
-      categoryName: "Monthly",
-      meta: "CBA",
-      type: "expense",
-      amount: 2180,
-    },
-    {
-      id: "demo-3",
-      description: "Rent — 12 Church Ave",
-      categoryName: "Rental income",
-      meta: "yesterday",
-      type: "revenue",
-      amount: 3800,
-    },
-    {
-      id: "demo-4",
-      description: "Water bill",
-      categoryName: "Utilities",
-      meta: "24 Darling St",
-      type: "expense",
-      amount: 312,
-    },
-    {
-      id: "demo-5",
-      description: "Cleaning bill",
-      categoryName: "Utilities",
-      meta: "12 Church Ave",
-      type: "expense",
-      amount: 670,
-    },
-  ];
+  const activityItems = transactions.slice(0, 5).map(tx => ({
+    id: tx.id,
+    description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+    categoryName: tx.categoryName,
+    meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
+    type: tx.type,
+    amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
+  }));
 
-  const activityItems = transactions.length > 0
-    ? transactions.slice(0, 5).map(tx => ({
-        id: tx.id,
-        description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
-        categoryName: tx.categoryName,
-        meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
-        type: tx.type,
-        amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
-      }))
-    : demoActivity;
+  const entityListItems = entities.map(entity => {
+    const entityProperties = properties.filter(p => p.entityId === entity.id);
+    const mValue = entityProperties.reduce((sum, p) => sum + (p.estimatedMarketValue || 0), 0);
+    const oLoans = entityProperties.reduce((sum, p) => {
+      if (!p.loanDetails) return sum;
+      const loanAmt = p.loanDetails.loan_amount ?? p.loanDetails.loanAmount ?? p.loanDetails.amount ?? 0;
+      return sum + Number(loanAmt);
+    }, 0);
+    const nPosition = mValue - oLoans;
+    const loanPct = mValue > 0 ? (oLoans / mValue) * 100 : 0;
+    return {
+      id: entity.id,
+      name: entity.name,
+      propertiesCount: entityProperties.length,
+      marketValue: mValue,
+      outstandingLoans: oLoans,
+      netPosition: nPosition,
+      loanPercentage: loanPct,
+      isReal: true,
+    };
+  });
 
-  const isDemoDetailed = properties.length === 0;
-  const entityListItems = isDemoDetailed
-    ? [
-        {
-          id: "demo-entity-1",
-          name: "Johnson Family Trust",
-          propertiesCount: 2,
-          marketValue: 2400000,
-          outstandingLoans: 1050000,
-          netPosition: 1350000,
-          loanPercentage: (1050000 / 2400000) * 100,
-          isReal: false,
-        },
-        {
-          id: "demo-entity-2",
-          name: "SJ Holdings Pty Ltd",
-          propertiesCount: 1,
-          marketValue: 800000,
-          outstandingLoans: 280000,
-          netPosition: 520000,
-          loanPercentage: (280000 / 800000) * 100,
-          isReal: false,
-        },
-        {
-          id: "demo-entity-3",
-          name: "Sarah Johnson",
-          propertiesCount: 0,
-          marketValue: 0,
-          outstandingLoans: 0,
-          netPosition: 0,
-          loanPercentage: 0,
-          isReal: false,
-        }
-      ]
-    : entities.map(entity => {
-        const entityProperties = properties.filter(p => p.entityId === entity.id);
-        const mValue = entityProperties.reduce((sum, p) => sum + (p.estimatedMarketValue || 0), 0);
-        const oLoans = entityProperties.reduce((sum, p) => {
-          if (!p.loanDetails) return sum;
-          const loanAmt = p.loanDetails.loan_amount ?? p.loanDetails.loanAmount ?? p.loanDetails.amount ?? 0;
-          return sum + Number(loanAmt);
-        }, 0);
-        const nPosition = mValue - oLoans;
-        const loanPct = mValue > 0 ? (oLoans / mValue) * 100 : 0;
-        return {
-          id: entity.id,
-          name: entity.name,
-          propertiesCount: entityProperties.length,
-          marketValue: mValue,
-          outstandingLoans: oLoans,
-          netPosition: nPosition,
-          loanPercentage: loanPct,
-          isReal: true,
-        };
-      });
+  const propertyListItems = properties.map((prop, idx) => {
+    const ent = entities.find(e => e.id === prop.entityId);
+    const entName = ent ? ent.name : "Individual";
+    const mValue = prop.estimatedMarketValue || 0;
+    const oLoans = prop.loanDetails ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0) : 0;
 
-  const propertyListItems = isDemoDetailed
-    ? [
-        {
-          id: "demo-prop-1",
-          name: "24 Darling Street",
-          entityName: "Johnson Family Trust",
-          marketValue: 1420000,
-          outstandingLoans: 680000,
-          income: 54600,
-          expense: 30400,
-          net: 24200,
-          status: "Rented",
-          imageUrl: "/house_darling_st.png",
-          isReal: false,
-          entityId: "demo-entity-1",
-        },
-        {
-          id: "demo-prop-2",
-          name: "12 Church Avenue",
-          entityName: "Johnson Family Trust",
-          marketValue: 980000,
-          outstandingLoans: 420000,
-          income: 45600,
-          expense: 24000,
-          net: 21600,
-          status: "Self Occupied",
-          imageUrl: "/house_church_ave.png",
-          isReal: false,
-          entityId: "demo-entity-1",
-        },
-        {
-          id: "demo-prop-3",
-          name: "8 Harbour Road",
-          entityName: "SJ Holdings Pty Ltd.",
-          marketValue: 850000,
-          outstandingLoans: 280000,
-          income: 39000,
-          expense: 16400,
-          net: 20600,
-          status: "Available for Rent",
-          imageUrl: "/house_harbour_rd.png",
-          isReal: false,
-          entityId: "demo-entity-2",
-        }
-      ]
-    : properties.map((prop, idx) => {
-        const ent = entities.find(e => e.id === prop.entityId);
-        const entName = ent ? ent.name : "Individual";
-        const mValue = prop.estimatedMarketValue || 0;
-        const oLoans = prop.loanDetails ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0) : 0;
-        
-        const propTxs = transactions.filter(tx => {
-          return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
-        });
-        
-        const inc = propTxs
-          .filter(tx => tx.type === "revenue")
-          .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-          
-        const exp = propTxs
-          .filter(tx => tx.type === "expense")
-          .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-          
-        const netVal = inc - exp;
-        const statusVal = prop.status || "Rented";
-        const imageUrlVal = prop.imageUrl || null;
-        
-        return {
-          id: prop.id,
-          name: prop.name,
-          entityName: entName,
-          marketValue: mValue,
-          outstandingLoans: oLoans,
-          income: inc,
-          expense: exp,
-          net: netVal,
-          status: statusVal,
-          imageUrl: imageUrlVal,
-          isReal: true,
-          entityId: prop.entityId,
-        };
-      });
+    const propTxs = transactions.filter(tx => {
+      return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
+    });
+
+    const inc = propTxs
+      .filter(tx => tx.type === "revenue")
+      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+
+    const exp = propTxs
+      .filter(tx => tx.type === "expense")
+      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+
+    const netVal = inc - exp;
+    const statusVal = prop.status || "Rented";
+    const imageUrlVal = prop.imageUrl || null;
+
+    return {
+      id: prop.id,
+      name: prop.name,
+      entityName: entName,
+      marketValue: mValue,
+      outstandingLoans: oLoans,
+      income: inc,
+      expense: exp,
+      net: netVal,
+      status: statusVal,
+      imageUrl: imageUrlVal,
+      isReal: true,
+      entityId: prop.entityId,
+    };
+  });
 
   // Filter properties by search query and selected entity
   let filteredProperties = propertyListItems;
@@ -629,23 +505,13 @@ export default function ClientPage() {
   const portfolioNetSum = filteredProperties.reduce((sum, p) => sum + p.net, 0);
   const calculatedReturnRate = portfolioValueSum > 0 ? (portfolioNetSum / portfolioValueSum) * 100 : 0;
 
-  // Use Figma spec returns in demo mode, calculate dynamically in live mode
-  const portfolioAvgReturn = properties.length === 0
-    ? (selectedEntityFilter === 'all' ? 4.7 : selectedEntityFilter === 'Johnson Family Trust' ? 4.6 : 4.8)
-    : (calculatedReturnRate > 0 ? calculatedReturnRate : 4.7);
+  const portfolioAvgReturn = calculatedReturnRate;
 
   // Entities list for properties filter row
-  const propertiesEntityPills = properties.length === 0
-    ? [
-        { id: 'all', name: 'All Entities' },
-        { id: 'Johnson Family Trust', name: 'Johnson Family Trust' },
-        { id: 'SJ Holdings Pvt Ltd.', name: 'SJ Holdings Pvt Ltd.' },
-        { id: 'Sarah Johnson', name: 'Sarah Johnson' }
-      ]
-    : [
-        { id: 'all', name: 'All Entities' },
-        ...entities.map(e => ({ id: e.id, name: e.name }))
-      ];
+  const propertiesEntityPills = [
+    { id: 'all', name: 'All Entities' },
+    ...entities.map(e => ({ id: e.id, name: e.name }))
+  ];
 
   const loanPercentageOverall = displayMarketValue > 0 ? (displayOutstandingLoans / displayMarketValue) * 100 : 0;
   const equityPercentageOverall = 100 - loanPercentageOverall;
@@ -698,7 +564,7 @@ export default function ClientPage() {
       default: return number + "th";
     }
   };
-  
+
   const day = new Date().getDate();
   const monthName = new Date().toLocaleDateString("en-US", { month: "long" });
   const ordinalDate = `${getOrdinalNum(day)} of ${monthName}`;
@@ -809,9 +675,9 @@ export default function ClientPage() {
                     </div>
                     <span>Add Transaction</span>
                   </Link>
-                  
-                  <Link 
-                    href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"} 
+
+                  <Link
+                    href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -842,7 +708,7 @@ export default function ClientPage() {
                     <span className="m-db-stat-value">{formatCurrencyShort(displayCashFlow)}</span>
                   </div>
                 </div>
-                
+
                 <div className="m-db-stat-card">
                   <div className="m-db-stat-header">
                     <div className="m-db-stat-icon-wrap loans">
@@ -885,41 +751,53 @@ export default function ClientPage() {
                     </div>
                   </div>
                 </div>
-                <div className="m-db-chart-bars-wrap">
-                  {displayMonths.map((month, idx) => {
-                    const incVal = displayIncome[idx];
-                    const expVal = displayExpense[idx];
-                    const total = incVal + expVal;
-                    
-                    const barHeightPct = (total / maxMonthSum) * 100;
-                    const incPct = (incVal / total) * 100;
-                    const expPct = (expVal / total) * 100;
+                {transactions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center p-6 text-[#667085]" style={{ minHeight: '150px' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
+                      <line x1="18" y1="20" x2="18" y2="10" />
+                      <line x1="12" y1="20" x2="12" y2="4" />
+                      <line x1="6" y1="20" x2="6" y2="14" />
+                    </svg>
+                    <span className="text-sm font-semibold">No cash flow data available</span>
+                    <span className="text-xs text-[#98a2b3] mt-1">Record transactions to view the chart.</span>
+                  </div>
+                ) : (
+                  <div className="m-db-chart-bars-wrap">
+                    {displayMonths.map((month, idx) => {
+                      const incVal = displayIncome[idx];
+                      const expVal = displayExpense[idx];
+                      const total = incVal + expVal;
 
-                    return (
-                      <div key={month} className="m-db-chart-bar-container">
-                        <div 
-                          className="m-db-chart-bar-pill" 
-                          style={{ 
-                            height: `${barHeightPct}%`, 
-                            minHeight: '16px' 
-                          }}
-                        >
-                          <div className="m-db-chart-bar-income" style={{ height: `${incPct}%` }} title={`Income: ${formatCurrencyShort(incVal)}`} />
-                          <div className="m-db-chart-bar-expense" style={{ height: `${expPct}%` }} title={`Expense: ${formatCurrencyShort(expVal)}`} />
+                      const barHeightPct = (total / maxMonthSum) * 100;
+                      const incPct = (incVal / total) * 100;
+                      const expPct = (expVal / total) * 100;
+
+                      return (
+                        <div key={month} className="m-db-chart-bar-container">
+                          <div
+                            className="m-db-chart-bar-pill"
+                            style={{
+                              height: `${barHeightPct}%`,
+                              minHeight: '16px'
+                            }}
+                          >
+                            <div className="m-db-chart-bar-income" style={{ height: `${incPct}%` }} title={`Income: ${formatCurrencyShort(incVal)}`} />
+                            <div className="m-db-chart-bar-expense" style={{ height: `${expPct}%` }} title={`Expense: ${formatCurrencyShort(expVal)}`} />
+                          </div>
+                          <span className="m-db-chart-bar-label">{month}</span>
                         </div>
-                        <span className="m-db-chart-bar-label">{month}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Recent Activity Card */}
               <div className="m-db-activity-section">
                 <div className="m-db-activity-header">
                   <h3 className="m-db-activity-title">Recent activity</h3>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="m-db-activity-view-all"
                     onClick={() => router.push('/dashboard/client/transactions')}
                     style={{ background: 'none', border: 'none', padding: 0 }}
@@ -927,36 +805,49 @@ export default function ClientPage() {
                     View all
                   </button>
                 </div>
-                
+
                 <div className="m-db-activity-list-card">
-                  {activityItems.map((item) => (
-                    <div key={item.id} className="m-db-activity-row">
-                      <div className="m-db-activity-left">
-                        <div className={`m-db-activity-icon-box ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {item.type === 'revenue' ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="7" y1="17" x2="17" y2="7" />
-                              <polyline points="7 7 17 7 17 17" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="17" y1="7" x2="7" y2="17" />
-                              <polyline points="17 17 7 17 7 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="m-db-activity-info">
-                          <strong className="m-db-activity-desc">{item.description}</strong>
-                          <span className="m-db-activity-meta">
-                            {item.categoryName} - {item.meta}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
-                      </span>
+                  {activityItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085]" style={{ minHeight: '120px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
+                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      <span className="text-sm font-semibold">No transactions available</span>
+                      <span className="text-xs text-[#98a2b3] mt-1">Start by adding a transaction.</span>
                     </div>
-                  ))}
+                  ) : (
+                    activityItems.map((item) => (
+                      <div key={item.id} className="m-db-activity-row">
+                        <div className="m-db-activity-left">
+                          <div className={`m-db-activity-icon-box ${item.type === 'revenue' ? 'income' : 'expense'}`}>
+                            {item.type === 'revenue' ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                <line x1="7" y1="17" x2="17" y2="7" />
+                                <polyline points="7 7 17 7 17 17" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                <line x1="17" y1="7" x2="7" y2="17" />
+                                <polyline points="17 17 7 17 7 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="m-db-activity-info">
+                            <strong className="m-db-activity-desc">{item.description}</strong>
+                            <span className="m-db-activity-meta">
+                              {item.categoryName} - {item.meta}
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
+                          {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1014,9 +905,9 @@ export default function ClientPage() {
                     </div>
                     <span>Add Transaction</span>
                   </Link>
-                  
-                  <Link 
-                    href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"} 
+
+                  <Link
+                    href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -1035,47 +926,63 @@ export default function ClientPage() {
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="m-db-activity-header">
                   <h3 className="m-db-activity-title">By Entity</h3>
-                  <button 
-                    type="button" 
-                    className="m-db-activity-view-all"
-                    onClick={() => router.push('/dashboard/client/entities')}
-                    style={{ background: 'none', border: 'none', padding: 0 }}
-                  >
-                    View all
-                  </button>
+                  {entities.length > 0 && (
+                    <button
+                      type="button"
+                      className="m-db-activity-view-all"
+                      onClick={() => router.push('/dashboard/client/entities')}
+                      style={{ background: 'none', border: 'none', padding: 0 }}
+                    >
+                      View all
+                    </button>
+                  )}
                 </div>
-                
+
                 <div className="m-db-activity-list-card">
-                  {entityListItems.map((item) => (
-                    <div key={item.id} className="m-db-entity-row">
-                      <div className="m-db-entity-row-top">
-                        <Link 
-                          href={`/dashboard/client/entities/${item.id}`} 
-                          className="m-db-entity-name"
-                          style={{ textDecoration: 'none' }}
-                        >
-                          {item.name}
-                        </Link>
-                        <span className="m-db-entity-net">{formatCurrencyShort(item.netPosition)}</span>
-                      </div>
-                      
-                      <p className="m-db-entity-subtitle">
-                        {item.propertiesCount} propert{item.propertiesCount === 1 ? 'y' : 'ies'}
-                      </p>
-                      
-                      <div className="m-db-entity-bar-container">
-                        <div 
-                          className="m-db-entity-bar-fill" 
-                          style={{ width: `${Math.min(item.loanPercentage, 100)}%` }} 
-                        />
-                      </div>
-                      
-                      <div className="m-db-entity-label-row">
-                        <span>Value <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
-                        <span>Loan <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                      </div>
+                  {entityListItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085]" style={{ minHeight: '120px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
+                        <path d="M3 21h18" />
+                        <path d="M3 10h18" />
+                        <path d="M5 6h14" />
+                        <path d="M4 10v11" />
+                        <path d="M20 10v11" />
+                      </svg>
+                      <span className="text-sm font-semibold">No entities available</span>
+                      <span className="text-xs text-[#98a2b3] mt-1">Create an entity to get started.</span>
                     </div>
-                  ))}
+                  ) : (
+                    entityListItems.map((item) => (
+                      <div key={item.id} className="m-db-entity-row">
+                        <div className="m-db-entity-row-top">
+                          <Link
+                            href={`/dashboard/client/entities/${item.id}`}
+                            className="m-db-entity-name"
+                            style={{ textDecoration: 'none' }}
+                          >
+                            {item.name}
+                          </Link>
+                          <span className="m-db-entity-net">{formatCurrencyShort(item.netPosition)}</span>
+                        </div>
+
+                        <p className="m-db-entity-subtitle">
+                          {item.propertiesCount} propert{item.propertiesCount === 1 ? 'y' : 'ies'}
+                        </p>
+
+                        <div className="m-db-entity-bar-container">
+                          <div
+                            className="m-db-entity-bar-fill"
+                            style={{ width: `${Math.min(item.loanPercentage, 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="m-db-entity-label-row">
+                          <span>Value <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1083,83 +990,95 @@ export default function ClientPage() {
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="m-db-activity-header">
                   <h3 className="m-db-activity-title">By Property</h3>
-                  <button 
-                    type="button" 
-                    className="m-db-activity-view-all"
-                    onClick={() => router.push('/dashboard/client/properties')}
-                    style={{ background: 'none', border: 'none', padding: 0 }}
-                  >
-                    View all
-                  </button>
+                  {properties.length > 0 && (
+                    <button
+                      type="button"
+                      className="m-db-activity-view-all"
+                      onClick={() => router.push('/dashboard/client/properties')}
+                      style={{ background: 'none', border: 'none', padding: 0 }}
+                    >
+                      View all
+                    </button>
+                  )}
                 </div>
-                
+
                 <div className="m-db-activity-list-card">
-                  {propertyListItems.map((item, idx) => (
-                    <div key={`${item.id}-${idx}`} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < propertyListItems.length - 1 ? '1px solid #f2f4f7' : 'none' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          {item.isReal ? (
-                            <Link 
-                              href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`} 
-                              className="m-db-entity-name"
-                              style={{ textDecoration: 'none', color: '#101828', fontSize: '15px', fontWeight: 700 }}
-                            >
-                              {item.name}
-                            </Link>
-                          ) : (
-                            <span style={{ color: '#101828', fontSize: '15px', fontWeight: 700 }}>{item.name}</span>
-                          )}
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '12px', color: '#667085' }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
-                              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                            </svg>
-                            <Link 
-                              href={`/dashboard/client/entities/${item.entityId}`} 
-                              style={{ textDecoration: 'none', color: '#667085' }}
-                            >
-                              {item.entityName}
-                            </Link>
-                          </div>
-                        </div>
-                        
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#98a2b3' }}>
-                          <path d="m9 18 6-6-6-6" />
-                        </svg>
-                      </div>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#475467' }}>
-                        <span>Value <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
-                        <span>Loan <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
-                        <span style={{ color: '#475467' }}>Income <strong style={{ color: '#12b76a' }}>{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
-                        <span style={{ color: '#475467' }}>Expense <strong style={{ color: '#344054' }}>{formatClientCurrency(-item.expense, { short: true })}</strong></span>
-                        <span style={{ color: '#475467' }}>Net <strong style={{ color: item.net >= 0 ? '#12b76a' : '#f04438' }}>{formatClientCurrency(item.net, { short: true, showPlus: true })}</strong></span>
-                      </div>
+                  {propertyListItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085]" style={{ minHeight: '120px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <path d="M9 22V12h6v10" />
+                      </svg>
+                      <span className="text-sm font-semibold">No properties available</span>
+                      <span className="text-xs text-[#98a2b3] mt-1">Add a property to start tracking.</span>
                     </div>
-                  ))}
+                  ) : (
+                    propertyListItems.map((item, idx) => (
+                      <div key={`${item.id}-${idx}`} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < propertyListItems.length - 1 ? '1px solid #f2f4f7' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            {item.isReal ? (
+                              <Link
+                                href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`}
+                                className="m-db-entity-name"
+                                style={{ textDecoration: 'none', color: '#101828', fontSize: '15px', fontWeight: 700 }}
+                              >
+                                {item.name}
+                              </Link>
+                            ) : (
+                              <span style={{ color: '#101828', fontSize: '15px', fontWeight: 700 }}>{item.name}</span>
+                            )}
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '12px', color: '#667085' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
+                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                              </svg>
+                              <Link
+                                href={`/dashboard/client/entities/${item.entityId}`}
+                                style={{ textDecoration: 'none', color: '#667085' }}
+                              >
+                                {item.entityName}
+                              </Link>
+                            </div>
+                          </div>
+
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#98a2b3' }}>
+                            <path d="m9 18 6-6-6-6" />
+                          </svg>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#475467' }}>
+                          <span>Value <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
+                          <span style={{ color: '#475467' }}>Income <strong style={{ color: '#12b76a' }}>{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
+                          <span style={{ color: '#475467' }}>Expense <strong style={{ color: '#344054' }}>{formatClientCurrency(-item.expense, { short: true })}</strong></span>
+                          <span style={{ color: '#475467' }}>Net <strong style={{ color: item.net >= 0 ? '#12b76a' : '#f04438' }}>{formatClientCurrency(item.net, { short: true, showPlus: true })}</strong></span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
-              {/* Loan vs Value Section */}
-              <div className="m-db-stat-card" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '16px', background: '#ffffff', border: '1px solid #eaeef4', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#101828', margin: 0 }}>Loan vs Value</h3>
-                
-                <div style={{ display: 'flex', height: '8px', width: '100%', borderRadius: '4px', overflow: 'hidden', background: '#eaeef4', margin: '4px 0' }}>
-                  <div style={{ width: `${loanPercentageOverall}%`, background: '#1b265c', transition: 'width 0.3s ease' }} />
-                  <div style={{ width: `${equityPercentageOverall}%`, background: '#f7a61a', transition: 'width 0.3s ease' }} />
+              <div className="m-db-stat-card" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Loan vs Value</h3>
+
+                <div style={{ display: 'flex', height: '8px', width: '100%', borderRadius: '4px', overflow: 'hidden', background: 'var(--border)', margin: '4px 0' }}>
+                  <div style={{ width: `${loanPercentageOverall}%`, background: 'var(--brand)', transition: 'width 0.3s ease' }} />
+                  <div style={{ width: `${equityPercentageOverall}%`, background: 'var(--accent)', transition: 'width 0.3s ease' }} />
                 </div>
-                
-                <div style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600, color: '#475467' }}>
+
+                <div style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#1b265c' }} />
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--brand)' }} />
                     <span>Loan</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#f7a61a' }} />
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--accent)' }} />
                     <span>Equity</span>
                   </div>
                 </div>
@@ -1181,7 +1100,7 @@ export default function ClientPage() {
       fallback={<ClientEntitiesSkeleton />}
     >
       <div className="desktop-client-dashboard flex flex-col gap-6 w-full py-6 px-1">
-        
+
         {/* Quick Actions Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
@@ -1199,7 +1118,7 @@ export default function ClientPage() {
             </svg>
             Add transaction
           </Link>
-          
+
           <Link
             href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
@@ -1216,7 +1135,7 @@ export default function ClientPage() {
             </svg>
             Add property
           </Link>
-          
+
           <Link
             href="/dashboard/client/entities/new"
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
@@ -1244,7 +1163,7 @@ export default function ClientPage() {
         <div className="m-db-net-card" style={{ width: '100%' }}>
           <div className="m-db-net-label-row">
             <span className="m-db-net-label" style={{ fontSize: '14px', fontWeight: 600 }}>Net Equity</span>
-            <span className="m-db-net-date-badge">{isDemo ? "As of 4th April" : `As of ${ordinalDate}`}</span>
+            <span className="m-db-net-date-badge">As of {ordinalDate}</span>
           </div>
           <div className="m-db-net-value" style={{ fontSize: '42px', fontWeight: 800 }}>
             {formatCurrencyShort(displayNetPosition)}
@@ -1294,7 +1213,7 @@ export default function ClientPage() {
               <span className="text-[#101828] text-xl font-bold">{formatCurrencyShort(displayCashFlow)}</span>
             </div>
           </div>
-          
+
           <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
               <div className="w-9 h-9 rounded-[10px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
@@ -1307,7 +1226,7 @@ export default function ClientPage() {
               <span className="text-[#101828] text-xl font-bold">{formatCurrencyShort(displayIncomeThisMonth)}</span>
             </div>
           </div>
-          
+
           <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
               <div className="w-9 h-9 rounded-[10px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
@@ -1337,7 +1256,7 @@ export default function ClientPage() {
                   <span>6 Months</span>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="flex gap-4 text-xs font-medium">
                   <div className="flex items-center gap-1.5">
@@ -1349,10 +1268,14 @@ export default function ClientPage() {
                     <span className="text-[#475467]">Expenses</span>
                   </div>
                 </div>
-                
+
                 {/* Graph View / Table View Selector from Figma */}
                 <div className="flex bg-[#f2f4f7] rounded-lg p-0.5 border border-[#eaeef4]">
-                  <button type="button" className="bg-white text-[#101828] shadow-sm text-xs font-bold py-1 px-3.5 rounded-md flex items-center gap-1">
+                  <button
+                    type="button"
+                    className={`${cashFlowView === 'graph' ? 'bg-white text-[#101828] shadow-sm font-bold' : 'text-[#475467] font-medium'} text-xs py-1 px-3.5 rounded-md flex items-center gap-1`}
+                    onClick={() => setCashFlowView('graph')}
+                  >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                       <line x1="18" y1="20" x2="18" y2="10" />
                       <line x1="12" y1="20" x2="12" y2="4" />
@@ -1360,7 +1283,11 @@ export default function ClientPage() {
                     </svg>
                     Graph View
                   </button>
-                  <button type="button" className="text-[#475467] text-xs font-medium py-1 px-3.5 rounded-md flex items-center gap-1">
+                  <button
+                    type="button"
+                    className={`${cashFlowView === 'table' ? 'bg-white text-[#101828] shadow-sm font-bold' : 'text-[#475467] font-medium'} text-xs py-1 px-3.5 rounded-md flex items-center gap-1`}
+                    onClick={() => setCashFlowView('table')}
+                  >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                       <rect x="3" y="3" width="18" height="18" rx="2" />
                       <line x1="9" y1="3" x2="9" y2="21" />
@@ -1372,64 +1299,12 @@ export default function ClientPage() {
               </div>
             </div>
 
-            {/* Vertical labels and Bars */}
-            <div className="flex gap-4 h-[200px] mt-2 relative">
-              {/* Y Axis Grid/Labels */}
-              <div className="flex flex-col justify-between text-[#98a2b3] text-[10px] font-semibold h-[180px] w-8 select-none">
-                <span>$8k-</span>
-                <span>$4.5k-</span>
-                <span>$3k-</span>
-                <span>$1.5k-</span>
-                <span>$0k-</span>
-              </div>
-              
-              <div className="flex-1 flex justify-between items-end h-[180px] border-b border-[#f2f4f7] pb-1 relative">
-                {/* Horizontal dotted lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pr-1">
-                  <div className="w-full border-t border-dashed border-[#f2f4f7]" />
-                  <div className="w-full border-t border-dashed border-[#f2f4f7]" />
-                  <div className="w-full border-t border-dashed border-[#f2f4f7]" />
-                  <div className="w-full border-t border-dashed border-[#f2f4f7]" />
-                  <div className="w-full" />
-                </div>
-
-                {displayMonths.map((month, idx) => {
-                  const incVal = displayIncome[idx];
-                  const expVal = displayExpense[idx];
-                  
-                  // Heights logic to scale properly to $8000 max (demo max value is 15000 in Feb, but let's scale to max of data)
-                  const dataMax = Math.max(...displayIncome, ...displayExpense, 1);
-                  const incHeightPct = (incVal / dataMax) * 100;
-                  const expHeightPct = (expVal / dataMax) * 100;
-
-                  return (
-                    <div key={month} className="flex-1 flex flex-col items-center h-full justify-end z-10">
-                      <div className="flex items-end gap-2.5 h-[150px] justify-center w-full">
-                        {/* Expense (Orange) */}
-                        <div 
-                          className="w-4 rounded-md transition-all duration-300 hover:opacity-90"
-                          style={{ 
-                            height: `${Math.max(expHeightPct, 6)}%`, 
-                            backgroundColor: '#f7a61a' 
-                          }}
-                          title={`Expenses: ${formatCurrencyShort(expVal)}`}
-                        />
-                        {/* Income (Dark Blue) */}
-                        <div 
-                          className="w-4 rounded-md transition-all duration-300 hover:opacity-90"
-                          style={{ 
-                            height: `${Math.max(incHeightPct, 6)}%`, 
-                            backgroundColor: '#1b265c' 
-                          }}
-                          title={`Income: ${formatCurrencyShort(incVal)}`}
-                        />
-                      </div>
-                      <span className="text-[#8c9ba5] text-[11px] font-bold mt-2.5">{month}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <CashFlowChart
+              months={displayMonths}
+              income={displayIncome}
+              expenses={displayExpense}
+              view={cashFlowView}
+            />
           </div>
 
           {/* Recent Activity card */}
@@ -1437,36 +1312,49 @@ export default function ClientPage() {
             <div className="flex justify-between items-center">
               <h3 className="text-[#101828] text-base font-bold">Recent Activity</h3>
             </div>
-            
+
             <div className="flex flex-col divide-y divide-[#f2f4f7]">
-              {activityItems.map((item) => (
-                <div key={item.id} className="py-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === 'revenue' ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
-                      {item.type === 'revenue' ? (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
-                          <line x1="7" y1="17" x2="17" y2="7" />
-                          <polyline points="7 7 17 7 17 17" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
-                          <line x1="17" y1="7" x2="7" y2="17" />
-                          <polyline points="17 17 7 17 7 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <strong className="text-[#101828] text-[13px] font-bold truncate">{item.description}</strong>
-                      <span className="text-[#667085] text-[11px] truncate">
-                        {item.categoryName} · {item.meta}
-                      </span>
-                    </div>
-                  </div>
-                  <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
-                    {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
-                  </span>
+              {activityItems.length === 0 ? (
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 text-[#98a2b3] mb-2" style={{ width: '32px', height: '32px' }}>
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span className="text-sm font-semibold">No transactions available</span>
+                  <span className="text-xs text-[#98a2b3] mt-1">Start by adding a transaction.</span>
                 </div>
-              ))}
+              ) : (
+                activityItems.map((item) => (
+                  <div key={item.id} className="py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === 'revenue' ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
+                        {item.type === 'revenue' ? (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
+                            <line x1="7" y1="17" x2="7" y2="7" />
+                            <polyline points="7 7 17 7 17 17" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
+                            <line x1="17" y1="7" x2="7" y2="17" />
+                            <polyline points="17 17 7 17 7 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <strong className="text-[#101828] text-[13px] font-bold truncate">{item.description}</strong>
+                        <span className="text-[#667085] text-[11px] truncate">
+                          {item.categoryName} · {item.meta}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
+                      {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -1474,50 +1362,66 @@ export default function ClientPage() {
           <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="text-[#101828] text-base font-bold">By entity</h3>
-              <Link href="/dashboard/client/entities" className="text-[#175cd3] text-xs font-bold hover:underline">
-                View all
-              </Link>
+              {entities.length > 0 && (
+                <Link href="/dashboard/client/entities" className="text-[#175cd3] text-xs font-bold hover:underline">
+                  View all
+                </Link>
+              )}
             </div>
-            
+
             <div className="flex flex-col divide-y divide-[#f2f4f7]">
-              {entityListItems.map((item) => (
-                <div key={item.id}>
-                  {item.propertiesCount === 0 ? (
-                    <div className="py-4 flex justify-between items-center">
-                      <span className="text-[#101828] text-[14px] font-bold">{item.name}</span>
-                      <span className="text-[#8c9ba5] text-xs font-semibold">No properties yet</span>
-                    </div>
-                  ) : (
-                    <div className="py-4 flex flex-col gap-2">
-                      <div className="flex justify-between items-center">
-                        <Link 
-                          href={`/dashboard/client/entities/${item.id}`} 
-                          className="text-[#101828] text-[14px] font-bold hover:underline"
-                        >
-                          {item.name}
-                        </Link>
-                        <span className="text-[#12b76a] text-[14px] font-bold">{formatCurrencyShort(item.netPosition)}</span>
-                      </div>
-                      
-                      <p className="text-[#667085] text-xs m-0">
-                        {item.propertiesCount} propert{item.propertiesCount === 1 ? 'y' : 'ies'}
-                      </p>
-                      
-                      <div className="h-2 w-full bg-[#f7a61a] rounded-full overflow-hidden my-1 relative">
-                        <div 
-                          className="h-full bg-[#1b265c] transition-all duration-300" 
-                          style={{ width: `${Math.min(item.loanPercentage, 100)}%` }} 
-                        />
-                      </div>
-                      
-                      <div className="flex justify-between text-[#475467] text-xs font-medium">
-                        <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                        <span>Equity <strong className="text-[#101828]">{formatCurrencyShort(item.netPosition)}</strong></span>
-                      </div>
-                    </div>
-                  )}
+              {entityListItems.length === 0 ? (
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#98a2b3]">
+                    <path d="M3 21h18" />
+                    <path d="M3 10h18" />
+                    <path d="M5 6h14" />
+                    <path d="M4 10v11" />
+                    <path d="M20 10v11" />
+                  </svg>
+                  <span className="text-sm font-semibold">No entities available</span>
+                  <span className="text-xs text-[#98a2b3] mt-1">Create an entity to get started.</span>
                 </div>
-              ))}
+              ) : (
+                entityListItems.map((item) => (
+                  <div key={item.id}>
+                    {item.propertiesCount === 0 ? (
+                      <div className="py-4 flex justify-between items-center">
+                        <span className="text-[#101828] text-[14px] font-bold">{item.name}</span>
+                        <span className="text-[#8c9ba5] text-xs font-semibold">No properties yet</span>
+                      </div>
+                    ) : (
+                      <div className="py-4 flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                          <Link
+                            href={`/dashboard/client/entities/${item.id}`}
+                            className="text-[#101828] text-[14px] font-bold hover:underline"
+                          >
+                            {item.name}
+                          </Link>
+                          <span className="text-[#12b76a] text-[14px] font-bold">{formatCurrencyShort(item.netPosition)}</span>
+                        </div>
+
+                        <p className="text-[#667085] text-xs m-0">
+                          {item.propertiesCount} propert{item.propertiesCount === 1 ? 'y' : 'ies'}
+                        </p>
+
+                        <div className="h-2 w-full bg-[var(--accent)] rounded-full overflow-hidden my-1 relative">
+                          <div
+                            className="h-full bg-[var(--brand)] transition-all duration-300"
+                            style={{ width: `${Math.min(item.loanPercentage, 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-[#475467] text-xs font-medium">
+                          <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                          <span>Equity <strong className="text-[#101828]">{formatCurrencyShort(item.netPosition)}</strong></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -1525,58 +1429,71 @@ export default function ClientPage() {
           <div className="md:col-span-2 xl:col-span-2 order-4 xl:order-4 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="text-[#101828] text-base font-bold">By property</h3>
-              <Link href="/dashboard/client/properties" className="text-[#175cd3] text-xs font-bold hover:underline">
-                View all
-              </Link>
+              {properties.length > 0 && (
+                <Link href="/dashboard/client/properties" className="text-[#175cd3] text-xs font-bold hover:underline">
+                  View all
+                </Link>
+              )}
             </div>
-            
+
             <div className="flex flex-col divide-y divide-[#f2f4f7]">
-              {propertyListItems.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="py-4 flex flex-col gap-2.5">
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col min-w-0">
-                      {item.isReal ? (
-                        <Link 
-                          href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`} 
-                          className="text-[#101828] text-[14px] font-bold hover:underline truncate"
-                        >
-                          {item.name}
-                        </Link>
-                      ) : (
-                        <span className="text-[#101828] text-[14px] font-bold truncate">{item.name}</span>
-                      )}
-                      
-                      <div className="flex items-center gap-1.5 mt-1 text-[#667085] text-[11px]">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
-                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                        </svg>
-                        <Link 
-                          href={`/dashboard/client/entities/${item.entityId}`} 
-                          className="text-[#667085] hover:underline"
-                        >
-                          {item.entityName}
-                        </Link>
-                      </div>
-                    </div>
-                    
-                    {/* Net value in Figma is "Net +$24.2K" or dynamic */}
-                    <span className="text-[#12b76a] text-[14px] font-bold">Net {formatClientCurrency(item.net, { short: true, showPlus: true, decimals: 1 })}</span>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] mt-1">
-                    <span>Value <strong className="text-[#101828]">{formatCurrencyShort(item.marketValue)}</strong></span>
-                    <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                    <span>Income <strong className="text-[#12b76a]">{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
-                    <span>Expenses <strong className="text-[#f04438]">{formatClientCurrency(-item.expense, { short: true })}</strong></span>
-                  </div>
+              {propertyListItems.length === 0 ? (
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#98a2b3]">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <path d="M9 22V12h6v10" />
+                  </svg>
+                  <span className="text-sm font-semibold">No properties available</span>
+                  <span className="text-xs text-[#98a2b3] mt-1">Add a property to start tracking details.</span>
                 </div>
-              ))}
+              ) : (
+                propertyListItems.map((item, idx) => (
+                  <div key={`${item.id}-${idx}`} className="py-4 flex flex-col gap-2.5">
+                    <div className="flex justify-between items-center">
+                      <div className="flex flex-col min-w-0">
+                        {item.isReal ? (
+                          <Link
+                            href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`}
+                            className="text-[#101828] text-[14px] font-bold hover:underline truncate"
+                          >
+                            {item.name}
+                          </Link>
+                        ) : (
+                          <span className="text-[#101828] text-[14px] font-bold truncate">{item.name}</span>
+                        )}
+
+                        <div className="flex items-center gap-1.5 mt-1 text-[#667085] text-[11px]">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                          </svg>
+                          <Link
+                            href={`/dashboard/client/entities/${item.entityId}`}
+                            className="text-[#667085] hover:underline"
+                          >
+                            {item.entityName}
+                          </Link>
+                        </div>
+                      </div>
+
+                      {/* Net value in Figma is "Net +$24.2K" or dynamic */}
+                      <span className="text-[#12b76a] text-[14px] font-bold">Net {formatClientCurrency(item.net, { short: true, showPlus: true, decimals: 1 })}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] mt-1">
+                      <span>Value <strong className="text-[#101828]">{formatCurrencyShort(item.marketValue)}</strong></span>
+                      <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                      <span>Income <strong className="text-[#12b76a]">{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
+                      <span>Expenses <strong className="text-[#f04438]">{formatClientCurrency(-item.expense, { short: true })}</strong></span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-          
+
         </div>
-        
+
       </div>
     </Skeleton>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import "./client.css";
 import { useEffect, useState, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMockClientApi } from "./mockApiInterceptor";
