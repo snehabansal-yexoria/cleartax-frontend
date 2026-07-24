@@ -390,26 +390,11 @@ html.dark .border-dashed {
   overflow: hidden;
 }
 
-.entities-portfolio-summary-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 20px;
-  background-color: rgba(0, 0, 0, 0.15);
-  pointer-events: none;
-}
-
 html.dark .entities-portfolio-summary-card {
   background-image: none !important;
   background-color: var(--surface-1) !important;
   border: 1px solid var(--border) !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
-}
-
-html.dark .entities-portfolio-summary-card::before {
-  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* ==========================================================================
@@ -564,9 +549,55 @@ html.dark .skeleton-line,
 html.dark .skeleton-circle,
 html.dark .skeleton-pill,
 html.dark .skeleton-input,
-html.dark .skeleton-panel {
+html.dark .skeleton-panel,
+html.dark .skeleton-tab,
+html.dark .skeleton-card-footer,
+html.dark .skeleton-chart-column span {
   background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-1) 50%, var(--surface-2) 100%) !important;
+  background-size: 200% 100% !important;
 }
+
+html.dark .client-profile-card,
+html.dark .client-stat-card,
+html.dark .client-portfolio-panel,
+html.dark .entity-ownership-card,
+html.dark .entity-page-header,
+html.dark .entity-resource-panel,
+html.dark .entity-trend-card,
+html.dark .property-hero-card,
+html.dark .property-detail-shell,
+html.dark .entity-wizard-card {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .skeleton-card-footer {
+  border-top-color: var(--border) !important;
+}
+
+html.dark .client-portfolio-tabs,
+html.dark .entity-resource-tabs {
+  border-bottom-color: var(--border) !important;
+}
+
+html.dark .skeleton-connector {
+  background: var(--border) !important;
+}
+
+html.dark .skeleton-chart {
+  border-bottom-color: var(--border) !important;
+  background: repeating-linear-gradient(to bottom,
+      transparent 0,
+      transparent 24.5%,
+      var(--border) 25%,
+      transparent 25.5%) !important;
+}
+
+html.dark .skeleton-chart-axis {
+  border-right-color: var(--border) !important;
+}
+
 
 /* ==========================================================================
    PROGRESS BARS & OTHER GENERAL ELEMENTS

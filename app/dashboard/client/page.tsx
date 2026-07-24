@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useId, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ThemeToggle from "@/app/components/ThemeToggle";
-import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
@@ -574,9 +574,9 @@ export default function ClientPage() {
   if (isMobile) {
     return (
       <Skeleton
-        name="client-entities-page"
+        name="client-portfolio-page"
         loading={isLoading}
-        fallback={<ClientEntitiesSkeleton />}
+        fallback={<ClientPortfolioSkeleton />}
       >
         <div className="mobile-client-dashboard">
           {/* Header */}
@@ -1095,9 +1095,9 @@ export default function ClientPage() {
   // Original desktop return
   return (
     <Skeleton
-      name="client-entities-page"
+      name="client-portfolio-page"
       loading={isLoading}
-      fallback={<ClientEntitiesSkeleton />}
+      fallback={<ClientPortfolioSkeleton />}
     >
       <div className="desktop-client-dashboard flex flex-col gap-6 w-full py-6 px-1">
 

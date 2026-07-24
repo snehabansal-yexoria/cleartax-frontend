@@ -201,14 +201,149 @@ export default function ClientPropertyPage() {
       <div 
         className="mobile-client-dashboard" 
         style={{ 
-          background: "#f7f9fc", 
           minHeight: "100vh",
           paddingBottom: isMobile ? "90px" : "40px"
         }}
       >
         <style>{`
-          @media (min-width: 769px) {
-            /* Layout adjustments */
+          /* Baseline styles (Mobile first) */
+          .property-cards-container {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 16px !important;
+            margin-bottom: 24px !important;
+          }
+
+          .m-db-property-list-card {
+            display: flex !important;
+            flex-direction: row !important;
+            padding: 12px !important;
+            gap: 12px !important;
+            border-radius: 16px !important;
+            overflow: hidden !important;
+            height: auto !important;
+            margin-bottom: 0 !important;
+            border: 1px solid #eaeef4 !important;
+            background: #ffffff !important;
+            box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05) !important;
+            transition: all 0.2s ease-in-out !important;
+          }
+
+          .m-db-property-list-card:hover {
+            box-shadow: 0px 4px 6px -2px rgba(16, 24, 40, 0.03), 0px 12px 16px -4px rgba(16, 24, 40, 0.08) !important;
+            transform: translateY(-2px) !important;
+          }
+
+          .m-db-property-img-container {
+            width: 96px !important;
+            height: 96px !important;
+            aspect-ratio: 1 / 1 !important;
+            border-radius: 12px !important;
+            flex-shrink: 0 !important;
+            overflow: hidden !important;
+            background: #f2f4f7 !important;
+          }
+
+          .m-db-property-img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+          }
+
+          .m-db-property-details {
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            flex-grow: 1 !important;
+            gap: 0 !important;
+            justify-content: space-between !important;
+          }
+
+          .m-db-property-name {
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            color: #101828 !important;
+            margin: 0 0 2px 0 !important;
+            line-height: 20px !important;
+          }
+
+          .m-db-property-entity {
+            font-size: 12px !important;
+            color: #667085 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            margin: 0 0 6px 0 !important;
+          }
+
+          .m-db-property-stats-line {
+            display: flex !important;
+            gap: 12px !important;
+            margin: 0 0 8px 0 !important;
+            font-size: 12px !important;
+            color: #475467 !important;
+            font-weight: 400 !important;
+          }
+
+          .m-db-property-stat-label {
+            color: #667085 !important;
+          }
+
+          .m-db-property-stat-value {
+            font-weight: 600 !important;
+          }
+
+          .m-db-property-stat-value.income {
+            color: #027a48 !important;
+          }
+
+          .m-db-property-stat-value.expense {
+            color: #344054 !important;
+          }
+
+          .m-db-property-bottom-line {
+            margin-top: 0 !important;
+            border-top: none !important;
+            padding-top: 0 !important;
+            display: flex !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
+            gap: 12px !important;
+          }
+
+          .m-db-property-badge {
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            padding: 4px 8px !important;
+            border-radius: 8px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            line-height: 14px !important;
+            max-width: 90px !important;
+          }
+
+          .m-db-property-net {
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            color: #027a48 !important;
+          }
+
+          .m-db-portfolio-value.green-text {
+            color: #027a48 !important;
+          }
+
+          /* Mobile-specific badge color override */
+          @media (max-width: 767px) {
+            .m-db-property-badge {
+              background: #d1fadf !important;
+              color: #027a48 !important;
+            }
+          }
+
+          /* Tablet & Desktop overrides */
+          @media (min-width: 768px) {
             .mobile-client-dashboard {
               padding: 40px 48px 48px 48px !important;
             }
@@ -244,82 +379,114 @@ export default function ClientPropertyPage() {
               margin-top: 8px !important;
             }
             
-            /* Cards Grid layout */
             .property-cards-container {
               display: grid !important;
-              grid-template-columns: repeat(2, 1fr) !important; /* Default for tablet */
+              grid-template-columns: repeat(2, 1fr) !important;
               gap: 24px !important;
             }
-            
-            /* Media query for desktop screens (3 columns) */
-            @media (min-width: 1025px) {
-              .property-cards-container {
-                grid-template-columns: repeat(3, 1fr) !important;
-                gap: 32px !important;
-              }
-            }
 
-            /* Property card desktop style */
             .m-db-property-list-card {
               display: flex !important;
               flex-direction: column !important;
               padding: 0 !important;
               gap: 0 !important;
-              border-radius: 16px !important;
+              border-radius: 12px !important;
               overflow: hidden !important;
               height: 100% !important;
               margin-bottom: 0 !important;
               border: 1px solid #eaeef4 !important;
               background: #ffffff !important;
-              box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01) !important;
+              box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05) !important;
             }
+
             .m-db-property-img-container {
               width: 100% !important;
               height: auto !important;
-              aspect-ratio: 16 / 10 !important;
+              aspect-ratio: 16 / 9 !important;
               border-radius: 0 !important;
-              flex-shrink: 0 !important;
             }
+
             .m-db-property-details {
-              padding: 24px !important;
+              padding: 20px !important;
               display: flex !important;
               flex-direction: column !important;
-              justify-content: space-between !important;
               flex-grow: 1 !important;
-              gap: 12px !important;
+              gap: 0 !important;
+              justify-content: flex-start !important;
             }
+
             .m-db-property-name {
               font-size: 18px !important;
-              font-weight: 700 !important;
-              color: #101828 !important;
+              font-weight: 600 !important;
+              color: #1d2939 !important;
+              margin: 0 0 6px 0 !important;
+              line-height: 28px !important;
             }
+
             .m-db-property-entity {
-              margin-top: 4px !important;
               font-size: 14px !important;
-            }
-            .m-db-property-stats-line {
-              margin-top: 8px !important;
-              font-size: 14px !important;
+              color: #667085 !important;
               display: flex !important;
-              gap: 24px !important; /* Increased gap for better spacing */
+              align-items: center !important;
+              gap: 6px !important;
+              margin: 0 0 16px 0 !important;
             }
+
+            .m-db-property-stats-line {
+              display: flex !important;
+              gap: 16px !important;
+              margin: 0 0 16px 0 !important;
+              font-size: 14px !important;
+              color: #475467 !important;
+              font-weight: 400 !important;
+            }
+
+            .m-db-property-stat-label {
+              color: #475467 !important;
+            }
+
+            .m-db-property-stat-value {
+              font-weight: 600 !important;
+            }
+
             .m-db-property-stat-value.expense {
-              color: #f04438 !important; /* Red for negative expenses as per Figma */
+              color: #d92d20 !important;
             }
+
             .m-db-property-bottom-line {
-              margin-top: 16px !important;
-              border-top: 1px solid #eaeef4 !important;
+              margin-top: auto !important;
+              border-top: 1px solid #f2f4f7 !important;
               padding-top: 16px !important;
               display: flex !important;
               justify-content: space-between !important;
               align-items: center !important;
+              gap: 0 !important;
             }
+
             .m-db-property-badge {
               font-size: 13px !important;
-              padding: 6px 12px !important;
+              font-weight: 500 !important;
+              padding: 4px 10px !important;
+              border-radius: 16px !important;
+              display: inline-flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              text-align: initial !important;
+              line-height: initial !important;
+              max-width: initial !important;
             }
+
             .m-db-property-net {
-              font-size: 16px !important;
+              font-size: 15px !important;
+              font-weight: 500 !important;
+              color: #027a48 !important;
+            }
+          }
+
+          @media (min-width: 1025px) {
+            .property-cards-container {
+              grid-template-columns: repeat(3, 1fr) !important;
+              gap: 32px !important;
             }
           }
         `}</style>
@@ -370,7 +537,7 @@ export default function ClientPropertyPage() {
             </div>
             <input 
               type="text"
-              placeholder="Search properties"
+              placeholder="Search Transactions"
               value={propertySearchQuery}
               onChange={(e) => setPropertySearchQuery(e.target.value)}
               style={{
@@ -455,7 +622,7 @@ export default function ClientPropertyPage() {
               return (
                 <div 
                   key={`${prop.id}-${idx}`} 
-                  className="m-db-property-list-card cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                  className="m-db-property-list-card cursor-pointer"
                   onClick={() => router.push(`/dashboard/client/properties/${prop.id}`)}
                 >
                   <div className="m-db-property-img-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -476,8 +643,8 @@ export default function ClientPropertyPage() {
                   </div>
                   <div className="m-db-property-details">
                     <h3 className="m-db-property-name">{prop.name}</h3>
-                    <div className="m-db-property-entity" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '13px' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px", color: "#667085" }}>
+                    <div className="m-db-property-entity">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px", color: "#98a2b3" }}>
                         <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                       </svg>
@@ -510,7 +677,7 @@ export default function ClientPropertyPage() {
                         {prop.status}
                       </span>
                       <span className="m-db-property-net">
-                        Net {formatClientCurrency(prop.net, { short: true, showPlus: true })}
+                        Net <span style={{ fontWeight: 700 }}>{formatClientCurrency(prop.net, { short: true, showPlus: true })}</span>
                       </span>
                     </div>
                   </div>

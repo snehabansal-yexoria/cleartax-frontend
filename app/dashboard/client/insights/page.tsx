@@ -1257,7 +1257,7 @@ export default function ClientInsightsPage() {
             display: grid;
             gap: 24px;
           }
-          @media (min-width: 1025px) {
+          @media (min-width: 1024px) {
             .insights-grid {
               grid-template-columns: 1fr 1.25fr;
               grid-template-areas:
@@ -1265,7 +1265,7 @@ export default function ClientInsightsPage() {
                 "expense-breakdown top-performing";
             }
           }
-          @media (min-width: 769px) and (max-width: 1024px) {
+          @media (min-width: 768px) and (max-width: 1023px) {
             .insights-grid {
               grid-template-columns: 1fr 1fr;
               grid-template-areas:

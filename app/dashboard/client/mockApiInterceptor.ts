@@ -85,6 +85,9 @@ interface Transaction {
   clientShareGross: number | null;
   clientShareGst: number | null;
   clientShareNet: number | null;
+  documentId?: string | null;
+  documentFileName?: string | null;
+  metadata?: Record<string, any> | null;
 }
 
 interface Rule {
@@ -352,6 +355,9 @@ function getInitialDB(): MockDB {
       clientShareGross: t.clientShareGross ?? t.grossAmount,
       clientShareGst: t.clientShareGst ?? 0,
       clientShareNet: t.clientShareNet ?? t.netAmount,
+      documentId: t.documentId || t.metadata?.document_id || null,
+      documentFileName: t.documentFileName || t.metadata?.document_name || t.metadata?.invoice_name || null,
+      metadata: t.metadata || {},
     };
   };
 
@@ -910,34 +916,80 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
         
       const ent = db.entities.find((e) => e.id === entityId);
       
-      const newTx: Transaction = {
-        id: `tx-${Date.now()}`,
-        type: body.type || "expense",
-        categoryId: Number(body.categoryId || 11),
-        categoryName: body.categoryName || "Loan interest",
-        subcategoryId: Number(body.subcategoryId || 1101),
-        subcategoryName: body.subcategoryName || "Monthly CBA Interest",
-        invoiceDate: body.invoiceDate || new Date().toISOString().split("T")[0],
-        grossAmount: Number(body.grossAmount || 0),
-        gstAmount: Number(body.gstAmount || 0),
-        netAmount: Number(body.netAmount || body.grossAmount || 0),
-        description: body.description || "Manual Transaction",
-        internalRemarks: body.internalRemarks || null,
-        isAssetPurchase: Boolean(body.isAssetPurchase),
-        assetClass: body.assetClass || null,
-        effectiveLifeYears: body.effectiveLifeYears || null,
-        ruleId: body.ruleId || null,
-        reviewStatus: body.reviewStatus || "unreviewed",
-        clientId: "demo-client",
-        clientName: db.user.fullName,
-        entityId: entityId,
-        entityName: ent ? ent.name : "Individual",
-        propertyIds: body.propertyIds || [],
-        propertyNames: body.propertyNames || [],
-        clientShareGross: Number(body.grossAmount || 0),
-        clientShareGst: Number(body.gstAmount || 0),
-        clientShareNet: Number(body.netAmount || body.grossAmount || 0),
-      };
+      const newTx: Transaction = (() => {
+        const type = body.type || "expense";
+        
+        const categoryId = Number(body.category_id || body.categoryId || (type === "revenue" ? 1 : 11));
+        const categoryObj = [...categories.revenue, ...categories.expense].find((c) => c.id === categoryId);
+        const categoryName = categoryObj ? categoryObj.name : (type === "revenue" ? "Rental Income" : "Loan interest");
+        
+        const subcategoryId = Number(body.subcategory_id || body.subcategoryId || (categoryId === 1 ? 101 : 1101));
+        const subcategoryObj = subcategories[categoryId]?.find((s) => s.id === subcategoryId);
+        const subcategoryName = subcategoryObj ? subcategoryObj.name : "General";
+
+        const invoiceDate = body.invoice_date || body.invoiceDate || new Date().toISOString().split("T")[0];
+        const grossAmount = Number(body.gross_amount ?? body.grossAmount ?? 0);
+        const gstAmount = Number(body.gst_amount ?? body.gstAmount ?? 0);
+        const netAmount = Number(body.net_amount ?? body.netAmount ?? (grossAmount - gstAmount));
+        const description = body.description || "Manual Transaction";
+        const internalRemarks = body.internal_remarks || body.internalRemarks || null;
+        const isAssetPurchase = Boolean(body.is_asset_purchase || body.isAssetPurchase);
+        const assetClass = body.asset_class || body.assetClass || null;
+        const effectiveLifeYears = body.effective_life_years != null ? Number(body.effective_life_years) : (body.effectiveLifeYears != null ? Number(body.effectiveLifeYears) : null);
+        const ruleId = body.rule_id || body.ruleId || null;
+        const reviewStatus = body.review_status || body.reviewStatus || "unreviewed";
+
+        // Extract properties from splits or propertyIds
+        let propertyIds: string[] = [];
+        if (body.splits && Array.isArray(body.splits)) {
+          propertyIds = body.splits.map((s: any) => s.property_id).filter(Boolean);
+        } else if (body.propertyIds && Array.isArray(body.propertyIds)) {
+          propertyIds = body.propertyIds;
+        } else if (body.propertyId) {
+          propertyIds = [body.propertyId];
+        }
+        
+        const propertyNames = propertyIds.map((pId) => {
+          const prop = db.properties.find((p) => p.id === pId);
+          return prop ? prop.name : "Property";
+        });
+
+        const documentId = body.document_id || body.documentId || null;
+        const docObj = documentId ? (db.documents || []).find((d: any) => d.id === documentId) : null;
+        const documentFileName = docObj ? docObj.file_name : (body.document_file_name || body.documentFileName || null);
+
+        return {
+          id: `tx-${Date.now()}`,
+          type,
+          categoryId,
+          categoryName,
+          subcategoryId,
+          subcategoryName,
+          invoiceDate,
+          grossAmount,
+          gstAmount,
+          netAmount,
+          description,
+          internalRemarks,
+          isAssetPurchase,
+          assetClass,
+          effectiveLifeYears,
+          ruleId,
+          reviewStatus,
+          clientId: "demo-client",
+          clientName: db.user.fullName,
+          entityId,
+          entityName: ent ? ent.name : "Individual",
+          propertyIds,
+          propertyNames,
+          clientShareGross: Number(body.client_share_gross ?? body.clientShareGross ?? grossAmount),
+          clientShareGst: Number(body.client_share_gst ?? body.clientShareGst ?? gstAmount),
+          clientShareNet: Number(body.client_share_net ?? body.clientShareNet ?? netAmount),
+          documentId,
+          documentFileName,
+          metadata: body.metadata || {},
+        };
+      })();
 
       db.transactions.push(newTx);
       writeDB(db);
