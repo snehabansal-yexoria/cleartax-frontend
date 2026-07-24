@@ -779,7 +779,7 @@ export default function AccountantReconciliationSessionPage() {
           internal_remarks: null,
           review_status: "reviewed",
           is_asset_purchase: false,
-          metadata: {},
+          metadata: { source: "reconciliation_categorized" },
           splits: [{ property_id: categorizePropertyId, split_percentage: 100, split_gross_amount: grossAmount }],
         }),
       });
@@ -933,14 +933,26 @@ export default function AccountantReconciliationSessionPage() {
         }
       }
 
-      if (filter === "matched" && !candidateMatches.has(key)) return false;
-      if (filter === "categorized" && candidateMatches.has(key)) return false;
+      const matchedTx = isConfirmed && match?.transactionId
+        ? entityTxs.find((t) => t.id === match.transactionId) ?? null
+        : null;
+
+      const isCategorized = isConfirmed
+        ? (matchedTx ? (matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true) : !candidateMatches.has(key))
+        : !candidateMatches.has(key);
+
+      const isMatched = isConfirmed
+        ? (matchedTx ? !(matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true) : candidateMatches.has(key))
+        : candidateMatches.has(key);
+
+      if (filter === "matched" && !isMatched) return false;
+      if (filter === "categorized" && !isCategorized) return false;
 
       if (activeTab === "unreviewed") {
         if (isResolved) {
-          if (filter === "matched" && isConfirmed) {
+          if (filter === "matched" && isConfirmed && isMatched) {
             // keep
-          } else if (filter === "categorized" && isConfirmed) {
+          } else if (filter === "categorized" && isConfirmed && isCategorized) {
             // keep
           } else {
             return false;
@@ -1322,12 +1334,23 @@ export default function AccountantReconciliationSessionPage() {
 
             const categoryDisplay = entityTxsLoading ? (
               <span className="recon-shimmer" />
-            ) : isConfirmed && matchedTx ? (
-              <>
-                <strong>{matchedTx.categoryName}</strong>
-                {matchedTx.subcategoryName && <small>{matchedTx.subcategoryName}</small>}
-                <em>Matched</em>
-              </>
+            ) : isConfirmed ? (
+              matchedTx ? (
+                <>
+                  <strong>{matchedTx.categoryName}</strong>
+                  {matchedTx.subcategoryName && <small>{matchedTx.subcategoryName}</small>}
+                  <em>
+                    {matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true
+                      ? "Categorized"
+                      : "Matched"}
+                  </em>
+                </>
+              ) : (
+                <>
+                  <strong>Reconciled</strong>
+                  <em>{!hasCandidates ? "Categorized" : "Matched"}</em>
+                </>
+              )
             ) : isExcluded ? (
               <>
                 <strong>Excluded</strong>
