@@ -10,6 +10,7 @@ import {
   isDropdownRegistryEvent,
 } from "../../../../src/lib/dropdownRegistry";
 import { SHOW_INVITE_CREDENTIALS } from "../../../../src/lib/appConfig";
+import { PhoneInput, validatePhone } from "../../../components/PhoneInput";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -534,9 +535,44 @@ function AccountantClientsContent() {
 
   async function handleInviteClient() {
     try {
-      setInviteLoading(true);
       setInviteError("");
 
+      const fullName = inviteForm.fullName.trim();
+      const email = inviteForm.email.trim();
+      const phone = inviteForm.phoneNumber.trim();
+
+      if (!fullName) {
+        setInviteError("Full Name is required.");
+        return;
+      }
+      if (fullName.length < 2) {
+        setInviteError("Full Name must be at least 2 characters.");
+        return;
+      }
+      if (!/^[a-zA-Z\s'-]+$/.test(fullName)) {
+        setInviteError("Full Name can only contain letters, spaces, hyphens, and apostrophes.");
+        return;
+      }
+
+      if (!email) {
+        setInviteError("Email Address is required.");
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setInviteError("Please enter a valid email address.");
+        return;
+      }
+
+      if (phone) {
+        const phoneValidation = validatePhone(phone);
+        if (!phoneValidation.isValid) {
+          setInviteError(phoneValidation.error || "Please enter a valid phone number.");
+          return;
+        }
+      }
+
+      setInviteLoading(true);
       const session = (await getSession()) as SessionWithIdToken | null;
 
       if (!session) {
@@ -552,10 +588,10 @@ function AccountantClientsContent() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          email: inviteForm.email,
+          email: email,
           role: "client",
-          full_name: inviteForm.fullName,
-          phone_number: inviteForm.phoneNumber,
+          full_name: fullName,
+          phone_number: phone,
         }),
       });
 
@@ -571,7 +607,7 @@ function AccountantClientsContent() {
         buildInviteLink({
           origin: window.location.origin,
           token: String(data.invitationToken || ""),
-          email: String(data.email || inviteForm.email),
+          email: String(data.email || email),
           role: String(data.role || "client"),
           temporaryPassword: String(data.temporaryPassword || ""),
         }),
@@ -848,16 +884,16 @@ function AccountantClientsContent() {
               {searchValue.trim()
                 ? "No clients match your search"
                 : currentTab === "mine"
-                ? "No clients assigned yet"
-                : "Your client list is empty"}
+                  ? "No clients assigned yet"
+                  : "Your client list is empty"}
             </h3>
 
             <p className="text-sm text-[#667085] max-w-[420px] leading-relaxed mb-6">
               {searchValue.trim()
                 ? `We couldn't find any clients matching "${searchValue}". Check the spelling or try searching for a different term.`
                 : currentTab === "mine"
-                ? "You haven't assigned any clients to yourself yet. Add existing clients to your list or invite a new client to get started."
-                : "Get started by inviting your first client to manage and view their property portfolios."}
+                  ? "You haven't assigned any clients to yourself yet. Add existing clients to your list or invite a new client to get started."
+                  : "Get started by inviting your first client to manage and view their property portfolios."}
             </p>
 
             <div className="flex items-center gap-3">
@@ -1392,9 +1428,8 @@ function AccountantClientsContent() {
           {showTransferConfirm && (
             <ConfirmationDialog
               title="Transfer Client"
-              message={`Are you sure you want to transfer ${transferClient?.name} to ${
-                accountants?.find((a) => a.id === transferToAccountantId)?.name ?? "the selected accountant"
-              }? This reassigns ownership of the client.`}
+              message={`Are you sure you want to transfer ${transferClient?.name} to ${accountants?.find((a) => a.id === transferToAccountantId)?.name ?? "the selected accountant"
+                }? This reassigns ownership of the client.`}
               confirmLabel="Yes, Transfer"
               cancelLabel="No, Cancel"
               onConfirm={() => {
@@ -1417,7 +1452,16 @@ function AccountantClientsContent() {
             onClick={resetInviteState}
           />
 
-          <aside className="accountant-invite-drawer">
+          <form
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!inviteLoading) {
+                void handleInviteClient();
+              }
+            }}
+            className="accountant-invite-drawer z-90"
+          >
             <div className="accountant-invite-drawer-header">
               <div>
                 <h2>Invite New Client</h2>
@@ -1507,8 +1551,13 @@ function AccountantClientsContent() {
                   </span>
                   <input
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     placeholder="Enter client's full name"
                     value={inviteForm.fullName}
+                    style={{
+                      borderColor: inviteError && inviteError.toLowerCase().includes("name") ? "#fda29b" : undefined,
+                    }}
                     onChange={(event) => {
                       setInviteError("");
                       setInviteForm((current) => ({
@@ -1532,8 +1581,13 @@ function AccountantClientsContent() {
                   <input
                     ref={emailInputRef}
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     placeholder="client@example.com"
                     value={inviteForm.email}
+                    style={{
+                      borderColor: inviteError && inviteError.toLowerCase().includes("email") ? "#fda29b" : undefined,
+                    }}
                     onChange={(event) => {
                       setInviteError("");
                       setInviteForm((current) => ({
@@ -1554,26 +1608,21 @@ function AccountantClientsContent() {
                   <span>
                     Phone Number <small>(Optional)</small>
                   </span>
-                  <input
-                    ref={phoneInputRef}
-                    type="tel"
-                    placeholder="+61 2 9342 5678"
+                  <PhoneInput
+                    inputRef={phoneInputRef}
                     value={inviteForm.phoneNumber}
-                    onChange={(event) => {
+                    error={!!(inviteError && (inviteError.toLowerCase().includes("phone") || inviteError.toLowerCase().includes("number")))}
+                    onChange={(val) => {
                       setInviteError("");
                       setInviteForm((current) => ({
                         ...current,
-                        phoneNumber: event.target.value,
+                        phoneNumber: val,
                       }));
                     }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         event.preventDefault();
-                        if (
-                          !inviteLoading &&
-                          inviteForm.fullName.trim() &&
-                          inviteForm.email.trim()
-                        ) {
+                        if (!inviteLoading) {
                           void handleInviteClient();
                         }
                       }
@@ -1597,20 +1646,15 @@ function AccountantClientsContent() {
               </button>
               {!inviteSuccess && (
                 <button
-                  type="button"
+                  type="submit"
                   className="is-primary"
-                  onClick={handleInviteClient}
-                  disabled={
-                    inviteLoading ||
-                    !inviteForm.fullName.trim() ||
-                    !inviteForm.email.trim()
-                  }
+                  disabled={inviteLoading}
                 >
                   {inviteLoading ? "Sending..." : "Send Invitation"}
                 </button>
               )}
             </div>
-          </aside>
+          </form>
         </div>
       )}
     </section>
