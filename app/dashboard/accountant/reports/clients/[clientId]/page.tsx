@@ -277,8 +277,8 @@ export default function ClientProfileReport({ params }: PageProps) {
 
         {clientTimeline.length > 0 ? (
           <div className="relative border-l border-slate-100 ml-4 space-y-6">
-            {clientTimeline.map((event) => (
-              <TimelineEventItem key={event.id} event={event} />
+            {clientTimeline.map((event, idx) => (
+              <TimelineEventItem key={`${event.id}-${idx}`} event={event} />
             ))}
           </div>
         ) : (

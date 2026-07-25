@@ -16348,3 +16348,280 @@ input:checked+.slider:before {
 .property-page-rules-container .property-rules-create-button:active {
   transform: translateY(1px);
 }
+
+/* ==========================================================================
+   TABLET RESPONSIVE CLIENT LEFT DRAWER NAVIGATION
+   ========================================================================== */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Make sure the mobile nav layer is visible on tablet client view */
+  .accountant-mobile-nav-layer.client-tablet-drawer-layer {
+    display: block !important;
+  }
+
+  /* Position the sheet on the left and full height */
+  .accountant-mobile-nav-sheet.client-tablet-drawer-sheet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: auto;
+    width: 320px;
+    height: 100vh;
+    border-radius: 0; /* Full height side-drawer */
+    background: #1e2654; /* Premium deep blue */
+    box-shadow: 25px 0 60px rgba(11, 18, 46, 0.35);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    animation: clientTabletDrawerSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    border: none !important; /* Remove any border */
+    z-index: 9999;
+  }
+
+  /* Header area matching screenshot */
+  .client-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .client-drawer-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .client-drawer-logo-box {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1e2654;
+    box-shadow: 0 4px 12px rgba(247, 166, 26, 0.25);
+  }
+
+  .client-drawer-logo-box svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .client-drawer-brand strong {
+    color: #ffd36f; /* Orange/gold branding text color */
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .client-drawer-close-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .client-drawer-close-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+  }
+
+  .client-drawer-close-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Body container inside drawer */
+  .client-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 24px 0;
+  }
+
+  .client-drawer-body::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Section Title (e.g. MAIN, ACTIONS) */
+  .client-drawer-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.38);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+
+  .client-drawer-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Custom drawer navigation items */
+  .client-drawer-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.72);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .client-drawer-nav-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+  }
+
+  .client-drawer-nav-item.is-active {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+  }
+
+  .client-drawer-nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.65);
+    transition: color 0.2s;
+  }
+
+  .client-drawer-nav-item.is-active .client-drawer-nav-icon {
+    color: #ffffff;
+  }
+
+  .client-drawer-nav-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Specific background circles for Action Icons in actions list */
+  .client-drawer-nav-icon.action-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .client-drawer-nav-icon.action-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .client-drawer-nav-item:hover .client-drawer-nav-icon.action-icon {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .client-drawer-nav-item.is-active .client-drawer-nav-icon.action-icon {
+    background: #ffffff;
+    color: #1e2654;
+  }
+
+  .client-drawer-nav-label {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* Footer profile box matching the screenshot */
+  .client-drawer-footer {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .client-drawer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .client-drawer-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .client-drawer-user-role {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .client-drawer-user-email {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Animations for left drawer */
+@keyframes clientTabletDrawerSlideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes clientTabletFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

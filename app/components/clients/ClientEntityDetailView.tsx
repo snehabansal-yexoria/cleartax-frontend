@@ -803,35 +803,51 @@ export default function ClientEntityDetailView({
                 No documents uploaded yet. Click Upload to add a PDF/Image document.
               </div>
             ) : (
-              <div className="client-documents-horizontal-list">
-                {documents.slice(0, 3).map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="client-entity-doc-card"
-                    onClick={() => {
-                      fetch(`/api/documents/${encodeURIComponent(doc.id)}/download`, {
-                        headers: { Authorization: `Bearer ${sessionToken}` }
-                      })
-                        .then(res => res.json())
-                        .then(data => window.open(data.download_url, "_blank"))
-                        .catch(() => { });
-                    }}
-                  >
-                    <div className="client-entity-doc-info">
-                      <div className="client-entity-doc-icon-box">
-                        <DocFileIcon />
-                      </div>
-                      <div>
-                        <p className="client-entity-doc-name">{doc.original_file_name || doc.file_name}</p>
-                        <p className="client-entity-doc-meta">Uploaded {formatDocDate(doc.created_at)}</p>
-                      </div>
-                    </div>
+              <div className="flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:gap-0 lg:border-b lg:border-slate-200 lg:dark:border-slate-800/80 lg:pb-4 lg:mb-2">
+                {(() => {
+                  const slicedDocs = documents.slice(0, 3);
+                  return slicedDocs.map((doc, idx) => {
+                    const isFirst = idx === 0;
+                    const isLast = idx === slicedDocs.length - 1;
+                    return (
+                      <div
+                        key={doc.id}
+                        className={`flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1b2050]/40 cursor-pointer transition-all duration-200
+                          hover:bg-slate-50 dark:hover:bg-[#202860]/40 hover:border-slate-300 dark:hover:border-slate-700
+                          
+                          lg:relative lg:bg-transparent lg:dark:bg-transparent lg:border-none lg:rounded-none lg:shadow-none lg:py-3 lg:px-5
+                          lg:hover:bg-slate-50 lg:dark:hover:bg-slate-800/40 lg:hover:rounded-xl lg:hover:border-none
+                          
+                          ${isFirst ? "lg:pl-2" : ""}
+                          ${isLast ? "lg:pr-2" : ""}
+                          ${!isLast ? "lg:after:content-[''] lg:after:absolute lg:after:right-0 lg:after:top-3 lg:after:bottom-3 lg:after:w-[1px] lg:after:bg-slate-200 lg:dark:after:bg-slate-800/80" : ""}
+                        `}
+                        onClick={() => {
+                          fetch(`/api/documents/${encodeURIComponent(doc.id)}/download`, {
+                            headers: { Authorization: `Bearer ${sessionToken}` }
+                          })
+                            .then(res => res.json())
+                            .then(data => window.open(data.download_url, "_blank"))
+                            .catch(() => { });
+                        }}
+                      >
+                        <div className="client-entity-doc-info">
+                          <div className="client-entity-doc-icon-box">
+                            <DocFileIcon />
+                          </div>
+                          <div>
+                            <p className="client-entity-doc-name">{doc.original_file_name || doc.file_name}</p>
+                            <p className="client-entity-doc-meta">Uploaded {formatDocDate(doc.created_at)}</p>
+                          </div>
+                        </div>
 
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#98a2b3" }}>
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </div>
-                ))}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#98a2b3" }}>
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>

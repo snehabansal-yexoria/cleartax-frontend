@@ -7,12 +7,11 @@ import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
   EntityPropertyListSkeleton,
-  TrendSkeleton,
 } from "@/app/components/PortalSkeletons";
+import ProfitLossTrendCard from "@/app/components/ProfitLossTrendCard";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
@@ -85,22 +84,7 @@ function appendQueryParam(href: string, key: string, value: string) {
   return `${href}${separator}${key}=${encodeURIComponent(value)}`;
 }
 
-function formatCurrency(value: number) {
-  return globalFormatCurrency(value, { decimals: 0 });
-}
 
-function monthKey(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  const date = new Date(year, month - 1, 1);
-  if (Number.isNaN(date.getTime())) return key;
-  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-}
 
 // Removed static AVAILABLE_MANAGERS. Now loaded dynamically from API.
 
@@ -300,7 +284,6 @@ export default function EntityDetailView({
   const [newSessionSaving, setNewSessionSaving] = useState(false);
   const [newSessionError, setNewSessionError] = useState<string | null>(null);
   const [labelError, setLabelError] = useState<string | null>(null);
-  const [trendView, setTrendView] = useState<"graph" | "table">("graph");
   const [selectedRmId, setSelectedRmId] = useState<string>("");
   const [availableManagers, setAvailableManagers] = useState<any[]>([]);
   const [rmError, setRmError] = useState<string | null>(null);
@@ -527,40 +510,7 @@ export default function EntityDetailView({
     return `${entity.beneficiaries.length} shareholders`;
   }, [entity]);
 
-  const trendRows = useMemo(() => {
-    const byMonth = new Map<string, { month: string; expenses: number; income: number }>();
-    for (const row of transactions) {
-      const key = monthKey(row.invoiceDate);
-      if (!key) continue;
-      const current = byMonth.get(key) || {
-        month: key,
-        expenses: 0,
-        income: 0,
-      };
-      const amount = Math.abs(row.grossAmount || 0);
-      if (row.type === "revenue") current.income += amount;
-      else current.expenses += amount;
-      byMonth.set(key, current);
-    }
-    return Array.from(byMonth.values())
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-7);
-  }, [transactions]);
-  const maxTrendAmount = Math.max(
-    1,
-    ...trendRows.flatMap((row) => [row.expenses, row.income]),
-  );
-  const trendTotals = useMemo(() => {
-    return trendRows.reduce(
-      (acc, row) => {
-        acc.income += row.income;
-        acc.expenses += row.expenses;
-        return acc;
-      },
-      { income: 0, expenses: 0 },
-    );
-  }, [trendRows]);
-  const trendNetTotal = trendTotals.income - trendTotals.expenses;
+
 
   if (isEntityLoading) {
     return (
@@ -646,139 +596,10 @@ export default function EntityDetailView({
         </div>
       )}
 
-      {isTransactionsLoading ? (
-        <TrendSkeleton />
-      ) : (
-        <section className="entity-trend-card" aria-label="Profit and loss trend">
-          <div className="entity-trend-head">
-            <h2>Profit & Loss Trend</h2>
-            <div className="entity-trend-toggle">
-              <span
-                className={trendView === "graph" ? "is-active" : ""}
-                onClick={() => setTrendView("graph")}
-              >
-                <svg viewBox="0 0 24 24">
-                  <path d="M4 19V5" />
-                  <path d="M4 19h16" />
-                  <path d="M8 17V9" />
-                  <path d="M13 17V6" />
-                  <path d="M18 17v-5" />
-                </svg>
-                Graph View
-              </span>
-              <span
-                className={trendView === "table" ? "is-active" : ""}
-                onClick={() => setTrendView("table")}
-              >
-                <svg viewBox="0 0 24 24">
-                  <rect x="4" y="5" width="16" height="14" rx="1" />
-                  <path d="M4 10h16" />
-                  <path d="M4 15h16" />
-                  <path d="M10 5v14" />
-                </svg>
-                Table View
-              </span>
-            </div>
-          </div>
-
-          {trendRows.length === 0 ? (
-            <div className="property-trend-empty">
-              No transactions are available for this entity yet.
-            </div>
-          ) : trendView === "graph" ? (
-            <>
-              <div className="entity-chart">
-                <div className="entity-chart-y">
-                  <span>{formatCurrency(maxTrendAmount)}</span>
-                  <span>{formatCurrency(maxTrendAmount * 0.75)}</span>
-                  <span>{formatCurrency(maxTrendAmount * 0.5)}</span>
-                  <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
-                  <span>{formatCurrency(0)}</span>
-                </div>
-                <div className="entity-chart-plot">
-                  {trendRows.map((item) => (
-                    <div key={item.month} className="entity-chart-month">
-                      <div className="entity-chart-bars">
-                        <span
-                          className="is-expense"
-                          style={{
-                            height: `${Math.max(
-                              3,
-                              (item.expenses / maxTrendAmount) * 100,
-                            )}%`,
-                          }}
-                        />
-                        <span
-                          className="is-income"
-                          style={{
-                            height: `${Math.max(
-                              3,
-                              (item.income / maxTrendAmount) * 100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                      <span>{monthLabel(item.month)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="entity-chart-legend">
-                <span>
-                  <i className="is-expense" />
-                  Expenses
-                </span>
-                <span>
-                  <i className="is-income" />
-                  Income
-                </span>
-              </div>
-            </>
-          ) : (
-            <div className="property-trend-table-full">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Month</th>
-                    <th>Income</th>
-                    <th>Expenses</th>
-                    <th>Net Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trendRows.map((item) => {
-                    const net = item.income - item.expenses;
-                    const isPositive = net >= 0;
-                    return (
-                      <tr key={item.month}>
-                        <td>{monthLabel(item.month)}</td>
-                        <td className="income-col">
-                          <span className="dot">●</span> {formatCurrency(item.income)}
-                        </td>
-                        <td className="expense-col">
-                          <span className="dot">●</span> {formatCurrency(item.expenses)}
-                        </td>
-                        <td className={isPositive ? "income-col" : "expense-col"}>
-                          {isPositive ? "+" : "-"}{formatCurrency(Math.abs(net))}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="total-row">
-                    <td>Total</td>
-                    <td>{formatCurrency(trendTotals.income)}</td>
-                    <td>{formatCurrency(trendTotals.expenses)}</td>
-                    <td className={trendNetTotal >= 0 ? "income-col" : "expense-col"}>
-                      {trendNetTotal >= 0 ? "+" : "-"}{formatCurrency(Math.abs(trendNetTotal))}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
+      <ProfitLossTrendCard
+        transactions={transactions}
+        isLoading={isTransactionsLoading}
+      />
 
       {/* Regional Manager Section */}
       <section className="entity-trend-card entity-rm-card" aria-label="Regional Manager" style={{ padding: "24px 34px 28px" }}>

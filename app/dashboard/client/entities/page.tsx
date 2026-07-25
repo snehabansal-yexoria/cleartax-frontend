@@ -174,7 +174,7 @@ function StaticSelect({
 
 function EntityTypeIcon({ type }: { type?: string }) {
   const typeLower = type?.toLowerCase() || "";
-  
+
   const iconContainerStyles = {
     display: "flex",
     alignItems: "center",
@@ -298,7 +298,7 @@ export default function ClientEntitiesPage() {
   const entityListItems = entities.map((entity) => {
     const entityProperties = properties.filter((p) => p.entityId === entity.id);
     const mValue = entityProperties.reduce((sum, p) => sum + (p.estimatedMarketValue || 0), 0);
-    
+
     let typeLabel = titleCase(entity.entityType);
     if (entity.entityType?.toLowerCase() === "trust") {
       typeLabel = "Discretionary Trust";
@@ -342,10 +342,9 @@ export default function ClientEntitiesPage() {
         loading={isLoading}
         fallback={<ClientEntitiesSkeleton />}
       >
-        <div 
-          className="mobile-client-dashboard" 
-          style={{ 
-            background: "#f7f9fc", 
+        <div
+          className="mobile-client-dashboard"
+          style={{
             minHeight: "100vh",
             paddingBottom: "90px"
           }}
@@ -433,9 +432,9 @@ export default function ClientEntitiesPage() {
               margin-top: 4px;
             }
           `}</style>
-          
+
           {/* Header */}
-          <div 
+          <div
             className="m-db-subpage-header"
             style={{
               display: "flex",
@@ -448,8 +447,8 @@ export default function ClientEntitiesPage() {
             }}
           >
             <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#101828", margin: 0 }}>Entities</h1>
-            <Link 
-              href="/dashboard/client/entities/new" 
+            <Link
+              href="/dashboard/client/entities/new"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -471,7 +470,7 @@ export default function ClientEntitiesPage() {
           {/* Content Area */}
           <div style={{ padding: "0 16px" }}>
             {/* Blue Summary Card (Total Under Management) */}
-            <div className="entities-portfolio-summary-card relative w-full rounded-[20px] text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 pt-5 pb-5 pr-6 pl-11">
+            <div className="entities-portfolio-summary-card relative w-full rounded-[20px] text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 py-5 px-6">
               <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, letterSpacing: "0.5px" }}>
                 Total Under Management
               </div>
@@ -494,8 +493,8 @@ export default function ClientEntitiesPage() {
                 </div>
               ) : (
                 entityListItems.map((item) => (
-                  <Link 
-                    key={item.id} 
+                  <Link
+                    key={item.id}
                     href={`/dashboard/client/entities/${item.id}`}
                     className="m-db-entity-card-row"
                   >
@@ -503,9 +502,9 @@ export default function ClientEntitiesPage() {
                       <h4 className="m-db-entity-card-name">{item.name}</h4>
                       <span className="m-db-entity-card-type">{item.typeText}</span>
                     </div>
-                    
+
                     <div className="m-db-entity-card-divider" />
-                    
+
                     <div className="m-db-entity-card-bottom">
                       <div className="m-db-entity-card-col">
                         <span className="m-db-entity-card-label">Properties</span>
@@ -534,26 +533,26 @@ export default function ClientEntitiesPage() {
       loading={isLoading}
       fallback={<ClientEntitiesSkeleton />}
     >
-      <div 
-        className="desktop-client-dashboard min-h-screen bg-[#f7f9fc] font-sans pb-10"
+      <div
+        className="desktop-client-dashboard font-sans pb-10"
       >
-        
+
         {/* Header */}
         <div className="flex justify-between items-center bg-transparent mb-8 pt-6 px-6 pb-0 min-[1200px]:px-10">
           <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Entities</h1>
-          <Link 
-            href="/dashboard/client/entities/new" 
+          <Link
+            href="/dashboard/client/entities/new"
             className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1a235a] text-white no-underline text-2xl font-normal transition-all duration-200 ease hover:bg-[#2f3e8b] hover:scale-105"
           >
             +
           </Link>
         </div>
- 
+
         {/* Content Area */}
         <div className="px-6 min-[1200px]:px-10">
           {/* Blue Summary Card (Total Under Management) */}
-          <div 
-            className="relative w-full rounded-[20px] pt-6 pb-6 pr-6 pl-12 text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 entities-portfolio-summary-card"
+          <div
+            className="relative w-full rounded-[20px] py-6 px-6 text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 entities-portfolio-summary-card"
           >
             <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, letterSpacing: "0.5px" }}>
               Total Under Management
@@ -565,10 +564,10 @@ export default function ClientEntitiesPage() {
               Across {entitiesCount} entities
             </div>
           </div>
- 
+
           {/* Your Entities Header */}
           <h3 className="text-sm font-semibold text-[#475467] mt-7 mb-4">Your Entities</h3>
- 
+
           {/* Entities Grid */}
           <div className={entityListItems.length === 0 ? "w-full" : "grid grid-cols-1 gap-5 w-full min-[1200px]:grid-cols-2 min-[1200px]:gap-6 min-[1600px]:grid-cols-3"}>
             {entityListItems.length === 0 ? (
@@ -589,8 +588,8 @@ export default function ClientEntitiesPage() {
                 const hasPositiveNet = item.marketValue > 0;
 
                 return (
-                  <Link 
-                    key={item.id} 
+                  <Link
+                    key={item.id}
                     href={`/dashboard/client/entities/${item.id}`}
                     className="bg-white border border-[#eaeef4] rounded-2xl p-6 flex flex-col shadow-[0_1px_3px_rgba(16,24,40,0.05),0_1px_2px_rgba(16,24,40,0.03)] transition-all duration-200 ease-in-out no-underline cursor-pointer hover:border-[#2f3e8b] hover:-translate-y-0.5 hover:shadow-[0_12px_20px_rgba(27,38,92,0.06)]"
                   >
@@ -602,7 +601,7 @@ export default function ClientEntitiesPage() {
                       {/* SVG Icon on the top right */}
                       <EntityTypeIcon type={item.entityType} />
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <div className="flex flex-col gap-1">
                         <span className="text-[13px] text-[#667085] font-medium">Properties</span>
@@ -621,7 +620,7 @@ export default function ClientEntitiesPage() {
             )}
           </div>
         </div>
- 
+
       </div>
     </Skeleton>
   );

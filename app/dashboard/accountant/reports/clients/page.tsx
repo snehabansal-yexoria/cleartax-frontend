@@ -133,11 +133,11 @@ export default function ClientsTouched() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 font-medium">
-              {sortedClientsTouched.map((client) => {
+              {sortedClientsTouched.map((client, idx) => {
                 const hasActivity = client.totalActions > 0;
                 return (
                   <tr
-                    key={client.id}
+                    key={`${client.id}-${idx}`}
                     onClick={() => router.push(`/dashboard/accountant/reports/clients/${client.id}`)}
                     className="hover:bg-slate-50/50 cursor-pointer transition-colors"
                   >

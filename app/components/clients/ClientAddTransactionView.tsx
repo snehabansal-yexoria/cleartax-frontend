@@ -647,6 +647,7 @@ export default function ClientAddTransactionView({
   useEffect(() => {
     if (!isMarked) return undefined;
     const timer = window.setTimeout(() => {
+      router.refresh();
       router.push(effectiveBackHref);
     }, 900);
     return () => window.clearTimeout(timer);

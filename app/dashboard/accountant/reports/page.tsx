@@ -81,8 +81,15 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
 export default function ReportsDashboard() {
     const router = useRouter();
     const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
-    const [fromDate, setFromDate] = useState<string>("2026-06-12");
-    const [toDate, setToDate] = useState<string>("2026-06-19");
+    const [fromDate, setFromDate] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    });
+    const [toDate, setToDate] = useState<string>(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    });
 
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -115,7 +122,7 @@ export default function ReportsDashboard() {
                     .then((s) => {
                         if (active) setTotalClientsCount(s.clientsTotal);
                     })
-                    .catch(() => {});
+                    .catch(() => { });
             });
         return () => {
             active = false;
@@ -683,8 +690,8 @@ export default function ReportsDashboard() {
 
                 {filteredTimeline.length > 0 ? (
                     <div className="relative border-l border-slate-100 ml-4 space-y-6">
-                        {filteredTimeline.map((event) => (
-                            <TimelineEventItem key={event.id} event={event} />
+                        {filteredTimeline.map((event, idx) => (
+                            <TimelineEventItem key={`${event.id}-${idx}`} event={event} />
                         ))}
                     </div>
                 ) : (
@@ -722,9 +729,9 @@ export default function ReportsDashboard() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 font-medium">
-                            {sortedClientsTouched.slice(0, 4).map((client) => (
+                            {sortedClientsTouched.slice(0, 4).map((client, idx) => (
                                 <tr
-                                    key={client.id}
+                                    key={`${client.id}-${idx}`}
                                     onClick={() => router.push(`/dashboard/accountant/reports/clients/${client.id}`)}
                                     className="hover:bg-slate-50/50 cursor-pointer transition-colors"
                                 >
