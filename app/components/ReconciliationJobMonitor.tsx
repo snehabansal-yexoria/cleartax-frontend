@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 type PendingJob = {
   jobId: string;
+  reconciliationId?: string;
   entityId: string;
   clientId: string;
   startedAt: number;
@@ -48,12 +49,69 @@ function getToken(): string {
 export default function ReconciliationJobMonitor() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const esRefs = useRef<Map<string, EventSource>>(new Map());
+  const pollTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const jobs = readPendingJobs();
     if (jobs.length === 0) return;
 
     const token = getToken();
+
+    const pushToast = (job: PendingJob, type: Toast["type"]) => {
+      const entityHref = `/dashboard/accountant/clients/${job.clientId}/entities/${job.entityId}?tab=reconciliation`;
+      setToasts((prev) => [
+        ...prev,
+        {
+          id: job.jobId,
+          message: type === "success" ? "Bank reconciliation complete!" : "Reconciliation failed.",
+          href: entityHref,
+          type,
+        },
+      ]);
+    };
+
+    // The stream dying is not a verdict — the pipeline usually keeps running
+    // server-side. The reconciliation row in the DB is the source of truth, so
+    // poll its status and only toast on a real done/error.
+    const pollStatus = (job: PendingJob) => {
+      if (!job.reconciliationId) {
+        // Legacy entry without a reconciliation id — nothing to verify against,
+        // so drop it silently rather than raise a false alarm.
+        removeJob(job.jobId);
+        return;
+      }
+      const check = async () => {
+        pollTimers.current.delete(job.jobId);
+        let status: string | null = null;
+        try {
+          const res = await fetch(
+            `/api/entities/${encodeURIComponent(job.entityId)}/reconciliations/${encodeURIComponent(job.reconciliationId!)}`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+          );
+          if (res.ok) {
+            const detail = (await res.json()) as { status?: string };
+            status = detail.status ?? null;
+          }
+        } catch { /* transient — retry below */ }
+
+        if (status === "done" || status === "completed") {
+          removeJob(job.jobId);
+          pushToast(job, "success");
+          return;
+        }
+        if (status === "error" || status === "failed") {
+          removeJob(job.jobId);
+          pushToast(job, "error");
+          return;
+        }
+        if (Date.now() - job.startedAt > JOB_TTL_MS) {
+          removeJob(job.jobId);
+          return;
+        }
+        pollTimers.current.set(job.jobId, setTimeout(() => { void check(); }, 5000));
+      };
+      void check();
+    };
 
     for (const job of jobs) {
       if (esRefs.current.has(job.jobId)) continue;
@@ -62,38 +120,35 @@ export default function ReconciliationJobMonitor() {
       const es = new EventSource(url);
       esRefs.current.set(job.jobId, es);
 
-      const entityHref = `/dashboard/accountant/clients/${job.clientId}/entities/${job.entityId}?tab=reconciliation`;
-
       es.addEventListener("done", () => {
         es.close();
         esRefs.current.delete(job.jobId);
         removeJob(job.jobId);
-        setToasts((prev) => [
-          ...prev,
-          { id: job.jobId, message: "Bank reconciliation complete!", href: entityHref, type: "success" },
-        ]);
+        pushToast(job, "success");
       });
 
-      es.addEventListener("error", () => {
+      // "error" fires both for a backend `event: error` (has .data — genuine
+      // failure) and for any transport drop or 404 (no .data). Only the former
+      // is failure; the latter gets verified against the DB.
+      es.addEventListener("error", (e) => {
         es.close();
         esRefs.current.delete(job.jobId);
-        removeJob(job.jobId);
-        setToasts((prev) => [
-          ...prev,
-          { id: job.jobId, message: "Reconciliation failed.", href: entityHref, type: "error" },
-        ]);
-      });
-
-      es.onerror = () => {
-        if (es.readyState === EventSource.CLOSED) {
-          esRefs.current.delete(job.jobId);
+        if ((e as MessageEvent).data) {
+          removeJob(job.jobId);
+          pushToast(job, "error");
+        } else {
+          pollStatus(job);
         }
-      };
+      });
     }
 
+    const timers = pollTimers.current;
+    const sources = esRefs.current;
     return () => {
-      for (const es of esRefs.current.values()) es.close();
-      esRefs.current.clear();
+      for (const es of sources.values()) es.close();
+      sources.clear();
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
     };
   }, []);
 

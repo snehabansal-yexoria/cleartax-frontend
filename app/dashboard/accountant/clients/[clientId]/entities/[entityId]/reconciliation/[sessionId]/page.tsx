@@ -622,9 +622,87 @@ export default function AccountantReconciliationSessionPage() {
 
   // ── SSE for upload ────────────────────────────────────────────────────────
 
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopStatusPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const removePendingJob = useCallback((jobId: string) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as Array<{ jobId: string }>;
+      localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored.filter((j) => j.jobId !== jobId)));
+    } catch { /* ignore */ }
+  }, []);
+
+  // The SSE stream can die while the pipeline keeps running (App Runner caps
+  // request duration, so long extractions outlive the connection). The DB row
+  // is the source of truth: poll it until done/error instead of declaring
+  // failure the moment the stream drops.
+  const beginStatusPolling = useCallback(
+    (jobId: string, reconciliationId: string) => {
+      if (!reconciliationId) {
+        setUploadStage({ type: "error", message: "Connection lost. Refresh the page to check whether extraction finished." });
+        return;
+      }
+      stopStatusPolling();
+      const deadline = Date.now() + 30 * 60 * 1000;
+
+      const poll = async () => {
+        let status: string | null = null;
+        let errorMessage: string | null = null;
+        try {
+          const token = getToken();
+          const res = await fetch(`/api/entities/${entityId}/reconciliations/${reconciliationId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) {
+            const detail = (await res.json()) as ReconciliationDetail;
+            status = detail.status ?? null;
+            errorMessage = detail.errorMessage ?? null;
+          }
+        } catch { /* transient — retry below */ }
+
+        if (status === "done" || status === "completed") {
+          removePendingJob(jobId);
+          setUploadStage({ type: "idle" });
+          setFeedbackMessage("Bank statement extracted successfully.");
+          setSelectedHistoryIds((cur) => (cur.includes(reconciliationId) ? cur : [...cur, reconciliationId]));
+          setToastReconId(reconciliationId);
+          playReconSound();
+          void refreshSession();
+          return;
+        }
+        if (status === "error" || status === "failed") {
+          removePendingJob(jobId);
+          setUploadStage({ type: "error", message: errorMessage ?? "Extraction failed. Please try again." });
+          void refreshSession();
+          return;
+        }
+        if (Date.now() > deadline) {
+          setUploadStage({ type: "error", message: "Lost track of the extraction. Refresh the page to check whether it finished." });
+          return;
+        }
+        pollTimerRef.current = setTimeout(() => { void poll(); }, 5000);
+      };
+
+      void poll();
+    },
+    [entityId, refreshSession, removePendingJob, stopStatusPolling],
+  );
+
+  useEffect(() => () => {
+    stopStatusPolling();
+    if (eventSourceRef.current) eventSourceRef.current.close();
+  }, [stopStatusPolling]);
+
   const connectSSE = useCallback(
-    (jobId: string) => {
+    (jobId: string, reconciliationId: string) => {
       const token = getToken();
+      stopStatusPolling();
       if (eventSourceRef.current) eventSourceRef.current.close();
 
       const url = `/api/reconciliation/stream?job_id=${encodeURIComponent(jobId)}${token ? `&token=${encodeURIComponent(token)}` : ""}`;
@@ -656,27 +734,32 @@ export default function AccountantReconciliationSessionPage() {
         setFeedbackMessage("Bank statement extracted successfully.");
         setToastReconId(normalized.id);
         playReconSound();
-        try {
-          const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as Array<{ jobId: string }>;
-          localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored.filter((j) => j.jobId !== jobId)));
-        } catch { /* ignore */ }
+        removePendingJob(jobId);
         void refreshSession();
       });
 
+      // EventSource fires "error" for two very different things: a backend
+      // `event: error` (has .data — the pipeline really failed) and any
+      // transport drop (no .data — the job is likely still running). Only the
+      // former is a verdict; for the latter, fall back to polling the DB row.
       es.addEventListener("error", (e) => {
         es.close();
-        const d = (e as MessageEvent).data ? JSON.parse((e as MessageEvent).data) : {};
-        setUploadStage({ type: "error", message: d.message ?? "Extraction failed. Please try again." });
-        void refreshSession();
+        const data = (e as MessageEvent).data as string | undefined;
+        if (data) {
+          let message = "Extraction failed. Please try again.";
+          try {
+            const d = JSON.parse(data) as { message?: string };
+            if (d.message) message = d.message;
+          } catch { /* keep fallback */ }
+          removePendingJob(jobId);
+          setUploadStage({ type: "error", message });
+          void refreshSession();
+        } else {
+          beginStatusPolling(jobId, reconciliationId);
+        }
       });
-
-      es.onerror = () => {
-        if (es.readyState === EventSource.CLOSED) return;
-        es.close();
-        setUploadStage({ type: "error", message: "Connection lost. Please try again." });
-      };
     },
-    [refreshSession],
+    [refreshSession, beginStatusPolling, removePendingJob, stopStatusPolling],
   );
 
   const handleFile = useCallback(
@@ -712,16 +795,19 @@ export default function AccountantReconciliationSessionPage() {
           body: JSON.stringify({ s3_key: s3Key, entity_id: entityId, session_id: sessionId }),
         });
         if (!startRes.ok) throw new Error("Failed to start reconciliation");
-        const { jobId } = await startRes.json();
+        const { jobId, reconciliationId } = (await startRes.json()) as {
+          jobId: string;
+          reconciliationId?: string;
+        };
 
         try {
           const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as unknown[];
-          stored.push({ jobId, entityId, clientId, sessionId, startedAt: Date.now() });
+          stored.push({ jobId, reconciliationId: reconciliationId ?? "", entityId, clientId, sessionId, startedAt: Date.now() });
           localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored));
         } catch { /* ignore */ }
 
         setUploadStage({ type: "streaming", stage: "downloading", pagesDone: 0, pagesTotal: 0, txSoFar: 0 });
-        connectSSE(jobId);
+        connectSSE(jobId, reconciliationId ?? "");
       } catch (err) {
         setUploadStage({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
       }
