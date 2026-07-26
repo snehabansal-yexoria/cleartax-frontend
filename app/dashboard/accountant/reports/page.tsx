@@ -81,18 +81,89 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
 export default function ReportsDashboard() {
     const router = useRouter();
     const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
-    const [fromDate, setFromDate] = useState<string>(() => {
+
+    const getOffsetDateStr = (offsetDays: number) => {
         const d = new Date();
-        d.setDate(d.getDate() - 7);
+        d.setDate(d.getDate() - offsetDays);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    });
-    const [toDate, setToDate] = useState<string>(() => {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    });
+    };
+
+    const sanitizeDateString = (val: string) => {
+        if (!val) return "";
+        const parts = val.split("-");
+        if (parts.length === 3) {
+            let [year, month, day] = parts;
+            if (year.length > 4) {
+                year = year.substring(0, 4);
+            }
+            return `${year}-${month}-${day}`;
+        }
+        return val;
+    };
+
+    // Active query states (used for API calls in useEffect)
+    const [fromDate, setFromDate] = useState<string>(() => getOffsetDateStr(0));
+    const [toDate, setToDate] = useState<string>(() => getOffsetDateStr(0));
+
+    // Staging states for the input boxes (so change is only applied on clicking Apply)
+    const [tempFromDate, setTempFromDate] = useState<string>(() => getOffsetDateStr(7));
+    const [tempToDate, setTempToDate] = useState<string>(() => getOffsetDateStr(0));
 
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    const handlePresetClick = (period: string) => {
+        setSelectedPeriod(period);
+        let offset = 0;
+        if (period === "7 days") offset = 7;
+        else if (period === "30 days") offset = 30;
+        else if (period === "3 months") offset = 90;
+
+        const from = getOffsetDateStr(offset);
+        const to = getOffsetDateStr(0);
+        setTempFromDate(from);
+        setTempToDate(to);
+        setFromDate(from);
+        setToDate(to);
+    };
+
+    const handleFromDateChange = (rawVal: string) => {
+        const val = sanitizeDateString(rawVal);
+        setTempFromDate(val);
+        if (val && tempToDate && val > tempToDate) {
+            setTempToDate(val);
+        }
+    };
+
+    const handleToDateChange = (rawVal: string) => {
+        const val = sanitizeDateString(rawVal);
+        setTempToDate(val);
+        if (val && tempFromDate && val < tempFromDate) {
+            setTempFromDate(val);
+        }
+    };
+
+    const handleFromDateBlur = () => {
+        if (!tempFromDate) {
+            setTempFromDate(fromDate);
+        }
+    };
+
+    const handleToDateBlur = () => {
+        if (!tempToDate) {
+            setTempToDate(toDate);
+        }
+    };
+
+    const handleApplyCustomRange = () => {
+        if (tempFromDate && tempToDate) {
+            setFromDate(tempFromDate);
+            setToDate(tempToDate);
+            setSelectedPeriod("custom");
+        }
+    };
+
+    const hasPendingChanges = tempFromDate !== fromDate || tempToDate !== toDate || selectedPeriod !== "custom";
 
     const [filteredTransactions, setFilteredTransactions] = useState<ReportTransaction[]>([]);
     const [filteredProperties, setFilteredProperties] = useState<ReportProperty[]>([]);
@@ -229,7 +300,7 @@ export default function ReportsDashboard() {
                             <button
                                 key={period}
                                 type="button"
-                                onClick={() => setSelectedPeriod(period)}
+                                onClick={() => handlePresetClick(period)}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${selectedPeriod === period
                                     ? "bg-[#28336e] text-white shadow-md shadow-indigo-900/10"
                                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -266,100 +337,29 @@ export default function ReportsDashboard() {
                 </div>
                 <input
                     type="date"
-                    max={todayStr}
-                    value={fromDate}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) {
-                            setFromDate("");
-                            return;
-                        }
-                        const parts = val.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setFromDate(todayStr);
-                            } else {
-                                setFromDate(newVal);
-                            }
-                        } else {
-                            setFromDate(val);
-                        }
-                    }}
-                    onBlur={() => {
-                        if (!fromDate) return;
-                        const parts = fromDate.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setFromDate(todayStr);
-                            } else {
-                                setFromDate(newVal);
-                            }
-                        }
-                    }}
-                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600"
+                    max={tempToDate || undefined}
+                    value={tempFromDate}
+                    onChange={(e) => handleFromDateChange(e.target.value)}
+                    onBlur={handleFromDateBlur}
+                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
                 />
                 <span className="text-xs text-slate-400">To</span>
                 <input
                     type="date"
-                    max={todayStr}
-                    value={toDate}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) {
-                            setToDate("");
-                            return;
-                        }
-                        const parts = val.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setToDate(todayStr);
-                            } else {
-                                setToDate(newVal);
-                            }
-                        } else {
-                            setToDate(val);
-                        }
-                    }}
-                    onBlur={() => {
-                        if (!toDate) return;
-                        const parts = toDate.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setToDate(todayStr);
-                            } else {
-                                setToDate(newVal);
-                            }
-                        }
-                    }}
-                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600"
+                    min={tempFromDate || undefined}
+                    value={tempToDate}
+                    onChange={(e) => handleToDateChange(e.target.value)}
+                    onBlur={handleToDateBlur}
+                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
                 />
                 <button
                     type="button"
-                    onClick={() => setSelectedPeriod("custom")}
-                    className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
-                        }`}
+                    onClick={handleApplyCustomRange}
+                    className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${
+                        selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
+                    }`}
                 >
-                    Apply
+                    {selectedPeriod === "custom" && !hasPendingChanges ? "Applied" : "Apply"}
                 </button>
             </div>
 

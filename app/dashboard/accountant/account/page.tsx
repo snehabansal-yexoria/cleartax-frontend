@@ -130,6 +130,12 @@ export default function AccountantAccountPage() {
       setIsUpdatingPhone(true);
       setPhoneError("");
 
+      const digits = (tempPhone || "").replace(/\D/g, "");
+      if (digits.length > 10) {
+        setPhoneError("Phone number cannot exceed 10 digits");
+        return;
+      }
+
       const session = (await getSession()) as SessionWithIdToken | null;
       if (!session) {
         setPhoneError("Your session has expired. Please log in again.");
@@ -245,7 +251,16 @@ export default function AccountantAccountPage() {
                     <input
                       type="text"
                       value={tempPhone}
-                      onChange={(e) => setTempPhone(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTempPhone(val);
+                        const digits = (val || "").replace(/\D/g, "");
+                        if (digits.length > 10) {
+                          setPhoneError("Phone number cannot exceed 10 digits");
+                        } else {
+                          setPhoneError("");
+                        }
+                      }}
                       disabled={isUpdatingPhone}
                       style={{
                         border: "none",
@@ -263,7 +278,7 @@ export default function AccountantAccountPage() {
                       <button
                         type="button"
                         onClick={handleSavePhone}
-                        disabled={isUpdatingPhone}
+                        disabled={isUpdatingPhone || !!phoneError}
                         style={{ color: "#2ea86b", fontWeight: 700 }}
                       >
                         {isUpdatingPhone ? "Saving..." : "Save"}
@@ -287,6 +302,7 @@ export default function AccountantAccountPage() {
                     <button type="button" onClick={() => {
                       setTempPhone(phoneNumber);
                       setIsEditingPhone(true);
+                      setPhoneError("");
                     }}>Edit</button>
                   </div>
                 )}
