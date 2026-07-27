@@ -3,14 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { fetchReportTransactions, type ReportTransaction } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
+import { useReportPeriod } from "../useReportPeriod";
 
 export default function TransactionsReport() {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const {
+    selectedPeriod,
+    setSelectedPeriod,
+    fromDate,
+    toDate,
+    setCustomRange,
+    isLoaded,
+  } = useReportPeriod();
   const [filteredTransactions, setFilteredTransactions] = useState<ReportTransaction[]>([]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let active = true;
-    fetchReportTransactions(selectedPeriod)
+    const opts = { from: fromDate, to: toDate };
+    fetchReportTransactions(selectedPeriod, opts)
       .then((data) => {
         if (active) setFilteredTransactions(data);
       })
@@ -20,7 +30,7 @@ export default function TransactionsReport() {
     return () => {
       active = false;
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
   // Counter calculations for cards
   const addedCount = filteredTransactions.filter((t) => t.action === "Added").length;
@@ -43,6 +53,9 @@ export default function TransactionsReport() {
       addedCount={addedCount}
       editedCount={editedCount}
       deletedCount={deletedCount}
+      fromDate={fromDate}
+      toDate={toDate}
+      onCustomRangeChange={setCustomRange}
     >
       {/* All Transactions Table */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm overflow-hidden">

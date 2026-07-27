@@ -224,6 +224,19 @@ p.darkBg {
   width: 100%;
 }
 
+.login-element input.has-error {
+  border-color: #ef4444;
+}
+
+.login-field-error {
+  color: #ef4444;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  margin-top: 4px;
+  text-align: left;
+}
+
+
 .login-password-field {
   position: relative;
   display: flex;
@@ -10652,7 +10665,7 @@ p.darkBg {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 170px;
   gap: 14px;
-  align-items: end;
+  align-items: start;
 }
 
 .logit-table {

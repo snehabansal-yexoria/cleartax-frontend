@@ -105,7 +105,7 @@ const getCleanedDate = (dateVal: string): string => {
 };
 
 const validateDeadline = (dateVal: string): string => {
-    if (!dateVal) return "";
+    if (!dateVal) return "Deadline is required.";
     const cleaned = getCleanedDate(dateVal);
     const parts = cleaned.split("-");
     if (parts.length !== 3) return "Please enter a valid date.";
@@ -129,13 +129,71 @@ const validateDeadline = (dateVal: string): string => {
 
 const validateTaskName = (name: string): string => {
     const trimmed = name.trim();
-    if (trimmed.length > 0 && trimmed.length < 10) {
+    if (trimmed.length === 0) {
+        return "Task name is required.";
+    }
+    if (trimmed.length < 10) {
         return "Task name must be at least 10 characters.";
     }
     if (trimmed.length > 150) {
         return "Task name cannot exceed 150 characters.";
     }
     return "";
+};
+
+const validateTaskDesc = (desc: string): string => {
+    const trimmed = desc.trim();
+    if (trimmed.length === 0) {
+        return "Description is required.";
+    }
+    if (trimmed.length < 10) {
+        return "Description must be at least 10 characters.";
+    }
+    if (trimmed.length > 1000) {
+        return "Description cannot exceed 1000 characters.";
+    }
+    return "";
+};
+
+const validateAssignee = (assignee: Person | null): string => {
+    if (!assignee) {
+        return "Please select a team member.";
+    }
+    return "";
+};
+
+interface FormFieldProps {
+    label: string;
+    required?: boolean;
+    error?: string;
+    children: React.ReactNode;
+    charCount?: string;
+}
+
+const FormField: React.FC<FormFieldProps> = ({ label, required, error, children, charCount }) => {
+    return (
+        <div className="flex flex-col gap-1.5 w-full">
+            <label className="text-sm font-bold text-[#1f2d4f] flex items-center justify-between">
+                <span>
+                    {label} {required && <span className="text-red-500 ml-0.5">*</span>}
+                </span>
+                {charCount && (
+                    <span className={`text-xs font-semibold ${error ? "text-rose-500" : "text-slate-400"}`}>
+                        {charCount}
+                    </span>
+                )}
+            </label>
+            {children}
+            {error && (
+                <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
+                    <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-[0.78rem] font-medium tracking-tight">{error}</span>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default function TaskManagementPage() {
@@ -150,10 +208,14 @@ export default function TaskManagementPage() {
     const [newTaskName, setNewTaskName] = useState("");
     const [newTaskNameError, setNewTaskNameError] = useState("");
     const [newTaskDesc, setNewTaskDesc] = useState("");
+    const [newTaskDescError, setNewTaskDescError] = useState("");
     const [newTaskAssignee, setNewTaskAssignee] = useState<Person | null>(null);
+    const [newTaskAssigneeError, setNewTaskAssigneeError] = useState("");
     const [newTaskDeadline, setNewTaskDeadline] = useState("");
     const [newTaskDeadlineError, setNewTaskDeadlineError] = useState("");
     const [editTaskNameError, setEditTaskNameError] = useState("");
+    const [editTaskDescError, setEditTaskDescError] = useState("");
+    const [editTaskAssigneeError, setEditTaskAssigneeError] = useState("");
     const [editTaskDeadlineError, setEditTaskDeadlineError] = useState("");
 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -286,20 +348,17 @@ export default function TaskManagementPage() {
 
     const handleCreateTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTaskName.trim() || !newTaskDesc.trim() || !newTaskDeadline || !newTaskAssignee) {
-            alert("Please fill in all required fields.");
-            return;
-        }
+        
+        const nameErr = validateTaskName(newTaskName);
+        const descErr = validateTaskDesc(newTaskDesc);
+        const assigneeErr = validateAssignee(newTaskAssignee);
+        const deadlineErr = validateDeadline(newTaskDeadline);
 
-        const nameError = validateTaskName(newTaskName);
-        if (nameError) {
-            setNewTaskNameError(nameError);
-            return;
-        }
-
-        const error = validateDeadline(newTaskDeadline);
-        if (error) {
-            setNewTaskDeadlineError(error);
+        if (nameErr || descErr || assigneeErr || deadlineErr) {
+            setNewTaskNameError(nameErr);
+            setNewTaskDescError(descErr);
+            setNewTaskAssigneeError(assigneeErr);
+            setNewTaskDeadlineError(deadlineErr);
             return;
         }
 
@@ -315,7 +374,7 @@ export default function TaskManagementPage() {
                 body: JSON.stringify({
                     name: newTaskName.trim(),
                     description: newTaskDesc.trim(),
-                    assigned_to: newTaskAssignee.id,
+                    assigned_to: newTaskAssignee!.id,
                     deadline: new Date(cleanedDeadline).toISOString(),
                 }),
             });
@@ -329,7 +388,9 @@ export default function TaskManagementPage() {
             setNewTaskName("");
             setNewTaskNameError("");
             setNewTaskDesc("");
+            setNewTaskDescError("");
             setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
+            setNewTaskAssigneeError("");
             setNewTaskDeadline("");
             setNewTaskDeadlineError("");
         } finally {
@@ -358,26 +419,25 @@ export default function TaskManagementPage() {
         setEditTaskDeadline(dateVal);
         setEditTaskDeadlineError("");
         setEditTaskNameError("");
+        setEditTaskDescError("");
+        setEditTaskAssigneeError("");
         setIsEditModalOpen(true);
     };
 
     const handleSaveEdit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingTask) return;
-        if (!editTaskName.trim() || !editTaskDesc.trim() || !editTaskDeadline || !editTaskAssignee) {
-            alert("Please fill in all required fields.");
-            return;
-        }
 
-        const nameError = validateTaskName(editTaskName);
-        if (nameError) {
-            setEditTaskNameError(nameError);
-            return;
-        }
+        const nameErr = validateTaskName(editTaskName);
+        const descErr = validateTaskDesc(editTaskDesc);
+        const assigneeErr = validateAssignee(editTaskAssignee);
+        const deadlineErr = validateDeadline(editTaskDeadline);
 
-        const error = validateDeadline(editTaskDeadline);
-        if (error) {
-            setEditTaskDeadlineError(error);
+        if (nameErr || descErr || assigneeErr || deadlineErr) {
+            setEditTaskNameError(nameErr);
+            setEditTaskDescError(descErr);
+            setEditTaskAssigneeError(assigneeErr);
+            setEditTaskDeadlineError(deadlineErr);
             return;
         }
 
@@ -393,7 +453,7 @@ export default function TaskManagementPage() {
                 body: JSON.stringify({
                     name: editTaskName.trim(),
                     description: editTaskDesc.trim(),
-                    assigned_to: editTaskAssignee.id,
+                    assigned_to: editTaskAssignee!.id,
                     deadline: new Date(cleanedDeadline).toISOString(),
                 }),
             });
@@ -408,7 +468,9 @@ export default function TaskManagementPage() {
             setEditTaskName("");
             setEditTaskNameError("");
             setEditTaskDesc("");
+            setEditTaskDescError("");
             setEditTaskAssignee(null);
+            setEditTaskAssigneeError("");
             setEditTaskDeadline("");
             setEditTaskDeadlineError("");
         } catch (err) {
@@ -455,6 +517,13 @@ export default function TaskManagementPage() {
                 <div>
                     <button
                         onClick={() => {
+                            setNewTaskName("");
+                            setNewTaskNameError("");
+                            setNewTaskDesc("");
+                            setNewTaskDescError("");
+                            setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
+                            setNewTaskAssigneeError("");
+                            setNewTaskDeadline("");
                             setNewTaskDeadlineError("");
                             setIsModalOpen(true);
                         }}
@@ -686,14 +755,20 @@ export default function TaskManagementPage() {
                         className="absolute inset-0 bg-[#0b122e]/45 backdrop-blur-sm transition-opacity duration-300"
                         onClick={() => {
                             setIsModalOpen(false);
-                            setNewTaskDeadlineError("");
+                            setNewTaskName("");
                             setNewTaskNameError("");
+                            setNewTaskDesc("");
+                            setNewTaskDescError("");
+                            setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
+                            setNewTaskAssigneeError("");
+                            setNewTaskDeadline("");
+                            setNewTaskDeadlineError("");
                         }}
                     />
 
                     <div className="relative bg-white w-full max-w-[500px] rounded-3xl shadow-2xl border border-slate-100 overflow-visible transform scale-100 transition-all duration-300 animate-slideUp p-8 flex flex-col gap-6">
 
-                        <div className="flex items-start justify-between">
+                         <div className="flex items-start justify-between">
                             <div>
                                 <h2 className="text-[1.5rem] font-bold text-[#1f2d4f] tracking-tight">
                                     Create New Task
@@ -705,8 +780,14 @@ export default function TaskManagementPage() {
                             <button
                                 onClick={() => {
                                     setIsModalOpen(false);
-                                    setNewTaskDeadlineError("");
+                                    setNewTaskName("");
                                     setNewTaskNameError("");
+                                    setNewTaskDesc("");
+                                    setNewTaskDescError("");
+                                    setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
+                                    setNewTaskAssigneeError("");
+                                    setNewTaskDeadline("");
+                                    setNewTaskDeadlineError("");
                                 }}
                                 className="w-8 h-8 text-slate-400 flex items-center justify-center hover:text-slate-600 transition focus:outline-none"
                                 aria-label="Close dialog"
@@ -718,73 +799,76 @@ export default function TaskManagementPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateTask} className="flex flex-col gap-5">
+                        <form onSubmit={handleCreateTask} noValidate className="flex flex-col gap-5">
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center justify-between">
-                                    <span>Task Name <span className="text-red-500 ml-1">*</span></span>
-                                    {newTaskName.length > 0 && (
-                                        <span className={`text-xs font-semibold ${newTaskNameError ? "text-rose-500" : "text-slate-400"}`}>
-                                            {newTaskName.length}/150
-                                        </span>
-                                    )}
-                                </label>
+                            <FormField
+                                label="Task Name"
+                                required
+                                error={newTaskNameError}
+                                charCount={newTaskName.length > 0 ? `${newTaskName.length}/150` : undefined}
+                            >
                                 <div className="relative flex items-center">
                                     <input
                                         type="text"
-                                        required
-                                        minLength={10}
-                                        maxLength={150}
                                         placeholder="e.g., Q2 Tax Filing Review"
                                         value={newTaskName}
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             setNewTaskName(val);
-                                            setNewTaskNameError(validateTaskName(val));
+                                            if (newTaskNameError || val.trim().length >= 10 || val.trim().length === 0) {
+                                                setNewTaskNameError(validateTaskName(val));
+                                            }
                                         }}
                                         onBlur={() => {
                                             setNewTaskNameError(validateTaskName(newTaskName));
                                         }}
-                                        className={`w-full h-[50px] pl-3 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${newTaskNameError
+                                        className={`w-full h-[50px] pl-4 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${newTaskNameError
                                             ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
                                             : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
                                             }`}
                                     />
                                 </div>
-                                {newTaskNameError && (
-                                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
-                                        <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="text-[0.78rem] font-medium tracking-tight">{newTaskNameError}</span>
-                                    </div>
-                                )}
-                            </div>
+                            </FormField>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Description <span className="text-red-500 ml-1">*</span>
-                                </label>
+                            <FormField
+                                label="Description"
+                                required
+                                error={newTaskDescError}
+                            >
                                 <textarea
-                                    required
                                     rows={3}
                                     placeholder="Describe the task clearly..."
                                     value={newTaskDesc}
-                                    onChange={(e) => setNewTaskDesc(e.target.value)}
-                                    className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#28336e]/10 focus:border-[#28336e] text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 resize-none h-[110px]"
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setNewTaskDesc(val);
+                                        if (newTaskDescError || val.trim().length >= 10 || val.trim().length === 0) {
+                                            setNewTaskDescError(validateTaskDesc(val));
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        setNewTaskDescError(validateTaskDesc(newTaskDesc));
+                                    }}
+                                    className={`w-full p-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 resize-none h-[110px] ${newTaskDescError
+                                        ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                        : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                        }`}
                                 />
-                            </div>
+                            </FormField>
 
-                            <div className="flex flex-col gap-1.5" ref={dropdownRef}>
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Assign To <span className="text-red-500 ml-1">*</span>
-                                </label>
-
-                                <div className={`property-status-select transaction-select relative${isDropdownOpen ? " is-open" : ""}`}>
+                            <FormField
+                                label="Assign To"
+                                required
+                                error={newTaskAssigneeError}
+                            >
+                                <div className={`property-status-select transaction-select relative${isDropdownOpen ? " is-open" : ""}`} ref={dropdownRef}>
                                     <button
                                         type="button"
                                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                        className="property-status-trigger !bg-slate-50/30 hover:!bg-slate-50/80 !border-slate-200 focus:!ring-2 focus:!ring-[#28336e]/10 focus:!border-[#28336e] !rounded-xl !h-[50px] !px-4"
+                                        className={`property-status-trigger !bg-slate-50/30 hover:!bg-slate-50/80 !rounded-xl !h-[50px] !px-4 ${newTaskAssigneeError
+                                            ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                                            : "!border-slate-200 focus:!ring-[#28336e]/10 focus:!border-[#28336e]"
+                                            }`}
                                     >
                                         <span className="flex items-center gap-2.5 font-semibold text-slate-700">
                                             {newTaskAssignee ? (
@@ -816,6 +900,7 @@ export default function TaskManagementPage() {
                                                         className={isSelected ? "is-selected" : ""}
                                                         onClick={() => {
                                                             setNewTaskAssignee(member);
+                                                            setNewTaskAssigneeError("");
                                                             setIsDropdownOpen(false);
                                                         }}
                                                     >
@@ -836,12 +921,13 @@ export default function TaskManagementPage() {
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </FormField>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Deadline <span className="text-red-500 ml-1">*</span>
-                                </label>
+                            <FormField
+                                label="Deadline"
+                                required
+                                error={newTaskDeadlineError}
+                            >
                                 <div className="relative flex items-center">
                                     <span className="absolute left-4 text-slate-400 pointer-events-none">
                                         <svg className="w-4.5 h-4.5 stroke-[2]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -853,7 +939,6 @@ export default function TaskManagementPage() {
                                     </span>
                                     <input
                                         type="date"
-                                        required
                                         min={(() => {
                                             const d = new Date();
                                             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -866,33 +951,10 @@ export default function TaskManagementPage() {
                                         value={newTaskDeadline}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            if (!val) {
-                                                setNewTaskDeadline("");
-                                                setNewTaskDeadlineError("");
-                                                return;
-                                            }
-                                            const parts = val.split("-");
-                                            let newVal = val;
-                                            if (parts.length === 3) {
-                                                let [year, month, day] = parts;
-                                                if (year.length > 4) {
-                                                    year = year.substring(0, 4);
-                                                }
-                                                newVal = `${year}-${month}-${day}`;
-                                            }
-                                            setNewTaskDeadline(newVal);
-                                            const err = validateDeadline(newVal);
-                                            if (err && err !== "Please enter a valid date." && err !== "Please enter a valid date (YYYY-MM-DD).") {
-                                                setNewTaskDeadlineError(err);
-                                            } else {
-                                                setNewTaskDeadlineError("");
-                                            }
+                                            setNewTaskDeadline(val);
+                                            setNewTaskDeadlineError(validateDeadline(val));
                                         }}
                                         onBlur={() => {
-                                            if (!newTaskDeadline) {
-                                                setNewTaskDeadlineError("");
-                                                return;
-                                            }
                                             setNewTaskDeadlineError(validateDeadline(newTaskDeadline));
                                         }}
                                         className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${newTaskDeadlineError
@@ -901,23 +963,21 @@ export default function TaskManagementPage() {
                                             }`}
                                     />
                                 </div>
-                                {newTaskDeadlineError && (
-                                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
-                                        <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="text-[0.78rem] font-medium tracking-tight">{newTaskDeadlineError}</span>
-                                    </div>
-                                )}
-                            </div>
+                            </FormField>
 
                             <div className="flex items-center justify-end gap-6 mt-4">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setIsModalOpen(false);
-                                        setNewTaskDeadlineError("");
+                                        setNewTaskName("");
                                         setNewTaskNameError("");
+                                        setNewTaskDesc("");
+                                        setNewTaskDescError("");
+                                        setNewTaskAssignee(teamMembers.find((m) => m.id === currentUserId) ?? teamMembers[0] ?? null);
+                                        setNewTaskAssigneeError("");
+                                        setNewTaskDeadline("");
+                                        setNewTaskDeadlineError("");
                                     }}
                                     className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-transparent border-0 cursor-pointer transition mr-2 focus:outline-none"
                                 >
@@ -925,10 +985,10 @@ export default function TaskManagementPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || !!newTaskDeadlineError || !!newTaskNameError || newTaskName.trim().length < 10 || newTaskName.trim().length > 150}
-                                    className={`inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${newTaskName && newTaskDesc && newTaskDeadline && newTaskAssignee && !newTaskDeadlineError && !newTaskNameError && newTaskName.trim().length >= 10 && newTaskName.trim().length <= 150 && !submitting
-                                        ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
-                                        : "bg-[#a5aec9] cursor-not-allowed"
+                                    disabled={submitting}
+                                    className={`inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${submitting
+                                        ? "bg-[#a5aec9] cursor-not-allowed"
+                                        : "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
                                         }`}
                                 >
                                     {submitting ? (
@@ -957,17 +1017,21 @@ export default function TaskManagementPage() {
                     </div>
                 </div>,
                 document.body
-            )}
-
-            {isEditModalOpen && mounted && createPortal(
+            )}            {isEditModalOpen && mounted && createPortal(
                 <div className="fixed inset-0 flex items-center justify-center p-4 animate-fadeIn" style={{ zIndex: 100000 }}>
                     <div
                         className="absolute inset-0 bg-[#0b122e]/45 backdrop-blur-sm transition-opacity duration-300"
                         onClick={() => {
                             setIsEditModalOpen(false);
                             setEditingTask(null);
-                            setEditTaskDeadlineError("");
+                            setEditTaskName("");
                             setEditTaskNameError("");
+                            setEditTaskDesc("");
+                            setEditTaskDescError("");
+                            setEditTaskAssignee(null);
+                            setEditTaskAssigneeError("");
+                            setEditTaskDeadline("");
+                            setEditTaskDeadlineError("");
                         }}
                     />
 
@@ -986,8 +1050,14 @@ export default function TaskManagementPage() {
                                 onClick={() => {
                                     setIsEditModalOpen(false);
                                     setEditingTask(null);
-                                    setEditTaskDeadlineError("");
+                                    setEditTaskName("");
                                     setEditTaskNameError("");
+                                    setEditTaskDesc("");
+                                    setEditTaskDescError("");
+                                    setEditTaskAssignee(null);
+                                    setEditTaskAssigneeError("");
+                                    setEditTaskDeadline("");
+                                    setEditTaskDeadlineError("");
                                 }}
                                 className="w-8 h-8 text-slate-400 flex items-center justify-center hover:text-slate-600 transition focus:outline-none"
                                 aria-label="Close dialog"
@@ -999,72 +1069,75 @@ export default function TaskManagementPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveEdit} className="flex flex-col gap-5">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center justify-between">
-                                    <span>Task Name <span className="text-red-500 ml-1">*</span></span>
-                                    {editTaskName.length > 0 && (
-                                        <span className={`text-xs font-semibold ${editTaskNameError ? "text-rose-500" : "text-slate-400"}`}>
-                                            {editTaskName.length}/150
-                                        </span>
-                                    )}
-                                </label>
+                        <form onSubmit={handleSaveEdit} noValidate className="flex flex-col gap-5">
+                            <FormField
+                                label="Task Name"
+                                required
+                                error={editTaskNameError}
+                                charCount={editTaskName.length > 0 ? `${editTaskName.length}/150` : undefined}
+                            >
                                 <div className="relative flex items-center">
                                     <input
                                         type="text"
-                                        required
-                                        minLength={10}
-                                        maxLength={150}
                                         placeholder="e.g., Q2 Tax Filing Review"
                                         value={editTaskName}
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             setEditTaskName(val);
-                                            setEditTaskNameError(validateTaskName(val));
+                                            if (editTaskNameError || val.trim().length >= 10 || val.trim().length === 0) {
+                                                setEditTaskNameError(validateTaskName(val));
+                                            }
                                         }}
                                         onBlur={() => {
                                             setEditTaskNameError(validateTaskName(editTaskName));
                                         }}
-                                        className={`w-full h-[50px] pl-3 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${editTaskNameError
+                                        className={`w-full h-[50px] pl-4 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${editTaskNameError
                                             ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
                                             : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
                                             }`}
                                     />
                                 </div>
-                                {editTaskNameError && (
-                                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
-                                        <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="text-[0.78rem] font-medium tracking-tight">{editTaskNameError}</span>
-                                    </div>
-                                )}
-                            </div>
+                            </FormField>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Description <span className="text-red-500 ml-1">*</span>
-                                </label>
+                            <FormField
+                                label="Description"
+                                required
+                                error={editTaskDescError}
+                            >
                                 <textarea
-                                    required
                                     rows={3}
                                     placeholder="Describe the task clearly..."
                                     value={editTaskDesc}
-                                    onChange={(e) => setEditTaskDesc(e.target.value)}
-                                    className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#28336e]/10 focus:border-[#28336e] text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 resize-none h-[110px]"
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEditTaskDesc(val);
+                                        if (editTaskDescError || val.trim().length >= 10 || val.trim().length === 0) {
+                                            setEditTaskDescError(validateTaskDesc(val));
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        setEditTaskDescError(validateTaskDesc(editTaskDesc));
+                                    }}
+                                    className={`w-full p-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 resize-none h-[110px] ${editTaskDescError
+                                        ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
+                                        : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                        }`}
                                 />
-                            </div>
+                            </FormField>
 
-                            <div className="flex flex-col gap-1.5" ref={editDropdownRef}>
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Assign To <span className="text-red-500 ml-1">*</span>
-                                </label>
-
-                                <div className={`property-status-select transaction-select relative${isEditDropdownOpen ? " is-open" : ""}`}>
+                            <FormField
+                                label="Assign To"
+                                required
+                                error={editTaskAssigneeError}
+                            >
+                                <div className={`property-status-select transaction-select relative${isEditDropdownOpen ? " is-open" : ""}`} ref={editDropdownRef}>
                                     <button
                                         type="button"
                                         onClick={() => setIsEditDropdownOpen(!isEditDropdownOpen)}
-                                        className="property-status-trigger !bg-slate-50/30 hover:!bg-slate-50/80 !border-slate-200 focus:!ring-2 focus:!ring-[#28336e]/10 focus:!border-[#28336e] !rounded-xl !h-[50px] !px-4"
+                                        className={`property-status-trigger !bg-slate-50/30 hover:!bg-slate-50/80 !rounded-xl !h-[50px] !px-4 ${editTaskAssigneeError
+                                            ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
+                                            : "!border-slate-200 focus:!ring-[#28336e]/10 focus:!border-[#28336e]"
+                                            }`}
                                     >
                                         <span className="flex items-center gap-2.5 font-semibold text-slate-700">
                                             {editTaskAssignee ? (
@@ -1096,6 +1169,7 @@ export default function TaskManagementPage() {
                                                         className={isSelected ? "is-selected" : ""}
                                                         onClick={() => {
                                                             setEditTaskAssignee(member);
+                                                            setEditTaskAssigneeError("");
                                                             setIsEditDropdownOpen(false);
                                                         }}
                                                     >
@@ -1116,12 +1190,13 @@ export default function TaskManagementPage() {
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </FormField>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-bold text-[#1f2d4f] flex items-center">
-                                    Deadline <span className="text-red-500 ml-1">*</span>
-                                </label>
+                            <FormField
+                                label="Deadline"
+                                required
+                                error={editTaskDeadlineError}
+                            >
                                 <div className="relative flex items-center">
                                     <span className="absolute left-4 text-slate-400 pointer-events-none">
                                         <svg className="w-4.5 h-4.5 stroke-[2]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -1133,7 +1208,6 @@ export default function TaskManagementPage() {
                                     </span>
                                     <input
                                         type="date"
-                                        required
                                         min={(() => {
                                             const d = new Date();
                                             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1146,33 +1220,10 @@ export default function TaskManagementPage() {
                                         value={editTaskDeadline}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            if (!val) {
-                                                setEditTaskDeadline("");
-                                                setEditTaskDeadlineError("");
-                                                return;
-                                            }
-                                            const parts = val.split("-");
-                                            let newVal = val;
-                                            if (parts.length === 3) {
-                                                let [year, month, day] = parts;
-                                                if (year.length > 4) {
-                                                    year = year.substring(0, 4);
-                                                }
-                                                newVal = `${year}-${month}-${day}`;
-                                            }
-                                            setEditTaskDeadline(newVal);
-                                            const err = validateDeadline(newVal);
-                                            if (err && err !== "Please enter a valid date." && err !== "Please enter a valid date (YYYY-MM-DD).") {
-                                                setEditTaskDeadlineError(err);
-                                            } else {
-                                                setEditTaskDeadlineError("");
-                                            }
+                                            setEditTaskDeadline(val);
+                                            setEditTaskDeadlineError(validateDeadline(val));
                                         }}
                                         onBlur={() => {
-                                            if (!editTaskDeadline) {
-                                                setEditTaskDeadlineError("");
-                                                return;
-                                            }
                                             setEditTaskDeadlineError(validateDeadline(editTaskDeadline));
                                         }}
                                         className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${editTaskDeadlineError
@@ -1181,15 +1232,7 @@ export default function TaskManagementPage() {
                                             }`}
                                     />
                                 </div>
-                                {editTaskDeadlineError && (
-                                    <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-1 animate-fadeIn">
-                                        <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="text-[0.78rem] font-medium tracking-tight">{editTaskDeadlineError}</span>
-                                    </div>
-                                )}
-                            </div>
+                            </FormField>
 
                             <div className="flex items-center justify-end gap-6 mt-4">
                                 <button
@@ -1197,8 +1240,14 @@ export default function TaskManagementPage() {
                                     onClick={() => {
                                         setIsEditModalOpen(false);
                                         setEditingTask(null);
-                                        setEditTaskDeadlineError("");
+                                        setEditTaskName("");
                                         setEditTaskNameError("");
+                                        setEditTaskDesc("");
+                                        setEditTaskDescError("");
+                                        setEditTaskAssignee(null);
+                                        setEditTaskAssigneeError("");
+                                        setEditTaskDeadline("");
+                                        setEditTaskDeadlineError("");
                                     }}
                                     className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-transparent border-0 cursor-pointer transition mr-2 focus:outline-none"
                                 >
@@ -1206,10 +1255,10 @@ export default function TaskManagementPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || !!editTaskDeadlineError || !!editTaskNameError || editTaskName.trim().length < 10 || editTaskName.trim().length > 150}
-                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${editTaskName && editTaskDesc && editTaskDeadline && editTaskAssignee && !editTaskDeadlineError && !editTaskNameError && editTaskName.trim().length >= 10 && editTaskName.trim().length <= 150 && !submitting
-                                        ? "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
-                                        : "bg-[#a5aec9] cursor-not-allowed"
+                                    disabled={submitting}
+                                    className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${submitting
+                                        ? "bg-[#a5aec9] cursor-not-allowed"
+                                        : "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
                                         }`}
                                 >
                                     {submitting ? "Saving…" : "Save Changes"}

@@ -3,14 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { fetchReportEntities, type ReportEntity } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
+import { useReportPeriod } from "../useReportPeriod";
 
 export default function EntitiesReport() {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const {
+    selectedPeriod,
+    setSelectedPeriod,
+    fromDate,
+    toDate,
+    setCustomRange,
+    isLoaded,
+  } = useReportPeriod();
   const [filteredEntities, setFilteredEntities] = useState<ReportEntity[]>([]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let active = true;
-    fetchReportEntities(selectedPeriod)
+    const opts = { from: fromDate, to: toDate };
+    fetchReportEntities(selectedPeriod, opts)
       .then((data) => {
         if (active) setFilteredEntities(data);
       })
@@ -20,7 +30,7 @@ export default function EntitiesReport() {
     return () => {
       active = false;
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
   // Counter calculations
   const addedCount = filteredEntities.filter((e) => e.action === "Added").length;
@@ -44,6 +54,9 @@ export default function EntitiesReport() {
       addedCount={addedCount}
       editedCount={editedCount}
       deletedCount={deletedCount}
+      fromDate={fromDate}
+      toDate={toDate}
+      onCustomRangeChange={setCustomRange}
     >
       {/* All Entities Table */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm overflow-hidden">

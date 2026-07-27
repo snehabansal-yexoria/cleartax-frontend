@@ -61,13 +61,11 @@ export function validatePhone(value: string): { isValid: boolean; error?: string
       }
     }
   } else {
-    const len = digitsOnly.length;
-    if (len < 7 || len > 15) {
-      return {
-        isValid: false,
-        error: "Invalid phone number length. It should be between 7 and 15 digits (including country code).",
-      };
-    }
+    const allowedList = COUNTRY_CODES.map((c) => `${c.name} (+${c.code})`).join(" and ");
+    return {
+      isValid: false,
+      error: `Only ${allowedList} numbers are allowed.`,
+    };
   }
 
   return { isValid: true };
@@ -81,6 +79,7 @@ export interface PhoneInputProps {
   disabled?: boolean;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  variant?: "default" | "borderless";
 }
 
 export function PhoneInput({
@@ -91,6 +90,7 @@ export function PhoneInput({
   disabled = false,
   inputRef,
   onKeyDown,
+  variant = "default",
 }: PhoneInputProps) {
   // Parse country code and local digits from value
   const parsed = useMemo(() => {
@@ -134,7 +134,7 @@ export function PhoneInput({
     <div
       style={{
         display: "flex",
-        alignItems: "stretch",
+        alignItems: "center",
         width: "100%",
         gap: "6px",
       }}
@@ -152,12 +152,12 @@ export function PhoneInput({
           disabled={disabled}
           style={{
             height: "100%",
-            padding: "10px 30px 10px 14px",
+            padding: variant === "borderless" ? "0 22px 0 0" : "10px 30px 10px 14px",
             fontSize: "14px",
-            color: "#344054",
-            background: "#ffffff",
-            border: `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
-            borderRadius: "10px",
+            color: variant === "borderless" ? "inherit" : "#344054",
+            background: variant === "borderless" ? "transparent" : "#ffffff",
+            border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
+            borderRadius: variant === "borderless" ? "0" : "10px",
             outline: "none",
             cursor: "pointer",
             appearance: "none",
@@ -184,7 +184,7 @@ export function PhoneInput({
           strokeWidth="2"
           style={{
             position: "absolute",
-            right: "12px",
+            right: variant === "borderless" ? "2px" : "12px",
             width: "14px",
             height: "14px",
             color: "#667085",
@@ -205,11 +205,12 @@ export function PhoneInput({
         onKeyDown={onKeyDown}
         style={{
           flex: 1,
-          padding: "10px 14px",
-          border: `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
-          borderRadius: "10px",
+          padding: variant === "borderless" ? "0" : "10px 14px",
+          border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
+          borderRadius: variant === "borderless" ? "0" : "10px",
+          background: "transparent",
           fontSize: "14px",
-          color: "#101828",
+          color: variant === "borderless" ? "inherit" : "#101828",
           outline: "none",
           transition: "border-color 0.2s",
         }}

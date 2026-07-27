@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useReportPeriod, sanitizeDateString } from "../useReportPeriod";
 import {
   fetchAssignedClients,
   fetchReportClients,
@@ -12,13 +13,33 @@ import {
 
 export default function ClientsTouched() {
   const router = useRouter();
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const {
+    selectedPeriod,
+    setSelectedPeriod,
+    fromDate,
+    toDate,
+    setCustomRange,
+    isLoaded,
+  } = useReportPeriod();
   const [clients, setClients] = useState<ReportClient[]>([]);
   const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
 
+  // Staging states for the custom date range picker inputs
+  const [tempFromDate, setTempFromDate] = useState<string>("");
+  const [tempToDate, setTempToDate] = useState<string>("");
+
   useEffect(() => {
+    if (isLoaded) {
+      setTempFromDate(fromDate);
+      setTempToDate(toDate);
+    }
+  }, [fromDate, toDate, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
     let active = true;
-    fetchReportClients(selectedPeriod)
+    const opts = { from: fromDate, to: toDate };
+    fetchReportClients(selectedPeriod, opts)
       .then((data) => {
         if (active) setClients(data);
       })
@@ -30,7 +51,7 @@ export default function ClientsTouched() {
         if (active) setTotalClientsCount(res.clients.length);
       })
       .catch(() => {
-        fetchReportSummary(selectedPeriod)
+        fetchReportSummary(selectedPeriod, opts)
           .then((s) => {
             if (active) setTotalClientsCount(s.clientsTotal);
           })
@@ -41,7 +62,43 @@ export default function ClientsTouched() {
     return () => {
       active = false;
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fromDate, toDate, isLoaded]);
+
+  const handleFromDateChange = (rawVal: string) => {
+    const val = sanitizeDateString(rawVal);
+    setTempFromDate(val);
+    if (val && tempToDate && val > tempToDate) {
+      setTempToDate(val);
+    }
+  };
+
+  const handleToDateChange = (rawVal: string) => {
+    const val = sanitizeDateString(rawVal);
+    setTempToDate(val);
+    if (val && tempFromDate && val < tempFromDate) {
+      setTempFromDate(val);
+    }
+  };
+
+  const handleFromDateBlur = () => {
+    if (!tempFromDate) {
+      setTempFromDate(fromDate);
+    }
+  };
+
+  const handleToDateBlur = () => {
+    if (!tempToDate) {
+      setTempToDate(toDate);
+    }
+  };
+
+  const handleApplyCustomRange = () => {
+    if (tempFromDate && tempToDate) {
+      setCustomRange(tempFromDate, tempToDate);
+    }
+  };
+
+  const hasPendingChanges = tempFromDate !== fromDate || tempToDate !== toDate || selectedPeriod !== "custom";
 
   // The backend returns only clients touched in the selected period.
   const touchedClientsCount = clients.length;
@@ -108,6 +165,40 @@ export default function ClientsTouched() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Custom Date Range Picker Row */}
+      <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-4 flex flex-wrap items-center gap-4 shadow-sm backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Custom date range</span>
+          <span className="text-xs text-slate-400">From</span>
+        </div>
+        <input
+          type="date"
+          max={tempToDate || undefined}
+          value={tempFromDate}
+          onChange={(e) => handleFromDateChange(e.target.value)}
+          onBlur={handleFromDateBlur}
+          className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
+        />
+        <span className="text-xs text-slate-400">To</span>
+        <input
+          type="date"
+          min={tempFromDate || undefined}
+          value={tempToDate}
+          onChange={(e) => handleToDateChange(e.target.value)}
+          onBlur={handleToDateBlur}
+          className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
+        />
+        <button
+          type="button"
+          onClick={handleApplyCustomRange}
+          className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${
+            selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
+          }`}
+        >
+          {selectedPeriod === "custom" && !hasPendingChanges ? "Applied" : "Apply"}
+        </button>
       </div>
 
       {/* Main Table: All Clients */}

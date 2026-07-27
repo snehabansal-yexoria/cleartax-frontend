@@ -3,14 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { fetchReportDocuments, type ReportDocument } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
+import { useReportPeriod } from "../useReportPeriod";
 
 export default function DocumentsReport() {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const {
+    selectedPeriod,
+    setSelectedPeriod,
+    fromDate,
+    toDate,
+    setCustomRange,
+    isLoaded,
+  } = useReportPeriod();
   const [filteredDocuments, setFilteredDocuments] = useState<ReportDocument[]>([]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let active = true;
-    fetchReportDocuments(selectedPeriod)
+    const opts = { from: fromDate, to: toDate };
+    fetchReportDocuments(selectedPeriod, opts)
       .then((data) => {
         if (active) setFilteredDocuments(data);
       })
@@ -20,7 +30,7 @@ export default function DocumentsReport() {
     return () => {
       active = false;
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
   // Counter calculations
   const addedCount = filteredDocuments.filter((d) => d.action === "Added").length;
@@ -43,6 +53,9 @@ export default function DocumentsReport() {
       addedCount={addedCount}
       editedCount={editedCount}
       deletedCount={deletedCount}
+      fromDate={fromDate}
+      toDate={toDate}
+      onCustomRangeChange={setCustomRange}
     >
       {/* All Documents Table */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm overflow-hidden">

@@ -851,6 +851,10 @@ export default function AccountantReconciliationSessionPage() {
       setCategorizeError("Category and Property are required.");
       return;
     }
+    if (!categorizeSubcategoryId) {
+      setCategorizeError("Please select sub category to continue.");
+      return;
+    }
     const rec = reconCache.get(reconId);
     const bankTx = rec?.transactions[bankTxIndex];
     if (!bankTx) return;
@@ -1775,14 +1779,16 @@ export default function AccountantReconciliationSessionPage() {
                           </select>
                         </div>
                         <div className="recon-categorize-field">
-                          <label className="recon-categorize-label">Subcategory</label>
+                          <label className="recon-categorize-label">
+                            Subcategory <span className="is-required">*</span>
+                          </label>
                           <select
                             className="recon-categorize-select"
                             value={categorizeSubcategoryId ?? ""}
                             onChange={(e) => setCategorizeSubcategoryId(e.target.value ? Number(e.target.value) : null)}
                             disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
                           >
-                            <option value="">Enter subcategory (optional)</option>
+                            <option value="">Select subcategory</option>
                             {categorizeSubcategories.map((s) => (
                               <option key={s.id} value={s.id}>{s.name}</option>
                             ))}

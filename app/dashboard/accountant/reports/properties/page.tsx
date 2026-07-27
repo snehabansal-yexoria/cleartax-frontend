@@ -3,14 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { fetchReportProperties, type ReportProperty } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
+import { useReportPeriod } from "../useReportPeriod";
 
 export default function PropertiesReport() {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const {
+    selectedPeriod,
+    setSelectedPeriod,
+    fromDate,
+    toDate,
+    setCustomRange,
+    isLoaded,
+  } = useReportPeriod();
   const [filteredProperties, setFilteredProperties] = useState<ReportProperty[]>([]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let active = true;
-    fetchReportProperties(selectedPeriod)
+    const opts = { from: fromDate, to: toDate };
+    fetchReportProperties(selectedPeriod, opts)
       .then((data) => {
         if (active) setFilteredProperties(data);
       })
@@ -20,7 +30,7 @@ export default function PropertiesReport() {
     return () => {
       active = false;
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
   // Counter calculations for cards
   const addedCount = filteredProperties.filter((p) => p.action === "Added").length;
@@ -42,6 +52,9 @@ export default function PropertiesReport() {
       addedCount={addedCount}
       editedCount={editedCount}
       deletedCount={deletedCount}
+      fromDate={fromDate}
+      toDate={toDate}
+      onCustomRangeChange={setCustomRange}
     >
       {/* All Properties Table */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm overflow-hidden">
