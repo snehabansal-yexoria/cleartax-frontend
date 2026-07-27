@@ -110,7 +110,10 @@ export default function LoginComponent({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const inviteBootstrapAttempted = useRef(false);
+
 
   // Shared post-authentication path: set cookies, load profile, gate by role,
   // redirect. Returns an error message to display, or null on success (in which
@@ -194,6 +197,32 @@ export default function LoginComponent({
       options: { fromInviteLink?: boolean } = {},
     ) => {
       setError("");
+      setEmailError("");
+      setPasswordError("");
+
+      let hasError = false;
+      const trimmedEmail = (loginEmail || "").trim();
+
+      if (!trimmedEmail) {
+        setEmailError("Email address is required.");
+        hasError = true;
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+          setEmailError("Please enter a valid email address.");
+          hasError = true;
+        }
+      }
+
+      if (!loginPassword) {
+        setPasswordError("Password is required.");
+        hasError = true;
+      }
+
+      if (hasError) {
+        return;
+      }
+
       setLoading(true);
       const startTime = Date.now();
 
@@ -234,7 +263,7 @@ export default function LoginComponent({
 
       setLoading(false);
     },
-    [routeResult, email, password],
+    [routeResult, email, password, setEmailError, setPasswordError],
   );
 
   useEffect(() => {
@@ -680,6 +709,7 @@ export default function LoginComponent({
                   !selectMfaChoice && (
                   <form
                     className="login-form-wrap"
+                    noValidate
                     onSubmit={(e) => {
                       e.preventDefault();
                       void handleLogin();
@@ -692,8 +722,17 @@ export default function LoginComponent({
                         placeholder="admin@clearportfolio.com"
                         id="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailError("");
+                        }}
+                        className={emailError ? "has-error" : ""}
                       />
+                      {emailError && (
+                        <span className="login-field-error">
+                          {emailError}
+                        </span>
+                      )}
                     </div>
                     <div className="login-element">
                       <label htmlFor="password">Password</label>
@@ -703,7 +742,11 @@ export default function LoginComponent({
                           placeholder="Enter your password"
                           id="password"
                           value={password}
-                          onChange={(e) => setPassword(e.target.value)}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            setPasswordError("");
+                          }}
+                          className={passwordError ? "has-error" : ""}
                         />
                         <button
                           type="button"
@@ -713,6 +756,11 @@ export default function LoginComponent({
                           {showPassword ? "Hide" : "View"}
                         </button>
                       </div>
+                      {passwordError && (
+                        <span className="login-field-error">
+                          {passwordError}
+                        </span>
+                      )}
                     </div>
                     <div className="login-submit">
                       <button

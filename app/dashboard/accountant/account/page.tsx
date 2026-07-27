@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AccountantAccountSkeleton } from "../../../components/PortalSkeletons";
 import MfaSettings from "../../../components/MfaSettings";
 import { getSession } from "../../../../src/lib/session";
+import { PhoneInput, validatePhone } from "../../../components/PhoneInput";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -130,9 +131,9 @@ export default function AccountantAccountPage() {
       setIsUpdatingPhone(true);
       setPhoneError("");
 
-      const digits = (tempPhone || "").replace(/\D/g, "");
-      if (digits.length > 10) {
-        setPhoneError("Phone number cannot exceed 10 digits");
+      const validation = validatePhone(tempPhone);
+      if (!validation.isValid) {
+        setPhoneError(validation.error || "Please enter a valid phone number.");
         return;
       }
 
@@ -248,32 +249,27 @@ export default function AccountantAccountPage() {
                     <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "20px", height: "20px" }}>
                       <path fill="currentColor" d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.3 19.3 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.4 2.6a2 2 0 0 1-.6 1.8l-1.3 1.3a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 1.8-.6l2.6.4A2 2 0 0 1 22 16.9z" />
                     </svg>
-                    <input
-                      type="text"
-                      value={tempPhone}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setTempPhone(val);
-                        const digits = (val || "").replace(/\D/g, "");
-                        if (digits.length > 10) {
-                          setPhoneError("Phone number cannot exceed 10 digits");
-                        } else {
-                          setPhoneError("");
-                        }
-                      }}
-                      disabled={isUpdatingPhone}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        color: "inherit",
-                        font: "inherit",
-                        outline: "none",
-                        width: "100%",
-                        padding: 0,
-                        margin: 0
-                      }}
-                      autoFocus
-                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <PhoneInput
+                        variant="borderless"
+                        value={tempPhone}
+                        disabled={isUpdatingPhone}
+                        error={!!phoneError}
+                        onChange={(val) => {
+                          setTempPhone(val);
+                          if (val) {
+                            const res = validatePhone(val);
+                            if (!res.isValid) {
+                              setPhoneError(res.error || "Invalid phone number");
+                            } else {
+                              setPhoneError("");
+                            }
+                          } else {
+                            setPhoneError("");
+                          }
+                        }}
+                      />
+                    </div>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button
                         type="button"

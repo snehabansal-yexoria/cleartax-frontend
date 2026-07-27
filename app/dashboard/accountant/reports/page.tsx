@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useReportPeriod, sanitizeDateString } from "./useReportPeriod";
 import {
     fetchAssignedClients,
     fetchReportClients,
@@ -80,51 +81,28 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
 
 export default function ReportsDashboard() {
     const router = useRouter();
-    const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
-
-    const getOffsetDateStr = (offsetDays: number) => {
-        const d = new Date();
-        d.setDate(d.getDate() - offsetDays);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    };
-
-    const sanitizeDateString = (val: string) => {
-        if (!val) return "";
-        const parts = val.split("-");
-        if (parts.length === 3) {
-            let [year, month, day] = parts;
-            if (year.length > 4) {
-                year = year.substring(0, 4);
-            }
-            return `${year}-${month}-${day}`;
-        }
-        return val;
-    };
-
-    // Active query states (used for API calls in useEffect)
-    const [fromDate, setFromDate] = useState<string>(() => getOffsetDateStr(0));
-    const [toDate, setToDate] = useState<string>(() => getOffsetDateStr(0));
+    const {
+        selectedPeriod,
+        setSelectedPeriod,
+        fromDate,
+        toDate,
+        setCustomRange,
+        isLoaded,
+    } = useReportPeriod();
 
     // Staging states for the input boxes (so change is only applied on clicking Apply)
-    const [tempFromDate, setTempFromDate] = useState<string>(() => getOffsetDateStr(7));
-    const [tempToDate, setTempToDate] = useState<string>(() => getOffsetDateStr(0));
+    const [tempFromDate, setTempFromDate] = useState<string>("");
+    const [tempToDate, setTempToDate] = useState<string>("");
 
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    useEffect(() => {
+        if (isLoaded) {
+            setTempFromDate(fromDate);
+            setTempToDate(toDate);
+        }
+    }, [fromDate, toDate, isLoaded]);
 
     const handlePresetClick = (period: string) => {
         setSelectedPeriod(period);
-        let offset = 0;
-        if (period === "7 days") offset = 7;
-        else if (period === "30 days") offset = 30;
-        else if (period === "3 months") offset = 90;
-
-        const from = getOffsetDateStr(offset);
-        const to = getOffsetDateStr(0);
-        setTempFromDate(from);
-        setTempToDate(to);
-        setFromDate(from);
-        setToDate(to);
     };
 
     const handleFromDateChange = (rawVal: string) => {
@@ -157,9 +135,7 @@ export default function ReportsDashboard() {
 
     const handleApplyCustomRange = () => {
         if (tempFromDate && tempToDate) {
-            setFromDate(tempFromDate);
-            setToDate(tempToDate);
-            setSelectedPeriod("custom");
+            setCustomRange(tempFromDate, tempToDate);
         }
     };
 
@@ -175,6 +151,7 @@ export default function ReportsDashboard() {
     const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
 
     useEffect(() => {
+        if (!isLoaded) return;
         let active = true;
         const opts = { from: fromDate, to: toDate };
         fetchReportTransactions(selectedPeriod, opts).then((d) => active && setFilteredTransactions(d)).catch(() => active && setFilteredTransactions([]));
@@ -198,7 +175,7 @@ export default function ReportsDashboard() {
         return () => {
             active = false;
         };
-    }, [selectedPeriod, fromDate, toDate]);
+    }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
     // Sum of all filtered actions
     const totalActions =

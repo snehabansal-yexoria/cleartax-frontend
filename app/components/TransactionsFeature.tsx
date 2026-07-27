@@ -630,6 +630,10 @@ function TransactionDetailPopup({
     if (yearPart && yearPart.length > 4) {
       return "Year cannot exceed 4 digits.";
     }
+    const yearVal = parseInt(yearPart, 10);
+    if (!isNaN(yearVal) && yearVal < 1900) {
+      return "Year must be 1900 or later.";
+    }
     const todayStr = getLocalDateString();
     if (invoiceDate > todayStr) {
       return "Invoice date cannot be in the future.";
@@ -1246,6 +1250,7 @@ function TransactionDetailPopup({
                   <input
                     type="date"
                     value={invoiceDate}
+                    min="1900-01-01"
                     max="9999-12-31"
                     onChange={(event) => {
                       const val = event.target.value;
@@ -3540,6 +3545,10 @@ export function AddTransactionView({
     if (yearPart && yearPart.length > 4) {
       return "Year cannot exceed 4 digits.";
     }
+    const yearVal = parseInt(yearPart, 10);
+    if (!isNaN(yearVal) && yearVal < 1900) {
+      return "Year must be 1900 or later.";
+    }
     const todayStr = getLocalDateString();
     if (invoiceDate > todayStr) {
       return "Invoice date cannot be in the future.";
@@ -3970,6 +3979,10 @@ export function AddTransactionView({
         const yearPart = invoiceDateValue.split("-")[0];
         if (yearPart && yearPart.length > 4) {
           throw new Error(`Row ${rowNumber}: year cannot exceed 4 digits.`);
+        }
+        const yearVal = parseInt(yearPart, 10);
+        if (isNaN(yearVal) || yearVal < 1900) {
+          throw new Error(`Row ${rowNumber}: year must be 1900 or later.`);
         }
         const splits = resolveBulkSplits(
           row,
@@ -4599,6 +4612,7 @@ export function AddTransactionView({
                 <input
                   type="date"
                   value={invoiceDate}
+                  min="1900-01-01"
                   max="9999-12-31"
                   onChange={(e) => {
                     const val = e.target.value;
@@ -5738,7 +5752,7 @@ export function TransactionRulesView({
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15 18l-6-6 6-6" />
         </svg>
-        Back to transactions
+        Back
       </Link>
 
       <div className="transactions-page-head">

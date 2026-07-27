@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { sanitizeDateString } from "@/app/dashboard/accountant/reports/useReportPeriod";
 
 interface ReportPageShellProps {
   title: string;
@@ -16,6 +17,102 @@ interface ReportPageShellProps {
   children: React.ReactNode;
   backUrl?: string;
   backLabel?: string;
+  
+  // Custom date range properties
+  fromDate?: string;
+  toDate?: string;
+  onCustomRangeChange?: (from: string, to: string) => void;
+}
+
+function ReportCustomDatePicker({
+  fromDate,
+  toDate,
+  selectedPeriod,
+  onCustomRangeChange,
+}: {
+  fromDate: string;
+  toDate: string;
+  selectedPeriod: string;
+  onCustomRangeChange: (from: string, to: string) => void;
+}) {
+  const [tempFromDate, setTempFromDate] = React.useState(fromDate);
+  const [tempToDate, setTempToDate] = React.useState(toDate);
+
+  React.useEffect(() => {
+    setTempFromDate(fromDate);
+    setTempToDate(toDate);
+  }, [fromDate, toDate]);
+
+  const handleFromDateChange = (rawVal: string) => {
+    const val = sanitizeDateString(rawVal);
+    setTempFromDate(val);
+    if (val && tempToDate && val > tempToDate) {
+      setTempToDate(val);
+    }
+  };
+
+  const handleToDateChange = (rawVal: string) => {
+    const val = sanitizeDateString(rawVal);
+    setTempToDate(val);
+    if (val && tempFromDate && val < tempFromDate) {
+      setTempFromDate(val);
+    }
+  };
+
+  const handleFromDateBlur = () => {
+    if (!tempFromDate) {
+      setTempFromDate(fromDate);
+    }
+  };
+
+  const handleToDateBlur = () => {
+    if (!tempToDate) {
+      setTempToDate(toDate);
+    }
+  };
+
+  const handleApplyCustomRange = () => {
+    if (tempFromDate && tempToDate) {
+      onCustomRangeChange(tempFromDate, tempToDate);
+    }
+  };
+
+  const hasPendingChanges = tempFromDate !== fromDate || tempToDate !== toDate || selectedPeriod !== "custom";
+
+  return (
+    <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-4 flex flex-wrap items-center gap-4 shadow-sm backdrop-blur-md">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Custom date range</span>
+        <span className="text-xs text-slate-400">From</span>
+      </div>
+      <input
+        type="date"
+        max={tempToDate || undefined}
+        value={tempFromDate}
+        onChange={(e) => handleFromDateChange(e.target.value)}
+        onBlur={handleFromDateBlur}
+        className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
+      />
+      <span className="text-xs text-slate-400">To</span>
+      <input
+        type="date"
+        min={tempFromDate || undefined}
+        value={tempToDate}
+        onChange={(e) => handleToDateChange(e.target.value)}
+        onBlur={handleToDateBlur}
+        className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
+      />
+      <button
+        type="button"
+        onClick={handleApplyCustomRange}
+        className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${
+          selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
+        }`}
+      >
+        {selectedPeriod === "custom" && !hasPendingChanges ? "Applied" : "Apply"}
+      </button>
+    </div>
+  );
 }
 
 export default function ReportPageShell({
@@ -31,6 +128,9 @@ export default function ReportPageShell({
   children,
   backUrl: propBackUrl,
   backLabel: propBackLabel,
+  fromDate,
+  toDate,
+  onCustomRangeChange,
 }: ReportPageShellProps) {
   const [backUrl, setBackUrl] = React.useState(propBackUrl || "/dashboard/accountant/reports");
   const [backLabel, setBackLabel] = React.useState(propBackLabel || "Back to My Activity");
@@ -100,6 +200,16 @@ export default function ReportPageShell({
           ))}
         </div>
       </div>
+
+      {/* Custom Date Range Picker Row */}
+      {fromDate && toDate && onCustomRangeChange && (
+        <ReportCustomDatePicker
+          fromDate={fromDate}
+          toDate={toDate}
+          selectedPeriod={selectedPeriod}
+          onCustomRangeChange={onCustomRangeChange}
+        />
+      )}
 
       {/* Stats Counter Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">

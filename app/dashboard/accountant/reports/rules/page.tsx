@@ -3,14 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { fetchReportRules, type ReportRule } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
+import { useReportPeriod } from "../useReportPeriod";
 
 export default function RulesReport() {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
+  const {
+    selectedPeriod,
+    setSelectedPeriod,
+    fromDate,
+    toDate,
+    setCustomRange,
+    isLoaded,
+  } = useReportPeriod();
   const [filteredRules, setFilteredRules] = useState<ReportRule[]>([]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let active = true;
-    fetchReportRules(selectedPeriod)
+    const opts = { from: fromDate, to: toDate };
+    fetchReportRules(selectedPeriod, opts)
       .then((data) => {
         if (active) setFilteredRules(data);
       })
@@ -20,7 +30,7 @@ export default function RulesReport() {
     return () => {
       active = false;
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
   // Counter calculations
   const addedCount = filteredRules.filter((r) => r.action === "Added").length;
@@ -50,6 +60,9 @@ export default function RulesReport() {
       addedCount={addedCount}
       editedCount={editedCount}
       deletedCount={deletedCount}
+      fromDate={fromDate}
+      toDate={toDate}
+      onCustomRangeChange={setCustomRange}
     >
       {/* All Rules Table */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm overflow-hidden">
