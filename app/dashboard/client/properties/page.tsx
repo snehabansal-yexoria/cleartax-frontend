@@ -199,11 +199,8 @@ export default function ClientPropertyPage() {
       fallback={<ClientEntitiesSkeleton />}
     >
       <div 
-        className="mobile-client-dashboard" 
-        style={{ 
-          minHeight: "100vh",
-          paddingBottom: isMobile ? "90px" : "40px"
-        }}
+        className={isMobile ? "mobile-client-dashboard" : "desktop-client-dashboard"} 
+        style={isMobile ? { minHeight: "100vh", paddingBottom: "90px" } : undefined}
       >
         <style>{`
           /* Baseline styles (Mobile first) */
@@ -344,9 +341,6 @@ export default function ClientPropertyPage() {
 
           /* Tablet & Desktop overrides */
           @media (min-width: 768px) {
-            .mobile-client-dashboard {
-              padding: 40px 48px 48px 48px !important;
-            }
             .m-db-subpage-header {
               background: transparent !important;
               border-bottom: none !important;

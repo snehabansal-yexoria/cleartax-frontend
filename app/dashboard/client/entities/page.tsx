@@ -533,12 +533,10 @@ export default function ClientEntitiesPage() {
       loading={isLoading}
       fallback={<ClientEntitiesSkeleton />}
     >
-      <div
-        className="desktop-client-dashboard font-sans pb-10"
-      >
+      <div className="desktop-client-dashboard">
 
         {/* Header */}
-        <div className="flex justify-between items-center bg-transparent mb-8 pt-6 px-6 pb-0 min-[1200px]:px-10">
+        <div className="flex justify-between items-center bg-transparent mb-8 pt-0 pb-0">
           <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Entities</h1>
           <Link
             href="/dashboard/client/entities/new"
@@ -549,7 +547,7 @@ export default function ClientEntitiesPage() {
         </div>
 
         {/* Content Area */}
-        <div className="px-6 min-[1200px]:px-10">
+        <div>
           {/* Blue Summary Card (Total Under Management) */}
           <div
             className="relative w-full rounded-[20px] py-6 px-6 text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 entities-portfolio-summary-card"

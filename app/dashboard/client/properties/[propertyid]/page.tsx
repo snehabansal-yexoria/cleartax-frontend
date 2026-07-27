@@ -779,7 +779,7 @@ export default function ClientPropertyDetailPage() {
   const renderDesktopView = () => {
     if (!property) return null;
     return (
-      <div className="px-6 py-6 lg:px-10 lg:py-8 max-w-7xl mx-auto flex flex-col gap-6 bg-[#f7f9fc]">
+      <div className="desktop-client-dashboard">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-2 text-sm text-[#7b88ad] font-medium">
           <Link href="/dashboard/client/properties" className="hover:text-[#1b2559] transition-colors">

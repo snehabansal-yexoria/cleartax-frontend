@@ -83,7 +83,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Home</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'activity' ? ' is-active' : ''}`}
@@ -97,7 +97,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Activity</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'property' ? ' is-active' : ''}`}
@@ -108,7 +108,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Property</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'entity' ? ' is-active' : ''}`}
@@ -120,7 +120,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Entity</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'insights' ? ' is-active' : ''}`}

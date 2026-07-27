@@ -1071,33 +1071,20 @@ export default function ClientTransactionsPage() {
       loading={isLoading}
       fallback={<ClientTransactionsSkeleton />}
     >
-      <div className="desktop-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '40px' }}>
+      <div className="desktop-client-dashboard">
 
         {/* Scoped CSS Styles */}
         <style>{`
-          .desktop-client-dashboard {
-            min-height: 100vh;
-            background-color: var(--surface-0);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          }
           .d-tx-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: transparent;
             margin-bottom: 24px;
-            padding: 24px 24px 0 24px;
+            padding: 0;
           }
           .d-tx-content-area {
-            padding: 0 24px;
-          }
-          @media (min-width: 1200px) {
-            .d-tx-header {
-              padding: 24px 40px 0 40px;
-            }
-            .d-tx-content-area {
-              padding: 0 40px;
-            }
+            padding: 0;
           }
           .d-tx-add-btn {
             display: flex;

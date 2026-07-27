@@ -1099,7 +1099,7 @@ export default function ClientPage() {
       loading={isLoading}
       fallback={<ClientPortfolioSkeleton />}
     >
-      <div className="desktop-client-dashboard flex flex-col gap-6 w-full py-6 px-1">
+      <div className="desktop-client-dashboard">
 
         {/* Quick Actions Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1247,63 +1247,12 @@ export default function ClientPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Chart card */}
           <div className="md:col-span-2 xl:col-span-2 order-1 xl:order-1 bg-white border border-[#eaeef4] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-[#101828] text-base font-bold">Cash Flow</h3>
-                <div className="flex items-center gap-1.5 mt-1 text-[#667085] text-xs">
-                  <span>Income vs expenses</span>
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#667085]" />
-                  <span>6 Months</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex gap-4 text-xs font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-1 bg-[#1e2d5c] rounded-sm" />
-                    <span className="text-[#475467]">Income</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-1 bg-[#f7a61a] rounded-sm" />
-                    <span className="text-[#475467]">Expenses</span>
-                  </div>
-                </div>
-
-                {/* Graph View / Table View Selector from Figma */}
-                <div className="flex bg-[#f2f4f7] rounded-lg p-0.5 border border-[#eaeef4]">
-                  <button
-                    type="button"
-                    className={`${cashFlowView === 'graph' ? 'bg-white text-[#101828] shadow-sm font-bold' : 'text-[#475467] font-medium'} text-xs py-1 px-3.5 rounded-md flex items-center gap-1`}
-                    onClick={() => setCashFlowView('graph')}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
-                      <line x1="18" y1="20" x2="18" y2="10" />
-                      <line x1="12" y1="20" x2="12" y2="4" />
-                      <line x1="6" y1="20" x2="6" y2="14" />
-                    </svg>
-                    Graph View
-                  </button>
-                  <button
-                    type="button"
-                    className={`${cashFlowView === 'table' ? 'bg-white text-[#101828] shadow-sm font-bold' : 'text-[#475467] font-medium'} text-xs py-1 px-3.5 rounded-md flex items-center gap-1`}
-                    onClick={() => setCashFlowView('table')}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <line x1="9" y1="3" x2="9" y2="21" />
-                      <line x1="15" y1="3" x2="15" y2="21" />
-                    </svg>
-                    Table View
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <CashFlowChart
               months={displayMonths}
               income={displayIncome}
               expenses={displayExpense}
               view={cashFlowView}
+              onViewChange={setCashFlowView}
             />
           </div>
 

@@ -3542,6 +3542,7 @@ p.darkBg {
   color: #667085;
   font-size: 14px;
 }
+
 .accountant-reconciliation-footer div {
   display: flex;
   gap: 12px;
@@ -3586,6 +3587,7 @@ p.darkBg {
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -16329,7 +16331,8 @@ input:checked+.slider:before {
 }
 
 .property-page-rules-container .property-rules-create-button {
-  background-color: #1e293b; /* Dark blue/navy slate from Figma */
+  background-color: #1e293b;
+  /* Dark blue/navy slate from Figma */
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
@@ -16353,6 +16356,7 @@ input:checked+.slider:before {
    TABLET RESPONSIVE CLIENT LEFT DRAWER NAVIGATION
    ========================================================================== */
 @media (min-width: 768px) and (max-width: 1023px) {
+
   /* Make sure the mobile nav layer is visible on tablet client view */
   .accountant-mobile-nav-layer.client-tablet-drawer-layer {
     display: block !important;
@@ -16367,15 +16371,18 @@ input:checked+.slider:before {
     right: auto;
     width: 320px;
     height: 100vh;
-    border-radius: 0; /* Full height side-drawer */
-    background: #1e2654; /* Premium deep blue */
+    border-radius: 0;
+    /* Full height side-drawer */
+    background: #1e2654;
+    /* Premium deep blue */
     box-shadow: 25px 0 60px rgba(11, 18, 46, 0.35);
     padding: 24px 20px;
     display: flex;
     flex-direction: column;
     gap: 0;
     animation: clientTabletDrawerSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    border: none !important; /* Remove any border */
+    border: none !important;
+    /* Remove any border */
     z-index: 9999;
   }
 
@@ -16417,7 +16424,8 @@ input:checked+.slider:before {
   }
 
   .client-drawer-brand strong {
-    color: #ffd36f; /* Orange/gold branding text color */
+    color: #ffd36f;
+    /* Orange/gold branding text color */
     font-size: 1.25rem;
     font-weight: 800;
     letter-spacing: -0.02em;
@@ -16612,6 +16620,7 @@ input:checked+.slider:before {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -16621,6 +16630,7 @@ input:checked+.slider:before {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }

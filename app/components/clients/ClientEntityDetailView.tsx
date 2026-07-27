@@ -610,42 +610,15 @@ export default function ClientEntityDetailView({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Cash Flow Chart (2/3 width) */}
             <div className="lg:col-span-2 client-entity-chart-card flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <h3 className="client-entity-chart-title">Cash Flow <span className="text-xs font-medium text-slate-400">income vs expense</span></h3>
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
-                  <button
-                    type="button"
-                    className={`flex items-center text-xs font-bold px-3 py-1.5 rounded-md transition-all ${chartView === 'graph' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    onClick={() => setChartView('graph')}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 mr-1.5">
-                      <line x1="18" y1="20" x2="18" y2="10" />
-                      <line x1="12" y1="20" x2="12" y2="4" />
-                      <line x1="6" y1="20" x2="6" y2="14" />
-                    </svg>
-                    <span>Graph View</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex items-center text-xs font-bold px-3 py-1.5 rounded-md transition-all ${chartView === 'table' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    onClick={() => setChartView('table')}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 mr-1.5">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <line x1="9" y1="3" x2="9" y2="21" />
-                      <line x1="3" y1="9" x2="21" y2="9" />
-                      <line x1="3" y1="15" x2="21" y2="15" />
-                    </svg>
-                    <span>Table View</span>
-                  </button>
-                </div>
-              </div>
-
               <CashFlowChart
                 months={trendMonths}
                 income={trendIncome}
                 expenses={trendExpenses}
                 view={chartView}
+                onViewChange={setChartView}
+                title="Cash Flow"
+                subtitle="income vs expense"
+                showViewDetail={false}
               />
             </div>
 
@@ -856,25 +829,15 @@ export default function ClientEntityDetailView({
         /* MOBILE VIEW CONTAINER STACK (UNCHANGED) */
         <div className="flex flex-col gap-6">
           <div className="client-entity-chart-card flex flex-col gap-4">
-            <h3 className="client-entity-chart-title">Profit & Loss Trend</h3>
-
             <CashFlowChart
               months={trendMonths}
               income={trendIncome}
               expenses={trendExpenses}
               view="graph"
+              title="Profit & Loss Trend"
+              subtitle="Income vs expenses"
+              showViewDetail={false}
             />
-
-            <div className="flex justify-start gap-4 mt-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                <div className="w-3 h-3 rounded-full bg-[#1b265c]" />
-                <span>Income</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                <div className="w-3 h-3 rounded-full bg-[#f4a117]" />
-                <span>Expenses</span>
-              </div>
-            </div>
           </div>
 
           <div className="client-entity-beneficiaries-card flex flex-col gap-4">

@@ -424,29 +424,14 @@ export default function ClientProfilePage() {
       loading={isLoading}
       fallback={<ClientEntitiesSkeleton />}
     >
-      <div className="desktop-profile-wrapper">
+      <div className="desktop-client-dashboard">
         <style>{`
-          .desktop-profile-wrapper {
-            min-height: 100vh;
-            background-color: #f7f9fc;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 24px;
-            width: 100%;
-            box-sizing: border-box;
-          }
-          @media (min-width: 1200px) {
-            .desktop-profile-wrapper {
-              padding: 24px 40px 40px 40px;
-            }
-          }
           .desktop-profile-container {
             width: 100%;
-            max-width: 1000px;
-            margin: 0 auto;
           }
           .profile-header-nav {
-            margin-top: 8px;
-            margin-bottom: 8px;
+            margin-top: 0;
+            margin-bottom: 12px;
           }
           .profile-back-btn {
             display: flex;
@@ -472,13 +457,13 @@ export default function ClientProfilePage() {
             font-size: 28px;
             font-weight: 700;
             color: #101828;
-            margin: 8px 0 24px 0;
+            margin: 0 0 24px 0;
           }
           .profile-hero-card {
             background: #ffffff;
             border: 1px solid #eaeef4;
             border-radius: 16px;
-            padding: 24px 32px;
+            padding: 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;

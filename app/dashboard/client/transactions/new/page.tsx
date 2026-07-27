@@ -1,8 +1,8 @@
-import ClientAddTransactionView from "@/app/components/clients/ClientAddTransactionView";
+import ClientAddTransactionViewNew from "@/app/components/clients/ClientAddTransactionViewNew";
 
 export default function ClientNewTransactionPage() {
   return (
-    <ClientAddTransactionView
+    <ClientAddTransactionViewNew
       backHref="/dashboard/client/transactions"
       backLabel="Back to transactions"
     />
