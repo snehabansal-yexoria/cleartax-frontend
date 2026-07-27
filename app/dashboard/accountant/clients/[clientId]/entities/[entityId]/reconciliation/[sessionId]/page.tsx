@@ -140,6 +140,22 @@ function statementLabelFor(rec: ReconciliationDetail): string {
   return "Statement";
 }
 
+function downloadSampleCsv() {
+  const template = [
+    "Date,Transaction Name,Debit,Credit",
+    "2026-07-02,Salary Credit,,45000.00",
+    "2026-07-03,ATM Withdrawal,5000.00,",
+    "2026-07-05,Electricity Bill,2200.00,",
+  ].join("\n");
+  const blob = new Blob([template], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "bank-statement-sample.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function normalizeStreamedDetail(raw: Record<string, unknown>): ReconciliationDetail {
   const summaryRaw = (raw.summary ?? raw.Summary) as Record<string, unknown> | null;
   const accountRaw = (raw.account ?? raw.Account) as Record<string, unknown> | null;
@@ -159,6 +175,12 @@ function normalizeStreamedDetail(raw: Record<string, unknown>): ReconciliationDe
       pagesProcessed: Number(summaryRaw.pages_processed ?? summaryRaw.pagesProcessed ?? 0),
       pagesSkipped: Number(summaryRaw.pages_skipped ?? summaryRaw.pagesSkipped ?? 0),
       processingTimeSeconds: Number(summaryRaw.processing_time_seconds ?? summaryRaw.processingTimeSeconds ?? 0),
+      skippedRows: Array.isArray(summaryRaw.skipped_rows ?? summaryRaw.skippedRows)
+        ? ((summaryRaw.skipped_rows ?? summaryRaw.skippedRows) as Record<string, unknown>[]).map((r) => ({
+            line: Number(r.line ?? 0),
+            reason: String(r.reason ?? ""),
+          }))
+        : [],
     } : null,
     account: accountRaw ? {
       bank: String(accountRaw.bank ?? ""),
@@ -600,9 +622,87 @@ export default function AccountantReconciliationSessionPage() {
 
   // ── SSE for upload ────────────────────────────────────────────────────────
 
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopStatusPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const removePendingJob = useCallback((jobId: string) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as Array<{ jobId: string }>;
+      localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored.filter((j) => j.jobId !== jobId)));
+    } catch { /* ignore */ }
+  }, []);
+
+  // The SSE stream can die while the pipeline keeps running (App Runner caps
+  // request duration, so long extractions outlive the connection). The DB row
+  // is the source of truth: poll it until done/error instead of declaring
+  // failure the moment the stream drops.
+  const beginStatusPolling = useCallback(
+    (jobId: string, reconciliationId: string) => {
+      if (!reconciliationId) {
+        setUploadStage({ type: "error", message: "Connection lost. Refresh the page to check whether extraction finished." });
+        return;
+      }
+      stopStatusPolling();
+      const deadline = Date.now() + 30 * 60 * 1000;
+
+      const poll = async () => {
+        let status: string | null = null;
+        let errorMessage: string | null = null;
+        try {
+          const token = getToken();
+          const res = await fetch(`/api/entities/${entityId}/reconciliations/${reconciliationId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) {
+            const detail = (await res.json()) as ReconciliationDetail;
+            status = detail.status ?? null;
+            errorMessage = detail.errorMessage ?? null;
+          }
+        } catch { /* transient — retry below */ }
+
+        if (status === "done" || status === "completed") {
+          removePendingJob(jobId);
+          setUploadStage({ type: "idle" });
+          setFeedbackMessage("Bank statement extracted successfully.");
+          setSelectedHistoryIds((cur) => (cur.includes(reconciliationId) ? cur : [...cur, reconciliationId]));
+          setToastReconId(reconciliationId);
+          playReconSound();
+          void refreshSession();
+          return;
+        }
+        if (status === "error" || status === "failed") {
+          removePendingJob(jobId);
+          setUploadStage({ type: "error", message: errorMessage ?? "Extraction failed. Please try again." });
+          void refreshSession();
+          return;
+        }
+        if (Date.now() > deadline) {
+          setUploadStage({ type: "error", message: "Lost track of the extraction. Refresh the page to check whether it finished." });
+          return;
+        }
+        pollTimerRef.current = setTimeout(() => { void poll(); }, 5000);
+      };
+
+      void poll();
+    },
+    [entityId, refreshSession, removePendingJob, stopStatusPolling],
+  );
+
+  useEffect(() => () => {
+    stopStatusPolling();
+    if (eventSourceRef.current) eventSourceRef.current.close();
+  }, [stopStatusPolling]);
+
   const connectSSE = useCallback(
-    (jobId: string) => {
+    (jobId: string, reconciliationId: string) => {
       const token = getToken();
+      stopStatusPolling();
       if (eventSourceRef.current) eventSourceRef.current.close();
 
       const url = `/api/reconciliation/stream?job_id=${encodeURIComponent(jobId)}${token ? `&token=${encodeURIComponent(token)}` : ""}`;
@@ -634,33 +734,38 @@ export default function AccountantReconciliationSessionPage() {
         setFeedbackMessage("Bank statement extracted successfully.");
         setToastReconId(normalized.id);
         playReconSound();
-        try {
-          const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as Array<{ jobId: string }>;
-          localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored.filter((j) => j.jobId !== jobId)));
-        } catch { /* ignore */ }
+        removePendingJob(jobId);
         void refreshSession();
       });
 
+      // EventSource fires "error" for two very different things: a backend
+      // `event: error` (has .data — the pipeline really failed) and any
+      // transport drop (no .data — the job is likely still running). Only the
+      // former is a verdict; for the latter, fall back to polling the DB row.
       es.addEventListener("error", (e) => {
         es.close();
-        const d = (e as MessageEvent).data ? JSON.parse((e as MessageEvent).data) : {};
-        setUploadStage({ type: "error", message: d.message ?? "Extraction failed. Please try again." });
-        void refreshSession();
+        const data = (e as MessageEvent).data as string | undefined;
+        if (data) {
+          let message = "Extraction failed. Please try again.";
+          try {
+            const d = JSON.parse(data) as { message?: string };
+            if (d.message) message = d.message;
+          } catch { /* keep fallback */ }
+          removePendingJob(jobId);
+          setUploadStage({ type: "error", message });
+          void refreshSession();
+        } else {
+          beginStatusPolling(jobId, reconciliationId);
+        }
       });
-
-      es.onerror = () => {
-        if (es.readyState === EventSource.CLOSED) return;
-        es.close();
-        setUploadStage({ type: "error", message: "Connection lost. Please try again." });
-      };
     },
-    [refreshSession],
+    [refreshSession, beginStatusPolling, removePendingJob, stopStatusPolling],
   );
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (!file.name.match(/\.pdf$/i)) {
-        setUploadStage({ type: "error", message: "Only PDF files are supported." });
+      if (!file.name.match(/\.(pdf|csv)$/i)) {
+        setUploadStage({ type: "error", message: "Only PDF or CSV files are supported." });
         return;
       }
       if (isSessionCompleted) {
@@ -678,7 +783,8 @@ export default function AccountantReconciliationSessionPage() {
         const { upload_url: uploadUrl, s3_key: s3Key } = await presignRes.json();
 
         setUploadStage({ type: "uploading", progress: 40 });
-        const uploadRes = await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": "application/pdf" } });
+        const isCsv = /\.csv$/i.test(file.name);
+        const uploadRes = await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": isCsv ? "text/csv" : "application/pdf" } });
         if (!uploadRes.ok) throw new Error("Upload to storage failed");
         setUploadStage({ type: "uploading", progress: 90 });
 
@@ -689,16 +795,19 @@ export default function AccountantReconciliationSessionPage() {
           body: JSON.stringify({ s3_key: s3Key, entity_id: entityId, session_id: sessionId }),
         });
         if (!startRes.ok) throw new Error("Failed to start reconciliation");
-        const { jobId } = await startRes.json();
+        const { jobId, reconciliationId } = (await startRes.json()) as {
+          jobId: string;
+          reconciliationId?: string;
+        };
 
         try {
           const stored = JSON.parse(localStorage.getItem("cleartax_recon_pending") ?? "[]") as unknown[];
-          stored.push({ jobId, entityId, clientId, sessionId, startedAt: Date.now() });
+          stored.push({ jobId, reconciliationId: reconciliationId ?? "", entityId, clientId, sessionId, startedAt: Date.now() });
           localStorage.setItem("cleartax_recon_pending", JSON.stringify(stored));
         } catch { /* ignore */ }
 
         setUploadStage({ type: "streaming", stage: "downloading", pagesDone: 0, pagesTotal: 0, txSoFar: 0 });
-        connectSSE(jobId);
+        connectSSE(jobId, reconciliationId ?? "");
       } catch (err) {
         setUploadStage({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
       }
@@ -882,6 +991,7 @@ export default function AccountantReconciliationSessionPage() {
       const m: Record<string, string> = {
         downloading: "Downloading statement…",
         splitting: "Splitting pages…",
+        parsing: "Parsing CSV…",
         extracting: `Extracting transactions… (${uploadStage.pagesDone}/${uploadStage.pagesTotal} pages, ${uploadStage.txSoFar} found)`,
       };
       return m[uploadStage.stage] ?? uploadStage.stage;
@@ -904,6 +1014,20 @@ export default function AccountantReconciliationSessionPage() {
   const candidateMatches = computeCandidateMatches(combinedRows, deferredEntityTxs);
   const reconciledCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "confirmed").length;
   const excludedCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "excluded").length;
+
+  // CSV statements report data rows the backend could not parse; surface them
+  // so the accountant knows those transactions are missing from the table.
+  const skippedRowNotices = statements
+    .filter((s) => (s.summary?.skippedRows?.length ?? 0) > 0)
+    .map((s) => {
+      const cached = reconCache.get(s.id);
+      const date = new Date(s.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+      return {
+        id: s.id,
+        label: cached ? statementLabelFor(cached) : `Statement · ${date}`,
+        rows: s.summary?.skippedRows ?? [],
+      };
+    });
 
   const latestTxDate = useMemo(() => {
     let max = 0;
@@ -1037,20 +1161,29 @@ export default function AccountantReconciliationSessionPage() {
           </p>
         </div>
         {!isSessionCompleted && (
-          <button
-            type="button"
-            className="accountant-reconciliation-upload-button"
-            onClick={() => fileRef.current?.click()}
-            disabled={isProcessing}
-          >
-            <UploadIcon />
-            Upload Statement
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <button
+              type="button"
+              onClick={downloadSampleCsv}
+              style={{ background: "none", border: "none", padding: 0, color: "#2563eb", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+            >
+              Download CSV template
+            </button>
+            <button
+              type="button"
+              className="accountant-reconciliation-upload-button"
+              onClick={() => fileRef.current?.click()}
+              disabled={isProcessing}
+            >
+              <UploadIcon />
+              Upload Statement
+            </button>
+          </div>
         )}
         <input
           ref={fileRef}
           type="file"
-          accept=".pdf"
+          accept=".pdf,.csv"
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
         />
@@ -1083,12 +1216,28 @@ export default function AccountantReconciliationSessionPage() {
             {uploadStage.message}
           </div>
         )}
+        {skippedRowNotices.length > 0 && (
+          <div style={{ padding: "10px 16px", background: "#fffbeb", borderBottom: "1px solid #fde68a", color: "#92400e", fontSize: 13 }}>
+            {skippedRowNotices.map(({ id, label, rows }) => (
+              <details key={id} style={{ margin: "2px 0" }}>
+                <summary style={{ cursor: "pointer" }}>
+                  {rows.length} row{rows.length === 1 ? "" : "s"} in {label} could not be parsed and {rows.length === 1 ? "was" : "were"} skipped
+                </summary>
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                  {rows.map((r) => (
+                    <li key={`${id}-${r.line}`}>Line {r.line}: {r.reason}</li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+          </div>
+        )}
 
         {statements.length === 0 ? (
           <div className="accountant-document-empty-state">
             <DocumentIcon />
             <strong>No bank statements yet</strong>
-            <p>Upload a statement to begin extracting transactions.</p>
+            <p>Upload a PDF or CSV statement to begin extracting transactions.</p>
             {!isSessionCompleted && (
               <button
                 type="button"
@@ -1098,6 +1247,15 @@ export default function AccountantReconciliationSessionPage() {
               >
                 <UploadIcon />
                 Add Bank Statement
+              </button>
+            )}
+            {!isSessionCompleted && (
+              <button
+                type="button"
+                onClick={downloadSampleCsv}
+                style={{ marginTop: 8, background: "none", border: "none", padding: 0, color: "#2563eb", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+              >
+                Download CSV template
               </button>
             )}
           </div>

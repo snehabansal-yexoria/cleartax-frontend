@@ -1354,6 +1354,9 @@ export type ReconciliationAccount = {
   closingBalance: number;
 };
 
+/** One CSV data row the backend could not parse and left out of the results. */
+export type ReconciliationSkippedRow = { line: number; reason: string };
+
 export type ReconciliationSummary = {
   totalTransactions: number;
   totalDebits: number;
@@ -1361,6 +1364,8 @@ export type ReconciliationSummary = {
   pagesProcessed: number;
   pagesSkipped: number;
   processingTimeSeconds: number;
+  /** Only populated for CSV statements. */
+  skippedRows: ReconciliationSkippedRow[];
 };
 
 export type ReconciliationListItem = {
@@ -1390,6 +1395,7 @@ export type ReconciliationMatch = {
 };
 
 function normalizeReconciliationSummary(raw: RawRecord): ReconciliationSummary {
+  const skippedRaw = raw.skipped_rows ?? raw.skippedRows;
   return {
     totalTransactions: Number(raw.total_transactions ?? raw.totalTransactions ?? 0),
     totalDebits: Number(raw.total_debits ?? raw.totalDebits ?? 0),
@@ -1397,6 +1403,12 @@ function normalizeReconciliationSummary(raw: RawRecord): ReconciliationSummary {
     pagesProcessed: Number(raw.pages_processed ?? raw.pagesProcessed ?? 0),
     pagesSkipped: Number(raw.pages_skipped ?? raw.pagesSkipped ?? 0),
     processingTimeSeconds: Number(raw.processing_time_seconds ?? raw.processingTimeSeconds ?? 0),
+    skippedRows: Array.isArray(skippedRaw)
+      ? (skippedRaw as RawRecord[]).map((r) => ({
+          line: Number(r.line ?? 0),
+          reason: String(r.reason ?? ""),
+        }))
+      : [],
   };
 }
 
@@ -1434,8 +1446,8 @@ export async function startReconciliation(
   s3Key: string,
   entityId: string,
   sessionId: string,
-): Promise<{ jobId: string }> {
-  const payload = await coreApiRequest<{ job_id: string }>(
+): Promise<{ jobId: string; reconciliationId: string }> {
+  const payload = await coreApiRequest<{ job_id: string; reconciliation_id?: string }>(
     `/api/reconciliation`,
     {
       method: "POST",
@@ -1443,7 +1455,8 @@ export async function startReconciliation(
       body: { s3_key: s3Key, entity_id: entityId, session_id: sessionId },
     },
   );
-  return { jobId: (payload as { job_id: string }).job_id };
+  const raw = payload as { job_id: string; reconciliation_id?: string };
+  return { jobId: raw.job_id, reconciliationId: raw.reconciliation_id ?? "" };
 }
 
 export async function listReconciliations(
