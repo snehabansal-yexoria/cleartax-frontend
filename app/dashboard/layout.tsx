@@ -434,6 +434,17 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      const current = sessionStorage.getItem("currentDashboardPath");
+      if (current && current !== pathname) {
+        sessionStorage.setItem("prevDashboardPath", current);
+      }
+      sessionStorage.setItem("currentDashboardPath", pathname);
+    }
+  }, [pathname]);
+
   const isClientPage = pathname.startsWith("/dashboard/client");
 
   const [email, setEmail] = useState<string>("");

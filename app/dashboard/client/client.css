@@ -73,6 +73,14 @@ html.dark aside.group\/sidebar .bg-white\/12 {
   color: var(--text-secondary) !important;
 }
 
+html.dark aside.group\/sidebar .bg-white {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark aside.group\/sidebar .text-\[\#2f3c82\] {
+  color: #ffb11f !important;
+}
+
 /* Desktop Topbar Header */
 html.dark .accountant-topbar {
   background-color: var(--surface-1) !important;
@@ -541,6 +549,233 @@ html.dark .entity-wizard-breadcrumb-separator {
   color: var(--text-muted) !important;
 }
 
+/* Custom Add Entity Wizard Dark Mode Overrides */
+html.dark .entity-type-card {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+html.dark .entity-type-card strong {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-type-card span {
+  color: var(--text-secondary) !important;
+}
+html.dark .entity-type-card:hover {
+  background-color: var(--surface-0) !important;
+  border-color: var(--text-muted) !important;
+}
+html.dark .entity-type-card.is-selected {
+  border: 2px solid var(--accent) !important;
+  background-color: var(--surface-2) !important;
+  padding: 19px !important;
+}
+html.dark .entity-type-card.is-selected strong {
+  color: var(--accent) !important;
+}
+
+.entity-subtype-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary, #28336e);
+  margin-bottom: 12px;
+  margin-top: 16px;
+}
+html.dark .entity-subtype-heading {
+  color: var(--text-primary) !important;
+}
+
+.entity-wizard-section-divider {
+  border-top: 1px solid #eaecf0;
+}
+html.dark .entity-wizard-section-divider {
+  border-top: 1px solid var(--border) !important;
+}
+
+html.dark .entity-beneficiary-headers {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+html.dark .entity-beneficiary-name {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+html.dark .entity-beneficiary-name:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.25) !important;
+}
+
+html.dark .entity-beneficiary-pct {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+html.dark .entity-beneficiary-pct input {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-beneficiary-pct span {
+  color: var(--text-secondary) !important;
+}
+html.dark .entity-beneficiary-pct:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.25) !important;
+}
+
+html.dark .entity-beneficiary-remove {
+  color: var(--danger, #F09595) !important;
+}
+html.dark .entity-beneficiary-remove:disabled {
+  color: var(--text-muted) !important;
+  background: transparent !important;
+}
+html.dark .entity-beneficiary-remove:hover:not(:disabled) {
+  background: rgba(240, 149, 149, 0.1) !important;
+}
+
+html.dark .entity-beneficiary-add {
+  border-color: var(--border) !important;
+  background-color: var(--surface-2) !important;
+  color: var(--accent) !important;
+}
+html.dark .entity-beneficiary-add:hover {
+  border-color: var(--accent) !important;
+  background-color: var(--surface-0) !important;
+}
+
+html.dark .entity-beneficiary-total {
+  background: rgba(244, 161, 23, 0.1) !important;
+  border-color: rgba(244, 161, 23, 0.25) !important;
+  color: var(--accent) !important;
+}
+html.dark .entity-beneficiary-total.is-complete {
+  background: rgba(93, 202, 165, 0.1) !important;
+  border-color: rgba(93, 202, 165, 0.25) !important;
+  color: var(--success) !important;
+}
+html.dark .entity-beneficiary-total.is-over {
+  background: rgba(240, 149, 149, 0.1) !important;
+  border-color: rgba(240, 149, 149, 0.25) !important;
+  color: var(--danger) !important;
+}
+
+html.dark .entity-wizard-error {
+  color: var(--danger) !important;
+}
+
+/* Stepper (Accountant view steps) */
+html.dark .entity-wizard-step-circle {
+  background: var(--surface-2) !important;
+  color: var(--text-muted) !important;
+  box-shadow: 0 0 0 4px rgba(36, 44, 104, 0.35) !important;
+}
+html.dark .entity-wizard-step.is-current .entity-wizard-step-circle {
+  background: var(--accent) !important;
+  color: var(--surface-0) !important;
+  box-shadow: 0 0 0 4px rgba(244, 161, 23, 0.15) !important;
+}
+html.dark .entity-wizard-step.is-done .entity-wizard-step-circle {
+  background: var(--success) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(93, 202, 165, 0.18) !important;
+}
+html.dark .entity-wizard-step-text strong {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-wizard-step-text span {
+  color: var(--text-muted) !important;
+}
+html.dark .entity-wizard-step.is-pending .entity-wizard-step-text strong {
+  color: var(--text-muted) !important;
+}
+html.dark .entity-wizard-connector {
+  background: var(--surface-2) !important;
+}
+html.dark .entity-wizard-connector.is-done {
+  background: var(--success) !important;
+}
+html.dark .entity-wizard-top {
+  border-color: var(--border) !important;
+}
+html.dark .entity-wizard-back {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-wizard-back:hover {
+  color: var(--accent) !important;
+}
+
+html.dark .entity-wizard .entity-wizard-selected-chip {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+html.dark .entity-wizard .entity-wizard-selected-chip strong {
+  color: var(--text-primary) !important;
+}
+
+html.dark .entity-wizard-title-row {
+  border-color: var(--border) !important;
+}
+html.dark .entity-wizard-title-group h1 {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-wizard-title-group p {
+  color: var(--text-muted) !important;
+}
+html.dark .entity-wizard-help-trigger {
+  color: var(--text-primary) !important;
+}
+
+/* Success layer dialog */
+html.dark .entity-success-backdrop {
+  background: rgba(15, 19, 48, 0.6) !important;
+}
+html.dark .entity-success-card {
+  background-color: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+}
+html.dark .entity-success-body strong {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-success-body p {
+  color: var(--text-secondary) !important;
+}
+
+/* Help Sidebar / Modal dialog */
+html.dark .entity-help-modal-backdrop {
+  background: rgba(15, 19, 48, 0.6) !important;
+}
+html.dark .entity-help-card {
+  background-color: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+html.dark .entity-help-card h4 {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-help-card p {
+  color: var(--text-secondary) !important;
+}
+html.dark .entity-help-item {
+  color: var(--text-secondary) !important;
+}
+html.dark .entity-help-item strong {
+  color: var(--text-primary) !important;
+}
+html.dark .entity-help-footnote {
+  border-color: var(--border) !important;
+  color: var(--text-muted) !important;
+}
+html.dark .entity-help-modal-close-floating {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+html.dark .entity-help-modal-close-floating:hover {
+  background: var(--surface-0) !important;
+  color: var(--text-primary) !important;
+}
+
 /* ==========================================================================
    SKELETONS (Loading States)
    ========================================================================== */
@@ -556,6 +791,17 @@ html.dark .skeleton-chart-column span {
   background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-1) 50%, var(--surface-2) 100%) !important;
   background-size: 200% 100% !important;
 }
+
+.entities-portfolio-summary-card .skeleton-line-summary {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.24) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
+  background-size: 200% 100% !important;
+  animation: fallbackShimmer 1.5s linear infinite !important;
+}
+
+html.dark .entities-portfolio-summary-card .skeleton-line-summary {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-1) 50%, var(--surface-2) 100%) !important;
+}
+
 
 html.dark .client-profile-card,
 html.dark .client-stat-card,
@@ -1964,42 +2210,78 @@ html.dark .desktop-client-dashboard {
 /* Main Container styling */
 .client-tx-container {
   width: 100% !important;
-  max-width: 900px !important;
+  max-width: 1280px !important;
   margin: 0 auto !important;
-  padding: 32px 24px 64px 24px !important;
+  padding: 24px 16px 48px 16px !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   box-sizing: border-box !important;
+}
+
+@media (min-width: 768px) {
+  .client-tx-container {
+    padding: 24px 24px 48px 24px !important;
+  }
 }
 
 /* Header bar styling */
 .client-tx-header-bar {
   display: flex !important;
-  align-items: center !important;
-  gap: 16px !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 4px !important;
   margin-bottom: 24px !important;
 }
 
 .client-tx-back-link {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  color: #5a6b82 !important;
+  gap: 8px !important;
+  color: #1d2452 !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   text-decoration: none !important;
   transition: color 0.15s ease !important;
 }
 
+button.client-tx-back-link {
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+}
+
+html.dark .client-tx-back-link {
+  color: var(--text-secondary) !important;
+}
+
 .client-tx-back-link:hover {
-  color: #1d2452 !important;
+  color: #0f1330 !important;
+}
+
+html.dark .client-tx-back-link:hover {
+  color: var(--text-primary) !important;
 }
 
 .client-tx-page-title {
-  font-size: 24px !important;
+  font-size: 28px !important;
   font-weight: 700 !important;
-  color: #1a1e27 !important;
-  margin: 0 !important;
+  color: #0f1330 !important;
+  margin: 12px 0 4px 0 !important;
   letter-spacing: -0.5px !important;
+}
+
+html.dark .client-tx-page-title {
+  color: var(--text-primary) !important;
+}
+
+.client-tx-page-subtitle {
+  font-size: 14.5px !important;
+  color: #566474 !important;
+  margin: 0 !important;
+}
+
+html.dark .client-tx-page-subtitle {
+  color: var(--text-secondary) !important;
 }
 
 /* Redesigned Card container */
@@ -2125,7 +2407,7 @@ html.dark .desktop-client-dashboard {
 }
 
 .client-tx-input.has-prefix {
-  padding-left: 32px !important;
+  padding-left: var(--prefix-padding, 32px) !important;
 }
 
 /* StaticSelect/Dropdown element overrides */
@@ -2745,5 +3027,359 @@ html.dark .desktop-client-dashboard {
     border-color: #e2e8f0;
     box-shadow: none;
     background: #f7f8fc;
+  }
+}
+
+/* Redesigned Method Selection Grid (Premium UI Style) */
+.client-tx-methods-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+  margin-top: 24px !important;
+}
+
+.client-tx-method-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  background: #ffffff !important;
+  border: 1px solid #eaeef4 !important;
+  border-radius: 16px !important;
+  padding: 36px 40px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+  outline: none !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+html.dark .client-tx-method-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
+.client-tx-method-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.dark .client-tx-method-card:hover {
+  border-color: var(--brand) !important;
+  background: var(--surface-2) !important;
+}
+
+.client-tx-method-icon-wrap {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 12px !important;
+  background: #EEF0FF !important;
+  color: #1d2452 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 20px !important;
+  transition: all 0.2s ease !important;
+}
+
+html.dark .client-tx-method-icon-wrap {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-secondary) !important;
+}
+
+.client-tx-method-card:hover .client-tx-method-icon-wrap {
+  background: #1d2452 !important;
+  color: #ffffff !important;
+}
+
+html.dark .client-tx-method-card:hover .client-tx-method-icon-wrap {
+  background: var(--brand) !important;
+  color: #000000 !important;
+}
+
+.client-tx-method-content {
+  width: 100% !important;
+}
+
+.client-tx-method-title {
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  color: #0f1330 !important;
+  margin: 0 0 8px 0 !important;
+  letter-spacing: -0.3px !important;
+  transition: color 0.2s ease !important;
+}
+
+html.dark .client-tx-method-title {
+  color: var(--text-primary) !important;
+}
+
+.client-tx-method-desc {
+  font-size: 14.5px !important;
+  color: #566474 !important;
+  margin: 0 !important;
+  line-height: 1.55 !important;
+}
+
+html.dark .client-tx-method-desc {
+  color: var(--text-secondary) !important;
+}
+
+/* ==========================================================================
+   DARK MODE OVERRIDES FOR ADD TRANSACTION FORM
+   ========================================================================== */
+
+html.dark .client-tx-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .client-tx-title {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-field-label {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-tx-input,
+html.dark .client-tx-textarea {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-input:focus,
+html.dark .client-tx-textarea:focus {
+  border-color: var(--brand) !important;
+  background: var(--surface-1) !important;
+  box-shadow: 0 0 0 3px rgba(56, 65, 127, 0.25) !important;
+}
+
+html.dark .client-tx-amount-prefix {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-select-trigger {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-select.is-open .client-tx-select-trigger {
+  border-color: var(--brand) !important;
+  background: var(--surface-1) !important;
+}
+
+html.dark .client-tx-select-menu {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .client-tx-select-menu button {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-select-menu button:hover {
+  background: var(--surface-2) !important;
+}
+
+html.dark .client-tx-select-menu button.is-selected {
+  background: rgba(244, 161, 23, 0.12) !important;
+  color: var(--accent) !important;
+}
+
+html.dark .client-tx-select-menu button.is-selected svg {
+  color: var(--accent) !important;
+}
+
+html.dark .client-tx-dropzone-wrapper .transaction-document-drop:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--brand) !important;
+}
+
+html.dark .client-tx-dropzone-wrapper .transaction-document-drop h3 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-dropzone-wrapper .transaction-document-drop p {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-tx-split-toggle-container {
+  border-top-color: var(--border) !important;
+}
+
+html.dark .client-tx-split-toggle-title {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-split-toggle-desc {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-tx-slider {
+  background-color: var(--surface-2) !important;
+}
+
+html.dark .client-tx-switch input:checked + .client-tx-slider {
+  background-color: var(--accent) !important;
+}
+
+html.dark .client-tx-split-card {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+html.dark .client-tx-split-card-title {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-tx-split-total-label {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-tx-split-total-label.is-mismatch {
+  color: var(--danger) !important;
+}
+
+html.dark .client-tx-add-split-btn {
+  color: var(--accent) !important;
+}
+
+html.dark .client-tx-warning-banner {
+  background: rgba(244, 161, 23, 0.1) !important;
+  border-color: rgba(244, 161, 23, 0.3) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-form-actions {
+  border-top-color: var(--border) !important;
+}
+
+html.dark .client-tx-delete-btn {
+  background: var(--surface-2) !important;
+  color: var(--danger) !important;
+}
+
+html.dark .client-tx-delete-btn:hover {
+  background: var(--surface-0) !important;
+}
+
+html.dark .client-tx-save-btn {
+  background: var(--brand) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-save-btn:hover {
+  background: var(--surface-2) !important;
+}
+
+html.dark .client-tx-save-btn:disabled {
+  background: var(--surface-2) !important;
+  color: var(--text-muted) !important;
+  opacity: 0.5 !important;
+}
+
+html.dark .client-tx-modal {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .client-tx-modal-header {
+  border-bottom-color: var(--border) !important;
+}
+
+html.dark .client-tx-modal-header h2 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-modal-header p {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-tx-modal-close {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-tx-file-input {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-modal-footer {
+  border-top-color: var(--border) !important;
+  background: var(--surface-2) !important;
+}
+
+html.dark .client-tx-feedback-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .client-tx-feedback-card h2 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-feedback-card p {
+  color: var(--text-muted) !important;
+}
+
+html.dark .client-tx-success-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .client-tx-success-title {
+  color: var(--text-primary) !important;
+}
+
+html.dark .client-tx-success-body {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .client-tx-success-body strong {
+  color: var(--text-primary) !important;
+}
+
+/* Field prefill glow flash animation overrides */
+html.dark .client-tx-field-wrapper.is-prefilled .client-tx-select-trigger,
+html.dark .client-tx-field-group.is-prefilled .client-tx-input,
+html.dark .client-tx-field-group.is-prefilled .client-tx-textarea {
+  animation: client-tx-flash-glow-dark 2s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+@keyframes client-tx-flash-glow-dark {
+  0% {
+    border-color: #12B76A;
+    box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.15);
+    background: rgba(18, 183, 106, 0.02);
+  }
+  50% {
+    border-color: #12B76A;
+    box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.15);
+    background: rgba(18, 183, 106, 0.02);
+  }
+  100% {
+    border-color: var(--border);
+    box-shadow: none;
+    background: var(--surface-2);
+  }
+}
+
+/* Mobile Submit Invoice UI Overrides */
+@media (max-width: 767px) {
+  .client-tx-container.mobile-submit-invoice {
+    padding: 0 !important;
   }
 }

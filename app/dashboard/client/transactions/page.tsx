@@ -569,21 +569,29 @@ export default function ClientTransactionsPage() {
             <Link
               href="/dashboard/client/transactions/new"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: 'var(--brand)',
-                color: '#ffffff',
-                textDecoration: 'none',
-                fontSize: '22px',
-                fontWeight: 400,
-                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.05)'
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "40px",
+                height: "40px",
+                borderRadius: "20px",
+                background: "#1a235a",
+                color: "#ffffff",
+                textDecoration: "none"
               }}
             >
-              +
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ width: "20px", height: "20px" }}
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
             </Link>
           </div>
 
@@ -1362,8 +1370,32 @@ export default function ClientTransactionsPage() {
         {/* Header */}
         <div className="d-tx-header">
           <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
-          <Link href="/dashboard/client/transactions/new" className="d-tx-add-btn">
-            +
+          <Link
+            href="/dashboard/client/transactions/new"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "40px",
+              height: "40px",
+              borderRadius: "20px",
+              background: "#1a235a",
+              color: "#ffffff",
+              textDecoration: "none"
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: "20px", height: "20px" }}
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </Link>
         </div>
 

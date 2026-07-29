@@ -105,11 +105,10 @@ export default function CashFlowChart({
             <button
               type="button"
               onClick={() => handleViewChange('graph')}
-              className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${
-                currentView === 'graph'
+              className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'graph'
                   ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
                   : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
-              }`}
+                }`}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                 <line x1="18" y1="20" x2="18" y2="10" />
@@ -121,11 +120,10 @@ export default function CashFlowChart({
             <button
               type="button"
               onClick={() => handleViewChange('table')}
-              className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${
-                currentView === 'table'
+              className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'table'
                   ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
                   : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
-              }`}
+                }`}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                 <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -181,7 +179,7 @@ export default function CashFlowChart({
                     const expHeightPct = (expVal / dataMax) * 100;
 
                     return (
-                      <div key={month} className="flex-1 flex flex-col items-center h-full justify-end z-10">
+                      <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end z-10">
                         <div className="flex items-end gap-2.5 h-[150px] justify-center w-full">
                           {/* Expense (Orange) - Rounded top only */}
                           <div
@@ -317,11 +315,10 @@ export default function CashFlowChart({
                   <button
                     type="button"
                     onClick={() => handleViewChange('graph')}
-                    className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${
-                      currentView === 'graph'
+                    className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'graph'
                         ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
                         : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
-                    }`}
+                      }`}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                       <line x1="18" y1="20" x2="18" y2="10" />
@@ -333,11 +330,10 @@ export default function CashFlowChart({
                   <button
                     type="button"
                     onClick={() => handleViewChange('table')}
-                    className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${
-                      currentView === 'table'
+                    className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'table'
                         ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
                         : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
-                    }`}
+                      }`}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                       <rect x="3" y="3" width="18" height="18" rx="2" />

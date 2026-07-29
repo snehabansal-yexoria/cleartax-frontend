@@ -499,7 +499,6 @@ export default function ClientEntityDetailView({
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
-
   // Return loader skeleton if loading
   if (isLoading) {
     return (
@@ -647,7 +646,16 @@ export default function ClientEntityDetailView({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Properties Card List (2/3 width) */}
             <div className="lg:col-span-2 client-entity-chart-card flex flex-col gap-4">
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Properties</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Properties</h3>
+                <Link
+                  href={`/dashboard/client/properties?entityId=${encodeURIComponent(entityId)}`}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                  style={{ textDecoration: "none" }}
+                >
+                  View all
+                </Link>
+              </div>
 
               <div className="client-properties-list-container">
                 {mappedProperties.length === 0 ? (
@@ -672,9 +680,9 @@ export default function ClientEntityDetailView({
                       <div className="flex-1 flex flex-col min-w-0">
                         {/* Line 1: Address Name & Net */}
                         <div className="flex justify-between items-start">
-                          <Link href={`${propertyDetailHrefBase}/${prop.id}`} className="font-extrabold text-[#28336e] dark:text-white text-base hover:underline leading-snug">
+                          <div className="font-extrabold text-[#28336e] dark:text-white text-base leading-snug">
                             {prop.name}
-                          </Link>
+                          </div>
                           <div className="flex items-center gap-1 text-xs">
                             <span className="text-slate-400 font-semibold">Net</span>
                             <span className="text-[#12b76a] font-extrabold text-sm">+{formatUSD(prop.net)}</span>
@@ -881,7 +889,16 @@ export default function ClientEntityDetailView({
 
           {/* Mobile Properties Grid */}
           <div className="flex flex-col gap-4">
-            <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Properties</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Properties</h3>
+              <Link
+                href={`/dashboard/client/properties?entityId=${encodeURIComponent(entityId)}`}
+                className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                style={{ textDecoration: 'none' }}
+              >
+                View all
+              </Link>
+            </div>
             <div className="flex flex-col gap-4">
               {mappedProperties.length === 0 ? (
                 <div className="p-6 text-center text-slate-400 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700">

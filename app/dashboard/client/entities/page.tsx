@@ -4,7 +4,7 @@ import { useEffect, useState, useId, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import ClientEntitiesSkeleton from "@/app/components/clients/ClientEntitiesSkeleton";
 import { getSession } from "@/src/lib/session";
 import { formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -175,20 +175,9 @@ function StaticSelect({
 function EntityTypeIcon({ type }: { type?: string }) {
   const typeLower = type?.toLowerCase() || "";
 
-  const iconContainerStyles = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "40px",
-    height: "40px",
-    borderRadius: "10px",
-    background: "#eff2fc",
-    color: "#2f3e8b",
-  };
-
   if (typeLower.includes("trust")) {
     return (
-      <div style={iconContainerStyles}>
+      <div className="entity-type-icon">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 22h18" />
           <path d="M6 18V9" />
@@ -203,7 +192,7 @@ function EntityTypeIcon({ type }: { type?: string }) {
 
   if (typeLower.includes("company") || typeLower.includes("partnership") || typeLower.includes("smsf")) {
     return (
-      <div style={iconContainerStyles}>
+      <div className="entity-type-icon">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
           <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
@@ -213,7 +202,7 @@ function EntityTypeIcon({ type }: { type?: string }) {
   }
 
   return (
-    <div style={iconContainerStyles}>
+    <div className="entity-type-icon">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
@@ -352,25 +341,29 @@ export default function ClientEntitiesPage() {
           <style>{`
             .mobile-client-dashboard {
               min-height: 100vh;
-              background-color: #f7f9fc;
+              background-color: var(--surface-0);
               font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             }
             .m-db-subpage-header {
               display: flex;
               justify-content: space-between;
               align-items: center;
-              background: #ffffff;
-              border-bottom: 1px solid #eaeef4;
+              background: var(--surface-1);
+              border-bottom: 1px solid var(--border);
+            }
+            html.dark .m-db-subpage-header {
+              background: transparent !important;
+              border-bottom: none !important;
             }
             .m-db-entity-list-header {
               font-size: 14px;
               font-weight: 600;
-              color: #475467;
+              color: var(--text-secondary);
               margin: 20px 0 12px 0;
             }
             .m-db-entity-card-row {
-              background: #ffffff;
-              border: 1px solid #eaeef4;
+              background: var(--surface-1);
+              border: 1px solid var(--border);
               border-radius: 16px;
               padding: 16px;
               margin-bottom: 12px;
@@ -382,7 +375,7 @@ export default function ClientEntitiesPage() {
               cursor: pointer;
             }
             .m-db-entity-card-row:hover {
-              border-color: #2f3e8b;
+              border-color: var(--brand);
               transform: translateY(-2px);
               box-shadow: 0 12px 20px rgba(27, 38, 92, 0.08);
             }
@@ -393,18 +386,18 @@ export default function ClientEntitiesPage() {
             .m-db-entity-card-name {
               font-size: 17px;
               font-weight: 700;
-              color: #101828;
+              color: var(--text-primary);
               margin: 0;
             }
             .m-db-entity-card-type {
               font-size: 13px;
-              color: #667085;
+              color: var(--text-secondary);
               margin-top: 2px;
               font-weight: 500;
             }
             .m-db-entity-card-divider {
               height: 1px;
-              background: #f2f4f7;
+              background: var(--border);
               margin: 12px 0;
             }
             .m-db-entity-card-bottom {
@@ -422,13 +415,13 @@ export default function ClientEntitiesPage() {
             }
             .m-db-entity-card-label {
               font-size: 13px;
-              color: #667085;
+              color: var(--text-secondary);
               font-weight: 500;
             }
             .m-db-entity-card-value {
               font-size: 15px;
               font-weight: 700;
-              color: #101828;
+              color: var(--text-primary);
               margin-top: 4px;
             }
           `}</style>
@@ -441,12 +434,12 @@ export default function ClientEntitiesPage() {
               justifyContent: "space-between",
               alignItems: "center",
               padding: "16px 20px",
-              background: "#ffffff",
-              borderBottom: "1px solid #eaeef4",
+              background: "var(--surface-1)",
+              borderBottom: "1px solid var(--border)",
               marginBottom: "20px"
             }}
           >
-            <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#101828", margin: 0 }}>Entities</h1>
+            <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Entities</h1>
             <Link
               href="/dashboard/client/entities/new"
               style={{
@@ -458,13 +451,23 @@ export default function ClientEntitiesPage() {
                 borderRadius: "20px",
                 background: "#1a235a",
                 color: "#ffffff",
-                textDecoration: "none",
-                fontSize: "24px",
-                fontWeight: 400
+                textDecoration: "none"
               }}
             >
-              +
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ width: "20px", height: "20px" }}
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
             </Link>
+
           </div>
 
           {/* Content Area */}
@@ -488,7 +491,7 @@ export default function ClientEntitiesPage() {
             {/* Entities List */}
             <div className="entities-cards-container">
               {entityListItems.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "32px 16px", color: "#667085", background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "16px", width: "100%" }}>
+                <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-secondary)", background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: "16px", width: "100%" }}>
                   No entities available. Click the '+' button in the top right to create your first entity.
                 </div>
               ) : (
@@ -512,7 +515,12 @@ export default function ClientEntitiesPage() {
                       </div>
                       <div className="m-db-entity-card-col right">
                         <span className="m-db-entity-card-label">Net Value</span>
-                        <span className="m-db-entity-card-value">{formatCurrencyShort(item.marketValue)}</span>
+                        <span
+                          className="m-db-entity-card-value"
+                          style={item.marketValue > 0 ? { color: "var(--success)" } : undefined}
+                        >
+                          {formatCurrencyShort(item.marketValue)}
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -540,9 +548,30 @@ export default function ClientEntitiesPage() {
           <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Entities</h1>
           <Link
             href="/dashboard/client/entities/new"
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1a235a] text-white no-underline text-2xl font-normal transition-all duration-200 ease hover:bg-[#2f3e8b] hover:scale-105"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "40px",
+              height: "40px",
+              borderRadius: "20px",
+              background: "#1a235a",
+              color: "#ffffff",
+              textDecoration: "none"
+            }}
           >
-            +
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: "20px", height: "20px" }}
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </Link>
         </div>
 
@@ -564,12 +593,12 @@ export default function ClientEntitiesPage() {
           </div>
 
           {/* Your Entities Header */}
-          <h3 className="text-sm font-semibold text-[#475467] mt-7 mb-4">Your Entities</h3>
+          <h3 className="text-sm font-semibold text-t-secondary mt-7 mb-4">Your Entities</h3>
 
           {/* Entities Grid */}
           <div className={entityListItems.length === 0 ? "w-full" : "grid grid-cols-1 gap-5 w-full min-[1200px]:grid-cols-2 min-[1200px]:gap-6 min-[1600px]:grid-cols-3"}>
             {entityListItems.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 16px", color: "#667085", background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "16px", width: "100%" }}>
+              <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-secondary)", background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: "16px", width: "100%" }}>
                 No entities available. Click the '+' button in the top right to create your first entity.
               </div>
             ) : (
@@ -589,12 +618,12 @@ export default function ClientEntitiesPage() {
                   <Link
                     key={item.id}
                     href={`/dashboard/client/entities/${item.id}`}
-                    className="bg-white border border-[#eaeef4] rounded-2xl p-6 flex flex-col shadow-[0_1px_3px_rgba(16,24,40,0.05),0_1px_2px_rgba(16,24,40,0.03)] transition-all duration-200 ease-in-out no-underline cursor-pointer hover:border-[#2f3e8b] hover:-translate-y-0.5 hover:shadow-[0_12px_20px_rgba(27,38,92,0.06)]"
+                    className="bg-surface-1 border border-b-border rounded-2xl p-6 flex flex-col shadow-[0_1px_3px_rgba(16,24,40,0.05),0_1px_2px_rgba(16,24,40,0.03)] transition-all duration-200 ease-in-out no-underline cursor-pointer hover:border-b-brand hover:-translate-y-0.5 hover:shadow-[0_12px_20px_rgba(27,38,92,0.06)]"
                   >
                     <div className="flex justify-between items-start mb-6">
                       <div className="flex flex-col">
-                        <h4 className="text-lg font-bold text-[#101828] m-0 leading-[1.3]">{item.name}</h4>
-                        <span className="text-[13px] text-[#667085] mt-1 font-medium">{item.typeText}</span>
+                        <h4 className="text-lg font-bold text-t-primary m-0 leading-[1.3]">{item.name}</h4>
+                        <span className="text-[13px] text-t-secondary mt-1 font-medium">{item.typeText}</span>
                       </div>
                       {/* SVG Icon on the top right */}
                       <EntityTypeIcon type={item.entityType} />
@@ -602,12 +631,12 @@ export default function ClientEntitiesPage() {
 
                     <div className="flex justify-between items-center">
                       <div className="flex flex-col gap-1">
-                        <span className="text-[13px] text-[#667085] font-medium">Properties</span>
-                        <span className="text-[15px] font-semibold text-[#101828]">{propCountText}</span>
+                        <span className="text-[13px] text-t-secondary font-medium">Properties</span>
+                        <span className="text-[15px] font-semibold text-t-primary">{propCountText}</span>
                       </div>
                       <div className="flex flex-col gap-1 items-end text-right">
-                        <span className="text-[13px] text-[#667085] font-medium">Net Value</span>
-                        <span className={`text-[15px] ${hasPositiveNet ? "text-[#039855] font-bold" : "text-[#101828] font-semibold"}`}>
+                        <span className="text-[13px] text-t-secondary font-medium">Net Value</span>
+                        <span className={`text-[15px] ${hasPositiveNet ? "text-s-success font-bold" : "text-t-primary font-semibold"}`}>
                           {formatCurrencyShort(item.marketValue)}
                         </span>
                       </div>

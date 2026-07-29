@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import AddEntityWizard from "@/app/components/AddEntityWizard";
-import { EntityWizardSkeleton } from "@/app/components/PortalSkeletons";
+import ClientAddEntityWizard from "@/app/components/clients/ClientAddEntityWizard";
+import { ClientEntityWizardSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity } from "@/src/lib/coreApi";
 
@@ -66,9 +66,9 @@ export default function ClientEditEntityPage() {
       <Skeleton
         name="client-edit-entity-page"
         loading
-        fallback={<EntityWizardSkeleton />}
+        fallback={<ClientEntityWizardSkeleton />}
       >
-        <EntityWizardSkeleton />
+        <ClientEntityWizardSkeleton />
       </Skeleton>
     );
   }
@@ -84,7 +84,7 @@ export default function ClientEditEntityPage() {
   }
 
   return (
-    <AddEntityWizard
+    <ClientAddEntityWizard
       mode="edit"
       initialEntity={entity}
       createdFor={entity.createdFor}

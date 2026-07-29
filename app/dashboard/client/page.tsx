@@ -677,7 +677,7 @@ export default function ClientPage() {
                   </Link>
 
                   <Link
-                    href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"}
+                    href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -907,7 +907,7 @@ export default function ClientPage() {
                   </Link>
 
                   <Link
-                    href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"}
+                    href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -1120,7 +1120,7 @@ export default function ClientPage() {
           </Link>
 
           <Link
-            href={entities.length > 0 ? `/dashboard/client/entities/${entities[0].id}/properties/new` : "/dashboard/client/entities/new"}
+            href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
               background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',

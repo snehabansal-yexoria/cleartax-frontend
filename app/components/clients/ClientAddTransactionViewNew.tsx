@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useRef } from "react";
+import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
@@ -24,6 +25,8 @@ import {
   dropdownRegistryEvent,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
+import { CURRENCY_PREFIX } from "./CurrencyFormatter";
+
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -37,11 +40,11 @@ type BulkImportRow = Record<string, string>;
 
 const MODE_OF_TRANSACTION_OPTIONS = [
   { label: "Select mode of transaction", value: "" },
-  { label: "Bank Transfer / EFT", value: "bank_transfer" },
-  { label: "Credit Card", value: "credit_card" },
-  { label: "Direct Debit", value: "direct_debit" },
   { label: "Cash", value: "cash" },
+  { label: "Bank Transfer", value: "bank_transfer" },
+  { label: "Credit Card", value: "credit_card" },
   { label: "Cheque", value: "cheque" },
+  { label: "Direct Debit", value: "direct_debit" },
   { label: "Other", value: "other" },
 ];
 
@@ -72,6 +75,23 @@ function UploadIcon() {
       <path d="M12 16V5" />
       <path d="m7 10 5-5 5 5" />
       <path d="M5 19h14" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+    </svg>
+  );
+}
+
+function ChecklistIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.03 0 1.9.693 2.166 1.638m-7.377 0A48.536 48.536 0 0112 3m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664M4.5 6.108V16.5A2.25 2.25 0 006.75 18.75h.75m-3-12.642c0-1.135.845-2.098 1.976-2.192a48.424 48.424 0 011.123-.08" />
     </svg>
   );
 }
@@ -132,6 +152,13 @@ function StaticSelect({
   const selected = options.find((option) => option.value === value);
 
   const selectRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
 
   useEffect(() => {
     function closeIfAnotherOpened(event: Event) {
@@ -175,6 +202,8 @@ function StaticSelect({
     <div
       className={`client-tx-field-wrapper ${className}`}
       style={{
+        display: "flex",
+        flexDirection: "column",
         minWidth: '200px',
         ...(horizontal && {
           flexDirection: 'row',
@@ -187,15 +216,34 @@ function StaticSelect({
       {label && (
         <span
           className="client-tx-field-label"
-          style={horizontal ? { margin: 0, whiteSpace: 'nowrap' } : undefined}
+          style={{
+            fontSize: '13px',
+            fontWeight: '500',
+            color: isDark ? 'var(--text-secondary)' : '#344054',
+            marginBottom: '6px',
+            display: 'inline-block',
+            ...(horizontal && { margin: 0, whiteSpace: 'nowrap' }),
+          }}
         >
           {label}
-          {required && <em className="client-tx-required">*</em>}
+          {required && (
+            <em
+              className="client-tx-required"
+              style={{
+                color: '#da3838',
+                fontStyle: 'normal',
+                marginLeft: '3px',
+              }}
+            >
+              *
+            </em>
+          )}
         </span>
       )}
       <div
         ref={selectRef}
         className={`client-tx-select${isOpen ? " is-open" : ""}${disabled ? " is-disabled" : ""}`}
+        style={{ position: 'relative', width: '100%' }}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setIsOpen(false);
@@ -208,6 +256,24 @@ function StaticSelect({
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           disabled={disabled}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+            border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            fontSize: '14.5px',
+            fontWeight: '500',
+            color: isDark ? 'var(--text-primary)' : '#1d2939',
+            width: '100%',
+            boxSizing: 'border-box',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            outline: 'none',
+            textAlign: 'left',
+            height: '50px',
+          }}
           onClick={() => {
             if (!disabled) {
               setIsOpen((current) => !current);
@@ -218,7 +284,27 @@ function StaticSelect({
           <ChevronIcon />
         </button>
         {isOpen && !disabled && (
-          <div className="client-tx-select-menu" role="listbox">
+          <div
+            className="client-tx-select-menu"
+            role="listbox"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              right: 0,
+              background: isDark ? 'var(--surface-1)' : '#ffffff',
+              border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              borderRadius: '12px',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
+              zIndex: 999,
+              maxHeight: '250px',
+              overflowY: 'auto',
+              padding: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+            }}
+          >
             {options.map((option) => (
               <button
                 key={option.value}
@@ -226,6 +312,21 @@ function StaticSelect({
                 role="option"
                 aria-selected={value === option.value}
                 className={value === option.value ? "is-selected" : ""}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%',
+                  padding: '11px 12px',
+                  background: value === option.value ? (isDark ? 'rgba(244, 161, 23, 0.12)' : 'rgba(29, 36, 82, 0.06)') : 'transparent',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: value === option.value ? '600' : '500',
+                  color: value === option.value ? (isDark ? 'var(--accent)' : '#1d2452') : (isDark ? 'var(--text-primary)' : '#1d2939'),
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
                 onClick={() => {
                   onChange(option.value);
                   setIsOpen(false);
@@ -233,7 +334,7 @@ function StaticSelect({
               >
                 <span>{option.label}</span>
                 {value === option.value && (
-                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, color: isDark ? 'var(--accent)' : '#1d2452' }}>
                     <path d="M5 12l4 4 10-10" />
                   </svg>
                 )}
@@ -243,7 +344,18 @@ function StaticSelect({
         )}
       </div>
       {error && (
-        <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
+        <p
+          className="client-tx-field-error"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            marginTop: "4.5px",
+            color: '#da3838',
+            fontSize: '11.5px',
+            fontWeight: '600',
+          }}
+        >
           <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
           </svg>
@@ -290,12 +402,29 @@ function EntityPropertyHeaderCard({
   const propertyName =
     properties.find((p) => p.id === activePropertyId)?.name || "Not selected";
 
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
+
   return (
-    <div className="client-tx-grid cols-2">
-      <div className="client-tx-field-group">
+    <div
+      className="client-tx-grid cols-2"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gap: '20px',
+        marginBottom: '20px',
+      }}
+    >
+      <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {isEditingEntity ? (
           <StaticSelect
             label="Entity Name"
+            required={true}
             placeholder="Select Entity"
             value={activeEntityId}
             options={[
@@ -306,12 +435,56 @@ function EntityPropertyHeaderCard({
             disabled={disabled}
           />
         ) : (
-          <div className="client-tx-locked-field">
-            <span className="client-tx-field-label">Entity Name</span>
-            <div className="client-tx-locked-input">
+          <div className="client-tx-locked-field" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span
+              className="client-tx-field-label"
+              style={{
+                fontSize: '13px',
+                fontWeight: '500',
+                color: isDark ? 'var(--text-secondary)' : '#344054',
+                marginBottom: '6px',
+                display: 'inline-block',
+              }}
+            >
+              Entity Name
+              <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+            </span>
+            <div
+              className="client-tx-locked-input"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                borderRadius: '12px',
+                padding: '12px 16px',
+                fontSize: '14.5px',
+                fontWeight: '500',
+                color: isDark ? 'var(--text-primary)' : '#1d2939',
+                width: '100%',
+                boxSizing: 'border-box',
+                height: '50px',
+              }}
+            >
               <span>{entityName}</span>
               {!disabled && isEntityLockable && (
-                <button type="button" className="client-tx-edit-btn" aria-label="Edit entity" onClick={onEditEntity}>
+                <button
+                  type="button"
+                  className="client-tx-edit-btn"
+                  aria-label="Edit entity"
+                  onClick={onEditEntity}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: isDark ? 'var(--text-secondary)' : '#566474',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px',
+                  }}
+                >
                   <EditPencilIcon />
                 </button>
               )}
@@ -320,10 +493,11 @@ function EntityPropertyHeaderCard({
         )}
       </div>
 
-      <div className="client-tx-field-group">
+      <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {isEditingProperty ? (
           <StaticSelect
             label="Select Property"
+            required={isPropertyRequired}
             placeholder="Select Property"
             value={activePropertyId}
             options={[
@@ -334,9 +508,38 @@ function EntityPropertyHeaderCard({
             disabled={disabled}
           />
         ) : (
-          <div className="client-tx-locked-field">
-            <span className="client-tx-field-label">Select Property</span>
-            <div className="client-tx-locked-input">
+          <div className="client-tx-locked-field" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span
+              className="client-tx-field-label"
+              style={{
+                fontSize: '13px',
+                fontWeight: '500',
+                color: isDark ? 'var(--text-secondary)' : '#344054',
+                marginBottom: '6px',
+                display: 'inline-block',
+              }}
+            >
+              Select Property
+              {isPropertyRequired && <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>}
+            </span>
+            <div
+              className="client-tx-locked-input"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                borderRadius: '12px',
+                padding: '12px 16px',
+                fontSize: '14.5px',
+                fontWeight: '500',
+                color: isDark ? 'var(--text-primary)' : '#1d2939',
+                width: '100%',
+                boxSizing: 'border-box',
+                height: '50px',
+              }}
+            >
               <span>{propertyName}</span>
               {!disabled && isPropertyLockable && (
                 <button
@@ -344,6 +547,16 @@ function EntityPropertyHeaderCard({
                   className="client-tx-edit-btn"
                   aria-label="Edit property"
                   onClick={onEditProperty}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: isDark ? 'var(--text-secondary)' : '#566474',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px',
+                  }}
                 >
                   <EditPencilIcon />
                 </button>
@@ -368,15 +581,86 @@ type SplitRowState = {
 
 export default function ClientAddTransactionViewNew({
   entityId,
-  backHref = "/dashboard/client/transactions",
-  backLabel = "Back to transactions",
+  backHref: propBackHref,
+  backLabel: propBackLabel,
 }: {
   entityId?: string;
   backHref?: string;
   backLabel?: string;
 }) {
   const router = useRouter();
+  const [backHref, setBackHref] = useState(
+    propBackHref || (entityId ? `/dashboard/client/entities/${entityId}` : "/dashboard/client/transactions")
+  );
+  const [backLabel, setBackLabel] = useState(
+    propBackLabel || (entityId ? "Entity" : "Transactions")
+  );
   const [effectiveBackHref, setEffectiveBackHref] = useState(backHref);
+
+  useEffect(() => {
+    const defaultBackHref = propBackHref || (entityId ? `/dashboard/client/entities/${entityId}` : "/dashboard/client/transactions");
+    const defaultBackLabel = propBackLabel || (entityId ? "Entity" : "Transactions");
+
+    setBackHref(defaultBackHref);
+    setBackLabel(defaultBackLabel);
+
+    if (!propBackHref || !propBackLabel) {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        const prevPath = sessionStorage.getItem("prevDashboardPath");
+        if (prevPath) {
+          const normalized = prevPath.split("?")[0].split("#")[0];
+          if (!propBackHref) {
+            if (normalized.startsWith("/dashboard/client")) {
+              setBackHref(prevPath);
+            }
+          }
+          if (!propBackLabel) {
+            if (normalized === "/dashboard/client" || normalized === "/dashboard/client/summary" || normalized === "/dashboard/client/detailed") {
+              setBackLabel("Dashboard");
+            } else if (normalized === "/dashboard/client/properties") {
+              setBackLabel("Properties");
+            } else if (normalized === "/dashboard/client/entities") {
+              setBackLabel("Entities");
+            } else if (normalized.match(/^\/dashboard\/client\/entities\/[^/]+$/)) {
+              setBackLabel("Entity");
+            } else if (normalized.match(/^\/dashboard\/client\/properties\/[^/]+$/)) {
+              setBackLabel("Property");
+            } else if (normalized === "/dashboard/client/transactions") {
+              setBackLabel("Transactions");
+            } else if (normalized === "/dashboard/client/insights") {
+              setBackLabel("Insights");
+            } else if (normalized === "/dashboard/client/profile") {
+              setBackLabel("Profile");
+            } else if (normalized.startsWith("/dashboard/client")) {
+              setBackLabel("Back");
+            }
+          }
+        }
+      }
+    }
+  }, [propBackHref, propBackLabel, entityId]);
+  const [selectedMethod, setSelectedMethod] = useState<"submit_invoice" | "review_submit" | null>(null);
+
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileStep, setMobileStep] = useState(1);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [mounted]);
 
   const [token, setToken] = useState<string | null>(null);
   const [tokenLoaded, setTokenLoaded] = useState(false);
@@ -414,7 +698,7 @@ export default function ClientAddTransactionViewNew({
     { id: makeSplitRowId(), propertyId: "", amount: "" },
   ]);
 
-  const [modeOfTransaction, setModeOfTransaction] = useState<string>("bank_transfer");
+  const [modeOfTransaction, setModeOfTransaction] = useState<string>("");
   const [description, setDescription] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
 
@@ -703,6 +987,10 @@ export default function ClientAddTransactionViewNew({
     if (yearPart && yearPart.length > 4) {
       return "Year cannot exceed 4 digits.";
     }
+    const year = Number.parseInt(yearPart);
+    if (!Number.isNaN(year) && year < 1900) {
+      return "Invoice date cannot be earlier than the year 1900.";
+    }
     const todayStr = getLocalDateString();
     if (invoiceDate > todayStr) {
       return "Invoice date cannot be in the future.";
@@ -711,6 +999,30 @@ export default function ClientAddTransactionViewNew({
   }, [invoiceDate]);
 
   const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
+
+  const grossAmountError = useMemo(() => {
+    if (!grossAmount) return "";
+    const parsed = Number.parseFloat(grossAmount);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      return "Amount must be greater than 0.";
+    }
+    return "";
+  }, [grossAmount]);
+
+  const gstAmountError = useMemo(() => {
+    if (!gstAmount) return "";
+    const parsed = Number.parseFloat(gstAmount.replace(/[^0-9.]/g, ""));
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      return "GST amount cannot be 0.";
+    }
+    return "";
+  }, [gstAmount]);
+
+  const preventExponentialAndNegative = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "e" || e.key === "E" || e.key === "-" || e.key === "+" || e.key === "Minus") {
+      e.preventDefault();
+    }
+  };
 
   const canSubmit =
     !hasNoProperties &&
@@ -721,6 +1033,8 @@ export default function ClientAddTransactionViewNew({
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
+    !grossAmountError &&
+    !gstAmountError &&
     !!modeOfTransaction &&
     (!isAssetPurchase ||
       (assetClass === "capital_works" ||
@@ -1214,20 +1528,95 @@ export default function ClientAddTransactionViewNew({
     setSubmitError("");
 
     try {
-      const grossNum = Number.parseFloat(grossAmount);
-      // Under the hood, parse GST amount if user entered a custom number or default to empty
-      const gstNum = gstAmount ? Number.parseFloat(gstAmount) : null;
+      if (hasNoProperties) {
+        setSubmitError("Add a property to this entity before recording transactions.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (invoiceDateError) {
+        setInvoiceDateTouched(true);
+        setSubmitError(invoiceDateError);
+        setIsSubmitting(false);
+        return;
+      }
+      if (!modeOfTransaction) {
+        setSubmitError("Please select a mode of transaction.");
+        setIsSubmitting(false);
+        return;
+      }
 
-      const splits = isSplit
-        ? splitRows.map((row) => {
-          const amt = Number.parseFloat(row.amount);
-          return {
-            property_id: row.propertyId,
-            split_percentage: Number(((amt / grossNum) * 100).toFixed(4)),
-            split_gross_amount: Number(amt.toFixed(2)),
-          };
-        })
-        : [{ property_id: propertyId, split_percentage: 100 }];
+      const grossNum = Number.parseFloat(grossAmount);
+      const allBlank = isSplit && splitRows.every((row) => !row.amount || !row.amount.trim());
+      if (!allBlank) {
+        if (Number.isNaN(grossNum) || grossNum <= 0) {
+          setSubmitError("Amount must be greater than 0.");
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        if (!Number.isNaN(grossNum) && grossNum <= 0) {
+          setSubmitError("Amount must be greater than 0.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      let gstNum: number | null = null;
+      if (gstAmount) {
+        const parsed = Number.parseFloat(gstAmount.replace(/[^0-9.]/g, ""));
+        if (Number.isNaN(parsed) || parsed <= 0) {
+          setSubmitError("GST amount cannot be 0.");
+          setIsSubmitting(false);
+          return;
+        }
+        gstNum = parsed;
+      }
+
+      let splits: Array<Record<string, unknown>>;
+      if (isSplit) {
+        if (!splitHasMultipleProperties) {
+          setSubmitError("Split transactions must include more than one property.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (Object.keys(splitErrors).length > 0) {
+          setSubmitError("Fix the errors in the split rows.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (!allBlank && !splitMatches) {
+          setSubmitError(
+            `Split amounts must total ${grossNum.toFixed(
+              2,
+            )} (currently ${splitTotal.toFixed(2)}).`,
+          );
+          setIsSubmitting(false);
+          return;
+        }
+        if (allBlank) {
+          splits = splitRows.map((r) => {
+            return {
+              property_id: r.propertyId,
+            };
+          });
+        } else {
+          splits = splitRows.map((r) => {
+            const rowAmount = Number.parseFloat(r.amount);
+            return {
+              property_id: r.propertyId,
+              split_percentage: Number(((rowAmount / grossNum) * 100).toFixed(4)),
+              split_gross_amount: Number(rowAmount.toFixed(2)),
+            };
+          });
+        }
+      } else {
+        if (!propertyId) {
+          setSubmitError("A property must be selected to continue.");
+          setIsSubmitting(false);
+          return;
+        }
+        splits = [{ property_id: propertyId, split_percentage: 100 }];
+      }
 
       let resolvedCategoryId = categoryId;
       let resolvedSubcategoryId = subcategoryId;
@@ -1340,39 +1729,40 @@ export default function ClientAddTransactionViewNew({
 
   if (isMarked) {
     return (
-      <section className="client-tx-container">
-        <div className="client-tx-success-layer" role="dialog" aria-modal="true">
-          <div className="client-tx-success-card">
-            <div className="client-tx-success-animation" aria-hidden="true">
-              <span className="client-tx-confetti is-one" />
-              <span className="client-tx-confetti is-two" />
-              <span className="client-tx-confetti is-three" />
-              <span className="client-tx-confetti is-four" />
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: isDark ? 'rgba(15, 19, 48, 0.8)' : 'rgba(29, 36, 82, 0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+        }} role="dialog" aria-modal="true">
+          <div style={{
+            background: isDark ? 'var(--surface-1)' : '#ffffff',
+            border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+            borderRadius: '20px',
+            padding: '40px 32px',
+            textAlign: 'center',
+            maxWidth: '450px',
+            width: '90%',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+          }}>
+            <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', position: 'relative', marginBottom: '24px' }}>
               <svg viewBox="0 0 72 72" style={{ width: "72px", height: "72px" }}>
-                <circle
-                  className="client-tx-success-badge"
-                  cx="36"
-                  cy="36"
-                  r="28"
-                  fill="none"
-                  stroke="#12B76A"
-                  strokeWidth="4"
-                />
-                <path
-                  className="client-tx-success-check"
-                  d="M22 37.5 31.5 47 51 25"
-                  fill="none"
-                  stroke="#12B76A"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <circle cx="36" cy="36" r="28" fill="none" stroke="#12B76A" strokeWidth="4" />
+                <path d="M22 37.5 31.5 47 51 25" fill="none" stroke="#12B76A" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h2 className="client-tx-success-title">Transaction Added</h2>
-            <div className="client-tx-success-body">
-              <strong>Transaction successfully recorded.</strong>
-              <p>The property ledger has been updated. Returning to transactions...</p>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: '0 0 12px 0' }}>Transaction Added</h2>
+            <div style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#566474', lineHeight: 1.6 }}>
+              <strong style={{ display: 'block', color: isDark ? 'var(--text-primary)' : '#0f1330', marginBottom: '8px', fontSize: '15.5px' }}>Transaction successfully recorded.</strong>
+              <p style={{ margin: 0 }}>The property ledger has been updated. Returning to transactions...</p>
             </div>
           </div>
         </div>
@@ -1382,10 +1772,17 @@ export default function ClientAddTransactionViewNew({
 
   if (tokenLoaded && !token) {
     return (
-      <section className="client-tx-container">
-        <div className="client-tx-error-card">
-          <h2>Sign-in required</h2>
-          <p>Please sign in to add a transaction.</p>
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+        <div style={{
+          background: isDark ? 'var(--surface-1)' : '#ffffff',
+          border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+          borderRadius: '16px',
+          padding: '32px',
+          textAlign: 'center',
+          boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.05)',
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', marginBottom: '12px' }}>Sign-in required</h2>
+          <p style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#566474', margin: 0 }}>Please sign in to add a transaction.</p>
         </div>
       </section>
     );
@@ -1413,25 +1810,953 @@ export default function ClientAddTransactionViewNew({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
-  return (
-    <section className="client-tx-container">
-      <div className="client-tx-header-bar">
-        <Link href={effectiveBackHref} className="client-tx-back-link">
-          <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Back
-        </Link>
-        <h1 className="client-tx-page-title">Add Transaction</h1>
-      </div>
+  if (selectedMethod === null) {
+    return (
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+        <div className="client-tx-header-bar">
+          <Link href={effectiveBackHref} className="client-tx-back-link">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {backLabel}
+          </Link>
+          <h1 className="client-tx-page-title">Add Transaction</h1>
+          <p className="client-tx-page-subtitle">
+            Choose how you'd like to add this transaction.
+          </p>
+        </div>
 
-      <div className="client-tx-card">
-        <h2 className="client-tx-title">Transaction Information</h2>
+        <div className="client-tx-methods-grid">
+          <button
+            type="button"
+            className="client-tx-method-card"
+            onClick={() => setSelectedMethod("submit_invoice")}
+          >
+            <div className="client-tx-method-icon-wrap">
+              <CameraIcon />
+            </div>
+            <div className="client-tx-method-content">
+              <h3 className="client-tx-method-title">Submit Invoice</h3>
+              <p className="client-tx-method-desc">
+                Snap a photo or upload a receipt. It goes straight to your accountant to categorise and review — quickest option.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="client-tx-method-card"
+            onClick={() => setSelectedMethod("review_submit")}
+          >
+            <div className="client-tx-method-icon-wrap">
+              <ChecklistIcon />
+            </div>
+            <div className="client-tx-method-content">
+              <h3 className="client-tx-method-title">Review & Submit</h3>
+              <p className="client-tx-method-desc">
+                Fill in entity, property, category, amount and GST yourself before sending — best when you already have the details.
+              </p>
+            </div>
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (selectedMethod === "submit_invoice" && isMobile) {
+    return (
+      <section className="client-tx-container mobile-submit-invoice" style={{
+        width: '100%',
+        margin: '0 auto',
+        fontFamily: "'Inter', sans-serif",
+        padding: '0 0 120px 0',
+        boxSizing: 'border-box',
+        minHeight: '100vh',
+        background: isDark ? 'var(--surface-0)' : '#ffffff',
+      }}>
+        {/* Mobile Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+          background: isDark ? 'var(--surface-1)' : '#ffffff',
+          height: '60px',
+          boxSizing: 'border-box',
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+        }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (mobileStep === 1) {
+                setSelectedMethod(null);
+              } else {
+                setMobileStep(1);
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: isDark ? 'var(--accent)' : '#1c2452',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "18px", height: "18px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
+              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
+          <span style={{
+            fontSize: '17px',
+            fontWeight: '700',
+            color: isDark ? 'var(--text-primary)' : '#0f1330',
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}>
+            Add Transaction
+          </span>
+          <div style={{ width: '48px' }}></div>
+        </div>
+
+        {/* Step Banner */}
+        <div style={{
+          background: isDark ? 'rgba(92, 133, 214, 0.08)' : '#f2f5fa',
+          padding: '12px 16px',
+          textAlign: 'center',
+        }}>
+          <span style={{
+            fontSize: '13.5px',
+            fontWeight: '600',
+            color: isDark ? 'var(--text-primary)' : '#1e3a7a',
+          }}>
+            Enter the below values to complete the step
+          </span>
+        </div>
+
+        {mobileStep === 1 ? (
+          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Entity Name Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <StaticSelect
+                label="Entity Name"
+                required={true}
+                placeholder="e.g., Smith Family Trust, ABC Properties LLC"
+                value={activeEntityId}
+                options={[
+                  { label: "Select Entity", value: "" },
+                  ...entities.map((e) => ({ label: e.name, value: e.id })),
+                ]}
+                onChange={handleEntityPicked}
+              />
+            </div>
+
+            {/* Select Property Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <StaticSelect
+                label="Select Property"
+                required={true}
+                placeholder="Select Type"
+                value={propertyId}
+                options={[
+                  { label: "Select Property", value: "" },
+                  ...properties.map((p) => ({ label: p.name, value: p.id })),
+                ]}
+                onChange={handlePropertyPicked}
+                disabled={!activeEntityId}
+              />
+            </div>
+
+            {/* Fields locked vs Dropzone */}
+            {!isSelectionComplete ? (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                padding: '36px 24px',
+                background: isDark ? 'var(--surface-2)' : '#f8fafe',
+                border: `1px solid ${isDark ? 'var(--border)' : '#e4eefc'}`,
+                borderRadius: '16px',
+                marginTop: '12px',
+                minHeight: '120px',
+              }}>
+                <span style={{
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  color: isDark ? 'var(--text-secondary)' : '#475467',
+                  marginBottom: '6px',
+                }}>
+                  Fields locked
+                </span>
+                <span style={{
+                  fontSize: '13px',
+                  color: isDark ? 'var(--text-muted)' : '#667085',
+                  maxWidth: '260px',
+                  lineHeight: '1.4',
+                }}>
+                  Select entity and property above to unlock the transaction fields
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: '12px' }}>
+                <span className="client-tx-field-label" style={{
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  color: isDark ? 'var(--text-secondary)' : '#344054',
+                  marginBottom: '8px',
+                }}>
+                  Upload Invoice or Receipt
+                </span>
+                {documentId && uploadedFilename && token ? (
+                  <DocumentPreviewPanel
+                    documentId={documentId}
+                    filename={uploadedFilename}
+                    token={token}
+                    onReset={() => {
+                      setDocumentId(null);
+                      setUploadedFilename(null);
+                      appliedRuleIdRef.current = null;
+                    }}
+                  />
+                ) : (
+                  <div className="client-tx-dropzone-wrapper" style={{ width: '100%' }}>
+                    <DocumentDropZone
+                      token={token}
+                      onExtracted={handleExtracted}
+                      scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+                      isSubmitting={isSubmitting}
+                      submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+                      primaryLabelText="Upload invoice or receipt"
+                      secondaryLabelText="PDF, JPG, PNG max 10 MB"
+                      hideIconOnIdle={true}
+                      style={{
+                        border: `1.5px dashed ${isDark ? 'var(--border)' : '#c4ccd8'}`,
+                        background: 'transparent',
+                        borderRadius: '12px',
+                        padding: '40px 24px',
+                        minHeight: '120px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                      }}
+                      strongStyle={{
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        color: isDark ? 'var(--text-primary)' : '#1c2452',
+                        margin: '0 0 4px 0',
+                        display: 'block',
+                      }}
+                      smallStyle={{
+                        fontSize: '12px',
+                        color: isDark ? 'var(--text-muted)' : '#667085',
+                        margin: 0,
+                        display: 'block',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Step 1 Footer */}
+            <div className="client-tx-mobile-footer" style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: isDark ? 'var(--surface-1)' : '#ffffff',
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              padding: '16px 20px calc(16px + env(safe-area-inset-bottom)) 20px',
+              zIndex: 100,
+              boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+            }}>
+              {!isSelectionComplete ? (
+                <button
+                  type="button"
+                  disabled
+                  style={{
+                    width: '100%',
+                    height: '52px',
+                    background: isDark ? 'var(--surface-2)' : '#b0b8c9',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  Save Transaction
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMobileStep(2)}
+                  style={{
+                    width: '100%',
+                    height: '52px',
+                    background: isDark ? 'var(--accent)' : '#1c2452',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  Continue
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Mobile Step 2: Form Fields & Review */
+          <div style={{ padding: '24px 20px 140px 20px' }}>
+            <form className="client-tx-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Green document preview banner */}
+              {documentId && uploadedFilename && (
+                <div style={{
+                  background: isDark ? 'rgba(18, 183, 106, 0.08)' : '#E6F4EA',
+                  border: `1.5px dashed ${isDark ? '#12B76A' : '#A3E0C1'}`,
+                  borderRadius: '16px',
+                  padding: '16px 20px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  marginTop: '-4px',
+                }}>
+                  <span style={{
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    color: isDark ? '#82F2B1' : '#1d2452',
+                  }}>
+                    {uploadedFilename}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocumentId(null);
+                      setUploadedFilename(null);
+                      appliedRuleIdRef.current = null;
+                      setMobileStep(1); // Go back to step 1 to upload again
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: isDark ? '#82F2B1' : '#566474',
+                      fontSize: '12px',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                    }}
+                  >
+                    Replace document
+                  </button>
+                </div>
+              )}
+
+              {/* Transaction Type Pill Toggle */}
+              <div style={{
+                display: 'flex',
+                background: isDark ? 'var(--surface-2)' : '#F2F4F7',
+                borderRadius: '12px',
+                padding: '4px',
+                width: '100%',
+                boxSizing: 'border-box',
+                height: '48px',
+                marginTop: '4px',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setType("expense")}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: type === "expense" ? (isDark ? 'var(--surface-1)' : '#ffffff') : 'transparent',
+                    color: type === "expense" ? (isDark ? 'var(--text-primary)' : '#1c2452') : '#98A2B3',
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: type === "expense" && !isDark ? '0px 1px 3px rgba(16, 24, 40, 0.1)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("revenue")}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: type === "revenue" ? (isDark ? 'var(--surface-1)' : '#ffffff') : 'transparent',
+                    color: type === "revenue" ? (isDark ? 'var(--text-primary)' : '#1c2452') : '#98A2B3',
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: type === "revenue" && !isDark ? '0px 1px 3px rgba(16, 24, 40, 0.1)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Income
+                </button>
+              </div>
+
+              {/* Category and Sub-category */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <StaticSelect
+                  label="Category"
+                  required={true}
+                  placeholder="Select category"
+                  value={categoryId == null ? "" : String(categoryId)}
+                  options={categorySelectOptions}
+                  onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                  disabled={lockAssetPurchaseCategory}
+                />
+                <StaticSelect
+                  label="Sub-category"
+                  required={true}
+                  placeholder="Select sub-category"
+                  value={subcategoryId == null ? "" : String(subcategoryId)}
+                  options={subcategorySelectOptions}
+                  onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                  disabled={lockAssetPurchaseCategory}
+                />
+              </div>
+
+              {/* Amount and GST */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label className="client-tx-field-label" style={{
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: isDark ? 'var(--text-secondary)' : '#667085',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
+                    display: 'inline-block',
+                  }}>
+                    Amount AUD <em style={{ color: '#da3838', fontStyle: 'normal' }}>*</em>
+                  </label>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>{CURRENCY_PREFIX}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0"
+                      value={grossAmount}
+                      onKeyDown={preventExponentialAndNegative}
+                      onChange={(e) => setGrossAmount(e.target.value.replace(/-/g, ""))}
+                      style={{
+                        background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                        border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                        borderRadius: '12px',
+                        padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
+                        fontSize: '14.5px',
+                        fontWeight: '500',
+                        color: isDark ? 'var(--text-primary)' : '#1d2939',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        height: '50px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  {grossAmount && grossAmountError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{grossAmountError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label className="client-tx-field-label" style={{
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: isDark ? 'var(--text-secondary)' : '#667085',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
+                    display: 'inline-block',
+                  }}>
+                    GST (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={gstAmount}
+                    onChange={(e) => setGstAmount(e.target.value)}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      height: '50px',
+                      outline: 'none',
+                    }}
+                  />
+                  {gstAmount && gstAmountError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{gstAmountError}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Is Split Transaction Toggle */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px 0',
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                marginTop: '8px',
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
+                  <span style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate across multiple properties</span>
+                </div>
+                <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
+                  <input
+                    type="checkbox"
+                    checked={isSplit}
+                    onChange={(e) => handleSplitToggle(e.target.checked)}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--surface-2)' : '#e2e8f0'),
+                    transition: '.3s',
+                    borderRadius: '34px',
+                  }} />
+                  <span style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '16px',
+                    width: '16px',
+                    left: isSplit ? '26px' : '4px',
+                    bottom: '4px',
+                    backgroundColor: 'white',
+                    transition: '.3s',
+                    borderRadius: '50%',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                    pointerEvents: 'none',
+                  }} />
+                </label>
+              </div>
+
+              {/* Split Cards Container */}
+              {isSplit && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+                  {splitRows.map((row, index) => {
+                    const rowError = splitErrors[row.id];
+                    const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                    const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                    return (
+                      <div key={row.id} style={{
+                        background: isDark ? 'var(--surface-2)' : '#ffffff',
+                        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                        borderRadius: '12px',
+                        padding: '16px',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}>
+                        {/* Split Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '800', color: isDark ? 'var(--text-muted)' : '#98a2b3', letterSpacing: '0.5px' }}>
+                            PROPERTY {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={splitRows.length <= 1}
+                            onClick={() => removeSplitRow(row.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#BC4A24',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              padding: 0,
+                              opacity: splitRows.length <= 1 ? 0.5 : 1,
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        {/* Dropdown and Amount Input Side-by-Side */}
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', width: '100%' }}>
+                          <div style={{ flex: '3', minWidth: 0 }}>
+                            <StaticSelect
+                              placeholder="Select Property"
+                              value={row.propertyId}
+                              options={[
+                                { label: "Select Property", value: "" },
+                                ...properties.map((p) => ({ label: p.name, value: p.id })),
+                              ]}
+                              onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
+                              error={propertyError}
+                            />
+                          </div>
+                          <div style={{ flex: '2', minWidth: 0 }}>
+                            <div style={{ position: 'relative', width: '100%' }}>
+                              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>{CURRENCY_PREFIX}</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0"
+                                value={row.amount}
+                                onKeyDown={preventExponentialAndNegative}
+                                onChange={(e) => updateSplitRow(row.id, { amount: e.target.value.replace(/-/g, "") })}
+                                style={{
+                                  background: isDark ? 'var(--surface-1)' : '#f8f9fb',
+                                  border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                                  borderRadius: '12px',
+                                  padding: `14px 12px 14px ${18 + CURRENCY_PREFIX.length * 8}px`,
+                                  fontSize: '14.5px',
+                                  fontWeight: '500',
+                                  color: isDark ? 'var(--text-primary)' : '#1d2939',
+                                  width: '100%',
+                                  boxSizing: 'border-box',
+                                  height: '50px',
+                                  outline: 'none',
+                                }}
+                              />
+                            </div>
+                            {amountError && (
+                              <p style={{ color: '#da3838', fontSize: '11px', marginTop: '4px', fontWeight: '600' }}>{amountError}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {splitErrors.__form && (
+                    <p style={{ color: '#da3838', fontSize: '12px', fontWeight: '600', margin: '4px 0' }}>
+                      {splitErrors.__form}
+                    </p>
+                  )}
+
+                  {/* Allocation Buttons/Labels */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={addSplitRow}
+                      disabled={properties.length < 2}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#12b76a',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        cursor: properties.length < 2 ? 'not-allowed' : 'pointer',
+                        padding: 0,
+                        textAlign: 'left',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      + Add property
+                    </button>
+
+                    {/* Summary Allocations Banner */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: isDark ? 'var(--surface-2)' : '#F0F4FA',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}>
+                      <span style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#667085', fontWeight: '500' }}>
+                        Total allocated
+                      </span>
+                      <span style={{ fontSize: '14.5px', color: isDark ? 'var(--text-primary)' : '#1c2452', fontWeight: '700' }}>
+                        {CURRENCY_PREFIX}{splitTotal.toFixed(2)} / {CURRENCY_PREFIX}{Number(grossAmount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Invoice Date and Mode of Transaction */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '8px' }}>
+                    Invoice Date <em style={{ color: '#da3838', fontStyle: 'normal' }}>*</em>
+                  </label>
+                  <input
+                    type="date"
+                    min="1900-01-01"
+                    max="9999-12-31"
+                    value={invoiceDate}
+                    onChange={(e) => {
+                      setInvoiceDate(e.target.value);
+                      setInvoiceDateTouched(true);
+                    }}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      height: '50px',
+                      outline: 'none',
+                    }}
+                  />
+                  {showDateError && invoiceDateError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{invoiceDateError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <StaticSelect
+                  label="Mode of Transaction"
+                  required
+                  placeholder="Select mode of transaction"
+                  value={modeOfTransaction}
+                  options={MODE_OF_TRANSACTION_OPTIONS}
+                  onChange={setModeOfTransaction}
+                />
+              </div>
+
+              {/* Description */}
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '8px' }}>Description</label>
+                <textarea
+                  placeholder="Add remarks...."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  style={{
+                    background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    fontSize: '14.5px',
+                    fontWeight: '500',
+                    color: isDark ? 'var(--text-primary)' : '#1d2939',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    minHeight: '100px',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {submitError && (
+                <p style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
+                  {submitError}
+                </p>
+              )}
+
+              {/* Mobile Step 2 Footer */}
+              <div className="client-tx-mobile-footer" style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: isDark ? 'var(--surface-1)' : '#ffffff',
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                padding: '16px 20px calc(16px + env(safe-area-inset-bottom)) 20px',
+                zIndex: 100,
+                boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+              }}>
+                <button
+                  type="submit"
+                  disabled={!canSubmit || isSubmitting}
+                  style={{
+                    width: '100%',
+                    height: '52px',
+                    background: isDark ? 'var(--accent)' : '#1c2452',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: (!canSubmit || isSubmitting) ? 'not-allowed' : 'pointer',
+                    opacity: (!canSubmit || isSubmitting) ? 0.65 : 1,
+                  }}
+                >
+                  {isSubmitting ? "Saving Transaction..." : "Save Transaction"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className={`client-tx-container${isMobile ? ' mobile-submit-invoice' : ''}`} style={{
+      width: '100%',
+      maxWidth: '1280px',
+      margin: '0 auto',
+      fontFamily: "'Inter', sans-serif",
+      background: isDark ? 'var(--surface-0)' : '#ffffff',
+    }}>
+      {isMobile ? (
+        <>
+          {/* Mobile Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+            background: isDark ? 'var(--surface-1)' : '#ffffff',
+            height: '60px',
+            boxSizing: 'border-box',
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+          }}>
+            <button
+              type="button"
+              onClick={() => setSelectedMethod(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: isDark ? 'var(--accent)' : '#1c2452',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "18px", height: "18px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
+                <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Back
+            </button>
+            <span style={{
+              fontSize: '17px',
+              fontWeight: '700',
+              color: isDark ? 'var(--text-primary)' : '#0f1330',
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}>
+              Add Transaction
+            </span>
+            <div style={{ width: '48px' }}></div>
+          </div>
+
+          {/* Step Banner */}
+          <div style={{
+            background: isDark ? 'rgba(92, 133, 214, 0.08)' : '#f2f5fa',
+            padding: '12px 16px',
+            textAlign: 'center',
+            marginBottom: '20px',
+          }}>
+            <span style={{
+              fontSize: '13.5px',
+              fontWeight: '600',
+              color: isDark ? 'var(--text-primary)' : '#1e3a7a',
+            }}>
+              Enter the below values to complete the step
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="client-tx-header-bar">
+          <button
+            type="button"
+            className="client-tx-back-link"
+            onClick={() => setSelectedMethod(null)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
+          <h1 className="client-tx-page-title">Add Transaction</h1>
+        </div>
+      )}
+
+      <div className="client-tx-card" style={{
+        background: isDark ? 'var(--surface-1)' : '#ffffff',
+        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        borderRadius: '16px',
+        padding: isMobile ? '24px 20px' : '36px 40px',
+        boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.05)',
+      }}>
+        <h2 className="client-tx-title" style={{ fontSize: '18px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2452', margin: '0 0 24px 0' }}>Transaction Information</h2>
         <form className="client-tx-form" onSubmit={handleSubmit}>
 
           {showSelectionMessage && selectionMessage && (
-            <div className="client-tx-banner-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <div className="client-tx-banner-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: '#da3838', fontSize: '13px', fontWeight: '600' }}>
+              <svg style={{ width: '20px', height: '20px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <span>{selectionMessage}</span>
@@ -1456,8 +2781,8 @@ export default function ClientAddTransactionViewNew({
           />
 
           {/* Upload Invoice or Receipt (nested here!) */}
-          <div className="client-tx-field-group" style={{ marginBottom: "24px" }}>
-            <span className="client-tx-field-label">Upload Invoice or Receipt</span>
+          <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginBottom: "24px" }}>
+            <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Upload Invoice or Receipt</span>
             {documentId && uploadedFilename && token ? (
               <DocumentPreviewPanel
                 documentId={documentId}
@@ -1470,25 +2795,134 @@ export default function ClientAddTransactionViewNew({
                 }}
               />
             ) : (
-              <div className="client-tx-dropzone-wrapper">
+              <div className="client-tx-dropzone-wrapper" style={{ width: '100%' }}>
                 <DocumentDropZone
                   token={token}
                   onExtracted={handleExtracted}
                   scope={activeEntityId ? { entityId: activeEntityId } : undefined}
                   isSubmitting={isSubmitting}
                   submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+                  primaryLabelText="Upload invoice or receipt"
+                  secondaryLabelText="PDF, JPG, PNG · Max 10 MB"
+                  hideIconOnIdle={true}
+                  style={{
+                    border: '1.5px dashed #c4ccd8',
+                    background: 'transparent',
+                    borderRadius: '12px',
+                    padding: '40px 24px',
+                    minHeight: '120px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                  strongStyle={{
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: isDark ? 'var(--text-primary)' : '#344054',
+                    margin: '0 0 4px 0',
+                    display: 'block',
+                  }}
+                  smallStyle={{
+                    fontSize: '12px',
+                    color: isDark ? 'var(--text-muted)' : '#667085',
+                    margin: 0,
+                    display: 'block',
+                  }}
                 />
               </div>
             )}
           </div>
 
-          <fieldset className="client-tx-fieldset" disabled={!isSelectionComplete}>
+          <fieldset className="client-tx-fieldset" disabled={!isSelectionComplete} style={{ border: 'none', padding: 0, margin: 0 }}>
+
+            {/* Transaction Type */}
+            <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '20px' }}>
+              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                Transaction Type
+                <em
+                  className="client-tx-required"
+                  style={{
+                    color: '#da3838',
+                    fontStyle: 'normal',
+                    marginLeft: '3px',
+                  }}
+                >
+                  *
+                </em>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => setType("expense")}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '52px',
+                    borderRadius: '12px',
+                    border: type === "expense"
+                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#1a2b56'}`
+                      : `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                    background: isDark
+                      ? (type === "expense" ? 'rgba(92, 133, 214, 0.1)' : 'var(--surface-2)')
+                      : '#ffffff',
+                    color: type === "expense"
+                      ? (isDark ? 'var(--text-primary)' : '#1a2b56')
+                      : (isDark ? 'var(--text-secondary)' : '#566474'),
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: type === "expense"
+                      ? (isDark ? '0 0 0 3px rgba(92, 133, 214, 0.25)' : '0 0 0 3px rgba(26, 43, 86, 0.15)')
+                      : 'none',
+                  }}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("revenue")}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '52px',
+                    borderRadius: '12px',
+                    border: type === "revenue"
+                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#1a2b56'}`
+                      : `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                    background: isDark
+                      ? (type === "revenue" ? 'rgba(92, 133, 214, 0.1)' : 'var(--surface-2)')
+                      : '#ffffff',
+                    color: type === "revenue"
+                      ? (isDark ? 'var(--text-primary)' : '#1a2b56')
+                      : (isDark ? 'var(--text-secondary)' : '#566474'),
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: type === "revenue"
+                      ? (isDark ? '0 0 0 3px rgba(92, 133, 214, 0.25)' : '0 0 0 3px rgba(26, 43, 86, 0.15)')
+                      : 'none',
+                  }}
+                >
+                  Revenue
+                </button>
+              </div>
+            </div>
 
             {/* Category and Sub-category */}
-            <div className="client-tx-grid cols-2" style={{ marginTop: "16px" }}>
-              <div className="client-tx-field-group">
+            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px' }}>
+              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <StaticSelect
                   label="Category"
+                  required={true}
                   placeholder="Select category"
                   value={categoryId == null ? "" : String(categoryId)}
                   options={categorySelectOptions}
@@ -1497,9 +2931,10 @@ export default function ClientAddTransactionViewNew({
                 />
               </div>
 
-              <div className="client-tx-field-group">
+              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <StaticSelect
                   label="Sub-category"
+                  required={true}
                   placeholder="Select sub-category"
                   value={subcategoryId == null ? "" : String(subcategoryId)}
                   options={subcategorySelectOptions}
@@ -1512,39 +2947,60 @@ export default function ClientAddTransactionViewNew({
             </div>
 
             {/* Amount and GST (Optional) */}
-            <div className="client-tx-grid cols-2">
-              <div className={`client-tx-field-group ${flashClass("grossAmount")}`}>
-                <label className="client-tx-field-label">Amount</label>
-                <div className="client-tx-amount-input-wrap">
-                  <span className="client-tx-amount-prefix">$</span>
+            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
+              <div className={`client-tx-field-group ${flashClass("grossAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                  Amount
+                  <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+                </label>
+                <div className="client-tx-amount-input-wrap" style={{ position: 'relative', width: '100%' }}>
+                  <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
                   <input
                     type="number"
                     className="client-tx-input has-prefix"
                     inputMode="decimal"
                     step="0.01"
                     min="0.01"
-                    placeholder="312.00"
+                    placeholder="0"
                     value={grossAmount}
-                    onKeyDown={(e) => {
-                      if (e.key === "-" || e.key === "Minus") {
-                        e.preventDefault();
-                      }
-                    }}
+                    onKeyDown={preventExponentialAndNegative}
                     onChange={(e) => {
                       const val = e.target.value.replace(/-/g, "");
                       setGrossAmount(val);
                     }}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
+                      ['--prefix-padding' as any]: `${24 + CURRENCY_PREFIX.length * 9}px`,
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      height: '50px',
+                    }}
                   />
                 </div>
+                {grossAmount && grossAmountError && (
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{grossAmountError}</span>
+                  </p>
+                )}
               </div>
 
-              <div className={`client-tx-field-group ${flashClass("gstAmount")}`}>
-                <label className="client-tx-field-label">GST (Optional)</label>
-                <div className="client-tx-amount-input-wrap no-prefix">
+              <div className={`client-tx-field-group ${flashClass("gstAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>GST (Optional)</label>
+                <div className="client-tx-amount-input-wrap no-prefix" style={{ position: 'relative', width: '100%' }}>
                   <input
                     type="text"
                     className="client-tx-input"
-                    placeholder="GST 10%"
+                    placeholder="0"
                     value={gstAmount}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1557,63 +3013,186 @@ export default function ClientAddTransactionViewNew({
                         setShowGstBreakdown(false);
                       }
                     }}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      height: '50px',
+                    }}
                   />
                 </div>
+                {gstAmount && gstAmountError && (
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{gstAmountError}</span>
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Invisible Invoice Date - Keep state updated for validation, hidden to match figma */}
-            <input
-              type="hidden"
-              value={invoiceDate || getLocalDateString()}
-            />
+            {/* Invoice Date and Mode of Transaction */}
+            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
+              <div className={`client-tx-field-group ${flashClass("invoiceDate")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                  Invoice Date
+                  <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+                </label>
+                <input
+                  type="date"
+                  min="1900-01-01"
+                  max="9999-12-31"
+                  value={invoiceDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const yearPart = val.split("-")[0];
+                    if (yearPart && yearPart.length > 4) {
+                      return;
+                    }
+                    setInvoiceDate(val);
+                    setInvoiceDateTouched(true);
+                    setSubmitError("");
+                  }}
+                  onBlur={() => setInvoiceDateTouched(true)}
+                  style={{
+                    background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    fontSize: '14.5px',
+                    fontWeight: '500',
+                    color: isDark ? 'var(--text-primary)' : '#1d2939',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    height: '50px',
+                  }}
+                />
+                {showDateError && invoiceDateError && (
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{invoiceDateError}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <StaticSelect
+                  label="Mode of Transaction"
+                  required
+                  placeholder="Select mode of transaction"
+                  value={modeOfTransaction}
+                  options={MODE_OF_TRANSACTION_OPTIONS}
+                  onChange={(value) => {
+                    setModeOfTransaction(value);
+                    setSubmitError("");
+                  }}
+                />
+              </div>
+            </div>
 
             {/* Split Toggle Switch */}
-            <div className="client-tx-split-toggle-container">
-              <div className="client-tx-split-toggle-info">
-                <span className="client-tx-split-toggle-title">Is this a split transaction?</span>
-                <span className="client-tx-split-toggle-desc">Allocate across multiple properties</span>
+            <div className="client-tx-split-toggle-container" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px 0',
+              margin: '12px 0 20px 0',
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+            }}>
+              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
+                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate across multiple properties</span>
               </div>
-              <label className="client-tx-switch">
+              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
                 <input
                   type="checkbox"
                   checked={isSplit}
                   onChange={(e) => handleSplitToggle(e.target.checked)}
+                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <span className="client-tx-slider"></span>
+                <span className="client-tx-slider" style={{
+                  position: 'absolute',
+                  cursor: 'pointer',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#1d2452') : (isDark ? 'var(--surface-2)' : '#e2e8f0'),
+                  transition: '.3s',
+                  borderRadius: '34px',
+                }} />
+                <span style={{
+                  position: 'absolute',
+                  content: '""',
+                  height: '16px',
+                  width: '16px',
+                  left: isSplit ? '26px' : '4px',
+                  bottom: '4px',
+                  backgroundColor: 'white',
+                  transition: '.3s',
+                  borderRadius: '50%',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  pointerEvents: 'none',
+                }} />
               </label>
             </div>
 
             {!isSplit && submitError && submitError.toLowerCase().includes("split") && (
-              <p className="client-tx-warning-banner" role="alert">
+              <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
                 {submitError}
               </p>
             )}
 
             {/* Split Rows Cards */}
             {isSplit && (
-              <div className="client-tx-split-section">
+              <div className="client-tx-split-section" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px', width: '100%' }}>
                 {splitRows.map((row, index) => {
                   const rowError = splitErrors[row.id];
                   const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
                   const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
 
                   return (
-                    <div key={row.id} className="client-tx-split-card">
-                      <div className="client-tx-split-card-header">
-                        <span className="client-tx-split-card-title">PROPERTY {index + 1}</span>
+                    <div key={row.id} className="client-tx-split-card" style={{
+                      background: isDark ? 'var(--surface-2)' : '#ffffff',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                      borderRadius: '12px',
+                      padding: '20px',
+                      boxSizing: 'border-box',
+                    }}>
+                      <div className="client-tx-split-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span className="client-tx-split-card-title" style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.8px', color: isDark ? 'var(--text-muted)' : '#667085' }}>PROPERTY {index + 1}</span>
                         <button
                           type="button"
                           className="client-tx-split-remove-btn"
                           disabled={splitRows.length <= 1}
                           onClick={() => removeSplitRow(row.id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: isDark ? 'var(--danger)' : '#da3838',
+                            fontSize: '12.5px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            padding: '2px 6px',
+                          }}
                         >
                           Remove
                         </button>
                       </div>
 
-                      <div className="client-tx-grid cols-split-row" style={{ gap: "16px", marginTop: "4px" }}>
-                        <div className="client-tx-field-group flex-2">
+                      <div className="client-tx-grid cols-split-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '4px' }}>
+                        <div className="client-tx-field-group flex-2" style={{ display: 'flex', flexDirection: 'column' }}>
                           <StaticSelect
                             placeholder="Select Property"
                             value={row.propertyId}
@@ -1628,9 +3207,9 @@ export default function ClientAddTransactionViewNew({
                           />
                         </div>
 
-                        <div className="client-tx-field-group flex-1">
-                          <div className="client-tx-amount-input-wrap">
-                            <span className="client-tx-amount-prefix">$</span>
+                        <div className="client-tx-field-group flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div className="client-tx-amount-input-wrap" style={{ position: 'relative', width: '100%' }}>
+                            <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
                             <input
                               type="number"
                               className="client-tx-input has-prefix"
@@ -1639,19 +3218,29 @@ export default function ClientAddTransactionViewNew({
                               min="0.01"
                               placeholder="00"
                               value={row.amount}
-                              onKeyDown={(e) => {
-                                if (e.key === "-" || e.key === "Minus") {
-                                  e.preventDefault();
-                                }
-                              }}
+                              onKeyDown={preventExponentialAndNegative}
                               onChange={(e) => {
                                 const val = e.target.value.replace(/-/g, "");
                                 updateSplitRow(row.id, { amount: val });
                               }}
+                              style={{
+                                background: isDark ? 'var(--surface-1)' : '#f8f9fb',
+                                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                                borderRadius: '12px',
+                                padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
+                                ['--prefix-padding' as any]: `${24 + CURRENCY_PREFIX.length * 9}px`,
+                                fontSize: '14.5px',
+                                fontWeight: '500',
+                                color: isDark ? 'var(--text-primary)' : '#1d2939',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                outline: 'none',
+                                height: '50px',
+                              }}
                             />
                           </div>
                           {amountError && (
-                            <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
+                            <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
                               <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                               </svg>
@@ -1665,7 +3254,7 @@ export default function ClientAddTransactionViewNew({
                 })}
 
                 {splitErrors.__form && (
-                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", margin: "8px 0" }}>
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", margin: "8px 0", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
                     <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
@@ -1673,8 +3262,12 @@ export default function ClientAddTransactionViewNew({
                   </p>
                 )}
 
-                <div className="client-tx-split-footer">
-                  <span className={`client-tx-split-total-label ${grossAmount && !splitMatches ? "is-mismatch" : ""}`}>
+                <div className="client-tx-split-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', gap: '16px' }}>
+                  <span className={`client-tx-split-total-label ${grossAmount && !splitMatches ? "is-mismatch" : ""}`} style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: grossAmount && !splitMatches ? '#da3838' : (isDark ? 'var(--text-secondary)' : '#566474'),
+                  }}>
                     {grossAmount && !Number.isNaN(grossNumberValue)
                       ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
                       : "Enter the total amount above to validate splits."}
@@ -1684,6 +3277,15 @@ export default function ClientAddTransactionViewNew({
                     className="client-tx-add-split-btn"
                     onClick={addSplitRow}
                     disabled={properties.length < 2}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: isDark ? 'var(--accent)' : '#1d2452',
+                      fontSize: '13.5px',
+                      fontWeight: '700',
+                      cursor: properties.length < 2 ? 'not-allowed' : 'pointer',
+                      padding: '4px 8px',
+                    }}
                   >
                     + Add Property
                   </button>
@@ -1692,37 +3294,97 @@ export default function ClientAddTransactionViewNew({
             )}
 
             {isSplit && submitError && submitError.toLowerCase().includes("split") && (
-              <p className="client-tx-warning-banner" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
+              <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', marginTop: "12px", marginBottom: "12px" }}>
                 {submitError}
               </p>
             )}
 
             {/* Description */}
-            <div className="client-tx-field-group" style={{ marginTop: "16px" }}>
-              <label className="client-tx-field-label">Description</label>
+            <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginTop: "16px" }}>
+              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Description</label>
               <textarea
                 className="client-tx-textarea"
                 placeholder="Add remarks..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                style={{
+                  background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                  border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  fontSize: '14.5px',
+                  fontWeight: '500',
+                  color: isDark ? 'var(--text-primary)' : '#1d2939',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  minHeight: '120px',
+                  resize: 'vertical',
+                  lineHeight: '1.5',
+                }}
               />
             </div>
 
             {submitError && !submitError.toLowerCase().includes("split") && (
-              <p className="client-tx-warning-banner" role="alert" style={{ marginTop: "16px" }}>
+              <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', marginTop: "16px" }}>
                 {submitError}
               </p>
             )}
 
             {/* Save / Delete Actions */}
-            <div className="client-tx-form-actions">
-              <Link href={effectiveBackHref} className="client-tx-delete-btn">
-                Delete Transaction
-              </Link>
+            <div className="client-tx-form-actions" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '32px',
+              gap: '16px',
+              paddingTop: '24px',
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              width: '100%',
+              boxSizing: 'border-box',
+            }}>
+              {!isMobile && (
+                <Link href={effectiveBackHref} className="client-tx-delete-btn" style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '16px 24px',
+                  fontSize: '14.5px',
+                  fontWeight: '700',
+                  color: isDark ? 'var(--danger)' : '#da3838',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  height: '50px',
+                  boxSizing: 'border-box',
+                }}>
+                  Delete Transaction
+                </Link>
+              )}
               <button
                 type="submit"
                 className="client-tx-save-btn"
                 disabled={!canSubmit || isSubmitting}
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isDark ? 'var(--brand)' : '#1d2452',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '16px 24px',
+                  fontSize: '14.5px',
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  cursor: (!canSubmit || isSubmitting) ? 'not-allowed' : 'pointer',
+                  height: '50px',
+                  boxSizing: 'border-box',
+                  opacity: (!canSubmit || isSubmitting) ? 0.65 : 1,
+                }}
               >
                 {isSubmitting ? "Saving Transaction…" : "Save Transaction"}
               </button>
@@ -1783,6 +3445,14 @@ function BulkImportModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
+
   useEffect(() => {
     setEntityId(defaultEntityId ?? "");
   }, [defaultEntityId]);
@@ -1837,25 +3507,72 @@ function BulkImportModal({
   }
 
   return (
-    <div className="client-tx-modal-overlay" role="dialog" aria-modal="true">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: isDark ? 'rgba(15, 19, 48, 0.8)' : 'rgba(29, 36, 82, 0.4)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+    }} role="dialog" aria-modal="true">
       <button
         type="button"
-        className="client-tx-modal-backdrop"
         aria-label="Close bulk import"
         onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       />
-      <section className="client-tx-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="client-tx-modal-header">
+      <section style={{
+        background: isDark ? 'var(--surface-1)' : '#ffffff',
+        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        borderRadius: '20px',
+        maxWidth: '550px',
+        width: '90%',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+        zIndex: 10000,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }} onClick={(e) => e.stopPropagation()}>
+        <header style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '24px 32px',
+          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        }}>
           <div>
-            <h2>Bulk Import from CSV</h2>
-            <p>Upload multiple transactions at once</p>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: 0 }}>Bulk Import from CSV</h2>
+            <p style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#566474', margin: '4px 0 0 0' }}>Upload multiple transactions at once</p>
           </div>
-          <button type="button" className="client-tx-modal-close" aria-label="Close bulk import" onClick={onClose}>
+          <button type="button" aria-label="Close bulk import" onClick={onClose} style={{
+            background: 'none',
+            border: 'none',
+            color: isDark ? 'var(--text-secondary)' : '#566474',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
             <CloseIcon />
           </button>
         </header>
 
-        <div className="client-tx-modal-body">
+        <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <StaticSelect
             label="Entity"
             required
@@ -1879,19 +3596,55 @@ function BulkImportModal({
             disabled={!entityId}
           />
 
-          <div className="client-tx-field-group" style={{ marginTop: "16px" }}>
-            <span className="client-tx-field-label">CSV File</span>
-            <input type="file" accept=".csv" className="client-tx-file-input" onChange={handleFileChange} />
+          <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginTop: "16px" }}>
+            <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>CSV File</span>
+            <input type="file" accept=".csv" onChange={handleFileChange} style={{
+              background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+              border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+              borderRadius: '12px',
+              padding: '12px 16px',
+              fontSize: '14px',
+              color: isDark ? 'var(--text-primary)' : '#1d2939',
+              width: '100%',
+              boxSizing: 'border-box',
+              outline: 'none',
+            }} />
           </div>
 
-          {errorMsg && <p className="client-tx-field-error" style={{ marginTop: "8px" }}>{errorMsg}</p>}
+          {errorMsg && <p style={{ color: '#da3838', fontSize: '12px', fontWeight: '600', margin: '8px 0 0 0' }}>{errorMsg}</p>}
         </div>
 
-        <footer className="client-tx-modal-footer">
-          <button type="button" className="client-tx-delete-btn" onClick={onClose} disabled={isLoading}>
+        <footer style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '24px 32px',
+          background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+          borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        }}>
+          <button type="button" onClick={onClose} disabled={isLoading} style={{
+            background: 'transparent',
+            border: 'none',
+            color: isDark ? 'var(--danger)' : '#da3838',
+            fontSize: '14.5px',
+            fontWeight: '700',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            padding: '10px 16px',
+          }}>
             Cancel
           </button>
-          <button type="button" className="client-tx-save-btn" onClick={handleImport} disabled={isLoading}>
+          <button type="button" onClick={handleImport} disabled={isLoading} style={{
+            background: isDark ? 'var(--brand)' : '#1d2452',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '10px 24px',
+            fontSize: '14.5px',
+            fontWeight: '700',
+            color: '#ffffff',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            opacity: isLoading ? 0.65 : 1,
+          }}>
             {isLoading ? "Importing..." : "Import"}
           </button>
         </footer>
@@ -1912,31 +3665,93 @@ function TransactionFeedbackModal({
   message: string;
   onClose: () => void;
 }) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && theme === "dark";
+
   return (
-    <div className="client-tx-modal-overlay" role="dialog" aria-modal="true">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: isDark ? 'rgba(15, 19, 48, 0.8)' : 'rgba(29, 36, 82, 0.4)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+    }} role="dialog" aria-modal="true">
       <button
         type="button"
-        className="client-tx-modal-backdrop"
         aria-label="Close message"
         onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       />
-      <section className={`client-tx-feedback-card is-${tone}`}>
-        <div className="client-tx-feedback-icon" aria-hidden="true">
+      <section style={{
+        background: isDark ? 'var(--surface-1)' : '#ffffff',
+        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        borderRadius: '20px',
+        padding: '40px 32px',
+        textAlign: 'center',
+        maxWidth: '450px',
+        width: '90%',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+        zIndex: 10000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: tone === "success" ? 'rgba(18, 183, 106, 0.1)' : 'rgba(240, 149, 149, 0.15)',
+          color: tone === "success" ? '#12B76A' : '#da3838',
+          marginBottom: '20px',
+        }} aria-hidden="true">
           {tone === "success" ? (
-            <svg viewBox="0 0 24 24" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+            <svg viewBox="0 0 24 24" style={{ width: "28px", height: "28px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
               <path d="M5 12l4 4 10-10" />
             </svg>
           ) : (
-            <svg viewBox="0 0 24 24" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+            <svg viewBox="0 0 24 24" style={{ width: "28px", height: "28px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
               <path d="M12 8v5" />
               <path d="M12 17h.01" />
               <path d="M10.3 4.3 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.3a2 2 0 0 0-3.4 0z" />
             </svg>
           )}
         </div>
-        <h2>{title}</h2>
-        <p>{message}</p>
-        <button type="button" className="client-tx-save-btn" style={{ width: "100%", marginTop: "16px" }} onClick={onClose}>
+        <h2 style={{ fontSize: '20px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: '0 0 8px 0' }}>{title}</h2>
+        <p style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#566474', margin: '0 0 24px 0', lineHeight: 1.5 }}>{message}</p>
+        <button type="button" onClick={onClose} style={{
+          width: '100%',
+          background: isDark ? 'var(--brand)' : '#1d2452',
+          border: 'none',
+          borderRadius: '12px',
+          padding: '14px 24px',
+          fontSize: '14.5px',
+          fontWeight: '700',
+          color: '#ffffff',
+          cursor: 'pointer',
+        }}>
           Continue
         </button>
       </section>
