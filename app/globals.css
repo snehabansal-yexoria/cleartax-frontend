@@ -3553,6 +3553,7 @@ p.darkBg {
   color: #667085;
   font-size: 14px;
 }
+
 .accountant-reconciliation-footer div {
   display: flex;
   gap: 12px;
@@ -3597,6 +3598,7 @@ p.darkBg {
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -7438,6 +7440,7 @@ p.darkBg {
   align-items: center;
   gap: 8px;
   justify-content: center;
+  margin-bottom: 12px;
 }
 
 .transactions-showing-copy strong {
@@ -16340,7 +16343,8 @@ input:checked+.slider:before {
 }
 
 .property-page-rules-container .property-rules-create-button {
-  background-color: #1e293b; /* Dark blue/navy slate from Figma */
+  background-color: #1e293b;
+  /* Dark blue/navy slate from Figma */
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
@@ -16358,4 +16362,11 @@ input:checked+.slider:before {
 
 .property-page-rules-container .property-rules-create-button:active {
   transform: translateY(1px);
+}
+
+/* Sort Dropdown & Dynamic Island Table Wrap styling */
+.transactions-table-container {
+  position: relative;
+  width: 100%;
+  margin-top: 16px;
 }

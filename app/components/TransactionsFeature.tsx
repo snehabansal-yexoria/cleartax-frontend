@@ -1708,115 +1708,117 @@ function TransactionTable({
   const showEntityName = scope !== "entity";
 
   return (
-    <div className="transactions-table-wrap">
-      <table className="transactions-table">
-        <thead>
-          <tr>
-            <th>Transaction ID</th>
-            {showClientName ? <th>Client Name</th> : null}
-            {showEntityName ? <th>Entity</th> : null}
-            <th>Properties</th>
-            <th>Type</th>
-            <th>Category</th>
-            <th>Subcategory</th>
-            <th>Date</th>
-            <th>Gross</th>
-            <th>GST</th>
-            <th>Net</th>
-            {showClientShare ? <th>Client Share</th> : null}
-            <th>Rule</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const isRevenue = row.type === "revenue";
-            const propertyLabel =
-              row.propertyNames.length === 0
-                ? "—"
-                : row.propertyNames.length === 1
-                  ? row.propertyNames[0]
-                  : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
-            return (
-              <tr key={row.id}>
-                <td>
-                  <button
-                    type="button"
-                    className="transaction-id-button"
-                    onClick={() => onView(row)}
-                  >
-                    {row.id.slice(0, 8)}…
-                  </button>
-                </td>
-                {showClientName ? <td>{row.clientName || "—"}</td> : null}
-                {showEntityName ? <td>{row.entityName || "—"}</td> : null}
-                <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
-                <td>
-                  <span
-                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                      }`}
-                  >
-                    {isRevenue ? "Revenue" : "Expense"}
-                  </span>
-                </td>
-                <td>{row.categoryName}</td>
-                <td>{row.subcategoryName}</td>
-                <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatTransactionCurrency(row.grossAmount, isRevenue)}
-                </td>
-                <td>{formatCurrency(row.gstAmount)}</td>
-                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatTransactionCurrency(row.netAmount, isRevenue)}
-                </td>
-                {showClientShare ? (
+    <div className="transactions-table-container">
+      <div className="transactions-table-wrap">
+        <table className="transactions-table">
+          <thead>
+            <tr>
+              <th>Transaction ID</th>
+              {showClientName ? <th>Client Name</th> : null}
+              {showEntityName ? <th>Entity</th> : null}
+              <th>Properties</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th>Subcategory</th>
+              <th>Date</th>
+              <th>Gross</th>
+              <th>GST</th>
+              <th>Net</th>
+              {showClientShare ? <th>Client Share</th> : null}
+              <th>Rule</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isRevenue = row.type === "revenue";
+              const propertyLabel =
+                row.propertyNames.length === 0
+                  ? "—"
+                  : row.propertyNames.length === 1
+                    ? row.propertyNames[0]
+                    : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
+              return (
+                <tr key={row.id}>
                   <td>
-                    {row.clientShareNet != null
-                      ? formatCurrency(row.clientShareNet)
-                      : "—"}
+                    <button
+                      type="button"
+                      className="transaction-id-button"
+                      onClick={() => onView(row)}
+                    >
+                      {row.id.slice(0, 8)}…
+                    </button>
                   </td>
-                ) : null}
-                <td>
-                  <span
-                    className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
-                      }`}
-                  >
-                    {row.ruleId != null ? "Yes" : "No"}
-                  </span>
-                </td>
-                <td>
-                  <div className="transaction-action-set">
-                    <button
-                      type="button"
-                      aria-label={`Edit ${row.id}`}
-                      onClick={() => onEdit(row)}
+                  {showClientName ? <td>{row.clientName || "—"}</td> : null}
+                  {showEntityName ? <td>{row.entityName || "—"}</td> : null}
+                  <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
+                  <td>
+                    <span
+                      className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
+                        }`}
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="is-danger"
-                      aria-label={`Delete ${row.id}`}
-                      onClick={() => onDelete(row)}
+                      {isRevenue ? "Revenue" : "Expense"}
+                    </span>
+                  </td>
+                  <td>{row.categoryName}</td>
+                  <td>{row.subcategoryName}</td>
+                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                    {formatTransactionCurrency(row.grossAmount, isRevenue)}
+                  </td>
+                  <td>{formatCurrency(row.gstAmount)}</td>
+                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                    {formatTransactionCurrency(row.netAmount, isRevenue)}
+                  </td>
+                  {showClientShare ? (
+                    <td>
+                      {row.clientShareNet != null
+                        ? formatCurrency(row.clientShareNet)
+                        : "—"}
+                    </td>
+                  ) : null}
+                  <td>
+                    <span
+                      className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                        }`}
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4h8v2" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                        <path d="M10 11v5" />
-                        <path d="M14 11v5" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      {row.ruleId != null ? "Yes" : "No"}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="transaction-action-set">
+                      <button
+                        type="button"
+                        aria-label={`Edit ${row.id}`}
+                        onClick={() => onEdit(row)}
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="is-danger"
+                        aria-label={`Delete ${row.id}`}
+                        onClick={() => onDelete(row)}
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="M19 6l-1 14H6L5 6" />
+                          <path d="M10 11v5" />
+                          <path d="M14 11v5" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1833,100 +1835,102 @@ function PropertyTransactionTable({
   onDelete: (row: DisplayTransactionRow) => void;
 }) {
   return (
-    <div className="transactions-table-wrap">
-      <table className="transactions-table">
-        <thead>
-          <tr>
-            <th>Transaction ID</th>
-            <th>Type</th>
-            <th>Category</th>
-            <th>Subcategory</th>
-            <th>Date</th>
-            <th>Bill total</th>
-            <th>Split %</th>
-            <th>Property share</th>
-            <th>GST</th>
-            <th>Net</th>
-            <th>Rule</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const isRevenue = row.transactionType === "revenue";
-            const displayRow = propertyRowToDisplayRow(row);
-            return (
-              <tr key={`${row.transactionId}-${row.splitId}`}>
-                <td>
-                  <button
-                    type="button"
-                    className="transaction-id-button"
-                    onClick={() => onView(displayRow)}
-                  >
-                    {row.transactionId.slice(0, 8)}…
-                  </button>
-                </td>
-                <td>
-                  <span
-                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                      }`}
-                  >
-                    {isRevenue ? "Revenue" : "Expense"}
-                  </span>
-                </td>
-                <td>{row.categoryName}</td>
-                <td>{row.subcategoryName}</td>
-                <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                <td>{formatCurrency(row.transactionGrossAmount)}</td>
-                <td>{row.splitPercentage.toFixed(2)}%</td>
-                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
-                </td>
-                <td>{formatCurrency(row.splitGstAmount)}</td>
-                <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                  {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
-                </td>
-                <td>
-                  <span
-                    className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
-                      }`}
-                  >
-                    {row.ruleId != null ? "Yes" : "No"}
-                  </span>
-                </td>
-                <td>
-                  <div className="transaction-action-set">
+    <div className="transactions-table-container">
+      <div className="transactions-table-wrap">
+        <table className="transactions-table">
+          <thead>
+            <tr>
+              <th>Transaction ID</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th>Subcategory</th>
+              <th>Date</th>
+              <th>Bill total</th>
+              <th>Split %</th>
+              <th>Property share</th>
+              <th>GST</th>
+              <th>Net</th>
+              <th>Rule</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isRevenue = row.transactionType === "revenue";
+              const displayRow = propertyRowToDisplayRow(row);
+              return (
+                <tr key={`${row.transactionId}-${row.splitId}`}>
+                  <td>
                     <button
                       type="button"
-                      aria-label={`Edit ${row.transactionId}`}
-                      onClick={() => onEdit(displayRow)}
+                      className="transaction-id-button"
+                      onClick={() => onView(displayRow)}
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
+                      {row.transactionId.slice(0, 8)}…
                     </button>
-                    <button
-                      type="button"
-                      className="is-danger"
-                      aria-label={`Delete ${row.transactionId}`}
-                      onClick={() => onDelete(displayRow)}
+                  </td>
+                  <td>
+                    <span
+                      className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
+                        }`}
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4h8v2" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                        <path d="M10 11v5" />
-                        <path d="M14 11v5" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      {isRevenue ? "Revenue" : "Expense"}
+                    </span>
+                  </td>
+                  <td>{row.categoryName}</td>
+                  <td>{row.subcategoryName}</td>
+                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                  <td>{formatCurrency(row.transactionGrossAmount)}</td>
+                  <td>{row.splitPercentage.toFixed(2)}%</td>
+                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                    {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
+                  </td>
+                  <td>{formatCurrency(row.splitGstAmount)}</td>
+                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                    {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
+                  </td>
+                  <td>
+                    <span
+                      className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                        }`}
+                    >
+                      {row.ruleId != null ? "Yes" : "No"}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="transaction-action-set">
+                      <button
+                        type="button"
+                        aria-label={`Edit ${row.transactionId}`}
+                        onClick={() => onEdit(displayRow)}
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="is-danger"
+                        aria-label={`Delete ${row.transactionId}`}
+                        onClick={() => onDelete(displayRow)}
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="M19 6l-1 14H6L5 6" />
+                          <path d="M10 11v5" />
+                          <path d="M14 11v5" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1950,6 +1954,20 @@ function Pagination({ copy }: { copy: string }) {
   );
 }
 
+type SortOption = {
+  label: string;
+  value: string;
+};
+
+const SORT_OPTIONS: SortOption[] = [
+  { label: "Date (Newest first)", value: "date-desc" },
+  { label: "Date (Oldest first)", value: "date-asc" },
+  { label: "Amount (High to Low)", value: "gross-desc" },
+  { label: "Amount (Low to High)", value: "gross-asc" },
+  { label: "Client Name (A-Z)", value: "client-asc" },
+  { label: "Client Name (Z-A)", value: "client-desc" },
+];
+
 function Filters({
   context,
   filters,
@@ -1957,6 +1975,8 @@ function Filters({
   onChange,
   onReset,
   activeCount,
+  sortBy,
+  onChangeSort,
 }: {
   context: TransactionsContext;
   filters: TransactionFilters;
@@ -1967,6 +1987,8 @@ function Filters({
   ) => void;
   onReset: () => void;
   activeCount: number;
+  sortBy: string;
+  onChangeSort: (value: string) => void;
 }) {
   const showClientFilter = context.kind === "none";
   const showEntityFilter = context.kind === "none" || context.kind === "client";
@@ -2023,6 +2045,12 @@ function Filters({
           value={filters.category}
           options={options.categories}
           onChange={(value) => onChange("category", value)}
+        />
+        <StaticSelect
+          label="Sort By"
+          value={sortBy}
+          options={SORT_OPTIONS}
+          onChange={onChangeSort}
         />
       </div>
     </section>
@@ -2171,6 +2199,7 @@ export function AllTransactionsView({
   const [filters, setFilters] = useState<TransactionFilters>(
     defaultTransactionFilters,
   );
+  const [sortBy, setSortBy] = useState<string>("date-desc");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedTransaction, setSelectedTransaction] =
@@ -2359,6 +2388,76 @@ export function AllTransactionsView({
       );
     });
   }, [filters.category, filters.type, propertyRows]);
+
+  const sortedRows = useMemo(() => {
+    const items = [...filteredRows];
+    switch (sortBy) {
+      case "date-desc":
+        return items.sort((a, b) => {
+          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+          return dateB - dateA;
+        });
+      case "date-asc":
+        return items.sort((a, b) => {
+          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+          return dateA - dateB;
+        });
+      case "gross-desc":
+        return items.sort((a, b) => {
+          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
+          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
+          return valB - valA;
+        });
+      case "gross-asc":
+        return items.sort((a, b) => {
+          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
+          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
+          return valA - valB;
+        });
+      case "client-asc":
+        return items.sort((a, b) => (a.clientName || "").localeCompare(b.clientName || ""));
+      case "client-desc":
+        return items.sort((a, b) => (b.clientName || "").localeCompare(a.clientName || ""));
+      default:
+        return items;
+    }
+  }, [filteredRows, sortBy]);
+
+  const sortedPropertyRows = useMemo(() => {
+    const items = [...filteredPropertyRows];
+    switch (sortBy) {
+      case "date-desc":
+        return items.sort((a, b) => {
+          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+          return dateB - dateA;
+        });
+      case "date-asc":
+        return items.sort((a, b) => {
+          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+          return dateA - dateB;
+        });
+      case "gross-desc":
+        return items.sort((a, b) => {
+          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
+          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
+          return valB - valA;
+        });
+      case "gross-asc":
+        return items.sort((a, b) => {
+          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
+          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
+          return valA - valB;
+        });
+      case "client-asc":
+      case "client-desc":
+      default:
+        return items;
+    }
+  }, [filteredPropertyRows, sortBy]);
 
   function updateFilter<K extends keyof TransactionFilters>(
     key: K,
@@ -2616,6 +2715,8 @@ export function AllTransactionsView({
         onChange={updateFilter}
         onReset={() => setFilters(defaultTransactionFilters)}
         activeCount={activeFilterCount}
+        sortBy={sortBy}
+        onChangeSort={setSortBy}
       />
 
       {isLoading ? (
@@ -2649,14 +2750,14 @@ export function AllTransactionsView({
           </div>
           {contextKind === "property" ? (
             <PropertyTransactionTable
-              rows={filteredPropertyRows}
+              rows={sortedPropertyRows}
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
             />
           ) : (
             <TransactionTable
-              rows={filteredRows}
+              rows={sortedRows}
               scope={tableScope}
               showClientShare={showClientShare}
               onView={(row) => openTransactionDetail(row, "view")}
