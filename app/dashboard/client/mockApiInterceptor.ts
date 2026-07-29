@@ -53,6 +53,7 @@ interface Entity {
   name: string;
   createdAt: string;
   reconciled: boolean;
+  enabled: boolean;
   propertiesCount: number;
   transactionsCount: number;
   beneficiaries: Beneficiary[];
@@ -182,6 +183,7 @@ function getInitialDB(): MockDB {
         name: "Johnson Family Trust",
         createdAt: getPastDateString(6, 1),
         reconciled: false,
+        enabled: true,
         propertiesCount: 2,
         transactionsCount: 0,
         beneficiaries: [
@@ -196,6 +198,7 @@ function getInitialDB(): MockDB {
         name: "SJ Holdings Pty Ltd",
         createdAt: getPastDateString(5, 1),
         reconciled: false,
+        enabled: true,
         propertiesCount: 1,
         transactionsCount: 0,
         beneficiaries: [
@@ -209,6 +212,7 @@ function getInitialDB(): MockDB {
         name: "Sarah Johnson",
         createdAt: getPastDateString(4, 1),
         reconciled: false,
+        enabled: true,
         propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: [
@@ -542,6 +546,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
         name: body.name || "Unnamed Entity",
         createdAt: new Date().toISOString(),
         reconciled: false,
+        enabled: true,
         propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: body.beneficiaries || [

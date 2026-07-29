@@ -45,6 +45,7 @@ const demoEntities: CoreEntity[] = [
     updatedAt: new Date().toISOString(),
     reconciled: false,
     reconciledAt: null,
+    enabled: true,
     propertiesCount: 2,
     transactionsCount: 0,
     beneficiaries: [
@@ -64,6 +65,7 @@ const demoEntities: CoreEntity[] = [
     updatedAt: new Date().toISOString(),
     reconciled: false,
     reconciledAt: null,
+    enabled: true,
     propertiesCount: 1,
     transactionsCount: 0,
     beneficiaries: [
@@ -82,6 +84,7 @@ const demoEntities: CoreEntity[] = [
     updatedAt: new Date().toISOString(),
     reconciled: false,
     reconciledAt: null,
+    enabled: true,
     propertiesCount: 0,
     transactionsCount: 0,
     beneficiaries: [

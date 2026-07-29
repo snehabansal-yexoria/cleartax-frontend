@@ -62,6 +62,7 @@ export type CoreEntity = {
   createdAt: string;
   updatedAt: string;
   beneficiaries: CoreBeneficiary[];
+  enabled: boolean;
   reconciled: boolean;
   reconciledAt: string | null;
   trustType?: string;
@@ -94,6 +95,7 @@ export type CoreProperty = {
   status: string;
   imageUrl: string | null;
   loanDetails: Record<string, unknown> | null;
+  enabled: boolean;
   reconciled: boolean;
   reconciledAt: string | null;
   createdBy: string;
@@ -571,6 +573,9 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
     beneficiaries: beneficiariesRaw
       .filter((b): b is RawRecord => typeof b === "object" && b !== null)
       .map(normalizeBeneficiary),
+    // Default true so a backend that predates the enabled column doesn't
+    // render everything as disabled.
+    enabled: raw.enabled == null ? true : Boolean(raw.enabled),
     reconciled: Boolean(raw.reconciled ?? false),
     reconciledAt: raw.reconciled_at != null ? toStringValue(raw.reconciled_at) : null,
     trustType: raw.trust_type != null ? toStringValue(raw.trust_type) : undefined,
@@ -772,6 +777,7 @@ export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
       typeof loanRaw === "object" && loanRaw !== null && !Array.isArray(loanRaw)
         ? (loanRaw as Record<string, unknown>)
         : null,
+    enabled: raw.enabled == null ? true : Boolean(raw.enabled),
     reconciled: Boolean(raw.reconciled ?? false),
     reconciledAt:
       raw.reconciled_at == null && raw.reconciledAt == null
