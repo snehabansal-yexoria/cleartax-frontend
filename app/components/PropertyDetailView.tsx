@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
+import ToggleSwitch from "@/app/components/ToggleSwitch";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import ProfitLossTrendCard from "@/app/components/ProfitLossTrendCard";
 import {
@@ -94,6 +95,46 @@ export default function PropertyDetailView({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
+  const [enabledError, setEnabledError] = useState<string | null>(null);
+  const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
+  const pathname = usePathname();
+  // The client dashboard reuses this view; only accountants manage the flag.
+  const isClientView = (pathname || "").startsWith("/dashboard/client");
+
+  async function handleToggleEnabled(next: boolean) {
+    if (!sessionToken || !property || isTogglingEnabled) return;
+
+    const previous = property;
+    setEnabledError(null);
+    setIsTogglingEnabled(true);
+    setProperty({ ...property, enabled: next });
+    try {
+      const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data.message || data.error || `Failed to ${next ? "enable" : "disable"} property`,
+        );
+      }
+      setProperty({ ...previous, ...data });
+    } catch (err) {
+      setProperty(previous);
+      setEnabledError(
+        err instanceof Error
+          ? err.message
+          : `Failed to ${next ? "enable" : "disable"} property. Please try again.`,
+      );
+    } finally {
+      setIsTogglingEnabled(false);
+    }
+  }
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -210,6 +251,10 @@ export default function PropertyDetailView({
     );
   }
 
+  const entityDisabled = entity?.enabled === false;
+  const propertyDisabled = property.enabled === false;
+  const writesBlocked = entityDisabled || propertyDisabled;
+
   return (
     <section className="client-detail-page property-detail-page property-detail-shell">
       <Link href={backHref} className="entity-wizard-back">
@@ -219,10 +264,40 @@ export default function PropertyDetailView({
         Back to {backLabel}
       </Link>
 
+      {enabledError && (
+        <p className="entity-wizard-error" role="alert">
+          {enabledError}
+        </p>
+      )}
+
+      {writesBlocked && (
+        <div className="entity-disabled-notice" role="status">
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="entity-reconciled-notice-icon" width={20} height={20}>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M8 12h8" />
+          </svg>
+          <div>
+            <strong>{entityDisabled ? "Entity Disabled" : "Property Disabled"}</strong>
+            <p>
+              {entityDisabled
+                ? "The parent entity is disabled. All changes are blocked until it is re-enabled."
+                : "This property is disabled. All changes are blocked until it is re-enabled."}
+            </p>
+          </div>
+        </div>
+      )}
+
       <header className="client-detail-entities property-hero-card">
         <div className="property-hero-top">
           <div>
-            <h1>{property.name}</h1>
+            <h1>
+              {property.name}
+              {propertyDisabled && (
+                <span className="entity-disabled-badge" title="This property is disabled and cannot be modified">
+                  Disabled
+                </span>
+              )}
+            </h1>
             <p>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11Z" />
@@ -232,18 +307,39 @@ export default function PropertyDetailView({
             </p>
           </div>
           <div className="property-hero-actions">
-            <Link href={editPropertyHref} className="property-outline-button">
-              Edit Details
-            </Link>
-            <Link
-              href={
-                reviewFormHref ||
-                editPropertyHref.replace(/\/edit$/, "/logit-form-review")
-              }
-              className="property-review-button"
-            >
-              Review Form
-            </Link>
+            {!isClientView && (
+              <ToggleSwitch
+                checked={!propertyDisabled}
+                onChange={(checked) => handleToggleEnabled(checked)}
+                disabled={entityDisabled}
+                loading={isTogglingEnabled}
+                green
+                label={propertyDisabled ? "Disabled" : "Enabled"}
+                title={
+                  entityDisabled
+                    ? "Enable the entity first"
+                    : propertyDisabled
+                      ? "Enable this property"
+                      : "Disable this property"
+                }
+              />
+            )}
+            {!writesBlocked && (
+              <>
+                <Link href={editPropertyHref} className="property-outline-button">
+                  Edit Details
+                </Link>
+                <Link
+                  href={
+                    reviewFormHref ||
+                    editPropertyHref.replace(/\/edit$/, "/logit-form-review")
+                  }
+                  className="property-review-button"
+                >
+                  Review Form
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -333,6 +429,10 @@ export default function PropertyDetailView({
               <AllTransactionsView
                 context={{ kind: "property", propertyId }}
                 addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
+                addTransactionDisabled={writesBlocked}
+                addTransactionDisabledReason={
+                  entityDisabled ? "Entity is disabled" : "Property is disabled"
+                }
                 compact
               />
             ) : (

@@ -842,7 +842,7 @@ function TransactionDetailPopup({
     subcategories.some((s) => s.name.toLowerCase() !== "general");
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
-    ...properties.map((property) => ({ label: property.name, value: property.id })),
+    ...properties.map((property) => ({ label: pickerLabel(property), value: property.id })),
   ];
 
   useEffect(() => {
@@ -2179,6 +2179,8 @@ function getRowEntityFilterValue(row: CoreTransactionListItem) {
 export function AllTransactionsView({
   context = { kind: "none" },
   addTransactionHref = "/dashboard/accountant/transactions/new",
+  addTransactionDisabled = false,
+  addTransactionDisabledReason,
   rulesHref = "/dashboard/accountant/transactions/rules",
   rulesButtonLabel = "Transaction Rules",
   rulesButtonClassName = "transaction-outline-button",
@@ -2187,6 +2189,8 @@ export function AllTransactionsView({
 }: {
   context?: TransactionsContext;
   addTransactionHref?: string;
+  addTransactionDisabled?: boolean;
+  addTransactionDisabledReason?: string;
   rulesHref?: string;
   rulesButtonLabel?: string;
   rulesButtonClassName?: string;
@@ -2701,10 +2705,23 @@ export function AllTransactionsView({
             )}
             {rulesButtonLabel}
           </Link>
-          <Link href={addTransactionTargetHref} className="transaction-primary-button">
-            <span>+</span>
-            Add Transaction
-          </Link>
+          {addTransactionDisabled ? (
+            <button
+              type="button"
+              className="transaction-primary-button"
+              disabled
+              title={addTransactionDisabledReason || "Adding transactions is unavailable"}
+              style={{ opacity: 0.5, cursor: "not-allowed" }}
+            >
+              <span>+</span>
+              Add Transaction
+            </button>
+          ) : (
+            <Link href={addTransactionTargetHref} className="transaction-primary-button">
+              <span>+</span>
+              Add Transaction
+            </Link>
+          )}
         </div>
       </div>
 
@@ -2908,7 +2925,7 @@ function BulkImportModal({
               value={entity}
               options={[
                 { label: "Select Entity", value: "" },
-                ...entities.map((item) => ({ label: item.name, value: item.id })),
+                ...entities.map((item) => ({ label: pickerLabel(item), value: item.id })),
               ]}
               onChange={(value) => {
                 setEntity(value);
@@ -2922,7 +2939,7 @@ function BulkImportModal({
               value={property}
               options={[
                 { label: "Select Property", value: "" },
-                ...properties.map((item) => ({ label: item.name, value: item.id })),
+                ...properties.map((item) => ({ label: pickerLabel(item), value: item.id })),
               ]}
               onChange={setProperty}
             />
@@ -2999,8 +3016,15 @@ function EditPencilIcon() {
 }
 
 type ClientOption = { id: string; name: string };
-type EntityOption = { id: string; name: string; createdFor?: string };
-type PropertyOption = { id: string; name: string };
+type EntityOption = { id: string; name: string; createdFor?: string; enabled?: boolean };
+type PropertyOption = { id: string; name: string; enabled?: boolean };
+
+// Disabled entities/properties stay visible in pickers (so editors understand
+// why a record can't be used) but are labelled; the backend rejects writes on
+// them with a 409 either way.
+function pickerLabel(item: { name: string; enabled?: boolean }) {
+  return item.enabled === false ? `${item.name} (disabled)` : item.name;
+}
 
 const MODE_OF_TRANSACTION_OPTIONS: SelectOption[] = [
   { label: "Select mode of transaction", value: "" },
@@ -3188,7 +3212,7 @@ function EntityPropertyHeaderCard({
               value={activeEntityId}
               options={[
                 { label: "Select Entity", value: "" },
-                ...entities.map((e) => ({ label: e.name, value: e.id })),
+                ...entities.map((e) => ({ label: pickerLabel(e), value: e.id })),
               ]}
               onChange={onSelectEntity}
               disabled={disabled}
@@ -3216,7 +3240,7 @@ function EntityPropertyHeaderCard({
               value={activePropertyId}
               options={[
                 { label: "Select Property", value: "" },
-                ...properties.map((p) => ({ label: p.name, value: p.id })),
+                ...properties.map((p) => ({ label: pickerLabel(p), value: p.id })),
               ]}
               onChange={onSelectProperty}
               disabled={disabled}
@@ -4483,7 +4507,7 @@ export function AddTransactionView({
     !!categoryId &&
     subcategories.some((s) => s.name.toLowerCase() !== "general");
   const splitPropertyBaseOptions = properties.map((p) => ({
-    label: p.name,
+    label: pickerLabel(p),
     value: p.id,
   }));
   const flashClass = (key: string) =>
