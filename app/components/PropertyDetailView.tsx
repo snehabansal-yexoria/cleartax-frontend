@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
+import InactiveReasonModal from "@/app/components/InactiveReasonModal";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import ProfitLossTrendCard from "@/app/components/ProfitLossTrendCard";
 import {
@@ -97,11 +98,12 @@ export default function PropertyDetailView({
   const [sessionToken, setSessionToken] = useState("");
   const [enabledError, setEnabledError] = useState<string | null>(null);
   const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
+  const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
   const pathname = usePathname();
   // The client dashboard reuses this view; only accountants manage the flag.
   const isClientView = (pathname || "").startsWith("/dashboard/client");
 
-  async function handleToggleEnabled(next: boolean) {
+  async function handleToggleEnabled(next: boolean, reason?: string) {
     if (!sessionToken || !property || isTogglingEnabled) return;
 
     const previous = property;
@@ -115,12 +117,15 @@ export default function PropertyDetailView({
           "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ enabled: next }),
+        body: JSON.stringify({
+          enabled: next,
+          ...(next === false && reason ? { inactiveReason: reason } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
-          data.message || data.error || `Failed to ${next ? "enable" : "disable"} property`,
+          data.message || data.error || `Failed to ${next ? "activate" : "deactivate"} property`,
         );
       }
       setProperty({ ...previous, ...data });
@@ -129,7 +134,7 @@ export default function PropertyDetailView({
       setEnabledError(
         err instanceof Error
           ? err.message
-          : `Failed to ${next ? "enable" : "disable"} property. Please try again.`,
+          : `Failed to ${next ? "activate" : "deactivate"} property. Please try again.`,
       );
     } finally {
       setIsTogglingEnabled(false);
@@ -256,194 +261,212 @@ export default function PropertyDetailView({
   const writesBlocked = entityDisabled || propertyDisabled;
 
   return (
-    <section className="client-detail-page property-detail-page property-detail-shell">
-      <Link href={backHref} className="entity-wizard-back">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 6l-6 6 6 6" />
-        </svg>
-        Back to {backLabel}
-      </Link>
+    <>
+      <section className="client-detail-page property-detail-page property-detail-shell">
+        <Link href={backHref} className="entity-wizard-back">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+          Back to {backLabel}
+        </Link>
 
-      {enabledError && (
-        <p className="entity-wizard-error" role="alert">
-          {enabledError}
-        </p>
-      )}
+        {enabledError && (
+          <p className="entity-wizard-error" role="alert">
+            {enabledError}
+          </p>
+        )}
 
-      {writesBlocked && (
-        <div className="entity-disabled-notice" role="status">
+        <div className={`entity-disabled-notice${writesBlocked ? " is-visible" : ""}`} role="status">
           <svg viewBox="0 0 24 24" aria-hidden="true" className="entity-reconciled-notice-icon" width={20} height={20}>
             <circle cx="12" cy="12" r="10" />
             <path d="M8 12h8" />
           </svg>
           <div>
-            <strong>{entityDisabled ? "Entity Disabled" : "Property Disabled"}</strong>
+            <strong>{entityDisabled ? "Entity Inactive" : "Property Inactive"}</strong>
             <p>
               {entityDisabled
-                ? "The parent entity is disabled. All changes are blocked until it is re-enabled."
-                : "This property is disabled. All changes are blocked until it is re-enabled."}
+                ? "The parent entity is inactive. All changes are blocked until it is activated."
+                : "This property is inactive. All changes are blocked until it is activated."}
             </p>
           </div>
         </div>
-      )}
 
-      <header className="client-detail-entities property-hero-card">
-        <div className="property-hero-top">
-          <div>
-            <h1>
-              {property.name}
-              {propertyDisabled && (
-                <span className="entity-disabled-badge" title="This property is disabled and cannot be modified">
-                  Disabled
+        <header className="client-detail-entities property-hero-card">
+          <div className="property-hero-top">
+            <div>
+              <h1>
+                {property.name}
+                <span className={`entity-disabled-badge${propertyDisabled ? " is-visible" : ""}`} title="This property is inactive and cannot be modified">
+                  Inactive
                 </span>
-              )}
-            </h1>
-            <p>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11Z" />
-                <circle cx="12" cy="10" r="2.5" />
-              </svg>
-              {property.locationText}
-            </p>
-          </div>
-          <div className="property-hero-actions">
-            {!isClientView && (
-              <ToggleSwitch
-                checked={!propertyDisabled}
-                onChange={(checked) => handleToggleEnabled(checked)}
-                disabled={entityDisabled}
-                loading={isTogglingEnabled}
-                green
-                label={propertyDisabled ? "Disabled" : "Enabled"}
-                title={
-                  entityDisabled
-                    ? "Enable the entity first"
-                    : propertyDisabled
-                      ? "Enable this property"
-                      : "Disable this property"
-                }
-              />
-            )}
-            {!writesBlocked && (
-              <>
-                <Link href={editPropertyHref} className="property-outline-button">
-                  Edit Details
-                </Link>
-                <Link
-                  href={
-                    reviewFormHref ||
-                    editPropertyHref.replace(/\/edit$/, "/logit-form-review")
+              </h1>
+              <p>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11Z" />
+                  <circle cx="12" cy="10" r="2.5" />
+                </svg>
+                {property.locationText}
+              </p>
+            </div>
+            <div className="property-hero-actions">
+              {!isClientView && (
+                <ToggleSwitch
+                  checked={!propertyDisabled}
+                  onChange={(checked) => {
+                    if (!checked) {
+                      setIsInactiveModalOpen(true);
+                    } else {
+                      handleToggleEnabled(true);
+                    }
+                  }}
+                  disabled={entityDisabled}
+                  loading={isTogglingEnabled}
+                  green
+                  label={propertyDisabled ? "Inactive" : "Active"}
+                  title={
+                    entityDisabled
+                      ? "Activate the entity first"
+                      : propertyDisabled
+                        ? "Activate this property"
+                        : "Deactivate this property"
                   }
-                  className="property-review-button"
-                >
-                  Review Form
-                </Link>
-              </>
-            )}
+                />
+              )}
+              {!writesBlocked && (
+                <>
+                  <Link href={editPropertyHref} className="property-outline-button">
+                    Edit Details
+                  </Link>
+                  <Link
+                    href={
+                      reviewFormHref ||
+                      editPropertyHref.replace(/\/edit$/, "/logit-form-review")
+                    }
+                    className="property-review-button"
+                  >
+                    Review Form
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
+
+          <dl className="property-hero-facts">
+            <div>
+              <dt>Entity</dt>
+              <dd>{entity?.name || "-"}</dd>
+            </div>
+            <div>
+              <dt>Property Type</dt>
+              <dd>{titleCase(property.propertyType)}</dd>
+            </div>
+            <div>
+              <dt>Market Value</dt>
+              <dd>{formatCurrency(property.estimatedMarketValue)}</dd>
+            </div>
+            <div>
+              <dt>Loan Value</dt>
+              <dd>{formatCurrency(loanAmount)}</dd>
+            </div>
+            <div>
+              <dt>Acquisition Date</dt>
+              <dd>{formatDate(property.purchaseDate)}</dd>
+            </div>
+            <div>
+              <dt>Total Transactions</dt>
+              <dd>{transactionSummary.count}</dd>
+            </div>
+          </dl>
+        </header>
+
+        <div className="client-stat-grid property-metric-grid">
+          <article className="client-stat-card">
+            <span>Total Income</span>
+            <strong>{formatCurrency(transactionSummary.income)}</strong>
+          </article>
+          <article className="client-stat-card">
+            <span>Total Expenses</span>
+            <strong>{formatCurrency(transactionSummary.expenses)}</strong>
+          </article>
+          <article className="client-stat-card">
+            <span>Net Profit</span>
+            <strong className={transactionSummary.net >= 0 ? "is-profit" : ""}>
+              {formatCurrency(transactionSummary.net)}
+            </strong>
+          </article>
         </div>
 
-        <dl className="property-hero-facts">
-          <div>
-            <dt>Entity</dt>
-            <dd>{entity?.name || "-"}</dd>
-          </div>
-          <div>
-            <dt>Property Type</dt>
-            <dd>{titleCase(property.propertyType)}</dd>
-          </div>
-          <div>
-            <dt>Market Value</dt>
-            <dd>{formatCurrency(property.estimatedMarketValue)}</dd>
-          </div>
-          <div>
-            <dt>Loan Value</dt>
-            <dd>{formatCurrency(loanAmount)}</dd>
-          </div>
-          <div>
-            <dt>Acquisition Date</dt>
-            <dd>{formatDate(property.purchaseDate)}</dd>
-          </div>
-          <div>
-            <dt>Total Transactions</dt>
-            <dd>{transactionSummary.count}</dd>
-          </div>
-        </dl>
-      </header>
+        <ProfitLossTrendCard
+          transactions={transactions}
+          isLoading={isLoading}
+        />
 
-      <div className="client-stat-grid property-metric-grid">
-        <article className="client-stat-card">
-          <span>Total Income</span>
-          <strong>{formatCurrency(transactionSummary.income)}</strong>
-        </article>
-        <article className="client-stat-card">
-          <span>Total Expenses</span>
-          <strong>{formatCurrency(transactionSummary.expenses)}</strong>
-        </article>
-        <article className="client-stat-card">
-          <span>Net Profit</span>
-          <strong className={transactionSummary.net >= 0 ? "is-profit" : ""}>
-            {formatCurrency(transactionSummary.net)}
-          </strong>
-        </article>
-      </div>
-
-      <ProfitLossTrendCard
-        transactions={transactions}
-        isLoading={isLoading}
-      />
-
-      <section className="property-detail-tabs">
-        <div className="property-detail-tab-list" role="tablist" aria-label="Property detail sections">
-          {propertyTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={currentTab === tab.id}
-              className={currentTab === tab.id ? "is-active" : ""}
-              onClick={() => setCurrentTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        {currentTab === "documents" ? (
-          <div className="entity-resource-body">
-            <DocumentsListView
-              context={{ kind: "property", propertyId }}
-              token={sessionToken}
-            />
+        <section className="property-detail-tabs">
+          <div className="property-detail-tab-list" role="tablist" aria-label="Property detail sections">
+            {propertyTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={currentTab === tab.id}
+                className={currentTab === tab.id ? "is-active" : ""}
+                onClick={() => setCurrentTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        ) : currentTab === "rules" ? (
-          <div className="property-rules-tab-wrapper">
-            <TransactionRulesView
-              backHref={backHref}
-              entityId={entityId || property?.entityId}
-              isPropertyPage={true}
-            />
-          </div>
-        ) : (
-          <div className="property-detail-tab-body">
-            {currentTab === "transactions" ? (
-              <AllTransactionsView
+          {currentTab === "documents" ? (
+            <div className="entity-resource-body">
+              <DocumentsListView
                 context={{ kind: "property", propertyId }}
-                addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
-                addTransactionDisabled={writesBlocked}
-                addTransactionDisabledReason={
-                  entityDisabled ? "Entity is disabled" : "Property is disabled"
-                }
-                compact
+                token={sessionToken}
+                disabled={writesBlocked}
               />
-            ) : (
-              <>
-                <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
-                <p>Coming soon</p>
-              </>
-            )}
-          </div>
-        )}
+            </div>
+          ) : currentTab === "rules" ? (
+            <div className="property-rules-tab-wrapper">
+              <TransactionRulesView
+                backHref={backHref}
+                entityId={entityId || property?.entityId}
+                isPropertyPage={true}
+                disabled={writesBlocked}
+                disabledReason={
+                  entityDisabled ? "Entity is inactive" : "Property is inactive"
+                }
+              />
+            </div>
+          ) : (
+            <div className="property-detail-tab-body">
+              {currentTab === "transactions" ? (
+                <AllTransactionsView
+                  context={{ kind: "property", propertyId }}
+                  addTransactionHref={`${backHref}/transactions/new?propertyId=${encodeURIComponent(propertyId)}`}
+                  addTransactionDisabled={writesBlocked}
+                  addTransactionDisabledReason={
+                    entityDisabled ? "Entity is inactive" : "Property is inactive"
+                  }
+                  compact
+                />
+              ) : (
+                <>
+                  <strong>{propertyTabs.find((tab) => tab.id === currentTab)?.label}</strong>
+                  <p>Coming soon</p>
+                </>
+              )}
+            </div>
+          )}
+        </section>
       </section>
-    </section>
+      <InactiveReasonModal
+        isOpen={isInactiveModalOpen}
+        onClose={() => setIsInactiveModalOpen(false)}
+        onConfirm={(reason) => {
+          setIsInactiveModalOpen(false);
+          handleToggleEnabled(false, reason);
+        }}
+        type="property"
+      />
+    </>
   );
 }

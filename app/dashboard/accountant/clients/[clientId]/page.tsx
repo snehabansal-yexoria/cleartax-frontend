@@ -821,8 +821,8 @@ function ClientDetailPageContent() {
                               {entityTypeLabel(entity.entityType)}
                             </span>
                             {entity.enabled === false && (
-                              <span className="entity-disabled-badge" title="This entity is disabled">
-                                Disabled
+                              <span className="entity-disabled-badge" title="This entity is inactive">
+                                Inactive
                               </span>
                             )}
                           </div>
