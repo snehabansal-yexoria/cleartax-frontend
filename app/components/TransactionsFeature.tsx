@@ -3671,6 +3671,16 @@ export function AddTransactionView({
     return () => window.clearTimeout(timer);
   }, [effectiveBackHref, isMarked, router]);
 
+  useEffect(() => {
+    if (feedback?.tone !== "success") return undefined;
+    const timer = window.setTimeout(() => {
+      setFeedback(null);
+      router.push(effectiveBackHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [feedback, effectiveBackHref, router]);
+
+
   const grossNumberValue = Number.parseFloat(grossAmount);
   const splitTotal = splitRows.reduce(
     (sum, r) => sum + (Number.parseFloat(r.amount) || 0),
@@ -5103,7 +5113,12 @@ export function AddTransactionView({
           tone={feedback.tone}
           title={feedback.title}
           message={feedback.message}
-          onClose={() => setFeedback(null)}
+          onClose={() => {
+            setFeedback(null);
+            if (feedback.tone === "success") {
+              router.push(effectiveBackHref);
+            }
+          }}
         />
       ) : null}
     </section>
