@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState, useId, useRef } from "react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
+import InactiveReasonModal from "@/app/components/InactiveReasonModal";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -290,6 +291,8 @@ export default function EntityDetailView({
   const [rmError, setRmError] = useState<string | null>(null);
   const [enabledError, setEnabledError] = useState<string | null>(null);
   const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
+  const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
+  const [propertyToDeactivate, setPropertyToDeactivate] = useState<CoreProperty | null>(null);
   const [togglingPropertyId, setTogglingPropertyId] = useState<string | null>(null);
   const pathname = usePathname();
   // The client dashboard reuses this view; only accountants manage the flag.
@@ -372,7 +375,7 @@ export default function EntityDetailView({
     }
   }
 
-  async function handleToggleEnabled(next: boolean) {
+  async function handleToggleEnabled(next: boolean, reason?: string) {
     if (!sessionToken || !entityId || !entity || isTogglingEnabled) return;
 
     const previous = entity;
@@ -386,12 +389,15 @@ export default function EntityDetailView({
           "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ enabled: next }),
+        body: JSON.stringify({
+          enabled: next,
+          ...(next === false && reason ? { inactiveReason: reason } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
-          data.message || data.error || `Failed to ${next ? "enable" : "disable"} entity`,
+          data.message || data.error || `Failed to ${next ? "activate" : "deactivate"} entity`,
         );
       }
       setEntity({ ...previous, ...data });
@@ -400,14 +406,14 @@ export default function EntityDetailView({
       setEnabledError(
         err instanceof Error
           ? err.message
-          : `Failed to ${next ? "enable" : "disable"} entity. Please try again.`,
+          : `Failed to ${next ? "activate" : "deactivate"} entity. Please try again.`,
       );
     } finally {
       setIsTogglingEnabled(false);
     }
   }
 
-  async function handleTogglePropertyEnabled(property: CoreProperty, next: boolean) {
+  async function handleTogglePropertyEnabled(property: CoreProperty, next: boolean, reason?: string) {
     if (!sessionToken || togglingPropertyId) return;
 
     setEnabledError(null);
@@ -422,12 +428,15 @@ export default function EntityDetailView({
           "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ enabled: next }),
+        body: JSON.stringify({
+          enabled: next,
+          ...(next === false && reason ? { inactiveReason: reason } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
-          data.message || data.error || `Failed to ${next ? "enable" : "disable"} property`,
+          data.message || data.error || `Failed to ${next ? "activate" : "deactivate"} property`,
         );
       }
     } catch (err) {
@@ -437,7 +446,7 @@ export default function EntityDetailView({
       setEnabledError(
         err instanceof Error
           ? err.message
-          : `Failed to ${next ? "enable" : "disable"} property. Please try again.`,
+          : `Failed to ${next ? "activate" : "deactivate"} property. Please try again.`,
       );
     } finally {
       setTogglingPropertyId(null);
@@ -622,7 +631,8 @@ export default function EntityDetailView({
   const entityDisabled = entity.enabled === false;
 
   return (
-    <section className="client-detail-page entity-detail-page">
+    <>
+      <section className="client-detail-page entity-detail-page">
       <Link href={backHref} className="entity-wizard-back">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15 6l-6 6 6 6" />
@@ -639,11 +649,9 @@ export default function EntityDetailView({
                 Reconciled
               </span>
             )}
-            {entityDisabled && (
-              <span className="entity-disabled-badge" title="This entity is disabled and cannot be modified">
-                Disabled
-              </span>
-            )}
+            <span className={`entity-disabled-badge${entityDisabled ? " is-visible" : ""}`} title="This entity is inactive and cannot be modified">
+              Inactive
+            </span>
           </h1>
           <p>
             {entityTypeLabel(entity.entityType)} · {ownerCopy} ·{" "}
@@ -654,17 +662,23 @@ export default function EntityDetailView({
           {!isClientView && (
             <ToggleSwitch
               checked={!entityDisabled}
-              onChange={(checked) => handleToggleEnabled(checked)}
+              onChange={(checked) => {
+                if (!checked) {
+                  setIsInactiveModalOpen(true);
+                } else {
+                  handleToggleEnabled(true);
+                }
+              }}
               disabled={entity.reconciled}
               loading={isTogglingEnabled}
               green
-              label={entityDisabled ? "Disabled" : "Enabled"}
+              label={entityDisabled ? "Inactive" : "Active"}
               title={
                 entity.reconciled
                   ? "Reconciled entities cannot be toggled"
                   : entityDisabled
-                    ? "Enable this entity"
-                    : "Disable this entity"
+                    ? "Activate this entity"
+                    : "Deactivate this entity"
               }
             />
           )}
@@ -691,21 +705,19 @@ export default function EntityDetailView({
         </p>
       )}
 
-      {entityDisabled && (
-        <div className="entity-disabled-notice" role="status">
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="entity-reconciled-notice-icon" width={20} height={20}>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M8 12h8" />
-          </svg>
-          <div>
-            <strong>Entity Disabled</strong>
-            <p>
-              This entity is disabled. All changes — transactions, properties,
-              documents, and reconciliations — are blocked until it is re-enabled.
-            </p>
-          </div>
+      <div className={`entity-disabled-notice${entityDisabled ? " is-visible" : ""}`} role="status">
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="entity-reconciled-notice-icon" width={20} height={20}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M8 12h8" />
+        </svg>
+        <div>
+          <strong>Entity Inactive</strong>
+          <p>
+            This entity is inactive. All changes — transactions, properties,
+            documents, and reconciliations — are blocked until it is activated.
+          </p>
         </div>
-      )}
+      </div>
 
       {entity.reconciled && (
         <div className="entity-reconciled-notice" role="status">
@@ -851,7 +863,7 @@ export default function EntityDetailView({
                 type="button"
                 onClick={() => handleAssignRm("")}
                 disabled={entityDisabled}
-                title={entityDisabled ? "Entity is disabled" : "Remove Regional Manager"}
+                title={entityDisabled ? "Entity is inactive" : "Remove Regional Manager"}
                 aria-label="Remove Regional Manager"
                 style={{
                   background: "transparent",
@@ -925,12 +937,14 @@ export default function EntityDetailView({
             <div className="entity-resource-head">
               <h2>Entity Property</h2>
               {entityDisabled ? (
-                <span
-                  className="entity-property-disabled-action"
-                  title="Entity is disabled"
+                <button
+                  type="button"
+                  className="entity-wizard-primary is-green"
+                  disabled
+                  title="Entity is inactive"
                 >
                   + Add Property
-                </span>
+                </button>
               ) : (
                 <Link href={addPropertyHref} className="entity-wizard-primary is-green">
                   + Add Property
@@ -947,7 +961,7 @@ export default function EntityDetailView({
             ) : (
               <ul className="entity-property-list">
                 {properties.map((property) => (
-                  <li key={property.id} className="entity-property-row">
+                  <li key={property.id} className={`entity-property-row${!isClientView ? " has-toggle" : ""}`}>
                     <div className="entity-property-main">
                       <Link
                         href={`${propertyDetailHrefBase}/${property.id}`}
@@ -955,9 +969,6 @@ export default function EntityDetailView({
                       >
                         {property.reconciled && (
                           <span className="entity-property-reconciled-badge">Reconciled</span>
-                        )}
-                        {property.enabled === false && (
-                          <span className="entity-property-disabled-badge">Disabled</span>
                         )}
                         <strong>{property.name}</strong>
                       </Link>
@@ -969,6 +980,29 @@ export default function EntityDetailView({
                         {property.locationText}
                       </span>
                     </div>
+                    {!isClientView && (
+                      <ToggleSwitch
+                        checked={property.enabled !== false}
+                        onChange={(checked) => {
+                          if (!checked) {
+                            setPropertyToDeactivate(property);
+                          } else {
+                            handleTogglePropertyEnabled(property, true);
+                          }
+                        }}
+                        disabled={entityDisabled}
+                        loading={togglingPropertyId === property.id}
+                        green
+                        label={property.enabled === false ? "Inactive" : "Active"}
+                        title={
+                          entityDisabled
+                            ? "Activate the entity first"
+                            : property.enabled === false
+                              ? "Activate this property"
+                              : "Deactivate this property"
+                        }
+                      />
+                    )}
                     <dl>
                       <div>
                         <dt>Property Type</dt>
@@ -989,32 +1023,15 @@ export default function EntityDetailView({
                         </dd>
                       </div>
                     </dl>
-                    {!isClientView && (
-                      <ToggleSwitch
-                        checked={property.enabled !== false}
-                        onChange={(checked) => handleTogglePropertyEnabled(property, checked)}
-                        disabled={entityDisabled}
-                        loading={togglingPropertyId === property.id}
-                        green
-                        label={property.enabled === false ? "Disabled" : "Enabled"}
-                        title={
-                          entityDisabled
-                            ? "Enable the entity first"
-                            : property.enabled === false
-                              ? "Enable this property"
-                              : "Disable this property"
-                        }
-                      />
-                    )}
                     {entity.reconciled || entityDisabled || property.enabled === false ? (
                       <span
-                        className="entity-property-disabled-action"
+                        className="entity-property-action is-disabled"
                         title={
                           entity.reconciled
                             ? "Entity is reconciled"
                             : entityDisabled
-                              ? "Entity is disabled"
-                              : "Property is disabled"
+                              ? "Entity is inactive"
+                              : "Property is inactive"
                         }
                       >
                         + Add Transaction
@@ -1026,7 +1043,7 @@ export default function EntityDetailView({
                           "propertyId",
                           property.id,
                         )}
-                        className="entity-property-disabled-action"
+                        className="entity-property-action"
                       >
                         + Add Transaction
                       </Link>
@@ -1056,7 +1073,7 @@ export default function EntityDetailView({
               addTransactionDisabledReason={
                 entity.reconciled
                   ? "Entity is reconciled"
-                  : "Entity is disabled"
+                  : "Entity is inactive"
               }
               rulesHref={transactionRulesHref}
               rulesButtonLabel={transactionRulesLabel}
@@ -1076,7 +1093,7 @@ export default function EntityDetailView({
                 type="button"
                 className="entity-wizard-primary is-green"
                 disabled={entityDisabled}
-                title={entityDisabled ? "Entity is disabled" : undefined}
+                title={entityDisabled ? "Entity is inactive" : undefined}
                 style={entityDisabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                 onClick={() => {
                   if (entityDisabled) return;
@@ -1253,6 +1270,7 @@ export default function EntityDetailView({
             <DocumentsListView
               context={{ kind: "entity", entityId }}
               token={sessionToken}
+              disabled={entityDisabled}
             />
           </div>
         )}
@@ -1265,5 +1283,25 @@ export default function EntityDetailView({
         )}
       </section>
     </section>
+    <InactiveReasonModal
+      isOpen={isInactiveModalOpen}
+      onClose={() => setIsInactiveModalOpen(false)}
+      onConfirm={(reason) => {
+        setIsInactiveModalOpen(false);
+        handleToggleEnabled(false, reason);
+      }}
+    />
+    <InactiveReasonModal
+      isOpen={propertyToDeactivate !== null}
+      onClose={() => setPropertyToDeactivate(null)}
+      onConfirm={(reason) => {
+        if (propertyToDeactivate) {
+          handleTogglePropertyEnabled(propertyToDeactivate, false, reason);
+        }
+        setPropertyToDeactivate(null);
+      }}
+      type="property"
+    />
+    </>
   );
 }

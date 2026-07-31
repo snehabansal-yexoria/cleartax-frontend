@@ -563,6 +563,8 @@ function TransactionDetailPopup({
   onCancelEdit,
   onSave,
   onDelete,
+  disabled = false,
+  disabledReason,
 }: {
   row: DisplayTransactionRow;
   detail: CoreTransactionDetail | null;
@@ -577,6 +579,8 @@ function TransactionDetailPopup({
   onCancelEdit: () => void;
   onSave: (body: Record<string, unknown>) => Promise<void>;
   onDelete: () => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const [description, setDescription] = useState(row.description || "");
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
@@ -590,6 +594,7 @@ function TransactionDetailPopup({
   const [invoiceDate, setInvoiceDate] = useState(row.invoiceDate?.slice(0, 10) || "");
   const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
   const [grossAmount, setGrossAmount] = useState(String(row.grossAmount || ""));
+  const [grossAmountTouched, setGrossAmountTouched] = useState(false);
   const [showGstBreakdown, setShowGstBreakdown] = useState(row.gstAmount > 0);
   const [gstAmount, setGstAmount] = useState(String(row.gstAmount || ""));
   const [modeOfTransaction, setModeOfTransaction] = useState(
@@ -642,6 +647,19 @@ function TransactionDetailPopup({
   }, [invoiceDate]);
 
   const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
+
+  const grossAmountError = useMemo(() => {
+    if (!grossAmount) {
+      return "Amount is required.";
+    }
+    const val = Number.parseFloat(grossAmount);
+    if (Number.isNaN(val) || val <= 0) {
+      return "Amount must be greater than 0.";
+    }
+    return "";
+  }, [grossAmount]);
+
+  const showGrossAmountError = !!grossAmountError && (grossAmountTouched || grossAmountError !== "Amount is required.");
 
   const [editError, setEditError] = useState("");
   const [isOpeningInvoice, setIsOpeningInvoice] = useState(false);
@@ -973,6 +991,11 @@ function TransactionDetailPopup({
       setEditError(invoiceDateError);
       return;
     }
+    if (grossAmountError) {
+      setGrossAmountTouched(true);
+      setEditError(grossAmountError);
+      return;
+    }
     const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
     if (!allBlank) {
       if (Number.isNaN(grossNum) || grossNum <= 0) {
@@ -1272,13 +1295,12 @@ function TransactionDetailPopup({
                     </p>
                   )}
                 </label>
-                <label className="transaction-field">
+                <label className={`transaction-field${showGrossAmountError ? " has-error" : ""}`}>
                   <span className="transaction-field-label">Amount<em>*</em></span>
                   <input
                     type="number"
                     inputMode="decimal"
                     step="0.01"
-                    min="0.01"
                     value={grossAmount}
                     onKeyDown={(e) => {
                       if (e.key === "-" || e.key === "Minus") {
@@ -1288,8 +1310,18 @@ function TransactionDetailPopup({
                     onChange={(event) => {
                       const val = event.target.value.replace(/-/g, "");
                       setGrossAmount(val);
+                      setGrossAmountTouched(true);
                     }}
+                    onBlur={() => setGrossAmountTouched(true)}
                   />
+                  {showGrossAmountError && (
+                    <p className="transaction-field-error">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      {grossAmountError}
+                    </p>
+                  )}
                 </label>
               </div>
               <label className="transaction-checkbox-row">
@@ -1381,7 +1413,6 @@ function TransactionDetailPopup({
                             type="number"
                             inputMode="decimal"
                             step="0.01"
-                            min="0.01"
                             value={split.amount}
                             onKeyDown={(e) => {
                               if (e.key === "-" || e.key === "Minus") {
@@ -1642,7 +1673,14 @@ function TransactionDetailPopup({
             </>
           ) : (
             <>
-              <button type="button" className="transaction-detail-edit-button" onClick={onEdit}>
+              <button
+                type="button"
+                className="transaction-detail-edit-button"
+                onClick={onEdit}
+                disabled={disabled}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+              >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -1653,7 +1691,9 @@ function TransactionDetailPopup({
                 type="button"
                 className="transaction-detail-delete-button"
                 onClick={onDelete}
-                disabled={isDeleting}
+                disabled={disabled || isDeleting}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M3 6h18" />
@@ -1696,6 +1736,8 @@ function TransactionTable({
   onView,
   onEdit,
   onDelete,
+  disabled = false,
+  disabledReason,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -1703,6 +1745,8 @@ function TransactionTable({
   onView: (row: DisplayTransactionRow) => void;
   onEdit: (row: DisplayTransactionRow) => void;
   onDelete: (row: DisplayTransactionRow) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
@@ -1790,6 +1834,9 @@ function TransactionTable({
                       <button
                         type="button"
                         aria-label={`Edit ${row.id}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onEdit(row)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1801,6 +1848,9 @@ function TransactionTable({
                         type="button"
                         className="is-danger"
                         aria-label={`Delete ${row.id}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onDelete(row)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1828,11 +1878,15 @@ function PropertyTransactionTable({
   onView,
   onEdit,
   onDelete,
+  disabled = false,
+  disabledReason,
 }: {
   rows: CorePropertyTransactionRow[];
   onView: (row: DisplayTransactionRow) => void;
   onEdit: (row: DisplayTransactionRow) => void;
   onDelete: (row: DisplayTransactionRow) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   return (
     <div className="transactions-table-container">
@@ -1902,6 +1956,9 @@ function PropertyTransactionTable({
                       <button
                         type="button"
                         aria-label={`Edit ${row.transactionId}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onEdit(displayRow)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1913,6 +1970,9 @@ function PropertyTransactionTable({
                         type="button"
                         className="is-danger"
                         aria-label={`Delete ${row.transactionId}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onDelete(displayRow)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2771,6 +2831,8 @@ export function AllTransactionsView({
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
+              disabled={addTransactionDisabled}
+              disabledReason={addTransactionDisabledReason}
             />
           ) : (
             <TransactionTable
@@ -2780,6 +2842,8 @@ export function AllTransactionsView({
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
+              disabled={addTransactionDisabled}
+              disabledReason={addTransactionDisabledReason}
             />
           )}
           <Pagination copy={`Showing ${totalCount} of ${unfilteredCount} items`} />
@@ -2805,6 +2869,8 @@ export function AllTransactionsView({
           onCancelEdit={() => setDetailMode("view")}
           onSave={saveTransactionDetail}
           onDelete={() => deleteTransaction()}
+          disabled={addTransactionDisabled}
+          disabledReason={addTransactionDisabledReason}
         />
       ) : null}
       {transactionToDelete && (
@@ -3023,7 +3089,7 @@ type PropertyOption = { id: string; name: string; enabled?: boolean };
 // why a record can't be used) but are labelled; the backend rejects writes on
 // them with a 409 either way.
 function pickerLabel(item: { name: string; enabled?: boolean }) {
-  return item.enabled === false ? `${item.name} (disabled)` : item.name;
+  return item.enabled === false ? `${item.name} (inactive)` : item.name;
 }
 
 const MODE_OF_TRANSACTION_OPTIONS: SelectOption[] = [
@@ -3319,6 +3385,7 @@ export function AddTransactionView({
   const [invoiceDate, setInvoiceDate] = useState("");
   const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
   const [grossAmount, setGrossAmount] = useState("");
+  const [grossAmountTouched, setGrossAmountTouched] = useState(false);
 
   const [showGstBreakdown, setShowGstBreakdown] = useState(false);
   const [gstAmount, setGstAmount] = useState("");
@@ -3604,6 +3671,16 @@ export function AddTransactionView({
     return () => window.clearTimeout(timer);
   }, [effectiveBackHref, isMarked, router]);
 
+  useEffect(() => {
+    if (feedback?.tone !== "success") return undefined;
+    const timer = window.setTimeout(() => {
+      setFeedback(null);
+      router.push(effectiveBackHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [feedback, effectiveBackHref, router]);
+
+
   const grossNumberValue = Number.parseFloat(grossAmount);
   const splitTotal = splitRows.reduce(
     (sum, r) => sum + (Number.parseFloat(r.amount) || 0),
@@ -3683,6 +3760,19 @@ export function AddTransactionView({
 
   const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
 
+  const grossAmountError = useMemo(() => {
+    if (!grossAmount) {
+      return "Amount is required.";
+    }
+    const val = Number.parseFloat(grossAmount);
+    if (Number.isNaN(val) || val <= 0) {
+      return "Amount must be greater than 0.";
+    }
+    return "";
+  }, [grossAmount]);
+
+  const showGrossAmountError = !!grossAmountError && (grossAmountTouched || grossAmountError !== "Amount is required.");
+
   const canSubmit =
     !mustChooseClientFirst &&
     !hasNoProperties &&
@@ -3693,6 +3783,7 @@ export function AddTransactionView({
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
+    !grossAmountError &&
     !!modeOfTransaction &&
     (!isAssetPurchase ||
       (assetClass === "capital_works" ||
@@ -4263,6 +4354,11 @@ export function AddTransactionView({
       setSubmitError(invoiceDateError);
       return;
     }
+    if (grossAmountError) {
+      setGrossAmountTouched(true);
+      setSubmitError(grossAmountError);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
@@ -4563,7 +4659,7 @@ export function AddTransactionView({
           />
         )}
 
-        <form className="transaction-entry-form" onSubmit={handleSubmit}>
+        <form className="transaction-entry-form" onSubmit={handleSubmit} noValidate>
           {requireClientSelection ? (
             <StaticSelect
               label="Client"
@@ -4759,7 +4855,7 @@ export function AddTransactionView({
                   </p>
                 )}
               </label>
-              <label className={"transaction-field" + flashClass("grossAmount")}>
+              <label className={`transaction-field${flashClass("grossAmount")}${showGrossAmountError ? " has-error" : ""}`}>
                 <span className="transaction-field-label">
                   Amount<em>*</em>
                 </span>
@@ -4767,7 +4863,6 @@ export function AddTransactionView({
                   type="number"
                   inputMode="decimal"
                   step="0.01"
-                  min="0.01"
                   placeholder="0.00"
                   value={grossAmount}
                   onKeyDown={(e) => {
@@ -4778,8 +4873,18 @@ export function AddTransactionView({
                   onChange={(e) => {
                     const val = e.target.value.replace(/-/g, "");
                     setGrossAmount(val);
+                    setGrossAmountTouched(true);
                   }}
+                  onBlur={() => setGrossAmountTouched(true)}
                 />
+                {showGrossAmountError && (
+                  <p className="transaction-field-error">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    {grossAmountError}
+                  </p>
+                )}
               </label>
             </div>
 
@@ -4865,7 +4970,6 @@ export function AddTransactionView({
                             type="number"
                             inputMode="decimal"
                             step="0.01"
-                            min="0.01"
                             placeholder="0.00"
                             value={row.amount}
                             onKeyDown={(e) => {
@@ -5009,7 +5113,12 @@ export function AddTransactionView({
           tone={feedback.tone}
           title={feedback.title}
           message={feedback.message}
-          onClose={() => setFeedback(null)}
+          onClose={() => {
+            setFeedback(null);
+            if (feedback.tone === "success") {
+              router.push(effectiveBackHref);
+            }
+          }}
         />
       ) : null}
     </section>
@@ -5614,10 +5723,14 @@ export function TransactionRulesView({
   backHref = "/dashboard/accountant/transactions",
   entityId,
   isPropertyPage = false,
+  disabled = false,
+  disabledReason,
 }: {
   backHref?: string;
   entityId?: string;
   isPropertyPage?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const [query, setQuery] = useState("");
   const [rules, setRules] = useState<CoreTransactionRule[]>([]);
@@ -5747,6 +5860,9 @@ export function TransactionRulesView({
               <button
                 type="button"
                 className="premium-docs-upload-btn"
+                disabled={disabled}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                 onClick={() => { setSelectedRule(null); setShowModal("create"); }}
               >
                 Create Rule
@@ -5763,6 +5879,9 @@ export function TransactionRulesView({
               <button
                 type="button"
                 className="transaction-green-button"
+                disabled={disabled}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                 onClick={() => { setSelectedRule(null); setShowModal("create"); }}
               >
                 <span>+</span>
@@ -5808,6 +5927,9 @@ export function TransactionRulesView({
                       <td>
                         <button
                           type="button"
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { cursor: "not-allowed" } : undefined}
                           onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
                         >
                           {rule.name}
@@ -5837,7 +5959,9 @@ export function TransactionRulesView({
                         <button
                           type="button"
                           className="transaction-detail-delete-button"
-                          disabled={deletingId === rule.id}
+                          disabled={disabled || deletingId === rule.id}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                           onClick={() => handleDelete(rule)}
                           aria-label={`Delete rule ${rule.name}`}
                         >
@@ -5888,6 +6012,9 @@ export function TransactionRulesView({
         <button
           type="button"
           className="transaction-green-button"
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
           onClick={() => { setSelectedRule(null); setShowModal("create"); }}
         >
           <span>+</span>
@@ -5943,6 +6070,9 @@ export function TransactionRulesView({
                     <td>
                       <button
                         type="button"
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { cursor: "not-allowed" } : undefined}
                         onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
                       >
                         {rule.name}
@@ -5972,7 +6102,9 @@ export function TransactionRulesView({
                       <button
                         type="button"
                         className="transaction-detail-delete-button"
-                        disabled={deletingId === rule.id}
+                        disabled={disabled || deletingId === rule.id}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => handleDelete(rule)}
                         aria-label={`Delete rule ${rule.name}`}
                       >

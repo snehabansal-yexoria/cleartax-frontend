@@ -21,6 +21,7 @@ export type DocumentsListViewProps = {
   | { kind: "client"; clientId: string }
   | { kind: "owner" };
   token: string;
+  disabled?: boolean;
 };
 
 type UploadingFile = {
@@ -165,7 +166,7 @@ function SpinnerIcon() {
   );
 }
 
-export default function DocumentsListView({ context, token }: DocumentsListViewProps) {
+export default function DocumentsListView({ context, token, disabled = false }: DocumentsListViewProps) {
   const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -251,6 +252,7 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
   }
 
   function triggerFileUpload() {
+    if (disabled) return;
     fileInputRef.current?.click();
   }
 
@@ -339,6 +341,8 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
         <button
           type="button"
           onClick={triggerFileUpload}
+          disabled={disabled}
+          title={disabled ? "Inactive" : undefined}
           className="premium-docs-upload-btn space-x-2"
         >
           <UploadIcon />
@@ -350,6 +354,7 @@ export default function DocumentsListView({ context, token }: DocumentsListViewP
         ref={fileInputRef}
         type="file"
         multiple
+        disabled={disabled}
         onChange={handleUploadFile}
         accept=".pdf,.png,.jpg,.jpeg"
         style={{ display: "none" }}
