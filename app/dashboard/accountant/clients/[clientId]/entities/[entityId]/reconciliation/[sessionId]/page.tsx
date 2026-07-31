@@ -218,22 +218,42 @@ function DocumentIcon() {
   );
 }
 
-function UploadIcon() {
+function UploadIcon({ width = 18, height = 18 }: { width?: number; height?: number } = {}) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v12" />
-      <path d="m7 8 5-5 5 5" />
-      <path d="M5 21h14" />
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={width}
+      height={height}
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
 }
 
 function UploadAltIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={13} height={13}>
-      <path d="M12 3v12" />
-      <path d="m7 8 5-5 5 5" />
-      <path d="M5 21h14" />
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={13}
+      height={13}
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
 }
@@ -320,6 +340,8 @@ export default function AccountantReconciliationSessionPage() {
   const [uploadStage, setUploadStage] = useState<UploadStage>({ type: "idle" });
   const fileRef = useRef<HTMLInputElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [matchError, setMatchError] = useState<string | null>(null);
@@ -1234,26 +1256,82 @@ export default function AccountantReconciliationSessionPage() {
         )}
 
         {statements.length === 0 ? (
-          <div className="accountant-document-empty-state">
-            <DocumentIcon />
-            <strong>No bank statements yet</strong>
-            <p>Upload a PDF or CSV statement to begin extracting transactions.</p>
-            {!isSessionCompleted && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={isProcessing}
-                style={{ marginTop: 12 }}
+          <div
+            className={`accountant-document-empty-state${isDragging ? " is-dragging" : ""}`}
+            onDragOver={(e) => {
+              if (isSessionCompleted || isProcessing) return;
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              if (isSessionCompleted || isProcessing) return;
+              e.preventDefault();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) handleFile(file);
+            }}
+            onMouseEnter={() => {
+              if (!isSessionCompleted && !isProcessing) setIsHovered(true);
+            }}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={() => {
+              if (!isSessionCompleted && !isProcessing) {
+                fileRef.current?.click();
+              }
+            }}
+            style={{
+              transition: "all 0.2s ease-in-out",
+              borderColor: isDragging ? "#2563eb" : (isHovered ? "#3b82f6" : undefined),
+              background: isDragging ? "#f5f8ff" : (isHovered ? "#fafcff" : undefined),
+              boxShadow: isDragging ? "0 0 0 4px rgba(37, 99, 235, 0.08)" : undefined,
+              cursor: (!isSessionCompleted && !isProcessing) ? "pointer" : "default"
+            }}
+          >
+            <div style={{ pointerEvents: isDragging ? "none" : "auto", display: "grid", placeItems: "center" }}>
+              <div
+                className="upload-icon-circle"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: isDragging ? "#2563eb" : "#ebf2fe",
+                  color: isDragging ? "#ffffff" : "#2563eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s ease",
+                  marginBottom: 12,
+                  boxShadow: isDragging ? "none" : "0 2px 8px rgba(37, 99, 235, 0.12)",
+                  border: isDragging ? "none" : "1px solid rgba(37, 99, 235, 0.15)"
+                }}
               >
-                <UploadIcon />
-                Add Bank Statement
-              </button>
-            )}
+                <UploadIcon width={22} height={22} />
+              </div>
+              <strong style={{ margin: "14px 0 0", color: "#101828", fontSize: "17px" }}>Drag and drop your statement here</strong>
+              <p style={{ color: "#4b5563", fontSize: 14, marginTop: 4, marginBottom: 12 }}>
+                or <span style={{ color: "#2563eb", fontWeight: 600, textDecoration: "underline" }}>browse files</span> to upload a PDF or CSV bank statement
+              </p>
+            </div>
             {!isSessionCompleted && (
               <button
                 type="button"
-                onClick={downloadSampleCsv}
-                style={{ marginTop: 8, background: "none", border: "none", padding: 0, color: "#2563eb", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadSampleCsv();
+                }}
+                style={{
+                  marginTop: 8,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "#2563eb",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  pointerEvents: isDragging ? "none" : "auto",
+                  zIndex: 2
+                }}
               >
                 Download CSV template
               </button>
