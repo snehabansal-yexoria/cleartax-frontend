@@ -212,7 +212,7 @@ function TrashIcon() {
 }
 
 
-function StaticSelect({
+export function StaticSelect({
   label,
   value,
   options,

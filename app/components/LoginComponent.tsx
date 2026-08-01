@@ -353,7 +353,7 @@ export default function LoginComponent({
       return;
     }
 
-    if (code.length !== 6) {
+    if (code.length < 6 || code.length > 10) {
       setError("Invalid code. Please try again.");
       return;
     }
@@ -379,7 +379,7 @@ export default function LoginComponent({
       return;
     }
 
-    if (code.length !== 6) {
+    if (code.length < 6 || code.length > 10) {
       setError("Invalid code. Please try again.");
       return;
     }
@@ -886,13 +886,12 @@ export default function LoginComponent({
                       <input
                         type="text"
                         id="mfa_code"
-                        inputMode="numeric"
                         autoComplete="one-time-code"
-                        maxLength={6}
+                        maxLength={10}
                         placeholder="Code"
                         value={mfaCode}
                         onChange={(e) =>
-                          setMfaCode(e.target.value.replace(/\D/g, ""))
+                          setMfaCode(e.target.value)
                         }
                         autoFocus
                       />
@@ -921,13 +920,12 @@ export default function LoginComponent({
                       <input
                         type="text"
                         id="email_mfa_code"
-                        inputMode="numeric"
                         autoComplete="one-time-code"
-                        maxLength={6}
+                        maxLength={10}
                         placeholder="Code"
                         value={mfaCode}
                         onChange={(e) =>
-                          setMfaCode(e.target.value.replace(/\D/g, ""))
+                          setMfaCode(e.target.value)
                         }
                         autoFocus
                       />
