@@ -7,6 +7,7 @@ interface InactiveReasonModalProps {
   onClose: () => void;
   onConfirm: (reason: string) => void;
   type?: "entity" | "property";
+  infoMessage?: string;
 }
 
 export default function InactiveReasonModal({
@@ -14,6 +15,7 @@ export default function InactiveReasonModal({
   onClose,
   onConfirm,
   type = "entity",
+  infoMessage,
 }: InactiveReasonModalProps) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
@@ -250,6 +252,25 @@ export default function InactiveReasonModal({
           color: #0f172a;
         }
 
+        .inactive-reason-modal-info-toast {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 12px 16px;
+          background-color: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 10px;
+          color: #0369a1;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        .inactive-reason-modal-info-toast svg {
+          color: #0284c7;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
         @keyframes inactiveFadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -304,6 +325,16 @@ export default function InactiveReasonModal({
               <p className="inactive-reason-modal-desc">
                 Please specify the reason for changing the status of this {type} to inactive. All changes will be blocked.
               </p>
+              {infoMessage && (
+                <div className="inactive-reason-modal-info-toast">
+                  <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4" />
+                    <path d="M12 16h.01" />
+                  </svg>
+                  <span>{infoMessage}</span>
+                </div>
+              )}
               <div className="inactive-reason-modal-textarea-container">
                 <textarea
                   ref={textareaRef}

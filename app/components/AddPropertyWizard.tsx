@@ -407,6 +407,35 @@ export default function AddPropertyWizard({
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingDoc, setIsDraggingDoc] = useState(false);
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const [existingProperties, setExistingProperties] = useState<CoreProperty[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProperties() {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) return;
+        const token = session.getIdToken().getJwtToken();
+        const res = await fetch(`/api/entities/${encodeURIComponent(entity.id)}/properties`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) {
+            setExistingProperties(data.items);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load existing properties for duplicate checking:", err);
+      }
+    }
+    loadProperties();
+    return () => {
+      cancelled = true;
+    };
+  }, [entity.id]);
 
   useEffect(() => {
     if (saved) {
@@ -422,6 +451,16 @@ export default function AddPropertyWizard({
   const markTouched = (field: string) => {
     setTouchedFields((prev) => ({ ...prev, [field]: true }));
   };
+
+  const isDuplicateName = useMemo(() => {
+    const trimmed = propertyName.trim().toLowerCase();
+    if (!trimmed) return false;
+    return existingProperties.some(
+      (p) =>
+        p.name.trim().toLowerCase() === trimmed &&
+        (mode !== "edit" || p.id !== initialProperty?.id)
+    );
+  }, [propertyName, existingProperties, initialProperty, mode]);
 
 
 
@@ -627,6 +666,7 @@ export default function AddPropertyWizard({
 
   const propertyDetailsValid = Boolean(
     propertyName.trim() &&
+    !isDuplicateName &&
     propertyType &&
     locationText.trim() &&
     locationText.length <= 500 &&
@@ -1076,7 +1116,7 @@ export default function AddPropertyWizard({
               type="text"
               placeholder="e.g., Sunset District Residence"
               value={propertyName}
-              className={`border ${touchedFields.propertyName && !propertyName.trim()
+              className={`border ${(touchedFields.propertyName && !propertyName.trim()) || isDuplicateName
                 ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
                 : ""
                 }`}
@@ -1089,6 +1129,14 @@ export default function AddPropertyWizard({
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                 </svg>
                 <span className="text-[0.78rem] font-medium tracking-tight">Property Name is required.</span>
+              </div>
+            )}
+            {isDuplicateName && (
+              <div className="flex items-center gap-1.5 text-rose-600 mt-1 ml-0.5 animate-fadeIn">
+                <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[0.78rem] font-medium tracking-tight">This property name already exists. Please choose a unique name.</span>
               </div>
             )}
           </label>

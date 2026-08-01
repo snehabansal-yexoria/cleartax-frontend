@@ -212,7 +212,7 @@ function TrashIcon() {
 }
 
 
-function StaticSelect({
+export function StaticSelect({
   label,
   value,
   options,
@@ -1750,6 +1750,11 @@ function TransactionTable({
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
+  const [hoveredDescription, setHoveredDescription] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   return (
     <div className="transactions-table-container">
@@ -1761,6 +1766,7 @@ function TransactionTable({
               {showClientName ? <th>Client Name</th> : null}
               {showEntityName ? <th>Entity</th> : null}
               <th>Properties</th>
+              <th>Description</th>
               <th>Type</th>
               <th>Category</th>
               <th>Subcategory</th>
@@ -1796,6 +1802,28 @@ function TransactionTable({
                   {showClientName ? <td>{row.clientName || "—"}</td> : null}
                   {showEntityName ? <td>{row.entityName || "—"}</td> : null}
                   <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
+                  <td
+                    style={{
+                      maxWidth: '180px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (row.description) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredDescription({
+                          text: row.description,
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredDescription(null)}
+                  >
+                    {row.description || "—"}
+                  </td>
                   <td>
                     <span
                       className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
@@ -1869,6 +1897,63 @@ function TransactionTable({
           </tbody>
         </table>
       </div>
+      {hoveredDescription && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredDescription.x}px`,
+            top: `${hoveredDescription.y - 8}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: '#ffffff',
+            color: '#344054',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 500,
+            maxWidth: '280px',
+            zIndex: 99999,
+            boxShadow: '0 10px 15px -3px rgba(16, 24, 40, 0.1), 0 4px 6px -2px rgba(16, 24, 40, 0.05)',
+            pointerEvents: 'none',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            border: '1px solid #cbd5e1',
+            lineHeight: '1.45',
+            fontFamily: 'inherit',
+          }}
+        >
+          <div style={{ color: '#475467' }}>
+            {hoveredDescription.text}
+          </div>
+          {/* Arrow border */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%) translateY(-1px)',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '6px solid #cbd5e1',
+            }}
+          />
+          {/* Arrow fill */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%) translateY(-2px)',
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #ffffff',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -2266,6 +2351,17 @@ export function AllTransactionsView({
   const [sortBy, setSortBy] = useState<string>("date-desc");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [pageSize, setPageSize] = useState<string>("10");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageInputValue, setPageInputValue] = useState<string>("1");
+
+  useEffect(() => {
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, sortBy]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<DisplayTransactionRow | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
@@ -2371,6 +2467,8 @@ export function AllTransactionsView({
 
   useEffect(() => {
     setFilters(defaultTransactionFilters);
+    setCurrentPage(1);
+    setPageSize("10");
   }, [contextId, contextKind]);
 
   const filterOptions = useMemo<TransactionFilterOptions>(() => {
@@ -2715,6 +2813,24 @@ export function AllTransactionsView({
     contextKind === "property" ? filteredPropertyRows.length : filteredRows.length;
   const unfilteredCount =
     contextKind === "property" ? propertyRows.length : rows.length;
+
+  const totalItems = totalCount;
+  const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
+  const totalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+
+  const displayedRows = useMemo(() => {
+    const startIndex = (activePage - 1) * numericPageSize;
+    const endIndex = startIndex + numericPageSize;
+    return sortedRows.slice(startIndex, endIndex);
+  }, [sortedRows, activePage, numericPageSize]);
+
+  const displayedPropertyRows = useMemo(() => {
+    const startIndex = (activePage - 1) * numericPageSize;
+    const endIndex = startIndex + numericPageSize;
+    return sortedPropertyRows.slice(startIndex, endIndex);
+  }, [sortedPropertyRows, activePage, numericPageSize]);
+
   const showClientShare = contextKind === "client";
   const tableScope: TransactionTableScope =
     contextKind === "none"
@@ -2827,7 +2943,7 @@ export function AllTransactionsView({
           </div>
           {contextKind === "property" ? (
             <PropertyTransactionTable
-              rows={sortedPropertyRows}
+              rows={displayedPropertyRows}
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
@@ -2836,7 +2952,7 @@ export function AllTransactionsView({
             />
           ) : (
             <TransactionTable
-              rows={sortedRows}
+              rows={displayedRows}
               scope={tableScope}
               showClientShare={showClientShare}
               onView={(row) => openTransactionDetail(row, "view")}
@@ -2846,7 +2962,145 @@ export function AllTransactionsView({
               disabledReason={addTransactionDisabledReason}
             />
           )}
-          <Pagination copy={`Showing ${totalCount} of ${unfilteredCount} items`} />
+          {totalItems > 0 && (
+            <footer className="premium-pagination-container">
+              {/* Left Section: Items per page and page range details */}
+              <div className="premium-pagination-left">
+                <span className="premium-pagination-label">Items per page</span>
+                <div className="premium-pagination-select-wrapper">
+                  <select
+                    className="premium-pagination-select"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+                <span className="premium-pagination-info">
+                  {`${(activePage - 1) * numericPageSize + 1}–${Math.min(activePage * numericPageSize, totalItems)} of ${totalItems} items`}
+                </span>
+              </div>
+
+              {/* Right Section: First, Previous, Page Input, Next, Last */}
+              <div className="premium-pagination-right">
+                {/* First Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn premium-pagination-icon-btn"
+                  title="First Page"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={activePage === 1}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <line x1="5" y1="5" x2="5" y2="19" />
+                    <polyline points="19 5 12 12 19 19" />
+                  </svg>
+                </button>
+
+                {/* Previous Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={activePage === 1}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  <span className="premium-pagination-btn-text">Previous</span>
+                </button>
+
+                {/* Page Selector Input Box */}
+                <div className="premium-pagination-page-input-wrapper">
+                  <input
+                    type="number"
+                    className="premium-pagination-page-input"
+                    value={pageInputValue}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        setPageInputValue("");
+                        return;
+                      }
+                      if (/^[1-9]\d*$/.test(value)) {
+                        const pageNum = Number(value);
+                        if (pageNum <= totalPages) {
+                          setPageInputValue(value);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      const pageNum = Number(pageInputValue);
+                      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                        setCurrentPage(pageNum);
+                      } else {
+                        setPageInputValue(String(activePage));
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (["e", "E", "-", "+", "."].includes(e.key)) {
+                        e.preventDefault();
+                        return;
+                      }
+                      if (e.key === "Enter") {
+                        const pageNum = Number(pageInputValue);
+                        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                          setCurrentPage(pageNum);
+                          e.currentTarget.blur();
+                        } else {
+                          setPageInputValue(String(activePage));
+                          e.currentTarget.blur();
+                        }
+                      }
+                    }}
+                    onPaste={(e) => {
+                      const pastedData = e.clipboardData.getData("text");
+                      if (!/^[1-9]\d*$/.test(pastedData) || Number(pastedData) > totalPages) {
+                        e.preventDefault();
+                      }
+                    }}
+                    min={1}
+                    max={totalPages}
+                  />
+                  <span className="premium-pagination-label">of {totalPages}</span>
+                </div>
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={activePage === totalPages}
+                >
+                  <span className="premium-pagination-btn-text">Next</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn premium-pagination-icon-btn"
+                  title="Last Page"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={activePage === totalPages}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <line x1="19" y1="5" x2="19" y2="19" />
+                    <polyline points="5 5 12 12 5 19" />
+                  </svg>
+                </button>
+              </div>
+            </footer>
+          )}
         </>
       )}
       {selectedTransaction ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
@@ -99,7 +99,10 @@ export default function PropertyDetailView({
   const [enabledError, setEnabledError] = useState<string | null>(null);
   const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
   const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const pathname = usePathname();
+  const params = useParams<{ clientId?: string }>();
+  const clientId = params?.clientId;
   // The client dashboard reuses this view; only accountants manage the flag.
   const isClientView = (pathname || "").startsWith("/dashboard/client");
 
@@ -138,6 +141,41 @@ export default function PropertyDetailView({
       );
     } finally {
       setIsTogglingEnabled(false);
+    }
+  }
+
+  async function handleExportCsv() {
+    if (isExporting || !clientId) return;
+    try {
+      setIsExporting(true);
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) return;
+      const token = session.getIdToken().getJwtToken();
+      const res = await fetch(`/api/clients/${encodeURIComponent(clientId)}/export-csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        console.error("Export CSV failed", res.status);
+        alert("Failed to export client data. Please try again.");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] || `${property?.name || propertyId}_Export.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export CSV error:", error);
+      alert("Something went wrong while exporting. Please try again.");
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -331,6 +369,51 @@ export default function PropertyDetailView({
                         : "Deactivate this property"
                   }
                 />
+              )}
+              {!isClientView && clientId && (
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={isExporting}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "10px 16px",
+                    border: "1px solid #d0d5dd",
+                    borderRadius: "8px",
+                    background: "#ffffff",
+                    color: "#344054",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: isExporting ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                    boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
+                    opacity: isExporting ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isExporting) {
+                      e.currentTarget.style.background = "#f9fafb";
+                      e.currentTarget.style.borderColor = "#c6cacc";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#ffffff";
+                    e.currentTarget.style.borderColor = "#d0d5dd";
+                  }}
+                >
+                  {isExporting ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", animation: "spin 0.9s linear infinite" }}>
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                    </svg>
+                  )}
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </button>
               )}
               {!writesBlocked && (
                 <>

@@ -1290,6 +1290,7 @@ export default function EntityDetailView({
         setIsInactiveModalOpen(false);
         handleToggleEnabled(false, reason);
       }}
+      infoMessage="While disabling the entity, the properties under this entity will also be disabled."
     />
     <InactiveReasonModal
       isOpen={propertyToDeactivate !== null}
