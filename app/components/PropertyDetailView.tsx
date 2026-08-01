@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
@@ -99,10 +99,7 @@ export default function PropertyDetailView({
   const [enabledError, setEnabledError] = useState<string | null>(null);
   const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
   const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const pathname = usePathname();
-  const params = useParams<{ clientId?: string }>();
-  const clientId = params?.clientId;
   // The client dashboard reuses this view; only accountants manage the flag.
   const isClientView = (pathname || "").startsWith("/dashboard/client");
 
@@ -144,39 +141,72 @@ export default function PropertyDetailView({
     }
   }
 
-  async function handleExportCsv() {
-    if (isExporting || !clientId) return;
-    try {
-      setIsExporting(true);
-      const session = (await getSession()) as SessionWithIdToken | null;
-      if (!session) return;
-      const token = session.getIdToken().getJwtToken();
-      const res = await fetch(`/api/clients/${encodeURIComponent(clientId)}/export-csv`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        console.error("Export CSV failed", res.status);
-        alert("Failed to export client data. Please try again.");
-        return;
-      }
-      const blob = await res.blob();
-      const disposition = res.headers.get("content-disposition") || "";
-      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
-      const filename = filenameMatch?.[1] || `${property?.name || propertyId}_Export.csv`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Export CSV error:", error);
-      alert("Something went wrong while exporting. Please try again.");
-    } finally {
-      setIsExporting(false);
+  function handleExportCsv() {
+    if (!property) return;
+    const esc = (value: string | number | null | undefined) => {
+      const s = value == null ? "" : String(value);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const money = (value: number) => value.toFixed(2);
+    const isoDate = (value: string | null | undefined) => (value ? value.slice(0, 10) : "");
+
+    const lines: string[] = [];
+    lines.push("--- PROPERTY SUMMARY ---");
+    lines.push([
+      "Property Name", "Entity", "Property Type", "Location",
+      "Estimated Market Value", "Loan Value", "Acquisition Date",
+      "Total Transactions", "Total Income", "Total Expenses", "Net Profit",
+    ].map(esc).join(","));
+    lines.push([
+      esc(property.name),
+      esc(entity?.name || ""),
+      esc(titleCase(property.propertyType)),
+      esc(property.locationText),
+      money(property.estimatedMarketValue),
+      money(loanAmount),
+      isoDate(property.purchaseDate),
+      String(transactionSummary.count),
+      money(transactionSummary.income),
+      money(transactionSummary.expenses),
+      money(transactionSummary.net),
+    ].join(","));
+    lines.push("");
+    lines.push("--- TRANSACTIONS ---");
+    lines.push([
+      "Invoice Date", "Type", "Category", "Subcategory", "Description",
+      "Gross Amount", "GST Amount", "Net Amount",
+      "Split %", "Split Gross", "Split GST", "Split Net", "Review Status",
+    ].map(esc).join(","));
+    for (const row of transactions) {
+      lines.push([
+        isoDate(row.invoiceDate),
+        esc(titleCase(row.transactionType)),
+        esc(row.categoryName),
+        esc(row.subcategoryName),
+        esc(row.description || ""),
+        money(row.transactionGrossAmount),
+        money(row.transactionGstAmount),
+        money(row.transactionNetAmount),
+        money(row.splitPercentage),
+        money(row.splitGrossAmount),
+        money(row.splitGstAmount),
+        money(row.splitNetAmount),
+        esc(row.reviewStatus),
+      ].join(","));
     }
+
+    const safeName =
+      (property.name || propertyId).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "Property";
+    const url = URL.createObjectURL(
+      new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeName}_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => {
@@ -370,11 +400,11 @@ export default function PropertyDetailView({
                   }
                 />
               )}
-              {!isClientView && clientId && (
+              {!isClientView && (
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  disabled={isExporting}
+                  title="Download this property's details and transactions as CSV"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -386,33 +416,24 @@ export default function PropertyDetailView({
                     color: "#344054",
                     fontSize: "14px",
                     fontWeight: 600,
-                    cursor: isExporting ? "not-allowed" : "pointer",
+                    cursor: "pointer",
                     transition: "all 0.2s",
                     boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
-                    opacity: isExporting ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    if (!isExporting) {
-                      e.currentTarget.style.background = "#f9fafb";
-                      e.currentTarget.style.borderColor = "#c6cacc";
-                    }
+                    e.currentTarget.style.background = "#f9fafb";
+                    e.currentTarget.style.borderColor = "#c6cacc";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "#ffffff";
                     e.currentTarget.style.borderColor = "#d0d5dd";
                   }}
                 >
-                  {isExporting ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", animation: "spin 0.9s linear infinite" }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                    </svg>
-                  )}
-                  {isExporting ? "Exporting…" : "Export CSV"}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                  </svg>
+                  Export CSV
                 </button>
               )}
               {!writesBlocked && (
