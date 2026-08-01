@@ -1933,7 +1933,7 @@ export default function AccountantReconciliationSessionPage() {
                     <path d="M12 16v-4" />
                     <path d="M12 8h.01" />
                   </svg>
-                  <span className="accountant-info-tooltip is-bottom" style={{ zIndex: 99999, background: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.05)' }}>
+                  <span className="accountant-info-tooltip is-bottom">
                     Transactions that are matched or categorised and are ready for reconciliation.
                   </span>
                 </span>
@@ -1952,7 +1952,7 @@ export default function AccountantReconciliationSessionPage() {
                     <path d="M12 16v-4" />
                     <path d="M12 8h.01" />
                   </svg>
-                  <span className="accountant-info-tooltip is-bottom" style={{ zIndex: 99999, background: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.05)' }}>
+                  <span className="accountant-info-tooltip is-bottom">
                     Transactions that don&apos;t belong to the selected entity and have been excluded from reconciliation.
                   </span>
                 </span>
@@ -1994,7 +1994,7 @@ export default function AccountantReconciliationSessionPage() {
                         <path d="M12 16v-4" />
                         <path d="M12 8h.01" />
                       </svg>
-                      <span className="accountant-info-tooltip is-bottom" style={{ zIndex: 99999, background: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.05)' }}>
+                      <span className="accountant-info-tooltip is-bottom">
                         Bank transactions matched with manually added transactions. Confirm the match to move them to Reviewed.
                       </span>
                     </span>
@@ -2013,7 +2013,7 @@ export default function AccountantReconciliationSessionPage() {
                         <path d="M12 16v-4" />
                         <path d="M12 8h.01" />
                       </svg>
-                      <span className="accountant-info-tooltip is-bottom" style={{ zIndex: 99999, background: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.05)' }}>
+                      <span className="accountant-info-tooltip is-bottom">
                         Transactions assigned to a category for the selected entity. Review and confirm them before reconciliation.
                       </span>
                     </span>
@@ -2063,7 +2063,7 @@ export default function AccountantReconciliationSessionPage() {
 
         {/* ── Bulk action bar ────────────────────────────────────────────── */}
         {selectedEligibleRows.length > 0 && !isSessionCompleted && (
-          <div className="recon-bulk-bar" role="toolbar" aria-label="Bulk actions">
+          <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
             <span className="recon-bulk-bar-count">
               {selectedEligibleRows.length} transaction{selectedEligibleRows.length > 1 ? "s" : ""} selected
             </span>
@@ -2120,12 +2120,12 @@ export default function AccountantReconciliationSessionPage() {
               <span className="sort-icon-wrapper" style={{ opacity: sortField === "payee" || sortField === "date" ? 1 : 0.45 }}>
                 {sortField === "payee" || sortField === "date" ? (
                   sortDirection === "asc" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                   )
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
                 )}
               </span>
               {openSortDropdown === "date_payee" && (
@@ -2135,10 +2135,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "date" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Date: Newest
                     {sortField === "date" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2146,10 +2146,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "date" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort Date: Oldest
                     {sortField === "date" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2157,10 +2157,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "payee" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("payee"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "payee" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2168,10 +2168,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "payee" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("payee"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "payee" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2194,12 +2194,12 @@ export default function AccountantReconciliationSessionPage() {
               <span className="sort-icon-wrapper" style={{ opacity: sortField === "statement" ? 1 : 0.45 }}>
                 {sortField === "statement" ? (
                   sortDirection === "asc" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                   )
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
                 )}
               </span>
               {openSortDropdown === "statement" && (
@@ -2209,10 +2209,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "statement" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("statement"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "statement" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2220,10 +2220,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "statement" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("statement"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "statement" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2246,12 +2246,12 @@ export default function AccountantReconciliationSessionPage() {
               <span className="sort-icon-wrapper" style={{ opacity: sortField === "property" ? 1 : 0.45 }}>
                 {sortField === "property" ? (
                   sortDirection === "asc" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                   )
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
                 )}
               </span>
               {openSortDropdown === "property" && (
@@ -2261,10 +2261,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "property" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("property"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "property" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2272,10 +2272,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "property" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("property"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "property" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2298,12 +2298,12 @@ export default function AccountantReconciliationSessionPage() {
               <span className="sort-icon-wrapper" style={{ opacity: sortField === "category" ? 1 : 0.45 }}>
                 {sortField === "category" ? (
                   sortDirection === "asc" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                   )
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
                 )}
               </span>
               {openSortDropdown === "category" && (
@@ -2313,10 +2313,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "category" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("category"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "category" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2324,10 +2324,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "category" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("category"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "category" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2350,12 +2350,12 @@ export default function AccountantReconciliationSessionPage() {
               <span className="sort-icon-wrapper" style={{ opacity: sortField === "expense" ? 1 : 0.45 }}>
                 {sortField === "expense" ? (
                   sortDirection === "asc" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                   )
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
                 )}
               </span>
               {openSortDropdown === "expense" && (
@@ -2365,10 +2365,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "expense" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("expense"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort High to Low
                     {sortField === "expense" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2376,10 +2376,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "expense" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("expense"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort Low to High
                     {sortField === "expense" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2402,12 +2402,12 @@ export default function AccountantReconciliationSessionPage() {
               <span className="sort-icon-wrapper" style={{ opacity: sortField === "income" ? 1 : 0.45 }}>
                 {sortField === "income" ? (
                   sortDirection === "asc" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                   )
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
                 )}
               </span>
               {openSortDropdown === "income" && (
@@ -2417,10 +2417,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "income" && sortDirection === "desc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("income"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort High to Low
                     {sortField === "income" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2428,10 +2428,10 @@ export default function AccountantReconciliationSessionPage() {
                     className={sortField === "income" && sortDirection === "asc" ? "dropdown-active" : ""}
                     onClick={(e) => { e.stopPropagation(); setSortField("income"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort Low to High
                     {sortField === "income" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2484,6 +2484,12 @@ export default function AccountantReconciliationSessionPage() {
               const matchedTx = isConfirmed && matchEntry?.transactionId
                 ? entityTxs.find((t) => t.id === matchEntry.transactionId) ?? null
                 : null;
+
+              const rowIsCategorized = isConfirmed && (
+                matchedTx
+                  ? (matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true)
+                  : !hasCandidates
+              );
 
               const propertyDisplay = entityTxsLoading ? (
                 <span className="recon-shimmer" />
@@ -2606,6 +2612,7 @@ export default function AccountantReconciliationSessionPage() {
                   className={[
                     "recon-row-wrapper",
                     isConfirmed ? "recon-row-wrapper--confirmed" : "",
+                    rowIsCategorized ? "recon-row-wrapper--confirmed-categorized" : "",
                     isExcluded ? "recon-row-wrapper--excluded" : "",
                     isExpanded ? "recon-row-wrapper--expanded" : "",
                     isCatExpanded && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
@@ -3107,7 +3114,7 @@ export default function AccountantReconciliationSessionPage() {
       )}
 
       {bulkOpen && (
-        <div className="fixed inset-0 z-50 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-base font-semibold text-slate-900 m-0">
@@ -3267,7 +3274,7 @@ export default function AccountantReconciliationSessionPage() {
       )}
 
       {showCompleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#fef3c7] text-[#d97706] shrink-0 self-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">

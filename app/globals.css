@@ -2177,14 +2177,14 @@ p.darkBg {
 .accountant-info-icon:hover,
 .accountant-info-icon:focus-visible {
   color: #28336e;
-  z-index: 1000;
+  z-index: 60;
 }
 
 .accountant-info-tooltip {
   position: absolute;
   left: 50%;
   bottom: calc(100% + 8px);
-  z-index: 999;
+  z-index: 50;
   width: max-content;
   max-width: 250px;
   transform: translateX(-50%) translateY(4px);
@@ -3400,9 +3400,9 @@ p.darkBg {
 
 .accountant-reconciliation-controls button.accountant-reconciliation-date-filter.is-active,
 .accountant-reconciliation-controls button.accountant-reconciliation-sort.is-active {
-  background: #fff9f6 !important;
-  border-color: #e04f1a !important;
-  color: #1f2937 !important;
+  background: #f1f5f9 !important;
+  border-color: #0f172a !important;
+  color: #0f172a !important;
 }
 
 .accountant-reconciliation-controls button.accountant-reconciliation-sort {
@@ -3420,7 +3420,7 @@ p.darkBg {
 }
 
 .accountant-reconciliation-controls button.accountant-reconciliation-sort.is-active svg.sort-chevron {
-  color: #e04f1a !important;
+  color: #0f172a !important;
 }
 
 .accountant-reconciliation-table {
@@ -3834,6 +3834,14 @@ p.darkBg {
 
 .recon-row-wrapper--confirmed:hover .accountant-reconciliation-table-row {
   background: #ecfdf5;
+}
+
+.recon-row-wrapper--confirmed-categorized .accountant-reconciliation-table-row {
+  background: #fff8f2;
+}
+
+.recon-row-wrapper--confirmed-categorized:hover .accountant-reconciliation-table-row {
+  background: #fff1e6;
 }
 
 .recon-row-wrapper--excluded .accountant-reconciliation-table-row {
@@ -6639,6 +6647,29 @@ p.darkBg {
   border-radius: 10px;
   background: #dceaff;
   color: #1e67ff;
+}
+
+.entity-card-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.entity-card-badges-group .entity-disabled-badge,
+.entity-card-badges-group .entity-disabled-badge.is-visible {
+  opacity: 1;
+  max-width: none;
+  overflow: visible;
+  margin-left: 0;
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: #f1f2f4;
+  color: #7b7f88;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: normal;
+  transition: none;
 }
 
 .entity-type-badge {
@@ -11678,7 +11709,7 @@ p.darkBg {
   border: 1px solid #bfdbfe;
   border-radius: 10px;
   padding: 12px 18px;
-  margin-bottom: 12px;
+  margin: 16px 24px;
 }
 
 .recon-bulk-bar-count {
@@ -17124,8 +17155,13 @@ input:checked+.slider:before {
 }
 
 @keyframes inactiveReasonFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes inactiveReasonSlideUp {
@@ -17133,6 +17169,7 @@ input:checked+.slider:before {
     opacity: 0;
     transform: translateY(20px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -17212,6 +17249,7 @@ input:checked+.slider:before {
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -17219,8 +17257,8 @@ input:checked+.slider:before {
 }
 
 /* Adjust dropdown position for rightmost columns so they don't render off-screen */
-.accountant-reconciliation-table-head > *:nth-last-child(2) .sort-dropdown-menu,
-.accountant-reconciliation-table-head > *:nth-last-child(3) .sort-dropdown-menu {
+.accountant-reconciliation-table-head>*:nth-last-child(2) .sort-dropdown-menu,
+.accountant-reconciliation-table-head>*:nth-last-child(3) .sort-dropdown-menu {
   left: auto;
   right: 0;
 }
