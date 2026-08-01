@@ -1211,6 +1211,41 @@ export default function AccountantReconciliationSessionPage() {
   const reconciledCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "confirmed").length;
   const excludedCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "excluded").length;
 
+  const excludedRows = useMemo(
+    () =>
+      combinedRows.filter(
+        ({ reconId, bankTxIndex }) =>
+          optimisticMatches.get(mkey(reconId, bankTxIndex))?.status === "excluded",
+      ),
+    [combinedRows, optimisticMatches],
+  );
+
+  const exportReconCsv = useCallback((rows: CombinedRow[], filename: string) => {
+    if (rows.length === 0) return;
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const headers = ["statement", "date", "payee", "description", "debit", "credit", "balance", "status"];
+    const csv = [
+      headers.join(","),
+      ...rows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
+        const m = optimisticMatches.get(mkey(reconId, bankTxIndex));
+        return [
+          esc(statementLabel),
+          row.date,
+          esc(row.payee ?? ""),
+          esc(row.description),
+          row.debit ?? "",
+          row.credit ?? "",
+          row.balance ?? "",
+          m?.status ?? "unreconciled",
+        ].join(",");
+      }),
+    ].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = filename;
+    a.click();
+  }, [optimisticMatches]);
+
   // CSV statements report data rows the backend could not parse; surface them
   // so the accountant knows those transactions are missing from the table.
   const skippedRowNotices = statements
@@ -1710,7 +1745,7 @@ export default function AccountantReconciliationSessionPage() {
                     <path d="M12 8h.01" />
                   </svg>
                   <span className="accountant-info-tooltip is-bottom" style={{ zIndex: 99999, background: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 16px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.05)' }}>
-                    Transactions that don't belong to the selected entity and have been excluded from reconciliation.
+                    Transactions that don&apos;t belong to the selected entity and have been excluded from reconciliation.
                   </span>
                 </span>
               </span>
@@ -1799,6 +1834,22 @@ export default function AccountantReconciliationSessionPage() {
                 <path d={sortField === "date" && sortDirection === "desc" ? "m6 9 6 6 6-6" : "m6 15 6-6 6 6"} />
               </svg>
             </button>
+            {activeTab === "excluded" && (
+              <button
+                type="button"
+                className="accountant-reconciliation-sort"
+                disabled={excludedRows.length === 0}
+                title="Download every excluded transaction as CSV"
+                onClick={() => exportReconCsv(excludedRows, `reconciliation-${session.id}-excluded.csv`)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-chevron">
+                  <path d="M12 3v12" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+                Export Excluded
+              </button>
+            )}
           </div>
         </section>
 
@@ -2786,30 +2837,8 @@ export default function AccountantReconciliationSessionPage() {
               <button
                 type="button"
                 disabled={combinedRows.length === 0}
-                onClick={() => {
-                  if (combinedRows.length === 0) return;
-                  const headers = ["statement", "date", "payee", "description", "debit", "credit", "balance", "reconciled"];
-                  const csv = [
-                    headers.join(","),
-                    ...visibleRows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
-                      const m = optimisticMatches.get(mkey(reconId, bankTxIndex));
-                      return [
-                        `"${statementLabel.replace(/"/g, '""')}"`,
-                        row.date,
-                        `"${(row.payee ?? "").replace(/"/g, '""')}"`,
-                        `"${row.description.replace(/"/g, '""')}"`,
-                        row.debit ?? "",
-                        row.credit ?? "",
-                        row.balance ?? "",
-                        m?.status ?? "unreconciled",
-                      ].join(",");
-                    }),
-                  ].join("\n");
-                  const a = document.createElement("a");
-                  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-                  a.download = `reconciliation-${session.id}.csv`;
-                  a.click();
-                }}
+                title="Export all transactions across every tab"
+                onClick={() => exportReconCsv(combinedRows, `reconciliation-${session.id}.csv`)}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 3v12" />
