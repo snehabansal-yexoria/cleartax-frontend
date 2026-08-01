@@ -25,6 +25,7 @@ import type {
 } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
+import { StaticSelect } from "@/app/components/TransactionsFeature";
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -75,6 +76,14 @@ type CombinedRow = {
   bankTxIndex: number;
   row: ReconciliationTransaction;
 };
+
+type SplitRowState = { id: string; propertyId: string; amount: string };
+
+let splitRowCounter = 0;
+function makeSplitRowId() {
+  splitRowCounter += 1;
+  return `split-${splitRowCounter}`;
+}
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
@@ -177,9 +186,9 @@ function normalizeStreamedDetail(raw: Record<string, unknown>): ReconciliationDe
       processingTimeSeconds: Number(summaryRaw.processing_time_seconds ?? summaryRaw.processingTimeSeconds ?? 0),
       skippedRows: Array.isArray(summaryRaw.skipped_rows ?? summaryRaw.skippedRows)
         ? ((summaryRaw.skipped_rows ?? summaryRaw.skippedRows) as Record<string, unknown>[]).map((r) => ({
-            line: Number(r.line ?? 0),
-            reason: String(r.reason ?? ""),
-          }))
+          line: Number(r.line ?? 0),
+          reason: String(r.reason ?? ""),
+        }))
         : [],
     } : null,
     account: accountRaw ? {
@@ -218,22 +227,42 @@ function DocumentIcon() {
   );
 }
 
-function UploadIcon() {
+function UploadIcon({ width = 18, height = 18 }: { width?: number; height?: number } = {}) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v12" />
-      <path d="m7 8 5-5 5 5" />
-      <path d="M5 21h14" />
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={width}
+      height={height}
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
 }
 
 function UploadAltIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={13} height={13}>
-      <path d="M12 3v12" />
-      <path d="m7 8 5-5 5 5" />
-      <path d="M5 21h14" />
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={13}
+      height={13}
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
 }
@@ -320,6 +349,8 @@ export default function AccountantReconciliationSessionPage() {
   const [uploadStage, setUploadStage] = useState<UploadStage>({ type: "idle" });
   const fileRef = useRef<HTMLInputElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [matchError, setMatchError] = useState<string | null>(null);
@@ -346,8 +377,11 @@ export default function AccountantReconciliationSessionPage() {
   const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed" | "excluded">("unreviewed");
   const [filter, setFilter] = useState<ReconciliationFilter>("all");
   const [query, setQuery] = useState("");
+  const [sortField, setSortField] = useState<string>("date");
   const [sortDirection, setSortDirection] = useState<ReconciliationSort>("desc");
+  const [openSortDropdown, setOpenSortDropdown] = useState<string | null>(null);
   const [past30DaysOnly, setPast30DaysOnly] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
 
   const [optimisticMatches, addOptimisticMatch] = useOptimistic<
     Map<MatchKey, ReconciliationMatch>,
@@ -368,6 +402,123 @@ export default function AccountantReconciliationSessionPage() {
   const [categorizeSubcategories, setCategorizeSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categorizeSaving, setCategorizeSaving] = useState(false);
   const [categorizeError, setCategorizeError] = useState<string | null>(null);
+
+  const [categorizeIsSplit, setCategorizeIsSplit] = useState(false);
+  const [categorizeSplitRows, setCategorizeSplitRows] = useState<SplitRowState[]>(() => [
+    { id: makeSplitRowId(), propertyId: "", amount: "" },
+  ]);
+
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkType, setBulkType] = useState<"expense" | "revenue">("expense");
+  const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
+  const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
+  const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
+  const [bulkGst, setBulkGst] = useState(false);
+  const [bulkCategories, setBulkCategories] = useState<CoreTransactionCategory[]>([]);
+  const [bulkSubcategories, setBulkSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkExcluding, setBulkExcluding] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
+  const canSplitTransaction = properties.length > 1;
+
+  const activeBankTx = useMemo(() => {
+    if (!categorizeKey) return null;
+    const [reconId, idxStr] = categorizeKey.split(":");
+    const rec = reconCache.get(reconId);
+    if (!rec) return null;
+    const idx = Number(idxStr);
+    return rec.transactions[idx] ?? null;
+  }, [categorizeKey, reconCache]);
+
+  const activeGrossAmount = activeBankTx ? (activeBankTx.debit ?? activeBankTx.credit ?? 0) : 0;
+
+  const categorizeSplitTotal = useMemo(() => {
+    return categorizeSplitRows.reduce(
+      (sum, r) => sum + (Number.parseFloat(r.amount) || 0),
+      0,
+    );
+  }, [categorizeSplitRows]);
+
+  const categorizeSplitErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!categorizeIsSplit) return errors;
+    if (categorizeSplitRows.length < 2) {
+      errors.__form = "Add at least two property rows for a split transaction.";
+    }
+    const seen = new Set<string>();
+    const allBlank = categorizeSplitRows.every((row) => !row.amount || !row.amount.trim());
+    for (const r of categorizeSplitRows) {
+      if (!r.propertyId) {
+        errors[r.id] = "Choose a property.";
+      } else if (seen.has(r.propertyId)) {
+        errors[r.id] = "Property already used in another split.";
+      } else if (!allBlank && (!r.amount || Number.parseFloat(r.amount) <= 0)) {
+        errors[r.id] = "Enter a positive amount.";
+      }
+      if (r.propertyId) seen.add(r.propertyId);
+    }
+    if (seen.size > 0 && seen.size < 2) {
+      errors.__form = "Choose more than one property for a split transaction.";
+    }
+    return errors;
+  }, [categorizeIsSplit, categorizeSplitRows]);
+
+  const categorizeSplitMatches = useMemo(() => {
+    return (
+      activeGrossAmount > 0 &&
+      Math.abs(categorizeSplitTotal - activeGrossAmount) < 0.01
+    );
+  }, [activeGrossAmount, categorizeSplitTotal]);
+
+  function updateCategorizeSplitRow(id: string, patch: Partial<SplitRowState>) {
+    setCategorizeSplitRows((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
+  }
+
+  function addCategorizeSplitRow() {
+    setCategorizeSplitRows((rows) => [
+      ...rows,
+      { id: makeSplitRowId(), propertyId: "", amount: "" },
+    ]);
+  }
+
+  function removeCategorizeSplitRow(id: string) {
+    setCategorizeSplitRows((rows) =>
+      rows.length <= 1 ? rows : rows.filter((r) => r.id !== id),
+    );
+  }
+
+  function handleCategorizeSplitToggle(checked: boolean) {
+    if (checked && !canSplitTransaction) {
+      const msg = properties.length === 1
+        ? "Split transactions need at least two properties in this entity. This entity only has one property."
+        : "Add at least two properties to this entity before creating a split transaction.";
+      setCategorizeError(msg);
+    } else {
+      if (categorizeError && categorizeError.toLowerCase().includes("split")) {
+        setCategorizeError(null);
+      }
+    }
+    setCategorizeIsSplit(checked);
+    if (checked) {
+      setCategorizeSplitRows((rows) => {
+        if (
+          rows.length === 1 &&
+          !rows[0].propertyId &&
+          !rows[0].amount &&
+          categorizePropertyId
+        ) {
+          return [{ ...rows[0], propertyId: categorizePropertyId, amount: String(activeGrossAmount || "") }];
+        }
+        return rows;
+      });
+      return;
+    }
+    setCategorizeSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+  }
 
   const handleConfirmComplete = async () => {
     setShowCompleteConfirm(false);
@@ -421,6 +572,18 @@ export default function AccountantReconciliationSessionPage() {
     }
     return out;
   }, [selectedRecons]);
+
+  // Selected rows that can still be bulk-actioned (not yet confirmed or excluded).
+  const selectedEligibleRows = useMemo(
+    () =>
+      combinedRows.filter(({ reconId, bankTxIndex }) => {
+        const key = mkey(reconId, bankTxIndex);
+        if (!selectedRowKeys.has(key)) return false;
+        const status = optimisticMatches.get(key)?.status;
+        return status !== "confirmed" && status !== "excluded";
+      }),
+    [combinedRows, selectedRowKeys, optimisticMatches],
+  );
 
   const aggregatedSummary = useMemo(() => {
     let totalTransactions = 0;
@@ -590,6 +753,8 @@ export default function AccountantReconciliationSessionPage() {
     setCategorizeSubcategories([]);
     setCategorizeGst(false);
     setCategorizeGstAmount("");
+    setCategorizeIsSplit(false);
+    setCategorizeSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
     let cancelled = false;
     void getFreshToken().then((token) => {
       fetch(`/api/transactions/categories?type=${txType}`, {
@@ -619,6 +784,54 @@ export default function AccountantReconciliationSessionPage() {
     });
     return () => { cancelled = true; };
   }, [categorizeCategoryId]);
+
+  // ── Bulk categorize modal: load categories / subcategories ───────────────
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    let cancelled = false;
+    void getFreshToken().then((token) => {
+      fetch(`/api/transactions/categories?type=${bulkType}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d: { items?: CoreTransactionCategory[] }) => {
+          if (!cancelled) setBulkCategories(d.items ?? []);
+        })
+        .catch(() => { });
+    });
+    return () => { cancelled = true; };
+  }, [bulkOpen, bulkType]);
+
+  useEffect(() => {
+    if (!bulkCategoryId) { setBulkSubcategories([]); return; }
+    let cancelled = false;
+    void getFreshToken().then((token) => {
+      fetch(`/api/transactions/categories/${bulkCategoryId}/sub-categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d: { items?: CoreTransactionSubcategory[] }) => {
+          if (!cancelled) setBulkSubcategories(d.items ?? []);
+        })
+        .catch(() => { });
+    });
+    return () => { cancelled = true; };
+  }, [bulkCategoryId]);
+
+  useEffect(() => {
+    if (!openSortDropdown) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".sortable-header")) {
+        setOpenSortDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [openSortDropdown]);
 
   // ── SSE for upload ────────────────────────────────────────────────────────
 
@@ -847,7 +1060,7 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
-    if (!categorizeCategoryId || !categorizePropertyId) {
+    if (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId)) {
       setCategorizeError("Category and Property are required.");
       return;
     }
@@ -861,6 +1074,48 @@ export default function AccountantReconciliationSessionPage() {
     setCategorizeError(null);
     setCategorizeSaving(true);
     const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
+
+    let splits: Array<Record<string, unknown>>;
+    if (categorizeIsSplit) {
+      const splitPropertyCount = new Set(
+        categorizeSplitRows.map((row) => row.propertyId).filter(Boolean)
+      ).size;
+      if (splitPropertyCount < 2) {
+        setCategorizeError("Split transactions must include more than one property.");
+        setCategorizeSaving(false);
+        return;
+      }
+      if (Object.keys(categorizeSplitErrors).length > 0) {
+        setCategorizeError("Fix the errors in the split rows.");
+        setCategorizeSaving(false);
+        return;
+      }
+      if (!categorizeSplitMatches) {
+        setCategorizeError(
+          `Split amounts must total ${grossAmount.toFixed(
+            2,
+          )} (currently ${categorizeSplitTotal.toFixed(2)}).`
+        );
+        setCategorizeSaving(false);
+        return;
+      }
+      splits = categorizeSplitRows.map((r) => {
+        const rowAmount = Number.parseFloat(r.amount);
+        return {
+          property_id: r.propertyId,
+          split_percentage: Number(((rowAmount / grossAmount) * 100).toFixed(4)),
+          split_gross_amount: Number(rowAmount.toFixed(2)),
+        };
+      });
+    } else {
+      if (!categorizePropertyId) {
+        setCategorizeError("Property is required.");
+        setCategorizeSaving(false);
+        return;
+      }
+      splits = [{ property_id: categorizePropertyId, split_percentage: 100, split_gross_amount: grossAmount }];
+    }
+
     let gstAmount = 0;
     if (categorizeGst) {
       const parsed = Number.parseFloat(categorizeGstAmount);
@@ -893,7 +1148,7 @@ export default function AccountantReconciliationSessionPage() {
           review_status: "reviewed",
           is_asset_purchase: false,
           metadata: { source: "reconciliation_categorized" },
-          splits: [{ property_id: categorizePropertyId, split_percentage: 100, split_gross_amount: grossAmount }],
+          splits,
         }),
       });
       if (!txRes.ok) {
@@ -961,6 +1216,155 @@ export default function AccountantReconciliationSessionPage() {
     });
   }
 
+  function openBulkCategorize() {
+    if (selectedEligibleRows.length === 0) return;
+    const first = selectedEligibleRows[0];
+    setBulkType(first.row.debit != null ? "expense" : "revenue");
+    setBulkCategoryId(null);
+    setBulkSubcategoryId(null);
+    setBulkSubcategories([]);
+    setBulkPropertyId("");
+    setBulkGst(false);
+    setBulkError(null);
+    setBulkProgress(null);
+    setBulkOpen(true);
+  }
+
+  async function doBulkCategorize() {
+    if (bulkSaving || bulkExcluding) return;
+    if (!bulkPropertyId || !bulkCategoryId) {
+      setBulkError("Property and Category are required.");
+      return;
+    }
+    if (!bulkSubcategoryId) {
+      setBulkError("Please select sub category to continue.");
+      return;
+    }
+    const rows = selectedEligibleRows;
+    if (rows.length === 0) return;
+    setBulkError(null);
+    setBulkSaving(true);
+    setBulkProgress({ done: 0, total: rows.length });
+    const succeededKeys: MatchKey[] = [];
+    let failedCount = 0;
+    try {
+      const token = await getFreshToken();
+      for (let i = 0; i < rows.length; i++) {
+        const { reconId, bankTxIndex, row } = rows[i];
+        const gross = row.debit ?? row.credit ?? 0;
+        const gst = bulkGst ? Math.round((gross / 11) * 100) / 100 : 0;
+        try {
+          const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              type: bulkType,
+              category_id: bulkCategoryId,
+              subcategory_id: bulkSubcategoryId,
+              invoice_date: row.date,
+              gross_amount: gross,
+              gst_amount: gst,
+              description: row.payee ?? row.description ?? null,
+              internal_remarks: null,
+              review_status: "reviewed",
+              is_asset_purchase: false,
+              metadata: { source: "reconciliation_categorized" },
+              splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
+            }),
+          });
+          if (!txRes.ok) throw new Error("create failed");
+          const newTx = await txRes.json() as { id: string };
+          const matchRes = await fetch(
+            `/api/entities/${entityId}/reconciliations/${reconId}/matches`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ bankTxIndex, transactionId: newTx.id, status: "confirmed" }),
+            },
+          );
+          if (!matchRes.ok) throw new Error("match failed");
+          succeededKeys.push(mkey(reconId, bankTxIndex));
+        } catch {
+          failedCount += 1;
+        }
+        setBulkProgress({ done: i + 1, total: rows.length });
+      }
+      await reloadMatches();
+      const updatedTxRes = await fetch(`/api/entities/${entityId}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (updatedTxRes.ok) {
+        const data = await updatedTxRes.json() as { items?: CoreTransactionListItem[] };
+        setEntityTxs(data.items ?? []);
+      }
+      if (succeededKeys.length > 0) {
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          succeededKeys.forEach((k) => next.delete(k));
+          return next;
+        });
+      }
+      if (failedCount > 0) {
+        setBulkError(
+          `${failedCount} of ${rows.length} transactions failed to categorize. The rest were saved — please retry the remaining ones.`,
+        );
+      } else {
+        setBulkOpen(false);
+      }
+    } catch {
+      setBulkError("Something went wrong. Please try again.");
+    } finally {
+      setBulkSaving(false);
+      setBulkProgress(null);
+    }
+  }
+
+  async function doBulkExclude() {
+    if (bulkSaving || bulkExcluding) return;
+    const rows = selectedEligibleRows;
+    if (rows.length === 0) return;
+    setBulkError(null);
+    setBulkExcluding(true);
+    const succeededKeys: MatchKey[] = [];
+    let failedCount = 0;
+    try {
+      const token = await getFreshToken();
+      for (const { reconId, bankTxIndex } of rows) {
+        try {
+          const res = await fetch(
+            `/api/entities/${entityId}/reconciliations/${reconId}/matches`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ bankTxIndex, transactionId: null, status: "excluded" }),
+            },
+          );
+          if (!res.ok) throw new Error("exclude failed");
+          succeededKeys.push(mkey(reconId, bankTxIndex));
+        } catch {
+          failedCount += 1;
+        }
+      }
+      await reloadMatches();
+      if (succeededKeys.length > 0) {
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          succeededKeys.forEach((k) => next.delete(k));
+          return next;
+        });
+      }
+      if (failedCount > 0) {
+        setBulkError(`${failedCount} of ${rows.length} transactions failed to exclude.`);
+      } else {
+        setBulkOpen(false);
+      }
+    } catch {
+      setBulkError("Something went wrong. Please try again.");
+    } finally {
+      setBulkExcluding(false);
+    }
+  }
+
   function doUndoMatch(reconId: string, bankTxIndex: number) {
     const key = mkey(reconId, bankTxIndex);
     startTransition(async () => {
@@ -1015,6 +1419,41 @@ export default function AccountantReconciliationSessionPage() {
   const reconciledCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "confirmed").length;
   const excludedCount = Array.from(optimisticMatches.values()).filter((m) => m.status === "excluded").length;
 
+  const excludedRows = useMemo(
+    () =>
+      combinedRows.filter(
+        ({ reconId, bankTxIndex }) =>
+          optimisticMatches.get(mkey(reconId, bankTxIndex))?.status === "excluded",
+      ),
+    [combinedRows, optimisticMatches],
+  );
+
+  const exportReconCsv = useCallback((rows: CombinedRow[], filename: string) => {
+    if (rows.length === 0) return;
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const headers = ["statement", "date", "payee", "description", "debit", "credit", "balance", "status"];
+    const csv = [
+      headers.join(","),
+      ...rows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
+        const m = optimisticMatches.get(mkey(reconId, bankTxIndex));
+        return [
+          esc(statementLabel),
+          row.date,
+          esc(row.payee ?? ""),
+          esc(row.description),
+          row.debit ?? "",
+          row.credit ?? "",
+          row.balance ?? "",
+          m?.status ?? "unreconciled",
+        ].join(",");
+      }),
+    ].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = filename;
+    a.click();
+  }, [optimisticMatches]);
+
   // CSV statements report data rows the backend could not parse; surface them
   // so the accountant knows those transactions are missing from the table.
   const skippedRowNotices = statements
@@ -1028,6 +1467,39 @@ export default function AccountantReconciliationSessionPage() {
         rows: s.summary?.skippedRows ?? [],
       };
     });
+
+  const getRowPropertyName = useCallback((reconId: string, bankTxIndex: number): string => {
+    const key = mkey(reconId, bankTxIndex);
+    const matchEntry = optimisticMatches.get(key);
+    const isConfirmed = matchEntry?.status === "confirmed";
+    if (isConfirmed && matchEntry?.transactionId) {
+      const matchedTx = entityTxs.find((t) => t.id === matchEntry.transactionId);
+      if (matchedTx?.propertyNames?.[0]) {
+        return matchedTx.propertyNames[0];
+      }
+    }
+    const propId = assignedProperties.get(key);
+    if (propId) {
+      const p = properties.find((x) => x.id === propId);
+      if (p) return p.name;
+    }
+    return "";
+  }, [optimisticMatches, entityTxs, assignedProperties, properties]);
+
+  const getRowCategoryName = useCallback((reconId: string, bankTxIndex: number): string => {
+    const key = mkey(reconId, bankTxIndex);
+    const matchEntry = optimisticMatches.get(key);
+    const isConfirmed = matchEntry?.status === "confirmed";
+    if (isConfirmed && matchEntry?.transactionId) {
+      const matchedTx = entityTxs.find((t) => t.id === matchEntry.transactionId);
+      if (matchedTx?.categoryName) return matchedTx.categoryName;
+    }
+    const isExcluded = matchEntry?.status === "excluded";
+    if (isExcluded) return "Excluded";
+    const candidates = candidateMatches.get(key) ?? [];
+    if (candidates.length > 0) return candidates[0].categoryName;
+    return "";
+  }, [optimisticMatches, entityTxs, candidateMatches]);
 
   const latestTxDate = useMemo(() => {
     let max = 0;
@@ -1096,9 +1568,57 @@ export default function AccountantReconciliationSessionPage() {
       return true;
     })
     .sort((a, b) => {
-      const at = new Date(a.row.date).getTime();
-      const bt = new Date(b.row.date).getTime();
-      return sortDirection === "desc" ? bt - at : at - bt;
+      if (sortField === "date") {
+        const at = new Date(a.row.date).getTime();
+        const bt = new Date(b.row.date).getTime();
+        if (isNaN(at) && isNaN(bt)) return 0;
+        if (isNaN(at)) return 1;
+        if (isNaN(bt)) return -1;
+        return sortDirection === "desc" ? bt - at : at - bt;
+      }
+      if (sortField === "payee") {
+        const valA = (a.row.payee ?? a.row.description ?? "").toLowerCase();
+        const valB = (b.row.payee ?? b.row.description ?? "").toLowerCase();
+        return sortDirection === "desc" ? valB.localeCompare(valA) : valA.localeCompare(valB);
+      }
+      if (sortField === "statement") {
+        const valA = a.statementLabel.toLowerCase();
+        const valB = b.statementLabel.toLowerCase();
+        return sortDirection === "desc" ? valB.localeCompare(valA) : valA.localeCompare(valB);
+      }
+      if (sortField === "property") {
+        const valA = getRowPropertyName(a.reconId, a.bankTxIndex).toLowerCase();
+        const valB = getRowPropertyName(b.reconId, b.bankTxIndex).toLowerCase();
+        if (!valA && !valB) return 0;
+        if (!valA) return 1;
+        if (!valB) return -1;
+        return sortDirection === "desc" ? valB.localeCompare(valA) : valA.localeCompare(valB);
+      }
+      if (sortField === "category") {
+        const valA = getRowCategoryName(a.reconId, a.bankTxIndex).toLowerCase();
+        const valB = getRowCategoryName(b.reconId, b.bankTxIndex).toLowerCase();
+        if (!valA && !valB) return 0;
+        if (!valA) return 1;
+        if (!valB) return -1;
+        return sortDirection === "desc" ? valB.localeCompare(valA) : valA.localeCompare(valB);
+      }
+      if (sortField === "expense") {
+        const valA = a.row.debit;
+        const valB = b.row.debit;
+        if (valA == null && valB == null) return 0;
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+        return sortDirection === "desc" ? valB - valA : valA - valB;
+      }
+      if (sortField === "income") {
+        const valA = a.row.credit;
+        const valB = b.row.credit;
+        if (valA == null && valB == null) return 0;
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+        return sortDirection === "desc" ? valB - valA : valA - valB;
+      }
+      return 0;
     });
 
   const reconTotalPages = Math.max(1, Math.ceil(visibleRows.length / RECON_PAGE_SIZE));
@@ -1234,26 +1754,82 @@ export default function AccountantReconciliationSessionPage() {
         )}
 
         {statements.length === 0 ? (
-          <div className="accountant-document-empty-state">
-            <DocumentIcon />
-            <strong>No bank statements yet</strong>
-            <p>Upload a PDF or CSV statement to begin extracting transactions.</p>
-            {!isSessionCompleted && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={isProcessing}
-                style={{ marginTop: 12 }}
+          <div
+            className={`accountant-document-empty-state${isDragging ? " is-dragging" : ""}`}
+            onDragOver={(e) => {
+              if (isSessionCompleted || isProcessing) return;
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              if (isSessionCompleted || isProcessing) return;
+              e.preventDefault();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) handleFile(file);
+            }}
+            onMouseEnter={() => {
+              if (!isSessionCompleted && !isProcessing) setIsHovered(true);
+            }}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={() => {
+              if (!isSessionCompleted && !isProcessing) {
+                fileRef.current?.click();
+              }
+            }}
+            style={{
+              transition: "all 0.2s ease-in-out",
+              borderColor: isDragging ? "#2563eb" : (isHovered ? "#3b82f6" : undefined),
+              background: isDragging ? "#f5f8ff" : (isHovered ? "#fafcff" : undefined),
+              boxShadow: isDragging ? "0 0 0 4px rgba(37, 99, 235, 0.08)" : undefined,
+              cursor: (!isSessionCompleted && !isProcessing) ? "pointer" : "default"
+            }}
+          >
+            <div style={{ pointerEvents: isDragging ? "none" : "auto", display: "grid", placeItems: "center" }}>
+              <div
+                className="upload-icon-circle"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: isDragging ? "#2563eb" : "#ebf2fe",
+                  color: isDragging ? "#ffffff" : "#2563eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s ease",
+                  marginBottom: 12,
+                  boxShadow: isDragging ? "none" : "0 2px 8px rgba(37, 99, 235, 0.12)",
+                  border: isDragging ? "none" : "1px solid rgba(37, 99, 235, 0.15)"
+                }}
               >
-                <UploadIcon />
-                Add Bank Statement
-              </button>
-            )}
+                <UploadIcon width={22} height={22} />
+              </div>
+              <strong style={{ margin: "14px 0 0", color: "#101828", fontSize: "17px" }}>Drag and drop your statement here</strong>
+              <p style={{ color: "#4b5563", fontSize: 14, marginTop: 4, marginBottom: 12 }}>
+                or <span style={{ color: "#2563eb", fontWeight: 600, textDecoration: "underline" }}>browse files</span> to upload a PDF or CSV bank statement
+              </p>
+            </div>
             {!isSessionCompleted && (
               <button
                 type="button"
-                onClick={downloadSampleCsv}
-                style={{ marginTop: 8, background: "none", border: "none", padding: 0, color: "#2563eb", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadSampleCsv();
+                }}
+                style={{
+                  marginTop: 8,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "#2563eb",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  pointerEvents: isDragging ? "none" : "auto",
+                  zIndex: 2
+                }}
               >
                 Download CSV template
               </button>
@@ -1336,662 +1912,1198 @@ export default function AccountantReconciliationSessionPage() {
       <div className="accountant-reconciliation-main-card">
         {/* ── Filter / tab bar ─────────────────────────────────────────── */}
         <section className="accountant-reconciliation-filter-card">
-        <div className="accountant-reconciliation-tabs">
-          <button
-            type="button"
-            className={activeTab === "unreviewed" ? "is-active" : ""}
-            onClick={() => { setActiveTab("unreviewed"); setFilter("all"); setReconPage(1); }}
-          >
-            Unreviewed ({unreviewedCount})
-          </button>
-          <button
-            type="button"
-            className={activeTab === "reviewed" ? "is-active" : ""}
-            onClick={() => { setActiveTab("reviewed"); setFilter("all"); setReconPage(1); }}
-          >
-            Reviewed ({reconciledCount})
-          </button>
-          <button
-            type="button"
-            className={activeTab === "excluded" ? "is-active" : ""}
-            onClick={() => { setActiveTab("excluded"); setFilter("all"); setReconPage(1); }}
-          >
-            Excluded ({excludedCount})
-          </button>
-        </div>
-        <div className="accountant-reconciliation-controls">
-          <label className="accountant-reconciliation-search">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m16 16 4 4" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search by payee or reference..."
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setReconPage(1); }}
-            />
-          </label>
-          <div className="accountant-reconciliation-center-group">
-            <div className="accountant-reconciliation-segmented">
+          <div className="accountant-reconciliation-tabs">
+            <button
+              type="button"
+              className={activeTab === "unreviewed" ? "is-active" : ""}
+              onClick={() => { setActiveTab("unreviewed"); setFilter("all"); setReconPage(1); }}
+            >
+              Unreviewed ({unreviewedCount})
+            </button>
+            <button
+              type="button"
+              className={activeTab === "reviewed" ? "is-active" : ""}
+              onClick={() => { setActiveTab("reviewed"); setFilter("all"); setReconPage(1); }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Reviewed ({reconciledCount})
+                <span className="accountant-info-icon" onClick={(e) => e.stopPropagation()}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '13px', height: '13px', display: 'block' }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                  <span className="accountant-info-tooltip is-bottom">
+                    Transactions that are matched or categorised and are ready for reconciliation.
+                  </span>
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={activeTab === "excluded" ? "is-active" : ""}
+              onClick={() => { setActiveTab("excluded"); setFilter("all"); setReconPage(1); }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Excluded ({excludedCount})
+                <span className="accountant-info-icon" onClick={(e) => e.stopPropagation()}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '13px', height: '13px', display: 'block' }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                  <span className="accountant-info-tooltip is-bottom">
+                    Transactions that don&apos;t belong to the selected entity and have been excluded from reconciliation.
+                  </span>
+                </span>
+              </span>
+            </button>
+          </div>
+          <div className="accountant-reconciliation-controls">
+            <label className="accountant-reconciliation-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16 16 4 4" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by payee or reference..."
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setReconPage(1); }}
+              />
+            </label>
+            <div className="accountant-reconciliation-center-group">
+              <div className="accountant-reconciliation-segmented">
+                <button
+                  type="button"
+                  className={filter === "all" ? "is-active" : ""}
+                  onClick={() => { setFilter("all"); setReconPage(1); }}
+                >
+                  {activeTab === "reviewed" ? "All Reviewed" : "All"}
+                </button>
+                <button
+                  type="button"
+                  className={filter === "matched" ? "is-active" : ""}
+                  onClick={() => { setFilter("matched"); setReconPage(1); }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {activeTab === "reviewed" ? "Matched Only" : "Matched"}
+                    <span className="accountant-info-icon" onClick={(e) => e.stopPropagation()}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '13px', height: '13px', display: 'block' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4" />
+                        <path d="M12 8h.01" />
+                      </svg>
+                      <span className="accountant-info-tooltip is-bottom">
+                        Bank transactions matched with manually added transactions. Confirm the match to move them to Reviewed.
+                      </span>
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={filter === "categorized" ? "is-active" : ""}
+                  onClick={() => { setFilter("categorized"); setReconPage(1); }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {activeTab === "reviewed" ? "Categorized Only" : "Categorized"}
+                    <span className="accountant-info-icon" onClick={(e) => e.stopPropagation()}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '13px', height: '13px', display: 'block' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4" />
+                        <path d="M12 8h.01" />
+                      </svg>
+                      <span className="accountant-info-tooltip is-bottom">
+                        Transactions assigned to a category for the selected entity. Review and confirm them before reconciliation.
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              </div>
               <button
                 type="button"
-                className={filter === "all" ? "is-active" : ""}
-                onClick={() => { setFilter("all"); setReconPage(1); }}
+                className={`accountant-reconciliation-date-filter${past30DaysOnly ? " is-active" : ""}`}
+                onClick={() => { setPast30DaysOnly((cur) => !cur); setReconPage(1); }}
               >
-                {activeTab === "reviewed" ? "All Reviewed" : "All"}
-              </button>
-              <button
-                type="button"
-                className={filter === "matched" ? "is-active" : ""}
-                onClick={() => { setFilter("matched"); setReconPage(1); }}
-              >
-                {activeTab === "reviewed" ? "Matched Only" : "Matched"}
-              </button>
-              <button
-                type="button"
-                className={filter === "categorized" ? "is-active" : ""}
-                onClick={() => { setFilter("categorized"); setReconPage(1); }}
-              >
-                {activeTab === "reviewed" ? "Categorized Only" : "Categorized"}
+                Past 30 Days
               </button>
             </div>
             <button
               type="button"
-              className={`accountant-reconciliation-date-filter${past30DaysOnly ? " is-active" : ""}`}
-              onClick={() => { setPast30DaysOnly((cur) => !cur); setReconPage(1); }}
+              className={`accountant-reconciliation-sort${sortField === "date" ? " is-active" : ""}`}
+              onClick={() => {
+                setSortField("date");
+                setSortDirection((cur) => (cur === "desc" ? "asc" : "desc"));
+                setReconPage(1);
+              }}
             >
-              Past 30 Days
+              Sort: Date
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-chevron">
+                <path d={sortField === "date" && sortDirection === "desc" ? "m6 9 6 6 6-6" : "m6 15 6-6 6 6"} />
+              </svg>
             </button>
-          </div>
-          <button
-            type="button"
-            className="accountant-reconciliation-sort"
-            onClick={() => { setSortDirection((cur) => (cur === "desc" ? "asc" : "desc")); setReconPage(1); }}
-          >
-            Sort: Date
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-chevron">
-              <path d={sortDirection === "desc" ? "m6 9 6 6 6-6" : "m6 15 6-6 6 6"} />
-            </svg>
-          </button>
-        </div>
-      </section>
-
-      {/* ── Combined transaction table ─────────────────────────────────── */}
-      <section className="accountant-reconciliation-table">
-        <div className="accountant-reconciliation-table-head">
-          <span>Date &amp; Payee</span>
-          <span>Statement</span>
-          <span>Property</span>
-          <span>Category</span>
-          <span>Expense</span>
-          <span>Income</span>
-          <span>Action</span>
-        </div>
-
-        {selectedHistoryIds.length === 0 ? (
-          <div className="accountant-reconciliation-table-empty">
-            <strong>Select a statement above to see its transactions.</strong>
-            <span>You can select multiple statements to view their transactions together.</span>
-          </div>
-        ) : selectedRecons.length < selectedHistoryIds.length ? (
-          <div className="accountant-reconciliation-table-empty">
-            <strong>Loading statement…</strong>
-          </div>
-        ) : visibleRows.length === 0 ? (
-          <div className="accountant-reconciliation-table-empty">
-            <strong>
-              {activeTab === "reviewed"
-                ? "No reconciled transactions yet."
-                : activeTab === "excluded"
-                  ? "No excluded transactions yet."
-                  : combinedRows.length === 0
-                    ? "No transactions in the selected statements."
-                    : "No transactions match these filters."}
-            </strong>
-            {activeTab === "unreviewed" && combinedRows.length > 0 && (
-              <span>Try changing the search or filter.</span>
+            {activeTab === "excluded" && (
+              <button
+                type="button"
+                className="accountant-reconciliation-sort"
+                disabled={excludedRows.length === 0}
+                title="Download every excluded transaction as CSV"
+                onClick={() => exportReconCsv(excludedRows, `reconciliation-${session.id}-excluded.csv`)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-chevron">
+                  <path d="M12 3v12" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+                Export Excluded
+              </button>
             )}
           </div>
-        ) : (
-          pagedReconRows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
-            const key = mkey(reconId, bankTxIndex);
-            const matchEntry = optimisticMatches.get(key);
-            const isConfirmed = matchEntry?.status === "confirmed";
-            const isExcluded = matchEntry?.status === "excluded";
-            const candidates = candidateMatches.get(key) ?? [];
-            const hasCandidates = candidates.length > 0;
-            const isExpanded = expandedKey === key;
-            const isCatExpanded = categorizeKey === key;
+        </section>
 
-            const matchedTx = isConfirmed && matchEntry?.transactionId
-              ? entityTxs.find((t) => t.id === matchEntry.transactionId) ?? null
-              : null;
+        {/* ── Bulk action bar ────────────────────────────────────────────── */}
+        {selectedEligibleRows.length > 0 && !isSessionCompleted && (
+          <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
+            <span className="recon-bulk-bar-count">
+              {selectedEligibleRows.length} transaction{selectedEligibleRows.length > 1 ? "s" : ""} selected
+            </span>
+            <div className="recon-bulk-bar-actions">
+              <button
+                type="button"
+                className="recon-bulk-clear-btn"
+                onClick={() => setSelectedRowKeys(new Set())}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="recon-bulk-categorize-btn"
+                onClick={openBulkCategorize}
+              >
+                Categorize
+              </button>
+            </div>
+          </div>
+        )}
 
-            const propertyDisplay = entityTxsLoading ? (
-              <span className="recon-shimmer" />
-            ) : isConfirmed && matchedTx ? (
-              matchedTx.propertyNames[0]
-                ? <Link href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${matchedTx.propertyIds[0]}`} className="is-link">{matchedTx.propertyNames[0]}</Link>
-                : <span className="is-muted">Not assigned</span>
-            ) : (
-              <select
-                className="recon-property-select"
-                value={assignedProperties.get(key) ?? ""}
+        {/* ── Combined transaction table ─────────────────────────────────── */}
+        <section className="accountant-reconciliation-table">
+          <div className="accountant-reconciliation-table-head">
+            <span className="custom-recon-checkbox-wrapper" style={{ gridColumn: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                className="custom-recon-checkbox"
+                checked={pagedReconRows.length > 0 && pagedReconRows.every(({ reconId, bankTxIndex }) => selectedRowKeys.has(mkey(reconId, bankTxIndex)))}
                 onChange={(e) => {
-                  setAssignedProperties((prev) => {
-                    const next = new Map(prev);
-                    if (e.target.value) next.set(key, e.target.value);
-                    else next.delete(key);
+                  const checked = e.target.checked;
+                  setSelectedRowKeys((prev) => {
+                    const next = new Set(prev);
+                    pagedReconRows.forEach(({ reconId, bankTxIndex }) => {
+                      const k = mkey(reconId, bankTxIndex);
+                      if (checked) next.add(k);
+                      else next.delete(k);
+                    });
                     return next;
                   });
                 }}
-              >
-                <option value="">Not assigned</option>
-                {properties.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            );
+              />
+            </span>
+            <span
+              className={`sortable-header${sortField === "payee" || sortField === "date" ? " active-sort" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenSortDropdown(openSortDropdown === "date_payee" ? null : "date_payee");
+              }}
+              style={{ gridColumn: 2 }}
+            >
+              Date &amp; Payee
+              <span className="sort-icon-wrapper" style={{ opacity: sortField === "payee" || sortField === "date" ? 1 : 0.45 }}>
+                {sortField === "payee" || sortField === "date" ? (
+                  sortDirection === "asc" ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  )
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+                )}
+              </span>
+              {openSortDropdown === "date_payee" && (
+                <div className="sort-dropdown-menu">
+                  <button
+                    type="button"
+                    className={sortField === "date" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort Date: Newest
+                    {sortField === "date" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "date" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort Date: Oldest
+                    {sortField === "date" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "payee" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("payee"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort A to Z
+                    {sortField === "payee" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "payee" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("payee"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort Z to A
+                    {sortField === "payee" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <div className="sort-dropdown-divider" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><polyline points="3 3 3 8 8 8" /></svg>
+                    Clear sorting
+                  </button>
+                </div>
+              )}
+            </span>
 
-            const categoryDisplay = entityTxsLoading ? (
-              <span className="recon-shimmer" />
-            ) : isConfirmed ? (
-              matchedTx ? (
-                <>
-                  <strong>{matchedTx.categoryName}</strong>
-                  {matchedTx.subcategoryName && <small>{matchedTx.subcategoryName}</small>}
-                  <em>
-                    {matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true
-                      ? "Categorized"
-                      : "Matched"}
-                  </em>
-                </>
+            <span
+              className={`sortable-header${sortField === "statement" ? " active-sort" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenSortDropdown(openSortDropdown === "statement" ? null : "statement");
+              }}
+            >
+              Statement
+              <span className="sort-icon-wrapper" style={{ opacity: sortField === "statement" ? 1 : 0.45 }}>
+                {sortField === "statement" ? (
+                  sortDirection === "asc" ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  )
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+                )}
+              </span>
+              {openSortDropdown === "statement" && (
+                <div className="sort-dropdown-menu">
+                  <button
+                    type="button"
+                    className={sortField === "statement" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("statement"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort A to Z
+                    {sortField === "statement" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "statement" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("statement"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort Z to A
+                    {sortField === "statement" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <div className="sort-dropdown-divider" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><polyline points="3 3 3 8 8 8" /></svg>
+                    Clear sorting
+                  </button>
+                </div>
+              )}
+            </span>
+
+            <span
+              className={`sortable-header${sortField === "property" ? " active-sort" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenSortDropdown(openSortDropdown === "property" ? null : "property");
+              }}
+            >
+              Property
+              <span className="sort-icon-wrapper" style={{ opacity: sortField === "property" ? 1 : 0.45 }}>
+                {sortField === "property" ? (
+                  sortDirection === "asc" ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  )
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+                )}
+              </span>
+              {openSortDropdown === "property" && (
+                <div className="sort-dropdown-menu">
+                  <button
+                    type="button"
+                    className={sortField === "property" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("property"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort A to Z
+                    {sortField === "property" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "property" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("property"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort Z to A
+                    {sortField === "property" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <div className="sort-dropdown-divider" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><polyline points="3 3 3 8 8 8" /></svg>
+                    Clear sorting
+                  </button>
+                </div>
+              )}
+            </span>
+
+            <span
+              className={`sortable-header${sortField === "category" ? " active-sort" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenSortDropdown(openSortDropdown === "category" ? null : "category");
+              }}
+            >
+              Category
+              <span className="sort-icon-wrapper" style={{ opacity: sortField === "category" ? 1 : 0.45 }}>
+                {sortField === "category" ? (
+                  sortDirection === "asc" ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  )
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+                )}
+              </span>
+              {openSortDropdown === "category" && (
+                <div className="sort-dropdown-menu">
+                  <button
+                    type="button"
+                    className={sortField === "category" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("category"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort A to Z
+                    {sortField === "category" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "category" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("category"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort Z to A
+                    {sortField === "category" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <div className="sort-dropdown-divider" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><polyline points="3 3 3 8 8 8" /></svg>
+                    Clear sorting
+                  </button>
+                </div>
+              )}
+            </span>
+
+            <span
+              className={`sortable-header${sortField === "expense" ? " active-sort" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenSortDropdown(openSortDropdown === "expense" ? null : "expense");
+              }}
+            >
+              Expense
+              <span className="sort-icon-wrapper" style={{ opacity: sortField === "expense" ? 1 : 0.45 }}>
+                {sortField === "expense" ? (
+                  sortDirection === "asc" ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  )
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+                )}
+              </span>
+              {openSortDropdown === "expense" && (
+                <div className="sort-dropdown-menu">
+                  <button
+                    type="button"
+                    className={sortField === "expense" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("expense"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort High to Low
+                    {sortField === "expense" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "expense" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("expense"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort Low to High
+                    {sortField === "expense" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <div className="sort-dropdown-divider" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><polyline points="3 3 3 8 8 8" /></svg>
+                    Clear sorting
+                  </button>
+                </div>
+              )}
+            </span>
+
+            <span
+              className={`sortable-header${sortField === "income" ? " active-sort" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenSortDropdown(openSortDropdown === "income" ? null : "income");
+              }}
+            >
+              Income
+              <span className="sort-icon-wrapper" style={{ opacity: sortField === "income" ? 1 : 0.45 }}>
+                {sortField === "income" ? (
+                  sortDirection === "asc" ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  )
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15l5 5 5-5M7 9l5-5 5 5" /></svg>
+                )}
+              </span>
+              {openSortDropdown === "income" && (
+                <div className="sort-dropdown-menu">
+                  <button
+                    type="button"
+                    className={sortField === "income" && sortDirection === "desc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("income"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    Sort High to Low
+                    {sortField === "income" && sortDirection === "desc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortField === "income" && sortDirection === "asc" ? "dropdown-active" : ""}
+                    onClick={(e) => { e.stopPropagation(); setSortField("income"); setSortDirection("asc"); setOpenSortDropdown(null); setReconPage(1); }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    Sort Low to High
+                    {sortField === "income" && sortDirection === "asc" && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                  <div className="sort-dropdown-divider" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setSortField("date"); setSortDirection("desc"); setOpenSortDropdown(null); setReconPage(1); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><polyline points="3 3 3 8 8 8" /></svg>
+                    Clear sorting
+                  </button>
+                </div>
+              )}
+            </span>
+
+            <span>Action</span>
+          </div>
+
+          {selectedHistoryIds.length === 0 ? (
+            <div className="accountant-reconciliation-table-empty">
+              <strong>Select a statement above to see its transactions.</strong>
+              <span>You can select multiple statements to view their transactions together.</span>
+            </div>
+          ) : selectedRecons.length < selectedHistoryIds.length ? (
+            <div className="accountant-reconciliation-table-empty">
+              <strong>Loading statement…</strong>
+            </div>
+          ) : visibleRows.length === 0 ? (
+            <div className="accountant-reconciliation-table-empty">
+              <strong>
+                {activeTab === "reviewed"
+                  ? "No reconciled transactions yet."
+                  : activeTab === "excluded"
+                    ? "No excluded transactions yet."
+                    : combinedRows.length === 0
+                      ? "No transactions in the selected statements."
+                      : "No transactions match these filters."}
+              </strong>
+              {activeTab === "unreviewed" && combinedRows.length > 0 && (
+                <span>Try changing the search or filter.</span>
+              )}
+            </div>
+          ) : (
+            pagedReconRows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
+              const key = mkey(reconId, bankTxIndex);
+              const matchEntry = optimisticMatches.get(key);
+              const isConfirmed = matchEntry?.status === "confirmed";
+              const isExcluded = matchEntry?.status === "excluded";
+              const candidates = candidateMatches.get(key) ?? [];
+              const hasCandidates = candidates.length > 0;
+              const isExpanded = expandedKey === key;
+              const isCatExpanded = categorizeKey === key;
+
+              const matchedTx = isConfirmed && matchEntry?.transactionId
+                ? entityTxs.find((t) => t.id === matchEntry.transactionId) ?? null
+                : null;
+
+              const rowIsCategorized = isConfirmed && (
+                matchedTx
+                  ? (matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true)
+                  : !hasCandidates
+              );
+
+              const propertyDisplay = entityTxsLoading ? (
+                <span className="recon-shimmer" />
+              ) : isConfirmed && matchedTx ? (
+                matchedTx.propertyNames[0]
+                  ? <Link href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${matchedTx.propertyIds[0]}`} className="is-link">{matchedTx.propertyNames[0]}</Link>
+                  : <span className="is-muted">Not assigned</span>
               ) : (
-                <>
-                  <strong>Reconciled</strong>
-                  <em>{!hasCandidates ? "Categorized" : "Matched"}</em>
-                </>
-              )
-            ) : isExcluded ? (
-              <>
-                <strong>Excluded</strong>
-              </>
-            ) : hasCandidates ? (
-              <>
-                <strong>{candidates[0].categoryName}</strong>
-                {candidates[0].subcategoryName && <small>{candidates[0].subcategoryName}</small>}
-              </>
-            ) : (
-              <button
-                type="button"
-                className="recon-categorize-trigger-btn"
-                onClick={() => {
-                  setMatchError(null);
-                  setCategorizeError(null);
-                  setCategorizeKey(isCatExpanded ? null : key);
-                  setExpandedKey(null);
-                }}
-              >
-                {isCatExpanded ? "Hide Form" : "Categorize"}
-              </button>
-            );
-
-            let actionCell: import("react").ReactNode;
-            if (matchesLoading) {
-              actionCell = <span className="recon-shimmer" style={{ width: 90 }} />;
-            } else if (isConfirmed) {
-              actionCell = (
-                <div className="recon-action-confirmed">
-                  <span className="recon-reconciled-badge">Reconciled</span>
-                  {!isSessionCompleted && (
-                    <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(reconId, bankTxIndex)}>
-                      Undo
-                    </button>
-                  )}
-                </div>
-              );
-            } else if (isExcluded) {
-              actionCell = (
-                <div className="recon-action-confirmed">
-                  <span className="recon-excluded-badge">Excluded</span>
-                  {!isSessionCompleted && (
-                    <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(reconId, bankTxIndex)}>
-                      Undo
-                    </button>
-                  )}
-                </div>
-              );
-            } else if (!isSessionCompleted && hasCandidates) {
-              const btnText = candidates.length > 1
-                ? (isExpanded ? "Hide Matches" : "View Matches")
-                : (isExpanded ? "Hide Match" : "Review Match");
-              actionCell = (
-                <button
-                  type="button"
-                  className="recon-action-match-btn"
-                  onClick={() => {
-                    setMatchError(null);
-                    setCategorizeKey(null);
-                    setExpandedKey(isExpanded ? null : key);
+                <select
+                  className="recon-property-select"
+                  value={assignedProperties.get(key) ?? ""}
+                  onChange={(e) => {
+                    setAssignedProperties((prev) => {
+                      const next = new Map(prev);
+                      if (e.target.value) next.set(key, e.target.value);
+                      else next.delete(key);
+                      return next;
+                    });
                   }}
                 >
-                  {btnText}
+                  <option value="">Not assigned</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              );
+
+              const categoryDisplay = entityTxsLoading ? (
+                <span className="recon-shimmer" />
+              ) : isConfirmed ? (
+                matchedTx ? (
+                  <>
+                    <strong>{matchedTx.categoryName}</strong>
+                    {matchedTx.subcategoryName && <small>{matchedTx.subcategoryName}</small>}
+                    <em>
+                      {matchedTx.metadata?.source === "reconciliation_categorized" || matchedTx.metadata?.categorized === true
+                        ? "Categorized"
+                        : "Matched"}
+                    </em>
+                  </>
+                ) : (
+                  <>
+                    <strong>Reconciled</strong>
+                    <em>{!hasCandidates ? "Categorized" : "Matched"}</em>
+                  </>
+                )
+              ) : isExcluded ? (
+                <>
+                  <strong>Excluded</strong>
+                </>
+              ) : hasCandidates ? (
+                <>
+                  <strong>{candidates[0].categoryName}</strong>
+                  {candidates[0].subcategoryName && <small>{candidates[0].subcategoryName}</small>}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="recon-categorize-trigger-btn"
+                  onClick={() => {
+                    setMatchError(null);
+                    setCategorizeError(null);
+                    setCategorizeKey(isCatExpanded ? null : key);
+                    setExpandedKey(null);
+                  }}
+                >
+                  {isCatExpanded ? "Hide Form" : "Categorize"}
                 </button>
               );
-            } else {
-              actionCell = <span className="is-muted">—</span>;
-            }
 
-            return (
-              <div
-                key={key}
-                className={[
-                  "recon-row-wrapper",
-                  isConfirmed ? "recon-row-wrapper--confirmed" : "",
-                  isExcluded ? "recon-row-wrapper--excluded" : "",
-                  isExpanded ? "recon-row-wrapper--expanded" : "",
-                  isCatExpanded && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
-                ].filter(Boolean).join(" ")}
-              >
-                <div className="accountant-reconciliation-table-row">
-                  <div className="accountant-reconciliation-status-cell">
-                    <span className={isConfirmed || isExcluded ? "" : "is-alert"}>
-                      {isConfirmed ? "✓" : "!"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>{row.payee ?? row.description}</strong>
-                    <small>{row.date}</small>
-                    {!isConfirmed && !isExcluded && hasCandidates && !entityTxsLoading && (
-                      <span className="recon-match-badge">✓ {candidates.length} Match{candidates.length > 1 ? "es" : ""} Found</span>
-                    )}
-                    {entityTxsLoading && !isConfirmed && !isExcluded && (
-                      <span className="recon-shimmer" style={{ marginTop: 6, display: "block" }} />
+              let actionCell: import("react").ReactNode;
+              if (matchesLoading) {
+                actionCell = <span className="recon-shimmer" style={{ width: 90 }} />;
+              } else if (isConfirmed) {
+                actionCell = (
+                  <div className="recon-action-confirmed">
+                    <span className="recon-reconciled-badge">Reconciled</span>
+                    {!isSessionCompleted && (
+                      <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(reconId, bankTxIndex)}>
+                        Undo
+                      </button>
                     )}
                   </div>
+                );
+              } else if (isExcluded) {
+                actionCell = (
+                  <div className="recon-action-confirmed">
+                    <span className="recon-excluded-badge">Excluded</span>
+                    {!isSessionCompleted && (
+                      <button type="button" className="recon-undo-btn" disabled={isPending} onClick={() => doUndoMatch(reconId, bankTxIndex)}>
+                        Undo
+                      </button>
+                    )}
+                  </div>
+                );
+              } else if (!isSessionCompleted && hasCandidates) {
+                const btnText = candidates.length > 1
+                  ? (isExpanded ? "Hide Matches" : "View Matches")
+                  : (isExpanded ? "Hide Match" : "Review Match");
+                actionCell = (
+                  <button
+                    type="button"
+                    className="recon-action-match-btn"
+                    onClick={() => {
+                      setMatchError(null);
+                      setCategorizeKey(null);
+                      setExpandedKey(isExpanded ? null : key);
+                    }}
+                  >
+                    {btnText}
+                  </button>
+                );
+              } else {
+                actionCell = <span className="is-muted">—</span>;
+              }
 
-                  <div>
-                    <small style={{ color: "#6b7280" }}>{statementLabel}</small>
+              return (
+                <div
+                  key={key}
+                  className={[
+                    "recon-row-wrapper",
+                    isConfirmed ? "recon-row-wrapper--confirmed" : "",
+                    rowIsCategorized ? "recon-row-wrapper--confirmed-categorized" : "",
+                    isExcluded ? "recon-row-wrapper--excluded" : "",
+                    isExpanded ? "recon-row-wrapper--expanded" : "",
+                    isCatExpanded && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
+                  ].filter(Boolean).join(" ")}
+                >
+                  <div className="accountant-reconciliation-table-row">
+                    <div className="accountant-reconciliation-status-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        className="custom-recon-checkbox"
+                        checked={selectedRowKeys.has(key)}
+                        onChange={() => {
+                          setSelectedRowKeys((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(key)) next.delete(key);
+                            else next.add(key);
+                            return next;
+                          });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className={isConfirmed || isExcluded ? "" : "is-alert"} style={{ flexShrink: 0 }}>
+                        {isConfirmed ? "✓" : "!"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <strong>{row.payee ?? row.description}</strong>
+                      <small>{row.date}</small>
+                      {!isConfirmed && !isExcluded && hasCandidates && !entityTxsLoading && (
+                        <span className="recon-match-badge">✓ {candidates.length} Match{candidates.length > 1 ? "es" : ""} Found</span>
+                      )}
+                      {entityTxsLoading && !isConfirmed && !isExcluded && (
+                        <span className="recon-shimmer" style={{ marginTop: 6, display: "block" }} />
+                      )}
+                    </div>
+
+                    <div>
+                      <small style={{ color: "#6b7280" }}>{statementLabel}</small>
+                    </div>
+
+                    <div>{propertyDisplay}</div>
+                    <div>{categoryDisplay}</div>
+
+                    <strong style={{ color: row.debit != null ? "#dc2626" : undefined }}>
+                      {row.debit != null ? fmtAud(-row.debit) : "— "}
+                    </strong>
+
+                    <strong className={row.credit != null ? "is-good-text" : ""}>
+                      {row.credit != null ? fmtAud(row.credit) : "— "}
+                    </strong>
+
+                    {actionCell}
                   </div>
 
-                  <div>{propertyDisplay}</div>
-                  <div>{categoryDisplay}</div>
-
-                  <strong style={{ color: row.debit != null ? "#dc2626" : undefined }}>
-                    {row.debit != null ? fmtAud(-row.debit) : "— "}
-                  </strong>
-
-                  <strong className={row.credit != null ? "is-good-text" : ""}>
-                    {row.credit != null ? fmtAud(row.credit) : "— "}
-                  </strong>
-
-                  {actionCell}
-                </div>
-
-                {isExpanded && !isConfirmed && !isExcluded && candidates.length > 0 && (
-                  <div className="recon-expand-panel">
-                    {candidates.map((candidate) => (
-                      <div key={candidate.id} className="recon-match-card">
-                        <div className="recon-match-card-dot" />
-                        <div className="recon-match-card-body">
-                          <p className="recon-match-card-title">Manual Entry Details</p>
-                          <dl className="recon-match-card-fields">
-                            <div className="recon-match-card-field">
-                              <dt>Transaction ID</dt>
-                              <dd>{shortId(candidate.id)}</dd>
-                            </div>
-                            <div className="recon-match-card-field">
-                              <dt>Date</dt>
-                              <dd>{candidate.invoiceDate}</dd>
-                            </div>
-                            <div className="recon-match-card-field">
-                              <dt>Type</dt>
-                              <dd style={{ textTransform: "capitalize" }}>{candidate.type}</dd>
-                            </div>
-                            {candidate.propertyNames[0] && (
+                  {isExpanded && !isConfirmed && !isExcluded && candidates.length > 0 && (
+                    <div className="recon-expand-panel">
+                      {candidates.map((candidate) => (
+                        <div key={candidate.id} className="recon-match-card">
+                          <div className="recon-match-card-dot" />
+                          <div className="recon-match-card-body">
+                            <p className="recon-match-card-title">Manual Entry Details</p>
+                            <dl className="recon-match-card-fields">
                               <div className="recon-match-card-field">
-                                <dt>Property</dt>
-                                <dd>
-                                  <Link
-                                    href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${candidate.propertyIds[0]}`}
-                                    className="is-link"
-                                  >
-                                    {candidate.propertyNames[0]}
-                                  </Link>
-                                </dd>
+                                <dt>Transaction ID</dt>
+                                <dd>{shortId(candidate.id)}</dd>
+                              </div>
+                              <div className="recon-match-card-field">
+                                <dt>Date</dt>
+                                <dd>{candidate.invoiceDate}</dd>
+                              </div>
+                              <div className="recon-match-card-field">
+                                <dt>Type</dt>
+                                <dd style={{ textTransform: "capitalize" }}>{candidate.type}</dd>
+                              </div>
+                              {candidate.propertyNames[0] && (
+                                <div className="recon-match-card-field">
+                                  <dt>Property</dt>
+                                  <dd>
+                                    <Link
+                                      href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${candidate.propertyIds[0]}`}
+                                      className="is-link"
+                                    >
+                                      {candidate.propertyNames[0]}
+                                    </Link>
+                                  </dd>
+                                </div>
+                              )}
+                              <div className="recon-match-card-field">
+                                <dt>Amount</dt>
+                                <dd>{fmtAud(candidate.grossAmount)}</dd>
+                              </div>
+                              <div className="recon-match-card-field">
+                                <dt>GST Amount</dt>
+                                <dd>{fmtAud(candidate.gstAmount)}</dd>
+                              </div>
+                            </dl>
+                            <div className="recon-match-card-row2">
+                              <span className="recon-gst-toggle">
+                                GST Included:
+                                <span className={`recon-gst-toggle-pill${candidate.gstAmount > 0 ? "" : " is-off"}`} aria-hidden="true" />
+                              </span>
+                              <span className="recon-view-invoice" aria-disabled="true">
+                                <UploadAltIcon />
+                                View Invoice
+                              </span>
+                            </div>
+                          </div>
+                          <div className="recon-match-card-actions">
+                            <button
+                              type="button"
+                              className="recon-confirm-btn"
+                              disabled={confirmingKey !== null || isPending || isSessionCompleted}
+                              onClick={() => { void doConfirmMatch(reconId, bankTxIndex, candidate); }}
+                            >
+                              {confirmingKey === key ? (
+                                <>
+                                  <span className="recon-btn-spinner" aria-hidden="true" />
+                                  Saving…
+                                </>
+                              ) : "Confirm Match"}
+                            </button>
+                            <button
+                              type="button"
+                              className="recon-exclude-btn"
+                              disabled={confirmingKey !== null || isPending || isSessionCompleted}
+                              onClick={() => doExcludeMatch(reconId, bankTxIndex)}
+                            >
+                              Exclude
+                            </button>
+                            {matchError && (
+                              <div className="recon-match-error" role="alert">
+                                <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
+                                </svg>
+                                <span>{matchError}</span>
                               </div>
                             )}
-                            <div className="recon-match-card-field">
-                              <dt>Amount</dt>
-                              <dd>{fmtAud(candidate.grossAmount)}</dd>
-                            </div>
-                            <div className="recon-match-card-field">
-                              <dt>GST Amount</dt>
-                              <dd>{fmtAud(candidate.gstAmount)}</dd>
-                            </div>
-                          </dl>
-                          <div className="recon-match-card-row2">
-                            <span className="recon-gst-toggle">
-                              GST Included:
-                              <span className={`recon-gst-toggle-pill${candidate.gstAmount > 0 ? "" : " is-off"}`} aria-hidden="true" />
-                            </span>
-                            <span className="recon-view-invoice" aria-disabled="true">
-                              <UploadAltIcon />
-                              View Invoice
-                            </span>
                           </div>
                         </div>
-                        <div className="recon-match-card-actions">
-                          <button
-                            type="button"
-                            className="recon-confirm-btn"
-                            disabled={confirmingKey !== null || isPending || isSessionCompleted}
-                            onClick={() => { void doConfirmMatch(reconId, bankTxIndex, candidate); }}
-                          >
-                            {confirmingKey === key ? (
-                              <>
-                                <span className="recon-btn-spinner" aria-hidden="true" />
-                                Saving…
-                              </>
-                            ) : "Confirm Match"}
-                          </button>
-                          <button
-                            type="button"
-                            className="recon-exclude-btn"
-                            disabled={confirmingKey !== null || isPending || isSessionCompleted}
-                            onClick={() => doExcludeMatch(reconId, bankTxIndex)}
-                          >
-                            Exclude
-                          </button>
-                          {matchError && (
-                            <div className="recon-match-error" role="alert">
-                              <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
-                              </svg>
-                              <span>{matchError}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {isCatExpanded && !isConfirmed && !isExcluded && (
+                    <div className="recon-categorize-panel">
+                      <div className="recon-categorize-card">
+                        <div className="recon-categorize-title">
+                          <span className="recon-categorize-title-dot" />
+                          <strong>Categorize Transaction</strong>
+                        </div>
+
+                        <div className="recon-categorize-grid">
+                          <div className="recon-categorize-field">
+                            <label className="recon-categorize-label">
+                              Property Name <span className="is-required">*</span>
+                            </label>
+                            {categorizeIsSplit ? (
+                              <div className="recon-categorize-input" style={{ background: '#f9fafb', color: '#6b7280', display: 'flex', alignItems: 'center', height: '50px' }}>
+                                Split Transaction
+                              </div>
+                            ) : (
+                              <StaticSelect
+                                value={categorizePropertyId}
+                                placeholder="Select property"
+                                options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                                onChange={setCategorizePropertyId}
+                              />
+                            )}
+                          </div>
+
+                          <div className="recon-categorize-field">
+                            <label className="recon-categorize-label">
+                              Transaction Type <span className="is-required">*</span>
+                            </label>
+                            <StaticSelect
+                              value={categorizeType}
+                              options={[
+                                { label: "Expense", value: "expense" },
+                                { label: "Revenue", value: "revenue" },
+                              ]}
+                              onChange={(val) => {
+                                setCategorizeType(val as "expense" | "revenue");
+                                setCategorizeCategoryId(null);
+                                setCategorizeSubcategoryId(null);
+                              }}
+                            />
+                          </div>
+                          <div className="recon-categorize-field">
+                            <label className="recon-categorize-label">
+                              Category <span className="is-required">*</span>
+                            </label>
+                            <StaticSelect
+                              value={String(categorizeCategoryId ?? "")}
+                              placeholder="Select category"
+                              options={categorizeCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                              onChange={(val) => {
+                                setCategorizeCategoryId(val ? Number(val) : null);
+                                setCategorizeSubcategoryId(null);
+                              }}
+                            />
+                          </div>
+                          <div className="recon-categorize-field">
+                            <label className="recon-categorize-label">
+                              Subcategory <span className="is-required">*</span>
+                            </label>
+                            <StaticSelect
+                              value={String(categorizeSubcategoryId ?? "")}
+                              placeholder="Select subcategory"
+                              options={categorizeSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                              onChange={(val) => setCategorizeSubcategoryId(val ? Number(val) : null)}
+                              disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Split option and section placed before GST */}
+                        <div className="recon-categorize-split-container" style={{ marginTop: 16 }}>
+                          <label className="recon-categorize-checkbox-row">
+                            <input
+                              type="checkbox"
+                              className="custom-recon-checkbox"
+                              checked={categorizeIsSplit}
+                              onChange={(e) => handleCategorizeSplitToggle(e.target.checked)}
+                            />
+                            <span>Is this a split transaction?</span>
+                          </label>
+
+                          {categorizeIsSplit && (
+                            <div className="recon-categorize-split-section">
+                              <div className="recon-split-header">
+                                <span>Property Name <span className="is-required">*</span></span>
+                                <span>Amount <span className="is-required">*</span></span>
+                                <span></span>
+                              </div>
+
+                              {categorizeSplitRows.map((row) => {
+                                const rowError = categorizeSplitErrors[row.id];
+                                const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                                const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                                return (
+                                  <div key={row.id} className="recon-split-row">
+                                    <StaticSelect
+                                      value={row.propertyId}
+                                      placeholder="Select Property"
+                                      options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                                      onChange={(value) => updateCategorizeSplitRow(row.id, { propertyId: value })}
+                                      error={propertyError}
+                                    />
+                                    <div className="recon-categorize-field">
+                                      <div className="recon-categorize-amount-input-wrapper">
+                                        <input
+                                          type="number"
+                                          inputMode="decimal"
+                                          step="0.01"
+                                          placeholder="0.00"
+                                          className={`recon-categorize-input${amountError ? " has-error" : ""}`}
+                                          value={row.amount}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "-" || e.key === "Minus") {
+                                              e.preventDefault();
+                                            }
+                                          }}
+                                          onChange={(e) => {
+                                            const val = e.target.value.replace(/-/g, "");
+                                            updateCategorizeSplitRow(row.id, { amount: val });
+                                          }}
+                                        />
+                                        <span className="recon-categorize-amount-currency">A$</span>
+                                      </div>
+                                      {amountError && (
+                                        <p className="recon-split-row-error">{amountError}</p>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="recon-split-remove-btn"
+                                      disabled={categorizeSplitRows.length <= 1}
+                                      onClick={() => removeCategorizeSplitRow(row.id)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                );
+                              })}
+
+                              {categorizeSplitErrors.__form && (
+                                <p className="recon-split-form-error">{categorizeSplitErrors.__form}</p>
+                              )}
+
+                              <div className="recon-split-footer">
+                                <span
+                                  className={`recon-split-total-info${!categorizeSplitMatches ? " is-mismatch" : ""}`}
+                                >
+                                  {activeGrossAmount > 0
+                                    ? `Split total: ${categorizeSplitTotal.toFixed(2)} of ${activeGrossAmount.toFixed(2)}`
+                                    : "Splits must equal the transaction total."}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="recon-split-add-btn"
+                                  onClick={addCategorizeSplitRow}
+                                  disabled={properties.length < 2}
+                                >
+                                  + Add Property
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {isCatExpanded && !isConfirmed && !isExcluded && (
-                  <div className="recon-categorize-panel">
-                    <div className="recon-categorize-card">
-                      <div className="recon-categorize-title">
-                        <span className="recon-categorize-title-dot" />
-                        <strong>Categorize Transaction</strong>
-                      </div>
-
-                      <div className="recon-categorize-grid">
-                        <div className="recon-categorize-field">
-                          <label className="recon-categorize-label">
-                            Property Name <span className="is-required">*</span>
-                          </label>
-                          <select
-                            className="recon-categorize-select"
-                            value={categorizePropertyId}
-                            onChange={(e) => setCategorizePropertyId(e.target.value)}
-                          >
-                            <option value="">Select property</option>
-                            {properties.map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                          </select>
+                        <div className="recon-categorize-gst">
+                          <span className="recon-categorize-gst-label">GST Applicable</span>
+                          <div className="recon-categorize-gst-options">
+                            <label className="recon-categorize-gst-option">
+                              <input
+                                type="radio"
+                                name={`gst-${key}`}
+                                checked={categorizeGst === true}
+                                onChange={() => {
+                                  setCategorizeGst(true);
+                                  const rec = reconCache.get(reconId);
+                                  const bankTx = rec?.transactions[bankTxIndex];
+                                  const gross = bankTx ? (bankTx.debit ?? bankTx.credit ?? 0) : 0;
+                                  setCategorizeGstAmount(String(Math.round((gross / 11) * 100) / 100));
+                                }}
+                              />
+                              Yes
+                            </label>
+                            <label className="recon-categorize-gst-option">
+                              <input
+                                type="radio"
+                                name={`gst-${key}`}
+                                checked={categorizeGst === false}
+                                onChange={() => { setCategorizeGst(false); setCategorizeGstAmount(""); }}
+                              />
+                              No
+                            </label>
+                          </div>
+                          {categorizeGst && (
+                            <div className="recon-categorize-field" style={{ marginTop: 8 }}>
+                              <label className="recon-categorize-label">GST Amount</label>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                className="recon-categorize-input"
+                                value={categorizeGstAmount}
+                                onChange={(e) => setCategorizeGstAmount(e.target.value)}
+                              />
+                            </div>
+                          )}
                         </div>
-                        <div className="recon-categorize-field">
-                          <label className="recon-categorize-label">
-                            Transaction Type <span className="is-required">*</span>
-                          </label>
-                          <select
-                            className="recon-categorize-select"
-                            value={categorizeType}
-                            onChange={(e) => {
-                              setCategorizeType(e.target.value as "expense" | "revenue");
-                              setCategorizeCategoryId(null);
-                              setCategorizeSubcategoryId(null);
-                            }}
-                          >
-                            <option value="expense">Expense</option>
-                            <option value="revenue">Revenue</option>
-                          </select>
-                        </div>
-                        <div className="recon-categorize-field">
-                          <label className="recon-categorize-label">
-                            Category <span className="is-required">*</span>
-                          </label>
-                          <select
-                            className="recon-categorize-select"
-                            value={categorizeCategoryId ?? ""}
-                            onChange={(e) => {
-                              setCategorizeCategoryId(e.target.value ? Number(e.target.value) : null);
-                              setCategorizeSubcategoryId(null);
-                            }}
-                          >
-                            <option value="">Select category</option>
-                            {categorizeCategories.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="recon-categorize-field">
-                          <label className="recon-categorize-label">
-                            Subcategory <span className="is-required">*</span>
-                          </label>
-                          <select
-                            className="recon-categorize-select"
-                            value={categorizeSubcategoryId ?? ""}
-                            onChange={(e) => setCategorizeSubcategoryId(e.target.value ? Number(e.target.value) : null)}
-                            disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
-                          >
-                            <option value="">Select subcategory</option>
-                            {categorizeSubcategories.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="recon-categorize-gst">
-                        <span className="recon-categorize-gst-label">GST Applicable</span>
-                        <div className="recon-categorize-gst-options">
-                          <label className="recon-categorize-gst-option">
-                            <input
-                              type="radio"
-                              name={`gst-${key}`}
-                              checked={categorizeGst === true}
-                              onChange={() => {
-                                setCategorizeGst(true);
-                                const rec = reconCache.get(reconId);
-                                const bankTx = rec?.transactions[bankTxIndex];
-                                const gross = bankTx ? (bankTx.debit ?? bankTx.credit ?? 0) : 0;
-                                setCategorizeGstAmount(String(Math.round((gross / 11) * 100) / 100));
-                              }}
-                            />
-                            Yes
-                          </label>
-                          <label className="recon-categorize-gst-option">
-                            <input
-                              type="radio"
-                              name={`gst-${key}`}
-                              checked={categorizeGst === false}
-                              onChange={() => { setCategorizeGst(false); setCategorizeGstAmount(""); }}
-                            />
-                            No
-                          </label>
-                        </div>
-                        {categorizeGst && (
-                          <div className="recon-categorize-field" style={{ marginTop: 8 }}>
-                            <label className="recon-categorize-label">GST Amount</label>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              step="0.01"
-                              min="0"
-                              placeholder="0.00"
-                              className="recon-categorize-select"
-                              value={categorizeGstAmount}
-                              onChange={(e) => setCategorizeGstAmount(e.target.value)}
-                            />
+                        <hr className="recon-categorize-divider" />
+                        {categorizeError && (
+                          <div className="recon-match-error" role="alert" style={{ marginBottom: 12 }}>
+                            <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
+                            </svg>
+                            <span>{categorizeError}</span>
                           </div>
                         )}
-                      </div>
-                      <hr className="recon-categorize-divider" />
-                      {categorizeError && (
-                        <div className="recon-match-error" role="alert" style={{ marginBottom: 12 }}>
-                          <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
-                          </svg>
-                          <span>{categorizeError}</span>
+                        <div className="recon-categorize-footer">
+                          <button
+                            type="button"
+                            className="recon-categorize-exclude-btn"
+                            disabled={categorizeSaving}
+                            onClick={() => { doExcludeMatch(reconId, bankTxIndex); setCategorizeKey(null); }}
+                          >
+                            Exclude
+                          </button>
+                          <button
+                            type="button"
+                            className="recon-categorize-save-btn"
+                            disabled={
+                              categorizeSaving ||
+                              !categorizeCategoryId ||
+                              (!categorizeIsSplit && !categorizePropertyId) ||
+                              (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches))
+                            }
+                            onClick={() => { void doSaveCategorize(reconId, bankTxIndex); }}
+                          >
+                            {categorizeSaving ? (
+                              <><span className="recon-btn-spinner" aria-hidden="true" />Saving…</>
+                            ) : "Save & Categorize"}
+                          </button>
                         </div>
-                      )}
-                      <div className="recon-categorize-footer">
-                        <button
-                          type="button"
-                          className="recon-categorize-exclude-btn"
-                          disabled={categorizeSaving}
-                          onClick={() => { doExcludeMatch(reconId, bankTxIndex); setCategorizeKey(null); }}
-                        >
-                          Exclude
-                        </button>
-                        <button
-                          type="button"
-                          className="recon-categorize-save-btn"
-                          disabled={categorizeSaving || !categorizeCategoryId || !categorizePropertyId}
-                          onClick={() => { void doSaveCategorize(reconId, bankTxIndex); }}
-                        >
-                          {categorizeSaving ? (
-                            <><span className="recon-btn-spinner" aria-hidden="true" />Saving…</>
-                          ) : "Save & Categorize"}
-                        </button>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </section>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </section>
 
-      {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="accountant-reconciliation-footer">
-        <div className="recon-pagination-wrap">
-          <span className="recon-pagination-copy">
-            Showing{" "}
-            <strong>
-              {visibleRows.length === 0 ? 0 : (reconPage - 1) * RECON_PAGE_SIZE + 1}–{Math.min(reconPage * RECON_PAGE_SIZE, visibleRows.length)}
-            </strong>{" "}
-            of <strong>{visibleRows.length}</strong> transactions
-            {reconciledCount > 0 && (
-              <> · <strong>{reconciledCount}</strong> reconciled</>
-            )}
-          </span>
-          {reconTotalPages > 1 && (
-            <div className="recon-pagination">
-              <button
-                type="button"
-                disabled={reconPage === 1}
-                onClick={() => setReconPage((p) => p - 1)}
-              >
-                ← Prev
-              </button>
-              {Array.from({ length: reconTotalPages }, (_, idx) => idx + 1)
-                .filter((p) => p === 1 || p === reconTotalPages || Math.abs(p - reconPage) <= 1)
-                .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((v, idx) =>
-                  v === "…" ? (
-                    <span key={`e-${idx}`} className="recon-pagination-ellipsis">…</span>
-                  ) : (
-                    <button
-                      key={v}
-                      type="button"
-                      className={v === reconPage ? "is-active" : undefined}
-                      onClick={() => setReconPage(v as number)}
-                    >
-                      {v}
-                    </button>
-                  )
-                )}
-              <button
-                type="button"
-                disabled={reconPage === reconTotalPages}
-                onClick={() => setReconPage((p) => p + 1)}
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="accountant-reconciliation-footer-actions">
-          {completeError && (
-            <div className="accountant-reconciliation-error-alert" role="alert">
-              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              <span>{completeError}</span>
-            </div>
-          )}
-          <div>
-            <button
-              type="button"
-              disabled={combinedRows.length === 0}
-              onClick={() => {
-                if (combinedRows.length === 0) return;
-                const headers = ["statement", "date", "payee", "description", "debit", "credit", "balance", "reconciled"];
-                const csv = [
-                  headers.join(","),
-                  ...visibleRows.map(({ reconId, statementLabel, bankTxIndex, row }) => {
-                    const m = optimisticMatches.get(mkey(reconId, bankTxIndex));
-                    return [
-                      `"${statementLabel.replace(/"/g, '""')}"`,
-                      row.date,
-                      `"${(row.payee ?? "").replace(/"/g, '""')}"`,
-                      `"${row.description.replace(/"/g, '""')}"`,
-                      row.debit ?? "",
-                      row.credit ?? "",
-                      row.balance ?? "",
-                      m?.status ?? "unreconciled",
-                    ].join(",");
-                  }),
-                ].join("\n");
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-                a.download = `reconciliation-${session.id}.csv`;
-                a.click();
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3v12" />
-                <path d="m7 10 5 5 5-5" />
-                <path d="M5 21h14" />
-              </svg>
-              Export CSV
-            </button>
-            {!isSessionCompleted && (
-              <button
-                type="button"
-                disabled={completingSession}
-                onClick={() => {
-                  setCompleteError(null);
-                  setShowCompleteConfirm(true);
-                }}
-              >
-                {completingSession ? (
-                  <><span className="recon-btn-spinner" aria-hidden="true" />Completing…</>
-                ) : "Complete Reconciliation"}
-              </button>
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <footer className="accountant-reconciliation-footer">
+          <div className="recon-pagination-wrap">
+            <span className="recon-pagination-copy">
+              Showing{" "}
+              <strong>
+                {visibleRows.length === 0 ? 0 : (reconPage - 1) * RECON_PAGE_SIZE + 1}–{Math.min(reconPage * RECON_PAGE_SIZE, visibleRows.length)}
+              </strong>{" "}
+              of <strong>{visibleRows.length}</strong> transactions
+              {reconciledCount > 0 && (
+                <> · <strong>{reconciledCount}</strong> reconciled</>
+              )}
+            </span>
+            {reconTotalPages > 1 && (
+              <div className="recon-pagination">
+                <button
+                  type="button"
+                  disabled={reconPage === 1}
+                  onClick={() => setReconPage((p) => p - 1)}
+                >
+                  ← Prev
+                </button>
+                {Array.from({ length: reconTotalPages }, (_, idx) => idx + 1)
+                  .filter((p) => p === 1 || p === reconTotalPages || Math.abs(p - reconPage) <= 1)
+                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((v, idx) =>
+                    v === "…" ? (
+                      <span key={`e-${idx}`} className="recon-pagination-ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={v}
+                        type="button"
+                        className={v === reconPage ? "is-active" : undefined}
+                        onClick={() => setReconPage(v as number)}
+                      >
+                        {v}
+                      </button>
+                    )
+                  )}
+                <button
+                  type="button"
+                  disabled={reconPage === reconTotalPages}
+                  onClick={() => setReconPage((p) => p + 1)}
+                >
+                  Next →
+                </button>
+              </div>
             )}
           </div>
-        </div>
-      </footer>
+          <div className="accountant-reconciliation-footer-actions">
+            {completeError && (
+              <div className="accountant-reconciliation-error-alert" role="alert">
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{completeError}</span>
+              </div>
+            )}
+            <div>
+              <button
+                type="button"
+                disabled={combinedRows.length === 0}
+                title="Export all transactions across every tab"
+                onClick={() => exportReconCsv(combinedRows, `reconciliation-${session.id}.csv`)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v12" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+                Export CSV
+              </button>
+              {!isSessionCompleted && (
+                <button
+                  type="button"
+                  disabled={completingSession}
+                  onClick={() => {
+                    setCompleteError(null);
+                    setShowCompleteConfirm(true);
+                  }}
+                >
+                  {completingSession ? (
+                    <><span className="recon-btn-spinner" aria-hidden="true" />Completing…</>
+                  ) : "Complete Reconciliation"}
+                </button>
+              )}
+            </div>
+          </div>
+        </footer>
       </div>
 
       {toastReconId && (
@@ -2001,8 +3113,168 @@ export default function AccountantReconciliationSessionPage() {
         />
       )}
 
+      {bulkOpen && (
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="text-base font-semibold text-slate-900 m-0">
+                Categorize Transactions
+                <span className="recon-bulk-badge">{selectedEligibleRows.length} selected</span>
+              </h3>
+              <button
+                type="button"
+                aria-label="Close"
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+                disabled={bulkSaving || bulkExcluding}
+                onClick={() => setBulkOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-6 py-5">
+              <div className="recon-bulk-note">
+                You&apos;re categorizing multiple transactions at once. These values will be
+                applied to all selected transactions. Split transaction is not available in
+                bulk mode.
+              </div>
+
+              <div className="recon-categorize-grid">
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Property Name <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={bulkPropertyId}
+                    placeholder="Select property"
+                    options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                    onChange={setBulkPropertyId}
+                  />
+                </div>
+
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Transaction Type <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={bulkType}
+                    options={[
+                      { label: "Expense", value: "expense" },
+                      { label: "Revenue", value: "revenue" },
+                    ]}
+                    onChange={(val) => {
+                      setBulkType(val as "expense" | "revenue");
+                      setBulkCategoryId(null);
+                      setBulkSubcategoryId(null);
+                    }}
+                  />
+                </div>
+
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Category <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={String(bulkCategoryId ?? "")}
+                    placeholder="Select category"
+                    options={bulkCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                    onChange={(val) => {
+                      setBulkCategoryId(val ? Number(val) : null);
+                      setBulkSubcategoryId(null);
+                    }}
+                  />
+                </div>
+
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Subcategory <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={String(bulkSubcategoryId ?? "")}
+                    placeholder="Select subcategory"
+                    options={bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                    onChange={(val) => setBulkSubcategoryId(val ? Number(val) : null)}
+                    disabled={!bulkCategoryId || bulkSubcategories.length === 0}
+                  />
+                </div>
+              </div>
+
+              <div className="recon-categorize-gst">
+                <span className="recon-categorize-gst-label">GST Applicable</span>
+                <div className="recon-categorize-gst-options">
+                  <label className="recon-categorize-gst-option">
+                    <input
+                      type="radio"
+                      name="bulk-gst"
+                      checked={bulkGst === true}
+                      onChange={() => setBulkGst(true)}
+                    />
+                    Yes
+                  </label>
+                  <label className="recon-categorize-gst-option">
+                    <input
+                      type="radio"
+                      name="bulk-gst"
+                      checked={bulkGst === false}
+                      onChange={() => setBulkGst(false)}
+                    />
+                    No
+                  </label>
+                </div>
+                {bulkGst && (
+                  <p className="recon-bulk-gst-hint">
+                    GST will be recorded as 1/11th of each transaction&apos;s amount.
+                  </p>
+                )}
+              </div>
+
+              {bulkError && (
+                <div className="recon-match-error" role="alert" style={{ marginTop: 12 }}>
+                  <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
+                  </svg>
+                  <span>{bulkError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
+              <button
+                type="button"
+                className="recon-categorize-exclude-btn"
+                disabled={bulkSaving || bulkExcluding}
+                onClick={() => { void doBulkExclude(); }}
+              >
+                {bulkExcluding ? (
+                  <><span className="recon-btn-spinner" aria-hidden="true" />Excluding…</>
+                ) : "Exclude"}
+              </button>
+              <button
+                type="button"
+                className="recon-categorize-save-btn"
+                disabled={
+                  bulkSaving ||
+                  bulkExcluding ||
+                  !bulkPropertyId ||
+                  !bulkCategoryId ||
+                  !bulkSubcategoryId
+                }
+                onClick={() => { void doBulkCategorize(); }}
+              >
+                {bulkSaving ? (
+                  <>
+                    <span className="recon-btn-spinner" aria-hidden="true" />
+                    {bulkProgress ? `Saving ${bulkProgress.done}/${bulkProgress.total}…` : "Saving…"}
+                  </>
+                ) : "Save & Categorize All"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCompleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#fef3c7] text-[#d97706] shrink-0 self-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">

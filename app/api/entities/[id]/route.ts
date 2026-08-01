@@ -4,6 +4,7 @@ import {
   getCoreEntity,
   updateCoreEntity,
 } from "@/src/lib/coreApi";
+import { renderUpstreamError } from "@/src/lib/coreApiProxy";
 import { pool } from "@/src/lib/db";
 
 function getBearerToken(req: Request) {
@@ -49,9 +50,7 @@ export async function GET(req: Request, context: RouteContext) {
 
     return NextResponse.json(entity);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch entity";
-    console.error(`GET /api/entities/${id} error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`GET /api/entities/${id}`, error);
   }
 }
 
@@ -72,15 +71,27 @@ export async function PATCH(req: Request, context: RouteContext) {
   try {
     const { assignedRegionalManagerId, ...coreBody } = body || {};
 
-    // Save assigned regional manager to the database if passed
+    // Save assigned regional manager to the database if passed. This write
+    // bypasses the core API, so it must enforce the disabled gate itself.
     if (body && typeof body === "object" && "assignedRegionalManagerId" in body) {
+      const enabledRes = await pool.query(
+        `SELECT enabled FROM entity WHERE id = $1::uuid AND is_deleted = false`,
+        [id]
+      );
+      if (enabledRes.rows[0] && enabledRes.rows[0].enabled === false) {
+        return NextResponse.json(
+          { code: "entity_disabled", message: "Entity is disabled; re-enable it to make changes" },
+          { status: 409 }
+        );
+      }
+
       const assignedId = assignedRegionalManagerId
         ? String(assignedRegionalManagerId).trim()
         : null;
 
       await pool.query(
-        `UPDATE entity 
-         SET assigned_regional_manager_id = $1 
+        `UPDATE entity
+         SET assigned_regional_manager_id = $1
          WHERE id = $2::uuid`,
         [assignedId || null, id]
       );
@@ -114,9 +125,7 @@ export async function PATCH(req: Request, context: RouteContext) {
 
     return NextResponse.json(entity);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to update entity";
-    console.error(`PATCH /api/entities/${id} error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`PATCH /api/entities/${id}`, error, body);
   }
 }
 
@@ -131,8 +140,6 @@ export async function DELETE(req: Request, context: RouteContext) {
     await deleteCoreEntity(token, id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to delete entity";
-    console.error(`DELETE /api/entities/${id} error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`DELETE /api/entities/${id}`, error);
   }
 }

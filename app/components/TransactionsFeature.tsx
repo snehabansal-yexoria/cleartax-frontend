@@ -212,7 +212,7 @@ function TrashIcon() {
 }
 
 
-function StaticSelect({
+export function StaticSelect({
   label,
   value,
   options,
@@ -563,6 +563,8 @@ function TransactionDetailPopup({
   onCancelEdit,
   onSave,
   onDelete,
+  disabled = false,
+  disabledReason,
 }: {
   row: DisplayTransactionRow;
   detail: CoreTransactionDetail | null;
@@ -577,6 +579,8 @@ function TransactionDetailPopup({
   onCancelEdit: () => void;
   onSave: (body: Record<string, unknown>) => Promise<void>;
   onDelete: () => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const [description, setDescription] = useState(row.description || "");
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
@@ -590,6 +594,7 @@ function TransactionDetailPopup({
   const [invoiceDate, setInvoiceDate] = useState(row.invoiceDate?.slice(0, 10) || "");
   const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
   const [grossAmount, setGrossAmount] = useState(String(row.grossAmount || ""));
+  const [grossAmountTouched, setGrossAmountTouched] = useState(false);
   const [showGstBreakdown, setShowGstBreakdown] = useState(row.gstAmount > 0);
   const [gstAmount, setGstAmount] = useState(String(row.gstAmount || ""));
   const [modeOfTransaction, setModeOfTransaction] = useState(
@@ -642,6 +647,19 @@ function TransactionDetailPopup({
   }, [invoiceDate]);
 
   const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
+
+  const grossAmountError = useMemo(() => {
+    if (!grossAmount) {
+      return "Amount is required.";
+    }
+    const val = Number.parseFloat(grossAmount);
+    if (Number.isNaN(val) || val <= 0) {
+      return "Amount must be greater than 0.";
+    }
+    return "";
+  }, [grossAmount]);
+
+  const showGrossAmountError = !!grossAmountError && (grossAmountTouched || grossAmountError !== "Amount is required.");
 
   const [editError, setEditError] = useState("");
   const [isOpeningInvoice, setIsOpeningInvoice] = useState(false);
@@ -842,7 +860,7 @@ function TransactionDetailPopup({
     subcategories.some((s) => s.name.toLowerCase() !== "general");
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
-    ...properties.map((property) => ({ label: property.name, value: property.id })),
+    ...properties.map((property) => ({ label: pickerLabel(property), value: property.id })),
   ];
 
   useEffect(() => {
@@ -971,6 +989,11 @@ function TransactionDetailPopup({
     if (invoiceDateError) {
       setInvoiceDateTouched(true);
       setEditError(invoiceDateError);
+      return;
+    }
+    if (grossAmountError) {
+      setGrossAmountTouched(true);
+      setEditError(grossAmountError);
       return;
     }
     const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
@@ -1272,13 +1295,12 @@ function TransactionDetailPopup({
                     </p>
                   )}
                 </label>
-                <label className="transaction-field">
+                <label className={`transaction-field${showGrossAmountError ? " has-error" : ""}`}>
                   <span className="transaction-field-label">Amount<em>*</em></span>
                   <input
                     type="number"
                     inputMode="decimal"
                     step="0.01"
-                    min="0.01"
                     value={grossAmount}
                     onKeyDown={(e) => {
                       if (e.key === "-" || e.key === "Minus") {
@@ -1288,8 +1310,18 @@ function TransactionDetailPopup({
                     onChange={(event) => {
                       const val = event.target.value.replace(/-/g, "");
                       setGrossAmount(val);
+                      setGrossAmountTouched(true);
                     }}
+                    onBlur={() => setGrossAmountTouched(true)}
                   />
+                  {showGrossAmountError && (
+                    <p className="transaction-field-error">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      {grossAmountError}
+                    </p>
+                  )}
                 </label>
               </div>
               <label className="transaction-checkbox-row">
@@ -1381,7 +1413,6 @@ function TransactionDetailPopup({
                             type="number"
                             inputMode="decimal"
                             step="0.01"
-                            min="0.01"
                             value={split.amount}
                             onKeyDown={(e) => {
                               if (e.key === "-" || e.key === "Minus") {
@@ -1642,7 +1673,14 @@ function TransactionDetailPopup({
             </>
           ) : (
             <>
-              <button type="button" className="transaction-detail-edit-button" onClick={onEdit}>
+              <button
+                type="button"
+                className="transaction-detail-edit-button"
+                onClick={onEdit}
+                disabled={disabled}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+              >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -1653,7 +1691,9 @@ function TransactionDetailPopup({
                 type="button"
                 className="transaction-detail-delete-button"
                 onClick={onDelete}
-                disabled={isDeleting}
+                disabled={disabled || isDeleting}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M3 6h18" />
@@ -1696,6 +1736,8 @@ function TransactionTable({
   onView,
   onEdit,
   onDelete,
+  disabled = false,
+  disabledReason,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -1703,9 +1745,16 @@ function TransactionTable({
   onView: (row: DisplayTransactionRow) => void;
   onEdit: (row: DisplayTransactionRow) => void;
   onDelete: (row: DisplayTransactionRow) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
+  const [hoveredDescription, setHoveredDescription] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   return (
     <div className="transactions-table-container">
@@ -1717,6 +1766,7 @@ function TransactionTable({
               {showClientName ? <th>Client Name</th> : null}
               {showEntityName ? <th>Entity</th> : null}
               <th>Properties</th>
+              <th>Description</th>
               <th>Type</th>
               <th>Category</th>
               <th>Subcategory</th>
@@ -1752,6 +1802,28 @@ function TransactionTable({
                   {showClientName ? <td>{row.clientName || "—"}</td> : null}
                   {showEntityName ? <td>{row.entityName || "—"}</td> : null}
                   <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
+                  <td
+                    style={{
+                      maxWidth: '180px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (row.description) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredDescription({
+                          text: row.description,
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredDescription(null)}
+                  >
+                    {row.description || "—"}
+                  </td>
                   <td>
                     <span
                       className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
@@ -1790,6 +1862,9 @@ function TransactionTable({
                       <button
                         type="button"
                         aria-label={`Edit ${row.id}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onEdit(row)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1801,6 +1876,9 @@ function TransactionTable({
                         type="button"
                         className="is-danger"
                         aria-label={`Delete ${row.id}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onDelete(row)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1819,6 +1897,63 @@ function TransactionTable({
           </tbody>
         </table>
       </div>
+      {hoveredDescription && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredDescription.x}px`,
+            top: `${hoveredDescription.y - 8}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: '#ffffff',
+            color: '#344054',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 500,
+            maxWidth: '280px',
+            zIndex: 99999,
+            boxShadow: '0 10px 15px -3px rgba(16, 24, 40, 0.1), 0 4px 6px -2px rgba(16, 24, 40, 0.05)',
+            pointerEvents: 'none',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            border: '1px solid #cbd5e1',
+            lineHeight: '1.45',
+            fontFamily: 'inherit',
+          }}
+        >
+          <div style={{ color: '#475467' }}>
+            {hoveredDescription.text}
+          </div>
+          {/* Arrow border */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%) translateY(-1px)',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '6px solid #cbd5e1',
+            }}
+          />
+          {/* Arrow fill */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%) translateY(-2px)',
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #ffffff',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1828,11 +1963,15 @@ function PropertyTransactionTable({
   onView,
   onEdit,
   onDelete,
+  disabled = false,
+  disabledReason,
 }: {
   rows: CorePropertyTransactionRow[];
   onView: (row: DisplayTransactionRow) => void;
   onEdit: (row: DisplayTransactionRow) => void;
   onDelete: (row: DisplayTransactionRow) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   return (
     <div className="transactions-table-container">
@@ -1902,6 +2041,9 @@ function PropertyTransactionTable({
                       <button
                         type="button"
                         aria-label={`Edit ${row.transactionId}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onEdit(displayRow)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1913,6 +2055,9 @@ function PropertyTransactionTable({
                         type="button"
                         className="is-danger"
                         aria-label={`Delete ${row.transactionId}`}
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => onDelete(displayRow)}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2179,6 +2324,8 @@ function getRowEntityFilterValue(row: CoreTransactionListItem) {
 export function AllTransactionsView({
   context = { kind: "none" },
   addTransactionHref = "/dashboard/accountant/transactions/new",
+  addTransactionDisabled = false,
+  addTransactionDisabledReason,
   rulesHref = "/dashboard/accountant/transactions/rules",
   rulesButtonLabel = "Transaction Rules",
   rulesButtonClassName = "transaction-outline-button",
@@ -2187,6 +2334,8 @@ export function AllTransactionsView({
 }: {
   context?: TransactionsContext;
   addTransactionHref?: string;
+  addTransactionDisabled?: boolean;
+  addTransactionDisabledReason?: string;
   rulesHref?: string;
   rulesButtonLabel?: string;
   rulesButtonClassName?: string;
@@ -2202,6 +2351,17 @@ export function AllTransactionsView({
   const [sortBy, setSortBy] = useState<string>("date-desc");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [pageSize, setPageSize] = useState<string>("10");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageInputValue, setPageInputValue] = useState<string>("1");
+
+  useEffect(() => {
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, sortBy]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<DisplayTransactionRow | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
@@ -2307,6 +2467,8 @@ export function AllTransactionsView({
 
   useEffect(() => {
     setFilters(defaultTransactionFilters);
+    setCurrentPage(1);
+    setPageSize("10");
   }, [contextId, contextKind]);
 
   const filterOptions = useMemo<TransactionFilterOptions>(() => {
@@ -2651,6 +2813,24 @@ export function AllTransactionsView({
     contextKind === "property" ? filteredPropertyRows.length : filteredRows.length;
   const unfilteredCount =
     contextKind === "property" ? propertyRows.length : rows.length;
+
+  const totalItems = totalCount;
+  const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
+  const totalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+
+  const displayedRows = useMemo(() => {
+    const startIndex = (activePage - 1) * numericPageSize;
+    const endIndex = startIndex + numericPageSize;
+    return sortedRows.slice(startIndex, endIndex);
+  }, [sortedRows, activePage, numericPageSize]);
+
+  const displayedPropertyRows = useMemo(() => {
+    const startIndex = (activePage - 1) * numericPageSize;
+    const endIndex = startIndex + numericPageSize;
+    return sortedPropertyRows.slice(startIndex, endIndex);
+  }, [sortedPropertyRows, activePage, numericPageSize]);
+
   const showClientShare = contextKind === "client";
   const tableScope: TransactionTableScope =
     contextKind === "none"
@@ -2701,10 +2881,23 @@ export function AllTransactionsView({
             )}
             {rulesButtonLabel}
           </Link>
-          <Link href={addTransactionTargetHref} className="transaction-primary-button">
-            <span>+</span>
-            Add Transaction
-          </Link>
+          {addTransactionDisabled ? (
+            <button
+              type="button"
+              className="transaction-primary-button"
+              disabled
+              title={addTransactionDisabledReason || "Adding transactions is unavailable"}
+              style={{ opacity: 0.5, cursor: "not-allowed" }}
+            >
+              <span>+</span>
+              Add Transaction
+            </button>
+          ) : (
+            <Link href={addTransactionTargetHref} className="transaction-primary-button">
+              <span>+</span>
+              Add Transaction
+            </Link>
+          )}
         </div>
       </div>
 
@@ -2750,22 +2943,164 @@ export function AllTransactionsView({
           </div>
           {contextKind === "property" ? (
             <PropertyTransactionTable
-              rows={sortedPropertyRows}
+              rows={displayedPropertyRows}
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
+              disabled={addTransactionDisabled}
+              disabledReason={addTransactionDisabledReason}
             />
           ) : (
             <TransactionTable
-              rows={sortedRows}
+              rows={displayedRows}
               scope={tableScope}
               showClientShare={showClientShare}
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
+              disabled={addTransactionDisabled}
+              disabledReason={addTransactionDisabledReason}
             />
           )}
-          <Pagination copy={`Showing ${totalCount} of ${unfilteredCount} items`} />
+          {totalItems > 0 && (
+            <footer className="premium-pagination-container">
+              {/* Left Section: Items per page and page range details */}
+              <div className="premium-pagination-left">
+                <span className="premium-pagination-label">Items per page</span>
+                <div className="premium-pagination-select-wrapper">
+                  <select
+                    className="premium-pagination-select"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+                <span className="premium-pagination-info">
+                  {`${(activePage - 1) * numericPageSize + 1}–${Math.min(activePage * numericPageSize, totalItems)} of ${totalItems} items`}
+                </span>
+              </div>
+
+              {/* Right Section: First, Previous, Page Input, Next, Last */}
+              <div className="premium-pagination-right">
+                {/* First Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn premium-pagination-icon-btn"
+                  title="First Page"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={activePage === 1}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <line x1="5" y1="5" x2="5" y2="19" />
+                    <polyline points="19 5 12 12 19 19" />
+                  </svg>
+                </button>
+
+                {/* Previous Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={activePage === 1}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  <span className="premium-pagination-btn-text">Previous</span>
+                </button>
+
+                {/* Page Selector Input Box */}
+                <div className="premium-pagination-page-input-wrapper">
+                  <input
+                    type="number"
+                    className="premium-pagination-page-input"
+                    value={pageInputValue}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        setPageInputValue("");
+                        return;
+                      }
+                      if (/^[1-9]\d*$/.test(value)) {
+                        const pageNum = Number(value);
+                        if (pageNum <= totalPages) {
+                          setPageInputValue(value);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      const pageNum = Number(pageInputValue);
+                      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                        setCurrentPage(pageNum);
+                      } else {
+                        setPageInputValue(String(activePage));
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (["e", "E", "-", "+", "."].includes(e.key)) {
+                        e.preventDefault();
+                        return;
+                      }
+                      if (e.key === "Enter") {
+                        const pageNum = Number(pageInputValue);
+                        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                          setCurrentPage(pageNum);
+                          e.currentTarget.blur();
+                        } else {
+                          setPageInputValue(String(activePage));
+                          e.currentTarget.blur();
+                        }
+                      }
+                    }}
+                    onPaste={(e) => {
+                      const pastedData = e.clipboardData.getData("text");
+                      if (!/^[1-9]\d*$/.test(pastedData) || Number(pastedData) > totalPages) {
+                        e.preventDefault();
+                      }
+                    }}
+                    min={1}
+                    max={totalPages}
+                  />
+                  <span className="premium-pagination-label">of {totalPages}</span>
+                </div>
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={activePage === totalPages}
+                >
+                  <span className="premium-pagination-btn-text">Next</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  className="premium-pagination-btn premium-pagination-icon-btn"
+                  title="Last Page"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={activePage === totalPages}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                    <line x1="19" y1="5" x2="19" y2="19" />
+                    <polyline points="5 5 12 12 5 19" />
+                  </svg>
+                </button>
+              </div>
+            </footer>
+          )}
         </>
       )}
       {selectedTransaction ? (
@@ -2788,6 +3123,8 @@ export function AllTransactionsView({
           onCancelEdit={() => setDetailMode("view")}
           onSave={saveTransactionDetail}
           onDelete={() => deleteTransaction()}
+          disabled={addTransactionDisabled}
+          disabledReason={addTransactionDisabledReason}
         />
       ) : null}
       {transactionToDelete && (
@@ -2908,7 +3245,7 @@ function BulkImportModal({
               value={entity}
               options={[
                 { label: "Select Entity", value: "" },
-                ...entities.map((item) => ({ label: item.name, value: item.id })),
+                ...entities.map((item) => ({ label: pickerLabel(item), value: item.id })),
               ]}
               onChange={(value) => {
                 setEntity(value);
@@ -2922,7 +3259,7 @@ function BulkImportModal({
               value={property}
               options={[
                 { label: "Select Property", value: "" },
-                ...properties.map((item) => ({ label: item.name, value: item.id })),
+                ...properties.map((item) => ({ label: pickerLabel(item), value: item.id })),
               ]}
               onChange={setProperty}
             />
@@ -2999,8 +3336,15 @@ function EditPencilIcon() {
 }
 
 type ClientOption = { id: string; name: string };
-type EntityOption = { id: string; name: string; createdFor?: string };
-type PropertyOption = { id: string; name: string };
+type EntityOption = { id: string; name: string; createdFor?: string; enabled?: boolean };
+type PropertyOption = { id: string; name: string; enabled?: boolean };
+
+// Disabled entities/properties stay visible in pickers (so editors understand
+// why a record can't be used) but are labelled; the backend rejects writes on
+// them with a 409 either way.
+function pickerLabel(item: { name: string; enabled?: boolean }) {
+  return item.enabled === false ? `${item.name} (inactive)` : item.name;
+}
 
 const MODE_OF_TRANSACTION_OPTIONS: SelectOption[] = [
   { label: "Select mode of transaction", value: "" },
@@ -3188,7 +3532,7 @@ function EntityPropertyHeaderCard({
               value={activeEntityId}
               options={[
                 { label: "Select Entity", value: "" },
-                ...entities.map((e) => ({ label: e.name, value: e.id })),
+                ...entities.map((e) => ({ label: pickerLabel(e), value: e.id })),
               ]}
               onChange={onSelectEntity}
               disabled={disabled}
@@ -3216,7 +3560,7 @@ function EntityPropertyHeaderCard({
               value={activePropertyId}
               options={[
                 { label: "Select Property", value: "" },
-                ...properties.map((p) => ({ label: p.name, value: p.id })),
+                ...properties.map((p) => ({ label: pickerLabel(p), value: p.id })),
               ]}
               onChange={onSelectProperty}
               disabled={disabled}
@@ -3295,6 +3639,7 @@ export function AddTransactionView({
   const [invoiceDate, setInvoiceDate] = useState("");
   const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
   const [grossAmount, setGrossAmount] = useState("");
+  const [grossAmountTouched, setGrossAmountTouched] = useState(false);
 
   const [showGstBreakdown, setShowGstBreakdown] = useState(false);
   const [gstAmount, setGstAmount] = useState("");
@@ -3580,6 +3925,16 @@ export function AddTransactionView({
     return () => window.clearTimeout(timer);
   }, [effectiveBackHref, isMarked, router]);
 
+  useEffect(() => {
+    if (feedback?.tone !== "success") return undefined;
+    const timer = window.setTimeout(() => {
+      setFeedback(null);
+      router.push(effectiveBackHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [feedback, effectiveBackHref, router]);
+
+
   const grossNumberValue = Number.parseFloat(grossAmount);
   const splitTotal = splitRows.reduce(
     (sum, r) => sum + (Number.parseFloat(r.amount) || 0),
@@ -3659,6 +4014,19 @@ export function AddTransactionView({
 
   const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
 
+  const grossAmountError = useMemo(() => {
+    if (!grossAmount) {
+      return "Amount is required.";
+    }
+    const val = Number.parseFloat(grossAmount);
+    if (Number.isNaN(val) || val <= 0) {
+      return "Amount must be greater than 0.";
+    }
+    return "";
+  }, [grossAmount]);
+
+  const showGrossAmountError = !!grossAmountError && (grossAmountTouched || grossAmountError !== "Amount is required.");
+
   const canSubmit =
     !mustChooseClientFirst &&
     !hasNoProperties &&
@@ -3669,6 +4037,7 @@ export function AddTransactionView({
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
+    !grossAmountError &&
     !!modeOfTransaction &&
     (!isAssetPurchase ||
       (assetClass === "capital_works" ||
@@ -4239,6 +4608,11 @@ export function AddTransactionView({
       setSubmitError(invoiceDateError);
       return;
     }
+    if (grossAmountError) {
+      setGrossAmountTouched(true);
+      setSubmitError(grossAmountError);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
@@ -4483,7 +4857,7 @@ export function AddTransactionView({
     !!categoryId &&
     subcategories.some((s) => s.name.toLowerCase() !== "general");
   const splitPropertyBaseOptions = properties.map((p) => ({
-    label: p.name,
+    label: pickerLabel(p),
     value: p.id,
   }));
   const flashClass = (key: string) =>
@@ -4539,7 +4913,7 @@ export function AddTransactionView({
           />
         )}
 
-        <form className="transaction-entry-form" onSubmit={handleSubmit}>
+        <form className="transaction-entry-form" onSubmit={handleSubmit} noValidate>
           {requireClientSelection ? (
             <StaticSelect
               label="Client"
@@ -4735,7 +5109,7 @@ export function AddTransactionView({
                   </p>
                 )}
               </label>
-              <label className={"transaction-field" + flashClass("grossAmount")}>
+              <label className={`transaction-field${flashClass("grossAmount")}${showGrossAmountError ? " has-error" : ""}`}>
                 <span className="transaction-field-label">
                   Amount<em>*</em>
                 </span>
@@ -4743,7 +5117,6 @@ export function AddTransactionView({
                   type="number"
                   inputMode="decimal"
                   step="0.01"
-                  min="0.01"
                   placeholder="0.00"
                   value={grossAmount}
                   onKeyDown={(e) => {
@@ -4754,8 +5127,18 @@ export function AddTransactionView({
                   onChange={(e) => {
                     const val = e.target.value.replace(/-/g, "");
                     setGrossAmount(val);
+                    setGrossAmountTouched(true);
                   }}
+                  onBlur={() => setGrossAmountTouched(true)}
                 />
+                {showGrossAmountError && (
+                  <p className="transaction-field-error">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    {grossAmountError}
+                  </p>
+                )}
               </label>
             </div>
 
@@ -4841,7 +5224,6 @@ export function AddTransactionView({
                             type="number"
                             inputMode="decimal"
                             step="0.01"
-                            min="0.01"
                             placeholder="0.00"
                             value={row.amount}
                             onKeyDown={(e) => {
@@ -4985,7 +5367,12 @@ export function AddTransactionView({
           tone={feedback.tone}
           title={feedback.title}
           message={feedback.message}
-          onClose={() => setFeedback(null)}
+          onClose={() => {
+            setFeedback(null);
+            if (feedback.tone === "success") {
+              router.push(effectiveBackHref);
+            }
+          }}
         />
       ) : null}
     </section>
@@ -5590,10 +5977,14 @@ export function TransactionRulesView({
   backHref = "/dashboard/accountant/transactions",
   entityId,
   isPropertyPage = false,
+  disabled = false,
+  disabledReason,
 }: {
   backHref?: string;
   entityId?: string;
   isPropertyPage?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const [query, setQuery] = useState("");
   const [rules, setRules] = useState<CoreTransactionRule[]>([]);
@@ -5723,6 +6114,9 @@ export function TransactionRulesView({
               <button
                 type="button"
                 className="premium-docs-upload-btn"
+                disabled={disabled}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                 onClick={() => { setSelectedRule(null); setShowModal("create"); }}
               >
                 Create Rule
@@ -5739,6 +6133,9 @@ export function TransactionRulesView({
               <button
                 type="button"
                 className="transaction-green-button"
+                disabled={disabled}
+                title={disabled ? disabledReason : undefined}
+                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                 onClick={() => { setSelectedRule(null); setShowModal("create"); }}
               >
                 <span>+</span>
@@ -5784,6 +6181,9 @@ export function TransactionRulesView({
                       <td>
                         <button
                           type="button"
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { cursor: "not-allowed" } : undefined}
                           onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
                         >
                           {rule.name}
@@ -5813,7 +6213,9 @@ export function TransactionRulesView({
                         <button
                           type="button"
                           className="transaction-detail-delete-button"
-                          disabled={deletingId === rule.id}
+                          disabled={disabled || deletingId === rule.id}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                           onClick={() => handleDelete(rule)}
                           aria-label={`Delete rule ${rule.name}`}
                         >
@@ -5864,6 +6266,9 @@ export function TransactionRulesView({
         <button
           type="button"
           className="transaction-green-button"
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
           onClick={() => { setSelectedRule(null); setShowModal("create"); }}
         >
           <span>+</span>
@@ -5919,6 +6324,9 @@ export function TransactionRulesView({
                     <td>
                       <button
                         type="button"
+                        disabled={disabled}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { cursor: "not-allowed" } : undefined}
                         onClick={() => { setSelectedRule(rule); setShowModal("edit"); }}
                       >
                         {rule.name}
@@ -5948,7 +6356,9 @@ export function TransactionRulesView({
                       <button
                         type="button"
                         className="transaction-detail-delete-button"
-                        disabled={deletingId === rule.id}
+                        disabled={disabled || deletingId === rule.id}
+                        title={disabled ? disabledReason : undefined}
+                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                         onClick={() => handleDelete(rule)}
                         aria-label={`Delete rule ${rule.name}`}
                       >

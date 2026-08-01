@@ -817,9 +817,20 @@ function ClientDetailPageContent() {
                                 <path d="M9 16h6" />
                               </svg>
                             </span>
-                            <span className="entity-type-badge">
-                              {entityTypeLabel(entity.entityType)}
-                            </span>
+                            {entity.enabled === false ? (
+                              <div className="entity-card-badges-group">
+                                <span className="entity-disabled-badge" title="This entity is inactive">
+                                  Inactive
+                                </span>
+                                <span className="entity-type-badge">
+                                  {entityTypeLabel(entity.entityType)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="entity-type-badge">
+                                {entityTypeLabel(entity.entityType)}
+                              </span>
+                            )}
                           </div>
 
                           <h3>{entity.name}</h3>

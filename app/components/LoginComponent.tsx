@@ -82,6 +82,18 @@ function getDashboardPath(role: string) {
   return "/dashboard/client";
 }
 
+function maskEmail(emailStr: string): string {
+  if (!emailStr) return "";
+  const parts = emailStr.split("@");
+  if (parts.length !== 2) return emailStr;
+  const [local, domain] = parts;
+  if (local.length <= 2) {
+    return `${local[0] || ""}*@${domain}`;
+  }
+  const maskedLocal = local[0] + "*".repeat(local.length - 2) + local[local.length - 1];
+  return `${maskedLocal}@${domain}`;
+}
+
 export default function LoginComponent({
   allowedRoles,
 }: {
@@ -337,7 +349,12 @@ export default function LoginComponent({
 
     const code = mfaCode.trim();
     if (!code) {
-      setError("Enter the 6-digit code from your authenticator app.");
+      setError("Enter the code from your authenticator app.");
+      return;
+    }
+
+    if (code.length < 6 || code.length > 10) {
+      setError("Invalid code. Please try again.");
       return;
     }
 
@@ -358,7 +375,12 @@ export default function LoginComponent({
 
     const code = mfaCode.trim();
     if (!code) {
-      setError("Enter the 6-digit code we emailed to you.");
+      setError(`Enter the code we sent to your email (${maskEmail(email)}).`);
+      return;
+    }
+
+    if (code.length < 6 || code.length > 10) {
+      setError("Invalid code. Please try again.");
       return;
     }
 
@@ -859,18 +881,17 @@ export default function LoginComponent({
                     <div className="login-element">
                       <label htmlFor="mfa_code">Authentication Code</label>
                       <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
-                        Enter the 6-digit code from your authenticator app.
+                        Enter the code from your authenticator app.
                       </p>
                       <input
                         type="text"
                         id="mfa_code"
-                        inputMode="numeric"
                         autoComplete="one-time-code"
-                        maxLength={6}
-                        placeholder="123456"
+                        maxLength={10}
+                        placeholder="Code"
                         value={mfaCode}
                         onChange={(e) =>
-                          setMfaCode(e.target.value.replace(/\D/g, ""))
+                          setMfaCode(e.target.value)
                         }
                         autoFocus
                       />
@@ -894,18 +915,17 @@ export default function LoginComponent({
                     <div className="login-element">
                       <label htmlFor="email_mfa_code">Email Verification Code</label>
                       <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
-                        Enter the 6-digit code we emailed to you.
+                        Enter the code we sent to your email ({maskEmail(email)}).
                       </p>
                       <input
                         type="text"
                         id="email_mfa_code"
-                        inputMode="numeric"
                         autoComplete="one-time-code"
-                        maxLength={6}
-                        placeholder="123456"
+                        maxLength={10}
+                        placeholder="Code"
                         value={mfaCode}
                         onChange={(e) =>
-                          setMfaCode(e.target.value.replace(/\D/g, ""))
+                          setMfaCode(e.target.value)
                         }
                         autoFocus
                       />
