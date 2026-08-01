@@ -408,6 +408,19 @@ export default function AccountantReconciliationSessionPage() {
     { id: makeSplitRowId(), propertyId: "", amount: "" },
   ]);
 
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkType, setBulkType] = useState<"expense" | "revenue">("expense");
+  const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
+  const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
+  const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
+  const [bulkGst, setBulkGst] = useState(false);
+  const [bulkCategories, setBulkCategories] = useState<CoreTransactionCategory[]>([]);
+  const [bulkSubcategories, setBulkSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkExcluding, setBulkExcluding] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
   const canSplitTransaction = properties.length > 1;
 
   const activeBankTx = useMemo(() => {
@@ -559,6 +572,18 @@ export default function AccountantReconciliationSessionPage() {
     }
     return out;
   }, [selectedRecons]);
+
+  // Selected rows that can still be bulk-actioned (not yet confirmed or excluded).
+  const selectedEligibleRows = useMemo(
+    () =>
+      combinedRows.filter(({ reconId, bankTxIndex }) => {
+        const key = mkey(reconId, bankTxIndex);
+        if (!selectedRowKeys.has(key)) return false;
+        const status = optimisticMatches.get(key)?.status;
+        return status !== "confirmed" && status !== "excluded";
+      }),
+    [combinedRows, selectedRowKeys, optimisticMatches],
+  );
 
   const aggregatedSummary = useMemo(() => {
     let totalTransactions = 0;
@@ -759,6 +784,40 @@ export default function AccountantReconciliationSessionPage() {
     });
     return () => { cancelled = true; };
   }, [categorizeCategoryId]);
+
+  // ── Bulk categorize modal: load categories / subcategories ───────────────
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    let cancelled = false;
+    void getFreshToken().then((token) => {
+      fetch(`/api/transactions/categories?type=${bulkType}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d: { items?: CoreTransactionCategory[] }) => {
+          if (!cancelled) setBulkCategories(d.items ?? []);
+        })
+        .catch(() => { });
+    });
+    return () => { cancelled = true; };
+  }, [bulkOpen, bulkType]);
+
+  useEffect(() => {
+    if (!bulkCategoryId) { setBulkSubcategories([]); return; }
+    let cancelled = false;
+    void getFreshToken().then((token) => {
+      fetch(`/api/transactions/categories/${bulkCategoryId}/sub-categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d: { items?: CoreTransactionSubcategory[] }) => {
+          if (!cancelled) setBulkSubcategories(d.items ?? []);
+        })
+        .catch(() => { });
+    });
+    return () => { cancelled = true; };
+  }, [bulkCategoryId]);
 
   useEffect(() => {
     if (!openSortDropdown) return;
@@ -1155,6 +1214,155 @@ export default function AccountantReconciliationSessionPage() {
         setExpandedKey(null);
       } catch { /* optimistic rolls back */ }
     });
+  }
+
+  function openBulkCategorize() {
+    if (selectedEligibleRows.length === 0) return;
+    const first = selectedEligibleRows[0];
+    setBulkType(first.row.debit != null ? "expense" : "revenue");
+    setBulkCategoryId(null);
+    setBulkSubcategoryId(null);
+    setBulkSubcategories([]);
+    setBulkPropertyId("");
+    setBulkGst(false);
+    setBulkError(null);
+    setBulkProgress(null);
+    setBulkOpen(true);
+  }
+
+  async function doBulkCategorize() {
+    if (bulkSaving || bulkExcluding) return;
+    if (!bulkPropertyId || !bulkCategoryId) {
+      setBulkError("Property and Category are required.");
+      return;
+    }
+    if (!bulkSubcategoryId) {
+      setBulkError("Please select sub category to continue.");
+      return;
+    }
+    const rows = selectedEligibleRows;
+    if (rows.length === 0) return;
+    setBulkError(null);
+    setBulkSaving(true);
+    setBulkProgress({ done: 0, total: rows.length });
+    const succeededKeys: MatchKey[] = [];
+    let failedCount = 0;
+    try {
+      const token = await getFreshToken();
+      for (let i = 0; i < rows.length; i++) {
+        const { reconId, bankTxIndex, row } = rows[i];
+        const gross = row.debit ?? row.credit ?? 0;
+        const gst = bulkGst ? Math.round((gross / 11) * 100) / 100 : 0;
+        try {
+          const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              type: bulkType,
+              category_id: bulkCategoryId,
+              subcategory_id: bulkSubcategoryId,
+              invoice_date: row.date,
+              gross_amount: gross,
+              gst_amount: gst,
+              description: row.payee ?? row.description ?? null,
+              internal_remarks: null,
+              review_status: "reviewed",
+              is_asset_purchase: false,
+              metadata: { source: "reconciliation_categorized" },
+              splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
+            }),
+          });
+          if (!txRes.ok) throw new Error("create failed");
+          const newTx = await txRes.json() as { id: string };
+          const matchRes = await fetch(
+            `/api/entities/${entityId}/reconciliations/${reconId}/matches`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ bankTxIndex, transactionId: newTx.id, status: "confirmed" }),
+            },
+          );
+          if (!matchRes.ok) throw new Error("match failed");
+          succeededKeys.push(mkey(reconId, bankTxIndex));
+        } catch {
+          failedCount += 1;
+        }
+        setBulkProgress({ done: i + 1, total: rows.length });
+      }
+      await reloadMatches();
+      const updatedTxRes = await fetch(`/api/entities/${entityId}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (updatedTxRes.ok) {
+        const data = await updatedTxRes.json() as { items?: CoreTransactionListItem[] };
+        setEntityTxs(data.items ?? []);
+      }
+      if (succeededKeys.length > 0) {
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          succeededKeys.forEach((k) => next.delete(k));
+          return next;
+        });
+      }
+      if (failedCount > 0) {
+        setBulkError(
+          `${failedCount} of ${rows.length} transactions failed to categorize. The rest were saved — please retry the remaining ones.`,
+        );
+      } else {
+        setBulkOpen(false);
+      }
+    } catch {
+      setBulkError("Something went wrong. Please try again.");
+    } finally {
+      setBulkSaving(false);
+      setBulkProgress(null);
+    }
+  }
+
+  async function doBulkExclude() {
+    if (bulkSaving || bulkExcluding) return;
+    const rows = selectedEligibleRows;
+    if (rows.length === 0) return;
+    setBulkError(null);
+    setBulkExcluding(true);
+    const succeededKeys: MatchKey[] = [];
+    let failedCount = 0;
+    try {
+      const token = await getFreshToken();
+      for (const { reconId, bankTxIndex } of rows) {
+        try {
+          const res = await fetch(
+            `/api/entities/${entityId}/reconciliations/${reconId}/matches`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ bankTxIndex, transactionId: null, status: "excluded" }),
+            },
+          );
+          if (!res.ok) throw new Error("exclude failed");
+          succeededKeys.push(mkey(reconId, bankTxIndex));
+        } catch {
+          failedCount += 1;
+        }
+      }
+      await reloadMatches();
+      if (succeededKeys.length > 0) {
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          succeededKeys.forEach((k) => next.delete(k));
+          return next;
+        });
+      }
+      if (failedCount > 0) {
+        setBulkError(`${failedCount} of ${rows.length} transactions failed to exclude.`);
+      } else {
+        setBulkOpen(false);
+      }
+    } catch {
+      setBulkError("Something went wrong. Please try again.");
+    } finally {
+      setBulkExcluding(false);
+    }
   }
 
   function doUndoMatch(reconId: string, bankTxIndex: number) {
@@ -1852,6 +2060,31 @@ export default function AccountantReconciliationSessionPage() {
             )}
           </div>
         </section>
+
+        {/* ── Bulk action bar ────────────────────────────────────────────── */}
+        {selectedEligibleRows.length > 0 && !isSessionCompleted && (
+          <div className="recon-bulk-bar" role="toolbar" aria-label="Bulk actions">
+            <span className="recon-bulk-bar-count">
+              {selectedEligibleRows.length} transaction{selectedEligibleRows.length > 1 ? "s" : ""} selected
+            </span>
+            <div className="recon-bulk-bar-actions">
+              <button
+                type="button"
+                className="recon-bulk-clear-btn"
+                onClick={() => setSelectedRowKeys(new Set())}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="recon-bulk-categorize-btn"
+                onClick={openBulkCategorize}
+              >
+                Categorize
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Combined transaction table ─────────────────────────────────── */}
         <section className="accountant-reconciliation-table">
@@ -2871,6 +3104,166 @@ export default function AccountantReconciliationSessionPage() {
           href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation/${sessionId}?id=${encodeURIComponent(toastReconId)}`}
           onClose={() => setToastReconId(null)}
         />
+      )}
+
+      {bulkOpen && (
+        <div className="fixed inset-0 z-50 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="text-base font-semibold text-slate-900 m-0">
+                Categorize Transactions
+                <span className="recon-bulk-badge">{selectedEligibleRows.length} selected</span>
+              </h3>
+              <button
+                type="button"
+                aria-label="Close"
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+                disabled={bulkSaving || bulkExcluding}
+                onClick={() => setBulkOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-6 py-5">
+              <div className="recon-bulk-note">
+                You&apos;re categorizing multiple transactions at once. These values will be
+                applied to all selected transactions. Split transaction is not available in
+                bulk mode.
+              </div>
+
+              <div className="recon-categorize-grid">
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Property Name <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={bulkPropertyId}
+                    placeholder="Select property"
+                    options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                    onChange={setBulkPropertyId}
+                  />
+                </div>
+
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Transaction Type <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={bulkType}
+                    options={[
+                      { label: "Expense", value: "expense" },
+                      { label: "Revenue", value: "revenue" },
+                    ]}
+                    onChange={(val) => {
+                      setBulkType(val as "expense" | "revenue");
+                      setBulkCategoryId(null);
+                      setBulkSubcategoryId(null);
+                    }}
+                  />
+                </div>
+
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Category <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={String(bulkCategoryId ?? "")}
+                    placeholder="Select category"
+                    options={bulkCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                    onChange={(val) => {
+                      setBulkCategoryId(val ? Number(val) : null);
+                      setBulkSubcategoryId(null);
+                    }}
+                  />
+                </div>
+
+                <div className="recon-categorize-field">
+                  <label className="recon-categorize-label">
+                    Subcategory <span className="is-required">*</span>
+                  </label>
+                  <StaticSelect
+                    value={String(bulkSubcategoryId ?? "")}
+                    placeholder="Select subcategory"
+                    options={bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                    onChange={(val) => setBulkSubcategoryId(val ? Number(val) : null)}
+                    disabled={!bulkCategoryId || bulkSubcategories.length === 0}
+                  />
+                </div>
+              </div>
+
+              <div className="recon-categorize-gst">
+                <span className="recon-categorize-gst-label">GST Applicable</span>
+                <div className="recon-categorize-gst-options">
+                  <label className="recon-categorize-gst-option">
+                    <input
+                      type="radio"
+                      name="bulk-gst"
+                      checked={bulkGst === true}
+                      onChange={() => setBulkGst(true)}
+                    />
+                    Yes
+                  </label>
+                  <label className="recon-categorize-gst-option">
+                    <input
+                      type="radio"
+                      name="bulk-gst"
+                      checked={bulkGst === false}
+                      onChange={() => setBulkGst(false)}
+                    />
+                    No
+                  </label>
+                </div>
+                {bulkGst && (
+                  <p className="recon-bulk-gst-hint">
+                    GST will be recorded as 1/11th of each transaction&apos;s amount.
+                  </p>
+                )}
+              </div>
+
+              {bulkError && (
+                <div className="recon-match-error" role="alert" style={{ marginTop: 12 }}>
+                  <svg className="recon-match-error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-.75-9.25a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clipRule="evenodd" />
+                  </svg>
+                  <span>{bulkError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
+              <button
+                type="button"
+                className="recon-categorize-exclude-btn"
+                disabled={bulkSaving || bulkExcluding}
+                onClick={() => { void doBulkExclude(); }}
+              >
+                {bulkExcluding ? (
+                  <><span className="recon-btn-spinner" aria-hidden="true" />Excluding…</>
+                ) : "Exclude"}
+              </button>
+              <button
+                type="button"
+                className="recon-categorize-save-btn"
+                disabled={
+                  bulkSaving ||
+                  bulkExcluding ||
+                  !bulkPropertyId ||
+                  !bulkCategoryId ||
+                  !bulkSubcategoryId
+                }
+                onClick={() => { void doBulkCategorize(); }}
+              >
+                {bulkSaving ? (
+                  <>
+                    <span className="recon-btn-spinner" aria-hidden="true" />
+                    {bulkProgress ? `Saving ${bulkProgress.done}/${bulkProgress.total}…` : "Saving…"}
+                  </>
+                ) : "Save & Categorize All"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showCompleteConfirm && (

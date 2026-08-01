@@ -11668,6 +11668,93 @@ p.darkBg {
   cursor: default;
 }
 
+/* Reconciliation bulk categorize */
+.recon-bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 12px;
+}
+
+.recon-bulk-bar-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.recon-bulk-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recon-bulk-clear-btn {
+  height: 38px;
+  padding: 0 18px;
+  background: #ffffff;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475467;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.recon-bulk-clear-btn:hover {
+  background: #f9fafb;
+}
+
+.recon-bulk-categorize-btn {
+  height: 38px;
+  padding: 0 20px;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.recon-bulk-categorize-btn:hover {
+  background: #1d4ed8;
+}
+
+.recon-bulk-badge {
+  margin-left: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  vertical-align: middle;
+}
+
+.recon-bulk-note {
+  background: #fff8ec;
+  border: 1px solid #f4dfae;
+  color: #8a6414;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.recon-bulk-gst-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
 /* Reconciliation split transaction styles */
 .recon-categorize-checkbox-row {
   grid-column: 1 / -1;
