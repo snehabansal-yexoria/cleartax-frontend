@@ -551,6 +551,7 @@ export default function PropertyDetailView({
                     entityDisabled ? "Entity is inactive" : "Property is inactive"
                   }
                   compact
+                  showRulesButton={false}
                 />
               ) : (
                 <>
