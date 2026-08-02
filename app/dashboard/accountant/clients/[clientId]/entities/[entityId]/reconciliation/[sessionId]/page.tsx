@@ -365,7 +365,12 @@ export default function AccountantReconciliationSessionPage() {
   const [properties, setProperties] = useState<CoreProperty[]>([]);
   const [assignedProperties, setAssignedProperties] = useState<Map<MatchKey, string>>(new Map());
   const [reconPage, setReconPage] = useState(1);
-  const RECON_PAGE_SIZE = 20;
+  const [pageSize, setPageSize] = useState<string>("20");
+  const [pageInputValue, setPageInputValue] = useState<string>("20");
+
+  useEffect(() => {
+    setPageInputValue(String(reconPage));
+  }, [reconPage]);
   const [toastReconId, setToastReconId] = useState<string | null>(null);
 
   // Session completion
@@ -422,6 +427,14 @@ export default function AccountantReconciliationSessionPage() {
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   const canSplitTransaction = properties.length > 1;
+
+  const showCategorizeSubcategorySelect =
+    !!categorizeCategoryId &&
+    categorizeSubcategories.some((s) => s.name.toLowerCase() !== "general");
+
+  const showBulkSubcategorySelect =
+    !!bulkCategoryId &&
+    bulkSubcategories.some((s) => s.name.toLowerCase() !== "general");
 
   const activeBankTx = useMemo(() => {
     if (!categorizeKey) return null;
@@ -584,6 +597,13 @@ export default function AccountantReconciliationSessionPage() {
       }),
     [combinedRows, selectedRowKeys, optimisticMatches],
   );
+
+  const selectedType = useMemo(() => {
+    if (selectedEligibleRows.length === 0) return null;
+    const firstRow = selectedEligibleRows[0].row;
+    return firstRow.credit != null ? "revenue" : "expense";
+  }, [selectedEligibleRows]);
+
 
   const aggregatedSummary = useMemo(() => {
     let totalTransactions = 0;
@@ -778,7 +798,16 @@ export default function AccountantReconciliationSessionPage() {
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
         .then((d: { items?: CoreTransactionSubcategory[] }) => {
-          if (!cancelled) setCategorizeSubcategories(d.items ?? []);
+          if (!cancelled) {
+            const loaded = d.items ?? [];
+            setCategorizeSubcategories(loaded);
+            const actual = loaded.filter((s) => s.name.toLowerCase() !== "general");
+            if (actual.length === 0 && loaded.length > 0) {
+              setCategorizeSubcategoryId(loaded[0].id);
+            } else {
+              setCategorizeSubcategoryId(null);
+            }
+          }
         })
         .catch(() => { });
     });
@@ -812,7 +841,16 @@ export default function AccountantReconciliationSessionPage() {
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
         .then((d: { items?: CoreTransactionSubcategory[] }) => {
-          if (!cancelled) setBulkSubcategories(d.items ?? []);
+          if (!cancelled) {
+            const loaded = d.items ?? [];
+            setBulkSubcategories(loaded);
+            const actual = loaded.filter((s) => s.name.toLowerCase() !== "general");
+            if (actual.length === 0 && loaded.length > 0) {
+              setBulkSubcategoryId(loaded[0].id);
+            } else {
+              setBulkSubcategoryId(null);
+            }
+          }
         })
         .catch(() => { });
     });
@@ -1621,8 +1659,32 @@ export default function AccountantReconciliationSessionPage() {
       return 0;
     });
 
-  const reconTotalPages = Math.max(1, Math.ceil(visibleRows.length / RECON_PAGE_SIZE));
-  const pagedReconRows = visibleRows.slice((reconPage - 1) * RECON_PAGE_SIZE, reconPage * RECON_PAGE_SIZE);
+  const totalItems = visibleRows.length;
+  const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
+  const reconTotalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const activePage = Math.min(reconPage, reconTotalPages);
+
+  const pagedReconRows = useMemo(() => {
+    const startIndex = (activePage - 1) * numericPageSize;
+    const endIndex = startIndex + numericPageSize;
+    return visibleRows.slice(startIndex, endIndex);
+  }, [visibleRows, activePage, numericPageSize]);
+
+  const selectableRowsOnPage = useMemo(() => {
+    return pagedReconRows.filter((row) => {
+      const key = mkey(row.reconId, row.bankTxIndex);
+      const candidates = candidateMatches.get(key) ?? [];
+      const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
+      const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+      const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+      if (!isEligible) return false;
+      if (selectedType) {
+        const rowType = row.row.credit != null ? "revenue" : "expense";
+        return rowType === selectedType;
+      }
+      return true;
+    });
+  }, [pagedReconRows, candidateMatches, optimisticMatches, isSessionCompleted, selectedType]);
 
   const unreviewedCount = combinedRows.length - reconciledCount - excludedCount;
 
@@ -2090,23 +2152,54 @@ export default function AccountantReconciliationSessionPage() {
         <section className="accountant-reconciliation-table">
           <div className="accountant-reconciliation-table-head">
             <span className="custom-recon-checkbox-wrapper" style={{ gridColumn: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                className="custom-recon-checkbox"
-                checked={pagedReconRows.length > 0 && pagedReconRows.every(({ reconId, bankTxIndex }) => selectedRowKeys.has(mkey(reconId, bankTxIndex)))}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setSelectedRowKeys((prev) => {
-                    const next = new Set(prev);
-                    pagedReconRows.forEach(({ reconId, bankTxIndex }) => {
-                      const k = mkey(reconId, bankTxIndex);
-                      if (checked) next.add(k);
-                      else next.delete(k);
+              {selectableRowsOnPage.length > 0 ? (
+                <input
+                  type="checkbox"
+                  className="custom-recon-checkbox"
+                  checked={selectableRowsOnPage.every(row => selectedRowKeys.has(mkey(row.reconId, row.bankTxIndex)))}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectedRowKeys((prev) => {
+                      const next = new Set(prev);
+                      if (checked) {
+                        let typeToSelect = selectedType;
+                        if (!typeToSelect) {
+                          const firstEligible = pagedReconRows.find((row) => {
+                            const key = mkey(row.reconId, row.bankTxIndex);
+                            const candidates = candidateMatches.get(key) ?? [];
+                            const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
+                            const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+                            return !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+                          });
+                          if (firstEligible) {
+                            typeToSelect = firstEligible.row.credit != null ? "revenue" : "expense";
+                          }
+                        }
+                        pagedReconRows.forEach((row) => {
+                          const key = mkey(row.reconId, row.bankTxIndex);
+                          const candidates = candidateMatches.get(key) ?? [];
+                          const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
+                          const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+                          const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+                          if (isEligible) {
+                            const rowType = row.row.credit != null ? "revenue" : "expense";
+                            if (rowType === typeToSelect) {
+                              next.add(key);
+                            }
+                          }
+                        });
+                      } else {
+                        selectableRowsOnPage.forEach((row) => {
+                          next.delete(mkey(row.reconId, row.bankTxIndex));
+                        });
+                      }
+                      return next;
                     });
-                    return next;
-                  });
-                }}
-              />
+                  }}
+                />
+              ) : (
+                <div style={{ width: "16px", height: "16px" }} />
+              )}
             </span>
             <span
               className={`sortable-header${sortField === "payee" || sortField === "date" ? " active-sort" : ""}`}
@@ -2481,6 +2574,10 @@ export default function AccountantReconciliationSessionPage() {
               const isExpanded = expandedKey === key;
               const isCatExpanded = categorizeKey === key;
 
+              const isSelectable = !isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted;
+              const rowType = row.credit != null ? "revenue" : "expense";
+              const isRowDisabled = isSelectable && selectedType !== null && rowType !== selectedType;
+
               const matchedTx = isConfirmed && matchEntry?.transactionId
                 ? entityTxs.find((t) => t.id === matchEntry.transactionId) ?? null
                 : null;
@@ -2549,6 +2646,7 @@ export default function AccountantReconciliationSessionPage() {
                 <button
                   type="button"
                   className="recon-categorize-trigger-btn"
+                  disabled={isRowDisabled}
                   onClick={() => {
                     setMatchError(null);
                     setCategorizeError(null);
@@ -2617,23 +2715,32 @@ export default function AccountantReconciliationSessionPage() {
                     isExpanded ? "recon-row-wrapper--expanded" : "",
                     isCatExpanded && !isConfirmed && !isExcluded ? "recon-row-wrapper--categorizing" : "",
                   ].filter(Boolean).join(" ")}
+                  style={{
+                    opacity: isRowDisabled ? 0.45 : undefined,
+                    transition: isRowDisabled ? "opacity 0.2s ease" : undefined,
+                  }}
                 >
                   <div className="accountant-reconciliation-table-row">
                     <div className="accountant-reconciliation-status-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="checkbox"
-                        className="custom-recon-checkbox"
-                        checked={selectedRowKeys.has(key)}
-                        onChange={() => {
-                          setSelectedRowKeys((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
-                            return next;
-                          });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      {isSelectable ? (
+                        <input
+                          type="checkbox"
+                          className="custom-recon-checkbox"
+                          checked={selectedRowKeys.has(key)}
+                          disabled={isRowDisabled}
+                          onChange={() => {
+                            setSelectedRowKeys((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(key)) next.delete(key);
+                              else next.add(key);
+                              return next;
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <div style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                      )}
                       <span className={isConfirmed || isExcluded ? "" : "is-alert"} style={{ flexShrink: 0 }}>
                         {isConfirmed ? "✓" : "!"}
                       </span>
@@ -2815,18 +2922,20 @@ export default function AccountantReconciliationSessionPage() {
                               }}
                             />
                           </div>
-                          <div className="recon-categorize-field">
-                            <label className="recon-categorize-label">
-                              Subcategory <span className="is-required">*</span>
-                            </label>
-                            <StaticSelect
-                              value={String(categorizeSubcategoryId ?? "")}
-                              placeholder="Select subcategory"
-                              options={categorizeSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
-                              onChange={(val) => setCategorizeSubcategoryId(val ? Number(val) : null)}
-                              disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
-                            />
-                          </div>
+                          {showCategorizeSubcategorySelect && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Subcategory <span className="is-required">*</span>
+                              </label>
+                              <StaticSelect
+                                value={String(categorizeSubcategoryId ?? "")}
+                                placeholder="Select subcategory"
+                                options={categorizeSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                                onChange={(val) => setCategorizeSubcategoryId(val ? Number(val) : null)}
+                                disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
+                              />
+                            </div>
+                          )}
                         </div>
 
                         {/* Split option and section placed before GST */}
@@ -3013,56 +3122,147 @@ export default function AccountantReconciliationSessionPage() {
 
         {/* ── Footer ───────────────────────────────────────────────────── */}
         <footer className="accountant-reconciliation-footer">
-          <div className="recon-pagination-wrap">
-            <span className="recon-pagination-copy">
-              Showing{" "}
-              <strong>
-                {visibleRows.length === 0 ? 0 : (reconPage - 1) * RECON_PAGE_SIZE + 1}–{Math.min(reconPage * RECON_PAGE_SIZE, visibleRows.length)}
-              </strong>{" "}
-              of <strong>{visibleRows.length}</strong> transactions
-              {reconciledCount > 0 && (
-                <> · <strong>{reconciledCount}</strong> reconciled</>
-              )}
-            </span>
-            {reconTotalPages > 1 && (
-              <div className="recon-pagination">
-                <button
-                  type="button"
-                  disabled={reconPage === 1}
-                  onClick={() => setReconPage((p) => p - 1)}
+          <div className="premium-pagination-container" style={{ borderTop: 'none', padding: 0, background: 'transparent', flex: 1 }}>
+            {/* Left Section: Items per page and page range details */}
+            <div className="premium-pagination-left">
+              <span className="premium-pagination-label">Items per page</span>
+              <div className="premium-pagination-select-wrapper">
+                <select
+                  className="premium-pagination-select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(e.target.value);
+                    setReconPage(1);
+                  }}
                 >
-                  ← Prev
-                </button>
-                {Array.from({ length: reconTotalPages }, (_, idx) => idx + 1)
-                  .filter((p) => p === 1 || p === reconTotalPages || Math.abs(p - reconPage) <= 1)
-                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((v, idx) =>
-                    v === "…" ? (
-                      <span key={`e-${idx}`} className="recon-pagination-ellipsis">…</span>
-                    ) : (
-                      <button
-                        key={v}
-                        type="button"
-                        className={v === reconPage ? "is-active" : undefined}
-                        onClick={() => setReconPage(v as number)}
-                      >
-                        {v}
-                      </button>
-                    )
-                  )}
-                <button
-                  type="button"
-                  disabled={reconPage === reconTotalPages}
-                  onClick={() => setReconPage((p) => p + 1)}
-                >
-                  Next →
-                </button>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="all">All</option>
+                </select>
               </div>
-            )}
+              <span className="premium-pagination-info">
+                {totalItems === 0
+                  ? "0–0 of 0 items"
+                  : `${(activePage - 1) * numericPageSize + 1}–${Math.min(activePage * numericPageSize, totalItems)} of ${totalItems} items`}
+                {reconciledCount > 0 && (
+                  <> · {reconciledCount} reconciled</>
+                )}
+              </span>
+            </div>
+
+            {/* Right Section: First, Previous, Page Input, Next, Last */}
+            <div className="premium-pagination-right">
+              {/* First Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn premium-pagination-icon-btn"
+                title="First Page"
+                onClick={() => setReconPage(1)}
+                disabled={activePage === 1}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <line x1="5" y1="5" x2="5" y2="19" />
+                  <polyline points="19 5 12 12 19 19" />
+                </svg>
+              </button>
+
+              {/* Previous Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn"
+                onClick={() => setReconPage((prev) => Math.max(prev - 1, 1))}
+                disabled={activePage === 1}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                <span className="premium-pagination-btn-text">Previous</span>
+              </button>
+
+              {/* Page Selector Input Box */}
+              <div className="premium-pagination-page-input-wrapper">
+                <input
+                  type="number"
+                  className="premium-pagination-page-input"
+                  value={pageInputValue}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === "") {
+                      setPageInputValue("");
+                      return;
+                    }
+                    if (/^[1-9]\d*$/.test(value)) {
+                      const pageNum = Number(value);
+                      if (pageNum <= reconTotalPages) {
+                        setPageInputValue(value);
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    const pageNum = Number(pageInputValue);
+                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= reconTotalPages) {
+                      setReconPage(pageNum);
+                    } else {
+                      setPageInputValue(String(activePage));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "-", "+", "."].includes(e.key)) {
+                      e.preventDefault();
+                      return;
+                    }
+                    if (e.key === "Enter") {
+                      const pageNum = Number(pageInputValue);
+                      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= reconTotalPages) {
+                        setReconPage(pageNum);
+                        e.currentTarget.blur();
+                      } else {
+                        setPageInputValue(String(activePage));
+                        e.currentTarget.blur();
+                      }
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const pastedData = e.clipboardData.getData("text");
+                    if (!/^[1-9]\d*$/.test(pastedData) || Number(pastedData) > reconTotalPages) {
+                      e.preventDefault();
+                    }
+                  }}
+                  min={1}
+                  max={reconTotalPages}
+                />
+                <span className="premium-pagination-label">of {reconTotalPages}</span>
+              </div>
+
+              {/* Next Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn"
+                onClick={() => setReconPage((prev) => Math.min(prev + 1, reconTotalPages))}
+                disabled={activePage === reconTotalPages}
+              >
+                <span className="premium-pagination-btn-text">Next</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {/* Last Page */}
+              <button
+                type="button"
+                className="premium-pagination-btn premium-pagination-icon-btn"
+                title="Last Page"
+                onClick={() => setReconPage(reconTotalPages)}
+                disabled={activePage === reconTotalPages}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                  <line x1="19" y1="5" x2="19" y2="19" />
+                  <polyline points="5 5 12 12 5 19" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="accountant-reconciliation-footer-actions">
             {completeError && (
@@ -3185,18 +3385,20 @@ export default function AccountantReconciliationSessionPage() {
                   />
                 </div>
 
-                <div className="recon-categorize-field">
-                  <label className="recon-categorize-label">
-                    Subcategory <span className="is-required">*</span>
-                  </label>
-                  <StaticSelect
-                    value={String(bulkSubcategoryId ?? "")}
-                    placeholder="Select subcategory"
-                    options={bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
-                    onChange={(val) => setBulkSubcategoryId(val ? Number(val) : null)}
-                    disabled={!bulkCategoryId || bulkSubcategories.length === 0}
-                  />
-                </div>
+                {showBulkSubcategorySelect && (
+                  <div className="recon-categorize-field">
+                    <label className="recon-categorize-label">
+                      Subcategory <span className="is-required">*</span>
+                    </label>
+                    <StaticSelect
+                      value={String(bulkSubcategoryId ?? "")}
+                      placeholder="Select subcategory"
+                      options={bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                      onChange={(val) => setBulkSubcategoryId(val ? Number(val) : null)}
+                      disabled={!bulkCategoryId || bulkSubcategories.length === 0}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="recon-categorize-gst">

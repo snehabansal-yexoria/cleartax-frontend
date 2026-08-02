@@ -17367,3 +17367,31 @@ input:checked+.slider:before {
 .accountant-reconciliation-table-head span.custom-recon-checkbox-wrapper {
   grid-column: 1 !important;
 }
+
+/* Prevent heritage conflicts from legacy footer button styles on premium pagination buttons */
+.accountant-reconciliation-footer .premium-pagination-btn {
+  min-height: unset !important;
+  padding: 0 12px !important;
+}
+
+.accountant-reconciliation-footer .premium-pagination-icon-btn {
+  padding: 0 8px !important;
+}
+
+.accountant-reconciliation-footer .premium-pagination-btn:last-child {
+  border-color: #d0d5dd !important;
+  background: #ffffff !important;
+  color: #344054 !important;
+}
+
+.accountant-reconciliation-footer .premium-pagination-btn:last-child:hover:not(:disabled) {
+  background-color: #f9fafb !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+.accountant-reconciliation-footer .premium-pagination-btn:last-child:disabled {
+  color: #d0d5dd !important;
+  border-color: #f2f4f7 !important;
+  background-color: #ffffff !important;
+}
