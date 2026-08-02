@@ -332,9 +332,8 @@ export default function ReportsDashboard() {
                 <button
                     type="button"
                     onClick={handleApplyCustomRange}
-                    className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${
-                        selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
-                    }`}
+                    className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
+                        }`}
                 >
                     {selectedPeriod === "custom" && !hasPendingChanges ? "Applied" : "Apply"}
                 </button>
@@ -666,10 +665,18 @@ export default function ReportsDashboard() {
                 </div>
 
                 {filteredTimeline.length > 0 ? (
-                    <div className="relative border-l border-slate-100 ml-4 space-y-6">
-                        {filteredTimeline.map((event, idx) => (
-                            <TimelineEventItem key={`${event.id}-${idx}`} event={event} />
-                        ))}
+                    <div className="relative">
+                        <div className="overflow-y-auto max-h-[400px] pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent hover:scrollbar-thumb-slate-300 transition-colors">
+                            <div className="relative border-l border-slate-100 ml-4 space-y-6 pt-2 pb-6">
+                                {filteredTimeline.map((event, idx) => (
+                                    <TimelineEventItem key={`${event.id}-${idx}`} event={event} />
+                                ))}
+                            </div>
+                        </div>
+                        {/* Elegant bottom fade overlay to indicate scrollable content */}
+                        {filteredTimeline.length > 5 && (
+                            <div className="absolute bottom-0 left-0 right-3 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
+                        )}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-xs font-semibold text-slate-400">
