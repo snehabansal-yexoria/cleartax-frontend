@@ -5392,12 +5392,13 @@ const RULE_FIELD_LABELS: Record<string, string> = {
   amount: "Amount",
   payee: "Payee",
 };
-const RULE_OPERATORS = ["contains", "equals", "starts_with", "greater_than"];
+const RULE_OPERATORS = ["contains", "equals", "starts_with", "greater_than", "less_than"];
 const RULE_OPERATOR_LABELS: Record<string, string> = {
   contains: "Contains",
   equals: "Equals",
   starts_with: "Starts with",
   greater_than: "Is greater than",
+  less_than: "Is less than",
 };
 
 function makeConditionId() {
