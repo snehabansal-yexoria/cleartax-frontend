@@ -27,6 +27,42 @@ function monthLabel(key: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(date);
 }
 
+function getFinancialYear(dateInput: string | Date): string {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0-indexed: 6 is July
+  if (month >= 6) {
+    return `${year}-${year + 1}`;
+  } else {
+    return `${year - 1}-${year}`;
+  }
+}
+
+function getFinancialYearMonths(fy: string): string[] {
+  const parts = fy.split("-");
+  if (parts.length !== 2) return [];
+  const startYear = parseInt(parts[0], 10);
+  const endYear = parseInt(parts[1], 10);
+  if (Number.isNaN(startYear) || Number.isNaN(endYear)) return [];
+
+  return [
+    `${startYear}-07`,
+    `${startYear}-08`,
+    `${startYear}-09`,
+    `${startYear}-10`,
+    `${startYear}-11`,
+    `${startYear}-12`,
+    `${endYear}-01`,
+    `${endYear}-02`,
+    `${endYear}-03`,
+    `${endYear}-04`,
+    `${endYear}-05`,
+    `${endYear}-06`,
+  ];
+}
+
+
 export default function ProfitLossTrendCard({
   transactions = [],
   isLoading = false,
@@ -40,41 +76,38 @@ export default function ProfitLossTrendCard({
     const years = new Set<string>();
     for (const row of transactions) {
       const dateVal = "invoiceDate" in row ? row.invoiceDate : "";
-      const key = monthKey(dateVal);
-      if (!key) continue;
-      const year = key.split("-")[0];
-      if (year) {
-        years.add(year);
+      const fy = getFinancialYear(dateVal);
+      if (fy) {
+        years.add(fy);
       }
     }
-    const currentYear = new Date().getFullYear().toString();
-    years.add(currentYear); // Ensure the current year is always an option
+    const currentFY = getFinancialYear(new Date());
+    years.add(currentFY); // Ensure the current financial year is always an option
     return Array.from(years).sort((a, b) => b.localeCompare(a));
   }, [transactions]);
 
   // Determine the default year: current year if it has data, or the latest year with data.
   const defaultYear = useMemo(() => {
-    const currentYear = new Date().getFullYear().toString();
+    const currentFY = getFinancialYear(new Date());
     const yearsWithData = new Set<string>();
     for (const row of transactions) {
       const dateVal = "invoiceDate" in row ? row.invoiceDate : "";
-      const key = monthKey(dateVal);
-      if (!key) continue;
-      const year = key.split("-")[0];
-      if (year) {
-        yearsWithData.add(year);
+      const fy = getFinancialYear(dateVal);
+      if (fy) {
+        yearsWithData.add(fy);
       }
     }
     
-    if (yearsWithData.has(currentYear)) {
-      return currentYear;
+    if (yearsWithData.has(currentFY)) {
+      return currentFY;
     }
     if (yearsWithData.size > 0) {
       const sorted = Array.from(yearsWithData).sort((a, b) => b.localeCompare(a));
       return sorted[0];
     }
-    return currentYear;
+    return currentFY;
   }, [transactions]);
+
 
   const [selectedYear, setSelectedYear] = useState<string>("");
 
@@ -121,13 +154,46 @@ export default function ProfitLossTrendCard({
   }, [isDropdownOpen]);
 
   const trendRows = useMemo(() => {
+    // If selectedYear is in YYYY-YYYY format, pre-populate all 12 months (July to June)
+    const isFYFormat = selectedYear && selectedYear.includes("-");
+    
+    // First check if there is at least one transaction in the selected financial year.
+    // If not, we return an empty array to show the empty state message.
+    let hasTransactions = false;
+    if (selectedYear) {
+      for (const row of transactions) {
+        const dateVal = "invoiceDate" in row ? row.invoiceDate : "";
+        const fy = getFinancialYear(dateVal);
+        if (fy === selectedYear) {
+          hasTransactions = true;
+          break;
+        }
+      }
+      if (!hasTransactions) {
+        return [];
+      }
+    }
+
     const byMonth = new Map<string, { month: string; expenses: number; income: number }>();
+    
+    if (isFYFormat) {
+      const months = getFinancialYearMonths(selectedYear);
+      for (const m of months) {
+        byMonth.set(m, {
+          month: m,
+          expenses: 0,
+          income: 0,
+        });
+      }
+    }
+
     for (const row of transactions) {
       const dateVal = "invoiceDate" in row ? row.invoiceDate : "";
       const key = monthKey(dateVal);
       if (!key) continue;
-      const year = key.split("-")[0];
-      if (selectedYear && year !== selectedYear) continue;
+      
+      const fy = getFinancialYear(dateVal);
+      if (selectedYear && fy !== selectedYear) continue;
 
       const current = byMonth.get(key) || {
         month: key,
@@ -148,10 +214,17 @@ export default function ProfitLossTrendCard({
       else current.expenses += amount;
       byMonth.set(key, current);
     }
+
+    if (isFYFormat) {
+      const orderedMonths = getFinancialYearMonths(selectedYear);
+      return orderedMonths.map(m => byMonth.get(m) || { month: m, expenses: 0, income: 0 });
+    }
+
     return Array.from(byMonth.values())
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);
   }, [transactions, selectedYear]);
+
 
   const maxTrendAmount = Math.max(
     1,
@@ -311,7 +384,7 @@ export default function ProfitLossTrendCard({
               <span>{formatCurrency(maxTrendAmount * 0.25)}</span>
               <span>{formatCurrency(0)}</span>
             </div>
-            <div className="entity-chart-plot">
+            <div className="entity-chart-plot" style={{ gridTemplateColumns: `repeat(${trendRows.length}, minmax(0, 1fr))` }}>
               {trendRows.map((item) => (
                 <div key={item.month} className="entity-chart-month">
                   <div className="entity-chart-bars">
@@ -381,6 +454,8 @@ export default function ProfitLossTrendCard({
                   </tr>
                 );
               })}
+            </tbody>
+            <tfoot>
               <tr className="total-row">
                 <td>Total</td>
                 <td>{formatCurrency(trendTotals.income)}</td>
@@ -389,7 +464,7 @@ export default function ProfitLossTrendCard({
                   {trendNetTotal >= 0 ? "+" : "-"}{formatCurrency(Math.abs(trendNetTotal))}
                 </td>
               </tr>
-            </tbody>
+            </tfoot>
           </table>
         </div>
       )}
