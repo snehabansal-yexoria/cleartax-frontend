@@ -53,6 +53,7 @@ interface Entity {
   name: string;
   createdAt: string;
   reconciled: boolean;
+  enabled: boolean;
   propertiesCount: number;
   transactionsCount: number;
   beneficiaries: Beneficiary[];
@@ -186,6 +187,7 @@ function getInitialDB(): MockDB {
         name: "Johnson Family Trust",
         createdAt: getPastDateString(6, 1),
         reconciled: false,
+        enabled: true,
         propertiesCount: 3,
         transactionsCount: 0,
         beneficiaries: [
@@ -200,6 +202,7 @@ function getInitialDB(): MockDB {
         name: "SJ Holdings Pty Ltd",
         createdAt: getPastDateString(5, 1),
         reconciled: false,
+        enabled: true,
         propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: [
@@ -213,6 +216,7 @@ function getInitialDB(): MockDB {
         name: "Sarah Johnson",
         createdAt: getPastDateString(4, 1),
         reconciled: false,
+        enabled: true,
         propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: [
@@ -669,6 +673,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
         name: body.name || "Unnamed Entity",
         createdAt: new Date().toISOString(),
         reconciled: false,
+        enabled: true,
         propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: body.beneficiaries || [
@@ -689,7 +694,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(entityMatch[1]);
     const entity = db.entities.find((e) => e.id === id);
     if (!entity) return jsonResponse({ error: "Entity not found" }, 404);
-    
+
     // Enrich specific entity
     const entityProperties = db.properties.filter((p) => p.entityId === entity.id);
     const enriched = {
@@ -708,7 +713,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(entityMatch[1]);
     const idx = db.entities.findIndex((e) => e.id === id);
     if (idx === -1) return jsonResponse({ error: "Entity not found" }, 404);
-    
+
     try {
       const body = JSON.parse(init?.body as string);
       db.entities[idx] = {
@@ -727,7 +732,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(entityMatch[1]);
     const idx = db.entities.findIndex((e) => e.id === id);
     if (idx === -1) return jsonResponse({ error: "Entity not found" }, 404);
-    
+
     db.entities.splice(idx, 1);
     // Cascade delete properties and transactions under this entity
     db.properties = db.properties.filter((p) => p.entityId !== id);
@@ -760,11 +765,11 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       };
 
       db.properties.push(newProperty);
-      
+
       // Increment propertiesCount
       entity.propertiesCount = (entity.propertiesCount || 0) + 1;
       writeDB(db);
-      
+
       return jsonResponse(newProperty, 201);
     } catch {
       return jsonResponse({ error: "Invalid request body" }, 400);
@@ -811,7 +816,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(propertyMatch[1]);
     const prop = db.properties.find((p) => p.id === id);
     if (!prop) return jsonResponse({ error: "Property not found" }, 404);
-    
+
     // Add entity details
     const ent = db.entities.find((e) => e.id === prop.entityId);
     const enriched = {
@@ -913,16 +918,16 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       const entityId = entityTransactionsPostMatch
         ? decodeURIComponent(entityTransactionsPostMatch[1])
         : body.entityId || "demo-entity-1";
-        
+
       const ent = db.entities.find((e) => e.id === entityId);
-      
+
       const newTx: Transaction = (() => {
         const type = body.type || "expense";
-        
+
         const categoryId = Number(body.category_id || body.categoryId || (type === "revenue" ? 1 : 11));
         const categoryObj = [...categories.revenue, ...categories.expense].find((c) => c.id === categoryId);
         const categoryName = categoryObj ? categoryObj.name : (type === "revenue" ? "Rental Income" : "Loan interest");
-        
+
         const subcategoryId = Number(body.subcategory_id || body.subcategoryId || (categoryId === 1 ? 101 : 1101));
         const subcategoryObj = subcategories[categoryId]?.find((s) => s.id === subcategoryId);
         const subcategoryName = subcategoryObj ? subcategoryObj.name : "General";
@@ -948,7 +953,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
         } else if (body.propertyId) {
           propertyIds = [body.propertyId];
         }
-        
+
         const propertyNames = propertyIds.map((pId) => {
           const prop = db.properties.find((p) => p.id === pId);
           return prop ? prop.name : "Property";
@@ -1007,14 +1012,14 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
 
     try {
       const body = JSON.parse(init?.body as string);
-      
+
       // If categories or subcategories are changed, sync their names
       let categoryName = db.transactions[idx].categoryName;
       if (body.categoryId && body.categoryId !== db.transactions[idx].categoryId) {
         const found = [...categories.revenue, ...categories.expense].find((c) => c.id === body.categoryId);
         if (found) categoryName = found.name;
       }
-      
+
       let subcategoryName = db.transactions[idx].subcategoryName;
       if (body.subcategoryId && body.subcategoryId !== db.transactions[idx].subcategoryId) {
         const subCats = Object.values(subcategories).flat();
@@ -1130,7 +1135,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const propertyId = parsedUrl.searchParams.get("property_id") || "";
 
     const docId = `doc-${Date.now()}`;
-    
+
     // Add to mock database
     if (!db.documents) db.documents = [];
     db.documents.unshift({
@@ -1179,7 +1184,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
   if (path === "/api/documents/list" && method === "GET") {
     const entityId = parsedUrl.searchParams.get("entity_id") || "";
     const propertyId = parsedUrl.searchParams.get("property_id") || "";
-    
+
     let filtered = db.documents || [];
     if (entityId) {
       filtered = filtered.filter((d: any) => d.entityId === entityId);
@@ -1225,10 +1230,10 @@ export function useMockClientApi() {
     }
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" 
-        ? input 
-        : input instanceof URL 
-          ? input.toString() 
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
           : input.url;
 
       // Intercept relative and absolute paths starting with /api/
@@ -1237,7 +1242,7 @@ export function useMockClientApi() {
         // Find relative start index of /api/
         const idx = url.indexOf("/api/");
         const relativeUrl = url.slice(idx);
-        
+
         try {
           console.log(`[Mock Client API Interceptor] Intercepted: ${init?.method || "GET"} ${relativeUrl}`);
           return await handleMockRequest(relativeUrl, init);

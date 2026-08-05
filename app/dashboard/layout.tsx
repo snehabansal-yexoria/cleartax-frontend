@@ -976,18 +976,20 @@ export default function DashboardLayout({
 
           <header className="accountant-topbar">
             {/* Hamburger button on tablet/mobile where sidebar is hidden */}
-            <button
-              type="button"
-              className="lg:hidden mr-3 border border-[#eaeef4] bg-white rounded-lg p-2.5 flex items-center justify-center text-[#7b88ad] hover:bg-[#f7f8fe] focus:outline-none cursor-pointer"
-              onClick={() => setIsMobileNavOpen((current) => !current)}
-              aria-label="Toggle navigation menu"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
+            {role !== "accountant" && (
+              <button
+                type="button"
+                className="lg:hidden mr-3 border border-[#eaeef4] bg-white rounded-lg p-2.5 flex items-center justify-center text-[#7b88ad] hover:bg-[#f7f8fe] focus:outline-none cursor-pointer"
+                onClick={() => setIsMobileNavOpen((current) => !current)}
+                aria-label="Toggle navigation menu"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            )}
 
             <div className="accountant-search-container" ref={searchRef}>
               <form className="accountant-search" onSubmit={handleGlobalSearch}>
@@ -1145,7 +1147,7 @@ export default function DashboardLayout({
         </div>
         <ReconciliationJobMonitor />
 
-        {!isClientPage && (
+        {!isClientPage && role !== "accountant" && (
           <button
             type="button"
             className={`accountant-mobile-menu-button${isMobileNavOpen ? " is-open" : ""}`}

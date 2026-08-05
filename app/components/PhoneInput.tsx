@@ -13,36 +13,36 @@ export interface CountryCodeRule {
 export const COUNTRY_CODES: CountryCodeRule[] = [
   { code: "61", name: "Australia", flag: "🇦🇺", minLen: 9, maxLen: 9 },
   { code: "91", name: "India", flag: "🇮🇳", minLen: 10, maxLen: 10 },
-  { code: "1", name: "US/Canada", flag: "🇺🇸", minLen: 10, maxLen: 10 },
-  { code: "44", name: "UK", flag: "🇬🇧", minLen: 10, maxLen: 10 },
-  { code: "64", name: "New Zealand", flag: "🇳🇿", minLen: 8, maxLen: 10 },
-  { code: "65", name: "Singapore", flag: "🇸🇬", minLen: 8, maxLen: 8 },
-  { code: "971", name: "UAE", flag: "🇦🇪", minLen: 9, maxLen: 9 },
-  { code: "33", name: "France", flag: "🇫🇷", minLen: 9, maxLen: 9 },
-  { code: "49", name: "Germany", flag: "🇩🇪", minLen: 10, maxLen: 11 },
-  { code: "81", name: "Japan", flag: "🇯🇵", minLen: 10, maxLen: 10 },
+  // { code: "1", name: "US/Canada", flag: "🇺🇸", minLen: 10, maxLen: 10 },
+  // { code: "44", name: "UK", flag: "🇬🇧", minLen: 10, maxLen: 10 },
+  // { code: "64", name: "New Zealand", flag: "🇳🇿", minLen: 8, maxLen: 10 },
+  // { code: "65", name: "Singapore", flag: "🇸🇬", minLen: 8, maxLen: 8 },
+  // { code: "971", name: "UAE", flag: "🇦🇪", minLen: 9, maxLen: 9 },
+  // { code: "33", name: "France", flag: "🇫🇷", minLen: 9, maxLen: 9 },
+  // { code: "49", name: "Germany", flag: "🇩🇪", minLen: 10, maxLen: 11 },
+  // { code: "81", name: "Japan", flag: "🇯🇵", minLen: 10, maxLen: 10 },
 ];
 
 export function validatePhone(value: string): { isValid: boolean; error?: string } {
   const clean = value.replace(/[\s\-()]/g, "");
-  
+
   if (!clean) {
     return { isValid: true };
   }
-  
+
   if (!clean.startsWith("+")) {
     return { isValid: false, error: "Phone number must start with '+' followed by country code." };
   }
-  
+
   const digitsOnly = clean.substring(1);
   if (!/^\d+$/.test(digitsOnly)) {
     return { isValid: false, error: "Phone number must contain only numbers after '+'." };
   }
-  
+
   const matchedRule = [...COUNTRY_CODES]
     .sort((a, b) => b.code.length - a.code.length)
     .find((rule) => digitsOnly.startsWith(rule.code));
-    
+
   if (matchedRule) {
     const localDigits = digitsOnly.substring(matchedRule.code.length);
     const cleanLocalDigits = localDigits.replace(/^0/, "");
@@ -61,15 +61,13 @@ export function validatePhone(value: string): { isValid: boolean; error?: string
       }
     }
   } else {
-    const len = digitsOnly.length;
-    if (len < 7 || len > 15) {
-      return {
-        isValid: false,
-        error: "Invalid phone number length. It should be between 7 and 15 digits (including country code).",
-      };
-    }
+    const allowedList = COUNTRY_CODES.map((c) => `${c.name} (+${c.code})`).join(" and ");
+    return {
+      isValid: false,
+      error: `Only ${allowedList} numbers are allowed.`,
+    };
   }
-  
+
   return { isValid: true };
 }
 
@@ -81,6 +79,7 @@ export interface PhoneInputProps {
   disabled?: boolean;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  variant?: "default" | "borderless";
 }
 
 export function PhoneInput({
@@ -91,6 +90,7 @@ export function PhoneInput({
   disabled = false,
   inputRef,
   onKeyDown,
+  variant = "default",
 }: PhoneInputProps) {
   // Parse country code and local digits from value
   const parsed = useMemo(() => {
@@ -99,18 +99,18 @@ export function PhoneInput({
       // Default country selection to Australia (61)
       return { selectedCode: "61", localPart: clean };
     }
-    
+
     const digitsOnly = clean.substring(1).replace(/[\s\-()]/g, "");
-    
+
     const matched = [...COUNTRY_CODES]
       .sort((a, b) => b.code.length - a.code.length)
       .find((c) => digitsOnly.startsWith(c.code));
-      
+
     if (matched) {
       const local = clean.substring(1 + matched.code.length).trim();
       return { selectedCode: matched.code, localPart: local };
     }
-    
+
     // Fallback for custom code
     const firstTwo = digitsOnly.substring(0, 2);
     return { selectedCode: firstTwo, localPart: clean.substring(1 + firstTwo.length).trim() };
@@ -134,7 +134,7 @@ export function PhoneInput({
     <div
       style={{
         display: "flex",
-        alignItems: "stretch",
+        alignItems: "center",
         width: "100%",
         gap: "6px",
       }}
@@ -152,12 +152,12 @@ export function PhoneInput({
           disabled={disabled}
           style={{
             height: "100%",
-            padding: "10px 30px 10px 14px",
+            padding: variant === "borderless" ? "0 22px 0 0" : "10px 30px 10px 14px",
             fontSize: "14px",
-            color: "#344054",
-            background: "#ffffff",
-            border: `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
-            borderRadius: "10px",
+            color: variant === "borderless" ? "inherit" : "#344054",
+            background: variant === "borderless" ? "transparent" : "#ffffff",
+            border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
+            borderRadius: variant === "borderless" ? "0" : "10px",
             outline: "none",
             cursor: "pointer",
             appearance: "none",
@@ -184,7 +184,7 @@ export function PhoneInput({
           strokeWidth="2"
           style={{
             position: "absolute",
-            right: "12px",
+            right: variant === "borderless" ? "2px" : "12px",
             width: "14px",
             height: "14px",
             color: "#667085",
@@ -205,11 +205,12 @@ export function PhoneInput({
         onKeyDown={onKeyDown}
         style={{
           flex: 1,
-          padding: "10px 14px",
-          border: `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
-          borderRadius: "10px",
+          padding: variant === "borderless" ? "0" : "10px 14px",
+          border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
+          borderRadius: variant === "borderless" ? "0" : "10px",
+          background: "transparent",
           fontSize: "14px",
-          color: "#101828",
+          color: variant === "borderless" ? "inherit" : "#101828",
           outline: "none",
           transition: "border-color 0.2s",
         }}

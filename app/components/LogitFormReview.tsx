@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
@@ -49,6 +49,34 @@ type LogitFormReviewProps = {
   propertyId: string;
   backHref: string;
 };
+
+function getOwnerNameError(name: string): string | null {
+  if (!name || name.trim() === "") {
+    return "Owner name is required.";
+  }
+  if (name.startsWith(" ") || name.endsWith(" ")) {
+    return "Owner name cannot have leading or trailing spaces.";
+  }
+  if (/\s{2,}/.test(name)) {
+    return "Owner name cannot contain multiple consecutive spaces.";
+  }
+  if (/\d/.test(name)) {
+    return "Owner name cannot contain numbers.";
+  }
+  if (/[^a-zA-Z\s'-]/.test(name)) {
+    return "Owner name cannot contain special characters.";
+  }
+  if (name.length === 1) {
+    return "Owner name must be at least 2 characters.";
+  }
+  if (name.length > 100) {
+    return "Owner name cannot exceed 100 characters.";
+  }
+  if (!/[a-zA-Z]/.test(name)) {
+    return "Owner name cannot contain only symbols.";
+  }
+  return null;
+}
 
 function getCategoryRowId(name: string): string {
   const legacyMap: Record<string, string> = {
@@ -214,6 +242,15 @@ export default function LogitFormReview({
     Record<string, { id: number; name: string }[]>
   >({});
   const [subSums, setSubSums] = useState<Record<string, number>>({});
+
+  const nameValidationTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const timeouts = nameValidationTimeouts.current;
+    return () => {
+      Object.values(timeouts).forEach(clearTimeout);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -767,8 +804,22 @@ export default function LogitFormReview({
       newFieldErrors.postcode = "Postcode is required.";
     }
 
-    if (owners.some((owner) => !owner.name.trim() || !owner.percentage.trim())) {
-      newFieldErrors.owners = "Each owner needs a name and ownership percentage.";
+    let ownersHasError = false;
+    owners.forEach((owner) => {
+      const nameError = getOwnerNameError(owner.name);
+      if (nameError) {
+        newFieldErrors[`owner_name_${owner.id}`] = nameError;
+        ownersHasError = true;
+      }
+
+      if (!owner.percentage.trim()) {
+        newFieldErrors[`owner_percentage_${owner.id}`] = "Ownership percentage is required.";
+        ownersHasError = true;
+      }
+    });
+
+    if (ownersHasError) {
+      newFieldErrors.owners = "Please correct the owner information.";
     } else if (ownershipTotal <= 0 || ownershipTotal > 100) {
       newFieldErrors.owners = "Ownership percentage must be greater than 0 and no more than 100.";
     }
@@ -790,7 +841,7 @@ export default function LogitFormReview({
     if (Object.keys(newFieldErrors).length > 0) {
       setFieldErrors(newFieldErrors);
       setFormError("Complete the required fields before lodging.");
-      
+
       const firstErrorKey = Object.keys(newFieldErrors)[0];
       const element = document.getElementById(firstErrorKey);
       if (element) {
@@ -1277,35 +1328,73 @@ export default function LogitFormReview({
           </header>
           <div className="logit-owner-list">
             {owners.map((owner) => (
-              <div key={owner.id} className="logit-owner-row">
+              <div key={owner.id} className="logit-owner-row" style={{ alignItems: "flex-start" }}>
                 <label className="entity-wizard-label">
                   <span>
                     Owner name <em>*</em>
                   </span>
                   <input
+                    id={`owner_name_${owner.id}`}
                     placeholder="Enter owner name"
-                    className={fieldErrors.owners ? "has-error" : ""}
+                    className={(fieldErrors.owners || fieldErrors[`owner_name_${owner.id}`]) ? "has-error" : ""}
                     value={owner.name}
-                    onChange={(event) =>
-                      updateOwner(owner.id, "name", event.target.value)
-                    }
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      updateOwner(owner.id, "name", val);
+
+                      if (nameValidationTimeouts.current[owner.id]) {
+                        clearTimeout(nameValidationTimeouts.current[owner.id]);
+                      }
+
+                      setFieldErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated[`owner_name_${owner.id}`];
+                        delete updated.owners;
+                        return updated;
+                      });
+
+                      nameValidationTimeouts.current[owner.id] = setTimeout(() => {
+                        const errorMsg = getOwnerNameError(val);
+                        if (errorMsg) {
+                          setFieldErrors((prev) => ({
+                            ...prev,
+                            [`owner_name_${owner.id}`]: errorMsg,
+                          }));
+                        }
+                      }, 500);
+                    }}
                   />
+                  {fieldErrors[`owner_name_${owner.id}`] && (
+                    <span className="logit-field-error">{fieldErrors[`owner_name_${owner.id}`]}</span>
+                  )}
                 </label>
                 <label className="entity-wizard-label">
                   <span>
                     Ownership percentage <em>*</em>
                   </span>
                   <input
+                    id={`owner_percentage_${owner.id}`}
                     type="number"
                     min="0"
                     max="100"
                     placeholder="%"
-                    className={fieldErrors.owners ? "has-error" : ""}
+                    className={(fieldErrors.owners || fieldErrors[`owner_percentage_${owner.id}`]) ? "has-error" : ""}
                     value={owner.percentage}
-                    onChange={(event) =>
-                      updateOwner(owner.id, "percentage", event.target.value)
-                    }
+                    onChange={(event) => {
+                      updateOwner(owner.id, "percentage", event.target.value);
+                      if (fieldErrors[`owner_percentage_${owner.id}`] || fieldErrors.owners) {
+                        setFieldErrors((prev) => {
+                          const updated = { ...prev };
+                          delete updated[`owner_percentage_${owner.id}`];
+                          delete updated.owners;
+                          return updated;
+                        });
+                      }
+                    }}
                   />
+                  {fieldErrors[`owner_percentage_${owner.id}`] && (
+                    <span className="logit-field-error">{fieldErrors[`owner_percentage_${owner.id}`]}</span>
+                  )}
                 </label>
               </div>
             ))}

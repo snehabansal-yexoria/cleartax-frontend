@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useReportPeriod, sanitizeDateString } from "./useReportPeriod";
 import {
     fetchAssignedClients,
     fetchReportClients,
@@ -80,19 +81,65 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
 
 export default function ReportsDashboard() {
     const router = useRouter();
-    const [selectedPeriod, setSelectedPeriod] = useState<string>("Today");
-    const [fromDate, setFromDate] = useState<string>(() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 7);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    });
-    const [toDate, setToDate] = useState<string>(() => {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    });
+    const {
+        selectedPeriod,
+        setSelectedPeriod,
+        fromDate,
+        toDate,
+        setCustomRange,
+        isLoaded,
+    } = useReportPeriod();
 
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    // Staging states for the input boxes (so change is only applied on clicking Apply)
+    const [tempFromDate, setTempFromDate] = useState<string>("");
+    const [tempToDate, setTempToDate] = useState<string>("");
+
+    useEffect(() => {
+        if (isLoaded) {
+            setTempFromDate(fromDate);
+            setTempToDate(toDate);
+        }
+    }, [fromDate, toDate, isLoaded]);
+
+    const handlePresetClick = (period: string) => {
+        setSelectedPeriod(period);
+    };
+
+    const handleFromDateChange = (rawVal: string) => {
+        const val = sanitizeDateString(rawVal);
+        setTempFromDate(val);
+        if (val && tempToDate && val > tempToDate) {
+            setTempToDate(val);
+        }
+    };
+
+    const handleToDateChange = (rawVal: string) => {
+        const val = sanitizeDateString(rawVal);
+        setTempToDate(val);
+        if (val && tempFromDate && val < tempFromDate) {
+            setTempFromDate(val);
+        }
+    };
+
+    const handleFromDateBlur = () => {
+        if (!tempFromDate) {
+            setTempFromDate(fromDate);
+        }
+    };
+
+    const handleToDateBlur = () => {
+        if (!tempToDate) {
+            setTempToDate(toDate);
+        }
+    };
+
+    const handleApplyCustomRange = () => {
+        if (tempFromDate && tempToDate) {
+            setCustomRange(tempFromDate, tempToDate);
+        }
+    };
+
+    const hasPendingChanges = tempFromDate !== fromDate || tempToDate !== toDate || selectedPeriod !== "custom";
 
     const [filteredTransactions, setFilteredTransactions] = useState<ReportTransaction[]>([]);
     const [filteredProperties, setFilteredProperties] = useState<ReportProperty[]>([]);
@@ -104,6 +151,7 @@ export default function ReportsDashboard() {
     const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
 
     useEffect(() => {
+        if (!isLoaded) return;
         let active = true;
         const opts = { from: fromDate, to: toDate };
         fetchReportTransactions(selectedPeriod, opts).then((d) => active && setFilteredTransactions(d)).catch(() => active && setFilteredTransactions([]));
@@ -127,7 +175,7 @@ export default function ReportsDashboard() {
         return () => {
             active = false;
         };
-    }, [selectedPeriod, fromDate, toDate]);
+    }, [selectedPeriod, fromDate, toDate, isLoaded]);
 
     // Sum of all filtered actions
     const totalActions =
@@ -229,7 +277,7 @@ export default function ReportsDashboard() {
                             <button
                                 key={period}
                                 type="button"
-                                onClick={() => setSelectedPeriod(period)}
+                                onClick={() => handlePresetClick(period)}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${selectedPeriod === period
                                     ? "bg-[#28336e] text-white shadow-md shadow-indigo-900/10"
                                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -266,100 +314,28 @@ export default function ReportsDashboard() {
                 </div>
                 <input
                     type="date"
-                    max={todayStr}
-                    value={fromDate}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) {
-                            setFromDate("");
-                            return;
-                        }
-                        const parts = val.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setFromDate(todayStr);
-                            } else {
-                                setFromDate(newVal);
-                            }
-                        } else {
-                            setFromDate(val);
-                        }
-                    }}
-                    onBlur={() => {
-                        if (!fromDate) return;
-                        const parts = fromDate.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setFromDate(todayStr);
-                            } else {
-                                setFromDate(newVal);
-                            }
-                        }
-                    }}
-                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600"
+                    max={tempToDate || undefined}
+                    value={tempFromDate}
+                    onChange={(e) => handleFromDateChange(e.target.value)}
+                    onBlur={handleFromDateBlur}
+                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
                 />
                 <span className="text-xs text-slate-400">To</span>
                 <input
                     type="date"
-                    max={todayStr}
-                    value={toDate}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) {
-                            setToDate("");
-                            return;
-                        }
-                        const parts = val.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setToDate(todayStr);
-                            } else {
-                                setToDate(newVal);
-                            }
-                        } else {
-                            setToDate(val);
-                        }
-                    }}
-                    onBlur={() => {
-                        if (!toDate) return;
-                        const parts = toDate.split("-");
-                        if (parts.length === 3) {
-                            let [year, month, day] = parts;
-                            if (year.length > 4) {
-                                year = year.substring(0, 4);
-                            }
-                            const newVal = `${year}-${month}-${day}`;
-                            if (newVal > todayStr) {
-                                setToDate(todayStr);
-                            } else {
-                                setToDate(newVal);
-                            }
-                        }
-                    }}
-                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600"
+                    min={tempFromDate || undefined}
+                    value={tempToDate}
+                    onChange={(e) => handleToDateChange(e.target.value)}
+                    onBlur={handleToDateBlur}
+                    className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer hover:border-slate-300 transition-all duration-150"
                 />
                 <button
                     type="button"
-                    onClick={() => setSelectedPeriod("custom")}
+                    onClick={handleApplyCustomRange}
                     className={`bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-md shadow-indigo-600/10 ml-auto ${selectedPeriod === "custom" ? "ring-2 ring-indigo-600 ring-offset-2" : ""
                         }`}
                 >
-                    Apply
+                    {selectedPeriod === "custom" && !hasPendingChanges ? "Applied" : "Apply"}
                 </button>
             </div>
 
@@ -689,10 +665,18 @@ export default function ReportsDashboard() {
                 </div>
 
                 {filteredTimeline.length > 0 ? (
-                    <div className="relative border-l border-slate-100 ml-4 space-y-6">
-                        {filteredTimeline.map((event, idx) => (
-                            <TimelineEventItem key={`${event.id}-${idx}`} event={event} />
-                        ))}
+                    <div className="relative">
+                        <div className="overflow-y-auto max-h-[400px] pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent hover:scrollbar-thumb-slate-300 transition-colors">
+                            <div className="relative border-l border-slate-100 ml-4 space-y-6 pt-2 pb-6">
+                                {filteredTimeline.map((event, idx) => (
+                                    <TimelineEventItem key={`${event.id}-${idx}`} event={event} />
+                                ))}
+                            </div>
+                        </div>
+                        {/* Elegant bottom fade overlay to indicate scrollable content */}
+                        {filteredTimeline.length > 5 && (
+                            <div className="absolute bottom-0 left-0 right-3 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
+                        )}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-xs font-semibold text-slate-400">
