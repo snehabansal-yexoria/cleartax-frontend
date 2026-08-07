@@ -517,9 +517,9 @@ export default function ClientPropertyPage() {
           border-bottom: none !important;
         }
         html.dark .m-db-entity-pill.is-active {
-          background: var(--brand) !important;
-          border-color: var(--brand) !important;
-          color: var(--text-primary) !important;
+          background: var(--surface-2) !important;
+          border-color: #ffb11f !important;
+          color: #ffb11f !important;
         }
         html.dark .m-db-entity-pill.is-inactive {
           background: var(--surface-1) !important;

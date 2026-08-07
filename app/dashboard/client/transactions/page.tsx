@@ -691,6 +691,7 @@ export default function ClientTransactionsPage() {
             <button
               type="button"
               onClick={() => setActiveTab('reviewed')}
+              className={`m-db-subtab-btn ${activeTab === 'reviewed' ? 'is-active' : ''}`}
               style={{
                 background: activeTab === 'reviewed' ? 'var(--surface-1)' : 'transparent',
                 color: activeTab === 'reviewed' ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -709,6 +710,7 @@ export default function ClientTransactionsPage() {
             <button
               type="button"
               onClick={() => setActiveTab('pending')}
+              className={`m-db-subtab-btn ${activeTab === 'pending' ? 'is-active' : ''}`}
               style={{
                 background: activeTab === 'pending' ? 'var(--surface-1)' : 'transparent',
                 color: activeTab === 'pending' ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -752,6 +754,7 @@ export default function ClientTransactionsPage() {
                       key={pill.id}
                       type="button"
                       onClick={() => handleQuickFilterChange(pill.id as any)}
+                      className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
                       style={{
                         padding: '8px 18px',
                         borderRadius: '20px',
@@ -976,27 +979,31 @@ export default function ClientTransactionsPage() {
                   <div style={{ marginBottom: '16px' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Type</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {['all', 'income', 'expense'].map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setTempType(t as any)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempType === t ? 'var(--brand)' : 'var(--border)'}`,
-                            background: tempType === t ? 'var(--brand)' : 'var(--surface-2)',
-                            color: tempType === t ? '#ffffff' : 'var(--text-primary)',
-                            textTransform: 'capitalize',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {t}
-                        </button>
-                      ))}
+                      {['all', 'income', 'expense'].map((t) => {
+                        const isActive = tempType === t;
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setTempType(t as any)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              textTransform: 'capitalize',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1012,26 +1019,30 @@ export default function ClientTransactionsPage() {
                         { label: 'Past week', value: 'week' },
                         { label: 'Last 30 days', value: '30days' },
                         { label: 'This quarter', value: 'quarter' }
-                      ].map((d) => (
-                        <button
-                          key={d.value}
-                          type="button"
-                          onClick={() => setTempDateRange(d.value as any)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempDateRange === d.value ? 'var(--brand)' : 'var(--border)'}`,
-                            background: tempDateRange === d.value ? 'var(--brand)' : 'var(--surface-2)',
-                            color: tempDateRange === d.value ? '#ffffff' : 'var(--text-primary)',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
+                      ].map((d) => {
+                        const isActive = tempDateRange === d.value;
+                        return (
+                          <button
+                            key={d.value}
+                            type="button"
+                            onClick={() => setTempDateRange(d.value as any)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1044,6 +1055,7 @@ export default function ClientTransactionsPage() {
                       <button
                         type="button"
                         onClick={() => setTempEntity('all')}
+                        className={`m-db-filter-pill ${tempEntity === 'all' ? 'is-active' : ''}`}
                         style={{
                           padding: '8px 16px',
                           borderRadius: '20px',
@@ -1058,26 +1070,30 @@ export default function ClientTransactionsPage() {
                       >
                         All
                       </button>
-                      {uniqueEntitiesList.map((ent) => (
-                        <button
-                          key={ent}
-                          type="button"
-                          onClick={() => setTempEntity(ent)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempEntity === ent ? 'var(--brand)' : 'var(--border)'}`,
-                            background: tempEntity === ent ? 'var(--brand)' : 'var(--surface-2)',
-                            color: tempEntity === ent ? '#ffffff' : 'var(--text-primary)',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {ent}
-                        </button>
-                      ))}
+                      {uniqueEntitiesList.map((ent) => {
+                        const isActive = tempEntity === ent;
+                        return (
+                          <button
+                            key={ent}
+                            type="button"
+                            onClick={() => setTempEntity(ent)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {ent}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1090,6 +1106,7 @@ export default function ClientTransactionsPage() {
                       <button
                         type="button"
                         onClick={() => setTempProperty('all')}
+                        className={`m-db-filter-pill ${tempProperty === 'all' ? 'is-active' : ''}`}
                         style={{
                           padding: '8px 16px',
                           borderRadius: '20px',
@@ -1104,26 +1121,30 @@ export default function ClientTransactionsPage() {
                       >
                         All
                       </button>
-                      {uniquePropertiesList.map((prop) => (
-                        <button
-                          key={prop}
-                          type="button"
-                          onClick={() => setTempProperty(prop)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempProperty === prop ? 'var(--brand)' : 'var(--border)'}`,
-                            background: tempProperty === prop ? 'var(--brand)' : 'var(--surface-2)',
-                            color: tempProperty === prop ? '#ffffff' : 'var(--text-primary)',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {prop}
-                        </button>
-                      ))}
+                      {uniquePropertiesList.map((prop) => {
+                        const isActive = tempProperty === prop;
+                        return (
+                          <button
+                            key={prop}
+                            type="button"
+                            onClick={() => setTempProperty(prop)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {prop}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

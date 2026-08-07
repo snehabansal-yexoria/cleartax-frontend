@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import ClientInsightsSkeleton from "@/app/components/clients/ClientInsightsSkeleton";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency as globalFormatCurrency, getCurrencyPrefix, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
@@ -625,7 +625,7 @@ export default function ClientInsightsPage() {
       <Skeleton
         name="client-insights-mobile"
         loading={isLoading}
-        fallback={<ClientEntitiesSkeleton />}
+        fallback={<ClientInsightsSkeleton />}
       >
         <div
           className="mobile-client-dashboard"
@@ -1193,7 +1193,7 @@ export default function ClientInsightsPage() {
     <Skeleton
       name="client-insights-desktop"
       loading={isLoading}
-      fallback={<ClientEntitiesSkeleton />}
+      fallback={<ClientInsightsSkeleton />}
     >
       <div className="desktop-client-dashboard">
         {/* Scoped CSS Styles */}
@@ -1232,6 +1232,11 @@ export default function ClientInsightsPage() {
             background: #1b265c;
             color: #ffffff;
             border: 1px solid #1b265c;
+          }
+          html.dark .insights-pill.active {
+            background: var(--surface-2) !important;
+            border-color: #ffb11f !important;
+            color: #ffb11f !important;
           }
           .insights-pill.inactive {
             background: var(--surface-1);

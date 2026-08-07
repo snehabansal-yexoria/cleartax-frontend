@@ -366,7 +366,7 @@ export function DocumentDropZone({
       >
         {showProgress ? (
           <>
-            <span className="transaction-document-drop__progress" />
+            <div className="transaction-document-drop__progress" />
             <div className="transaction-document-drop__gif-container">
               <img
                 src="/document-loading.gif"
@@ -395,7 +395,11 @@ export function DocumentDropZone({
           </span>
         ) : (
           (!hideIconOnIdle || activeStatus !== "idle") && (
-            <span>{activeStatus === "idle" && customIcon ? customIcon : iconForStatus(activeStatus)}</span>
+            activeStatus === "idle" && customIcon ? (
+              customIcon
+            ) : (
+              <span>{iconForStatus(activeStatus)}</span>
+            )
           )
         )}
         <strong style={strongStyle}>
