@@ -401,6 +401,10 @@ export default function ClientAddTransactionView({
   const [propertiesLoaded, setPropertiesLoaded] = useState(false);
   const [defaultPropertyId, setDefaultPropertyId] = useState("");
   const [propertyId, setPropertyId] = useState<string>("");
+  const propertyIdRef = useRef(propertyId);
+  useEffect(() => {
+    propertyIdRef.current = propertyId;
+  }, [propertyId]);
   const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
 
   const [invoiceDate, setInvoiceDate] = useState("");
@@ -532,11 +536,21 @@ export default function ClientAddTransactionView({
         const loadedProperties = data.items || [];
         setProperties(loadedProperties);
         setPropertiesLoaded(true);
+        const currentPropertyValid =
+          !!propertyIdRef.current &&
+          loadedProperties.some((property) => property.id === propertyIdRef.current);
         const hasDefaultProperty =
           !!defaultPropertyId &&
           loadedProperties.some((property) => property.id === defaultPropertyId);
-        setPropertyId(hasDefaultProperty ? defaultPropertyId : "");
-        setIsEditingProperty(!hasDefaultProperty);
+        if (currentPropertyValid) {
+          setIsEditingProperty(false);
+        } else if (hasDefaultProperty) {
+          setPropertyId(defaultPropertyId);
+          setIsEditingProperty(false);
+        } else {
+          setPropertyId("");
+          setIsEditingProperty(true);
+        }
         setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
         if (loadedProperties.length < 2) {
           setIsSplit(false);

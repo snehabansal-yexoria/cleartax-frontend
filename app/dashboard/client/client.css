@@ -3383,3 +3383,18 @@ html.dark .client-tx-field-group.is-prefilled .client-tx-textarea {
     padding: 0 !important;
   }
 }
+
+/* Topbar Notification bell dark mode overrides */
+html.dark .accountant-icon-button,
+.dark .accountant-icon-button {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  border-radius: 50% !important;
+}
+
+html.dark .accountant-icon-button:hover,
+.dark .accountant-icon-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}

@@ -24,6 +24,7 @@ export default function ClientTransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense' | 'month'>('all');
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'reviewed' | 'pending'>('reviewed');
 
   // Filter bottom sheet state variables
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
@@ -654,49 +655,6 @@ export default function ClientTransactionsPage() {
             </div>
           </div>
 
-          {/* Filter Pills */}
-          <div 
-            className="no-scrollbar"
-            style={{ 
-              display: 'flex', 
-              gap: '8px', 
-              overflowX: 'auto', 
-              padding: '4px 16px 16px 16px', 
-              WebkitOverflowScrolling: 'touch' 
-            }}
-          >
-            {[
-              { id: 'all', label: 'All' },
-              { id: 'income', label: 'Income' },
-              { id: 'expense', label: 'Expense' },
-              { id: 'month', label: 'This Month' }
-            ].map((pill) => {
-              const isActive = activeFilter === pill.id;
-              return (
-                <button
-                  key={pill.id}
-                  type="button"
-                  onClick={() => handleQuickFilterChange(pill.id as any)}
-                  style={{
-                    padding: '8px 18px',
-                    borderRadius: '20px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: isActive ? '1px solid var(--brand)' : '1px solid var(--border)',
-                    background: isActive ? 'var(--brand)' : 'var(--surface-1)',
-                    color: isActive ? '#ffffff' : 'var(--brand)',
-                    whiteSpace: 'nowrap',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  {pill.label}
-                </button>
-              );
-            })}
-          </div>
-
           {/* MTD Card */}
           <div style={{ padding: '0 16px 16px 16px' }}>
             <div style={{ 
@@ -723,92 +681,238 @@ export default function ClientTransactionsPage() {
             </div>
           </div>
 
-          {/* Grouped Transactions List */}
-          {Object.keys(groupedTransactions).length === 0 ? (
-            <div style={{ margin: '0 16px', textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
-              No transactions found matching search or filter criteria.
-            </div>
-          ) : (
-            Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-              <div key={dateLabel} style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-secondary)', margin: '0 16px 8px 16px' }}>
-                  {dateLabel}
-                </h4>
+          {/* Tabs Control */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '4px 16px 8px 16px',
+            alignItems: 'center'
+          }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reviewed')}
+              style={{
+                background: activeTab === 'reviewed' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'reviewed' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'reviewed' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              Reviewed
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pending')}
+              style={{
+                background: activeTab === 'pending' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'pending' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'pending' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              To Be Reviewed (1)
+            </button>
+          </div>
 
-                <div style={{
-                  margin: '0 16px',
-                  background: 'var(--surface-1)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
-                }}>
-                  {items.map((tx, idx) => (
-                    <div 
-                      key={tx.id} 
-                      onClick={() => setSelectedTransaction(tx)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between', 
-                        padding: '16px',
-                        borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
-                        cursor: 'pointer'
+          {activeTab === 'reviewed' ? (
+            <>
+
+              {/* Filter Pills */}
+              <div 
+                className="no-scrollbar"
+                style={{ 
+                  display: 'flex', 
+                  gap: '8px', 
+                  overflowX: 'auto', 
+                  padding: '4px 16px 16px 16px', 
+                  WebkitOverflowScrolling: 'touch' 
+                }}
+              >
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'income', label: 'Income' },
+                  { id: 'expense', label: 'Expense' },
+                  { id: 'month', label: 'This Month' }
+                ].map((pill) => {
+                  const isActive = activeFilter === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      type="button"
+                      onClick={() => handleQuickFilterChange(pill.id as any)}
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: '20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        border: isActive ? '1px solid var(--brand)' : '1px solid var(--border)',
+                        background: isActive ? 'var(--brand)' : 'var(--surface-1)',
+                        color: isActive ? '#ffffff' : 'var(--brand)',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                      {pill.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Grouped Transactions List */}
+              {Object.keys(groupedTransactions).length === 0 ? (
+                <div style={{ margin: '0 16px', textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                  No transactions found matching search or filter criteria.
+                </div>
+              ) : (
+                Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+                  <div key={dateLabel} style={{ marginBottom: '20px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-secondary)', margin: '0 16px 8px 16px' }}>
+                      {dateLabel}
+                    </h4>
+
+                    <div style={{
+                      margin: '0 16px',
+                      background: 'var(--surface-1)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
+                    }}>
+                      {items.map((tx, idx) => (
                         <div 
-                          className={`m-db-activity-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
+                          key={tx.id} 
+                          onClick={() => setSelectedTransaction(tx)}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between', 
+                            padding: '16px',
+                            borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
+                            cursor: 'pointer'
                           }}
                         >
-                          {tx.type === 'revenue' ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="7" y1="17" x2="17" y2="7" />
-                              <polyline points="7 7 17 7 17 17" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="17" y1="7" x2="7" y2="17" />
-                              <polyline points="17 17 7 17 7 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                          <strong style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {tx.description}
-                          </strong>
-                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
-                            {tx.categoryName} {tx.meta ? `- ${tx.meta}` : ''}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                            <div 
+                              className={`m-db-activity-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}
+                            >
+                              {tx.type === 'revenue' ? (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="7" y1="17" x2="17" y2="7" />
+                                  <polyline points="7 7 17 7 17 17" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="17" y1="7" x2="7" y2="17" />
+                                  <polyline points="17 17 7 17 7 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                              <strong style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {tx.description}
+                              </strong>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                                {tx.categoryName} {tx.meta ? `- ${tx.meta}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <span 
+                            style={{ 
+                              fontSize: '15px', 
+                              fontWeight: '700', 
+                              textAlign: 'right', 
+                              flexShrink: 0, 
+                              marginLeft: '12px',
+                              color: tx.type === 'revenue' ? 'var(--success)' : 'var(--danger)'
+                            }}
+                          >
+                            {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
                           </span>
                         </div>
-                      </div>
-                      <span 
-                        style={{ 
-                          fontSize: '15px', 
-                          fontWeight: '700', 
-                          textAlign: 'right', 
-                          flexShrink: 0, 
-                          marginLeft: '12px',
-                          color: tx.type === 'revenue' ? 'var(--success)' : 'var(--danger)'
-                        }}
-                      >
-                        {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
-                      </span>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+            /* To Be Reviewed Dummy Data View */
+            <div style={{ padding: '0 16px 16px 16px' }}>
+              <div style={{
+                background: 'var(--surface-1)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                padding: '16px 20px',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: '#FDF2E9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                    <strong style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      SJ Holdings Pty Ltd
+                    </strong>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                      8 Harbour Road · Submitted Today, 9:41 AM
+                    </span>
+                  </div>
                 </div>
+                <span style={{
+                  padding: '6px 12px',
+                  borderRadius: '100px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  background: '#FDF2E9',
+                  color: '#D97706',
+                  whiteSpace: 'nowrap',
+                  marginLeft: '12px'
+                }}>
+                  Pending review
+                </span>
               </div>
-            ))
+            </div>
           )}
 
           {/* Filters Bottom Sheet Drawer */}
@@ -1438,38 +1542,6 @@ export default function ClientTransactionsPage() {
             </button>
           </div>
 
-          {/* Filter Pills */}
-          <div className="d-tx-pills-row">
-            <button
-              type="button"
-              onClick={() => handleQuickFilterChange('all')}
-              className={`d-tx-pill ${activeFilter === 'all' ? 'active' : 'inactive'}`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFilterChange('income')}
-              className={`d-tx-pill ${activeFilter === 'income' ? 'active' : 'inactive'}`}
-            >
-              Income
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFilterChange('expense')}
-              className={`d-tx-pill ${activeFilter === 'expense' ? 'active' : 'inactive'}`}
-            >
-              Expense
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFilterChange('month')}
-              className={`d-tx-pill ${activeFilter === 'month' ? 'active' : 'inactive'}`}
-            >
-              This Month
-            </button>
-          </div>
-
           {/* MTD Cards Grid */}
           <div className="d-tx-mtd-grid">
             <div className="d-tx-mtd-card">
@@ -1486,50 +1558,183 @@ export default function ClientTransactionsPage() {
             </div>
           </div>
 
-          {/* Grouped Transactions List */}
-          {Object.keys(groupedTransactions).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px', fontSize: '15px' }}>
-              No transactions found matching search or filter criteria.
-            </div>
-          ) : (
-            Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-              <div key={dateLabel} style={{ marginBottom: '24px' }}>
-                <h4 className="d-tx-group-title">
-                  {dateLabel}
-                </h4>
+          {/* Tabs Control */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '24px',
+            alignItems: 'center'
+          }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reviewed')}
+              style={{
+                background: activeTab === 'reviewed' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'reviewed' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'reviewed' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              Reviewed
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pending')}
+              style={{
+                background: activeTab === 'pending' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'pending' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'pending' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              To Be Reviewed (1)
+            </button>
+          </div>
 
-                <div className="d-tx-list-card">
-                  {items.map((tx, idx) => (
-                    <div key={tx.id} className="d-tx-row" onClick={() => setSelectedTransaction(tx)} style={{ cursor: 'pointer' }}>
-                      <div className="d-tx-left">
-                        <div className={`d-tx-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {tx.type === 'revenue' ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="7" y1="17" x2="17" y2="7" />
-                              <polyline points="7 7 17 7 17 17" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="17" y1="7" x2="7" y2="17" />
-                              <polyline points="17 17 7 17 7 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="d-tx-info">
-                          <strong className="d-tx-desc">{tx.description}</strong>
-                          <span className="d-tx-meta">
-                            {tx.categoryName} {tx.meta ? `— ${tx.meta}` : ''}
+          {activeTab === 'reviewed' ? (
+            <>
+
+              {/* Filter Pills */}
+              <div className="d-tx-pills-row">
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('all')}
+                  className={`d-tx-pill ${activeFilter === 'all' ? 'active' : 'inactive'}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('income')}
+                  className={`d-tx-pill ${activeFilter === 'income' ? 'active' : 'inactive'}`}
+                >
+                  Income
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('expense')}
+                  className={`d-tx-pill ${activeFilter === 'expense' ? 'active' : 'inactive'}`}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('month')}
+                  className={`d-tx-pill ${activeFilter === 'month' ? 'active' : 'inactive'}`}
+                >
+                  This Month
+                </button>
+              </div>
+
+              {/* Grouped Transactions List */}
+              {Object.keys(groupedTransactions).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px', fontSize: '15px' }}>
+                  No transactions found matching search or filter criteria.
+                </div>
+              ) : (
+                Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+                  <div key={dateLabel} style={{ marginBottom: '24px' }}>
+                    <h4 className="d-tx-group-title">
+                      {dateLabel}
+                    </h4>
+
+                    <div className="d-tx-list-card">
+                      {items.map((tx, idx) => (
+                        <div key={tx.id} className="d-tx-row" onClick={() => setSelectedTransaction(tx)} style={{ cursor: 'pointer' }}>
+                          <div className="d-tx-left">
+                            <div className={`d-tx-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
+                              {tx.type === 'revenue' ? (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="7" y1="17" x2="17" y2="7" />
+                                  <polyline points="7 7 17 7 17 17" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="17" y1="7" x2="7" y2="17" />
+                                  <polyline points="17 17 7 17 7 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="d-tx-info">
+                              <strong className="d-tx-desc">{tx.description}</strong>
+                              <span className="d-tx-meta">
+                                {tx.categoryName} {tx.meta ? `— ${tx.meta}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`d-tx-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
+                            {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
                           </span>
                         </div>
-                      </div>
-                      <span className={`d-tx-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
-                      </span>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+            /* To Be Reviewed Dummy Data View */
+            <div style={{
+              background: 'var(--surface-1)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: '#FDF2E9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '22px', height: '22px' }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                  <strong style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    SJ Holdings Pty Ltd
+                  </strong>
+                  <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                    8 Harbour Road · Submitted Today, 9:41 AM
+                  </span>
                 </div>
               </div>
-            ))
+              <span style={{
+                padding: '6px 14px',
+                borderRadius: '100px',
+                fontSize: '13px',
+                fontWeight: '600',
+                background: '#FDF2E9',
+                color: '#D97706',
+                whiteSpace: 'nowrap',
+                marginLeft: '16px'
+              }}>
+                Pending review
+              </span>
+            </div>
           )}
         </div>
 

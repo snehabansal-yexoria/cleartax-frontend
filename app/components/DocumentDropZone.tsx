@@ -65,6 +65,7 @@ export function DocumentDropZone({
   strongStyle,
   smallStyle,
   hideIconOnIdle = false,
+  customIcon,
 }: {
   token: string | null;
   onExtracted: (
@@ -82,6 +83,7 @@ export function DocumentDropZone({
   strongStyle?: React.CSSProperties;
   smallStyle?: React.CSSProperties;
   hideIconOnIdle?: boolean;
+  customIcon?: React.ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -393,7 +395,7 @@ export function DocumentDropZone({
           </span>
         ) : (
           (!hideIconOnIdle || activeStatus !== "idle") && (
-            <span>{iconForStatus(activeStatus)}</span>
+            <span>{activeStatus === "idle" && customIcon ? customIcon : iconForStatus(activeStatus)}</span>
           )
         )}
         <strong style={strongStyle}>

@@ -38,13 +38,6 @@ type EntityOption = { id: string; name: string; createdFor?: string };
 type PropertyOption = { id: string; name: string };
 type BulkImportRow = Record<string, string>;
 
-interface PropertyWithEntity {
-  id: string;
-  name: string;
-  entityId: string;
-  entityName: string;
-}
-
 const MODE_OF_TRANSACTION_OPTIONS = [
   { label: "Select mode of transaction", value: "" },
   { label: "Cash", value: "cash" },
@@ -267,7 +260,7 @@ function StaticSelect({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: isDark ? 'var(--surface-2)' : '#ffffff',
+            background: isDark ? 'var(--surface-2)' : '#f8f9fb',
             border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
             borderRadius: '12px',
             padding: '12px 16px',
@@ -350,707 +343,6 @@ function StaticSelect({
           </div>
         )}
       </div>
-      {error && (
-        <p
-          className="client-tx-field-error"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            marginTop: "4.5px",
-            color: '#da3838',
-            fontSize: '11.5px',
-            fontWeight: '600',
-          }}
-        >
-          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-          </svg>
-          <span>{error}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-function PropertyIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg
-      className={className}
-      style={{ width: '16px', height: '16px', flexShrink: 0, opacity: 0.8, ...style }}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
-type PropertySelectProps = {
-  label?: string;
-  value: string;
-  options: SelectOption[];
-  onChange: (value: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  className?: string;
-  triggerClassName?: string;
-  disabled?: boolean;
-  error?: string;
-};
-
-function PropertySelect({
-  label,
-  value,
-  options,
-  onChange,
-  placeholder = "Select Property",
-  required,
-  className = "",
-  triggerClassName = "",
-  disabled = false,
-  error,
-}: PropertySelectProps) {
-  const reactId = useId();
-  const dropdownId = `client-tx-property-select-${reactId}`;
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const [isMobileScreen, setIsMobileScreen] = useState(false);
-
-  const selectRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const optionsListRef = useRef<HTMLDivElement>(null);
-
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-    setIsMobileScreen(window.innerWidth < 768);
-    function handleResize() {
-      setIsMobileScreen(window.innerWidth < 768);
-    }
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const isDark = mounted && theme === "dark";
-
-  const filteredOptions = useMemo(() => {
-    if (!searchQuery.trim()) return options;
-    return options.filter((option) =>
-      option.value !== "" && option.label.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [options, searchQuery]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
-      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    if (!isMobileScreen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isOpen, isMobileScreen]);
-
-  useEffect(() => {
-    function closeIfAnotherOpened(event: Event) {
-      if (
-        isDropdownRegistryEvent(event) &&
-        event.detail?.id &&
-        event.detail.id !== dropdownId
-      ) {
-        setIsOpen(false);
-      }
-    }
-    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
-    return () =>
-      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
-  }, [dropdownId]);
-
-  useEffect(() => {
-    if (isOpen) {
-      announceDropdownOpen(dropdownId);
-      setSearchQuery("");
-      setHighlightedIndex(0);
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 80);
-    }
-  }, [dropdownId, isOpen]);
-
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [filteredOptions]);
-
-  useEffect(() => {
-    if (!isOpen || !optionsListRef.current || isMobileScreen) return;
-    const activeEl = optionsListRef.current.children[highlightedIndex] as HTMLElement;
-    if (activeEl) {
-      const container = optionsListRef.current;
-      const scrollBottom = container.clientHeight + container.scrollTop;
-      const elementBottom = activeEl.offsetTop + activeEl.clientHeight;
-      if (elementBottom > scrollBottom) {
-        container.scrollTop = elementBottom - container.clientHeight;
-      } else if (activeEl.offsetTop < container.scrollTop) {
-        container.scrollTop = activeEl.offsetTop;
-      }
-    }
-  }, [highlightedIndex, isOpen, isMobileScreen]);
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (disabled) return;
-    if (!isOpen) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        setIsOpen(true);
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        if (!isMobileScreen) {
-          setHighlightedIndex((prev) => (filteredOptions.length > 0 ? (prev + 1) % filteredOptions.length : 0));
-        }
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        if (!isMobileScreen) {
-          setHighlightedIndex((prev) => (filteredOptions.length > 0 ? (prev - 1 + filteredOptions.length) % filteredOptions.length : 0));
-        }
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (!isMobileScreen && filteredOptions[highlightedIndex]) {
-          onChange(filteredOptions[highlightedIndex].value);
-          setIsOpen(false);
-        }
-        break;
-      case "Escape":
-        e.preventDefault();
-        setIsOpen(false);
-        break;
-      case "Tab":
-        setIsOpen(false);
-        break;
-    }
-  }
-
-  const selected = options.find((option) => option.value === value);
-  const totalPropertiesCount = options.filter(o => o.value !== "").length;
-
-  return (
-    <div
-      ref={selectRef}
-      className={`client-tx-field-wrapper ${className}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minWidth: '200px',
-        position: 'relative',
-      }}
-      onKeyDown={handleKeyDown}
-    >
-      <style>{`
-        @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-      `}</style>
-      {label && (
-        <span
-          className="client-tx-field-label"
-          style={{
-            fontSize: '13px',
-            fontWeight: '500',
-            color: isDark ? 'var(--text-secondary)' : '#344054',
-            marginBottom: '6px',
-            display: 'inline-block',
-          }}
-        >
-          {label}
-          {required && (
-            <em
-              className="client-tx-required"
-              style={{
-                color: '#da3838',
-                fontStyle: 'normal',
-                marginLeft: '3px',
-              }}
-            >
-              *
-            </em>
-          )}
-        </span>
-      )}
-      <div
-        className={`client-tx-select${isOpen ? " is-open" : ""}${disabled ? " is-disabled" : ""}`}
-        style={{ position: 'relative', width: '100%' }}
-      >
-        <button
-          type="button"
-          className={triggerClassName || "client-tx-select-trigger"}
-          aria-haspopup="listbox"
-          aria-expanded={isOpen}
-          disabled={disabled}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: isDark ? 'var(--surface-2)' : '#ffffff',
-            border: `1px solid ${isOpen ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--border)' : '#d0d5dd')}`,
-            borderRadius: '12px',
-            padding: '12px 16px',
-            fontSize: '14.5px',
-            fontWeight: '500',
-            color: isDark ? 'var(--text-primary)' : '#1d2939',
-            width: '100%',
-            boxSizing: 'border-box',
-            cursor: disabled ? 'not-allowed' : 'pointer',
-            outline: 'none',
-            textAlign: 'left',
-            height: '50px',
-            transition: 'all 0.2s ease',
-            boxShadow: isOpen ? `0 0 0 3px ${isDark ? 'rgba(244, 161, 23, 0.15)' : 'rgba(28, 36, 82, 0.08)'}` : 'none',
-          }}
-          onClick={() => {
-            if (!disabled) {
-              setIsOpen((current) => !current);
-            }
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-            <PropertyIcon style={{ color: selected?.value ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--text-muted)' : '#667085') }} />
-            <span style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: selected?.value ? (isDark ? 'var(--text-primary)' : '#1d2939') : (isDark ? 'var(--text-muted)' : '#667085')
-            }}>
-              {selected?.value ? selected.label : placeholder}
-            </span>
-          </div>
-          <ChevronIcon />
-        </button>
-
-        {isOpen && !disabled && !isMobileScreen && (
-          <div
-            className="client-tx-select-menu"
-            role="listbox"
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              right: 0,
-              background: isDark ? 'var(--surface-1)' : '#ffffff',
-              border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-              borderRadius: '12px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
-              zIndex: 999,
-              display: 'flex',
-              flexDirection: 'column',
-              padding: '6px',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 12px',
-              borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-              marginBottom: '4px',
-            }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: '15px', height: '15px', color: isDark ? 'var(--text-muted)' : '#667085', flexShrink: 0 }}>
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search property..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  background: 'transparent',
-                  outline: 'none',
-                  fontSize: '13.5px',
-                  color: 'var(--text-primary)',
-                  padding: 0,
-                }}
-              />
-              <span style={{
-                fontSize: '11px',
-                fontWeight: '600',
-                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
-                color: isDark ? 'var(--text-secondary)' : '#475467',
-                padding: '2px 6px',
-                borderRadius: '6px',
-                whiteSpace: 'nowrap',
-              }}>
-                {filteredOptions.length}
-              </span>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSearchQuery("");
-                    searchInputRef.current?.focus();
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: '2px',
-                    cursor: 'pointer',
-                    color: isDark ? 'var(--text-muted)' : '#667085',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <CloseIcon />
-                </button>
-              )}
-            </div>
-
-            <div
-              ref={optionsListRef}
-              style={{
-                maxHeight: '200px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-              }}
-            >
-              {filteredOptions.length === 0 ? (
-                <div style={{
-                  padding: '16px',
-                  textAlign: 'center',
-                  fontSize: '13px',
-                  color: isDark ? 'var(--text-muted)' : '#667085',
-                }}>
-                  No properties found
-                </div>
-              ) : (
-                filteredOptions.map((option, index) => {
-                  const isSelected = value === option.value;
-                  const isHighlighted = highlightedIndex === index;
-
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        padding: '10px 12px',
-                        background: isSelected
-                          ? (isDark ? 'rgba(244, 161, 23, 0.15)' : 'rgba(28, 36, 82, 0.08)')
-                          : isHighlighted
-                            ? (isDark ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fb')
-                            : 'transparent',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        fontWeight: isSelected ? '600' : '500',
-                        color: isSelected
-                          ? (isDark ? 'var(--accent)' : '#1c2452')
-                          : (isDark ? 'var(--text-primary)' : '#1d2939'),
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'background-color 0.15s, color 0.15s',
-                        outline: 'none',
-                      }}
-                      onClick={() => {
-                        onChange(option.value);
-                        setIsOpen(false);
-                      }}
-                      onMouseEnter={() => setHighlightedIndex(index)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                        <PropertyIcon style={{
-                          color: isSelected
-                            ? (isDark ? 'var(--accent)' : '#1c2452')
-                            : (isDark ? 'var(--text-muted)' : '#98a2b3'),
-                          opacity: isSelected ? 1 : 0.7
-                        }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {option.label}
-                        </span>
-                      </div>
-                      {isSelected && (
-                        <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, color: isDark ? 'var(--accent)' : '#1c2452', flexShrink: 0 }}>
-                          <path d="M5 12l4 4 10-10" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {isOpen && !disabled && isMobileScreen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: isDark ? 'rgba(15, 19, 48, 0.6)' : 'rgba(29, 36, 82, 0.4)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'flex-end',
-            animation: 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-          onClick={() => setIsOpen(false)}
-        >
-          <div
-            style={{
-              background: isDark ? 'var(--surface-1)' : '#ffffff',
-              borderTopLeftRadius: '24px',
-              borderTopRightRadius: '24px',
-              maxHeight: '85vh',
-              height: '80vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.15)',
-              overflow: 'hidden',
-              width: '100%',
-              animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
-              <div style={{ width: '40px', height: '4px', background: isDark ? 'rgba(255, 255, 255, 0.15)' : '#e4e7ec', borderRadius: '2px' }} />
-            </div>
-
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '8px 20px 16px 20px',
-              borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>
-                  Select Property
-                </h3>
-                <span style={{ fontSize: '12px', color: isDark ? 'var(--text-muted)' : '#667085', fontWeight: '500' }}>
-                  {totalPropertiesCount > 0 ? `${totalPropertiesCount} properties available` : '0 properties available'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                style={{
-                  background: isDark ? 'var(--surface-2)' : '#f2f4f7',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: isDark ? 'var(--text-primary)' : '#1d2939',
-                }}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            <div style={{
-              padding: '16px 20px 12px 20px',
-              borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                borderRadius: '12px',
-                padding: '10px 14px',
-                width: '100%',
-              }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} style={{ width: '16px', height: '16px', color: isDark ? 'var(--text-muted)' : '#667085', flexShrink: 0 }}>
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder={`Search ${totalPropertiesCount > 0 ? totalPropertiesCount : ''} properties...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    background: 'transparent',
-                    outline: 'none',
-                    fontSize: '15px',
-                    color: 'var(--text-primary)',
-                    padding: 0,
-                  }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      searchInputRef.current?.focus();
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: '2px',
-                      cursor: 'pointer',
-                      color: isDark ? 'var(--text-muted)' : '#667085',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <CloseIcon />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div
-              ref={optionsListRef}
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '12px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              {filteredOptions.length === 0 ? (
-                <div style={{
-                  padding: '40px 16px',
-                  textAlign: 'center',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ width: '48px', height: '48px', color: isDark ? 'rgba(255,255,255,0.15)' : '#d0d5dd' }}>
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <span style={{ fontSize: '14.5px', color: isDark ? 'var(--text-muted)' : '#667085', fontWeight: '500' }}>
-                    No properties match your search
-                  </span>
-                </div>
-              ) : (
-                filteredOptions.map((option) => {
-                  const isSelected = value === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        minHeight: '52px',
-                        padding: '14px 16px',
-                        background: isSelected
-                          ? (isDark ? 'rgba(244, 161, 23, 0.15)' : 'rgba(28, 36, 82, 0.08)')
-                          : isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8f9fb',
-                        border: `1px solid ${isSelected ? (isDark ? 'rgba(244, 161, 23, 0.3)' : 'rgba(28, 36, 82, 0.15)') : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#f2f4f7')}`,
-                        borderRadius: '12px',
-                        fontSize: '15px',
-                        fontWeight: isSelected ? '600' : '500',
-                        color: isSelected
-                          ? (isDark ? 'var(--accent)' : '#1c2452')
-                          : (isDark ? 'var(--text-primary)' : '#1d2939'),
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        outline: 'none',
-                        transition: 'background-color 0.15s, border-color 0.15s',
-                      }}
-                      onClick={() => {
-                        onChange(option.value);
-                        setIsOpen(false);
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                        <PropertyIcon style={{
-                          color: isSelected
-                            ? (isDark ? 'var(--accent)' : '#1c2452')
-                            : (isDark ? 'var(--text-muted)' : '#98a2b3'),
-                          opacity: isSelected ? 1 : 0.8
-                        }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {option.label}
-                        </span>
-                      </div>
-                      {isSelected && (
-                        <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 3, color: isDark ? 'var(--accent)' : '#1c2452', flexShrink: 0 }}>
-                          <path d="M5 12l4 4 10-10" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {error && (
         <p
           className="client-tx-field-error"
@@ -1163,8 +455,8 @@ function EntityPropertyHeaderCard({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                background: isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
-                border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
                 borderRadius: '12px',
                 padding: '12px 16px',
                 fontSize: '14.5px',
@@ -1173,28 +465,9 @@ function EntityPropertyHeaderCard({
                 width: '100%',
                 boxSizing: 'border-box',
                 height: '50px',
-                boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                <svg
-                  style={{ width: '16px', height: '16px', color: isDark ? 'var(--accent)' : '#1c2452', opacity: 0.8, flexShrink: 0 }}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="4" width="18" height="16" rx="2" />
-                  <path d="M7 20h10" />
-                  <path d="M12 20v-4" />
-                  <path d="M12 4v4" />
-                </svg>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>
-                  {entityName}
-                </span>
-              </div>
+              <span>{entityName}</span>
               {!disabled && isEntityLockable && (
                 <button
                   type="button"
@@ -1202,26 +475,14 @@ function EntityPropertyHeaderCard({
                   aria-label="Edit entity"
                   onClick={onEditEntity}
                   style={{
-                    background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                    background: 'transparent',
                     border: 'none',
-                    borderRadius: '8px',
                     color: isDark ? 'var(--text-secondary)' : '#566474',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '28px',
-                    height: '28px',
-                    padding: 0,
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e7ec';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = isDark ? 'var(--surface-2)' : '#f2f4f7';
+                    padding: '4px',
                   }}
                 >
                   <EditPencilIcon />
@@ -1234,7 +495,7 @@ function EntityPropertyHeaderCard({
 
       <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {isEditingProperty ? (
-          <PropertySelect
+          <StaticSelect
             label="Select Property"
             required={isPropertyRequired}
             placeholder="Select Property"
@@ -1267,8 +528,8 @@ function EntityPropertyHeaderCard({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                background: isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff',
-                border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
                 borderRadius: '12px',
                 padding: '12px 16px',
                 fontSize: '14.5px',
@@ -1277,15 +538,9 @@ function EntityPropertyHeaderCard({
                 width: '100%',
                 boxSizing: 'border-box',
                 height: '50px',
-                boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                <PropertyIcon style={{ color: isDark ? 'var(--accent)' : '#1c2452', flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>
-                  {propertyName}
-                </span>
-              </div>
+              <span>{propertyName}</span>
               {!disabled && isPropertyLockable && (
                 <button
                   type="button"
@@ -1293,26 +548,14 @@ function EntityPropertyHeaderCard({
                   aria-label="Edit property"
                   onClick={onEditProperty}
                   style={{
-                    background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                    background: 'transparent',
                     border: 'none',
-                    borderRadius: '8px',
                     color: isDark ? 'var(--text-secondary)' : '#566474',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '28px',
-                    height: '28px',
-                    padding: 0,
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e7ec';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = isDark ? 'var(--surface-2)' : '#f2f4f7';
+                    padding: '4px',
                   }}
                 >
                   <EditPencilIcon />
@@ -1397,11 +640,6 @@ export default function ClientAddTransactionViewNew({
     }
   }, [propBackHref, propBackLabel, entityId]);
   const [selectedMethod, setSelectedMethod] = useState<"submit_invoice" | "review_submit" | null>(null);
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | "form">(1);
-  const [allProperties, setAllProperties] = useState<PropertyWithEntity[]>([]);
-  const [allPropertiesLoaded, setAllPropertiesLoaded] = useState(false);
-  const [propertySearchQuery, setPropertySearchQuery] = useState("");
-  const [activeEntityFilter, setActiveEntityFilter] = useState("all");
 
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -1446,10 +684,6 @@ export default function ClientAddTransactionViewNew({
   const [propertiesLoaded, setPropertiesLoaded] = useState(false);
   const [defaultPropertyId, setDefaultPropertyId] = useState("");
   const [propertyId, setPropertyId] = useState<string>("");
-  const propertyIdRef = useRef(propertyId);
-  useEffect(() => {
-    propertyIdRef.current = propertyId;
-  }, [propertyId]);
   const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
 
   const [invoiceDate, setInvoiceDate] = useState("");
@@ -1458,13 +692,6 @@ export default function ClientAddTransactionViewNew({
 
   const [showGstBreakdown, setShowGstBreakdown] = useState(false);
   const [gstAmount, setGstAmount] = useState("");
-  const [gstOption, setGstOption] = useState<"10" | "0" | "none">("none");
-
-  const [isRegularPayment, setIsRegularPayment] = useState(false);
-  const [dueDate, setDueDate] = useState("");
-  const [dueDateTouched, setDueDateTouched] = useState(false);
-  const [alertName, setAlertName] = useState("");
-  const [userEditedAlertName, setUserEditedAlertName] = useState(false);
 
   const [isSplit, setIsSplit] = useState(false);
   const [splitRows, setSplitRows] = useState<SplitRowState[]>(() => [
@@ -1492,39 +719,6 @@ export default function ClientAddTransactionViewNew({
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
-
-  // Auto-calculate GST amount when GST Option or Gross Amount changes
-  useEffect(() => {
-    if (gstOption === "10") {
-      const grossVal = Number.parseFloat(grossAmount);
-      if (!Number.isNaN(grossVal) && grossVal > 0) {
-        setGstAmount((grossVal / 11).toFixed(2));
-      } else {
-        setGstAmount("");
-      }
-    } else if (gstOption === "0") {
-      setGstAmount("0.00");
-    } else if (gstOption === "none") {
-      setGstAmount("");
-    }
-  }, [gstOption, grossAmount]);
-
-  // Auto-fill Alert Name based on Property and Subcategory
-  useEffect(() => {
-    if (!userEditedAlertName) {
-      const propName = properties.find((p) => p.id === propertyId)?.name || "";
-      const subcatName = subcategories.find((s) => s.id === subcategoryId)?.name || "";
-      if (subcatName && propName) {
-        setAlertName(`${subcatName} - ${propName}`);
-      } else if (subcatName) {
-        setAlertName(subcatName);
-      } else if (propName) {
-        setAlertName(propName);
-      } else {
-        setAlertName("");
-      }
-    }
-  }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1599,42 +793,6 @@ export default function ClientAddTransactionViewNew({
     };
   }, [activeEntityId, token]);
 
-  // Load properties for all entities in parallel for Step 1
-  useEffect(() => {
-    if (!token || !entitiesLoaded || entities.length === 0) return;
-    let cancelled = false;
-    async function loadAllProperties() {
-      setAllPropertiesLoaded(false);
-      try {
-        const promises = entities.map(async (entity) => {
-          const res = await fetch(
-            `/api/entities/${encodeURIComponent(entity.id)}/properties`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (!res.ok) return [];
-          const data = (await res.json()) as { items?: PropertyOption[] };
-          return (data.items || []).map((p) => ({
-            id: p.id,
-            name: p.name,
-            entityId: entity.id,
-            entityName: entity.name,
-          }));
-        });
-        const results = await Promise.all(promises);
-        if (!cancelled) {
-          setAllProperties(results.flat());
-          setAllPropertiesLoaded(true);
-        }
-      } catch (err) {
-        console.error("Error loading properties for all entities:", err);
-      }
-    }
-    loadAllProperties();
-    return () => {
-      cancelled = true;
-    };
-  }, [token, entities, entitiesLoaded]);
-
   // Load properties whenever activeEntityId changes.
   useEffect(() => {
     setPropertiesLoaded(false);
@@ -1657,21 +815,11 @@ export default function ClientAddTransactionViewNew({
         const loadedProperties = data.items || [];
         setProperties(loadedProperties);
         setPropertiesLoaded(true);
-        const currentPropertyValid =
-          !!propertyIdRef.current &&
-          loadedProperties.some((property) => property.id === propertyIdRef.current);
         const hasDefaultProperty =
           !!defaultPropertyId &&
           loadedProperties.some((property) => property.id === defaultPropertyId);
-        if (currentPropertyValid) {
-          setIsEditingProperty(false);
-        } else if (hasDefaultProperty) {
-          setPropertyId(defaultPropertyId);
-          setIsEditingProperty(false);
-        } else {
-          setPropertyId("");
-          setIsEditingProperty(true);
-        }
+        setPropertyId(hasDefaultProperty ? defaultPropertyId : "");
+        setIsEditingProperty(!hasDefaultProperty);
         setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
         if (loadedProperties.length < 2) {
           setIsSplit(false);
@@ -1852,20 +1000,6 @@ export default function ClientAddTransactionViewNew({
 
   const showDateError = !!invoiceDateError && (invoiceDateTouched || invoiceDateError !== "Invoice date is required.");
 
-  const dueDateError = useMemo(() => {
-    if (!isRegularPayment) return "";
-    if (!dueDate) {
-      return "Due date is required.";
-    }
-    const todayStr = getLocalDateString();
-    if (dueDate <= todayStr) {
-      return "Due date must be in the future.";
-    }
-    return "";
-  }, [isRegularPayment, dueDate]);
-
-  const showDueDateError = !!dueDateError && (dueDateTouched || dueDateError !== "Due date is required.");
-
   const grossAmountError = useMemo(() => {
     if (!grossAmount) return "";
     const parsed = Number.parseFloat(grossAmount);
@@ -1901,7 +1035,6 @@ export default function ClientAddTransactionViewNew({
     !!grossAmount &&
     !grossAmountError &&
     !gstAmountError &&
-    (!isRegularPayment || !dueDateError) &&
     !!modeOfTransaction &&
     (!isAssetPurchase ||
       (assetClass === "capital_works" ||
@@ -2022,9 +1155,6 @@ export default function ClientAddTransactionViewNew({
       setShowGstBreakdown(true);
       setGstAmount(String(data.gst_amount));
       filled.add("gstAmount");
-      setGstOption("10");
-    } else {
-      setGstOption("none");
     }
     const desc = (data.description || data.title || "").trim();
     if (desc) {
@@ -2049,46 +1179,6 @@ export default function ClientAddTransactionViewNew({
     queueMicrotask(() => setPrefilled(filled));
     window.setTimeout(() => setPrefilled(new Set()), 2200);
   }
-
-  const handleUseSampleReceipt = () => {
-    const mockData: ExtractedDocumentData = {
-      type: "expense",
-      title: "Google Workspace Invoice",
-      description: "Monthly subscription for G Suite / Workspace emails.",
-      vendor: "Google Workspace",
-      payer: activeEntityId ? entities.find(e => e.id === activeEntityId)?.name || "Johnson Family Trust" : "Johnson Family Trust",
-      amount: 120.00,
-      currency: "AUD",
-      gst_included: true,
-      gst_amount: 10.91,
-      date: getLocalDateString(),
-      reference: "INV-9827361",
-    };
-
-    handleExtracted(mockData, "sample-doc-id-123", {
-      filename: "ME.pdf",
-      jobId: "sample-job-id-999",
-    });
-
-    setWizardStep(3);
-  };
-
-  const submitToAccountant = async () => {
-    setSelectedMethod("submit_invoice");
-    setIsSubmitting(true);
-    setSubmitError("");
-
-    try {
-      // Simulate submission delay
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setIsMarked(true);
-    } catch (err) {
-      console.error(err);
-      setSubmitError("An error occurred during submission.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   function handleOpenBulkImport() {
     setIsBulkOpen(true);
@@ -2432,7 +1522,7 @@ export default function ClientAddTransactionViewNew({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!activeEntityId) return;
+    if (!token || !activeEntityId) return;
 
     setIsSubmitting(true);
     setSubmitError("");
@@ -2446,12 +1536,6 @@ export default function ClientAddTransactionViewNew({
       if (invoiceDateError) {
         setInvoiceDateTouched(true);
         setSubmitError(invoiceDateError);
-        setIsSubmitting(false);
-        return;
-      }
-      if (isRegularPayment && dueDateError) {
-        setDueDateTouched(true);
-        setSubmitError(dueDateError);
         setIsSubmitting(false);
         return;
       }
@@ -2569,12 +1653,9 @@ export default function ClientAddTransactionViewNew({
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
-      body.metadata = {
-        ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
-        is_regular_payment: isRegularPayment,
-        due_date: isRegularPayment ? (dueDate || null) : null,
-        alert_name: isRegularPayment ? (alertName.trim() || null) : null,
-      };
+      if (modeOfTransaction) {
+        body.metadata = { mode_of_transaction: modeOfTransaction };
+      }
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
         if (assetItemName.trim()) {
@@ -2593,8 +1674,28 @@ export default function ClientAddTransactionViewNew({
         }
       }
 
-      // Simulate submission delay and success directly without making API calls
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setSubmitError(
+          data?.message || data?.error || `Save failed (${res.status}).`,
+        );
+        return;
+      }
       setIsMarked(true);
     } catch (error) {
       console.error("Failed to save transaction:", error);
@@ -2625,56 +1726,6 @@ export default function ClientAddTransactionViewNew({
     }
     return "A property must be selected to continue.";
   }, [isSelectionComplete, tokenLoaded, entitiesLoaded, entities.length, activeEntityId, propertiesLoaded, properties.length]);
-
-
-
-  const categorySelectOptions: SelectOption[] = [
-    { label: "Select category", value: "" },
-    ...categories.map((c) => ({
-      label: c.name,
-      value: String(c.id),
-      type: type || undefined,
-    })),
-  ];
-  const subcategorySelectOptions: SelectOption[] = [
-    { label: "Select sub-category", value: "" },
-    ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
-  ];
-  const showSubcategorySelect =
-    !!categoryId &&
-    subcategories.some((s) => s.name.toLowerCase() !== "general");
-  const splitPropertyBaseOptions = properties.map((p) => ({
-    label: p.name,
-    value: p.id,
-  }));
-  const flashClass = (key: string) =>
-    prefilled.has(key) ? " is-prefilled" : "";
-
-  // Extract unique entities and count properties per entity for step 1 filtering
-  const uniqueEntities = useMemo(() => {
-    const entitiesMap = new Map<string, { id: string; name: string; count: number }>();
-    allProperties.forEach((p) => {
-      if (!p.entityId) return;
-      const existing = entitiesMap.get(p.entityId);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        entitiesMap.set(p.entityId, { id: p.entityId, name: p.entityName, count: 1 });
-      }
-    });
-    return Array.from(entitiesMap.values());
-  }, [allProperties]);
-
-  // Filter properties by search query and selected entity tab
-  const filteredProperties = useMemo(() => {
-    return allProperties.filter((p) => {
-      const matchesSearch =
-        p.name.toLowerCase().includes(propertySearchQuery.toLowerCase()) ||
-        p.entityName.toLowerCase().includes(propertySearchQuery.toLowerCase());
-      const matchesEntity = activeEntityFilter === "all" || p.entityId === activeEntityFilter;
-      return matchesSearch && matchesEntity;
-    });
-  }, [allProperties, propertySearchQuery, activeEntityFilter]);
 
   if (isMarked) {
     return (
@@ -2708,18 +1759,10 @@ export default function ClientAddTransactionViewNew({
                 <path d="M22 37.5 31.5 47 51 25" fill="none" stroke="#12B76A" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: '0 0 12px 0', fontFamily: "'Inter', sans-serif" }}>
-              {selectedMethod === "submit_invoice" ? "Submitted to accountant" : "Transaction Added"}
-            </h2>
-            <div style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#566474', lineHeight: 1.6, fontFamily: "'Inter', sans-serif" }}>
-              {selectedMethod === "submit_invoice" ? (
-                <span>They'll review, categorize, and confirm it — you'll see it under “To Be Reviewed”.</span>
-              ) : (
-                <>
-                  <strong style={{ display: 'block', color: isDark ? 'var(--text-primary)' : '#0f1330', marginBottom: '8px', fontSize: '15.5px' }}>Transaction successfully recorded.</strong>
-                  <span>The property ledger has been updated. Returning to transactions...</span>
-                </>
-              )}
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: '0 0 12px 0' }}>Transaction Added</h2>
+            <div style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#566474', lineHeight: 1.6 }}>
+              <strong style={{ display: 'block', color: isDark ? 'var(--text-primary)' : '#0f1330', marginBottom: '8px', fontSize: '15.5px' }}>Transaction successfully recorded.</strong>
+              <p style={{ margin: 0 }}>The property ledger has been updated. Returning to transactions...</p>
             </div>
           </div>
         </div>
@@ -2745,678 +1788,871 @@ export default function ClientAddTransactionViewNew({
     );
   }
 
-  if (wizardStep === 1) {
+  const categorySelectOptions: SelectOption[] = [
+    { label: "Select category", value: "" },
+    ...categories.map((c) => ({
+      label: c.name,
+      value: String(c.id),
+      type: type || undefined,
+    })),
+  ];
+  const subcategorySelectOptions: SelectOption[] = [
+    { label: "Select sub-category", value: "" },
+    ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
+  ];
+  const showSubcategorySelect =
+    !!categoryId &&
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
+  const splitPropertyBaseOptions = properties.map((p) => ({
+    label: p.name,
+    value: p.id,
+  }));
+  const flashClass = (key: string) =>
+    prefilled.has(key) ? " is-prefilled" : "";
+
+  if (selectedMethod === null) {
     return (
-      <section className="client-tx-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
-        {/* Header */}
-        <div className="client-tx-header-bar" style={{ marginBottom: '24px' }}>
-          <Link href={effectiveBackHref} className="client-tx-back-link" style={{ color: isDark ? 'var(--text-secondary)' : '#667085' }}>
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+        <div className="client-tx-header-bar">
+          <Link href={effectiveBackHref} className="client-tx-back-link">
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {backLabel}
           </Link>
-          <h1 className="client-tx-page-title" style={{ fontSize: '30px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', marginTop: '16px', marginBottom: '8px' }}>Add transaction</h1>
-          <p className="client-tx-page-subtitle" style={{ fontSize: '15px', color: isDark ? 'var(--text-secondary)' : '#667085', margin: 0 }}>
-            Select a property to continue.
+          <h1 className="client-tx-page-title">Add Transaction</h1>
+          <p className="client-tx-page-subtitle">
+            Choose how you'd like to add this transaction.
           </p>
         </div>
 
-        {/* Search & Entity Filters Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px', width: '100%' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-            border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-            borderRadius: '16px',
-            padding: '12px 20px',
-            width: '100%',
-            boxSizing: 'border-box',
-            boxShadow: '0 2px 4px rgba(16, 24, 40, 0.02)',
-            transition: 'all 0.2s ease',
-          }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} style={{ width: '18px', height: '18px', color: isDark ? 'var(--text-muted)' : '#667085', flexShrink: 0 }}>
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search properties by name or entity..."
-              value={propertySearchQuery}
-              onChange={(e) => setPropertySearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: '15px',
-                color: 'var(--text-primary)',
-                padding: 0,
-              }}
-            />
-            {propertySearchQuery && (
-              <button
-                type="button"
-                onClick={() => setPropertySearchQuery("")}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '4px',
-                  cursor: 'pointer',
-                  color: isDark ? 'var(--text-muted)' : '#667085',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <CloseIcon />
-              </button>
-            )}
-            <span style={{
-              fontSize: '12px',
-              fontWeight: '600',
-              background: isDark ? 'var(--surface-1)' : '#f2f4f7',
-              color: isDark ? 'var(--text-secondary)' : '#475467',
-              padding: '4px 10px',
-              borderRadius: '8px',
-              whiteSpace: 'nowrap',
-            }}>
-              {filteredProperties.length} of {allProperties.length}
-            </span>
-          </div>
-
-          {/* Horizontal Entity Tabs */}
-          {uniqueEntities.length > 0 && (
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              overflowX: 'auto',
-              paddingBottom: '8px',
-              WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'none',
-            }}>
-              <button
-                type="button"
-                onClick={() => setActiveEntityFilter("all")}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '9999px',
-                  border: `1px solid ${activeEntityFilter === "all" ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--border)' : '#eaeef4')}`,
-                  background: activeEntityFilter === "all" ? (isDark ? 'rgba(244, 161, 23, 0.15)' : '#1c2452') : (isDark ? 'var(--surface-1)' : '#ffffff'),
-                  color: activeEntityFilter === "all" ? (isDark ? 'var(--accent)' : '#ffffff') : (isDark ? 'var(--text-secondary)' : '#566474'),
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                All Entities ({allProperties.length})
-              </button>
-              {uniqueEntities.map((ent) => {
-                const isActive = activeEntityFilter === ent.id;
-                return (
-                  <button
-                    key={ent.id}
-                    type="button"
-                    onClick={() => setActiveEntityFilter(ent.id)}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '9999px',
-                      border: `1px solid ${isActive ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--border)' : '#eaeef4')}`,
-                      background: isActive ? (isDark ? 'rgba(244, 161, 23, 0.15)' : '#1c2452') : (isDark ? 'var(--surface-1)' : '#ffffff'),
-                      color: isActive ? (isDark ? 'var(--accent)' : '#ffffff') : (isDark ? 'var(--text-secondary)' : '#566474'),
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {ent.name} ({ent.count})
-                  </button>
-                );
-              })}
+        <div className="client-tx-methods-grid">
+          <button
+            type="button"
+            className="client-tx-method-card"
+            onClick={() => setSelectedMethod("submit_invoice")}
+          >
+            <div className="client-tx-method-icon-wrap">
+              <CameraIcon />
             </div>
-          )}
+            <div className="client-tx-method-content">
+              <h3 className="client-tx-method-title">Submit Invoice</h3>
+              <p className="client-tx-method-desc">
+                Snap a photo or upload a receipt. It goes straight to your accountant to categorise and review — quickest option.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="client-tx-method-card"
+            onClick={() => setSelectedMethod("review_submit")}
+          >
+            <div className="client-tx-method-icon-wrap">
+              <ChecklistIcon />
+            </div>
+            <div className="client-tx-method-content">
+              <h3 className="client-tx-method-title">Review & Submit</h3>
+              <p className="client-tx-method-desc">
+                Fill in entity, property, category, amount and GST yourself before sending — best when you already have the details.
+              </p>
+            </div>
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (selectedMethod === "submit_invoice" && isMobile) {
+    return (
+      <section className="client-tx-container mobile-submit-invoice" style={{
+        width: '100%',
+        margin: '0 auto',
+        fontFamily: "'Inter', sans-serif",
+        padding: '0 0 120px 0',
+        boxSizing: 'border-box',
+        minHeight: '100vh',
+        background: isDark ? 'var(--surface-0)' : '#ffffff',
+      }}>
+        {/* Mobile Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+          background: isDark ? 'var(--surface-1)' : '#ffffff',
+          height: '60px',
+          boxSizing: 'border-box',
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+        }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (mobileStep === 1) {
+                setSelectedMethod(null);
+              } else {
+                setMobileStep(1);
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: isDark ? 'var(--accent)' : '#1c2452',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "18px", height: "18px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
+              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
+          <span style={{
+            fontSize: '17px',
+            fontWeight: '700',
+            color: isDark ? 'var(--text-primary)' : '#0f1330',
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}>
+            Add Transaction
+          </span>
+          <div style={{ width: '48px' }}></div>
         </div>
 
-        {/* Skeleton Loading State */}
-        {!allPropertiesLoaded ? (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '20px',
-            marginTop: '8px',
-            width: '100%',
+        {/* Step Banner */}
+        <div style={{
+          background: isDark ? 'rgba(92, 133, 214, 0.08)' : '#f2f5fa',
+          padding: '12px 16px',
+          textAlign: 'center',
+        }}>
+          <span style={{
+            fontSize: '13.5px',
+            fontWeight: '600',
+            color: isDark ? 'var(--text-primary)' : '#1e3a7a',
           }}>
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  padding: '24px 20px',
-                  borderRadius: '16px',
-                  border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-                  background: isDark ? 'var(--surface-1)' : '#ffffff',
-                  opacity: 0.6,
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: isDark ? 'var(--surface-2)' : '#f0f2f5', marginBottom: '16px' }} />
-                <div style={{ height: '14px', background: isDark ? 'var(--surface-2)' : '#f0f2f5', borderRadius: '4px', width: '70%', marginBottom: '10px' }} />
-                <div style={{ height: '10px', background: isDark ? 'var(--surface-2)' : '#f0f2f5', borderRadius: '4px', width: '40%' }} />
+            Enter the below values to complete the step
+          </span>
+        </div>
+
+        {mobileStep === 1 ? (
+          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Entity Name Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <StaticSelect
+                label="Entity Name"
+                required={true}
+                placeholder="e.g., Smith Family Trust, ABC Properties LLC"
+                value={activeEntityId}
+                options={[
+                  { label: "Select Entity", value: "" },
+                  ...entities.map((e) => ({ label: e.name, value: e.id })),
+                ]}
+                onChange={handleEntityPicked}
+              />
+            </div>
+
+            {/* Select Property Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <StaticSelect
+                label="Select Property"
+                required={true}
+                placeholder="Select Type"
+                value={propertyId}
+                options={[
+                  { label: "Select Property", value: "" },
+                  ...properties.map((p) => ({ label: p.name, value: p.id })),
+                ]}
+                onChange={handlePropertyPicked}
+                disabled={!activeEntityId}
+              />
+            </div>
+
+            {/* Fields locked vs Dropzone */}
+            {!isSelectionComplete ? (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                padding: '36px 24px',
+                background: isDark ? 'var(--surface-2)' : '#f8fafe',
+                border: `1px solid ${isDark ? 'var(--border)' : '#e4eefc'}`,
+                borderRadius: '16px',
+                marginTop: '12px',
+                minHeight: '120px',
+              }}>
+                <span style={{
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  color: isDark ? 'var(--text-secondary)' : '#475467',
+                  marginBottom: '6px',
+                }}>
+                  Fields locked
+                </span>
+                <span style={{
+                  fontSize: '13px',
+                  color: isDark ? 'var(--text-muted)' : '#667085',
+                  maxWidth: '260px',
+                  lineHeight: '1.4',
+                }}>
+                  Select entity and property above to unlock the transaction fields
+                </span>
               </div>
-            ))}
-          </div>
-        ) : filteredProperties.length === 0 ? (
-          /* Empty Search State */
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '60px 20px',
-            textAlign: 'center',
-            width: '100%',
-            boxSizing: 'border-box',
-          }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ width: '56px', height: '56px', color: isDark ? 'rgba(255,255,255,0.15)' : '#d0d5dd', marginBottom: '16px' }}>
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '17px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>No properties found</h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: isDark ? 'var(--text-muted)' : '#667085' }}>Try adjusting your search query or selecting a different entity.</p>
-            <button
-              type="button"
-              onClick={() => {
-                setPropertySearchQuery("");
-                setActiveEntityFilter("all");
-              }}
-              style={{
-                background: isDark ? 'var(--surface-2)' : '#1c2452',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#ffffff',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                padding: '8px 16px',
-                cursor: 'pointer',
-              }}
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          /* Properties Card Grid */
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '20px',
-            marginTop: '8px',
-            width: '100%',
-          }}>
-            {filteredProperties.map((prop) => {
-              const isSelected = propertyId === prop.id;
-              return (
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: '12px' }}>
+                <span className="client-tx-field-label" style={{
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  color: isDark ? 'var(--text-secondary)' : '#344054',
+                  marginBottom: '8px',
+                }}>
+                  Upload Invoice or Receipt
+                </span>
+                {documentId && uploadedFilename && token ? (
+                  <DocumentPreviewPanel
+                    documentId={documentId}
+                    filename={uploadedFilename}
+                    token={token}
+                    onReset={() => {
+                      setDocumentId(null);
+                      setUploadedFilename(null);
+                      appliedRuleIdRef.current = null;
+                    }}
+                  />
+                ) : (
+                  <div className="client-tx-dropzone-wrapper" style={{ width: '100%' }}>
+                    <DocumentDropZone
+                      token={token}
+                      onExtracted={handleExtracted}
+                      scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+                      isSubmitting={isSubmitting}
+                      submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+                      primaryLabelText="Upload invoice or receipt"
+                      secondaryLabelText="PDF, JPG, PNG max 10 MB"
+                      hideIconOnIdle={true}
+                      style={{
+                        border: `1.5px dashed ${isDark ? 'var(--border)' : '#c4ccd8'}`,
+                        background: 'transparent',
+                        borderRadius: '12px',
+                        padding: '40px 24px',
+                        minHeight: '120px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                      }}
+                      strongStyle={{
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        color: isDark ? 'var(--text-primary)' : '#1c2452',
+                        margin: '0 0 4px 0',
+                        display: 'block',
+                      }}
+                      smallStyle={{
+                        fontSize: '12px',
+                        color: isDark ? 'var(--text-muted)' : '#667085',
+                        margin: 0,
+                        display: 'block',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Step 1 Footer */}
+            <div className="client-tx-mobile-footer" style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: isDark ? 'var(--surface-1)' : '#ffffff',
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              padding: '16px 20px calc(16px + env(safe-area-inset-bottom)) 20px',
+              zIndex: 100,
+              boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+            }}>
+              {!isSelectionComplete ? (
                 <button
-                  key={prop.id}
                   type="button"
-                  onClick={() => {
-                    handlePropertyPicked(prop.id);
-                    handleEntityPicked(prop.entityId);
-                    setWizardStep(2);
-                  }}
+                  disabled
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    position: 'relative',
-                    padding: '24px 20px',
-                    borderRadius: '16px',
-                    border: `1px solid ${isSelected ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--border)' : '#eaeef4')}`,
-                    background: isSelected
-                      ? (isDark ? 'rgba(244, 161, 23, 0.08)' : '#f3f5fc')
-                      : (isDark ? 'var(--surface-1)' : '#ffffff'),
-                    color: isDark ? 'var(--text-primary)' : '#0f1330',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: isSelected ? '0 10px 20px -5px rgba(28, 36, 82, 0.12)' : '0 2px 8px -1px rgba(0, 0, 0, 0.04)',
-                    outline: 'none',
                     width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                  onMouseOver={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 12px 24px -5px rgba(0, 0, 0, 0.06)';
-                      e.currentTarget.style.borderColor = isDark ? 'rgba(255, 255, 255, 0.2)' : '#d0d5dd';
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = '0 2px 8px -1px rgba(0, 0, 0, 0.04)';
-                      e.currentTarget.style.borderColor = isDark ? 'var(--border)' : '#eaeef4';
-                    }
-                  }}
-                >
-                  {/* Styled Icon */}
-                  <div style={{
+                    height: '52px',
+                    background: isDark ? 'var(--surface-2)' : '#b0b8c9',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '12px',
-                    background: isSelected ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--surface-2)' : '#f2f5fa'),
-                    color: isSelected ? '#ffffff' : (isDark ? 'var(--accent)' : '#1c2452'),
-                    marginBottom: '16px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isSelected ? '0 4px 10px rgba(0, 0, 0, 0.1)' : 'none',
-                  }}>
-                    <PropertyIcon style={{ width: '20px', height: '20px', opacity: 1 }} />
-                  </div>
-
-                  {/* Property Name */}
-                  <span style={{
-                    fontSize: '16.5px',
-                    fontWeight: '700',
-                    lineHeight: '1.3',
-                    marginBottom: '8px',
-                    color: isSelected ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--text-primary)' : '#0f1330'),
+                  }}
+                >
+                  Save Transaction
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMobileStep(2)}
+                  style={{
                     width: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {prop.name}
-                  </span>
+                    height: '52px',
+                    background: isDark ? 'var(--accent)' : '#1c2452',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  Continue
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Mobile Step 2: Form Fields & Review */
+          <div style={{ padding: '24px 20px 140px 20px' }}>
+            <form className="client-tx-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                  {/* Entity Muted Tag */}
+              {/* Green document preview banner */}
+              {documentId && uploadedFilename && (
+                <div style={{
+                  background: isDark ? 'rgba(18, 183, 106, 0.08)' : '#E6F4EA',
+                  border: `1.5px dashed ${isDark ? '#12B76A' : '#A3E0C1'}`,
+                  borderRadius: '16px',
+                  padding: '16px 20px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  marginTop: '-4px',
+                }}>
                   <span style={{
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    color: isDark ? '#82F2B1' : '#1d2452',
+                  }}>
+                    {uploadedFilename}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocumentId(null);
+                      setUploadedFilename(null);
+                      appliedRuleIdRef.current = null;
+                      setMobileStep(1); // Go back to step 1 to upload again
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: isDark ? '#82F2B1' : '#566474',
+                      fontSize: '12px',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                    }}
+                  >
+                    Replace document
+                  </button>
+                </div>
+              )}
+
+              {/* Transaction Type Pill Toggle */}
+              <div style={{
+                display: 'flex',
+                background: isDark ? 'var(--surface-2)' : '#F2F4F7',
+                borderRadius: '12px',
+                padding: '4px',
+                width: '100%',
+                boxSizing: 'border-box',
+                height: '48px',
+                marginTop: '4px',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setType("expense")}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: type === "expense" ? (isDark ? 'var(--surface-1)' : '#ffffff') : 'transparent',
+                    color: type === "expense" ? (isDark ? 'var(--text-primary)' : '#1c2452') : '#98A2B3',
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: type === "expense" && !isDark ? '0px 1px 3px rgba(16, 24, 40, 0.1)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("revenue")}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: type === "revenue" ? (isDark ? 'var(--surface-1)' : '#ffffff') : 'transparent',
+                    color: type === "revenue" ? (isDark ? 'var(--text-primary)' : '#1c2452') : '#98A2B3',
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: type === "revenue" && !isDark ? '0px 1px 3px rgba(16, 24, 40, 0.1)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Income
+                </button>
+              </div>
+
+              {/* Category and Sub-category */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <StaticSelect
+                  label="Category"
+                  required={true}
+                  placeholder="Select category"
+                  value={categoryId == null ? "" : String(categoryId)}
+                  options={categorySelectOptions}
+                  onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                  disabled={lockAssetPurchaseCategory}
+                />
+                <StaticSelect
+                  label="Sub-category"
+                  required={true}
+                  placeholder="Select sub-category"
+                  value={subcategoryId == null ? "" : String(subcategoryId)}
+                  options={subcategorySelectOptions}
+                  onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                  disabled={lockAssetPurchaseCategory}
+                />
+              </div>
+
+              {/* Amount and GST */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label className="client-tx-field-label" style={{
                     fontSize: '12px',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     color: isDark ? 'var(--text-secondary)' : '#667085',
-                    background: isDark ? 'var(--surface-2)' : '#f2f4f7',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
                     display: 'inline-block',
                   }}>
-                    {prop.entityName}
-                  </span>
-
-                  {/* Corner Checkmark Check */}
-                  {isSelected && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '16px',
-                      right: '16px',
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      background: isDark ? 'var(--accent)' : '#1c2452',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
-                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '12px', height: '12px', fill: 'none', stroke: 'currentColor', strokeWidth: 3.5 }}>
-                        <path d="M5 12l4 4 10-10" />
+                    Amount AUD <em style={{ color: '#da3838', fontStyle: 'normal' }}>*</em>
+                  </label>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>{CURRENCY_PREFIX}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0"
+                      value={grossAmount}
+                      onKeyDown={preventExponentialAndNegative}
+                      onChange={(e) => setGrossAmount(e.target.value.replace(/-/g, ""))}
+                      style={{
+                        background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                        border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                        borderRadius: '12px',
+                        padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
+                        fontSize: '14.5px',
+                        fontWeight: '500',
+                        color: isDark ? 'var(--text-primary)' : '#1d2939',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        height: '50px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  {grossAmount && grossAmountError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
-                    </div>
+                      <span>{grossAmountError}</span>
+                    </p>
                   )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label className="client-tx-field-label" style={{
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: isDark ? 'var(--text-secondary)' : '#667085',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
+                    display: 'inline-block',
+                  }}>
+                    GST (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={gstAmount}
+                    onChange={(e) => setGstAmount(e.target.value)}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      height: '50px',
+                      outline: 'none',
+                    }}
+                  />
+                  {gstAmount && gstAmountError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{gstAmountError}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Is Split Transaction Toggle */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px 0',
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                marginTop: '8px',
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
+                  <span style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate across multiple properties</span>
+                </div>
+                <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
+                  <input
+                    type="checkbox"
+                    checked={isSplit}
+                    onChange={(e) => handleSplitToggle(e.target.checked)}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--surface-2)' : '#e2e8f0'),
+                    transition: '.3s',
+                    borderRadius: '34px',
+                  }} />
+                  <span style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '16px',
+                    width: '16px',
+                    left: isSplit ? '26px' : '4px',
+                    bottom: '4px',
+                    backgroundColor: 'white',
+                    transition: '.3s',
+                    borderRadius: '50%',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                    pointerEvents: 'none',
+                  }} />
+                </label>
+              </div>
+
+              {/* Split Cards Container */}
+              {isSplit && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+                  {splitRows.map((row, index) => {
+                    const rowError = splitErrors[row.id];
+                    const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                    const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                    return (
+                      <div key={row.id} style={{
+                        background: isDark ? 'var(--surface-2)' : '#ffffff',
+                        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                        borderRadius: '12px',
+                        padding: '16px',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}>
+                        {/* Split Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '800', color: isDark ? 'var(--text-muted)' : '#98a2b3', letterSpacing: '0.5px' }}>
+                            PROPERTY {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={splitRows.length <= 1}
+                            onClick={() => removeSplitRow(row.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#BC4A24',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              padding: 0,
+                              opacity: splitRows.length <= 1 ? 0.5 : 1,
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        {/* Dropdown and Amount Input Side-by-Side */}
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', width: '100%' }}>
+                          <div style={{ flex: '3', minWidth: 0 }}>
+                            <StaticSelect
+                              placeholder="Select Property"
+                              value={row.propertyId}
+                              options={[
+                                { label: "Select Property", value: "" },
+                                ...properties.map((p) => ({ label: p.name, value: p.id })),
+                              ]}
+                              onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
+                              error={propertyError}
+                            />
+                          </div>
+                          <div style={{ flex: '2', minWidth: 0 }}>
+                            <div style={{ position: 'relative', width: '100%' }}>
+                              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>{CURRENCY_PREFIX}</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0"
+                                value={row.amount}
+                                onKeyDown={preventExponentialAndNegative}
+                                onChange={(e) => updateSplitRow(row.id, { amount: e.target.value.replace(/-/g, "") })}
+                                style={{
+                                  background: isDark ? 'var(--surface-1)' : '#f8f9fb',
+                                  border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                                  borderRadius: '12px',
+                                  padding: `14px 12px 14px ${18 + CURRENCY_PREFIX.length * 8}px`,
+                                  fontSize: '14.5px',
+                                  fontWeight: '500',
+                                  color: isDark ? 'var(--text-primary)' : '#1d2939',
+                                  width: '100%',
+                                  boxSizing: 'border-box',
+                                  height: '50px',
+                                  outline: 'none',
+                                }}
+                              />
+                            </div>
+                            {amountError && (
+                              <p style={{ color: '#da3838', fontSize: '11px', marginTop: '4px', fontWeight: '600' }}>{amountError}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {splitErrors.__form && (
+                    <p style={{ color: '#da3838', fontSize: '12px', fontWeight: '600', margin: '4px 0' }}>
+                      {splitErrors.__form}
+                    </p>
+                  )}
+
+                  {/* Allocation Buttons/Labels */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={addSplitRow}
+                      disabled={properties.length < 2}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#12b76a',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        cursor: properties.length < 2 ? 'not-allowed' : 'pointer',
+                        padding: 0,
+                        textAlign: 'left',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      + Add property
+                    </button>
+
+                    {/* Summary Allocations Banner */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: isDark ? 'var(--surface-2)' : '#F0F4FA',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}>
+                      <span style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#667085', fontWeight: '500' }}>
+                        Total allocated
+                      </span>
+                      <span style={{ fontSize: '14.5px', color: isDark ? 'var(--text-primary)' : '#1c2452', fontWeight: '700' }}>
+                        {CURRENCY_PREFIX}{splitTotal.toFixed(2)} / {CURRENCY_PREFIX}{Number(grossAmount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Invoice Date and Mode of Transaction */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '8px' }}>
+                    Invoice Date <em style={{ color: '#da3838', fontStyle: 'normal' }}>*</em>
+                  </label>
+                  <input
+                    type="date"
+                    min="1900-01-01"
+                    max="9999-12-31"
+                    value={invoiceDate}
+                    onChange={(e) => {
+                      setInvoiceDate(e.target.value);
+                      setInvoiceDateTouched(true);
+                    }}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      height: '50px',
+                      outline: 'none',
+                    }}
+                  />
+                  {showDateError && invoiceDateError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{invoiceDateError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <StaticSelect
+                  label="Mode of Transaction"
+                  required
+                  placeholder="Select mode of transaction"
+                  value={modeOfTransaction}
+                  options={MODE_OF_TRANSACTION_OPTIONS}
+                  onChange={setModeOfTransaction}
+                />
+              </div>
+
+              {/* Description */}
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '8px' }}>Description</label>
+                <textarea
+                  placeholder="Add remarks...."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  style={{
+                    background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    fontSize: '14.5px',
+                    fontWeight: '500',
+                    color: isDark ? 'var(--text-primary)' : '#1d2939',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    minHeight: '100px',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {submitError && (
+                <p style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
+                  {submitError}
+                </p>
+              )}
+
+              {/* Mobile Step 2 Footer */}
+              <div className="client-tx-mobile-footer" style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: isDark ? 'var(--surface-1)' : '#ffffff',
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                padding: '16px 20px calc(16px + env(safe-area-inset-bottom)) 20px',
+                zIndex: 100,
+                boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+              }}>
+                <button
+                  type="submit"
+                  disabled={!canSubmit || isSubmitting}
+                  style={{
+                    width: '100%',
+                    height: '52px',
+                    background: isDark ? 'var(--accent)' : '#1c2452',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: (!canSubmit || isSubmitting) ? 'not-allowed' : 'pointer',
+                    opacity: (!canSubmit || isSubmitting) ? 0.65 : 1,
+                  }}
+                >
+                  {isSubmitting ? "Saving Transaction..." : "Save Transaction"}
                 </button>
-              );
-            })}
+              </div>
+            </form>
           </div>
         )}
       </section>
     );
   }
-
-  if (wizardStep === 2) {
-    const selectedProp = allProperties.find(p => p.id === propertyId);
-    const propName = selectedProp?.name || "Selected Property";
-    const entityName = selectedProp?.entityName || "Johnson Family Trust";
-
-    return (
-      <section className="client-tx-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
-        {/* Header */}
-        <div className="client-tx-header-bar" style={{ marginBottom: '32px' }}>
-          <button
-            type="button"
-            onClick={() => setWizardStep(1)}
-            className="client-tx-back-link"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              color: isDark ? 'var(--text-secondary)' : '#667085',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Back
-          </button>
-          <h1 className="client-tx-page-title" style={{ fontSize: '30px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', marginTop: '16px', marginBottom: '8px' }}>Upload invoice</h1>
-          <p className="client-tx-page-subtitle" style={{ fontSize: '15px', color: isDark ? 'var(--text-secondary)' : '#667085', margin: 0 }}>
-            For {propName} ({entityName}). Scan or upload the receipt for this transaction.
-          </p>
-        </div>
-
-        {/* Upload Container */}
-        <div style={{
-          background: isDark ? 'var(--surface-1)' : '#ffffff',
-          border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-          borderRadius: '24px',
-          padding: '40px',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.02)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '24px',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}>
-          {/* Dashed Dropzone */}
-          <div style={{ width: '100%' }}>
-            <DocumentDropZone
-              token={token}
-              onExtracted={(data, docId, meta) => {
-                handleExtracted(data, docId, meta);
-                setWizardStep(3);
-              }}
-              scope={activeEntityId ? { entityId: activeEntityId } : undefined}
-              isSubmitting={isSubmitting}
-              submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
-              primaryLabelText="Scan or upload invoice / receipt"
-              secondaryLabelText="PDF, JPG, PNG · max 10MB · camera or gallery"
-              hideIconOnIdle={false}
-              customIcon={
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
-                  background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                  border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-                  color: isDark ? 'var(--text-primary)' : '#1c2452',
-                  marginBottom: '16px',
-                }}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "28px", height: "28px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                  </svg>
-                </div>
-              }
-              style={{
-                border: `2px dashed ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                borderRadius: '16px',
-                padding: '60px 40px',
-                minHeight: '220px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                textAlign: 'center',
-                cursor: 'pointer',
-                width: '100%',
-                boxSizing: 'border-box',
-                transition: 'all 0.2s ease',
-              }}
-              strongStyle={{
-                fontSize: '17px',
-                fontWeight: '700',
-                color: isDark ? 'var(--text-primary)' : '#0f1330',
-                margin: '12px 0 6px 0',
-                display: 'block',
-              }}
-              smallStyle={{
-                fontSize: '13px',
-                color: isDark ? 'var(--text-muted)' : '#667085',
-                margin: 0,
-                display: 'block',
-              }}
-            />
-          </div>
-
-          {/* Sample Receipt Link */}
-          <button
-            type="button"
-            onClick={handleUseSampleReceipt}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: isDark ? 'var(--accent)' : '#1e3a7a',
-              fontSize: '15px',
-              fontWeight: '600',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              outline: 'none',
-              transition: 'opacity 0.2s ease',
-            }}
-          >
-            No file handy? Use a sample receipt
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  if (wizardStep === 3) {
-    const selectedProp = allProperties.find(p => p.id === propertyId);
-    const propName = selectedProp?.name || "Selected Property";
-    const fileSizeStr = uploadedFilename === "ME.pdf" ? "6 KB" : "152 KB";
-
-    return (
-      <section className="client-tx-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
-        {/* Header */}
-        <div className="client-tx-header-bar" style={{ marginBottom: '32px' }}>
-          <button
-            type="button"
-            onClick={() => setWizardStep(2)}
-            className="client-tx-back-link"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              color: isDark ? 'var(--text-secondary)' : '#667085',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Back
-          </button>
-          <h1 className="client-tx-page-title" style={{ fontSize: '30px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', marginTop: '16px', marginBottom: '8px' }}>Add transaction</h1>
-          <p className="client-tx-page-subtitle" style={{ fontSize: '15px', color: isDark ? 'var(--text-secondary)' : '#667085', margin: 0 }}>
-            Choose how you'd like to process this transaction.
-          </p>
-        </div>
-
-        {/* Wizard Card Body */}
-        <div style={{
-          background: isDark ? 'var(--surface-1)' : '#ffffff',
-          border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-          borderRadius: '24px',
-          padding: '36px',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.02)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}>
-          {/* File Preview Card */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            padding: '16px 20px',
-            borderRadius: '16px',
-            border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            background: isDark ? 'var(--surface-2)' : '#ffffff',
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: isDark ? 'rgba(92, 133, 214, 0.1)' : '#f0f2f5',
-              color: isDark ? 'var(--accent)' : '#1c2452',
-              flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "20px", height: "20px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
-                {uploadedFilename || "receipt.pdf"}
-              </span>
-              <span style={{ fontSize: '13px', color: isDark ? 'var(--text-muted)' : '#667085', fontWeight: '500' }}>
-                {fileSizeStr}
-              </span>
-            </div>
-          </div>
-
-          {/* Option 1: Submit to Accountant */}
-          <button
-            type="button"
-            onClick={submitToAccountant}
-            disabled={isSubmitting}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              padding: '24px',
-              borderRadius: '16px',
-              border: `1.5px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-              background: isDark ? 'var(--surface-2)' : '#ffffff',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              textAlign: 'left',
-              width: '100%',
-              boxSizing: 'border-box',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              outline: 'none',
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: isDark ? 'rgba(92, 133, 214, 0.1)' : '#f0f4ff',
-              color: isDark ? 'var(--accent)' : '#1e3a7a',
-              flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2, transform: "rotate(15deg)" }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-              </svg>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <span style={{ fontSize: '17px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
-                Submit to accountant
-              </span>
-              <span style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#475467', lineHeight: '1.4' }}>
-                Send as-is — your accountant will categorize it. Quickest option.
-              </span>
-            </div>
-          </button>
-
-          {/* Option 2: Review & Submit */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsEditingEntity(false);
-              setIsEditingProperty(false);
-              setSelectedMethod("review_submit");
-              setWizardStep("form");
-            }}
-            disabled={isSubmitting}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              padding: '24px',
-              borderRadius: '16px',
-              border: `1.5px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-              background: isDark ? 'var(--surface-2)' : '#ffffff',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              textAlign: 'left',
-              width: '100%',
-              boxSizing: 'border-box',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              outline: 'none',
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: isDark ? 'rgba(92, 133, 214, 0.1)' : '#f0f4ff',
-              color: isDark ? 'var(--accent)' : '#1e3a7a',
-              flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-              </svg>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <span style={{ fontSize: '17px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
-                Review & submit
-              </span>
-              <span style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#475467', lineHeight: '1.4' }}>
-                We've pre-filled the details from your receipt — check them and save.
-              </span>
-            </div>
-          </button>
-
-          {/* Submit/Save error messages */}
-          {submitError && (
-            <p style={{ color: '#da3838', fontSize: '14px', fontWeight: '600', margin: '8px 0 0 0', textAlign: 'center' }}>
-              {submitError}
-            </p>
-          )}
-        </div>
-      </section>
-    );
-  }
-
-  const selectedProperty = allProperties.find((p) => p.id === propertyId);
-  const selectedPropertyName = selectedProperty?.name || "Not selected";
-  const selectedEntityName = entities.find((e) => e.id === activeEntityId)?.name || selectedProperty?.entityName || "Johnson Family Trust";
 
   return (
     <section className={`client-tx-container${isMobile ? ' mobile-submit-invoice' : ''}`} style={{
@@ -3444,7 +2680,7 @@ export default function ClientAddTransactionViewNew({
           }}>
             <button
               type="button"
-              onClick={() => setWizardStep(3)}
+              onClick={() => setSelectedMethod(null)}
               style={{
                 background: 'none',
                 border: 'none',
@@ -3497,7 +2733,7 @@ export default function ClientAddTransactionViewNew({
           <button
             type="button"
             className="client-tx-back-link"
-            onClick={() => setWizardStep(3)}
+            onClick={() => setSelectedMethod(null)}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
               <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -3515,26 +2751,7 @@ export default function ClientAddTransactionViewNew({
         padding: isMobile ? '24px 20px' : '36px 40px',
         boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.05)',
       }}>
-        <div style={{ marginBottom: '28px' }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '700',
-            color: isDark ? 'var(--text-primary)' : '#0f1330',
-            margin: '0 0 6px 0',
-            fontFamily: "'Inter', sans-serif"
-          }}>
-            Review & submit
-          </h2>
-          <p style={{
-            fontSize: '14.5px',
-            color: isDark ? 'var(--text-secondary)' : '#667085',
-            margin: 0,
-            fontFamily: "'Inter', sans-serif"
-          }}>
-            We used OCR to read your receipt — check everything looks right.
-          </p>
-        </div>
-
+        <h2 className="client-tx-title" style={{ fontSize: '18px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2452', margin: '0 0 24px 0' }}>Transaction Information</h2>
         <form className="client-tx-form" onSubmit={handleSubmit}>
 
           {showSelectionMessage && selectionMessage && (
@@ -3546,7 +2763,24 @@ export default function ClientAddTransactionViewNew({
             </div>
           )}
 
-          {/* Upload Invoice or Receipt */}
+          {/* Entity Name and Select Property */}
+          <EntityPropertyHeaderCard
+            entities={entities}
+            properties={properties}
+            activeEntityId={activeEntityId}
+            activePropertyId={propertyId}
+            isEditingEntity={isEditingEntity}
+            isEditingProperty={isEditingProperty}
+            isPropertyRequired={!isSplit}
+            isEntityLockable={!!activeEntityId}
+            isPropertyLockable={!!propertyId}
+            onSelectEntity={handleEntityPicked}
+            onSelectProperty={handlePropertyPicked}
+            onEditEntity={() => setIsEditingEntity(true)}
+            onEditProperty={() => setIsEditingProperty(true)}
+          />
+
+          {/* Upload Invoice or Receipt (nested here!) */}
           <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginBottom: "24px" }}>
             <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Upload Invoice or Receipt</span>
             {documentId && uploadedFilename && token ? (
@@ -3606,53 +2840,85 @@ export default function ClientAddTransactionViewNew({
 
           <fieldset className="client-tx-fieldset" disabled={!isSelectionComplete} style={{ border: 'none', padding: 0, margin: 0 }}>
 
-            {/* Row 1: Entity name & Property */}
-            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px' }}>
-              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Entity name</label>
-                <input
-                  type="text"
-                  className="client-tx-input"
-                  value={selectedEntityName}
-                  readOnly
-                  disabled
+            {/* Transaction Type */}
+            <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '20px' }}>
+              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                Transaction Type
+                <em
+                  className="client-tx-required"
                   style={{
-                    background: isDark ? 'var(--surface-2)' : '#ffffff',
-                    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    color: '#da3838',
+                    fontStyle: 'normal',
+                    marginLeft: '3px',
+                  }}
+                >
+                  *
+                </em>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => setType("expense")}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '52px',
                     borderRadius: '12px',
-                    padding: '14px 16px',
+                    border: type === "expense"
+                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#1a2b56'}`
+                      : `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                    background: isDark
+                      ? (type === "expense" ? 'rgba(92, 133, 214, 0.1)' : 'var(--surface-2)')
+                      : '#ffffff',
+                    color: type === "expense"
+                      ? (isDark ? 'var(--text-primary)' : '#1a2b56')
+                      : (isDark ? 'var(--text-secondary)' : '#566474'),
                     fontSize: '14.5px',
-                    fontWeight: '500',
-                    color: isDark ? 'var(--text-muted)' : '#667085',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    height: '50px',
-                    cursor: 'not-allowed',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: type === "expense"
+                      ? (isDark ? '0 0 0 3px rgba(92, 133, 214, 0.25)' : '0 0 0 3px rgba(26, 43, 86, 0.15)')
+                      : 'none',
                   }}
-                />
-              </div>
-              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <StaticSelect
-                  label="Property"
-                  required={!isSplit}
-                  placeholder="Select Property"
-                  value={isSplit ? "split" : propertyId}
-                  disabled={isSplit}
-                  options={isSplit ? [{ label: "Split transaction", value: "split" }] : [
-                    { label: "Select property", value: "" },
-                    ...properties.map((p) => ({ label: p.name, value: p.id })),
-                  ]}
-                  onChange={(val) => {
-                    setPropertyId(val);
-                    setSubmitError("");
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("revenue")}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '52px',
+                    borderRadius: '12px',
+                    border: type === "revenue"
+                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#1a2b56'}`
+                      : `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                    background: isDark
+                      ? (type === "revenue" ? 'rgba(92, 133, 214, 0.1)' : 'var(--surface-2)')
+                      : '#ffffff',
+                    color: type === "revenue"
+                      ? (isDark ? 'var(--text-primary)' : '#1a2b56')
+                      : (isDark ? 'var(--text-secondary)' : '#566474'),
+                    fontSize: '14.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: type === "revenue"
+                      ? (isDark ? '0 0 0 3px rgba(92, 133, 214, 0.25)' : '0 0 0 3px rgba(26, 43, 86, 0.15)')
+                      : 'none',
                   }}
-                />
+                >
+                  Revenue
+                </button>
               </div>
             </div>
 
-            {/* Row 2: Category and Sub-category */}
-            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
+            {/* Category and Sub-category */}
+            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px' }}>
               <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <StaticSelect
                   label="Category"
@@ -3680,28 +2946,124 @@ export default function ClientAddTransactionViewNew({
               </div>
             </div>
 
-            {/* Row 3: Amount (AUD) and GST (optional) */}
+            {/* Amount and GST (Optional) */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className={`client-tx-field-group ${flashClass("grossAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
-                  Amount (AUD)
+                  Amount
+                  <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+                </label>
+                <div className="client-tx-amount-input-wrap" style={{ position: 'relative', width: '100%' }}>
+                  <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
+                  <input
+                    type="number"
+                    className="client-tx-input has-prefix"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0"
+                    value={grossAmount}
+                    onKeyDown={preventExponentialAndNegative}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/-/g, "");
+                      setGrossAmount(val);
+                    }}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
+                      ['--prefix-padding' as any]: `${24 + CURRENCY_PREFIX.length * 9}px`,
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      height: '50px',
+                    }}
+                  />
+                </div>
+                {grossAmount && grossAmountError && (
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{grossAmountError}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className={`client-tx-field-group ${flashClass("gstAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>GST (Optional)</label>
+                <div className="client-tx-amount-input-wrap no-prefix" style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="text"
+                    className="client-tx-input"
+                    placeholder="0"
+                    value={gstAmount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGstAmount(val);
+                      // If it contains a number, under the hood set show breakdown
+                      const numericVal = Number.parseFloat(val.replace(/[^0-9.]/g, ""));
+                      if (numericVal > 0) {
+                        setShowGstBreakdown(true);
+                      } else {
+                        setShowGstBreakdown(false);
+                      }
+                    }}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      height: '50px',
+                    }}
+                  />
+                </div>
+                {gstAmount && gstAmountError && (
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{gstAmountError}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Invoice Date and Mode of Transaction */}
+            <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
+              <div className={`client-tx-field-group ${flashClass("invoiceDate")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                  Invoice Date
                   <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
                 </label>
                 <input
-                  type="number"
-                  className="client-tx-input"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="312.00"
-                  value={grossAmount}
-                  onKeyDown={preventExponentialAndNegative}
+                  type="date"
+                  min="1900-01-01"
+                  max="9999-12-31"
+                  value={invoiceDate}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/-/g, "");
-                    setGrossAmount(val);
+                    const val = e.target.value;
+                    const yearPart = val.split("-")[0];
+                    if (yearPart && yearPart.length > 4) {
+                      return;
+                    }
+                    setInvoiceDate(val);
+                    setInvoiceDateTouched(true);
+                    setSubmitError("");
                   }}
+                  onBlur={() => setInvoiceDateTouched(true)}
                   style={{
-                    background: isDark ? 'var(--surface-2)' : '#ffffff',
+                    background: isDark ? 'var(--surface-2)' : '#f8f9fb',
                     border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
                     borderRadius: '12px',
                     padding: '14px 16px',
@@ -3714,27 +3076,26 @@ export default function ClientAddTransactionViewNew({
                     height: '50px',
                   }}
                 />
-                {grossAmount && grossAmountError && (
+                {showDateError && invoiceDateError && (
                   <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
                     <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
-                    <span>{grossAmountError}</span>
+                    <span>{invoiceDateError}</span>
                   </p>
                 )}
               </div>
 
               <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <StaticSelect
-                  label="GST (optional)"
-                  value={gstOption}
-                  options={[
-                    { label: "GST 10%", value: "10" },
-                    { label: "GST Free (0%)", value: "0" },
-                    { label: "No GST", value: "none" },
-                  ]}
+                  label="Mode of Transaction"
+                  required
+                  placeholder="Select mode of transaction"
+                  value={modeOfTransaction}
+                  options={MODE_OF_TRANSACTION_OPTIONS}
                   onChange={(value) => {
-                    setGstOption(value as any);
+                    setModeOfTransaction(value);
+                    setSubmitError("");
                   }}
                 />
               </div>
@@ -3745,15 +3106,15 @@ export default function ClientAddTransactionViewNew({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '24px 0 20px 0',
-              marginTop: '24px',
+              padding: '20px 0',
+              margin: '12px 0 20px 0',
               borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
             }}>
               <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate the amount across multiple properties.</span>
+                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate across multiple properties</span>
               </div>
-              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
                 <input
                   type="checkbox"
                   checked={isSplit}
@@ -3762,23 +3123,24 @@ export default function ClientAddTransactionViewNew({
                 />
                 <span className="client-tx-slider" style={{
                   position: 'absolute',
+                  cursor: 'pointer',
                   top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  backgroundColor: isSplit ? '#1d2452' : '#eaeef4',
-                  transition: '.2s',
-                  borderRadius: '24px',
+                  backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#1d2452') : (isDark ? 'var(--surface-2)' : '#e2e8f0'),
+                  transition: '.3s',
+                  borderRadius: '34px',
                 }} />
                 <span style={{
                   position: 'absolute',
                   content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: isSplit ? '24px' : '4px',
-                  bottom: '3px',
+                  height: '16px',
+                  width: '16px',
+                  left: isSplit ? '26px' : '4px',
+                  bottom: '4px',
                   backgroundColor: 'white',
-                  transition: '.2s',
+                  transition: '.3s',
                   borderRadius: '50%',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
                   pointerEvents: 'none',
@@ -3831,7 +3193,7 @@ export default function ClientAddTransactionViewNew({
 
                       <div className="client-tx-grid cols-split-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '4px' }}>
                         <div className="client-tx-field-group flex-2" style={{ display: 'flex', flexDirection: 'column' }}>
-                          <PropertySelect
+                          <StaticSelect
                             placeholder="Select Property"
                             value={row.propertyId}
                             options={[
@@ -3946,7 +3308,7 @@ export default function ClientAddTransactionViewNew({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 style={{
-                  background: isDark ? 'var(--surface-2)' : '#ffffff',
+                  background: isDark ? 'var(--surface-2)' : '#f8f9fb',
                   border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
                   borderRadius: '12px',
                   padding: '14px 16px',
@@ -3962,122 +3324,6 @@ export default function ClientAddTransactionViewNew({
                 }}
               />
             </div>
-
-            {/* Is this a regular payment? */}
-            <div className="client-tx-split-toggle-container" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '24px 0 20px 0',
-              marginTop: '24px',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            }}>
-              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a regular payment?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>We'll flag it in your dashboard alerts so nothing gets missed.</span>
-              </div>
-              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={isRegularPayment}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setIsRegularPayment(checked);
-                    if (!checked) {
-                      setDueDate("");
-                      setDueDateTouched(false);
-                    }
-                  }}
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                />
-                <span className="client-tx-slider" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: isRegularPayment ? '#1d2452' : '#eaeef4',
-                  transition: '.2s',
-                  borderRadius: '24px',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: isRegularPayment ? '24px' : '4px',
-                  bottom: '3px',
-                  backgroundColor: 'white',
-                  transition: '.2s',
-                  borderRadius: '50%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                  pointerEvents: 'none',
-                }} />
-              </label>
-            </div>
-
-            {isRegularPayment && (
-              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px', marginBottom: '16px' }}>
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Due date</label>
-                  <input
-                    type="date"
-                    min="1900-01-01"
-                    max="9999-12-31"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    onBlur={() => setDueDateTouched(true)}
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
-                  />
-                  {showDueDateError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
-                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                      </svg>
-                      <span>{dueDateError}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Alert name</label>
-                  <input
-                    type="text"
-                    value={alertName}
-                    onChange={(e) => {
-                      setAlertName(e.target.value);
-                      setUserEditedAlertName(true);
-                    }}
-                    placeholder="Enter alert name"
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
-                  />
-                </div>
-              </div>
-            )}
 
             {submitError && !submitError.toLowerCase().includes("split") && (
               <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', marginTop: "16px" }}>
@@ -4103,7 +3349,7 @@ export default function ClientAddTransactionViewNew({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: 'transparent',
+                  background: isDark ? 'var(--surface-2)' : '#f2f4f7',
                   border: 'none',
                   borderRadius: '12px',
                   padding: '16px 24px',
@@ -4115,7 +3361,7 @@ export default function ClientAddTransactionViewNew({
                   height: '50px',
                   boxSizing: 'border-box',
                 }}>
-                  Delete transaction
+                  Delete Transaction
                 </Link>
               )}
               <button
@@ -4140,7 +3386,7 @@ export default function ClientAddTransactionViewNew({
                   opacity: (!canSubmit || isSubmitting) ? 0.65 : 1,
                 }}
               >
-                {isSubmitting ? "Saving transaction..." : "Save transaction"}
+                {isSubmitting ? "Saving Transaction…" : "Save Transaction"}
               </button>
             </div>
 
@@ -4338,7 +3584,7 @@ function BulkImportModal({
             onChange={handleEntityPicked}
           />
 
-          <PropertySelect
+          <StaticSelect
             label="Default Property"
             required
             value={propertyId}

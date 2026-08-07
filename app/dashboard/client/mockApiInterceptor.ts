@@ -1180,6 +1180,11 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     return jsonResponse({ url: "/house_darling_st.png" });
   }
 
+  // 26c. GET /api/documents/:id/download
+  if (path.startsWith("/api/documents/") && path.endsWith("/download") && method === "GET") {
+    return jsonResponse({ download_url: "/house_darling_st.png" });
+  }
+
   // 26b. GET /api/documents/list
   if (path === "/api/documents/list" && method === "GET") {
     const entityId = parsedUrl.searchParams.get("entity_id") || "";

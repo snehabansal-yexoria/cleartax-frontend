@@ -7540,6 +7540,206 @@ p.darkBg {
   color: #101828;
 }
 
+/* Transaction Tabs Styles */
+.transaction-tabs {
+  display: inline-flex;
+  align-items: center;
+  height: 46px; /* Explicit height to contain buttons perfectly */
+  padding: 4px; /* Internal spacing around buttons */
+  border-radius: 12px; /* Box-like design with rounded corners */
+  border: 1px solid #e4e7ec; /* light border */
+  background: #ffffff;
+  margin-bottom: 20px;
+  gap: 4px; /* small gap between buttons */
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+  width: fit-content; /* Hug content width */
+  align-self: flex-start; /* Avoid stretching inside flex column layouts */
+}
+
+.transaction-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%; /* Fill container height perfectly */
+  padding: 0 16px;
+  border-radius: 8px; /* nested border-radius for box-like shape */
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none; /* No individual borders */
+  background: transparent; /* Transparent background */
+  color: #5c6479; /* Cool muted gray-blue text */
+  cursor: pointer;
+  margin: 0; /* Reset default browser margins */
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transaction-tab-btn:hover {
+  background: #f9fafb;
+  color: #1d2939;
+}
+
+.transaction-tab-btn.is-active {
+  background: #28336e; /* User-specified primary button color */
+  color: #ffffff; /* White text */
+}
+
+.transaction-tab-btn.is-active:hover {
+  background: #1e2652; /* slightly darker on hover */
+}
+
+.transaction-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 8px;
+  height: 22px;
+  min-width: 28px;
+  border-radius: 12px;
+  background: #f1f5f9; /* Light slate gray */
+  color: #5c6479;
+  transition: all 0.2s ease;
+}
+
+.transaction-tab-btn.is-active .transaction-tab-badge {
+  background: rgba(255, 255, 255, 0.16); /* Translucent white overlay */
+  color: #ffffff;
+}
+
+/* Dark mode support */
+html.dark .transaction-tabs {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+html.dark .transaction-tab-btn {
+  color: var(--text-muted);
+}
+
+html.dark .transaction-tab-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+html.dark .transaction-tab-btn.is-active {
+  background: #28336e;
+  color: #ffffff;
+}
+
+html.dark .transaction-tab-btn.is-active:hover {
+  background: #1f2858;
+}
+
+html.dark .transaction-tab-badge {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+/* Review action button styling */
+.transaction-review-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid #28336e;
+  background: #28336e;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transaction-review-action-btn:hover {
+  background: #1d2951;
+  border-color: #1d2951;
+}
+
+.transaction-review-action-btn svg {
+  stroke: currentColor;
+}
+
+/* Premium transaction type badges */
+.transaction-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 14px;
+  text-transform: capitalize;
+}
+
+.transaction-type-badge.is-expense {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.transaction-type-badge.is-revenue {
+  background: #dcfce7;
+  color: #22c55e;
+}
+
+/* Beautiful empty state for Awaiting Review */
+.awaiting-review-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 40px;
+  border: 1px dashed #cfd6e3;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475467;
+  margin: 20px 0;
+}
+
+.awaiting-review-empty-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0284c7;
+  margin-bottom: 20px;
+}
+
+.awaiting-review-empty-state-icon svg {
+  stroke: currentColor;
+}
+
+.awaiting-review-empty-state h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.awaiting-review-empty-state p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
 .transaction-loading-stack {
   display: flex;
   flex-direction: column;
