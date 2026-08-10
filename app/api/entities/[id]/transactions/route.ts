@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   createCoreTransactionForEntity,
   listCoreTransactionsByEntity,
+  toCoreReviewStatusParam,
 } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
@@ -14,8 +15,11 @@ export async function GET(req: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  const reviewStatus = toCoreReviewStatusParam(
+    new URL(req.url).searchParams.get("review_status"),
+  );
   try {
-    const items = await listCoreTransactionsByEntity(token, id);
+    const items = await listCoreTransactionsByEntity(token, id, reviewStatus);
     return NextResponse.json({ items });
   } catch (error) {
     return renderUpstreamError(`GET /api/entities/${id}/transactions`, error);

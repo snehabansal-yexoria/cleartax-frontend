@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { listCoreTransactionsByProperty } from "@/src/lib/coreApi";
+import {
+  listCoreTransactionsByProperty,
+  toCoreReviewStatusParam,
+} from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -11,8 +14,11 @@ export async function GET(req: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  const reviewStatus = toCoreReviewStatusParam(
+    new URL(req.url).searchParams.get("review_status"),
+  );
   try {
-    const items = await listCoreTransactionsByProperty(token, id);
+    const items = await listCoreTransactionsByProperty(token, id, reviewStatus);
     return NextResponse.json({ items });
   } catch (error) {
     return renderUpstreamError(
