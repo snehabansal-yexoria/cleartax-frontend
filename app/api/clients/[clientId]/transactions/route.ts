@@ -3,7 +3,6 @@ import {
   listCoreTransactionsByClient,
   toCoreReviewStatusParam,
   type CoreReviewStatus,
-  type CoreTransactionListItem,
 } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";

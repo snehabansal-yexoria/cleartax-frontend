@@ -2073,14 +2073,127 @@ export default function ClientAddTransactionViewNew({
     setWizardStep(3);
   };
 
+  // POSTs a create-transaction body to the core API via the BFF. Returns an
+  // error message to display, or null on success.
+  const postTransaction = async (
+    body: Record<string, unknown>,
+  ): Promise<string | null> => {
+    if (!token) return "You're signed out. Refresh and log in again.";
+    if (!activeEntityId) return "Select a property before submitting.";
+    const res = await fetch(
+      `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as {
+        message?: string;
+        error?: string;
+      } | null;
+      return (
+        data?.message || data?.error || `Failed to save transaction (${res.status}).`
+      );
+    }
+    return null;
+  };
+
+  // Fallback categorisation for the quick "Submit to Accountant" path: first
+  // category for the type + its first sub-category (same convention as bulk
+  // import). The accountant re-categorises during review anyway.
+  const resolveDefaultCategory = async (
+    txnType: CoreTransactionType,
+  ): Promise<{ categoryId: number; subcategoryId: number } | null> => {
+    if (!token) return null;
+    const catRes = await fetch(
+      `/api/transactions/categories?type=${encodeURIComponent(txnType)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!catRes.ok) return null;
+    const catData = (await catRes.json()) as { items?: CoreTransactionCategory[] };
+    const category = catData.items?.[0];
+    if (!category) return null;
+    const subRes = await fetch(
+      `/api/transactions/categories/${category.id}/sub-categories`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!subRes.ok) return null;
+    const subData = (await subRes.json()) as {
+      items?: CoreTransactionSubcategory[];
+    };
+    const subcategory = subData.items?.[0];
+    if (!subcategory) return null;
+    return { categoryId: category.id, subcategoryId: subcategory.id };
+  };
+
   const submitToAccountant = async () => {
     setSelectedMethod("submit_invoice");
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      // Simulate submission delay
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      if (!activeEntityId || !propertyId) {
+        setSubmitError("Select a property before submitting.");
+        return;
+      }
+      const grossNum = Number.parseFloat(grossAmount);
+      if (Number.isNaN(grossNum) || grossNum <= 0) {
+        setSubmitError(
+          "We couldn't read an amount from the document. Use 'Review & Submit' to enter it.",
+        );
+        return;
+      }
+
+      const effectiveType: CoreTransactionType =
+        type === "revenue" ? "revenue" : "expense";
+
+      // Prefer the matched rule's categorisation (applied or still pending),
+      // then whatever is already selected, then the type's default.
+      const pending = pendingRuleRef.current;
+      let resolvedCategoryId = categoryId ?? pending?.categoryId ?? null;
+      let resolvedSubcategoryId = subcategoryId ?? pending?.subcategoryId ?? null;
+      if (!resolvedCategoryId || !resolvedSubcategoryId) {
+        const defaults = await resolveDefaultCategory(effectiveType);
+        resolvedCategoryId = resolvedCategoryId ?? defaults?.categoryId ?? null;
+        resolvedSubcategoryId =
+          resolvedSubcategoryId ?? defaults?.subcategoryId ?? null;
+      }
+      if (!resolvedCategoryId || !resolvedSubcategoryId) {
+        setSubmitError(
+          "Couldn't pick a category automatically. Use 'Review & Submit' to choose one.",
+        );
+        return;
+      }
+
+      const body: Record<string, unknown> = {
+        type: effectiveType,
+        category_id: resolvedCategoryId,
+        subcategory_id: resolvedSubcategoryId,
+        invoice_date: invoiceDate || getLocalDateString(),
+        gross_amount: grossNum,
+        description: description.trim() || null,
+        internal_remarks: internalRemarks.trim() || null,
+        is_asset_purchase: false,
+        splits: [{ property_id: propertyId, split_percentage: 100 }],
+        metadata: { source: "client_submit_invoice" },
+      };
+      if (documentId) body.document_id = documentId;
+      if (appliedRuleIdRef.current) body.rule_id = appliedRuleIdRef.current;
+      if (gstAmount) {
+        const gstNum = Number.parseFloat(gstAmount.replace(/[^0-9.]/g, ""));
+        if (!Number.isNaN(gstNum) && gstNum > 0) body.gst_amount = gstNum;
+      }
+
+      const errorMessage = await postTransaction(body);
+      if (errorMessage) {
+        setSubmitError(errorMessage);
+        return;
+      }
       setIsMarked(true);
     } catch (err) {
       console.error(err);
@@ -2593,8 +2706,11 @@ export default function ClientAddTransactionViewNew({
         }
       }
 
-      // Simulate submission delay and success directly without making API calls
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const errorMessage = await postTransaction(body);
+      if (errorMessage) {
+        setSubmitError(errorMessage);
+        return;
+      }
       setIsMarked(true);
     } catch (error) {
       console.error("Failed to save transaction:", error);

@@ -30,7 +30,10 @@ import {
 } from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
-  getIdToken(): { getJwtToken(): string };
+  getIdToken(): {
+    getJwtToken(): string;
+    payload?: Record<string, unknown>;
+  };
 }
 
 export type TransactionsContext =
@@ -43,6 +46,7 @@ type TransactionTableScope = "global" | "client" | "entity";
 
 type DisplayTransactionRow = CoreTransactionListItem;
 type TransactionModalMode = "view" | "edit";
+type TransactionReviewAction = "approve" | "reject" | "reset";
 type TransactionFeedbackTone = "success" | "warning";
 
 type TransactionFilters = {
@@ -566,6 +570,7 @@ function TransactionDetailPopup({
   onDelete,
   disabled = false,
   disabledReason,
+  canReview = false,
 }: {
   row: DisplayTransactionRow;
   detail: CoreTransactionDetail | null;
@@ -578,10 +583,14 @@ function TransactionDetailPopup({
   onClose: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (body: Record<string, unknown>) => Promise<void>;
+  onSave: (
+    body: Record<string, unknown>,
+    reviewAction?: TransactionReviewAction | null,
+  ) => Promise<void>;
   onDelete: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  canReview?: boolean;
 }) {
   const [description, setDescription] = useState(row.description || "");
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
@@ -1065,6 +1074,31 @@ function TransactionDetailPopup({
           };
         }))
       : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
+    // approved/rejected are not PATCHable — they go through the dedicated
+    // review endpoint (which stamps the reviewer + audit event). unreviewed/
+    // reviewed stay on the PATCH body, but only for reviewers: the backend
+    // 403s clients who try to change review status.
+    const initialReview = (detail ? transactionDetailToRow(detail, row) : row)
+      .reviewStatus;
+    let reviewAction: TransactionReviewAction | null = null;
+    if (reviewStatus === "approved" || reviewStatus === "rejected") {
+      if (reviewStatus !== initialReview) {
+        reviewAction = reviewStatus === "approved" ? "approve" : "reject";
+      }
+    } else if (
+      (initialReview === "approved" || initialReview === "rejected") &&
+      reviewStatus === "unreviewed"
+    ) {
+      reviewAction = "reset";
+    }
+    const patchReviewStatus =
+      canReview &&
+      reviewAction === null &&
+      (reviewStatus === "unreviewed" || reviewStatus === "reviewed") &&
+      reviewStatus !== initialReview
+        ? reviewStatus
+        : undefined;
+
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
@@ -1073,7 +1107,6 @@ function TransactionDetailPopup({
       gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
       internal_remarks: internalRemarks.trim() || null,
-      review_status: reviewStatus,
       is_asset_purchase: isAssetPurchase,
       metadata: {
         ...display.metadata,
@@ -1081,6 +1114,9 @@ function TransactionDetailPopup({
       },
       splits,
     };
+    if (patchReviewStatus) {
+      body.review_status = patchReviewStatus;
+    }
     body.gst_amount = gstNum ?? 0;
     if (isAssetPurchase) {
       body.asset_class = assetClass || null;
@@ -1095,7 +1131,7 @@ function TransactionDetailPopup({
       }
     }
     setEditError("");
-    await onSave(body);
+    await onSave(body, reviewAction);
   }
 
   return (
@@ -1524,17 +1560,31 @@ function TransactionDetailPopup({
                   onChange={(event) => setInternalRemarks(event.target.value)}
                 />
               </label>
-              <StaticSelect
-                label="Review Status"
-                value={reviewStatus}
-                options={[
-                  { label: "Unreviewed", value: "unreviewed" },
-                  { label: "Reviewed", value: "reviewed" },
-                ]}
-                onChange={(value) =>
-                  setReviewStatus(value === "reviewed" ? "reviewed" : "unreviewed")
-                }
-              />
+              {canReview ? (
+                <StaticSelect
+                  label="Review Status"
+                  value={reviewStatus}
+                  options={[
+                    { label: "Unreviewed", value: "unreviewed" },
+                    { label: "Reviewed", value: "reviewed" },
+                    { label: "Approved", value: "approved" },
+                    { label: "Rejected", value: "rejected" },
+                  ]}
+                  onChange={(value) =>
+                    setReviewStatus(
+                      value === "reviewed" ||
+                        value === "approved" ||
+                        value === "rejected"
+                        ? value
+                        : "unreviewed",
+                    )
+                  }
+                />
+              ) : (
+                <DetailField label="Review Status">
+                  <span style={{ textTransform: "capitalize" }}>{reviewStatus}</span>
+                </DetailField>
+              )}
             </div>
           ) : (
             <>
@@ -2711,6 +2761,27 @@ export function AllTransactionsView({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [activeTab, setActiveTab] = useState<"reviewed" | "unreviewed">("reviewed");
+  // Approve/reject is reviewer-only (accountant/admin/super_admin) — the
+  // backend 403s clients, so the modal hides those controls for them.
+  const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const canReview = viewerRole !== null && viewerRole !== "client";
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        const payload = session?.getIdToken().payload;
+        const role = payload?.["custom:role"];
+        if (!cancelled) setViewerRole(typeof role === "string" ? role : null);
+      } catch {
+        if (!cancelled) setViewerRole(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPageInputValue(String(currentPage));
@@ -3075,7 +3146,10 @@ export function AllTransactionsView({
     );
   }
 
-  async function saveTransactionDetail(body: Record<string, unknown>) {
+  async function saveTransactionDetail(
+    body: Record<string, unknown>,
+    reviewAction?: TransactionReviewAction | null,
+  ) {
     if (!selectedTransaction) return;
     setDetailError("");
     setIsDetailSaving(true);
@@ -3104,7 +3178,37 @@ export function AllTransactionsView({
         setDetailError(data?.message || data?.error || "Update failed.");
         return;
       }
-      const detail = (await res.json()) as CoreTransactionDetail;
+      let detail = (await res.json()) as CoreTransactionDetail;
+
+      // Approve/reject/reset ride the dedicated review endpoint so the
+      // backend stamps the reviewer and writes the audit event.
+      if (reviewAction) {
+        const reviewRes = await fetch(
+          `/api/transactions/${encodeURIComponent(selectedTransaction.id)}/review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: reviewAction }),
+          },
+        );
+        if (!reviewRes.ok) {
+          const data = (await reviewRes.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          setDetailError(
+            data?.message ||
+            data?.error ||
+            "Saved, but updating the review status failed.",
+          );
+          return;
+        }
+        detail = (await reviewRes.json()) as CoreTransactionDetail;
+      }
+
       setSelectedDetail(detail);
       setSelectedTransaction((current) =>
         current ? transactionDetailToRow(detail, current) : current,
@@ -3163,123 +3267,33 @@ export function AllTransactionsView({
     }
   }
 
-  // Filter and sort dummy rows for the To Be Reviewed tab
-  const filteredDummyRows = useMemo(() => {
-    return DUMMY_TRANSACTIONS.filter((row) => {
-      if (PROCESSED_DUMMY_IDS.has(row.id)) return false;
-      const rowClient = getRowClientFilterValue(row);
-      const rowEntity = getRowEntityFilterValue(row);
-      const rowType = row.type === "revenue" ? "Revenue" : "Expense";
-
-      return (
-        (filters.client === "all" || rowClient === filters.client) &&
-        (filters.entity === "all" || rowEntity === filters.entity) &&
-        (filters.property === "all" ||
-          row.propertyIds.includes(filters.property) ||
-          row.propertyNames.includes(filters.property)) &&
-        (filters.type === "all" || rowType === filters.type) &&
-        (filters.category === "all" || row.categoryName === filters.category)
-      );
-    });
-  }, [filters]);
-
-  const sortedDummyRows = useMemo(() => {
-    const items = [...filteredDummyRows];
-    switch (sortBy) {
-      case "date-desc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateB - dateA;
-        });
-      case "date-asc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateA - dateB;
-        });
-      case "gross-desc":
-        return items.sort((a, b) => {
-          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
-          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
-          return valB - valA;
-        });
-      case "gross-asc":
-        return items.sort((a, b) => {
-          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
-          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
-          return valA - valB;
-        });
-      case "client-asc":
-        return items.sort((a, b) => (a.clientName || "").localeCompare(b.clientName || ""));
-      case "client-desc":
-        return items.sort((a, b) => (b.clientName || "").localeCompare(a.clientName || ""));
-      default:
-        return items;
-    }
-  }, [filteredDummyRows, sortBy]);
-
-  const filteredDummyPropertyRows = useMemo(() => {
-    return DUMMY_PROPERTY_TRANSACTIONS.filter((row) => {
-      if (PROCESSED_DUMMY_IDS.has(row.transactionId) || PROCESSED_DUMMY_IDS.has(String(row.splitId))) return false;
-      const rowType = row.transactionType === "revenue" ? "Revenue" : "Expense";
-
-      return (
-        (filters.type === "all" || rowType === filters.type) &&
-        (filters.category === "all" || row.categoryName === filters.category)
-      );
-    });
-  }, [filters.category, filters.type]);
-
-  const sortedDummyPropertyRows = useMemo(() => {
-    const items = [...filteredDummyPropertyRows];
-    switch (sortBy) {
-      case "date-desc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateB - dateA;
-        });
-      case "date-asc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateA - dateB;
-        });
-      case "gross-desc":
-        return items.sort((a, b) => {
-          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
-          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
-          return valB - valA;
-        });
-      case "gross-asc":
-        return items.sort((a, b) => {
-          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
-          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
-          return valA - valB;
-        });
-      default:
-        return items;
-    }
-  }, [filteredDummyPropertyRows, sortBy]);
-
-  // Tab counts: Reviewed uses API rows, To Be Reviewed uses Dummy rows
+  // Tabs split the REAL rows by review status: "To Be Reviewed" is the
+  // unreviewed queue; "Reviewed" holds everything the accountant has touched
+  // (reviewed / approved / rejected).
   const reviewedCount = useMemo(() => {
-    return contextKind === "property" ? filteredPropertyRows.length : filteredRows.length;
+    return contextKind === "property"
+      ? filteredPropertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
+      : filteredRows.filter((row) => row.reviewStatus !== "unreviewed").length;
   }, [contextKind, filteredPropertyRows, filteredRows]);
 
   const unreviewedCount = useMemo(() => {
-    return contextKind === "property" ? filteredDummyPropertyRows.length : filteredDummyRows.length;
-  }, [contextKind, filteredDummyPropertyRows, filteredDummyRows]);
+    return contextKind === "property"
+      ? filteredPropertyRows.filter((row) => row.reviewStatus === "unreviewed").length
+      : filteredRows.filter((row) => row.reviewStatus === "unreviewed").length;
+  }, [contextKind, filteredPropertyRows, filteredRows]);
 
   // Dynamic lists based on active tab
   const tabFilteredRows = useMemo(() => {
-    return activeTab === "unreviewed" ? sortedDummyRows : sortedRows;
-  }, [activeTab, sortedDummyRows, sortedRows]);
+    return activeTab === "unreviewed"
+      ? sortedRows.filter((row) => row.reviewStatus === "unreviewed")
+      : sortedRows.filter((row) => row.reviewStatus !== "unreviewed");
+  }, [activeTab, sortedRows]);
 
   const tabFilteredPropertyRows = useMemo(() => {
-    return activeTab === "unreviewed" ? sortedDummyPropertyRows : sortedPropertyRows;
-  }, [activeTab, sortedDummyPropertyRows, sortedPropertyRows]);
+    return activeTab === "unreviewed"
+      ? sortedPropertyRows.filter((row) => row.reviewStatus === "unreviewed")
+      : sortedPropertyRows.filter((row) => row.reviewStatus !== "unreviewed");
+  }, [activeTab, sortedPropertyRows]);
 
   const activeFilterCount = Object.values(filters).filter(
     (value) => value !== "all",
@@ -3289,10 +3303,15 @@ export function AllTransactionsView({
     contextKind === "property" ? tabFilteredPropertyRows.length : tabFilteredRows.length;
 
   const unfilteredCount = useMemo(() => {
-    if (activeTab === "unreviewed") {
-      return contextKind === "property" ? DUMMY_PROPERTY_TRANSACTIONS.length : DUMMY_TRANSACTIONS.length;
+    const wantUnreviewed = activeTab === "unreviewed";
+    if (contextKind === "property") {
+      return propertyRows.filter(
+        (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
+      ).length;
     }
-    return contextKind === "property" ? propertyRows.length : rows.length;
+    return rows.filter(
+      (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
+    ).length;
   }, [activeTab, contextKind, propertyRows, rows]);
 
   const totalItems = totalCount;
@@ -3686,6 +3705,7 @@ export function AllTransactionsView({
           onDelete={() => deleteTransaction()}
           disabled={addTransactionDisabled}
           disabledReason={addTransactionDisabledReason}
+          canReview={canReview}
         />
       ) : null}
       {transactionToDelete && (
