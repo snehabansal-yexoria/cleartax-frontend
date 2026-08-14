@@ -9,6 +9,7 @@
   --white: #ffffff;
   --font-color: #101828;
   --primary-gold: #f4a117;
+  --slate-custom: #847F77;
   --t-fast: 0.15s ease;
   --t-base: 0.2s ease;
   --t-slow: 0.28s ease;
@@ -21,6 +22,7 @@
   --color-secondary: var(--secondary);
   --color-white: var(--white);
   --color-primary-gold: var(--primary-gold);
+  --color-slate-custom: var(--slate-custom);
 }
 
 body {

@@ -74,7 +74,9 @@ type PortalMenuItem = {
   id: string;
   href?: string;
   label: string;
-  icon: ReactNode;
+  icon?: ReactNode;
+  section?: string;
+  badge?: string;
 };
 
 function DashboardShellSkeleton() {
@@ -235,6 +237,7 @@ const adminMenuItems: PortalMenuItem[] = [
     id: "dashboard",
     href: "/dashboard/admin",
     label: "Dashboard",
+    section: "OVERVIEW",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -245,27 +248,156 @@ const adminMenuItems: PortalMenuItem[] = [
     ),
   },
   {
-    id: "invite",
-    href: "/dashboard/admin/invite",
-    label: "Invite User",
+    id: "accountants",
+    href: "/dashboard/admin/accountants",
+    label: "Accountants",
+    section: "PEOPLE",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
-        <circle cx="9.5" cy="7" r="4" />
-        <path d="M19 8v6" />
-        <path d="M16 11h6" />
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
   },
   {
-    id: "bulk-upload",
-    href: "/dashboard/admin/bulk-upload",
-    label: "Bulk Upload",
+    id: "clients",
+    href: "/dashboard/admin/clients",
+    label: "Clients",
+    section: "PEOPLE",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 16V6" />
-        <path d="m7.5 10.5 4.5-4.5 4.5 4.5" />
-        <path d="M5 18h14" />
+        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+        <circle cx="9.5" cy="7" r="4" />
+        <path d="M20 19v-1.2a3.4 3.4 0 0 0-2.7-3.3" />
+        <path d="M15.8 4.8a3.6 3.6 0 0 1 0 6.9" />
+      </svg>
+    ),
+  },
+  {
+    id: "invite",
+    href: "/dashboard/admin/invite",
+    label: "Invite users",
+    section: "PEOPLE",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <line x1="19" y1="8" x2="19" y2="14" />
+        <line x1="16" y1="11" x2="22" y2="11" />
+      </svg>
+    ),
+  },
+  {
+    id: "portfolio",
+    href: "/dashboard/admin/portfolio",
+    label: "Portfolio",
+    section: "REPORTS",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
+    id: "transactions",
+    href: "/dashboard/admin/transactions",
+    label: "Transactions",
+    section: "REPORTS",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 8h8" />
+        <path d="M8 12h8" />
+        <path d="M10.5 16h3" />
+        <path d="M12 6v12" />
+      </svg>
+    ),
+  },
+  {
+    id: "properties",
+    href: "/dashboard/admin/properties",
+    label: "Properties",
+    section: "REPORTS",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+      </svg>
+    ),
+  },
+  {
+    id: "entities",
+    href: "/dashboard/admin/entities",
+    label: "Entities",
+    section: "REPORTS",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M3 9h18" />
+        <path d="M9 21V9" />
+      </svg>
+    ),
+  },
+  {
+    id: "audit-trail",
+    href: "/dashboard/admin/audit-trail",
+    label: "Audit trail",
+    section: "REPORTS",
+    badge: "12",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+  },
+  {
+    id: "data-settings",
+    href: "/dashboard/admin/data-settings",
+    label: "Data settings",
+    section: "CONFIGURATION",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="4" y1="21" x2="4" y2="14" />
+        <line x1="4" y1="10" x2="4" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12" y2="3" />
+        <line x1="20" y1="21" x2="20" y2="16" />
+        <line x1="20" y1="12" x2="20" y2="3" />
+        <line x1="2" y1="14" x2="6" y2="14" />
+        <line x1="10" y1="8" x2="14" y2="8" />
+        <line x1="18" y1="16" x2="22" y2="16" />
+      </svg>
+    ),
+  },
+  {
+    id: "organisation",
+    href: "#",
+    label: "Organisation",
+    section: "CONFIGURATION",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1 0 2.8 2 2 0 0 1-2.8 0l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z" />
+      </svg>
+    ),
+  },
+  {
+    id: "access-control",
+    href: "#",
+    label: "Access control",
+    section: "CONFIGURATION",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
     ),
   },
@@ -813,7 +945,7 @@ export default function DashboardLayout({
 
   function renderPortalMenuItem(item: PortalMenuItem, isMobile: boolean = false) {
     const hrefPath = item.href ? item.href.split("?")[0] : "";
-    const isActive = hrefPath
+    const isActive = hrefPath && hrefPath !== "#"
       ? hrefPath === "/dashboard/accountant" ||
         hrefPath === "/dashboard/admin" ||
         hrefPath === "/dashboard/super-admin" ||
@@ -822,8 +954,15 @@ export default function DashboardLayout({
         : pathname.startsWith(hrefPath)
       : false;
 
+    // Prevent route change on placeholder '#' links
+    const handlePlaceholderClick = (e: React.MouseEvent) => {
+      if (item.href === "#") {
+        e.preventDefault();
+      }
+    };
+
     if (isMobile) {
-      if (!item.href) {
+      if (!item.href || item.href === "#") {
         return (
           <button
             key={item.id}
@@ -831,8 +970,15 @@ export default function DashboardLayout({
             className="accountant-nav-item accountant-nav-item-static"
             aria-label={item.label}
           >
-            <span className="accountant-nav-icon">{item.icon}</span>
-            <span className="accountant-nav-label">{item.label}</span>
+            <span className="accountant-nav-icon">{item.icon || <div className="w-5 h-5" />}</span>
+            <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', }}>
+              {item.label}
+              {item.badge && (
+                <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
+                  {item.badge}
+                </span>
+              )}
+            </span>
           </button>
         );
       }
@@ -843,36 +989,54 @@ export default function DashboardLayout({
           href={item.href}
           className={`accountant-nav-item${isActive ? " is-active" : ""}`}
           aria-label={item.label}
-          onClick={() => setIsMobileNavOpen(false)}
+          onClick={(e) => {
+            handlePlaceholderClick(e);
+            setIsMobileNavOpen(false);
+          }}
         >
-          <span className="accountant-nav-icon">{item.icon}</span>
-          <span className="accountant-nav-label">{item.label}</span>
+          <span className="accountant-nav-icon">{item.icon || <div className="w-5 h-5" />}</span>
+          <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', fontWeight: role === 'admin' ? '400' : undefined }}>
+            {item.label}
+            {item.badge && (
+              <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
+                {item.badge}
+              </span>
+            )}
+          </span>
         </Link>
       );
     }
 
-    // Desktop styling with Tailwind
+    // Desktop styling with Tailwind matching Figma
     const navItemClass = `w-full h-12 px-2.5 py-2.5 rounded-xl flex items-center justify-start gap-3.5 transition-all duration-200 ${isActive
-      ? "bg-white text-[#2f3c82] shadow-lg shadow-black/10"
-      : "text-white/85 hover:text-white hover:bg-white/8"
+      ? "bg-white/12 text-white shadow-sm"
+      : "text-white/80 hover:text-white hover:bg-white/5"
       }`;
 
-    const iconWrapperClass = `w-11 h-11 min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-[#2f3c82]" : "text-white/85"
+    const iconWrapperClass = `w-11 h-11 min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-white" : "text-white/80"
       }`;
 
-    const labelClass = `font-medium text-base tracking-wide transition-all duration-300 ${isActive ? "text-[#2f3c82]" : "text-white/85"
-      } opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`;
+    const labelClass = `${role === 'admin' ? 'font-normal' : 'font-semibold'} text-[15px] tracking-wide transition-all duration-300 ${isActive ? "text-white" : "text-white/80"
+      } opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap flex items-center justify-between w-full`;
 
-    if (!item.href) {
+    if (!item.href || item.href === "#") {
       return (
         <button
           key={item.id}
           type="button"
           className={navItemClass}
           aria-label={item.label}
+          onClick={handlePlaceholderClick}
         >
-          <span className={iconWrapperClass}>{item.icon}</span>
-          <span className={labelClass}>{item.label}</span>
+          <span className={iconWrapperClass}>{item.icon || <div className="w-5 h-5" />}</span>
+          <span className={labelClass}>
+            {item.label}
+            {item.badge && (
+              <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
+                {item.badge}
+              </span>
+            )}
+          </span>
         </button>
       );
     }
@@ -883,9 +1047,17 @@ export default function DashboardLayout({
         href={item.href}
         className={navItemClass}
         aria-label={item.label}
+        onClick={handlePlaceholderClick}
       >
-        <span className={iconWrapperClass}>{item.icon}</span>
-        <span className={labelClass}>{item.label}</span>
+        <span className={iconWrapperClass}>{item.icon || <div className="w-5 h-5" />}</span>
+        <span className={labelClass}>
+          {item.label}
+          {item.badge && (
+            <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
+              {item.badge}
+            </span>
+          )}
+        </span>
       </Link>
     );
   }
@@ -915,23 +1087,43 @@ export default function DashboardLayout({
                     <rect x="13" y="13" width="6" height="6" rx="1.2" />
                   </svg>
                 </div>
-                <div className="flex flex-col text-left font-extrabold text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap">
+                <div className={`flex flex-col text-left ${role === 'admin' ? 'font-normal' : 'font-extrabold'} text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`}>
                   <span>Clear <br /> Portfolio</span>
                 </div>
               </div>
             </div>
 
             <nav className="flex flex-col gap-2">
-              {portalMenuItems.map((item) => renderPortalMenuItem(item, false))}
+              {(() => {
+                let currentSection = "";
+                return portalMenuItems.map((item, idx) => {
+                  const showHeader = item.section && item.section !== currentSection;
+                  if (showHeader) {
+                    currentSection = item.section || "";
+                  }
+                  return (
+                    <div key={item.id || idx} className="contents">
+                      {showHeader && (
+                        <div
+                          className={`text-white/40 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-extrabold'} tracking-wider uppercase px-3.5 mt-4 mb-1 select-none transition-all duration-300 opacity-0 max-w-0 overflow-hidden group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs`}
+                        >
+                          {item.section}
+                        </div>
+                      )}
+                      {renderPortalMenuItem(item, false)}
+                    </div>
+                  );
+                });
+              })()}
             </nav>
           </div>
 
           <div className="flex items-center gap-3.5 w-full justify-start px-1.5 pt-4 border-t border-white/10">
-            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm">
+            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>
               {initials}
             </div>
             <div className="flex flex-col text-left opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden min-w-0">
-              <strong className="text-white font-semibold text-sm truncate">
+              <strong className={`text-white text-sm truncate ${role === 'admin' ? 'font-normal' : 'font-semibold'}`}>
                 {role === "super_admin"
                   ? "Super Admin Portal"
                   : role === "admin"
@@ -940,7 +1132,7 @@ export default function DashboardLayout({
                       ? "Client Portal"
                       : "Accountant Portal"}
               </strong>
-              <span className="text-white/60 text-xs truncate">{portalSubtitle}</span>
+              <span className="text-white/60 text-xs truncate" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{portalSubtitle}</span>
             </div>
           </div>
         </aside>
@@ -957,7 +1149,7 @@ export default function DashboardLayout({
                 </svg>
               </div>
               <div className="accountant-brand-copy">
-                <span>Clear Portfolio</span>
+                <span style={{ fontWeight: role === 'admin' ? '400' : undefined }}>Clear Portfolio</span>
               </div>
             </div>
           </div>
@@ -1083,10 +1275,10 @@ export default function DashboardLayout({
                   aria-expanded={isAccountMenuOpen}
                 >
                   <div className="accountant-header-copy">
-                    <strong>{portalTitle}</strong>
-                    <span>{portalSubtitle}</span>
+                    <strong style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{portalTitle}</strong>
+                    <span style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{portalSubtitle}</span>
                   </div>
-                  <div className="accountant-avatar">{initials}</div>
+                  <div className="accountant-avatar" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{initials}</div>
                 </button>
 
                 {isAccountMenuOpen && (
@@ -1162,8 +1354,8 @@ export default function DashboardLayout({
             <aside className="accountant-mobile-nav-sheet border border-red-900">
               <div className="accountant-mobile-nav-header">
                 <div>
-                  <strong>Clear Portfolio</strong>
-                  <span>
+                  <strong style={{ fontWeight: role === 'admin' ? '400' : undefined }}>Clear Portfolio</strong>
+                  <span style={{ fontWeight: role === 'admin' ? '400' : undefined }}>
                     {role === "super_admin"
                       ? "Super Admin Portal"
                       : role === "admin"
@@ -1186,7 +1378,27 @@ export default function DashboardLayout({
               </div>
 
               <nav className="accountant-mobile-nav-list">
-                {portalMenuItems.map((item) => renderPortalMenuItem(item, true))}
+                {(() => {
+                  let currentSection = "";
+                  return portalMenuItems.map((item, idx) => {
+                    const showHeader = item.section && item.section !== currentSection;
+                    if (showHeader) {
+                      currentSection = item.section || "";
+                    }
+                    return (
+                      <div key={item.id || idx} className="contents">
+                        {showHeader && (
+                          <div
+                            className={`text-[#6d7ba0] text-[10px] ${role === 'admin' ? 'font-normal' : 'font-extrabold'} tracking-wider uppercase px-4 mt-4 mb-1 select-none`}
+                          >
+                            {item.section}
+                          </div>
+                        )}
+                        {renderPortalMenuItem(item, true)}
+                      </div>
+                    );
+                  });
+                })()}
               </nav>
             </aside>
           </div>
