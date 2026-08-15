@@ -1022,6 +1022,7 @@ export type CorePropertyTransactionRow = {
   splitGrossAmount: number;
   splitGstAmount: number;
   splitNetAmount: number;
+  createdAt: string;
 };
 
 export type CoreTransactionCategory = {
@@ -1268,6 +1269,7 @@ export function normalizeCorePropertyTransactionRow(
     ),
     splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
     splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
   };
 }
 

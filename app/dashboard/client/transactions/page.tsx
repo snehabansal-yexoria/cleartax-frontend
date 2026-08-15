@@ -103,7 +103,36 @@ export default function ClientTransactionsPage() {
     entityId: tx.entityId || "",
     documentId: tx.documentId || tx.metadata?.document_id || null,
     documentFileName: tx.documentFileName || tx.metadata?.invoice_name || tx.metadata?.document_name || null,
+    reviewStatus: tx.reviewStatus || "unreviewed",
+    createdAt: tx.createdAt || "",
   }));
+
+  // "Submitted" is when the transaction was created in Clear (created_at), not
+  // the invoice date. Falls back to the invoice date for rows created before
+  // the API started returning created_at.
+  const formatSubmittedAt = (createdAt: string, invoiceDate: string) => {
+    const raw = createdAt || invoiceDate;
+    if (!raw) return "";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+
+    const dayStr = d.toISOString().split('T')[0];
+    const time = d.toLocaleTimeString("en-AU", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    if (dayStr === todayStr) return `Today, ${time}`;
+    if (dayStr === yesterdayStr) return `Yesterday, ${time}`;
+    return `${d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}, ${time}`;
+  };
+
+  // Transactions the accountant has not signed off yet drive the
+  // "To Be Reviewed" tab; everything else stays on the "Reviewed" tab.
+  const pendingTransactions = listData
+    .filter(tx => tx.reviewStatus === "unreviewed")
+    .sort((a, b) =>
+      (b.createdAt || b.invoiceDate).localeCompare(a.createdAt || a.invoiceDate),
+    );
 
   // Unique entities list for bottom sheet filters
   const uniqueEntitiesList = Array.from(new Set(listData.map(tx => tx.entityName).filter(Boolean)));
@@ -134,7 +163,7 @@ export default function ClientTransactionsPage() {
   const displayExpenseMtd = expenseMtd;
 
   // Filter listData based on all active filters
-  let filtered = listData;
+  let filtered = listData.filter(tx => tx.reviewStatus !== "unreviewed");
 
   // 1. Search Query
   if (searchQuery.trim()) {
@@ -724,7 +753,7 @@ export default function ClientTransactionsPage() {
                 transition: 'all 0.2s'
               }}
             >
-              To Be Reviewed (1)
+              To Be Reviewed ({pendingTransactions.length})
             </button>
           </div>
 
@@ -864,57 +893,69 @@ export default function ClientTransactionsPage() {
               )}
             </>
           ) : (
-            /* To Be Reviewed Dummy Data View */
-            <div style={{ padding: '0 16px 16px 16px' }}>
-              <div style={{
-                background: 'var(--surface-1)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                padding: '16px 20px',
-                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
-                    background: '#FDF2E9',
+            /* To Be Reviewed */
+            <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingTransactions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                  Nothing awaiting review.
+                </div>
+              ) : (
+                pendingTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  onClick={() => setSelectedTransaction(tx)}
+                  style={{
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '16px',
+                    padding: '16px 20px',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
+                    justifyContent: 'space-between',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      background: '#FDF2E9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <strong style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tx.entityName}
+                      </strong>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                        {[tx.meta, tx.createdAt || tx.invoiceDate ? `Submitted ${formatSubmittedAt(tx.createdAt, tx.invoiceDate)}` : ""].filter(Boolean).join(" · ")}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{
+                    padding: '6px 12px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    background: '#FDF2E9',
+                    color: '#D97706',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '12px'
                   }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                    <strong style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      SJ Holdings Pty Ltd
-                    </strong>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
-                      8 Harbour Road · Submitted Today, 9:41 AM
-                    </span>
-                  </div>
+                    Pending review
+                  </span>
                 </div>
-                <span style={{
-                  padding: '6px 12px',
-                  borderRadius: '100px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  background: '#FDF2E9',
-                  color: '#D97706',
-                  whiteSpace: 'nowrap',
-                  marginLeft: '12px'
-                }}>
-                  Pending review
-                </span>
-              </div>
+                ))
+              )}
             </div>
           )}
 
@@ -1620,7 +1661,7 @@ export default function ClientTransactionsPage() {
                 transition: 'all 0.2s'
               }}
             >
-              To Be Reviewed (1)
+              To Be Reviewed ({pendingTransactions.length})
             </button>
           </div>
 
@@ -1706,55 +1747,69 @@ export default function ClientTransactionsPage() {
               )}
             </>
           ) : (
-            /* To Be Reviewed Dummy Data View */
-            <div style={{
-              background: 'var(--surface-1)',
-              border: '1px solid var(--border)',
-              borderRadius: '16px',
-              padding: '20px 24px',
-              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
-                <div style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: '#FDF2E9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '22px', height: '22px' }}>
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
+            /* To Be Reviewed */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingTransactions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                  Nothing awaiting review.
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                  <strong style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    SJ Holdings Pty Ltd
-                  </strong>
-                  <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
-                    8 Harbour Road · Submitted Today, 9:41 AM
+              ) : (
+                pendingTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  onClick={() => setSelectedTransaction(tx)}
+                  style={{
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '16px',
+                    padding: '20px 24px',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      background: '#FDF2E9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '22px', height: '22px' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <strong style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tx.entityName}
+                      </strong>
+                      <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                        {[tx.meta, tx.createdAt || tx.invoiceDate ? `Submitted ${formatSubmittedAt(tx.createdAt, tx.invoiceDate)}` : ""].filter(Boolean).join(" · ")}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{
+                    padding: '6px 14px',
+                    borderRadius: '100px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: '#FDF2E9',
+                    color: '#D97706',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '16px'
+                  }}>
+                    Pending review
                   </span>
                 </div>
-              </div>
-              <span style={{
-                padding: '6px 14px',
-                borderRadius: '100px',
-                fontSize: '13px',
-                fontWeight: '600',
-                background: '#FDF2E9',
-                color: '#D97706',
-                whiteSpace: 'nowrap',
-                marginLeft: '16px'
-              }}>
-                Pending review
-              </span>
+                ))
+              )}
             </div>
           )}
         </div>

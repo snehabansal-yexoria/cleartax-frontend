@@ -101,6 +101,13 @@ function formatInvoiceDate(value: string) {
   });
 }
 
+// "Date submitted" is when the transaction was created in Clear, not the date
+// on the invoice. Older rows (or contexts that don't carry created_at) fall
+// back to the invoice date so the column is never empty.
+function formatSubmittedDate(row: DisplayTransactionRow) {
+  return formatInvoiceDate(row.createdAt || row.invoiceDate);
+}
+
 type CoreTransactionRule = {
   id: number;
   orgId: string;
@@ -532,7 +539,7 @@ function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransa
     clientShareGst: row.splitGstAmount,
     clientShareNet: row.splitNetAmount,
     metadata: {},
-    createdAt: "",
+    createdAt: row.createdAt,
     updatedAt: "",
   };
 }
@@ -2209,7 +2216,7 @@ function AwaitingReviewTable({
                       {isRevenue ? "Revenue" : "Expense"}
                     </span>
                   </td>
-                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                  <td>{formatSubmittedDate(row)}</td>
                   <td style={{ textAlign: "center" }}>
                     <button
                       type="button"
@@ -2676,7 +2683,8 @@ const DUMMY_PROPERTY_TRANSACTIONS: CorePropertyTransactionRow[] = [
     splitPercentage: 100,
     splitGrossAmount: 1200.00,
     splitGstAmount: 120.00,
-    splitNetAmount: 1080.00
+    splitNetAmount: 1080.00,
+    createdAt: "2026-08-05T09:15:00Z"
   },
   {
     transactionId: "e7b91f04-ea32-4752-9b2f-76ad00f135ad",
@@ -2697,7 +2705,8 @@ const DUMMY_PROPERTY_TRANSACTIONS: CorePropertyTransactionRow[] = [
     splitPercentage: 100,
     splitGrossAmount: 4500.00,
     splitGstAmount: 450.00,
-    splitNetAmount: 4050.00
+    splitNetAmount: 4050.00,
+    createdAt: "2026-08-03T14:20:00Z"
   },
   {
     transactionId: "6c9d2ef1-bd12-42fe-aa89-53cd98fb2a3c",
@@ -2718,7 +2727,8 @@ const DUMMY_PROPERTY_TRANSACTIONS: CorePropertyTransactionRow[] = [
     splitPercentage: 100,
     splitGrossAmount: 180.00,
     splitGstAmount: 18.00,
-    splitNetAmount: 162.00
+    splitNetAmount: 162.00,
+    createdAt: "2026-07-29T11:05:00Z"
   }
 ];
 

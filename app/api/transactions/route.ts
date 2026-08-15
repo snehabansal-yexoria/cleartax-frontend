@@ -72,7 +72,7 @@ function mergePropertyTransaction(
     clientShareGst: row.splitGstAmount,
     clientShareNet: row.splitNetAmount,
     metadata: {},
-    createdAt: "",
+    createdAt: row.createdAt,
     updatedAt: "",
   });
 }
