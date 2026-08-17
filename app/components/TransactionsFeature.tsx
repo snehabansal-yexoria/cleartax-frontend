@@ -3282,15 +3282,15 @@ export function AllTransactionsView({
   // (reviewed / approved / rejected).
   const reviewedCount = useMemo(() => {
     return contextKind === "property"
-      ? filteredPropertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
-      : filteredRows.filter((row) => row.reviewStatus !== "unreviewed").length;
-  }, [contextKind, filteredPropertyRows, filteredRows]);
+      ? propertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
+      : rows.filter((row) => row.reviewStatus !== "unreviewed").length;
+  }, [contextKind, propertyRows, rows]);
 
   const unreviewedCount = useMemo(() => {
     return contextKind === "property"
-      ? filteredPropertyRows.filter((row) => row.reviewStatus === "unreviewed").length
-      : filteredRows.filter((row) => row.reviewStatus === "unreviewed").length;
-  }, [contextKind, filteredPropertyRows, filteredRows]);
+      ? propertyRows.filter((row) => row.reviewStatus === "unreviewed").length
+      : rows.filter((row) => row.reviewStatus === "unreviewed").length;
+  }, [contextKind, propertyRows, rows]);
 
   // Dynamic lists based on active tab
   const tabFilteredRows = useMemo(() => {
