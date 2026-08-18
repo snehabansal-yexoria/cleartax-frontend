@@ -894,7 +894,12 @@ export async function updateCorePropertyLogit(
 // =============================================================================
 
 export type CoreTransactionType = "revenue" | "expense";
-export type CoreReviewStatus = "unreviewed" | "reviewed";
+export type CoreReviewStatus =
+  | "unreviewed"
+  | "reviewed"
+  | "approved"
+  | "rejected";
+export type CoreReviewAction = "approve" | "reject" | "reset";
 export type CoreAssetClass = "capital_works" | "capital_allowance";
 
 export type CoreTransactionAllocation = {
@@ -943,6 +948,12 @@ export type CoreTransactionDetail = {
   effectiveLifeYears: number | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
+  // Reviewer stamp — optional so pre-workflow object literals (mocks, sample
+  // rows) stay valid; the normalizers always populate them.
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
   metadata: Record<string, unknown>;
   documentId: string | null;
   documentFileName: string | null;
@@ -972,6 +983,9 @@ export type CoreTransactionListItem = {
   effectiveLifeYears: number | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
   clientId: string;
   clientName: string;
   entityId: string;
@@ -1001,11 +1015,14 @@ export type CorePropertyTransactionRow = {
   isAssetPurchase: boolean;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   splitId: number;
   splitPercentage: number;
   splitGrossAmount: number;
   splitGstAmount: number;
   splitNetAmount: number;
+  createdAt: string;
 };
 
 export type CoreTransactionCategory = {
@@ -1066,7 +1083,8 @@ function toTxnType(value: unknown): CoreTransactionType {
 
 function toReviewStatus(value: unknown): CoreReviewStatus {
   const s = toStringValue(value).toLowerCase();
-  return s === "reviewed" ? "reviewed" : "unreviewed";
+  if (s === "reviewed" || s === "approved" || s === "rejected") return s;
+  return "unreviewed";
 }
 
 export function normalizeCoreTransactionAllocation(
@@ -1142,6 +1160,12 @@ export function normalizeCoreTransactionDetail(
     ),
     ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
     reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    reviewedBy: toNullableString(raw.reviewed_by ?? raw.reviewedBy),
+    reviewedByName: toNullableString(
+      raw.reviewed_by_name ?? raw.reviewedByName,
+    ),
+    reviewedAt: toNullableString(raw.reviewed_at ?? raw.reviewedAt),
+    reviewNote: toNullableString(raw.review_note ?? raw.reviewNote),
     metadata: toRecord(raw.metadata),
     documentId: toNullableString(raw.document_id ?? raw.documentId),
     documentFileName: toNullableString(raw.document_file_name ?? raw.documentFileName),
@@ -1181,6 +1205,9 @@ export function normalizeCoreTransactionListItem(
     ),
     ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
     reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    reviewedBy: toNullableString(raw.reviewed_by ?? raw.reviewedBy),
+    reviewedAt: toNullableString(raw.reviewed_at ?? raw.reviewedAt),
+    reviewNote: toNullableString(raw.review_note ?? raw.reviewNote),
     clientId: toStringValue(
       raw.client_id ?? raw.clientId ?? raw.created_for ?? raw.createdFor,
     ),
@@ -1233,6 +1260,8 @@ export function normalizeCorePropertyTransactionRow(
     isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
     ruleId: toNullableInt(raw.rule_id ?? raw.ruleId),
     reviewStatus: toReviewStatus(raw.review_status ?? raw.reviewStatus),
+    reviewedBy: toNullableString(raw.reviewed_by ?? raw.reviewedBy),
+    reviewedAt: toNullableString(raw.reviewed_at ?? raw.reviewedAt),
     splitId: toNumberValue(raw.split_id ?? raw.splitId) ?? 0,
     splitPercentage: toFloatValue(raw.split_percentage ?? raw.splitPercentage),
     splitGrossAmount: toFloatValue(
@@ -1240,6 +1269,7 @@ export function normalizeCorePropertyTransactionRow(
     ),
     splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
     splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
   };
 }
 
@@ -1267,12 +1297,127 @@ export function normalizeCoreTransactionSubcategory(
   };
 }
 
+// =============================================================================
+// Transaction rules
+// =============================================================================
+
+export type CoreTransactionRuleCondition = {
+  field: string;
+  operator: string;
+  value: unknown;
+};
+
+export type CoreTransactionRule = {
+  id: number;
+  orgId: string;
+  entityId: string;
+  propertyId: string | null;
+  name: string;
+  matchMode: string;
+  conditions: CoreTransactionRuleCondition[];
+  assignedType: string;
+  assignedCategoryId: number;
+  assignedSubcategoryId: number;
+  autoConfirm: boolean;
+  isEnabled: boolean;
+  metadata: Record<string, unknown>;
+  createdBy: string;
+  updatedBy: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function normalizeRuleCondition(raw: unknown): CoreTransactionRuleCondition {
+  const r = toRecord(raw);
+  return {
+    field: toStringValue(r.field),
+    operator: toStringValue(r.operator),
+    value: r.value,
+  };
+}
+
+export function normalizeCoreTransactionRule(
+  raw: RawRecord,
+): CoreTransactionRule {
+  const conditionsRaw = Array.isArray(raw.conditions) ? raw.conditions : [];
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    propertyId: toNullableString(raw.property_id ?? raw.propertyId),
+    name: toStringValue(raw.name),
+    matchMode: toStringValue(raw.match_mode ?? raw.matchMode),
+    conditions: conditionsRaw.map(normalizeRuleCondition),
+    assignedType: toStringValue(raw.assigned_type ?? raw.assignedType),
+    assignedCategoryId:
+      toNumberValue(raw.assigned_category_id ?? raw.assignedCategoryId) ?? 0,
+    assignedSubcategoryId:
+      toNumberValue(raw.assigned_subcategory_id ?? raw.assignedSubcategoryId) ??
+      0,
+    autoConfirm: Boolean(raw.auto_confirm ?? raw.autoConfirm),
+    isEnabled: Boolean(raw.is_enabled ?? raw.isEnabled),
+    metadata: toRecord(raw.metadata),
+    createdBy: toStringValue(raw.created_by ?? raw.createdBy),
+    updatedBy: toStringValue(raw.updated_by ?? raw.updatedBy),
+    isDeleted: Boolean(raw.is_deleted ?? raw.isDeleted),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+// Normalizes a `{ items: [...] }` rules list payload to camelCase, preserving
+// any other top-level keys. Non-list payloads pass through untouched, so this
+// is safe to chain after scopeRulesForAccountant (which filters on the raw
+// snake_case `created_by` and must therefore run first).
+export function normalizeCoreTransactionRuleList(payload: unknown): unknown {
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    !Array.isArray((payload as { items?: unknown }).items)
+  ) {
+    return payload;
+  }
+  const items = (payload as { items: unknown[] }).items;
+  return {
+    ...(payload as object),
+    items: items
+      .filter((i): i is RawRecord => typeof i === "object" && i !== null)
+      .map(normalizeCoreTransactionRule),
+  };
+}
+
+// Optional server-side review filter shared by the transaction list helpers.
+function reviewStatusQuery(reviewStatus?: CoreReviewStatus): string {
+  return reviewStatus
+    ? `?review_status=${encodeURIComponent(reviewStatus)}`
+    : "";
+}
+
+// Narrows an untrusted query-param value to a CoreReviewStatus, or undefined
+// when absent/invalid — used by BFF routes forwarding ?review_status=.
+export function toCoreReviewStatusParam(
+  value: string | null,
+): CoreReviewStatus | undefined {
+  const s = (value ?? "").trim().toLowerCase();
+  if (
+    s === "unreviewed" ||
+    s === "reviewed" ||
+    s === "approved" ||
+    s === "rejected"
+  ) {
+    return s;
+  }
+  return undefined;
+}
+
 export async function listCoreTransactionsByClient(
   token: string,
   clientId: string,
+  reviewStatus?: CoreReviewStatus,
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/transactions`,
+    `/clients/${encodeURIComponent(clientId)}/transactions${reviewStatusQuery(reviewStatus)}`,
     { token },
   );
   return getJsonArray(payload).map(normalizeCoreTransactionListItem);
@@ -1281,9 +1426,10 @@ export async function listCoreTransactionsByClient(
 export async function listCoreTransactionsByEntity(
   token: string,
   entityId: string,
+  reviewStatus?: CoreReviewStatus,
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/transactions`,
+    `/entities/${encodeURIComponent(entityId)}/transactions${reviewStatusQuery(reviewStatus)}`,
     { token },
   );
   return getJsonArray(payload).map(normalizeCoreTransactionListItem);
@@ -1292,9 +1438,10 @@ export async function listCoreTransactionsByEntity(
 export async function listCoreTransactionsByProperty(
   token: string,
   propertyId: string,
+  reviewStatus?: CoreReviewStatus,
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/transactions`,
+    `/properties/${encodeURIComponent(propertyId)}/transactions${reviewStatusQuery(reviewStatus)}`,
     { token },
   );
   return getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
@@ -1330,6 +1477,64 @@ export async function updateCoreTransaction(
     { method: "PATCH", token, body },
   );
   return normalizeCoreTransactionDetail(getJsonObject(payload));
+}
+
+// Approve / reject / reset one transaction. Accountant/admin only — the
+// backend 403s clients. Returns the updated transaction detail with the
+// reviewer stamp (reviewedBy/reviewedAt/reviewNote) applied.
+export async function reviewCoreTransaction(
+  token: string,
+  id: string,
+  action: CoreReviewAction,
+  note?: string,
+) {
+  const body: Record<string, unknown> = { action };
+  if (note !== undefined) body.note = note;
+  const payload = await coreApiRequest(
+    `/transactions/${encodeURIComponent(id)}/review`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreTransactionDetail(getJsonObject(payload));
+}
+
+export type CoreBulkReviewResult = {
+  id: string;
+  ok: boolean;
+  error: string | null;
+};
+
+export type CoreBulkReviewResponse = {
+  updated: number;
+  results: CoreBulkReviewResult[];
+};
+
+// Apply one review action to up to 200 transactions. Rows fail independently;
+// inspect `results` for per-id errors.
+export async function bulkReviewCoreTransactions(
+  token: string,
+  ids: string[],
+  action: CoreReviewAction,
+  note?: string,
+): Promise<CoreBulkReviewResponse> {
+  const body: Record<string, unknown> = { ids, action };
+  if (note !== undefined) body.note = note;
+  const payload = await coreApiRequest("/transactions/review/bulk", {
+    method: "POST",
+    token,
+    body,
+  });
+  const record = getJsonObject(payload);
+  const resultsRaw = Array.isArray(record.results) ? record.results : [];
+  return {
+    updated: toNumberValue(record.updated) ?? 0,
+    results: resultsRaw
+      .filter((r): r is RawRecord => typeof r === "object" && r !== null)
+      .map((r) => ({
+        id: toStringValue(r.id),
+        ok: Boolean(r.ok),
+        error: toNullableString(r.error),
+      })),
+  };
 }
 
 export async function deleteCoreTransaction(token: string, id: string) {

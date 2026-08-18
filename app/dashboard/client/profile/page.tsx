@@ -13,6 +13,390 @@ interface SessionWithIdToken {
   };
 }
 
+const inlineStyles = {
+  wrapper: {
+    display: "flex",
+    justifyContent: "center",
+    background: "#f7f9fc",
+    minHeight: "100vh",
+    width: "100%",
+  },
+  container: {
+    width: "100%",
+    maxWidth: "480px",
+    padding: "0 20px 40px 20px",
+    background: "#f7f9fc",
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "24px 0 16px 0",
+    position: "relative" as const,
+  },
+  backLink: {
+    fontSize: "16px",
+    fontWeight: 600,
+    color: "#1a235a",
+    background: "none",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+  },
+  title: {
+    fontSize: "20px",
+    fontWeight: 700,
+    color: "#101828",
+    margin: 0,
+    position: "absolute" as const,
+    left: "50%",
+    transform: "translateX(-50%)",
+  },
+  hero: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    margin: "24px 0",
+    textAlign: "center" as const,
+  },
+  heroAvatar: {
+    width: "96px",
+    height: "96px",
+    borderRadius: "50%",
+    background: "#1a235a",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "32px",
+    fontWeight: 700,
+    marginBottom: "16px",
+    boxShadow: "0 8px 20px rgba(26, 35, 90, 0.15)",
+    border: "4px solid #ffffff",
+  },
+  heroName: {
+    fontSize: "24px",
+    fontWeight: 700,
+    color: "#101828",
+    margin: "0 0 4px 0",
+    letterSpacing: "-0.01em",
+  },
+  heroEmail: {
+    fontSize: "14px",
+    color: "#667085",
+    margin: 0,
+  },
+  sectionTitle: {
+    fontSize: "11px",
+    fontWeight: 700,
+    color: "#8c9ba5",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+    margin: "24px 0 8px 4px",
+  },
+  accountantCard: {
+    background: "#1a235a",
+    borderRadius: "20px",
+    padding: "20px",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    boxShadow: "0 8px 24px rgba(26, 35, 90, 0.18)",
+    color: "#ffffff",
+  },
+  accountantAvatar: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    background: "rgba(255, 255, 255, 0.15)",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "16px",
+    fontWeight: 600,
+  },
+  accountantInfo: {
+    display: "flex",
+    flexDirection: "column" as const,
+  },
+  accountantName: {
+    fontSize: "16px",
+    fontWeight: 700,
+    color: "#ffffff",
+    margin: 0,
+  },
+  accountantSubtitle: {
+    fontSize: "13px",
+    color: "rgba(255, 255, 255, 0.6)",
+    margin: "2px 0 0 0",
+  },
+  detailsCard: {
+    background: "#ffffff",
+    border: "1px solid #eaeef4",
+    borderRadius: "20px",
+    padding: "0 16px",
+    boxShadow: "0 4px 12px rgba(16, 24, 40, 0.01)",
+  },
+  detailRow: (isLast: boolean) => ({
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 0",
+    borderBottom: isLast ? "none" : "1px solid #eaeef4",
+  }),
+  detailLabel: {
+    fontSize: "14px",
+    color: "#98a2b3",
+    fontWeight: 500,
+  },
+  detailValue: {
+    fontSize: "15px",
+    color: "#101828",
+    fontWeight: 600,
+  },
+  detailValueConnected: {
+    fontSize: "15px",
+    color: "#12b76a",
+    fontWeight: 600,
+  },
+  settingsCard: {
+    background: "#ffffff",
+    border: "1px solid #eaeef4",
+    borderRadius: "20px",
+    padding: "16px",
+    boxShadow: "0 4px 12px rgba(16, 24, 40, 0.01)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  settingsLabel: {
+    fontSize: "15px",
+    color: "#101828",
+    fontWeight: 600,
+  },
+  signOutBtn: {
+    width: "100%",
+    background: "#fef3f2",
+    color: "#b42318",
+    fontSize: "16px",
+    fontWeight: 700,
+    padding: "16px",
+    borderRadius: "16px",
+    border: "none",
+    cursor: "pointer",
+    marginTop: "32px",
+    marginBottom: "24px",
+    textAlign: "center" as const,
+  },
+};
+
+function ClientProfileSkeleton({ isMobile }: { isMobile: boolean }) {
+  if (isMobile) {
+    return (
+      <div className="mobile-profile-wrapper" style={inlineStyles.wrapper}>
+        <div className="mobile-profile-container" style={inlineStyles.container}>
+          {/* Header */}
+          <div style={inlineStyles.header}>
+            <div className="skeleton-pill" style={{ ...inlineStyles.backLink, width: "60px", height: "20px" }} />
+            <div className="skeleton-pill" style={{ ...inlineStyles.title, width: "80px", height: "24px" }} />
+            <div style={{ width: "40px" }} />
+          </div>
+
+          {/* Hero Section */}
+          <div className="mobile-profile-hero" style={inlineStyles.hero}>
+            <div className="skeleton-circle" style={{ width: "96px", height: "96px", marginBottom: "16px" }} />
+            <div className="skeleton-line" style={{ width: "150px", height: "20px", marginBottom: "8px" }} />
+            <div className="skeleton-line" style={{ width: "200px", height: "14px" }} />
+          </div>
+
+          {/* Your Accountant */}
+          <div className="skeleton-line" style={{ width: "100px", height: "12px", margin: "24px 0 8px 4px" }} />
+          <div className="mobile-profile-accountant-card" style={inlineStyles.accountantCard}>
+            <div className="skeleton-circle" style={{ width: "48px", height: "48px" }} />
+            <div className="mobile-profile-accountant-info" style={{ ...inlineStyles.accountantInfo, gap: "6px", flexGrow: 1 }}>
+              <div className="skeleton-line" style={{ width: "120px", height: "14px", marginBottom: "2px" }} />
+              <div className="skeleton-line" style={{ width: "150px", height: "12px" }} />
+            </div>
+          </div>
+
+          {/* Personal Details */}
+          <div className="skeleton-line" style={{ width: "110px", height: "12px", margin: "24px 0 8px 4px" }} />
+          <div className="mobile-profile-details-card" style={inlineStyles.detailsCard}>
+            <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
+              <div className="skeleton-line" style={{ width: "80px", height: "14px" }} />
+              <div className="skeleton-line" style={{ width: "120px", height: "14px" }} />
+            </div>
+            <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
+              <div className="skeleton-line" style={{ width: "50px", height: "14px" }} />
+              <div className="skeleton-line" style={{ width: "160px", height: "14px" }} />
+            </div>
+            <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(true)}>
+              <div className="skeleton-line" style={{ width: "60px", height: "14px" }} />
+              <div className="skeleton-line" style={{ width: "110px", height: "14px" }} />
+            </div>
+          </div>
+
+          {/* Bank Connections */}
+          <div className="skeleton-line" style={{ width: "120px", height: "12px", margin: "24px 0 8px 4px" }} />
+          <div className="mobile-profile-details-card" style={inlineStyles.detailsCard}>
+            <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
+              <div className="skeleton-line" style={{ width: "80px", height: "14px" }} />
+              <div className="skeleton-line" style={{ width: "130px", height: "14px" }} />
+            </div>
+            <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(true)}>
+              <div className="skeleton-line" style={{ width: "130px", height: "14px" }} />
+              <div className="skeleton-line" style={{ width: "140px", height: "14px" }} />
+            </div>
+          </div>
+
+          {/* Settings */}
+          <div className="skeleton-line" style={{ width: "80px", height: "12px", margin: "24px 0 8px 4px" }} />
+          <div className="mobile-profile-settings-card" style={inlineStyles.settingsCard}>
+            <div className="skeleton-line" style={{ width: "100px", height: "14px" }} />
+            <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
+          </div>
+
+          {/* Sign Out */}
+          <div className="skeleton-pill" style={{
+            width: "100%",
+            height: "56px",
+            marginTop: "32px",
+            marginBottom: "24px",
+            borderRadius: "16px"
+          }} />
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop view skeleton
+  return (
+    <div className="desktop-client-dashboard">
+      <div className="desktop-profile-container">
+        {/* Back link */}
+        <div className="profile-header-nav">
+          <div className="skeleton-pill" style={{ width: "60px", height: "20px" }} />
+        </div>
+
+        <div className="skeleton-line" style={{ width: "120px", height: "32px", marginBottom: "24px", borderRadius: "8px" }} />
+
+        {/* Hero Card */}
+        <div className="profile-hero-card">
+          <div className="profile-hero-left">
+            <div className="skeleton-circle" style={{ width: "80px", height: "80px" }} />
+            <div className="profile-hero-info">
+              <div className="skeleton-line" style={{ width: "180px", height: "24px", marginBottom: "4px" }} />
+              <div className="skeleton-line" style={{ width: "220px", height: "14px" }} />
+            </div>
+          </div>
+          <div className="skeleton-pill" style={{ width: "120px", height: "38px", borderRadius: "8px" }} />
+        </div>
+
+        <div className="profile-grid">
+          {/* Left Column */}
+          <div className="profile-grid-column">
+            {/* Accountant */}
+            <div className="profile-section-container">
+              <div className="skeleton-line" style={{ width: "100px", height: "12px", margin: "8px 0 8px 4px" }} />
+              <div className="profile-accountant-card">
+                <div className="skeleton-circle" style={{ width: "48px", height: "48px" }} />
+                <div className="profile-accountant-info" style={{ gap: "6px" }}>
+                  <div className="skeleton-line" style={{ width: "120px", height: "14px", marginBottom: "2px" }} />
+                  <div className="skeleton-line" style={{ width: "150px", height: "12px" }} />
+                </div>
+                <div className="profile-chevron-right">
+                  <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Details */}
+            <div className="profile-section-container">
+              <div className="skeleton-line" style={{ width: "110px", height: "12px", margin: "8px 0 8px 4px" }} />
+              <div className="profile-details-card">
+                <div className="profile-detail-row">
+                  <div className="skeleton-line" style={{ width: "80px", height: "14px" }} />
+                  <div className="skeleton-line" style={{ width: "120px", height: "14px" }} />
+                </div>
+                <div className="profile-detail-row">
+                  <div className="skeleton-line" style={{ width: "50px", height: "14px" }} />
+                  <div className="skeleton-line" style={{ width: "160px", height: "14px" }} />
+                </div>
+                <div className="profile-detail-row">
+                  <div className="skeleton-line" style={{ width: "60px", height: "14px" }} />
+                  <div className="skeleton-line" style={{ width: "110px", height: "14px" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="profile-grid-column">
+            {/* Bank Connections */}
+            <div className="profile-section-container">
+              <div className="skeleton-line" style={{ width: "120px", height: "12px", margin: "8px 0 8px 4px" }} />
+              <div className="profile-details-card">
+                <div className="profile-detail-row">
+                  <div className="profile-bank-info">
+                    <div className="skeleton-circle" style={{ width: "40px", height: "40px" }} />
+                    <div className="profile-bank-details" style={{ gap: "4px" }}>
+                      <div className="skeleton-line" style={{ width: "80px", height: "14px", marginBottom: "2px" }} />
+                      <div className="skeleton-line" style={{ width: "120px", height: "12px" }} />
+                    </div>
+                  </div>
+                  <div className="profile-chevron-right">
+                    <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
+                  </div>
+                </div>
+
+                <div className="profile-detail-row">
+                  <div className="profile-bank-info">
+                    <div className="skeleton-circle" style={{ width: "40px", height: "40px" }} />
+                    <div className="profile-bank-details" style={{ gap: "4px" }}>
+                      <div className="skeleton-line" style={{ width: "140px", height: "14px", marginBottom: "2px" }} />
+                      <div className="skeleton-line" style={{ width: "120px", height: "12px" }} />
+                    </div>
+                  </div>
+                  <div className="profile-chevron-right">
+                    <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Settings */}
+            <div className="profile-section-container">
+              <div className="skeleton-line" style={{ width: "80px", height: "12px", margin: "8px 0 8px 4px" }} />
+              <div className="profile-details-card">
+                <div className="profile-settings-row">
+                  <div className="skeleton-line" style={{ width: "100px", height: "14px" }} />
+                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
+                </div>
+                <div className="profile-settings-row">
+                  <div className="skeleton-line" style={{ width: "120px", height: "14px" }} />
+                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
+                </div>
+                <div className="profile-settings-row">
+                  <div className="skeleton-line" style={{ width: "160px", height: "14px" }} />
+                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Sign Out */}
+            <div className="skeleton-pill" style={{ width: "100%", height: "48px", marginTop: "8px", borderRadius: "12px" }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ClientProfilePage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string; phoneNumber?: string } | null>(null);
@@ -85,198 +469,12 @@ export default function ClientProfilePage() {
 
   const initials = getInitials(fullName);
 
-  // Self-contained CSS styles for mobile styling reliability
-  const inlineStyles = {
-    wrapper: {
-      display: "flex",
-      justifyContent: "center",
-      background: "#f7f9fc",
-      minHeight: "100vh",
-      width: "100%",
-    },
-    container: {
-      width: "100%",
-      maxWidth: "480px",
-      padding: "0 20px 40px 20px",
-      background: "#f7f9fc",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    },
-    header: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "24px 0 16px 0",
-      position: "relative" as const,
-    },
-    backLink: {
-      fontSize: "16px",
-      fontWeight: 600,
-      color: "#1a235a",
-      background: "none",
-      border: "none",
-      padding: 0,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-    },
-    title: {
-      fontSize: "20px",
-      fontWeight: 700,
-      color: "#101828",
-      margin: 0,
-      position: "absolute" as const,
-      left: "50%",
-      transform: "translateX(-50%)",
-    },
-    hero: {
-      display: "flex",
-      flexDirection: "column" as const,
-      alignItems: "center",
-      margin: "24px 0",
-      textAlign: "center" as const,
-    },
-    heroAvatar: {
-      width: "96px",
-      height: "96px",
-      borderRadius: "50%",
-      background: "#1a235a",
-      color: "#ffffff",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "32px",
-      fontWeight: 700,
-      marginBottom: "16px",
-      boxShadow: "0 8px 20px rgba(26, 35, 90, 0.15)",
-      border: "4px solid #ffffff",
-    },
-    heroName: {
-      fontSize: "24px",
-      fontWeight: 700,
-      color: "#101828",
-      margin: "0 0 4px 0",
-      letterSpacing: "-0.01em",
-    },
-    heroEmail: {
-      fontSize: "14px",
-      color: "#667085",
-      margin: 0,
-    },
-    sectionTitle: {
-      fontSize: "11px",
-      fontWeight: 700,
-      color: "#8c9ba5",
-      textTransform: "uppercase" as const,
-      letterSpacing: "0.05em",
-      margin: "24px 0 8px 4px",
-    },
-    accountantCard: {
-      background: "#1a235a",
-      borderRadius: "20px",
-      padding: "20px",
-      display: "flex",
-      alignItems: "center",
-      gap: "16px",
-      boxShadow: "0 8px 24px rgba(26, 35, 90, 0.18)",
-      color: "#ffffff",
-    },
-    accountantAvatar: {
-      width: "48px",
-      height: "48px",
-      borderRadius: "50%",
-      background: "rgba(255, 255, 255, 0.15)",
-      color: "#ffffff",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "16px",
-      fontWeight: 600,
-    },
-    accountantInfo: {
-      display: "flex",
-      flexDirection: "column" as const,
-    },
-    accountantName: {
-      fontSize: "16px",
-      fontWeight: 700,
-      color: "#ffffff",
-      margin: 0,
-    },
-    accountantSubtitle: {
-      fontSize: "13px",
-      color: "rgba(255, 255, 255, 0.6)",
-      margin: "2px 0 0 0",
-    },
-    detailsCard: {
-      background: "#ffffff",
-      border: "1px solid #eaeef4",
-      borderRadius: "20px",
-      padding: "0 16px",
-      boxShadow: "0 4px 12px rgba(16, 24, 40, 0.01)",
-    },
-    detailRow: (isLast: boolean) => ({
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "16px 0",
-      borderBottom: isLast ? "none" : "1px solid #eaeef4",
-    }),
-    detailLabel: {
-      fontSize: "14px",
-      color: "#98a2b3",
-      fontWeight: 500,
-    },
-    detailValue: {
-      fontSize: "15px",
-      color: "#101828",
-      fontWeight: 600,
-    },
-    detailValueConnected: {
-      fontSize: "15px",
-      color: "#12b76a",
-      fontWeight: 600,
-    },
-    settingsCard: {
-      background: "#ffffff",
-      border: "1px solid #eaeef4",
-      borderRadius: "20px",
-      padding: "16px",
-      boxShadow: "0 4px 12px rgba(16, 24, 40, 0.01)",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    settingsLabel: {
-      fontSize: "15px",
-      color: "#101828",
-      fontWeight: 600,
-    },
-    signOutBtn: {
-      width: "100%",
-      background: "#fef3f2",
-      color: "#b42318",
-      fontSize: "16px",
-      fontWeight: 700,
-      padding: "16px",
-      borderRadius: "16px",
-      border: "none",
-      cursor: "pointer",
-      marginTop: "32px",
-      marginBottom: "24px",
-      textAlign: "center" as const,
-    },
-  };
+
 
   if (isMobile) {
     return (
-      <Skeleton
-        name="client-profile-page-skeleton"
-        loading={isLoading}
-        fallback={<ClientEntitiesSkeleton />}
-      >
-        <div style={inlineStyles.wrapper}>
-          <style>{`
+      <>
+        <style>{`
             .switch {
               position: relative;
               display: inline-block;
@@ -325,12 +523,101 @@ export default function ClientProfilePage() {
             input:checked + .slider:before {
               transform: translateX(22px);
             }
+
+            /* Mobile Dark Mode Overrides */
+            .dark .mobile-profile-wrapper {
+              background: #0f172a !important;
+            }
+            .dark .mobile-profile-container {
+              background: #0f172a !important;
+            }
+            .dark .mobile-profile-back-link {
+              color: #f8fafc !important;
+            }
+            .dark .mobile-profile-back-link:hover {
+              color: #f4a117 !important;
+            }
+            .dark .mobile-profile-title {
+              color: #f8fafc !important;
+            }
+            .dark .mobile-profile-hero-avatar {
+              background: #1e293b !important;
+              border-color: #334155 !important;
+              box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+            }
+            .dark .mobile-profile-hero-name {
+              color: #f8fafc !important;
+            }
+            .dark .mobile-profile-hero-email {
+              color: #94a3b8 !important;
+            }
+            .dark .mobile-profile-section-title {
+              color: #64748b !important;
+            }
+            .dark .mobile-profile-accountant-card {
+              background: #1e293b !important;
+              box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+              border: 1px solid #334155 !important;
+            }
+            .dark .mobile-profile-accountant-avatar {
+              background: rgba(255, 255, 255, 0.1) !important;
+            }
+            .dark .mobile-profile-accountant-name {
+              color: #f8fafc !important;
+            }
+            .dark .mobile-profile-accountant-subtitle {
+              color: #94a3b8 !important;
+            }
+            .dark .mobile-profile-details-card {
+              background: #1e293b !important;
+              border-color: #334155 !important;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            }
+            .dark .mobile-profile-detail-row {
+              border-bottom-color: #334155 !important;
+            }
+            .dark .mobile-profile-detail-label {
+              color: #94a3b8 !important;
+            }
+            .dark .mobile-profile-detail-value {
+              color: #f8fafc !important;
+            }
+            .dark .mobile-profile-detail-value-connected {
+              color: #4ade80 !important;
+            }
+            .dark .mobile-profile-settings-card {
+              background: #1e293b !important;
+              border-color: #334155 !important;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            }
+            .dark .mobile-profile-settings-label {
+              color: #f8fafc !important;
+            }
+            .dark .mobile-profile-signout-btn {
+              background: #7f1d1d !important;
+              color: #fca5a5 !important;
+            }
+            .dark .mobile-profile-signout-btn:hover {
+              background: #991b1b !important;
+            }
+            .dark input:checked + .slider {
+              background-color: #f4a117 !important;
+            }
+            .dark .slider {
+              background-color: #475569 !important;
+            }
           `}</style>
 
-          <div style={inlineStyles.container}>
+          <Skeleton
+            name="client-profile-page-skeleton"
+            loading={isLoading}
+            fallback={<ClientProfileSkeleton isMobile={true} />}
+          >
+            <div className="mobile-profile-wrapper" style={inlineStyles.wrapper}>
+              <div className="mobile-profile-container" style={inlineStyles.container}>
             {/* Header */}
             <div style={inlineStyles.header}>
-              <button onClick={() => router.back()} style={inlineStyles.backLink}>
+              <button onClick={() => router.back()} className="mobile-profile-back-link" style={inlineStyles.backLink}>
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -342,61 +629,61 @@ export default function ClientProfilePage() {
                 </svg>
                 Back
               </button>
-              <h1 style={inlineStyles.title}>Profile</h1>
+              <h1 className="mobile-profile-title" style={inlineStyles.title}>Profile</h1>
               <div style={{ width: "40px" }} />
             </div>
 
             {/* Hero Section */}
-            <div style={inlineStyles.hero}>
-              <div style={inlineStyles.heroAvatar}>{initials}</div>
-              <h2 style={inlineStyles.heroName}>{fullName}</h2>
-              <p style={inlineStyles.heroEmail}>{email}</p>
+            <div className="mobile-profile-hero" style={inlineStyles.hero}>
+              <div className="mobile-profile-hero-avatar" style={inlineStyles.heroAvatar}>{initials}</div>
+              <h2 className="mobile-profile-hero-name" style={inlineStyles.heroName}>{fullName}</h2>
+              <p className="mobile-profile-hero-email" style={inlineStyles.heroEmail}>{email}</p>
             </div>
 
             {/* Your Accountant */}
-            <h3 style={inlineStyles.sectionTitle}>Your Accountant</h3>
-            <div style={inlineStyles.accountantCard}>
-              <div style={inlineStyles.accountantAvatar}>MC</div>
-              <div style={inlineStyles.accountantInfo}>
-                <h4 style={inlineStyles.accountantName}>Michael Chen</h4>
-                <p style={inlineStyles.accountantSubtitle}>Chen & Associates CPA</p>
+            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Your Accountant</h3>
+            <div className="mobile-profile-accountant-card" style={inlineStyles.accountantCard}>
+              <div className="mobile-profile-accountant-avatar" style={inlineStyles.accountantAvatar}>MC</div>
+              <div className="mobile-profile-accountant-info" style={inlineStyles.accountantInfo}>
+                <h4 className="mobile-profile-accountant-name" style={inlineStyles.accountantName}>Michael Chen</h4>
+                <p className="mobile-profile-accountant-subtitle" style={inlineStyles.accountantSubtitle}>Chen & Associates CPA</p>
               </div>
             </div>
 
             {/* Personal Details */}
-            <h3 style={inlineStyles.sectionTitle}>Personal Details</h3>
-            <div style={inlineStyles.detailsCard}>
-              <div style={inlineStyles.detailRow(false)}>
-                <span style={inlineStyles.detailLabel}>Full Name</span>
-                <span style={inlineStyles.detailValue}>{fullName}</span>
+            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Personal Details</h3>
+            <div className="mobile-profile-details-card" style={inlineStyles.detailsCard}>
+              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
+                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Full Name</span>
+                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{fullName}</span>
               </div>
-              <div style={inlineStyles.detailRow(false)}>
-                <span style={inlineStyles.detailLabel}>Email</span>
-                <span style={inlineStyles.detailValue}>{email}</span>
+              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
+                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Email</span>
+                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{email}</span>
               </div>
-              <div style={inlineStyles.detailRow(true)}>
-                <span style={inlineStyles.detailLabel}>Phone</span>
-                <span style={inlineStyles.detailValue}>{phoneNumber}</span>
+              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(true)}>
+                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Phone</span>
+                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{phoneNumber}</span>
               </div>
             </div>
 
             {/* Bank Connections */}
-            <h3 style={inlineStyles.sectionTitle}>Bank Connections</h3>
-            <div style={inlineStyles.detailsCard}>
-              <div style={inlineStyles.detailRow(false)}>
-                <span style={inlineStyles.detailLabel}>Westpac</span>
-                <span style={inlineStyles.detailValueConnected}>Connected ...3421</span>
+            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Bank Connections</h3>
+            <div className="mobile-profile-details-card" style={inlineStyles.detailsCard}>
+              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
+                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Westpac</span>
+                <span className="mobile-profile-detail-value-connected" style={inlineStyles.detailValueConnected}>Connected ...3421</span>
               </div>
-              <div style={inlineStyles.detailRow(true)}>
-                <span style={inlineStyles.detailLabel}>Commonwealth Bank</span>
-                <span style={inlineStyles.detailValueConnected}>Connected ...7890</span>
+              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(true)}>
+                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Commonwealth Bank</span>
+                <span className="mobile-profile-detail-value-connected" style={inlineStyles.detailValueConnected}>Connected ...7890</span>
               </div>
             </div>
 
             {/* Settings */}
-            <h3 style={inlineStyles.sectionTitle}>Settings</h3>
-            <div style={inlineStyles.settingsCard}>
-              <span style={inlineStyles.settingsLabel}>Notifications</span>
+            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Settings</h3>
+            <div className="mobile-profile-settings-card" style={inlineStyles.settingsCard}>
+              <span className="mobile-profile-settings-label" style={inlineStyles.settingsLabel}>Notifications</span>
               <label className="switch">
                 <input
                   type="checkbox"
@@ -408,45 +695,26 @@ export default function ClientProfilePage() {
             </div>
 
             {/* Sign Out */}
-            <button type="button" style={inlineStyles.signOutBtn} onClick={handleLogout}>
+            <button type="button" className="mobile-profile-signout-btn" style={inlineStyles.signOutBtn} onClick={handleLogout}>
               Sign Out
             </button>
-          </div>
-        </div>
-      </Skeleton>
-    );
-  }
+              </div>
+            </div>
+          </Skeleton>
+        </>
+      );
+    }
 
   // Desktop / Tablet view
   return (
-    <Skeleton
-      name="client-profile-desktop-skeleton"
-      loading={isLoading}
-      fallback={<ClientEntitiesSkeleton />}
-    >
-      <div className="desktop-profile-wrapper">
-        <style>{`
-          .desktop-profile-wrapper {
-            min-height: 100vh;
-            background-color: #f7f9fc;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 24px;
-            width: 100%;
-            box-sizing: border-box;
-          }
-          @media (min-width: 1200px) {
-            .desktop-profile-wrapper {
-              padding: 24px 40px 40px 40px;
-            }
-          }
+    <>
+      <style>{`
           .desktop-profile-container {
             width: 100%;
-            max-width: 1000px;
-            margin: 0 auto;
           }
           .profile-header-nav {
-            margin-top: 8px;
-            margin-bottom: 8px;
+            margin-top: 0;
+            margin-bottom: 12px;
           }
           .profile-back-btn {
             display: flex;
@@ -472,13 +740,13 @@ export default function ClientProfilePage() {
             font-size: 28px;
             font-weight: 700;
             color: #101828;
-            margin: 8px 0 24px 0;
+            margin: 0 0 24px 0;
           }
           .profile-hero-card {
             background: #ffffff;
             border: 1px solid #eaeef4;
             border-radius: 16px;
-            padding: 24px 32px;
+            padding: 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -773,9 +1041,109 @@ export default function ClientProfilePage() {
           .desktop-switch input:checked + .desktop-slider:before {
             transform: translateX(20px);
           }
-        `}</style>
 
-        <div className="desktop-profile-container">
+          /* Desktop dark mode overrides */
+          html.dark .profile-page-title {
+            color: #ffffff;
+          }
+          html.dark .profile-back-btn {
+            color: #94a3b8;
+          }
+          html.dark .profile-back-btn:hover {
+            color: #f4a117;
+          }
+          html.dark .profile-hero-card {
+            background: #1e293b;
+            border-color: #334155;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          }
+          html.dark .profile-hero-name {
+            color: #ffffff;
+          }
+          html.dark .profile-hero-email {
+            color: #94a3b8;
+          }
+          html.dark .profile-edit-btn {
+            background: #1e293b;
+            border-color: #475569;
+            color: #cbd5e1;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          }
+          html.dark .profile-edit-btn:hover {
+            background: #334155;
+            color: #ffffff;
+            border-color: #475569;
+          }
+          html.dark .profile-section-title {
+            color: #64748b;
+          }
+          html.dark .profile-accountant-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+          }
+          html.dark .profile-accountant-card:hover {
+            background: #334155;
+          }
+          html.dark .profile-accountant-name {
+            color: #ffffff;
+          }
+          html.dark .profile-accountant-subtitle {
+            color: #94a3b8;
+          }
+          html.dark .profile-details-card {
+            background: #1e293b;
+            border-color: #334155;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+          }
+          html.dark .profile-detail-row {
+            border-bottom-color: #334155;
+          }
+          html.dark .profile-detail-label {
+            color: #94a3b8;
+          }
+          html.dark .profile-detail-value {
+            color: #ffffff;
+          }
+          html.dark .profile-clickable-row:hover {
+            background: #334155;
+          }
+          html.dark .profile-bank-icon {
+            background: #334155;
+            color: #f4a117;
+          }
+          html.dark .profile-bank-name {
+            color: #ffffff;
+          }
+          html.dark .profile-bank-status {
+            color: #4ade80;
+          }
+          html.dark .profile-settings-row {
+            border-bottom-color: #334155;
+          }
+          html.dark .profile-settings-label {
+            color: #cbd5e1;
+          }
+          html.dark .profile-signout-btn {
+            background: #7f1d1d;
+            color: #fca5a5;
+          }
+          html.dark .profile-signout-btn:hover {
+            background: #991b1b;
+          }
+          html.dark .desktop-slider {
+            background-color: #475569;
+          }
+          html.dark .desktop-switch input:checked + .desktop-slider {
+            background-color: #f4a117;
+          }
+      `}</style>
+      <Skeleton
+        name="client-profile-desktop-skeleton"
+        loading={isLoading}
+        fallback={<ClientProfileSkeleton isMobile={false} />}
+      >
+        <div className="desktop-client-dashboard">
+          <div className="desktop-profile-container">
           {/* Back button */}
           <div className="profile-header-nav">
             <button onClick={() => router.back()} className="profile-back-btn">
@@ -953,5 +1321,6 @@ export default function ClientProfilePage() {
         </div>
       </div>
     </Skeleton>
+   </>
   );
 }

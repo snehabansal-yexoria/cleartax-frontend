@@ -1,5 +1,6 @@
 "use client";
 
+import "./client.css";
 import { useEffect, useState, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMockClientApi } from "./mockApiInterceptor";
@@ -53,7 +54,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     } else if (view === 'activity') {
       router.push('/dashboard/client/transactions');
     } else if (view === 'property') {
-      router.push('/dashboard/client/property');
+      router.push('/dashboard/client/properties');
     } else if (view === 'entity') {
       router.push('/dashboard/client/entities');
     } else if (view === 'insights') {
@@ -82,7 +83,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Home</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'activity' ? ' is-active' : ''}`}
@@ -96,7 +97,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Activity</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'property' ? ' is-active' : ''}`}
@@ -107,7 +108,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Property</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'entity' ? ' is-active' : ''}`}
@@ -119,7 +120,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </svg>
           <span>Entity</span>
         </button>
-        
+
         <button
           type="button"
           className={`m-db-nav-item${activeTab === 'insights' ? ' is-active' : ''}`}

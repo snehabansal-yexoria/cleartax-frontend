@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   listCoreTransactionsByClient,
-  type CoreTransactionListItem,
+  toCoreReviewStatusParam,
+  type CoreReviewStatus,
 } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
@@ -11,9 +12,10 @@ type RouteContext = { params: Promise<{ clientId: string }> };
 async function listTransactionsFromClientProperties(
   token: string,
   clientId: string,
+  reviewStatus?: CoreReviewStatus,
 ) {
   const [items, client] = await Promise.all([
-    listCoreTransactionsByClient(token, clientId),
+    listCoreTransactionsByClient(token, clientId, reviewStatus),
     findDirectoryUserByIdentity({ id: clientId }),
   ]);
   const clientName = client?.fullName ?? "";
@@ -33,8 +35,15 @@ export async function GET(req: Request, context: RouteContext) {
   }
 
   const { clientId } = await context.params;
+  const reviewStatus = toCoreReviewStatusParam(
+    new URL(req.url).searchParams.get("review_status"),
+  );
   try {
-    const items = await listTransactionsFromClientProperties(token, clientId);
+    const items = await listTransactionsFromClientProperties(
+      token,
+      clientId,
+      reviewStatus,
+    );
     return NextResponse.json({ items });
   } catch (error) {
     return renderUpstreamError(

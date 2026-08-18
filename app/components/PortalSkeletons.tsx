@@ -423,6 +423,69 @@ export function EntityWizardSkeleton() {
   );
 }
 
+export function ClientEntityWizardSkeleton() {
+  return (
+    <div className="entity-wizard-container">
+      {/* Header section */}
+      <div className="entity-wizard-header">
+        <div className="entity-wizard-breadcrumb" style={{ gap: 8, display: "flex", alignItems: "center" }}>
+          <div className="skeleton-pill" style={{ width: 80, height: 16, display: "inline-block" }} />
+          <span className="entity-wizard-breadcrumb-separator">/</span>
+          <div className="skeleton-pill" style={{ width: 100, height: 16, display: "inline-block" }} />
+        </div>
+
+        <div className="entity-wizard-title-row">
+          <div className="entity-wizard-title-group" style={{ flex: 1 }}>
+            <div className="skeleton-line" style={{ width: 220, height: 32, marginBottom: 8, borderRadius: 6 }} />
+            <div className="skeleton-line" style={{ width: 340, height: 16, borderRadius: 4 }} />
+          </div>
+          <div className="skeleton-pill" style={{ width: 180, height: 38 }} />
+        </div>
+      </div>
+
+      <div className="entity-wizard-layout">
+        {/* Main form area */}
+        <div className="entity-wizard-main">
+          <div className="entity-wizard-card">
+            {/* STEP 1 - ENTITY DETAILS */}
+            <div className="entity-wizard-section">
+              <div className="skeleton-line" style={{ width: 180, height: 14, marginBottom: 24, borderRadius: 4 }} />
+
+              {/* Entity name field */}
+              <div className="entity-wizard-field">
+                <div className="skeleton-line" style={{ width: 100, height: 16, marginBottom: 8, borderRadius: 4 }} />
+                <div className="skeleton-input" style={{ height: 48 }} />
+              </div>
+
+              {/* Entity type field */}
+              <div className="entity-wizard-field">
+                <div className="skeleton-line" style={{ width: 90, height: 16, marginBottom: 12, borderRadius: 4 }} />
+                <div className="entity-type-grid">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={index} className="entity-type-card" style={{ height: 86, display: "flex", flexDirection: "column", justifyContent: "center", pointerEvents: "none" }}>
+                      <div className="skeleton-line" style={{ width: "50%", height: 16, marginBottom: 8, borderRadius: 4 }} />
+                      <div className="skeleton-line" style={{ width: "75%", height: 12, borderRadius: 4 }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions footer */}
+            <div className="entity-wizard-actions">
+              <div className="skeleton-pill" style={{ width: 80, height: 40 }} />
+              <div className="entity-wizard-btn-group">
+                <div className="skeleton-pill" style={{ width: 150, height: 40 }} />
+                <div className="skeleton-pill" style={{ width: 220, height: 40 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PropertyWizardSkeleton() {
   return (
     <section className="entity-wizard property-wizard boneyard-fallback">
@@ -709,4 +772,79 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
     </section>
   );
 }
+
+export function ClientPropertiesSkeleton() {
+  return (
+    <section className="portal-page boneyard-fallback">
+      {/* Header Skeleton */}
+      <div className="m-db-subpage-header-skeleton">
+        <div className="skeleton-line" style={{ width: 140, height: 28, borderRadius: 8 }} />
+        <div className="skeleton-circle" style={{ width: 40, height: 40 }} />
+      </div>
+
+      <div className="m-db-content-container-skeleton">
+        {/* Search Box Skeleton */}
+        <div className="m-db-search-skeleton-container">
+          <div className="skeleton-input" style={{ width: "100%", height: 45, borderRadius: 12 }} />
+        </div>
+
+        {/* Pills Row Skeleton */}
+        <div className="m-db-entity-pills-row" style={{ gap: 8, paddingBottom: 16 }}>
+          <div className="skeleton-pill" style={{ width: 110, height: 38 }} />
+          <div className="skeleton-pill" style={{ width: 130, height: 38 }} />
+          <div className="skeleton-pill" style={{ width: 90, height: 38 }} />
+        </div>
+
+        {/* Portfolio Summary Card Skeleton */}
+        <div className="m-db-portfolio-summary-card">
+          <div className="m-db-portfolio-col" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span className="skeleton-line" style={{ width: "60%", height: 14 }} />
+            <span className="skeleton-line" style={{ width: "80%", height: 24 }} />
+          </div>
+          <div className="m-db-portfolio-col divider-left" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span className="skeleton-line" style={{ width: "50%", height: 14 }} />
+            <span className="skeleton-line" style={{ width: "70%", height: 24 }} />
+          </div>
+          <div className="m-db-portfolio-col divider-left" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span className="skeleton-line" style={{ width: "40%", height: 14 }} />
+            <span className="skeleton-line" style={{ width: "60%", height: 24 }} />
+          </div>
+        </div>
+
+        {/* Property cards container skeleton */}
+        <div className="property-cards-container">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="m-db-property-list-card">
+              <div className="m-db-property-img-container">
+                <div className="skeleton-panel" style={{ width: "100%", height: "100%", borderRadius: 0 }} />
+              </div>
+              <div className="m-db-property-details">
+                <div className="skeleton-line" style={{ width: "70%", height: 18, marginBottom: 8 }} />
+                <div className="skeleton-row" style={{ gap: 6, marginBottom: 16 }}>
+                  <div className="skeleton-circle" style={{ width: 14, height: 14 }} />
+                  <div className="skeleton-line" style={{ width: "40%", height: 12 }} />
+                </div>
+                
+                <div className="m-db-property-stats-line">
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton-line" style={{ width: "80%", height: 12 }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton-line" style={{ width: "70%", height: 12 }} />
+                  </div>
+                </div>
+
+                <div className="m-db-property-bottom-line">
+                  <div className="skeleton-pill" style={{ width: 70, height: 24 }} />
+                  <div className="skeleton-line" style={{ width: 80, height: 14 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 

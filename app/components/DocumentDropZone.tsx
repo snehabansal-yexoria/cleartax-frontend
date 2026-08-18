@@ -59,6 +59,13 @@ export function DocumentDropZone({
   allowMultiple = false,
   isSubmitting = false,
   submitError = "",
+  primaryLabelText,
+  secondaryLabelText,
+  style,
+  strongStyle,
+  smallStyle,
+  hideIconOnIdle = false,
+  customIcon,
 }: {
   token: string | null;
   onExtracted: (
@@ -70,6 +77,13 @@ export function DocumentDropZone({
   allowMultiple?: boolean;
   isSubmitting?: boolean;
   submitError?: string;
+  primaryLabelText?: string;
+  secondaryLabelText?: string;
+  style?: React.CSSProperties;
+  strongStyle?: React.CSSProperties;
+  smallStyle?: React.CSSProperties;
+  hideIconOnIdle?: boolean;
+  customIcon?: React.ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -348,10 +362,11 @@ export function DocumentDropZone({
         onClick={pickFile}
         disabled={busy}
         aria-busy={busy}
+        style={style}
       >
         {showProgress ? (
           <>
-            <span className="transaction-document-drop__progress" />
+            <div className="transaction-document-drop__progress" />
             <div className="transaction-document-drop__gif-container">
               <img
                 src="/document-loading.gif"
@@ -379,13 +394,19 @@ export function DocumentDropZone({
             />
           </span>
         ) : (
-          <span>{iconForStatus(activeStatus)}</span>
+          (!hideIconOnIdle || activeStatus !== "idle") && (
+            activeStatus === "idle" && customIcon ? (
+              customIcon
+            ) : (
+              <span>{iconForStatus(activeStatus)}</span>
+            )
+          )
         )}
-        <strong>
-          {isSubmitting ? "Adding Transaction…" : primaryLabel(activeStatus, filename)}
+        <strong style={strongStyle}>
+          {isSubmitting ? "Adding Transaction…" : (primaryLabelText && activeStatus === "idle" ? primaryLabelText : primaryLabel(activeStatus, filename))}
         </strong>
-        <small>
-          {isSubmitting ? "Writing record to secure ledger…" : secondaryLabel(activeStatus, activeError, allowMultiple)}
+        <small style={smallStyle}>
+          {isSubmitting ? "Writing record to secure ledger…" : (secondaryLabelText && activeStatus === "idle" ? secondaryLabelText : secondaryLabel(activeStatus, activeError, allowMultiple))}
         </small>
         {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
           <div>

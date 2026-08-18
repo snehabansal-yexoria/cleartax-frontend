@@ -1,17 +1,20 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { AddTransactionView } from "@/app/components/TransactionsFeature";
+import { useParams, useSearchParams } from "next/navigation";
+import ClientAddTransactionViewNew from "@/app/components/clients/ClientAddTransactionViewNew";
 
 export default function ClientEntityNewTransactionPage() {
   const params = useParams<{ entityId: string }>();
   const entityId = String(params?.entityId || "");
+  const searchParams = useSearchParams();
+  const backHref = searchParams.get("backHref") || undefined;
+  const backLabel = searchParams.get("backLabel") || undefined;
 
   return (
-    <AddTransactionView
+    <ClientAddTransactionViewNew
       entityId={entityId}
-      backHref={`/dashboard/client/entities/${entityId}`}
-      backLabel="Back"
+      backHref={backHref}
+      backLabel={backLabel}
     />
   );
 }

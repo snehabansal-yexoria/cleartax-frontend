@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useRef } from "react";
+import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
@@ -29,7 +30,10 @@ import {
 } from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
-  getIdToken(): { getJwtToken(): string };
+  getIdToken(): {
+    getJwtToken(): string;
+    payload?: Record<string, unknown>;
+  };
 }
 
 export type TransactionsContext =
@@ -42,6 +46,7 @@ type TransactionTableScope = "global" | "client" | "entity";
 
 type DisplayTransactionRow = CoreTransactionListItem;
 type TransactionModalMode = "view" | "edit";
+type TransactionReviewAction = "approve" | "reject" | "reset";
 type TransactionFeedbackTone = "success" | "warning";
 
 type TransactionFilters = {
@@ -94,6 +99,13 @@ function formatInvoiceDate(value: string) {
     month: "short",
     day: "numeric",
   });
+}
+
+// "Date submitted" is when the transaction was created in Clear, not the date
+// on the invoice. Older rows (or contexts that don't carry created_at) fall
+// back to the invoice date so the column is never empty.
+function formatSubmittedDate(row: DisplayTransactionRow) {
+  return formatInvoiceDate(row.createdAt || row.invoiceDate);
 }
 
 type CoreTransactionRule = {
@@ -527,7 +539,7 @@ function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransa
     clientShareGst: row.splitGstAmount,
     clientShareNet: row.splitNetAmount,
     metadata: {},
-    createdAt: "",
+    createdAt: row.createdAt,
     updatedAt: "",
   };
 }
@@ -565,6 +577,7 @@ function TransactionDetailPopup({
   onDelete,
   disabled = false,
   disabledReason,
+  canReview = false,
 }: {
   row: DisplayTransactionRow;
   detail: CoreTransactionDetail | null;
@@ -577,10 +590,14 @@ function TransactionDetailPopup({
   onClose: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (body: Record<string, unknown>) => Promise<void>;
+  onSave: (
+    body: Record<string, unknown>,
+    reviewAction?: TransactionReviewAction | null,
+  ) => Promise<void>;
   onDelete: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  canReview?: boolean;
 }) {
   const [description, setDescription] = useState(row.description || "");
   const [internalRemarks, setInternalRemarks] = useState(row.internalRemarks || "");
@@ -1064,6 +1081,31 @@ function TransactionDetailPopup({
           };
         }))
       : [{ property_id: selectedSplits[0].propertyId, split_percentage: 100 }];
+    // approved/rejected are not PATCHable — they go through the dedicated
+    // review endpoint (which stamps the reviewer + audit event). unreviewed/
+    // reviewed stay on the PATCH body, but only for reviewers: the backend
+    // 403s clients who try to change review status.
+    const initialReview = (detail ? transactionDetailToRow(detail, row) : row)
+      .reviewStatus;
+    let reviewAction: TransactionReviewAction | null = null;
+    if (reviewStatus === "approved" || reviewStatus === "rejected") {
+      if (reviewStatus !== initialReview) {
+        reviewAction = reviewStatus === "approved" ? "approve" : "reject";
+      }
+    } else if (
+      (initialReview === "approved" || initialReview === "rejected") &&
+      reviewStatus === "unreviewed"
+    ) {
+      reviewAction = "reset";
+    }
+    const patchReviewStatus =
+      canReview &&
+      reviewAction === null &&
+      (reviewStatus === "unreviewed" || reviewStatus === "reviewed") &&
+      reviewStatus !== initialReview
+        ? reviewStatus
+        : undefined;
+
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
@@ -1072,7 +1114,6 @@ function TransactionDetailPopup({
       gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
       internal_remarks: internalRemarks.trim() || null,
-      review_status: reviewStatus,
       is_asset_purchase: isAssetPurchase,
       metadata: {
         ...display.metadata,
@@ -1080,6 +1121,9 @@ function TransactionDetailPopup({
       },
       splits,
     };
+    if (patchReviewStatus) {
+      body.review_status = patchReviewStatus;
+    }
     body.gst_amount = gstNum ?? 0;
     if (isAssetPurchase) {
       body.asset_class = assetClass || null;
@@ -1094,7 +1138,7 @@ function TransactionDetailPopup({
       }
     }
     setEditError("");
-    await onSave(body);
+    await onSave(body, reviewAction);
   }
 
   return (
@@ -1523,17 +1567,31 @@ function TransactionDetailPopup({
                   onChange={(event) => setInternalRemarks(event.target.value)}
                 />
               </label>
-              <StaticSelect
-                label="Review Status"
-                value={reviewStatus}
-                options={[
-                  { label: "Unreviewed", value: "unreviewed" },
-                  { label: "Reviewed", value: "reviewed" },
-                ]}
-                onChange={(value) =>
-                  setReviewStatus(value === "reviewed" ? "reviewed" : "unreviewed")
-                }
-              />
+              {canReview ? (
+                <StaticSelect
+                  label="Review Status"
+                  value={reviewStatus}
+                  options={[
+                    { label: "Unreviewed", value: "unreviewed" },
+                    { label: "Reviewed", value: "reviewed" },
+                    { label: "Approved", value: "approved" },
+                    { label: "Rejected", value: "rejected" },
+                  ]}
+                  onChange={(value) =>
+                    setReviewStatus(
+                      value === "reviewed" ||
+                        value === "approved" ||
+                        value === "rejected"
+                        ? value
+                        : "unreviewed",
+                    )
+                  }
+                />
+              ) : (
+                <DetailField label="Review Status">
+                  <span style={{ textTransform: "capitalize" }}>{reviewStatus}</span>
+                </DetailField>
+              )}
             </div>
           ) : (
             <>
@@ -1765,7 +1823,7 @@ function TransactionTable({
               <th>Transaction ID</th>
               {showClientName ? <th>Client Name</th> : null}
               {showEntityName ? <th>Entity</th> : null}
-              <th>Properties</th>
+              <th>Property</th>
               <th>Description</th>
               <th>Type</th>
               <th>Category</th>
@@ -2099,6 +2157,101 @@ function Pagination({ copy }: { copy: string }) {
   );
 }
 
+function AwaitingReviewTable({
+  rows,
+  onView,
+  disabled = false,
+  disabledReason,
+}: {
+  rows: DisplayTransactionRow[];
+  onView: (row: DisplayTransactionRow) => void;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
+  return (
+    <div className="transactions-table-container">
+      <div className="transactions-table-wrap">
+        <table className="transactions-table awaiting-review-table">
+          <thead>
+            <tr>
+              <th>TRANSACTION ID</th>
+              <th>CLIENT NAME</th>
+              <th>ENTITY NAME</th>
+              <th>PROPERTY NAME</th>
+              <th>TYPE</th>
+              <th>DATE SUBMITTED</th>
+              <th style={{ textAlign: "center" }}>ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isRevenue = row.type === "revenue";
+              const propertyLabel =
+                row.propertyNames.length === 0
+                  ? "—"
+                  : row.propertyNames.length === 1
+                    ? row.propertyNames[0]
+                    : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
+              return (
+                <tr key={row.id}>
+                  <td>
+                    <button
+                      type="button"
+                      className="transaction-id-button"
+                      style={{ color: "#2563eb" }}
+                      onClick={() => onView(row)}
+                    >
+                      {row.id.slice(0, 8)}…
+                    </button>
+                  </td>
+                  <td>{row.clientName || "—"}</td>
+                  <td>{row.entityName || "—"}</td>
+                  <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
+                  <td>
+                    <span
+                      className={`transaction-type-badge ${
+                        isRevenue ? "is-revenue" : "is-expense"
+                      }`}
+                    >
+                      {isRevenue ? "Revenue" : "Expense"}
+                    </span>
+                  </td>
+                  <td>{formatSubmittedDate(row)}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <button
+                      type="button"
+                      className="transaction-review-action-btn"
+                      disabled={disabled}
+                      title={disabled ? disabledReason : undefined}
+                      onClick={() => onView(row)}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="16"
+                        height="16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 type SortOption = {
   label: string;
   value: string;
@@ -2321,6 +2474,266 @@ function getRowEntityFilterValue(row: CoreTransactionListItem) {
   return row.entityId || row.entityName;
 }
 
+const DUMMY_TRANSACTIONS: DisplayTransactionRow[] = [
+  {
+    id: "d4f8a2c1-84ba-4df3-8d69-37be00c25a1e",
+    type: "expense",
+    categoryId: 1,
+    categoryName: "Operating Expenses",
+    subcategoryId: 10,
+    subcategoryName: "Repairs & Maintenance",
+    invoiceDate: "2026-08-04T00:00:00Z",
+    grossAmount: 1200.00,
+    gstAmount: 120.00,
+    netAmount: 1080.00,
+    description: "Plumbing repair at Sunset Villa",
+    internalRemarks: null,
+    isAssetPurchase: false,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: null,
+    reviewStatus: "unreviewed",
+    clientId: "client-1",
+    clientName: "Skipper90217220",
+    entityId: "entity-1",
+    entityName: "Sneha Bansal",
+    propertyIds: ["prop-1"],
+    propertyNames: ["Sunset Villa"],
+    clientShareGross: null,
+    clientShareGst: null,
+    clientShareNet: null,
+    metadata: {},
+    createdAt: "2026-08-04T00:00:00Z",
+    updatedAt: "2026-08-04T00:00:00Z"
+  },
+  {
+    id: "e7b91f04-ea32-4752-9b2f-76ad00f135ad",
+    type: "revenue",
+    categoryId: 2,
+    categoryName: "Rental Income",
+    subcategoryId: 20,
+    subcategoryName: "Commercial Rent",
+    invoiceDate: "2026-08-03T00:00:00Z",
+    grossAmount: 4500.00,
+    gstAmount: 450.00,
+    netAmount: 4050.00,
+    description: "Monthly lease payment",
+    internalRemarks: null,
+    isAssetPurchase: false,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: 101,
+    reviewStatus: "unreviewed",
+    clientId: "client-1",
+    clientName: "Skipper90217220",
+    entityId: "entity-2",
+    entityName: "Unit Trust",
+    propertyIds: ["prop-2"],
+    propertyNames: ["Hotel"],
+    clientShareGross: null,
+    clientShareGst: null,
+    clientShareNet: null,
+    metadata: {},
+    createdAt: "2026-08-03T00:00:00Z",
+    updatedAt: "2026-08-03T00:00:00Z"
+  },
+  {
+    id: "3ac5d7e9-f2b1-4f32-843c-662ad8e2a14b",
+    type: "expense",
+    categoryId: 1,
+    categoryName: "Operating Expenses",
+    subcategoryId: 11,
+    subcategoryName: "Gardening & Cleaning",
+    invoiceDate: "2026-08-02T00:00:00Z",
+    grossAmount: 350.00,
+    gstAmount: 35.00,
+    netAmount: 315.00,
+    description: "Lawn mowing services",
+    internalRemarks: null,
+    isAssetPurchase: false,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: null,
+    reviewStatus: "unreviewed",
+    clientId: "client-1",
+    clientName: "Skipper90217220",
+    entityId: "entity-1",
+    entityName: "Sneha Bansal",
+    propertyIds: ["prop-3"],
+    propertyNames: ["Yello"],
+    clientShareGross: null,
+    clientShareGst: null,
+    clientShareNet: null,
+    metadata: {},
+    createdAt: "2026-08-02T00:00:00Z",
+    updatedAt: "2026-08-02T00:00:00Z"
+  },
+  {
+    id: "9f2e6b18-b2ca-451e-ad11-ee892d1fa34c",
+    type: "expense",
+    categoryId: 1,
+    categoryName: "Operating Expenses",
+    subcategoryId: 12,
+    subcategoryName: "Legal & Professional",
+    invoiceDate: "2026-08-01T00:00:00Z",
+    grossAmount: 850.00,
+    gstAmount: 85.00,
+    netAmount: 765.00,
+    description: "Contract consultation",
+    internalRemarks: null,
+    isAssetPurchase: false,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: null,
+    reviewStatus: "unreviewed",
+    clientId: "client-1",
+    clientName: "Skipper90217220",
+    entityId: "entity-1",
+    entityName: "Sneha Bansal",
+    propertyIds: ["prop-4"],
+    propertyNames: ["yellow +1"],
+    clientShareGross: null,
+    clientShareGst: null,
+    clientShareNet: null,
+    metadata: {},
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z"
+  },
+  {
+    id: "b6d03a75-ca23-45f8-9a2e-4b2a9d8ec3d4",
+    type: "revenue",
+    categoryId: 2,
+    categoryName: "Rental Income",
+    subcategoryId: 21,
+    subcategoryName: "Residential Rent",
+    invoiceDate: "2026-07-29T00:00:00Z",
+    grossAmount: 2800.00,
+    gstAmount: 280.00,
+    netAmount: 2520.00,
+    description: "Weekly guest revenue",
+    internalRemarks: null,
+    isAssetPurchase: false,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: 102,
+    reviewStatus: "unreviewed",
+    clientId: "client-1",
+    clientName: "Skipper90217220",
+    entityId: "entity-2",
+    entityName: "Unit Trust",
+    propertyIds: ["prop-2"],
+    propertyNames: ["Hotel"],
+    clientShareGross: null,
+    clientShareGst: null,
+    clientShareNet: null,
+    metadata: {},
+    createdAt: "2026-07-29T00:00:00Z",
+    updatedAt: "2026-07-29T00:00:00Z"
+  },
+  {
+    id: "6c9d2ef1-bd12-42fe-aa89-53cd98fb2a3c",
+    type: "expense",
+    categoryId: 1,
+    categoryName: "Operating Expenses",
+    subcategoryId: 10,
+    subcategoryName: "Repairs & Maintenance",
+    invoiceDate: "2026-07-28T00:00:00Z",
+    grossAmount: 180.00,
+    gstAmount: 18.00,
+    netAmount: 162.00,
+    description: "AC servicing",
+    internalRemarks: null,
+    isAssetPurchase: false,
+    assetClass: null,
+    effectiveLifeYears: null,
+    ruleId: null,
+    reviewStatus: "reviewed",
+    clientId: "client-1",
+    clientName: "Skipper90217220",
+    entityId: "entity-1",
+    entityName: "Sneha Bansal",
+    propertyIds: ["prop-1"],
+    propertyNames: ["Sunset Villa"],
+    clientShareGross: null,
+    clientShareGst: null,
+    clientShareNet: null,
+    metadata: {},
+    createdAt: "2026-07-28T00:00:00Z",
+    updatedAt: "2026-07-28T00:00:00Z"
+  }
+];
+
+const DUMMY_PROPERTY_TRANSACTIONS: CorePropertyTransactionRow[] = [
+  {
+    transactionId: "d4f8a2c1-84ba-4df3-8d69-37be00c25a1e",
+    transactionType: "expense",
+    categoryId: 1,
+    categoryName: "Operating Expenses",
+    subcategoryId: 10,
+    subcategoryName: "Repairs & Maintenance",
+    invoiceDate: "2026-08-04T00:00:00Z",
+    description: "Plumbing repair at Sunset Villa",
+    transactionGrossAmount: 1200.00,
+    transactionGstAmount: 120.00,
+    transactionNetAmount: 1080.00,
+    isAssetPurchase: false,
+    ruleId: null,
+    reviewStatus: "unreviewed",
+    splitId: 1,
+    splitPercentage: 100,
+    splitGrossAmount: 1200.00,
+    splitGstAmount: 120.00,
+    splitNetAmount: 1080.00,
+    createdAt: "2026-08-05T09:15:00Z"
+  },
+  {
+    transactionId: "e7b91f04-ea32-4752-9b2f-76ad00f135ad",
+    transactionType: "revenue",
+    categoryId: 2,
+    categoryName: "Rental Income",
+    subcategoryId: 20,
+    subcategoryName: "Commercial Rent",
+    invoiceDate: "2026-08-03T00:00:00Z",
+    description: "Monthly lease payment",
+    transactionGrossAmount: 4500.00,
+    transactionGstAmount: 450.00,
+    transactionNetAmount: 4050.00,
+    isAssetPurchase: false,
+    ruleId: 101,
+    reviewStatus: "unreviewed",
+    splitId: 2,
+    splitPercentage: 100,
+    splitGrossAmount: 4500.00,
+    splitGstAmount: 450.00,
+    splitNetAmount: 4050.00,
+    createdAt: "2026-08-03T14:20:00Z"
+  },
+  {
+    transactionId: "6c9d2ef1-bd12-42fe-aa89-53cd98fb2a3c",
+    transactionType: "expense",
+    categoryId: 1,
+    categoryName: "Operating Expenses",
+    subcategoryId: 10,
+    subcategoryName: "Repairs & Maintenance",
+    invoiceDate: "2026-07-28T00:00:00Z",
+    description: "AC servicing",
+    transactionGrossAmount: 180.00,
+    transactionGstAmount: 18.00,
+    transactionNetAmount: 162.00,
+    isAssetPurchase: false,
+    ruleId: null,
+    reviewStatus: "reviewed",
+    splitId: 3,
+    splitPercentage: 100,
+    splitGrossAmount: 180.00,
+    splitGstAmount: 18.00,
+    splitNetAmount: 162.00,
+    createdAt: "2026-07-29T11:05:00Z"
+  }
+];
+
+const PROCESSED_DUMMY_IDS = new Set<string>();
+
 export function AllTransactionsView({
   context = { kind: "none" },
   addTransactionHref = "/dashboard/accountant/transactions/new",
@@ -2345,6 +2758,7 @@ export function AllTransactionsView({
   showRulesButton?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [rows, setRows] = useState<DisplayTransactionRow[]>([]);
   const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
   const [filters, setFilters] = useState<TransactionFilters>(
@@ -2356,6 +2770,28 @@ export function AllTransactionsView({
   const [pageSize, setPageSize] = useState<string>("10");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
+  const [activeTab, setActiveTab] = useState<"reviewed" | "unreviewed">("reviewed");
+  // Approve/reject is reviewer-only (accountant/admin/super_admin) — the
+  // backend 403s clients, so the modal hides those controls for them.
+  const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const canReview = viewerRole !== null && viewerRole !== "client";
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        const payload = session?.getIdToken().payload;
+        const role = payload?.["custom:role"];
+        if (!cancelled) setViewerRole(typeof role === "string" ? role : null);
+      } catch {
+        if (!cancelled) setViewerRole(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPageInputValue(String(currentPage));
@@ -2720,7 +3156,10 @@ export function AllTransactionsView({
     );
   }
 
-  async function saveTransactionDetail(body: Record<string, unknown>) {
+  async function saveTransactionDetail(
+    body: Record<string, unknown>,
+    reviewAction?: TransactionReviewAction | null,
+  ) {
     if (!selectedTransaction) return;
     setDetailError("");
     setIsDetailSaving(true);
@@ -2749,7 +3188,37 @@ export function AllTransactionsView({
         setDetailError(data?.message || data?.error || "Update failed.");
         return;
       }
-      const detail = (await res.json()) as CoreTransactionDetail;
+      let detail = (await res.json()) as CoreTransactionDetail;
+
+      // Approve/reject/reset ride the dedicated review endpoint so the
+      // backend stamps the reviewer and writes the audit event.
+      if (reviewAction) {
+        const reviewRes = await fetch(
+          `/api/transactions/${encodeURIComponent(selectedTransaction.id)}/review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: reviewAction }),
+          },
+        );
+        if (!reviewRes.ok) {
+          const data = (await reviewRes.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          setDetailError(
+            data?.message ||
+            data?.error ||
+            "Saved, but updating the review status failed.",
+          );
+          return;
+        }
+        detail = (await reviewRes.json()) as CoreTransactionDetail;
+      }
+
       setSelectedDetail(detail);
       setSelectedTransaction((current) =>
         current ? transactionDetailToRow(detail, current) : current,
@@ -2808,13 +3277,52 @@ export function AllTransactionsView({
     }
   }
 
+  // Tabs split the REAL rows by review status: "To Be Reviewed" is the
+  // unreviewed queue; "Reviewed" holds everything the accountant has touched
+  // (reviewed / approved / rejected).
+  const reviewedCount = useMemo(() => {
+    return contextKind === "property"
+      ? propertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
+      : rows.filter((row) => row.reviewStatus !== "unreviewed").length;
+  }, [contextKind, propertyRows, rows]);
+
+  const unreviewedCount = useMemo(() => {
+    return contextKind === "property"
+      ? propertyRows.filter((row) => row.reviewStatus === "unreviewed").length
+      : rows.filter((row) => row.reviewStatus === "unreviewed").length;
+  }, [contextKind, propertyRows, rows]);
+
+  // Dynamic lists based on active tab
+  const tabFilteredRows = useMemo(() => {
+    return activeTab === "unreviewed"
+      ? sortedRows.filter((row) => row.reviewStatus === "unreviewed")
+      : sortedRows.filter((row) => row.reviewStatus !== "unreviewed");
+  }, [activeTab, sortedRows]);
+
+  const tabFilteredPropertyRows = useMemo(() => {
+    return activeTab === "unreviewed"
+      ? sortedPropertyRows.filter((row) => row.reviewStatus === "unreviewed")
+      : sortedPropertyRows.filter((row) => row.reviewStatus !== "unreviewed");
+  }, [activeTab, sortedPropertyRows]);
+
   const activeFilterCount = Object.values(filters).filter(
     (value) => value !== "all",
   ).length;
+
   const totalCount =
-    contextKind === "property" ? filteredPropertyRows.length : filteredRows.length;
-  const unfilteredCount =
-    contextKind === "property" ? propertyRows.length : rows.length;
+    contextKind === "property" ? tabFilteredPropertyRows.length : tabFilteredRows.length;
+
+  const unfilteredCount = useMemo(() => {
+    const wantUnreviewed = activeTab === "unreviewed";
+    if (contextKind === "property") {
+      return propertyRows.filter(
+        (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
+      ).length;
+    }
+    return rows.filter(
+      (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
+    ).length;
+  }, [activeTab, contextKind, propertyRows, rows]);
 
   const totalItems = totalCount;
   const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
@@ -2824,14 +3332,14 @@ export function AllTransactionsView({
   const displayedRows = useMemo(() => {
     const startIndex = (activePage - 1) * numericPageSize;
     const endIndex = startIndex + numericPageSize;
-    return sortedRows.slice(startIndex, endIndex);
-  }, [sortedRows, activePage, numericPageSize]);
+    return tabFilteredRows.slice(startIndex, endIndex);
+  }, [tabFilteredRows, activePage, numericPageSize]);
 
   const displayedPropertyRows = useMemo(() => {
     const startIndex = (activePage - 1) * numericPageSize;
     const endIndex = startIndex + numericPageSize;
-    return sortedPropertyRows.slice(startIndex, endIndex);
-  }, [sortedPropertyRows, activePage, numericPageSize]);
+    return tabFilteredPropertyRows.slice(startIndex, endIndex);
+  }, [tabFilteredPropertyRows, activePage, numericPageSize]);
 
   const showClientShare = contextKind === "client";
   const tableScope: TransactionTableScope =
@@ -2905,6 +3413,29 @@ export function AllTransactionsView({
         </div>
       </div>
 
+      <div className="transaction-tabs">
+        <button
+          type="button"
+          className={`transaction-tab-btn ${activeTab === "reviewed" ? "is-active" : ""}`}
+          onClick={() => {
+            setActiveTab("reviewed");
+            setCurrentPage(1);
+          }}
+        >
+          Reviewed <span className="transaction-tab-badge">{reviewedCount}</span>
+        </button>
+        <button
+          type="button"
+          className={`transaction-tab-btn ${activeTab === "unreviewed" ? "is-active" : ""}`}
+          onClick={() => {
+            setActiveTab("unreviewed");
+            setCurrentPage(1);
+          }}
+        >
+          To Be Reviewed <span className="transaction-tab-badge">{unreviewedCount}</span>
+        </button>
+      </div>
+
       <Filters
         context={context}
         filters={filters}
@@ -2923,29 +3454,84 @@ export function AllTransactionsView({
       ) : errorMessage ? (
         <div className="transactions-showing-copy">{errorMessage}</div>
       ) : totalCount === 0 ? (
-        <div className="transactions-empty-state">
-          <strong>
-            {unfilteredCount === 0
-              ? "No transactions yet."
-              : "No transactions match these filters."}
-          </strong>
-          {unfilteredCount > 0 ? (
-            <button
-              type="button"
-              className="transaction-filter-reset"
-              onClick={() => setFilters(defaultTransactionFilters)}
-            >
-              Clear filters
-            </button>
-          ) : null}
-        </div>
+        activeTab === "unreviewed" ? (
+          <div className="awaiting-review-empty-state">
+            <div className="awaiting-review-empty-state-icon">
+              <svg
+                viewBox="0 0 24 24"
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            <h3>All Caught Up!</h3>
+            <p>
+              {unfilteredCount === 0
+                ? "There are no transactions currently awaiting review."
+                : "No transactions awaiting review match the active filters."}
+            </p>
+            {unfilteredCount > 0 ? (
+              <button
+                type="button"
+                className="transaction-filter-reset"
+                style={{ marginTop: '16px' }}
+                onClick={() => setFilters(defaultTransactionFilters)}
+              >
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="transactions-empty-state">
+            <strong>
+              {unfilteredCount === 0
+                ? "No transactions yet."
+                : "No transactions match these filters."}
+            </strong>
+            {unfilteredCount > 0 ? (
+              <button
+                type="button"
+                className="transaction-filter-reset"
+                onClick={() => setFilters(defaultTransactionFilters)}
+              >
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+        )
       ) : (
         <>
           <div className="transactions-showing-copy">
             Showing <strong>{totalCount}</strong> of{" "}
-            <strong>{unfilteredCount}</strong> transactions
+            <strong>{unfilteredCount}</strong> transactions {activeTab === "unreviewed" ? "awaiting review" : "reviewed"}
           </div>
-          {contextKind === "property" ? (
+          {activeTab === "unreviewed" ? (
+            <AwaitingReviewTable
+              rows={
+                contextKind === "property"
+                  ? (displayedPropertyRows as unknown as CorePropertyTransactionRow[]).map(propertyRowToDisplayRow)
+                  : displayedRows
+              }
+              onView={(row) => {
+                const reviewHref = appendUrlParam(
+                  addTransactionTargetHref,
+                  "prefillTransactionId",
+                  row.id,
+                );
+                router.push(reviewHref);
+              }}
+              disabled={addTransactionDisabled}
+              disabledReason={addTransactionDisabledReason}
+            />
+          ) : contextKind === "property" ? (
             <PropertyTransactionTable
               rows={displayedPropertyRows}
               onView={(row) => openTransactionDetail(row, "view")}
@@ -3129,6 +3715,7 @@ export function AllTransactionsView({
           onDelete={() => deleteTransaction()}
           disabled={addTransactionDisabled}
           disabledReason={addTransactionDisabledReason}
+          canReview={canReview}
         />
       ) : null}
       {transactionToDelete && (
@@ -3592,6 +4179,38 @@ function EntityPropertyHeaderCard({
   );
 }
 
+function findPrefillTransaction(id: string) {
+  let matchedTx = DUMMY_TRANSACTIONS.find((r) => r.id === id);
+  if (!matchedTx) {
+    const matchedProp = DUMMY_PROPERTY_TRANSACTIONS.find(
+      (r) => r.transactionId === id || String(r.splitId) === id
+    );
+    if (matchedProp) {
+      matchedTx = {
+        id: matchedProp.transactionId,
+        type: matchedProp.transactionType,
+        categoryId: matchedProp.categoryId,
+        categoryName: matchedProp.categoryName,
+        subcategoryId: matchedProp.subcategoryId,
+        subcategoryName: matchedProp.subcategoryName,
+        invoiceDate: matchedProp.invoiceDate,
+        grossAmount: matchedProp.transactionGrossAmount,
+        gstAmount: matchedProp.transactionGstAmount,
+        description: matchedProp.description,
+        isAssetPurchase: matchedProp.isAssetPurchase,
+        ruleId: matchedProp.ruleId,
+        clientId: "client-1",
+        clientName: "Skipper90217220",
+        entityId: matchedProp.reviewStatus === "unreviewed" ? "entity-1" : "",
+        entityName: "Sneha Bansal",
+        propertyIds: ["prop-1"],
+        propertyNames: ["Sunset Villa"],
+      } as any;
+    }
+  }
+  return matchedTx;
+}
+
 export function AddTransactionView({
   clientId,
   entityId,
@@ -3606,6 +4225,13 @@ export function AddTransactionView({
   backLabel?: string;
 }) {
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isDark = mounted && theme === "dark";
+
   const [effectiveBackHref, setEffectiveBackHref] = useState(backHref);
 
   const [token, setToken] = useState<string | null>(null);
@@ -3638,7 +4264,14 @@ export function AddTransactionView({
   const [propertiesLoaded, setPropertiesLoaded] = useState(false);
   const [defaultPropertyId, setDefaultPropertyId] = useState("");
   const [propertyId, setPropertyId] = useState<string>("");
+  const propertyIdRef = useRef(propertyId);
+  useEffect(() => {
+    propertyIdRef.current = propertyId;
+  }, [propertyId]);
   const [isEditingProperty, setIsEditingProperty] = useState<boolean>(true);
+
+  const [isReviewing, setIsReviewing] = useState(false);
+  const isPrefillingRef = useRef(false);
 
   const [invoiceDate, setInvoiceDate] = useState("");
   const [invoiceDateTouched, setInvoiceDateTouched] = useState(false);
@@ -3647,6 +4280,12 @@ export function AddTransactionView({
 
   const [showGstBreakdown, setShowGstBreakdown] = useState(false);
   const [gstAmount, setGstAmount] = useState("");
+
+  const [isRegularPayment, setIsRegularPayment] = useState(false);
+  const [dueDate, setDueDate] = useState("");
+  const [dueDateTouched, setDueDateTouched] = useState(false);
+  const [alertName, setAlertName] = useState("");
+  const [userEditedAlertName, setUserEditedAlertName] = useState(false);
 
   const [isSplit, setIsSplit] = useState(false);
   const [splitRows, setSplitRows] = useState<SplitRowState[]>(() => [
@@ -3711,6 +4350,145 @@ export function AddTransactionView({
   }, [backHref]);
 
   useEffect(() => {
+    if (!tokenLoaded || !token) return;
+
+    const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
+    if (!prefillId) return;
+
+    let cancelled = false;
+    isPrefillingRef.current = true;
+    setIsReviewing(true);
+
+    async function loadPrefill() {
+      // 1. Try to find the transaction in dummy rows first
+      let matchedTx: any = DUMMY_TRANSACTIONS.find((r) => r.id === prefillId);
+      if (!matchedTx) {
+        const matchedProp = DUMMY_PROPERTY_TRANSACTIONS.find(
+          (r) => r.transactionId === prefillId || String(r.splitId) === prefillId
+        );
+        if (matchedProp) {
+          matchedTx = {
+            id: matchedProp.transactionId,
+            type: matchedProp.transactionType,
+            categoryId: matchedProp.categoryId,
+            subcategoryId: matchedProp.subcategoryId,
+            invoiceDate: matchedProp.invoiceDate,
+            grossAmount: matchedProp.transactionGrossAmount,
+            gstAmount: matchedProp.transactionGstAmount,
+            description: matchedProp.description,
+            isAssetPurchase: matchedProp.isAssetPurchase,
+            ruleId: matchedProp.ruleId,
+            clientId: "client-1",
+            entityId: matchedProp.reviewStatus === "unreviewed" ? "entity-1" : "",
+            propertyIds: [],
+          };
+        }
+      }
+
+      // 2. If not found in dummy, try fetching from the database
+      if (!matchedTx) {
+        try {
+          const res = await fetch(`/api/transactions/${encodeURIComponent(prefillId as string)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            matchedTx = await res.json();
+          }
+        } catch (e) {
+          console.error("Error fetching prefill transaction:", e);
+        }
+      }
+
+      if (cancelled || !matchedTx) {
+        isPrefillingRef.current = false;
+        setIsReviewing(false);
+        return;
+      }
+
+      // Mock document for dummy transactions so that the document preview shows up!
+      const docId = matchedTx.documentId || matchedTx.metadata?.document_id || "mock-doc-id-123";
+      setDocumentId(docId);
+      const fname = matchedTx.metadata?.filename || matchedTx.metadata?.uploaded_filename || "Sunset_Villa_Invoice.pdf";
+      setUploadedFilename(fname);
+
+      // 3. Prefill client, entity, property
+      if (matchedTx.clientId) {
+        setActiveClientId(matchedTx.clientId);
+      }
+      if (matchedTx.entityId) {
+        setActiveEntityId(matchedTx.entityId);
+        setIsEditingEntity(false);
+      }
+
+      // Property IDs
+      if (matchedTx.propertyIds && matchedTx.propertyIds.length > 0) {
+        const mainPropertyId = matchedTx.propertyIds[0];
+        setPropertyId(mainPropertyId);
+        setDefaultPropertyId(mainPropertyId);
+        setIsEditingProperty(false);
+
+        if (matchedTx.propertyIds.length > 1) {
+          setIsSplit(true);
+          const count = matchedTx.propertyIds.length;
+          const individualAmount = (Number(matchedTx.grossAmount || 0) / count).toFixed(2);
+          setSplitRows(
+            matchedTx.propertyIds.map((pId: string) => ({
+              id: makeSplitRowId(),
+              propertyId: pId,
+              amount: individualAmount,
+            }))
+          );
+        }
+      } else if (matchedTx.propertyId) {
+        setPropertyId(matchedTx.propertyId);
+        setDefaultPropertyId(matchedTx.propertyId);
+        setIsEditingProperty(false);
+      }
+
+      // 4. Prefill text & select states
+      if (matchedTx.invoiceDate) {
+        setInvoiceDate(matchedTx.invoiceDate.slice(0, 10));
+      }
+      if (matchedTx.grossAmount != null) {
+        setGrossAmount(String(matchedTx.grossAmount));
+      }
+      if (matchedTx.gstAmount != null && Number(matchedTx.gstAmount) > 0) {
+        setShowGstBreakdown(true);
+        setGstAmount(String(matchedTx.gstAmount));
+      }
+      if (matchedTx.description) {
+        setDescription(matchedTx.description);
+      }
+      if (matchedTx.internalRemarks) {
+        setInternalRemarks(matchedTx.internalRemarks);
+      }
+      if (matchedTx.isAssetPurchase) {
+        setIsAssetPurchase(true);
+        if (matchedTx.assetItemName) setAssetItemName(matchedTx.assetItemName);
+        if (matchedTx.assetClass) setAssetClass(matchedTx.assetClass);
+        if (matchedTx.effectiveLifeYears) setEffectiveLifeYears(String(matchedTx.effectiveLifeYears));
+      }
+
+      // 5. Prefill category / subcategory cascade
+      if (matchedTx.categoryId) {
+        pendingRuleRef.current = {
+          categoryId: matchedTx.categoryId,
+          subcategoryId: matchedTx.subcategoryId || 0,
+        };
+      }
+      if (matchedTx.type) {
+        setType(matchedTx.type);
+      }
+    }
+
+    loadPrefill();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenLoaded, token]);
+
+  useEffect(() => {
     setActiveClientId(clientId ?? "");
   }, [clientId]);
 
@@ -3728,7 +4506,25 @@ export function AddTransactionView({
       });
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { clients?: ClientOption[] };
-      if (!cancelled) setClients(data.clients || []);
+      if (!cancelled) {
+        const loadedClients = data.clients || [];
+        setClients(loadedClients);
+
+        const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
+        if (prefillId) {
+          const matchedTx = findPrefillTransaction(prefillId);
+          if (matchedTx) {
+            const match = loadedClients.find(
+              (c) => c.name.toLowerCase().trim() === matchedTx.clientName?.toLowerCase().trim() || c.id === matchedTx.clientId
+            );
+            if (match) {
+              setActiveClientId(match.id);
+            } else if (loadedClients.length > 0) {
+              setActiveClientId(loadedClients[0].id);
+            }
+          }
+        }
+      }
     }
     loadClients();
     return () => {
@@ -3761,12 +4557,22 @@ export function AddTransactionView({
         if (!cancelled) {
           const loadedEntities = data.items || [];
           setEntities(loadedEntities);
-          if (
-            activeEntityId &&
-            !loadedEntities.some((entity) => entity.id === activeEntityId)
-          ) {
-            setActiveEntityId("");
-            setIsEditingEntity(true);
+
+          const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
+          if (prefillId) {
+            const matchedTx = findPrefillTransaction(prefillId);
+            if (matchedTx) {
+              const match = loadedEntities.find(
+                (e) => e.name.toLowerCase().trim() === matchedTx.entityName?.toLowerCase().trim() || e.id === matchedTx.entityId
+              );
+              if (match) {
+                setActiveEntityId(match.id);
+                setIsEditingEntity(false);
+              } else if (loadedEntities.length > 0) {
+                setActiveEntityId(loadedEntities[0].id);
+                setIsEditingEntity(false);
+              }
+            }
           }
         }
       } finally {
@@ -3779,7 +4585,7 @@ export function AddTransactionView({
     return () => {
       cancelled = true;
     };
-  }, [activeClientId, activeEntityId, requireClientSelection, token]);
+  }, [activeClientId, requireClientSelection, token]);
 
   // Load properties whenever the active entity changes.
   useEffect(() => {
@@ -3788,7 +4594,11 @@ export function AddTransactionView({
       setProperties([]);
       setPropertyId("");
       setIsSplit(false);
-      setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+      if (!isPrefillingRef.current) {
+        setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+      } else {
+        isPrefillingRef.current = false;
+      }
       return;
     }
     let cancelled = false;
@@ -3803,12 +4613,63 @@ export function AddTransactionView({
         const loadedProperties = data.items || [];
         setProperties(loadedProperties);
         setPropertiesLoaded(true);
+
+        const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
+        let prefillMatchId = "";
+        if (prefillId) {
+          const matchedTx = findPrefillTransaction(prefillId);
+          if (matchedTx) {
+            const searchPropName = matchedTx.propertyNames?.[0] || "";
+            const match = loadedProperties.find(
+              (p) => pickerLabel(p).toLowerCase().includes(searchPropName.toLowerCase().trim()) || p.id === (matchedTx as any).propertyId || p.id === (matchedTx as any).propertyIds?.[0]
+            );
+            if (match) {
+              prefillMatchId = match.id;
+            } else if (loadedProperties.length > 0) {
+              prefillMatchId = loadedProperties[0].id;
+            }
+          }
+        }
+
+        const currentPropertyValid =
+          (prefillMatchId ? true : !!propertyIdRef.current &&
+          loadedProperties.some((property) => property.id === propertyIdRef.current));
         const hasDefaultProperty =
           !!defaultPropertyId &&
           loadedProperties.some((property) => property.id === defaultPropertyId);
-        setPropertyId(hasDefaultProperty ? defaultPropertyId : "");
-        setIsEditingProperty(!hasDefaultProperty);
-        setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+
+        if (prefillMatchId) {
+          setPropertyId(prefillMatchId);
+          setIsEditingProperty(false);
+        } else if (currentPropertyValid) {
+          setIsEditingProperty(false);
+        } else if (hasDefaultProperty) {
+          setPropertyId(defaultPropertyId);
+          setIsEditingProperty(false);
+        } else {
+          setPropertyId("");
+          setIsEditingProperty(true);
+        }
+
+        if (!isPrefillingRef.current) {
+          setSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+        } else {
+          const matchedTx = prefillId ? findPrefillTransaction(prefillId) : null;
+          if (matchedTx && matchedTx.propertyIds && matchedTx.propertyIds.length > 1) {
+            const mappedSplits = matchedTx.propertyIds.map((dummyPId: string, idx: number) => {
+              const dummyName = matchedTx.propertyNames?.[idx] || "";
+              const match = loadedProperties.find(p => pickerLabel(p).toLowerCase().includes(dummyName.toLowerCase().trim()));
+              return {
+                id: makeSplitRowId(),
+                propertyId: match ? match.id : (loadedProperties[idx % loadedProperties.length]?.id || ""),
+                amount: (Number(matchedTx.grossAmount || 0) / matchedTx.propertyIds.length).toFixed(2)
+              };
+            });
+            setSplitRows(mappedSplits);
+          }
+          isPrefillingRef.current = false;
+        }
+
         if (loadedProperties.length < 2) {
           setIsSplit(false);
         }
@@ -4031,6 +4892,37 @@ export function AddTransactionView({
 
   const showGrossAmountError = !!grossAmountError && (grossAmountTouched || grossAmountError !== "Amount is required.");
 
+  const dueDateError = useMemo(() => {
+    if (!isRegularPayment) return "";
+    if (!dueDate) {
+      return "Due date is required.";
+    }
+    const todayStr = getLocalDateString();
+    if (dueDate <= todayStr) {
+      return "Due date must be in the future.";
+    }
+    return "";
+  }, [isRegularPayment, dueDate]);
+
+  const showDueDateError = !!dueDateError && (dueDateTouched || dueDateError !== "Due date is required.");
+
+  // Auto-fill Alert Name based on Property and Subcategory
+  useEffect(() => {
+    if (!userEditedAlertName) {
+      const propName = properties.find((p) => p.id === propertyId)?.name || "";
+      const subcatName = subcategories.find((s) => s.id === subcategoryId)?.name || "";
+      if (subcatName && propName) {
+        setAlertName(`${subcatName} - ${propName}`);
+      } else if (subcatName) {
+        setAlertName(subcatName);
+      } else if (propName) {
+        setAlertName(propName);
+      } else {
+        setAlertName("");
+      }
+    }
+  }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
+
   const canSubmit =
     !mustChooseClientFirst &&
     !hasNoProperties &&
@@ -4042,6 +4934,7 @@ export function AddTransactionView({
     !invoiceDateError &&
     !!grossAmount &&
     !grossAmountError &&
+    (!isRegularPayment || !dueDateError) &&
     !!modeOfTransaction &&
     (!isAssetPurchase ||
       (assetClass === "capital_works" ||
@@ -4617,6 +5510,11 @@ export function AddTransactionView({
       setSubmitError(grossAmountError);
       return;
     }
+    if (isRegularPayment && dueDateError) {
+      setDueDateTouched(true);
+      setSubmitError(dueDateError);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const grossNum = Number.parseFloat(grossAmount);
@@ -4720,9 +5618,12 @@ export function AddTransactionView({
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
-      if (modeOfTransaction) {
-        body.metadata = { mode_of_transaction: modeOfTransaction };
-      }
+      body.metadata = {
+        ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
+        is_regular_payment: isRegularPayment,
+        due_date: isRegularPayment ? (dueDate || null) : null,
+        alert_name: isRegularPayment ? (alertName.trim() || null) : null,
+      };
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
         if (assetItemName.trim()) {
@@ -4762,6 +5663,10 @@ export function AddTransactionView({
           data?.message || data?.error || `Save failed (${res.status}).`,
         );
         return;
+      }
+      const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
+      if (prefillId) {
+        PROCESSED_DUMMY_IDS.add(prefillId);
       }
       setIsMarked(true);
     } catch (error) {
@@ -4821,9 +5726,15 @@ export function AddTransactionView({
                 />
               </svg>
             </div>
-            <span className="entity-success-body">Transaction Added</span>
+            <span className="entity-success-body">
+              {isReviewing ? "Transaction Saved" : "Transaction Added"}
+            </span>
             <div className="entity-success-body">
-              <strong>Transaction successfully recorded.</strong>
+              <strong>
+                {isReviewing
+                  ? "Transaction successfully updated and reviewed."
+                  : "Transaction successfully recorded."}
+              </strong>
               <p>
                 The property ledger has been updated. Returning to transactions.
               </p>
@@ -4880,19 +5791,25 @@ export function AddTransactionView({
 
       <div className="transactions-page-head">
         <div>
-          <h1>Add Transactions</h1>
-          <p>Upload and process transaction documents with automatic data extraction</p>
+          <h1>{isReviewing ? "Review Transaction" : "Add Transactions"}</h1>
+          <p>
+            {isReviewing
+              ? "Review and submit the transaction with the prefilled details below"
+              : "Upload and process transaction documents with automatic data extraction"}
+          </p>
         </div>
-        <button
-          type="button"
-          className={`transaction-outline-button${mustChooseClientFirst ? " is-disabled" : ""}`}
-          aria-disabled={mustChooseClientFirst}
-          title={mustChooseClientFirst ? "Select a client first" : undefined}
-          onClick={handleOpenBulkImport}
-        >
-          <UploadIcon />
-          Bulk Import from CSV
-        </button>
+        {!isReviewing && (
+          <button
+            type="button"
+            className={`transaction-outline-button${mustChooseClientFirst ? " is-disabled" : ""}`}
+            aria-disabled={mustChooseClientFirst}
+            title={mustChooseClientFirst ? "Select a client first" : undefined}
+            onClick={handleOpenBulkImport}
+          >
+            <UploadIcon />
+            Bulk Import from CSV
+          </button>
+        )}
       </div>
 
       <div className="transaction-add-layout">
@@ -5329,6 +6246,122 @@ export function AddTransactionView({
               />
             </label>
 
+            {/* Is this a regular payment? */}
+            <div className="client-tx-split-toggle-container" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '24px 0 20px 0',
+              marginTop: '24px',
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+            }}>
+              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a regular payment?</span>
+                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>We'll flag it in your dashboard alerts so nothing gets missed.</span>
+              </div>
+              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={isRegularPayment}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsRegularPayment(checked);
+                    if (!checked) {
+                      setDueDate("");
+                      setDueDateTouched(false);
+                    }
+                  }}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span className="client-tx-slider" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: isRegularPayment ? '#1d2452' : '#eaeef4',
+                  transition: '.2s',
+                  borderRadius: '24px',
+                }} />
+                <span style={{
+                  position: 'absolute',
+                  content: '""',
+                  height: '18px',
+                  width: '18px',
+                  left: isRegularPayment ? '24px' : '4px',
+                  bottom: '3px',
+                  backgroundColor: 'white',
+                  transition: '.2s',
+                  borderRadius: '50%',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  pointerEvents: 'none',
+                }} />
+              </label>
+            </div>
+
+            {isRegularPayment && (
+              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px', marginBottom: '16px' }}>
+                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Due date</label>
+                  <input
+                    type="date"
+                    min="1900-01-01"
+                    max="9999-12-31"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    onBlur={() => setDueDateTouched(true)}
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#ffffff',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      height: '50px',
+                    }}
+                  />
+                  {showDueDateError && (
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{dueDateError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Alert name</label>
+                  <input
+                    type="text"
+                    value={alertName}
+                    onChange={(e) => {
+                      setAlertName(e.target.value);
+                      setUserEditedAlertName(true);
+                    }}
+                    placeholder="Enter alert name"
+                    style={{
+                      background: isDark ? 'var(--surface-2)' : '#ffffff',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      fontSize: '14.5px',
+                      fontWeight: '500',
+                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      height: '50px',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {submitError && !submitError.toLowerCase().includes("split") ? (
               <p className="transaction-warning-card" role="alert">
                 {submitError}
@@ -5344,7 +6377,9 @@ export function AddTransactionView({
                 className="transaction-save-button"
                 disabled={!canSubmit || isSubmitting}
               >
-                {isSubmitting ? "Adding Transaction…" : "Add Transaction"}
+                {isSubmitting
+                  ? (isReviewing ? "Saving Transaction…" : "Adding Transaction…")
+                  : (isReviewing ? "Save Transaction" : "Add Transaction")}
               </button>
             </div>
           </fieldset>

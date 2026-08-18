@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import AddPropertyWizard from "@/app/components/AddPropertyWizard";
+import ClientAddPropertyView from "@/app/components/clients/ClientAddPropertyView";
 import { PropertyWizardSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
@@ -92,12 +92,14 @@ export default function ClientEditPropertyPage() {
   }
 
   return (
-    <AddPropertyWizard
+    <ClientAddPropertyView
       mode="edit"
-      entity={entity}
+      propertyId={propertyId}
       initialProperty={property}
-      backHref={`/dashboard/client/entities/${entityId}/properties/${propertyId}`}
-      onSuccessHref={`/dashboard/client/entities/${entityId}/properties/${propertyId}`}
+      entityId={entityId}
+      backUrl={`/dashboard/client/entities/${entityId}/properties/${propertyId}`}
+      backText="Property Details"
+      onSuccessUrl={`/dashboard/client/entities/${entityId}/properties/${propertyId}`}
     />
   );
 }

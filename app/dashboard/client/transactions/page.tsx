@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import ClientTransactionsSkeleton from "@/app/components/clients/ClientTransactionsSkeleton";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
+import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -21,6 +23,8 @@ export default function ClientTransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense' | 'month'>('all');
+  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'reviewed' | 'pending'>('reviewed');
 
   // Filter bottom sheet state variables
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
@@ -58,6 +62,7 @@ export default function ClientTransactionsPage() {
 
         const res = await fetch("/api/transactions", {
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
         if (cancelled) return;
 
@@ -78,83 +83,62 @@ export default function ClientTransactionsPage() {
     };
   }, [router]);
 
-  // Fallback demo data if no transactions exist in the account
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
   const todayStr = today.toISOString().split('T')[0];
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-  const demoTransactions = [
-    {
-      id: "demo-t1",
-      description: "Rent - 24 Darling St",
-      categoryName: "Rental Income",
-      meta: "XX3421",
-      type: "revenue",
-      amount: 4200,
-      invoiceDate: todayStr,
-      entityName: "Johnson Family Trust",
-      entityId: "demo-ent1",
-    },
-    {
-      id: "demo-t2",
-      description: "Water Bill",
-      categoryName: "Utilities",
-      meta: "Water 24 Darling Street",
-      type: "expense",
-      amount: 312,
-      invoiceDate: todayStr,
-      entityName: "Johnson Family Trust",
-      entityId: "demo-ent1",
-    },
-    {
-      id: "demo-t3",
-      description: "Water Bill",
-      categoryName: "Utilities",
-      meta: "Water 24 Darling Street",
-      type: "expense",
-      amount: 312,
-      invoiceDate: yesterdayStr,
-      entityName: "Johnson Family Trust",
-      entityId: "demo-ent1",
-    },
-    {
-      id: "demo-t4",
-      description: "Cleaning Bill",
-      categoryName: "Utilities",
-      meta: "12 Church Avenue",
-      type: "expense",
-      amount: 670,
-      invoiceDate: yesterdayStr,
-      entityName: "SJ Holdings Pvt Ltd.",
-      entityId: "demo-ent2",
-    }
-  ];
+  const listData = transactions.map(tx => ({
+    id: tx.id,
+    description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+    categoryName: tx.categoryName,
+    subcategoryName: tx.subcategoryName || "",
+    meta: tx.propertyName || tx.propertyNames?.[0] || "",
+    type: tx.type,
+    amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
+    gstAmount: tx.gstAmount || 0,
+    invoiceDate: tx.invoiceDate ? tx.invoiceDate.split('T')[0] : "",
+    entityName: tx.entityName || "Individual",
+    entityId: tx.entityId || "",
+    documentId: tx.documentId || tx.metadata?.document_id || null,
+    documentFileName: tx.documentFileName || tx.metadata?.invoice_name || tx.metadata?.document_name || null,
+    reviewStatus: tx.reviewStatus || "unreviewed",
+    createdAt: tx.createdAt || "",
+  }));
 
-  const listData = transactions.length > 0
-    ? transactions.map(tx => ({
-        id: tx.id,
-        description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
-        categoryName: tx.categoryName,
-        meta: tx.propertyName || tx.propertyNames?.[0] || "",
-        type: tx.type,
-        amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
-        invoiceDate: tx.invoiceDate ? tx.invoiceDate.split('T')[0] : "",
-        entityName: tx.entityName || "Individual",
-        entityId: tx.entityId || "",
-      }))
-    : demoTransactions;
+  // "Submitted" is when the transaction was created in Clear (created_at), not
+  // the invoice date. Falls back to the invoice date for rows created before
+  // the API started returning created_at.
+  const formatSubmittedAt = (createdAt: string, invoiceDate: string) => {
+    const raw = createdAt || invoiceDate;
+    if (!raw) return "";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+
+    const dayStr = d.toISOString().split('T')[0];
+    const time = d.toLocaleTimeString("en-AU", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    if (dayStr === todayStr) return `Today, ${time}`;
+    if (dayStr === yesterdayStr) return `Yesterday, ${time}`;
+    return `${d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}, ${time}`;
+  };
+
+  // Transactions the accountant has not signed off yet drive the
+  // "To Be Reviewed" tab; everything else stays on the "Reviewed" tab.
+  const pendingTransactions = listData
+    .filter(tx => tx.reviewStatus === "unreviewed")
+    .sort((a, b) =>
+      (b.createdAt || b.invoiceDate).localeCompare(a.createdAt || a.invoiceDate),
+    );
 
   // Unique entities list for bottom sheet filters
-  const uniqueEntitiesList = listData === demoTransactions
-    ? ["Johnson Family Trust", "SJ Holdings Pvt Ltd.", "Sarah Johnson"]
-    : Array.from(new Set(listData.map(tx => tx.entityName).filter(Boolean)));
+  const uniqueEntitiesList = Array.from(new Set(listData.map(tx => tx.entityName).filter(Boolean)));
 
   // Unique properties list for bottom sheet filters
-  const uniquePropertiesList = listData === demoTransactions
-    ? ["24 Darling Street", "12 Church Ave", "8 Harbour Road"]
-    : Array.from(new Set(listData.map(tx => tx.meta).filter(Boolean)));
+  const uniquePropertiesList = Array.from(new Set(listData.map(tx => tx.meta).filter(Boolean)));
 
   // MTD calculations based on active calendar month
   const currentMonth = today.getMonth();
@@ -175,11 +159,11 @@ export default function ClientTransactionsPage() {
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   // Fallbacks if no data exists
-  const displayIncomeMtd = listData === demoTransactions ? 18400 : incomeMtd;
-  const displayExpenseMtd = listData === demoTransactions ? 6120 : expenseMtd;
+  const displayIncomeMtd = incomeMtd;
+  const displayExpenseMtd = expenseMtd;
 
   // Filter listData based on all active filters
-  let filtered = listData;
+  let filtered = listData.filter(tx => tx.reviewStatus !== "unreviewed");
 
   // 1. Search Query
   if (searchQuery.trim()) {
@@ -256,7 +240,7 @@ export default function ClientTransactionsPage() {
   const groupTransactionsByDate = (itemsList: any[]) => {
     const groups: { [key: string]: any[] } = {};
     const sorted = [...itemsList].sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate));
-    
+
     sorted.forEach(item => {
       if (!item.invoiceDate) return;
       const dateLabel = formatDateGroupHeader(item.invoiceDate);
@@ -276,7 +260,7 @@ export default function ClientTransactionsPage() {
         month: "long",
         year: "numeric",
       });
-      
+
       if (dateStr === todayStr) {
         return `Today - ${formattedDate}`;
       } else if (dateStr === yesterdayStr) {
@@ -342,15 +326,238 @@ export default function ClientTransactionsPage() {
     }
   };
 
+  const renderTransactionDetailModal = () => {
+    if (!selectedTransaction) return null;
+
+    // Format Date
+    let formattedDate = "";
+    try {
+      const date = new Date(selectedTransaction.invoiceDate);
+      formattedDate = date.toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch (e) {
+      formattedDate = selectedTransaction.invoiceDate;
+    }
+
+    // Generate dynamic file name
+    const sanitizedDesc = selectedTransaction.description
+      ? selectedTransaction.description.toLowerCase().replace(/[^a-z0-9]/g, '_')
+      : 'transaction';
+    const fileName = selectedTransaction.documentFileName || `${sanitizedDesc}_invoice.pdf`;
+
+    return (
+      <div 
+        className="m-filter-backdrop" 
+        onClick={() => setSelectedTransaction(null)}
+        style={{
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.45)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '24px'
+        }}
+      >
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: '100%',
+            maxWidth: '520px',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Title above the card */}
+          <div style={{ 
+            color: '#ffffff', 
+            fontSize: '18px', 
+            fontWeight: 600, 
+            marginBottom: '16px', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            padding: '0 4px'
+          }}>
+            <span>Transaction detail</span>
+            <button 
+              onClick={() => setSelectedTransaction(null)}
+              style={{ 
+                border: 'none', 
+                background: 'none', 
+                color: 'rgba(255, 255, 255, 0.7)', 
+                fontSize: '28px', 
+                cursor: 'pointer', 
+                padding: 0, 
+                lineHeight: 1 
+              }}
+              aria-label="Close modal"
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* Card Body */}
+          <div style={{
+            background: 'var(--surface-1)',
+            border: '1px solid var(--border)',
+            borderRadius: '24px',
+            padding: isMobile ? '24px 20px' : '32px 28px',
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            {/* Badge & Amount */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+              <span style={{
+                padding: '6px 12px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: '600',
+                textTransform: 'capitalize',
+                background: selectedTransaction.type === 'revenue' ? 'rgba(93, 202, 165, 0.15)' : 'rgba(240, 149, 149, 0.15)',
+                color: selectedTransaction.type === 'revenue' ? 'var(--success)' : 'var(--danger)'
+              }}>
+                {selectedTransaction.type === 'revenue' ? 'Income' : 'Expense'}
+              </span>
+              <div style={{ fontSize: '34px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.5px', marginTop: '4px' }}>
+                {formatClientCurrency(selectedTransaction.type === 'revenue' ? selectedTransaction.amount : -selectedTransaction.amount, { decimals: 2, showPlus: true })}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {formattedDate} · {selectedTransaction.description}
+              </div>
+            </div>
+
+            <div style={{ height: '1px', background: 'var(--border)' }} />
+
+            {/* Details Table Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {[
+                { label: 'Entity', value: selectedTransaction.entityName },
+                { label: 'Property', value: selectedTransaction.meta || 'N/A' },
+                { label: 'Category', value: selectedTransaction.categoryName },
+                { label: 'Subcategory', value: selectedTransaction.subcategoryName || 'N/A' },
+                { 
+                  label: 'GST', 
+                  value: selectedTransaction.gstAmount !== undefined && selectedTransaction.gstAmount > 0
+                    ? `10% (${formatClientCurrency(selectedTransaction.gstAmount, { decimals: 2 })})`
+                    : `10% (${formatClientCurrency(selectedTransaction.amount * 0.1, { decimals: 2 })})`
+                },
+                { label: 'Description', value: selectedTransaction.description }
+              ].map((row, index, arr) => (
+                <div 
+                  key={row.label} 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'flex-start',
+                    paddingBottom: index < arr.length - 1 ? '14px' : '0',
+                    borderBottom: index < arr.length - 1 ? '1px solid var(--border)' : 'none'
+                  }}
+                >
+                  <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{row.label}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '600', textAlign: 'right', maxWidth: '70%', wordBreak: 'break-word' }}>
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Attached Document Section */}
+            {selectedTransaction.documentId && (
+              <div style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: '6px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '8px',
+                    background: '#F0ECE4',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#D0A860" strokeWidth="2" style={{ width: '18px', height: '18px' }}>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {fileName}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      356 KB · {formattedDate}
+                    </span>
+                  </div>
+                </div>
+                <a 
+                  href="#" 
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    const docId = selectedTransaction.documentId;
+                    if (!docId) return;
+                    try {
+                      const session = (await getSession()) as SessionWithIdToken | null;
+                      if (!session) {
+                        alert("You're signed out.");
+                        return;
+                      }
+                      const token = session.getIdToken().getJwtToken();
+                      const res = await fetch(`/api/documents/${encodeURIComponent(docId)}/download`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      if (!res.ok) throw new Error("Failed to get download URL");
+                      const data = await res.json();
+                      window.open(data.download_url, "_blank", "noopener,noreferrer");
+                    } catch (err) {
+                      console.error("Failed to open invoice:", err);
+                      alert("Failed to open the attached invoice. Please try again.");
+                    }
+                  }}
+                  style={{ fontSize: '13px', fontWeight: '600', color: 'var(--brand)', textDecoration: 'none', marginLeft: '12px' }}
+                >
+                  View
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isMobile) {
     return (
       <Skeleton
         name="client-transactions-page-skeleton"
         loading={isLoading}
-        fallback={<ClientEntitiesSkeleton />}
+        fallback={<ClientTransactionsSkeleton />}
       >
-        <div className="mobile-client-dashboard" style={{ padding: '0 16px 90px 16px', background: '#f7f9fc', position: 'relative' }}>
-          
+        <div className="mobile-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '90px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
+
           {/* Keyframe Animations */}
           <style>{`
             @keyframes fadeIn {
@@ -367,231 +574,396 @@ export default function ClientTransactionsPage() {
             .m-filter-sheet {
               animation: slideUp 0.25s cubic-bezier(0.1, 0.76, 0.55, 0.94) forwards;
             }
+            .no-scrollbar::-webkit-scrollbar {
+              display: none;
+            }
+            .no-scrollbar {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
           `}</style>
 
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0 16px 0' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#101828', margin: 0 }}>Transactions</h1>
-            <Link 
-              href="/dashboard/client/transactions/new" 
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '16px 16px',
+            background: 'var(--surface-1)',
+            borderBottom: '1px solid var(--border)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 50
+          }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
+            <Link
+              href="/dashboard/client/transactions/new"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '40px',
-                borderRadius: '20px',
-                background: '#1a235a',
-                color: '#ffffff',
-                textDecoration: 'none',
-                fontSize: '24px',
-                fontWeight: 400
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "40px",
+                height: "40px",
+                borderRadius: "20px",
+                background: "#1a235a",
+                color: "#ffffff",
+                textDecoration: "none"
               }}
             >
-              +
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ width: "20px", height: "20px" }}
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
             </Link>
           </div>
 
           {/* Search Box */}
-          <div style={{ position: 'relative', margin: '8px 0 16px 0' }}>
-            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: '#98a2b3' }}>
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+          <div style={{ padding: '16px 16px 8px 16px' }}>
+            <div style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: 'var(--text-muted)' }}>
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search Transactions"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 42px 12px 42px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  fontSize: '15px',
+                  background: 'var(--surface-1)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+                }}
+              />
+              <button
+                type="button"
+                onClick={openFilterSheet}
+                style={{
+                  position: 'absolute',
+                  right: '14px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+                aria-label="Filter transactions"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px', color: 'var(--text-secondary)' }}>
+                  <line x1="4" y1="21" x2="4" y2="14" />
+                  <line x1="4" y1="10" x2="4" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12" y2="3" />
+                  <line x1="20" y1="21" x2="20" y2="16" />
+                  <line x1="20" y1="12" x2="20" y2="3" />
+                  <line x1="1" y1="14" x2="7" y2="14" />
+                  <line x1="9" y1="8" x2="15" y2="8" />
+                  <line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+              </button>
             </div>
-            <input 
-              type="text"
-              placeholder="Search Transactions"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 40px 12px 40px',
-                borderRadius: '12px',
-                border: '1px solid #eaeef4',
-                fontSize: '15px',
-                background: '#ffffff',
-                color: '#101828',
-                outline: 'none',
-                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
-              }}
-            />
-            <button
-              type="button"
-              onClick={openFilterSheet}
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-              aria-label="Filter transactions"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: '#1a235a' }}>
-                <line x1="4" y1="21" x2="4" y2="14" />
-                <line x1="4" y1="10" x2="4" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12" y2="3" />
-                <line x1="20" y1="21" x2="20" y2="16" />
-                <line x1="20" y1="12" x2="20" y2="3" />
-                <line x1="1" y1="14" x2="7" y2="14" />
-                <line x1="9" y1="8" x2="15" y2="8" />
-                <line x1="17" y1="16" x2="23" y2="16" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Filter Pills */}
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '4px 0 16px 0', WebkitOverflowScrolling: 'touch' }}>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('all')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 600,
-                border: '1px solid #1a235a',
-                background: activeFilter === 'all' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'all' ? '#ffffff' : '#1a235a',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              All
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('income')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 600,
-                border: '1px solid #d0d5dd',
-                background: activeFilter === 'income' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'income' ? '#ffffff' : '#344054',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              Income
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('expense')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 600,
-                border: '1px solid #d0d5dd',
-                background: activeFilter === 'expense' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'expense' ? '#ffffff' : '#344054',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              Expense
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('month')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 600,
-                border: '1px solid #d0d5dd',
-                background: activeFilter === 'month' ? '#1a235a' : '#ffffff',
-                color: activeFilter === 'month' ? '#ffffff' : '#344054',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              This Month
-            </button>
           </div>
 
           {/* MTD Card */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '16px', borderRadius: '16px', background: '#ffffff', border: '1px solid #eaeef4', marginBottom: '20px', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
-            <div style={{ paddingRight: '16px' }}>
-              <span style={{ fontSize: '13px', color: '#667085', fontWeight: 600 }}>Income (MTD)</span>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#12b76a', marginTop: '6px' }}>
-                +${displayIncomeMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+          <div style={{ padding: '0 16px 16px 16px' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              padding: '18px 16px', 
+              borderRadius: '16px', 
+              background: 'var(--surface-1)', 
+              border: '1px solid var(--border)', 
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' 
+            }}>
+              <div style={{ paddingRight: '12px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Income (MTD)</span>
+                <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--success)', marginTop: '4px' }}>
+                  {formatClientCurrency(displayIncomeMtd, { showPlus: true })}
+                </div>
               </div>
-            </div>
-            <div style={{ paddingLeft: '16px', borderLeft: '1px solid #eaeef4' }}>
-              <span style={{ fontSize: '13px', color: '#667085', fontWeight: 600 }}>Expense (MTD)</span>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#f04438', marginTop: '6px' }}>
-                -${displayExpenseMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+              <div style={{ paddingLeft: '20px', borderLeft: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Expense (MTD)</span>
+                <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--danger)', marginTop: '4px' }}>
+                  {formatClientCurrency(-displayExpenseMtd, { showPlus: true })}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Grouped Transactions List */}
-          {Object.keys(groupedTransactions).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 16px', color: '#667085', background: '#ffffff', border: '1px solid #eaeef4', borderRadius: '16px' }}>
-              No transactions found matching search or filter criteria.
-            </div>
-          ) : (
-            Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-              <div key={dateLabel} style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#667085', margin: '0 0 10px 0' }}>
-                  {dateLabel}
-                </h4>
-                
-                <div className="m-db-activity-list-card">
-                  {items.map((tx, idx) => (
-                    <div key={tx.id} className="m-db-activity-row" style={{ borderBottom: idx < items.length - 1 ? '1px solid #f2f4f7' : 'none' }}>
-                      <div className="m-db-activity-left">
-                        <div className={`m-db-activity-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {tx.type === 'revenue' ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="7" y1="17" x2="17" y2="7" />
-                              <polyline points="7 7 17 7 17 17" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="17" y1="7" x2="7" y2="17" />
-                              <polyline points="17 17 7 17 7 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="m-db-activity-info">
-                          <strong className="m-db-activity-desc">{tx.description}</strong>
-                          <span className="m-db-activity-meta">
-                            {tx.categoryName} {tx.meta ? `- ${tx.meta}` : ''}
+          {/* Tabs Control */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '4px 16px 8px 16px',
+            alignItems: 'center'
+          }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reviewed')}
+              className={`m-db-subtab-btn ${activeTab === 'reviewed' ? 'is-active' : ''}`}
+              style={{
+                background: activeTab === 'reviewed' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'reviewed' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'reviewed' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              Reviewed
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pending')}
+              className={`m-db-subtab-btn ${activeTab === 'pending' ? 'is-active' : ''}`}
+              style={{
+                background: activeTab === 'pending' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'pending' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'pending' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              To Be Reviewed ({pendingTransactions.length})
+            </button>
+          </div>
+
+          {activeTab === 'reviewed' ? (
+            <>
+
+              {/* Filter Pills */}
+              <div 
+                className="no-scrollbar"
+                style={{ 
+                  display: 'flex', 
+                  gap: '8px', 
+                  overflowX: 'auto', 
+                  padding: '4px 16px 16px 16px', 
+                  WebkitOverflowScrolling: 'touch' 
+                }}
+              >
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'income', label: 'Income' },
+                  { id: 'expense', label: 'Expense' },
+                  { id: 'month', label: 'This Month' }
+                ].map((pill) => {
+                  const isActive = activeFilter === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      type="button"
+                      onClick={() => handleQuickFilterChange(pill.id as any)}
+                      className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: '20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        border: isActive ? '1px solid var(--brand)' : '1px solid var(--border)',
+                        background: isActive ? 'var(--brand)' : 'var(--surface-1)',
+                        color: isActive ? '#ffffff' : 'var(--brand)',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {pill.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Grouped Transactions List */}
+              {Object.keys(groupedTransactions).length === 0 ? (
+                <div style={{ margin: '0 16px', textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                  No transactions found matching search or filter criteria.
+                </div>
+              ) : (
+                Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+                  <div key={dateLabel} style={{ marginBottom: '20px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-secondary)', margin: '0 16px 8px 16px' }}>
+                      {dateLabel}
+                    </h4>
+
+                    <div style={{
+                      margin: '0 16px',
+                      background: 'var(--surface-1)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
+                    }}>
+                      {items.map((tx, idx) => (
+                        <div 
+                          key={tx.id} 
+                          onClick={() => setSelectedTransaction(tx)}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between', 
+                            padding: '16px',
+                            borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                            <div 
+                              className={`m-db-activity-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}
+                            >
+                              {tx.type === 'revenue' ? (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="7" y1="17" x2="17" y2="7" />
+                                  <polyline points="7 7 17 7 17 17" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="17" y1="7" x2="7" y2="17" />
+                                  <polyline points="17 17 7 17 7 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                              <strong style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {tx.description}
+                              </strong>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                                {tx.categoryName} {tx.meta ? `- ${tx.meta}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <span 
+                            style={{ 
+                              fontSize: '15px', 
+                              fontWeight: '700', 
+                              textAlign: 'right', 
+                              flexShrink: 0, 
+                              marginLeft: '12px',
+                              color: tx.type === 'revenue' ? 'var(--success)' : 'var(--danger)'
+                            }}
+                          >
+                            {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
                           </span>
                         </div>
-                      </div>
-                      <span className={`m-db-activity-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {tx.type === 'revenue' ? '+' : '-'}${tx.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+            /* To Be Reviewed */
+            <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingTransactions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                  Nothing awaiting review.
+                </div>
+              ) : (
+                pendingTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  onClick={() => setSelectedTransaction(tx)}
+                  style={{
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '16px',
+                    padding: '16px 20px',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      background: '#FDF2E9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <strong style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tx.entityName}
+                      </strong>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                        {[tx.meta, tx.createdAt || tx.invoiceDate ? `Submitted ${formatSubmittedAt(tx.createdAt, tx.invoiceDate)}` : ""].filter(Boolean).join(" · ")}
                       </span>
                     </div>
-                  ))}
+                  </div>
+                  <span style={{
+                    padding: '6px 12px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    background: '#FDF2E9',
+                    color: '#D97706',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '12px'
+                  }}>
+                    Pending review
+                  </span>
                 </div>
-              </div>
-            ))
+                ))
+              )}
+            </div>
           )}
 
           {/* Filters Bottom Sheet Drawer */}
           {isFilterSheetOpen && (
             <>
               {/* Backdrop */}
-              <div 
+              <div
                 className="m-filter-backdrop"
                 onClick={handleCancelFilters}
                 style={{
@@ -604,9 +976,9 @@ export default function ClientTransactionsPage() {
                   zIndex: 1000
                 }}
               />
-              
+
               {/* Sheet Drawer */}
-              <div 
+              <div
                 className="m-filter-sheet"
                 style={{
                   position: 'fixed',
@@ -614,10 +986,11 @@ export default function ClientTransactionsPage() {
                   bottom: 0,
                   width: '100%',
                   maxHeight: '88vh',
-                  background: '#ffffff',
+                  background: 'var(--surface-1)',
+                  borderTop: '1px solid var(--border)',
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  boxShadow: '0 -8px 24px rgba(16, 24, 40, 0.15)',
+                  boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.25)',
                   padding: '8px 16px 24px 16px',
                   boxSizing: 'border-box',
                   display: 'flex',
@@ -627,15 +1000,15 @@ export default function ClientTransactionsPage() {
                 }}
               >
                 {/* Drag Handle */}
-                <div style={{ width: '40px', height: '4px', background: '#eaeef4', borderRadius: '2px', margin: '0 auto 16px auto' }} />
-                
+                <div style={{ width: '40px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0 auto 16px auto' }} />
+
                 {/* Header Row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#101828', margin: 0 }}>Filters</h2>
-                  <button 
-                    type="button" 
+                  <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Filters</h2>
+                  <button
+                    type="button"
                     onClick={handleClearAll}
-                    style={{ border: 'none', background: 'none', color: '#1a235a', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
+                    style={{ border: 'none', background: 'none', color: 'var(--brand)', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
                   >
                     Clear all
                   </button>
@@ -645,37 +1018,41 @@ export default function ClientTransactionsPage() {
                 <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
                   {/* Type Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Type</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Type</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {['all', 'income', 'expense'].map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setTempType(t as any)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempType === t ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempType === t ? '#1a235a' : '#ffffff',
-                            color: tempType === t ? '#ffffff' : '#344054',
-                            textTransform: 'capitalize',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {t}
-                        </button>
-                      ))}
+                      {['all', 'income', 'expense'].map((t) => {
+                        const isActive = tempType === t;
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setTempType(t as any)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              textTransform: 'capitalize',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div style={{ height: '1px', background: '#eaeef4', margin: '12px 0' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
 
                   {/* Date Range Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {[
                         { label: 'All', value: 'all' },
@@ -683,135 +1060,149 @@ export default function ClientTransactionsPage() {
                         { label: 'Past week', value: 'week' },
                         { label: 'Last 30 days', value: '30days' },
                         { label: 'This quarter', value: 'quarter' }
-                      ].map((d) => (
-                        <button
-                          key={d.value}
-                          type="button"
-                          onClick={() => setTempDateRange(d.value as any)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempDateRange === d.value ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempDateRange === d.value ? '#1a235a' : '#ffffff',
-                            color: tempDateRange === d.value ? '#ffffff' : '#344054',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
+                      ].map((d) => {
+                        const isActive = tempDateRange === d.value;
+                        return (
+                          <button
+                            key={d.value}
+                            type="button"
+                            onClick={() => setTempDateRange(d.value as any)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div style={{ height: '1px', background: '#eaeef4', margin: '12px 0' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
 
                   {/* Entity Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       <button
                         type="button"
                         onClick={() => setTempEntity('all')}
+                        className={`m-db-filter-pill ${tempEntity === 'all' ? 'is-active' : ''}`}
                         style={{
                           padding: '8px 16px',
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempEntity === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempEntity === 'all' ? '#1a235a' : '#ffffff',
-                          color: tempEntity === 'all' ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempEntity === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempEntity === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempEntity === 'all' ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none'
                         }}
                       >
                         All
                       </button>
-                      {uniqueEntitiesList.map((ent) => (
-                        <button
-                          key={ent}
-                          type="button"
-                          onClick={() => setTempEntity(ent)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempEntity === ent ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempEntity === ent ? '#1a235a' : '#ffffff',
-                            color: tempEntity === ent ? '#ffffff' : '#344054',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {ent}
-                        </button>
-                      ))}
+                      {uniqueEntitiesList.map((ent) => {
+                        const isActive = tempEntity === ent;
+                        return (
+                          <button
+                            key={ent}
+                            type="button"
+                            onClick={() => setTempEntity(ent)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {ent}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div style={{ height: '1px', background: '#eaeef4', margin: '12px 0' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
 
                   {/* Properties Filter */}
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       <button
                         type="button"
                         onClick={() => setTempProperty('all')}
+                        className={`m-db-filter-pill ${tempProperty === 'all' ? 'is-active' : ''}`}
                         style={{
                           padding: '8px 16px',
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempProperty === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempProperty === 'all' ? '#1a235a' : '#ffffff',
-                          color: tempProperty === 'all' ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempProperty === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempProperty === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempProperty === 'all' ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none'
                         }}
                       >
                         All
                       </button>
-                      {uniquePropertiesList.map((prop) => (
-                        <button
-                          key={prop}
-                          type="button"
-                          onClick={() => setTempProperty(prop)}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            border: `1px solid ${tempProperty === prop ? '#1a235a' : '#d0d5dd'}`,
-                            background: tempProperty === prop ? '#1a235a' : '#ffffff',
-                            color: tempProperty === prop ? '#ffffff' : '#344054',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
-                        >
-                          {prop}
-                        </button>
-                      ))}
+                      {uniquePropertiesList.map((prop) => {
+                        const isActive = tempProperty === prop;
+                        return (
+                          <button
+                            key={prop}
+                            type="button"
+                            onClick={() => setTempProperty(prop)}
+                            className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                              background: isActive ? 'var(--brand)' : 'var(--surface-2)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {prop}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '16px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
 
                 {/* Footer buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleCancelFilters}
                     style={{
                       padding: '12px 16px',
                       borderRadius: '16px',
-                      border: '1px solid #d0d5dd',
-                      background: '#ffffff',
-                      color: '#344054',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface-2)',
+                      color: 'var(--text-secondary)',
                       fontSize: '15px',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -820,14 +1211,14 @@ export default function ClientTransactionsPage() {
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleApplyFilters}
                     style={{
                       padding: '12px 16px',
                       borderRadius: '16px',
                       border: 'none',
-                      background: '#1a235a',
+                      background: 'var(--brand)',
                       color: '#ffffff',
                       fontSize: '15px',
                       fontWeight: 600,
@@ -841,6 +1232,7 @@ export default function ClientTransactionsPage() {
               </div>
             </>
           )}
+          {renderTransactionDetailModal()}
         </div>
       </Skeleton>
     );
@@ -851,35 +1243,22 @@ export default function ClientTransactionsPage() {
     <Skeleton
       name="client-transactions-page-skeleton-desktop"
       loading={isLoading}
-      fallback={<ClientEntitiesSkeleton />}
+      fallback={<ClientTransactionsSkeleton />}
     >
-      <div className="desktop-client-dashboard" style={{ background: '#f7f9fc', minHeight: '100vh', paddingBottom: '40px' }}>
-        
+      <div className="desktop-client-dashboard">
+
         {/* Scoped CSS Styles */}
         <style>{`
-          .desktop-client-dashboard {
-            min-height: 100vh;
-            background-color: #f7f9fc;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          }
           .d-tx-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: transparent;
             margin-bottom: 24px;
-            padding: 24px 24px 0 24px;
+            padding: 0;
           }
           .d-tx-content-area {
-            padding: 0 24px;
-          }
-          @media (min-width: 1200px) {
-            .d-tx-header {
-              padding: 24px 40px 0 40px;
-            }
-            .d-tx-content-area {
-              padding: 0 40px;
-            }
+            padding: 0;
           }
           .d-tx-add-btn {
             display: flex;
@@ -888,7 +1267,7 @@ export default function ClientTransactionsPage() {
             width: 40px;
             height: 40px;
             border-radius: 20px;
-            background: #1a235a;
+            background: var(--brand);
             color: #ffffff;
             text-decoration: none;
             font-size: 24px;
@@ -896,7 +1275,8 @@ export default function ClientTransactionsPage() {
             transition: all 0.2s ease;
           }
           .d-tx-add-btn:hover {
-            background: #2f3e8b;
+            background: var(--brand);
+            filter: brightness(1.15);
             transform: scale(1.05);
           }
           .d-tx-search-container {
@@ -913,17 +1293,17 @@ export default function ClientTransactionsPage() {
             width: 100%;
             padding: 12px 16px 12px 44px;
             border-radius: 12px;
-            border: 1px solid #eaeef4;
+            border: 1px solid var(--border);
             font-size: 15px;
-            background: #ffffff;
-            color: #101828;
+            background: var(--surface-1);
+            color: var(--text-primary);
             outline: none;
             box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
             transition: all 0.2s ease;
           }
           .d-tx-search-input:focus {
-            border-color: #1a235a;
-            box-shadow: 0 4px 12px rgba(26, 35, 90, 0.08);
+            border-color: var(--brand);
+            box-shadow: 0 4px 12px var(--border);
           }
           .d-tx-search-icon-box {
             position: absolute;
@@ -938,8 +1318,8 @@ export default function ClientTransactionsPage() {
             width: 46px;
             height: 46px;
             border-radius: 12px;
-            border: 1px solid #eaeef4;
-            background: #ffffff;
+            border: 1px solid var(--border);
+            background: var(--surface-1);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -947,11 +1327,11 @@ export default function ClientTransactionsPage() {
             outline: none;
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
-            color: #1a235a;
+            color: var(--brand);
           }
           .d-tx-filter-btn:hover {
-            border-color: #1a235a;
-            background: #fcfdff;
+            border-color: var(--brand);
+            background: var(--surface-2);
             transform: scale(1.02);
           }
           .d-tx-pills-row {
@@ -968,22 +1348,22 @@ export default function ClientTransactionsPage() {
             cursor: pointer;
             outline: none;
             transition: all 0.2s ease;
-            border: 1px solid #eaeef4;
+            border: 1px solid var(--border);
           }
           .d-tx-pill.active {
-            background: #1a235a;
+            background: var(--brand);
             color: #ffffff;
-            border-color: #1a235a;
+            border-color: var(--brand);
           }
           .d-tx-pill.inactive {
-            background: #ffffff;
-            color: #344054;
-            border-color: #d0d5dd;
+            background: var(--surface-1);
+            color: var(--text-secondary);
+            border-color: var(--border);
           }
           .d-tx-pill.inactive:hover {
-            border-color: #1a235a;
-            color: #1a235a;
-            background: #fcfdff;
+            border-color: var(--brand);
+            color: var(--brand);
+            background: var(--surface-2);
           }
           .d-tx-mtd-grid {
             display: grid;
@@ -992,8 +1372,8 @@ export default function ClientTransactionsPage() {
             margin-bottom: 28px;
           }
           .d-tx-mtd-card {
-            background: #ffffff;
-            border: 1px solid #eaeef4;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
@@ -1004,33 +1384,34 @@ export default function ClientTransactionsPage() {
           }
           .d-tx-mtd-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
           .d-tx-mtd-label {
             font-size: 13px;
-            color: #667085;
+            color: var(--text-secondary);
             font-weight: 600;
           }
           .d-tx-mtd-value {
             font-size: 28px;
             font-weight: 800;
             margin-top: 4px;
+            color: var(--text-primary);
           }
           .d-tx-mtd-value.income {
-            color: #12b76a;
+            color: var(--success);
           }
           .d-tx-mtd-value.expense {
-            color: #f04438;
+            color: var(--danger);
           }
           .d-tx-group-title {
             font-size: 14px;
             font-weight: 600;
-            color: #667085;
+            color: var(--text-secondary);
             margin: 0 0 12px 0;
           }
           .d-tx-list-card {
-            background: #ffffff;
-            border: 1px solid #eaeef4;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
             display: flex;
@@ -1043,14 +1424,14 @@ export default function ClientTransactionsPage() {
             align-items: center;
             justify-content: space-between;
             padding: 16px 24px;
-            border-bottom: 1px solid #f2f4f7;
+            border-bottom: 1px solid var(--border);
             transition: background-color 0.2s ease;
           }
           .d-tx-row:last-child {
             border-bottom: none;
           }
           .d-tx-row:hover {
-            background-color: #fcfdff;
+            background-color: var(--surface-2);
           }
           .d-tx-left {
             display: flex;
@@ -1073,12 +1454,12 @@ export default function ClientTransactionsPage() {
             transform: scale(1.05);
           }
           .d-tx-icon-box.income {
-            background: #ecfdf3;
-            color: #12b76a;
+            background: rgba(93, 202, 165, 0.15);
+            color: var(--success);
           }
           .d-tx-icon-box.expense {
-            background: #fef3f2;
-            color: #f04438;
+            background: rgba(240, 149, 149, 0.15);
+            color: var(--danger);
           }
           .d-tx-info {
             display: flex;
@@ -1088,7 +1469,7 @@ export default function ClientTransactionsPage() {
           .d-tx-desc {
             font-size: 15px;
             font-weight: 700;
-            color: #101828;
+            color: var(--text-primary);
             margin: 0;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1096,7 +1477,7 @@ export default function ClientTransactionsPage() {
           }
           .d-tx-meta {
             font-size: 13px;
-            color: #667085;
+            color: var(--text-secondary);
             margin: 4px 0 0 0;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1109,10 +1490,10 @@ export default function ClientTransactionsPage() {
             flex-shrink: 0;
           }
           .d-tx-amount.income {
-            color: #12b76a;
+            color: var(--success);
           }
           .d-tx-amount.expense {
-            color: #f04438;
+            color: var(--danger);
           }
           .d-filter-modal-overlay {
             position: fixed;
@@ -1120,7 +1501,7 @@ export default function ClientTransactionsPage() {
             top: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(16, 24, 40, 0.4);
+            background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
@@ -1131,9 +1512,10 @@ export default function ClientTransactionsPage() {
           .d-filter-modal-card {
             width: 480px;
             max-width: 90vw;
-            background: #ffffff;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 20px;
-            box-shadow: 0 12px 32px rgba(16, 24, 40, 0.15);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
             padding: 28px;
             display: flex;
             flex-direction: column;
@@ -1153,9 +1535,33 @@ export default function ClientTransactionsPage() {
 
         {/* Header */}
         <div className="d-tx-header">
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#101828', margin: 0 }}>Transactions</h1>
-          <Link href="/dashboard/client/transactions/new" className="d-tx-add-btn">
-            +
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
+          <Link
+            href="/dashboard/client/transactions/new"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "40px",
+              height: "40px",
+              borderRadius: "20px",
+              background: "#1a235a",
+              color: "#ffffff",
+              textDecoration: "none"
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: "20px", height: "20px" }}
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </Link>
         </div>
 
@@ -1170,7 +1576,7 @@ export default function ClientTransactionsPage() {
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </div>
-              <input 
+              <input
                 type="text"
                 placeholder="Search transactions"
                 value={searchQuery}
@@ -1198,98 +1604,213 @@ export default function ClientTransactionsPage() {
             </button>
           </div>
 
-          {/* Filter Pills */}
-          <div className="d-tx-pills-row">
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('all')}
-              className={`d-tx-pill ${activeFilter === 'all' ? 'active' : 'inactive'}`}
-            >
-              All
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('income')}
-              className={`d-tx-pill ${activeFilter === 'income' ? 'active' : 'inactive'}`}
-            >
-              Income
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('expense')}
-              className={`d-tx-pill ${activeFilter === 'expense' ? 'active' : 'inactive'}`}
-            >
-              Expense
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleQuickFilterChange('month')}
-              className={`d-tx-pill ${activeFilter === 'month' ? 'active' : 'inactive'}`}
-            >
-              This Month
-            </button>
-          </div>
-
           {/* MTD Cards Grid */}
           <div className="d-tx-mtd-grid">
             <div className="d-tx-mtd-card">
               <span className="d-tx-mtd-label">Income (MTD)</span>
               <div className="d-tx-mtd-value income">
-                +${displayIncomeMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {formatClientCurrency(displayIncomeMtd)}
               </div>
             </div>
             <div className="d-tx-mtd-card">
               <span className="d-tx-mtd-label">Expense (MTD)</span>
               <div className="d-tx-mtd-value expense">
-                -${displayExpenseMtd.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {formatClientCurrency(-displayExpenseMtd)}
               </div>
             </div>
           </div>
 
-          {/* Grouped Transactions List */}
-          {Object.keys(groupedTransactions).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px', color: '#667085', background: '#ffffff', border: '1px solid #eaeef4', borderRadius: '16px', fontSize: '15px' }}>
-              No transactions found matching search or filter criteria.
-            </div>
-          ) : (
-            Object.entries(groupedTransactions).map(([dateLabel, items]) => (
-              <div key={dateLabel} style={{ marginBottom: '24px' }}>
-                <h4 className="d-tx-group-title">
-                  {dateLabel}
-                </h4>
-                
-                <div className="d-tx-list-card">
-                  {items.map((tx, idx) => (
-                    <div key={tx.id} className="d-tx-row">
-                      <div className="d-tx-left">
-                        <div className={`d-tx-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {tx.type === 'revenue' ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="7" y1="17" x2="17" y2="7" />
-                              <polyline points="7 7 17 7 17 17" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                              <line x1="17" y1="7" x2="7" y2="17" />
-                              <polyline points="17 17 7 17 7 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="d-tx-info">
-                          <strong className="d-tx-desc">{tx.description}</strong>
-                          <span className="d-tx-meta">
-                            {tx.categoryName} {tx.meta ? `— ${tx.meta}` : ''}
+          {/* Tabs Control */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '24px',
+            alignItems: 'center'
+          }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reviewed')}
+              style={{
+                background: activeTab === 'reviewed' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'reviewed' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'reviewed' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              Reviewed
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pending')}
+              style={{
+                background: activeTab === 'pending' ? 'var(--surface-1)' : 'transparent',
+                color: activeTab === 'pending' ? 'var(--text-primary)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+                border: activeTab === 'pending' ? '1px solid var(--border)' : '1px solid transparent',
+                transition: 'all 0.2s'
+              }}
+            >
+              To Be Reviewed ({pendingTransactions.length})
+            </button>
+          </div>
+
+          {activeTab === 'reviewed' ? (
+            <>
+
+              {/* Filter Pills */}
+              <div className="d-tx-pills-row">
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('all')}
+                  className={`d-tx-pill ${activeFilter === 'all' ? 'active' : 'inactive'}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('income')}
+                  className={`d-tx-pill ${activeFilter === 'income' ? 'active' : 'inactive'}`}
+                >
+                  Income
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('expense')}
+                  className={`d-tx-pill ${activeFilter === 'expense' ? 'active' : 'inactive'}`}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilterChange('month')}
+                  className={`d-tx-pill ${activeFilter === 'month' ? 'active' : 'inactive'}`}
+                >
+                  This Month
+                </button>
+              </div>
+
+              {/* Grouped Transactions List */}
+              {Object.keys(groupedTransactions).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px', fontSize: '15px' }}>
+                  No transactions found matching search or filter criteria.
+                </div>
+              ) : (
+                Object.entries(groupedTransactions).map(([dateLabel, items]) => (
+                  <div key={dateLabel} style={{ marginBottom: '24px' }}>
+                    <h4 className="d-tx-group-title">
+                      {dateLabel}
+                    </h4>
+
+                    <div className="d-tx-list-card">
+                      {items.map((tx, idx) => (
+                        <div key={tx.id} className="d-tx-row" onClick={() => setSelectedTransaction(tx)} style={{ cursor: 'pointer' }}>
+                          <div className="d-tx-left">
+                            <div className={`d-tx-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
+                              {tx.type === 'revenue' ? (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="7" y1="17" x2="17" y2="7" />
+                                  <polyline points="7 7 17 7 17 17" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                                  <line x1="17" y1="7" x2="7" y2="17" />
+                                  <polyline points="17 17 7 17 7 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="d-tx-info">
+                              <strong className="d-tx-desc">{tx.description}</strong>
+                              <span className="d-tx-meta">
+                                {tx.categoryName} {tx.meta ? `— ${tx.meta}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`d-tx-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
+                            {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
                           </span>
                         </div>
-                      </div>
-                      <span className={`d-tx-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                        {tx.type === 'revenue' ? '+' : '-'}${tx.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+            /* To Be Reviewed */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingTransactions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px' }}>
+                  Nothing awaiting review.
+                </div>
+              ) : (
+                pendingTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  onClick={() => setSelectedTransaction(tx)}
+                  style={{
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '16px',
+                    padding: '20px 24px',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      background: '#FDF2E9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '22px', height: '22px' }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <strong style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tx.entityName}
+                      </strong>
+                      <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                        {[tx.meta, tx.createdAt || tx.invoiceDate ? `Submitted ${formatSubmittedAt(tx.createdAt, tx.invoiceDate)}` : ""].filter(Boolean).join(" · ")}
                       </span>
                     </div>
-                  ))}
+                  </div>
+                  <span style={{
+                    padding: '6px 14px',
+                    borderRadius: '100px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: '#FDF2E9',
+                    color: '#D97706',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '16px'
+                  }}>
+                    Pending review
+                  </span>
                 </div>
-              </div>
-            ))
+                ))
+              )}
+            </div>
           )}
         </div>
 
@@ -1297,14 +1818,14 @@ export default function ClientTransactionsPage() {
         {isFilterSheetOpen && (
           <div className="d-filter-modal-overlay" onClick={handleCancelFilters}>
             <div className="d-filter-modal-card" onClick={(e) => e.stopPropagation()}>
-              
+
               {/* Header Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#101828', margin: 0 }}>Filters</h2>
-                <button 
-                  type="button" 
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Filters</h2>
+                <button
+                  type="button"
                   onClick={handleClearAll}
-                  style={{ border: 'none', background: 'none', color: '#1a235a', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
+                  style={{ border: 'none', background: 'none', color: 'var(--brand)', fontSize: '15px', fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none' }}
                 >
                   Clear all
                 </button>
@@ -1314,7 +1835,7 @@ export default function ClientTransactionsPage() {
               <div style={{ overflowY: 'auto', maxHeight: '55vh', paddingRight: '4px' }}>
                 {/* Type Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Type</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Type</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {['all', 'income', 'expense'].map((t) => (
                       <button
@@ -1326,9 +1847,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempType === t ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempType === t ? '#1a235a' : '#ffffff',
-                          color: tempType === t ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempType === t ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempType === t ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempType === t ? '#ffffff' : 'var(--text-primary)',
                           textTransform: 'capitalize',
                           cursor: 'pointer',
                           outline: 'none',
@@ -1341,11 +1862,11 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '14px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }} />
 
                 {/* Date Range Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Date Range</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {[
                       { label: 'All', value: 'all' },
@@ -1363,9 +1884,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempDateRange === d.value ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempDateRange === d.value ? '#1a235a' : '#ffffff',
-                          color: tempDateRange === d.value ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempDateRange === d.value ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempDateRange === d.value ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempDateRange === d.value ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1377,11 +1898,11 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '14px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }} />
 
                 {/* Entity Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Entity</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     <button
                       type="button"
@@ -1391,9 +1912,9 @@ export default function ClientTransactionsPage() {
                         borderRadius: '20px',
                         fontSize: '14px',
                         fontWeight: 600,
-                        border: `1px solid ${tempEntity === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                        background: tempEntity === 'all' ? '#1a235a' : '#ffffff',
-                        color: tempEntity === 'all' ? '#ffffff' : '#344054',
+                        border: `1px solid ${tempEntity === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                        background: tempEntity === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                        color: tempEntity === 'all' ? '#ffffff' : 'var(--text-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'all 0.15s ease'
@@ -1411,9 +1932,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempEntity === ent ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempEntity === ent ? '#1a235a' : '#ffffff',
-                          color: tempEntity === ent ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempEntity === ent ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempEntity === ent ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempEntity === ent ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1425,11 +1946,11 @@ export default function ClientTransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#eaeef4', margin: '14px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }} />
 
                 {/* Properties Filter */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', color: '#667085', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px' }}>Properties</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     <button
                       type="button"
@@ -1439,9 +1960,9 @@ export default function ClientTransactionsPage() {
                         borderRadius: '20px',
                         fontSize: '14px',
                         fontWeight: 600,
-                        border: `1px solid ${tempProperty === 'all' ? '#1a235a' : '#d0d5dd'}`,
-                        background: tempProperty === 'all' ? '#1a235a' : '#ffffff',
-                        color: tempProperty === 'all' ? '#ffffff' : '#344054',
+                        border: `1px solid ${tempProperty === 'all' ? 'var(--brand)' : 'var(--border)'}`,
+                        background: tempProperty === 'all' ? 'var(--brand)' : 'var(--surface-2)',
+                        color: tempProperty === 'all' ? '#ffffff' : 'var(--text-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'all 0.15s ease'
@@ -1459,9 +1980,9 @@ export default function ClientTransactionsPage() {
                           borderRadius: '20px',
                           fontSize: '14px',
                           fontWeight: 600,
-                          border: `1px solid ${tempProperty === prop ? '#1a235a' : '#d0d5dd'}`,
-                          background: tempProperty === prop ? '#1a235a' : '#ffffff',
-                          color: tempProperty === prop ? '#ffffff' : '#344054',
+                          border: `1px solid ${tempProperty === prop ? 'var(--brand)' : 'var(--border)'}`,
+                          background: tempProperty === prop ? 'var(--brand)' : 'var(--surface-2)',
+                          color: tempProperty === prop ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1474,19 +1995,19 @@ export default function ClientTransactionsPage() {
                 </div>
               </div>
 
-              <div style={{ height: '1px', background: '#eaeef4', margin: '16px 0' }} />
+              <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
 
               {/* Footer buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCancelFilters}
                   style={{
                     padding: '12px 16px',
                     borderRadius: '12px',
-                    border: '1px solid #d0d5dd',
-                    background: '#ffffff',
-                    color: '#344054',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-2)',
+                    color: 'var(--text-secondary)',
                     fontSize: '15px',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -1496,14 +2017,14 @@ export default function ClientTransactionsPage() {
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleApplyFilters}
                   style={{
                     padding: '12px 16px',
                     borderRadius: '12px',
                     border: 'none',
-                    background: '#1a235a',
+                    background: 'var(--brand)',
                     color: '#ffffff',
                     fontSize: '15px',
                     fontWeight: 600,
@@ -1518,6 +2039,7 @@ export default function ClientTransactionsPage() {
             </div>
           </div>
         )}
+        {renderTransactionDetailModal()}
       </div>
     </Skeleton>
   );

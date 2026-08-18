@@ -57,6 +57,7 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -373,7 +374,7 @@ const clientMenuItems: PortalMenuItem[] = [
   },
   {
     id: "property",
-    href: "/dashboard/client/property",
+    href: "/dashboard/client/properties",
     label: "Properties",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -433,6 +434,17 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      const current = sessionStorage.getItem("currentDashboardPath");
+      if (current && current !== pathname) {
+        sessionStorage.setItem("prevDashboardPath", current);
+      }
+      sessionStorage.setItem("currentDashboardPath", pathname);
+    }
+  }, [pathname]);
+
   const isClientPage = pathname.startsWith("/dashboard/client");
 
   const [email, setEmail] = useState<string>("");
@@ -1061,6 +1073,32 @@ export default function DashboardLayout({
             </div>
 
             <div className="accountant-topbar-actions">
+              {isClientPage && <ThemeToggle />}
+              {isClientPage && (
+                <Link
+                  href="/dashboard/client/alerts"
+                  className="accountant-icon-button"
+                  aria-label="Notifications"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '6px',
+                      right: '6px',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#f04438',
+                      border: '1.5px solid var(--surface-1)'
+                    }}
+                  />
+                </Link>
+              )}
               {/* <button
                 type="button"
                 className="accountant-icon-button"
@@ -1151,7 +1189,7 @@ export default function DashboardLayout({
         )}
 
         {isMobileNavOpen && (
-          <div className="accountant-mobile-nav-layer">
+          <div className={`accountant-mobile-nav-layer${isClientPage ? " client-tablet-drawer-layer" : ""}`}>
             <button
               type="button"
               className="accountant-mobile-nav-backdrop"
@@ -1159,35 +1197,102 @@ export default function DashboardLayout({
               onClick={() => setIsMobileNavOpen(false)}
             />
 
-            <aside className="accountant-mobile-nav-sheet border border-red-900">
-              <div className="accountant-mobile-nav-header">
-                <div>
-                  <strong>Clear Portfolio</strong>
-                  <span>
-                    {role === "super_admin"
-                      ? "Super Admin Portal"
-                      : role === "admin"
-                        ? "Admin Portal"
-                        : role === "client" || role === "user"
-                          ? organizationName || "Client Portal"
-                          : organizationName || "Accountant Portal"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close navigation menu"
-                  onClick={() => setIsMobileNavOpen(false)}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12" />
-                    <path d="M18 6 6 18" />
-                  </svg>
-                </button>
-              </div>
+            <aside className={`accountant-mobile-nav-sheet${isClientPage ? " client-tablet-drawer-sheet" : ""}`}>
+              {isClientPage ? (
+                <>
+                  <div className="client-drawer-header">
+                    <div className="client-drawer-brand">
+                      <div className="client-drawer-logo-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <rect x="5" y="5" width="6" height="6" rx="1.2" />
+                          <rect x="13" y="5" width="6" height="6" rx="1.2" />
+                          <rect x="5" y="13" width="6" height="6" rx="1.2" />
+                          <rect x="13" y="13" width="6" height="6" rx="1.2" />
+                        </svg>
+                      </div>
+                      <strong>Clear Portfolio</strong>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Close navigation menu"
+                      onClick={() => setIsMobileNavOpen(false)}
+                      className="client-drawer-close-btn"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12" />
+                        <path d="M18 6 6 18" />
+                      </svg>
+                    </button>
+                  </div>
 
-              <nav className="accountant-mobile-nav-list">
-                {portalMenuItems.map((item) => renderPortalMenuItem(item, true))}
-              </nav>
+                  <div className="client-drawer-body">
+                    <div className="client-drawer-section-title">MAIN</div>
+                    <nav className="client-drawer-nav-list">
+                      {portalMenuItems.map((item) => {
+                        const hrefPath = item.href ? item.href.split("?")[0] : "";
+                        const isActive = hrefPath
+                          ? hrefPath === "/dashboard/client"
+                            ? pathname === hrefPath
+                            : pathname.startsWith(hrefPath)
+                          : false;
+
+                        return (
+                          <Link
+                            key={item.id}
+                            href={item.href || "#"}
+                            className={`client-drawer-nav-item${isActive ? " is-active" : ""}`}
+                            onClick={() => setIsMobileNavOpen(false)}
+                          >
+                            <span className="client-drawer-nav-icon">
+                              {item.icon}
+                            </span>
+                            <span className="client-drawer-nav-label">{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </nav>
+                  </div>
+
+                  <div className="client-drawer-footer">
+                    <div className="client-drawer-avatar">{initials}</div>
+                    <div className="client-drawer-user-info">
+                      <span className="client-drawer-user-role">Client Portal</span>
+                      <span className="client-drawer-user-email">{email}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="accountant-mobile-nav-header">
+                    <div>
+                      <strong>Clear Portfolio</strong>
+                      <span>
+                        {role === "super_admin"
+                          ? "Super Admin Portal"
+                          : role === "admin"
+                            ? "Admin Portal"
+                            : role === "client" || role === "user"
+                              ? organizationName || "Client Portal"
+                              : organizationName || "Accountant Portal"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Close navigation menu"
+                      onClick={() => setIsMobileNavOpen(false)}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6l12 12" />
+                        <path d="M18 6 6 18" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <nav className="accountant-mobile-nav-list">
+                    {portalMenuItems.map((item) => renderPortalMenuItem(item, true))}
+                  </nav>
+                </>
+              )}
             </aside>
           </div>
         )}

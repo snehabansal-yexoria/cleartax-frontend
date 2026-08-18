@@ -4,10 +4,10 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
+import ClientInsightsSkeleton from "@/app/components/clients/ClientInsightsSkeleton";
 import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency as globalFormatCurrency, getCurrencyPrefix } from "@/src/lib/currency";
+import { formatCurrency as globalFormatCurrency, getCurrencyPrefix, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -33,7 +33,7 @@ export default function ClientInsightsPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  
+
   // Interactive UI state
   const [timeFilter, setTimeFilter] = useState<'year' | 'quarter' | 'month'>('year');
   const [showForecast, setShowForecast] = useState(false);
@@ -140,8 +140,8 @@ export default function ClientInsightsPage() {
   const userName = currentUser?.fullName
     ? firstWord(currentUser.fullName)
     : currentUser?.email
-    ? titleCase(currentUser.email.split("@")[0])
-    : "Sarah";
+      ? titleCase(currentUser.email.split("@")[0])
+      : "Sarah";
 
   const getInitials = (value: string) => {
     if (!value) return "SJ";
@@ -159,8 +159,8 @@ export default function ClientInsightsPage() {
   const userInitials = currentUser?.fullName
     ? getInitials(currentUser.fullName)
     : currentUser?.email
-    ? getInitials(currentUser.email)
-    : "SJ";
+      ? getInitials(currentUser.email)
+      : "SJ";
 
   // Financial period date range helpers
   const periodBounds = useMemo(() => {
@@ -510,9 +510,7 @@ export default function ClientInsightsPage() {
   }, [properties, transactions, periodBounds]);
 
   const formatKCurrency = (val: number) => {
-    const sign = val >= 0 ? "+" : "-";
-    const kVal = Math.abs(val) / 1000;
-    return `${sign}${getCurrencyPrefix()}${kVal.toFixed(1)}K`;
+    return formatClientCurrency(val, { short: true, showPlus: true, decimals: 1 });
   };
 
   // Doughnut Chart circle properties
@@ -523,7 +521,7 @@ export default function ClientInsightsPage() {
     return globalFormatCurrency(val, { decimals: 0 });
   };
 
-  const isDemoMode = properties.length === 0 && transactions.length === 0;
+  const isDemoMode = false;
 
   // 1. Cash flow metrics
   const displayCashFlowMetrics = isDemoMode ? {
@@ -532,7 +530,7 @@ export default function ClientInsightsPage() {
   } : cashFlowMetrics;
 
   // 2. Line Chart Points
-  const displayLineChartPoints = isDemoMode 
+  const displayLineChartPoints = isDemoMode
     ? [12000, 14000, 13000, 17000, 16000, 21000, 24180]
     : lineChartPoints;
 
@@ -627,13 +625,13 @@ export default function ClientInsightsPage() {
       <Skeleton
         name="client-insights-mobile"
         loading={isLoading}
-        fallback={<ClientEntitiesSkeleton />}
+        fallback={<ClientInsightsSkeleton />}
       >
         <div
           className="mobile-client-dashboard"
           style={{
             padding: "0 16px 90px 16px",
-            background: "#f7f9fc",
+            background: "var(--surface-0)",
             minHeight: "100vh",
             fontFamily: "Inter, -apple-system, sans-serif",
           }}
@@ -723,18 +721,18 @@ export default function ClientInsightsPage() {
           {isWorkspaceEmpty ? (
             <div
               style={{
-                background: "#ffffff",
-                border: "1px solid #eaeef4",
+                background: "var(--surface-1)",
+                border: "1px solid var(--border)",
                 borderRadius: "18px",
                 padding: "32px 24px",
                 textAlign: "center",
-                boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
+                boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
               }}
             >
-              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#101828", margin: "0 0 10px 0" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px 0" }}>
                 No Analytics Data
               </h3>
-              <p style={{ fontSize: "14px", color: "#667085", lineHeight: 1.5, margin: "0 0 24px 0" }}>
+              <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 24px 0" }}>
                 We could not find any properties or transactions associated with your account. Add them to view your net cash flow, historical trends, and expense breakdown.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -759,9 +757,9 @@ export default function ClientInsightsPage() {
                     display: "block",
                     padding: "12px",
                     borderRadius: "12px",
-                    border: "1px solid #d0d5dd",
-                    background: "#ffffff",
-                    color: "#344054",
+                    border: "1px solid var(--border)",
+                    background: "var(--surface-1)",
+                    color: "var(--text-secondary)",
                     textDecoration: "none",
                     fontWeight: 600,
                     fontSize: "14px",
@@ -777,18 +775,18 @@ export default function ClientInsightsPage() {
               <div
                 className="m-db-stat-card"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #eaeef4",
+                  background: "var(--surface-1)",
+                  border: "1px solid var(--border)",
                   borderRadius: "18px",
                   padding: "20px 20px 12px 20px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "0",
-                  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
+                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: "#667085" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-secondary)" }}>
                     Net Cash Flow
                   </span>
                   <span
@@ -851,11 +849,11 @@ export default function ClientInsightsPage() {
               <div
                 className="m-db-chart-card"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #eaeef4",
+                  background: "var(--surface-1)",
+                  border: "1px solid var(--border)",
                   borderRadius: "18px",
                   padding: "20px",
-                  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
+                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "16px",
@@ -877,7 +875,7 @@ export default function ClientInsightsPage() {
                       className="m-db-chart-subtitle"
                       style={{
                         fontSize: "12px",
-                        color: "#8c9ba5",
+                        color: "var(--text-muted)",
                         marginTop: "4px",
                         display: "flex",
                         alignItems: "center",
@@ -893,7 +891,7 @@ export default function ClientInsightsPage() {
                     style={{
                       border: "none",
                       background: "none",
-                      color: "#475467",
+                      color: "var(--text-secondary)",
                       fontSize: "12px",
                       fontWeight: 500,
                       textDecoration: "underline",
@@ -969,7 +967,7 @@ export default function ClientInsightsPage() {
                         backgroundColor: "#1b265c",
                       }}
                     />
-                    <span style={{ color: "#475467", fontWeight: 500 }}>Income</span>
+                    <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Income</span>
                   </div>
                   <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <div
@@ -980,7 +978,7 @@ export default function ClientInsightsPage() {
                         backgroundColor: "#f7a61a",
                       }}
                     />
-                    <span style={{ color: "#475467", fontWeight: 500 }}>Expenses</span>
+                    <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Expenses</span>
                   </div>
                 </div>
               </div>
@@ -989,17 +987,17 @@ export default function ClientInsightsPage() {
               <div
                 className="m-db-stat-card"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #eaeef4",
+                  background: "var(--surface-1)",
+                  border: "1px solid var(--border)",
                   borderRadius: "18px",
                   padding: "20px",
-                  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
+                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "16px",
                 }}
               >
-                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#101828", margin: 0 }}>
+                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
                   Expense breakdown
                 </h3>
 
@@ -1066,7 +1064,7 @@ export default function ClientInsightsPage() {
                     }}
                   >
                     {displayExpenseBreakdown.total === 0 ? (
-                      <span style={{ fontSize: "13px", color: "#667085" }}>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
                         No expense items recorded.
                       </span>
                     ) : (
@@ -1091,9 +1089,9 @@ export default function ClientInsightsPage() {
                                   categoryColors[idx % categoryColors.length],
                               }}
                             />
-                            <span style={{ color: "#344054" }}>{item.name}</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{item.name}</span>
                           </div>
-                          <strong style={{ color: "#101828" }}>{item.percentage}%</strong>
+                          <strong style={{ color: "var(--text-primary)" }}>{item.percentage}%</strong>
                         </div>
                       ))
                     )}
@@ -1105,28 +1103,28 @@ export default function ClientInsightsPage() {
               <div
                 className="m-db-stat-card"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #eaeef4",
+                  background: "var(--surface-1)",
+                  border: "1px solid var(--border)",
                   borderRadius: "18px",
                   padding: "20px",
-                  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
+                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "12px",
                 }}
               >
                 <div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#101828", margin: 0 }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
                     Top performing
                   </h3>
-                  <p style={{ fontSize: "12px", color: "#667085", margin: "4px 0 0 0" }}>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>
                     By income - {timeFilter === "year" ? "This Year" : timeFilter === "quarter" ? "This Quarter" : "This Month"}
                   </p>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "4px" }}>
                   {displayTopPerformingProperties.length === 0 ? (
-                    <span style={{ fontSize: "13px", color: "#667085" }}>
+                    <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
                       No properties found.
                     </span>
                   ) : (
@@ -1138,7 +1136,7 @@ export default function ClientInsightsPage() {
                           alignItems: "center",
                           justifyContent: "space-between",
                           paddingBottom: idx < displayTopPerformingProperties.length - 1 ? "12px" : "0",
-                          borderBottom: idx < displayTopPerformingProperties.length - 1 ? "1px solid #f2f4f7" : "none",
+                          borderBottom: idx < displayTopPerformingProperties.length - 1 ? "1px solid var(--border)" : "none",
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -1159,13 +1157,13 @@ export default function ClientInsightsPage() {
                           >
                             {idx + 1}
                           </div>
-                          <span style={{ fontSize: "14px", fontWeight: 600, color: "#101828" }}>
+                          <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
                             {item.name}
                           </span>
                         </div>
 
                         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                          <span style={{ fontSize: "13px", color: "#667085", fontWeight: 500 }}>
+                          <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>
                             {item.returnRate.toFixed(1)}%
                           </span>
                           <span
@@ -1195,36 +1193,25 @@ export default function ClientInsightsPage() {
     <Skeleton
       name="client-insights-desktop"
       loading={isLoading}
-      fallback={<ClientEntitiesSkeleton />}
+      fallback={<ClientInsightsSkeleton />}
     >
       <div className="desktop-client-dashboard">
         {/* Scoped CSS Styles */}
         <style>{`
-          .desktop-client-dashboard {
-            min-height: 100vh;
-            background-color: #f7f9fc;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding: 24px;
-          }
-          @media (min-width: 1200px) {
-            .desktop-client-dashboard {
-              padding: 24px 40px 40px 40px;
-            }
-          }
           .insights-header-section {
             margin-bottom: 24px;
           }
           .insights-kicker {
             font-size: 12px;
             font-weight: 500;
-            color: #8c9ba5;
+            color: var(--text-muted);
             margin: 0;
             text-transform: none;
           }
           .insights-title {
             font-size: 28px;
             font-weight: 700;
-            color: #101828;
+            color: var(--text-primary);
             margin: 4px 0 0 0;
           }
           .insights-pills-row {
@@ -1246,20 +1233,25 @@ export default function ClientInsightsPage() {
             color: #ffffff;
             border: 1px solid #1b265c;
           }
+          html.dark .insights-pill.active {
+            background: var(--surface-2) !important;
+            border-color: #ffb11f !important;
+            color: #ffb11f !important;
+          }
           .insights-pill.inactive {
-            background: #ffffff;
-            color: #1b265c;
-            border: 1px solid #eaeef4;
+            background: var(--surface-1);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
           }
           .insights-pill.inactive:hover {
-            background: #f7f9fc;
-            border-color: #d0d5dd;
+            background: var(--surface-2);
+            border-color: var(--border);
           }
           .insights-grid {
             display: grid;
             gap: 24px;
           }
-          @media (min-width: 1025px) {
+          @media (min-width: 1024px) {
             .insights-grid {
               grid-template-columns: 1fr 1.25fr;
               grid-template-areas:
@@ -1267,7 +1259,7 @@ export default function ClientInsightsPage() {
                 "expense-breakdown top-performing";
             }
           }
-          @media (min-width: 769px) and (max-width: 1024px) {
+          @media (min-width: 768px) and (max-width: 1023px) {
             .insights-grid {
               grid-template-columns: 1fr 1fr;
               grid-template-areas:
@@ -1282,26 +1274,33 @@ export default function ClientInsightsPage() {
           .area-top-performing { grid-area: top-performing; }
 
           .insights-card {
-            background: #ffffff;
-            border: 1px solid #eaeef4;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 24px;
-            box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
-            transition: all 0.2s ease;
+            box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+            transition: all 0.2s ease-in-out;
             display: flex;
             flex-direction: column;
           }
           .insights-card:hover {
-            box-shadow: 0 8px 24px rgba(16, 24, 40, 0.03);
+            box-shadow: 0px 4px 6px -2px rgba(16, 24, 40, 0.03), 0px 12px 16px -4px rgba(16, 24, 40, 0.08);
+            transform: translateY(-2px);
+          }
+          html.dark .insights-card {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          }
+          html.dark .insights-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
           }
           .insights-card-title {
             font-size: 15px;
             font-weight: 700;
-            color: #101828;
+            color: var(--text-primary);
           }
           .insights-card-kicker {
             font-size: 12px;
-            color: #667085;
+            color: var(--text-secondary);
             margin-top: 2px;
           }
           .trend-badge {
@@ -1318,7 +1317,7 @@ export default function ClientInsightsPage() {
           .insights-card-main-title {
             font-size: 18px;
             font-weight: 700;
-            color: #101828;
+            color: var(--text-primary);
             margin: 0;
           }
           .expense-breakdown-body {
@@ -1352,12 +1351,12 @@ export default function ClientInsightsPage() {
             flex-shrink: 0;
           }
           .legend-label {
-            color: #475467;
+            color: var(--text-secondary);
             font-weight: 500;
           }
           .legend-percentage {
             font-weight: 700;
-            color: #101828;
+            color: var(--text-primary);
           }
           @media (max-width: 1024px) {
             .expense-breakdown-body {
@@ -1394,7 +1393,7 @@ export default function ClientInsightsPage() {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            color: #98a2b3;
+            color: var(--text-muted);
             font-size: 11px;
             font-weight: 500;
             width: 32px;
@@ -1420,7 +1419,7 @@ export default function ClientInsightsPage() {
           }
           .chart-grid-line {
             width: 100%;
-            border-top: 1px dashed #eaeef4;
+            border-top: 1px dashed var(--border);
           }
           .chart-bars-wrap {
             position: absolute;
@@ -1464,7 +1463,7 @@ export default function ClientInsightsPage() {
           }
           .chart-month-label {
             font-size: 12px;
-            color: #98a2b3;
+            color: var(--text-muted);
             margin-top: 4px;
             height: 16px;
             line-height: 16px;
@@ -1497,7 +1496,7 @@ export default function ClientInsightsPage() {
             align-items: center;
             justify-content: space-between;
             padding-bottom: 12px;
-            border-bottom: 1px dashed #eaeef4;
+            border-bottom: 1px dashed var(--border);
           }
           .top-performing-row:last-child {
             border-bottom: none;
@@ -1518,11 +1517,11 @@ export default function ClientInsightsPage() {
           .property-name {
             font-size: 15px;
             font-weight: 600;
-            color: #101828;
+            color: var(--text-primary);
           }
           .yield-text {
             font-size: 14px;
-            color: #667085;
+            color: var(--text-secondary);
             font-weight: 500;
           }
           .return-value {
@@ -1773,7 +1772,7 @@ export default function ClientInsightsPage() {
                 {/* Legend list */}
                 <div className="expense-legend-list">
                   {displayExpenseBreakdown.total === 0 ? (
-                    <span style={{ fontSize: "14px", color: "#667085" }}>
+                    <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
                       No expense items recorded.
                     </span>
                   ) : (
@@ -1805,7 +1804,7 @@ export default function ClientInsightsPage() {
 
               <div className="top-performing-list">
                 {displayTopPerformingProperties.length === 0 ? (
-                  <span style={{ fontSize: "14px", color: "#667085" }}>
+                  <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
                     No properties found.
                   </span>
                 ) : (

@@ -86,6 +86,9 @@ interface Transaction {
   clientShareGross: number | null;
   clientShareGst: number | null;
   clientShareNet: number | null;
+  documentId?: string | null;
+  documentFileName?: string | null;
+  metadata?: Record<string, any> | null;
 }
 
 interface Rule {
@@ -107,6 +110,7 @@ interface MockDB {
   properties: Property[];
   transactions: Transaction[];
   rules: Rule[];
+  documents?: any[];
 }
 
 // Helpers to generate last 6 months of dates
@@ -184,7 +188,7 @@ function getInitialDB(): MockDB {
         createdAt: getPastDateString(6, 1),
         reconciled: false,
         enabled: true,
-        propertiesCount: 2,
+        propertiesCount: 3,
         transactionsCount: 0,
         beneficiaries: [
           { id: 1, name: "Sarah Johnson", ownershipPercentage: 60 },
@@ -199,7 +203,7 @@ function getInitialDB(): MockDB {
         createdAt: getPastDateString(5, 1),
         reconciled: false,
         enabled: true,
-        propertiesCount: 1,
+        propertiesCount: 0,
         transactionsCount: 0,
         beneficiaries: [
           { id: 3, name: "Sarah Johnson", ownershipPercentage: 100 },
@@ -236,21 +240,12 @@ function getInitialDB(): MockDB {
           { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
         loanDetails: {
-          bank_name: "CBA",
-          bsb_number: "062900",
-          loan_account_number: "12345678",
-          loan_allocation_percentage: 100,
           loan_amount: 680000,
-          property_status_details: {
-            status: "Rented",
-            available_for_rent_date: getPastDateString(60, 15),
-            first_rental_income_date: getPastDateString(59, 1),
-          },
         },
       },
       {
         id: "demo-prop-2",
-        name: "12 Church Ave",
+        name: "12 Church Avenue",
         entityId: "demo-entity-1",
         estimatedMarketValue: 980000,
         purchaseAmount: 800000,
@@ -263,40 +258,64 @@ function getInitialDB(): MockDB {
           { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
         loanDetails: {
-          bank_name: "Westpac",
-          bsb_number: "032000",
-          loan_account_number: "87654321",
-          loan_allocation_percentage: 100,
           loan_amount: 420000,
-          property_status_details: {
-            status: "Self Occupied",
-          },
         },
       },
       {
         id: "demo-prop-3",
         name: "8 Harbour Road",
-        entityId: "demo-entity-2",
-        estimatedMarketValue: 850000,
+        entityId: "demo-entity-1",
+        estimatedMarketValue: 450000,
         purchaseAmount: 750000,
         purchaseDate: getPastDateString(12, 10),
         hasDepreciationSchedule: false,
         status: "Available for Rent",
         imageUrl: "/house_harbour_rd.png",
         owners: [
-          { entityBeneficiaryId: 3, ownerName: "Sarah Johnson", ownershipPercentage: 100 },
+          { entityBeneficiaryId: 1, ownerName: "Sarah Johnson", ownershipPercentage: 60 },
+          { entityBeneficiaryId: 2, ownerName: "Michael Johnson", ownershipPercentage: 40 },
         ],
         loanDetails: {
-          bank_name: "CBA",
-          bsb_number: "062900",
-          loan_account_number: "23456789",
-          loan_allocation_percentage: 100,
-          loan_amount: 280000,
-          property_status_details: {
-            status: "Available for Rent",
-            available_for_rent_date: getPastDateString(11, 1),
-          },
+          loan_amount: 510000,
         },
+      },
+    ],
+    documents: [
+      {
+        id: "doc-1",
+        file_name: "Trust Deed 2019.pdf",
+        original_file_name: "Trust Deed 2019.pdf",
+        document_type: "trust_deed",
+        processing_status: "processed",
+        file_size: 1420456,
+        mime_type: "application/pdf",
+        created_at: "2026-03-12T14:30:00Z",
+        source: "direct",
+        entityId: "demo-entity-1",
+      },
+      {
+        id: "doc-2",
+        file_name: "Depreciation Schedule.pdf",
+        original_file_name: "Depreciation Schedule.pdf",
+        document_type: "depreciation_schedule",
+        processing_status: "processed",
+        file_size: 852938,
+        mime_type: "application/pdf",
+        created_at: "2026-03-12T15:45:00Z",
+        source: "direct",
+        entityId: "demo-entity-1",
+      },
+      {
+        id: "doc-3",
+        file_name: "FY24 Tax Return.pdf",
+        original_file_name: "FY24 Tax Return.pdf",
+        document_type: "tax_return",
+        processing_status: "processed",
+        file_size: 2104958,
+        mime_type: "application/pdf",
+        created_at: "2026-02-28T09:15:00Z",
+        source: "direct",
+        entityId: "demo-entity-1",
       },
     ],
     transactions: [],
@@ -311,155 +330,263 @@ function getInitialDB(): MockDB {
     ],
   };
 
+  // Helper to enrich TypeScript transactions
+  const enrichTx = (t: any): Transaction => {
+    return {
+      id: t.id,
+      type: t.type,
+      categoryId: t.categoryId,
+      categoryName: t.categoryName,
+      subcategoryId: t.subcategoryId,
+      subcategoryName: t.subcategoryName,
+      invoiceDate: t.invoiceDate,
+      grossAmount: t.grossAmount,
+      gstAmount: t.gstAmount,
+      netAmount: t.netAmount,
+      description: t.description || null,
+      internalRemarks: null,
+      isAssetPurchase: false,
+      assetClass: null,
+      effectiveLifeYears: null,
+      ruleId: null,
+      reviewStatus: "reviewed",
+      clientId: t.clientId,
+      clientName: t.clientName,
+      entityId: t.entityId,
+      entityName: t.entityName,
+      propertyIds: t.propertyIds || [],
+      propertyNames: t.propertyNames || [],
+      clientShareGross: t.clientShareGross ?? t.grossAmount,
+      clientShareGst: t.clientShareGst ?? 0,
+      clientShareNet: t.clientShareNet ?? t.netAmount,
+      documentId: t.documentId || t.metadata?.document_id || null,
+      documentFileName: t.documentFileName || t.metadata?.document_name || t.metadata?.invoice_name || null,
+      metadata: t.metadata || {},
+    };
+  };
 
-  
-  const targetMonthlyData = [
-    { monthsAgo: 5, income: 12000, expense: 3000 },
-    { monthsAgo: 4, income: 7000, expense: 7000 },
-    { monthsAgo: 3, income: 10000, expense: 4000 },
-    { monthsAgo: 2, income: 15000, expense: 800 },
-    { monthsAgo: 1, income: 6000, expense: 7500 },
-    { monthsAgo: 0, income: 13800, expense: 5380 },
+  // Seed the 5 recent transactions from Figma
+  const todayDate = new Date();
+  const todayStr = getPastDateString(0, todayDate.getDate());
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = getPastDateString(0, yesterdayDate.getDate());
+
+  const rawRecentTxs = [
+    {
+      id: "tx-recent-1",
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: todayStr,
+      grossAmount: 4200,
+      gstAmount: 0,
+      netAmount: 4200,
+      description: "Rent — 24 Darling St",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    },
+    {
+      id: "tx-recent-2",
+      type: "expense",
+      categoryId: 12,
+      categoryName: "Utilities",
+      subcategoryId: 1201,
+      subcategoryName: "Water Bill",
+      invoiceDate: todayStr,
+      grossAmount: 312,
+      gstAmount: 0,
+      netAmount: 312,
+      description: "Water bill",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    },
+    {
+      id: "tx-recent-3",
+      type: "expense",
+      categoryId: 11,
+      categoryName: "Loan interest",
+      subcategoryId: 1101,
+      subcategoryName: "Monthly CBA Interest",
+      invoiceDate: todayStr,
+      grossAmount: 2180,
+      gstAmount: 0,
+      netAmount: 2180,
+      description: "Loan interest",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    },
+    {
+      id: "tx-recent-4",
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: yesterdayStr,
+      grossAmount: 3800,
+      gstAmount: 0,
+      netAmount: 3800,
+      description: "Rent — 12 Church Ave",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    },
+    {
+      id: "tx-recent-5",
+      type: "expense",
+      categoryId: 12,
+      categoryName: "Utilities",
+      subcategoryId: 1201,
+      subcategoryName: "Cleaning Services",
+      invoiceDate: yesterdayStr,
+      grossAmount: 670,
+      gstAmount: 0,
+      netAmount: 670,
+      description: "Cleaning bill",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    },
+    {
+      id: "tx-recent-6",
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: getPastDateString(0, 1),
+      grossAmount: 7442,
+      gstAmount: 0,
+      netAmount: 7442,
+      description: "Rent - 24 Darling St",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    }
   ];
 
-  let txIdCounter = 1;
+  db.transactions.push(...rawRecentTxs.map(enrichTx));
 
-  for (const target of targetMonthlyData) {
-    const { monthsAgo, income, expense } = target;
-    
-    // Add revenue items to sum to target income
-    if (income > 0) {
-      // Split into Rent Darling St and Rent Harbour Rd
-      const part1 = Math.round(income * 0.55);
-      const part2 = income - part1;
+  const historicalData = [
+    { monthsAgo: 1, p1Inc: 7000, p2Inc: 6500, p1Exp: 4500, p2Exp: 3800 },
+    { monthsAgo: 2, p1Inc: 8000, p2Inc: 7500, p1Exp: 5000, p2Exp: 4200 },
+    { monthsAgo: 3, p1Inc: 6500, p2Inc: 6500, p1Exp: 4200, p2Exp: 3800 },
+    { monthsAgo: 4, p1Inc: 7500, p2Inc: 7000, p1Exp: 4500, p2Exp: 3800 },
+    { monthsAgo: 5, p1Inc: 8000, p2Inc: 7500, p1Exp: 5000, p2Exp: 4000 },
+    { monthsAgo: 6, p1Inc: 5958, p2Inc: 6800, p1Exp: 4708, p2Exp: 3730 },
+  ];
 
-      db.transactions.push({
-        id: `tx-${txIdCounter++}`,
-        type: "revenue",
-        categoryId: 1,
-        categoryName: "Rental Income",
-        subcategoryId: 101,
-        subcategoryName: "Residential Rent",
-        invoiceDate: getPastDateString(monthsAgo, 15),
-        grossAmount: part1,
-        gstAmount: 0,
-        netAmount: part1,
-        description: `Rent - 24 Darling St`,
-        internalRemarks: null,
-        isAssetPurchase: false,
-        assetClass: null,
-        effectiveLifeYears: null,
-        ruleId: null,
-        reviewStatus: "reviewed",
-        clientId: "demo-client",
-        clientName: "Sarah Johnson",
-        entityId: "demo-entity-1",
-        entityName: "Johnson Family Trust",
-        propertyIds: ["demo-prop-1"],
-        propertyNames: ["24 Darling Street"],
-        clientShareGross: part1,
-        clientShareGst: 0,
-        clientShareNet: part1,
-      });
+  let txIdCounter = 7;
+  for (const hist of historicalData) {
+    const { monthsAgo, p1Inc, p2Inc, p1Exp, p2Exp } = hist;
 
-      if (part2 > 0) {
-        db.transactions.push({
-          id: `tx-${txIdCounter++}`,
-          type: "revenue",
-          categoryId: 1,
-          categoryName: "Rental Income",
-          subcategoryId: 101,
-          subcategoryName: "Residential Rent",
-          invoiceDate: getPastDateString(monthsAgo, 18),
-          grossAmount: part2,
-          gstAmount: 0,
-          netAmount: part2,
-          description: `Rent - 8 Harbour Road`,
-          internalRemarks: null,
-          isAssetPurchase: false,
-          assetClass: null,
-          effectiveLifeYears: null,
-          ruleId: null,
-          reviewStatus: "reviewed",
-          clientId: "demo-client",
-          clientName: "Sarah Johnson",
-          entityId: "demo-entity-2",
-          entityName: "SJ Holdings Pty Ltd",
-          propertyIds: ["demo-prop-3"],
-          propertyNames: ["8 Harbour Road"],
-          clientShareGross: part2,
-          clientShareGst: 0,
-          clientShareNet: part2,
-        });
-      }
-    }
+    // Prop 1 Income
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: getPastDateString(monthsAgo, 15),
+      grossAmount: p1Inc,
+      gstAmount: 0,
+      netAmount: p1Inc,
+      description: "Rent - 24 Darling St",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    }));
 
-    // Add expense items to sum to target expense
-    if (expense > 0) {
-      // Split into Interest and Utilities
-      const part1 = Math.round(expense * 0.7);
-      const part2 = expense - part1;
+    // Prop 2 Income
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "revenue",
+      categoryId: 1,
+      categoryName: "Rental Income",
+      subcategoryId: 101,
+      subcategoryName: "Residential Rent",
+      invoiceDate: getPastDateString(monthsAgo, 15),
+      grossAmount: p2Inc,
+      gstAmount: 0,
+      netAmount: p2Inc,
+      description: "Rent - 12 Church Ave",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    }));
 
-      db.transactions.push({
-        id: `tx-${txIdCounter++}`,
-        type: "expense",
-        categoryId: 11,
-        categoryName: "Loan interest",
-        subcategoryId: 1101,
-        subcategoryName: "Monthly CBA Interest",
-        invoiceDate: getPastDateString(monthsAgo, 28),
-        grossAmount: part1,
-        gstAmount: 0,
-        netAmount: part1,
-        description: `Loan interest CBA`,
-        internalRemarks: null,
-        isAssetPurchase: false,
-        assetClass: null,
-        effectiveLifeYears: null,
-        ruleId: 1,
-        reviewStatus: "reviewed",
-        clientId: "demo-client",
-        clientName: "Sarah Johnson",
-        entityId: "demo-entity-1",
-        entityName: "Johnson Family Trust",
-        propertyIds: ["demo-prop-1"],
-        propertyNames: ["24 Darling Street"],
-        clientShareGross: part1,
-        clientShareGst: 0,
-        clientShareNet: part1,
-      });
+    // Prop 1 Expense
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "expense",
+      categoryId: 11,
+      categoryName: "Loan interest",
+      subcategoryId: 1101,
+      subcategoryName: "Monthly CBA Interest",
+      invoiceDate: getPastDateString(monthsAgo, 28),
+      grossAmount: p1Exp,
+      gstAmount: 0,
+      netAmount: p1Exp,
+      description: "Loan interest",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-1"],
+      propertyNames: ["24 Darling Street"],
+    }));
 
-      if (part2 > 0) {
-        db.transactions.push({
-          id: `tx-${txIdCounter++}`,
-          type: "expense",
-          categoryId: 12,
-          categoryName: "Utilities",
-          subcategoryId: 1201,
-          subcategoryName: "Water Bill",
-          invoiceDate: getPastDateString(monthsAgo, 5),
-          grossAmount: part2,
-          gstAmount: 0,
-          netAmount: part2,
-          description: `Water Bill - 24 Darling St`,
-          internalRemarks: null,
-          isAssetPurchase: false,
-          assetClass: null,
-          effectiveLifeYears: null,
-          ruleId: null,
-          reviewStatus: "reviewed",
-          clientId: "demo-client",
-          clientName: "Sarah Johnson",
-          entityId: "demo-entity-1",
-          entityName: "Johnson Family Trust",
-          propertyIds: ["demo-prop-1"],
-          propertyNames: ["24 Darling Street"],
-          clientShareGross: part2,
-          clientShareGst: 0,
-          clientShareNet: part2,
-        });
-      }
-    }
+    // Prop 2 Expense
+    db.transactions.push(enrichTx({
+      id: `tx-hist-${txIdCounter++}`,
+      type: "expense",
+      categoryId: 12,
+      categoryName: "Utilities",
+      subcategoryId: 1201,
+      subcategoryName: "Cleaning Services",
+      invoiceDate: getPastDateString(monthsAgo, 28),
+      grossAmount: p2Exp,
+      gstAmount: 0,
+      netAmount: p2Exp,
+      description: "Utilities bill",
+      clientId: "demo-client",
+      clientName: "Sarah Johnson",
+      entityId: "demo-entity-1",
+      entityName: "Johnson Family Trust",
+      propertyIds: ["demo-prop-2"],
+      propertyNames: ["12 Church Avenue"],
+    }));
   }
 
   return db;
@@ -567,7 +694,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(entityMatch[1]);
     const entity = db.entities.find((e) => e.id === id);
     if (!entity) return jsonResponse({ error: "Entity not found" }, 404);
-    
+
     // Enrich specific entity
     const entityProperties = db.properties.filter((p) => p.entityId === entity.id);
     const enriched = {
@@ -586,7 +713,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(entityMatch[1]);
     const idx = db.entities.findIndex((e) => e.id === id);
     if (idx === -1) return jsonResponse({ error: "Entity not found" }, 404);
-    
+
     try {
       const body = JSON.parse(init?.body as string);
       db.entities[idx] = {
@@ -605,7 +732,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(entityMatch[1]);
     const idx = db.entities.findIndex((e) => e.id === id);
     if (idx === -1) return jsonResponse({ error: "Entity not found" }, 404);
-    
+
     db.entities.splice(idx, 1);
     // Cascade delete properties and transactions under this entity
     db.properties = db.properties.filter((p) => p.entityId !== id);
@@ -638,11 +765,11 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       };
 
       db.properties.push(newProperty);
-      
+
       // Increment propertiesCount
       entity.propertiesCount = (entity.propertiesCount || 0) + 1;
       writeDB(db);
-      
+
       return jsonResponse(newProperty, 201);
     } catch {
       return jsonResponse({ error: "Invalid request body" }, 400);
@@ -689,7 +816,7 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
     const id = decodeURIComponent(propertyMatch[1]);
     const prop = db.properties.find((p) => p.id === id);
     if (!prop) return jsonResponse({ error: "Property not found" }, 404);
-    
+
     // Add entity details
     const ent = db.entities.find((e) => e.id === prop.entityId);
     const enriched = {
@@ -791,37 +918,83 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       const entityId = entityTransactionsPostMatch
         ? decodeURIComponent(entityTransactionsPostMatch[1])
         : body.entityId || "demo-entity-1";
-        
+
       const ent = db.entities.find((e) => e.id === entityId);
-      
-      const newTx: Transaction = {
-        id: `tx-${Date.now()}`,
-        type: body.type || "expense",
-        categoryId: Number(body.categoryId || 11),
-        categoryName: body.categoryName || "Loan interest",
-        subcategoryId: Number(body.subcategoryId || 1101),
-        subcategoryName: body.subcategoryName || "Monthly CBA Interest",
-        invoiceDate: body.invoiceDate || new Date().toISOString().split("T")[0],
-        grossAmount: Number(body.grossAmount || 0),
-        gstAmount: Number(body.gstAmount || 0),
-        netAmount: Number(body.netAmount || body.grossAmount || 0),
-        description: body.description || "Manual Transaction",
-        internalRemarks: body.internalRemarks || null,
-        isAssetPurchase: Boolean(body.isAssetPurchase),
-        assetClass: body.assetClass || null,
-        effectiveLifeYears: body.effectiveLifeYears || null,
-        ruleId: body.ruleId || null,
-        reviewStatus: body.reviewStatus || "unreviewed",
-        clientId: "demo-client",
-        clientName: db.user.fullName,
-        entityId: entityId,
-        entityName: ent ? ent.name : "Individual",
-        propertyIds: body.propertyIds || [],
-        propertyNames: body.propertyNames || [],
-        clientShareGross: Number(body.grossAmount || 0),
-        clientShareGst: Number(body.gstAmount || 0),
-        clientShareNet: Number(body.netAmount || body.grossAmount || 0),
-      };
+
+      const newTx: Transaction = (() => {
+        const type = body.type || "expense";
+
+        const categoryId = Number(body.category_id || body.categoryId || (type === "revenue" ? 1 : 11));
+        const categoryObj = [...categories.revenue, ...categories.expense].find((c) => c.id === categoryId);
+        const categoryName = categoryObj ? categoryObj.name : (type === "revenue" ? "Rental Income" : "Loan interest");
+
+        const subcategoryId = Number(body.subcategory_id || body.subcategoryId || (categoryId === 1 ? 101 : 1101));
+        const subcategoryObj = subcategories[categoryId]?.find((s) => s.id === subcategoryId);
+        const subcategoryName = subcategoryObj ? subcategoryObj.name : "General";
+
+        const invoiceDate = body.invoice_date || body.invoiceDate || new Date().toISOString().split("T")[0];
+        const grossAmount = Number(body.gross_amount ?? body.grossAmount ?? 0);
+        const gstAmount = Number(body.gst_amount ?? body.gstAmount ?? 0);
+        const netAmount = Number(body.net_amount ?? body.netAmount ?? (grossAmount - gstAmount));
+        const description = body.description || "Manual Transaction";
+        const internalRemarks = body.internal_remarks || body.internalRemarks || null;
+        const isAssetPurchase = Boolean(body.is_asset_purchase || body.isAssetPurchase);
+        const assetClass = body.asset_class || body.assetClass || null;
+        const effectiveLifeYears = body.effective_life_years != null ? Number(body.effective_life_years) : (body.effectiveLifeYears != null ? Number(body.effectiveLifeYears) : null);
+        const ruleId = body.rule_id || body.ruleId || null;
+        const reviewStatus = body.review_status || body.reviewStatus || "unreviewed";
+
+        // Extract properties from splits or propertyIds
+        let propertyIds: string[] = [];
+        if (body.splits && Array.isArray(body.splits)) {
+          propertyIds = body.splits.map((s: any) => s.property_id).filter(Boolean);
+        } else if (body.propertyIds && Array.isArray(body.propertyIds)) {
+          propertyIds = body.propertyIds;
+        } else if (body.propertyId) {
+          propertyIds = [body.propertyId];
+        }
+
+        const propertyNames = propertyIds.map((pId) => {
+          const prop = db.properties.find((p) => p.id === pId);
+          return prop ? prop.name : "Property";
+        });
+
+        const documentId = body.document_id || body.documentId || null;
+        const docObj = documentId ? (db.documents || []).find((d: any) => d.id === documentId) : null;
+        const documentFileName = docObj ? docObj.file_name : (body.document_file_name || body.documentFileName || null);
+
+        return {
+          id: `tx-${Date.now()}`,
+          type,
+          categoryId,
+          categoryName,
+          subcategoryId,
+          subcategoryName,
+          invoiceDate,
+          grossAmount,
+          gstAmount,
+          netAmount,
+          description,
+          internalRemarks,
+          isAssetPurchase,
+          assetClass,
+          effectiveLifeYears,
+          ruleId,
+          reviewStatus,
+          clientId: "demo-client",
+          clientName: db.user.fullName,
+          entityId,
+          entityName: ent ? ent.name : "Individual",
+          propertyIds,
+          propertyNames,
+          clientShareGross: Number(body.client_share_gross ?? body.clientShareGross ?? grossAmount),
+          clientShareGst: Number(body.client_share_gst ?? body.clientShareGst ?? gstAmount),
+          clientShareNet: Number(body.client_share_net ?? body.clientShareNet ?? netAmount),
+          documentId,
+          documentFileName,
+          metadata: body.metadata || {},
+        };
+      })();
 
       db.transactions.push(newTx);
       writeDB(db);
@@ -839,14 +1012,14 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
 
     try {
       const body = JSON.parse(init?.body as string);
-      
+
       // If categories or subcategories are changed, sync their names
       let categoryName = db.transactions[idx].categoryName;
       if (body.categoryId && body.categoryId !== db.transactions[idx].categoryId) {
         const found = [...categories.revenue, ...categories.expense].find((c) => c.id === body.categoryId);
         if (found) categoryName = found.name;
       }
-      
+
       let subcategoryName = db.transactions[idx].subcategoryName;
       if (body.subcategoryId && body.subcategoryId !== db.transactions[idx].subcategoryId) {
         const subCats = Object.values(subcategories).flat();
@@ -957,10 +1130,33 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
   // 24. GET /api/documents/presign
   if (path === "/api/documents/presign" && method === "GET") {
     const filename = parsedUrl.searchParams.get("filename") || "file.jpg";
+    const docType = parsedUrl.searchParams.get("document_type") || "other";
+    const entityId = parsedUrl.searchParams.get("entity_id") || "";
+    const propertyId = parsedUrl.searchParams.get("property_id") || "";
+
+    const docId = `doc-${Date.now()}`;
+
+    // Add to mock database
+    if (!db.documents) db.documents = [];
+    db.documents.unshift({
+      id: docId,
+      file_name: filename,
+      original_file_name: filename,
+      document_type: docType,
+      processing_status: "processed",
+      file_size: 1420456,
+      mime_type: filename.endsWith(".pdf") ? "application/pdf" : "image/jpeg",
+      created_at: new Date().toISOString(),
+      source: "direct",
+      entityId,
+      propertyId,
+    });
+    writeDB(db);
+
     return jsonResponse({
       upload_url: `/api/documents/mock-upload?file=${encodeURIComponent(filename)}`,
       s3_key: `mock-s3-key-${Date.now()}-${filename}`,
-      document_id: `doc-${Date.now()}`,
+      document_id: docId,
     });
   }
 
@@ -971,7 +1167,6 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
 
   // 26. GET /api/documents/download
   if (path === "/api/documents/download" && method === "GET") {
-    // Redirect to a placeholder image or a local route
     const key = parsedUrl.searchParams.get("key") || "";
     if (key.includes("darling")) {
       return jsonResponse({ url: "/house_darling_st.png" });
@@ -983,6 +1178,26 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       return jsonResponse({ url: "/house_harbour_rd.png" });
     }
     return jsonResponse({ url: "/house_darling_st.png" });
+  }
+
+  // 26c. GET /api/documents/:id/download
+  if (path.startsWith("/api/documents/") && path.endsWith("/download") && method === "GET") {
+    return jsonResponse({ download_url: "/house_darling_st.png" });
+  }
+
+  // 26b. GET /api/documents/list
+  if (path === "/api/documents/list" && method === "GET") {
+    const entityId = parsedUrl.searchParams.get("entity_id") || "";
+    const propertyId = parsedUrl.searchParams.get("property_id") || "";
+
+    let filtered = db.documents || [];
+    if (entityId) {
+      filtered = filtered.filter((d: any) => d.entityId === entityId);
+    }
+    if (propertyId) {
+      filtered = filtered.filter((d: any) => d.propertyId === propertyId);
+    }
+    return jsonResponse({ items: filtered });
   }
 
   // 27. GET /api/users/me/clients?scope=mine
@@ -997,8 +1212,16 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
   });
 }
 
-// Global flag to enable/disable mocking easily for backend developer
-const ENABLE_MOCK_API = true;
+// Global flag to enable/disable the client-dashboard mock API layer.
+//
+// Defaults OFF: the client dashboard talks to the real /api/* backend routes
+// (which proxy to the Go core API). Set NEXT_PUBLIC_ENABLE_MOCK_CLIENT_API=true
+// to re-enable the localStorage-backed demo mock for offline/UI-only work. This
+// is the single switch for the mock↔real toggle — flip it per-environment
+// rather than editing this constant.
+const ENABLE_MOCK_API =
+  (process.env.NEXT_PUBLIC_ENABLE_MOCK_CLIENT_API ?? "false").toLowerCase() ===
+  "true";
 
 let originalFetch: typeof window.fetch | null = null;
 
@@ -1012,10 +1235,10 @@ export function useMockClientApi() {
     }
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" 
-        ? input 
-        : input instanceof URL 
-          ? input.toString() 
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
           : input.url;
 
       // Intercept relative and absolute paths starting with /api/
@@ -1024,7 +1247,7 @@ export function useMockClientApi() {
         // Find relative start index of /api/
         const idx = url.indexOf("/api/");
         const relativeUrl = url.slice(idx);
-        
+
         try {
           console.log(`[Mock Client API Interceptor] Intercepted: ${init?.method || "GET"} ${relativeUrl}`);
           return await handleMockRequest(relativeUrl, init);
