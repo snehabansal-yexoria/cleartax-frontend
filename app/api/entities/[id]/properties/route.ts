@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   createCoreProperty,
+  getCoreEntity,
   listCoreProperties,
 } from "@/src/lib/coreApi";
 
@@ -47,10 +48,13 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   try {
+    const requestBody = body as Record<string, unknown>;
+    const entity = await getCoreEntity(token, id);
+
     const property = await createCoreProperty(
       token,
       id,
-      body as Record<string, unknown>,
+      requestBody,
     );
     return NextResponse.json(property, { status: 201 });
   } catch (error) {

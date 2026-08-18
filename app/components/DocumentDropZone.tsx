@@ -1,0 +1,542 @@
+"use client";
+
+import { useRef, useState, useEffect } from "react";
+import Lottie from "lottie-react";
+import {
+  upsertDocumentProcessingJob,
+  type DocumentProcessingScope,
+  type DocumentProcessingStatus,
+} from "@/app/components/documentProcessingStore";
+import transactionDocumentSuccessAnimation from "@/public/lottie/transaction-document-success.json";
+
+export type ExtractedDocumentData = {
+  type?: string;
+  title?: string;
+  description?: string;
+  vendor?: string;
+  payer?: string;
+  amount?: number;
+  currency?: string;
+  gst_included?: boolean;
+  gst_amount?: number;
+  date?: string;
+  due_date?: string;
+  reference?: string;
+};
+
+// A transaction rule that the backend matched against the extracted document.
+// Used to auto-fill type / category / subcategory on the transaction form.
+export type MatchedRule = {
+  rule_id: number;
+  rule_name: string;
+  assigned_type?: string;
+  assigned_category_id?: number;
+  assigned_subcategory_id?: number;
+  auto_confirm?: boolean;
+};
+
+export type ExtractedMeta = {
+  filename: string;
+  jobId: string;
+  matchedRule?: MatchedRule | null;
+};
+
+type Status =
+  | "idle"
+  | "dragover"
+  | "uploading"
+  | "extracting"
+  | "done"
+  | "error";
+
+const ALLOWED_EXT = [".pdf", ".png", ".jpg", ".jpeg"];
+const ACCEPT_ATTR = ALLOWED_EXT.join(",");
+
+export function DocumentDropZone({
+  token,
+  onExtracted,
+  scope,
+  allowMultiple = false,
+  isSubmitting = false,
+  submitError = "",
+  primaryLabelText,
+  secondaryLabelText,
+  style,
+  strongStyle,
+  smallStyle,
+  hideIconOnIdle = false,
+  customIcon,
+}: {
+  token: string | null;
+  onExtracted: (
+    data: ExtractedDocumentData,
+    documentId: string,
+    meta?: ExtractedMeta,
+  ) => void;
+  scope?: DocumentProcessingScope;
+  allowMultiple?: boolean;
+  isSubmitting?: boolean;
+  submitError?: string;
+  primaryLabelText?: string;
+  secondaryLabelText?: string;
+  style?: React.CSSProperties;
+  strongStyle?: React.CSSProperties;
+  smallStyle?: React.CSSProperties;
+  hideIconOnIdle?: boolean;
+  customIcon?: React.ReactNode;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [filename, setFilename] = useState("");
+  const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [queueTotal, setQueueTotal] = useState(0);
+  const [queueDone, setQueueDone] = useState(0);
+  const [submitProgress, setSubmitProgress] = useState(0);
+
+  useEffect(() => {
+    if (isSubmitting) {
+      setSubmitProgress(0);
+      const timer = window.setInterval(() => {
+        setSubmitProgress((prev) => {
+          if (prev >= 95) return prev;
+          const step = prev < 50 ? 6 : prev < 80 ? 3 : 1;
+          return Math.min(prev + step, 95);
+        });
+      }, 150);
+      return () => window.clearInterval(timer);
+    } else {
+      setSubmitProgress(0);
+    }
+  }, [isSubmitting]);
+
+  const busy = status === "uploading" || status === "extracting" || isSubmitting;
+
+  const activeStatus = isSubmitting
+    ? "uploading"
+    : submitError && status !== "uploading" && status !== "extracting"
+      ? "error"
+      : status;
+
+  const activeError = submitError || error;
+
+  function pickFile() {
+    if (busy) return;
+    inputRef.current?.click();
+  }
+
+  function updateStatus(
+    nextStatus: Status,
+    nextProgress: number,
+    nextFilename: string,
+    jobId?: string,
+    href?: string,
+  ) {
+    setStatus(nextStatus);
+    setProgress(nextProgress);
+    if (jobId) {
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: nextFilename,
+        status: nextStatus as DocumentProcessingStatus,
+        progress: nextProgress,
+        href: href ?? documentReviewHref(jobId),
+        scope,
+      });
+    }
+  }
+
+  async function handleFile(file: File, index = 0, total = 1) {
+    if (!token) {
+      setError("Not authenticated yet");
+      setStatus("error");
+      return;
+    }
+
+    const lowered = file.name.toLowerCase();
+    const ext = lowered.match(/\.[^.]+$/)?.[0] ?? "";
+    if (!ALLOWED_EXT.includes(ext)) {
+      setError("Only PDF, PNG, JPG, JPEG files are supported");
+      setStatus("error");
+      return;
+    }
+
+    const jobId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${index}-${file.name}`;
+    const href = documentReviewHref(jobId);
+    setFilename(file.name);
+    setError("");
+    setQueueTotal(total);
+    setProgress(0);
+    upsertDocumentProcessingJob({
+      id: jobId,
+      filename: file.name,
+      status: "queued",
+      progress: 0,
+      href,
+      scope,
+    });
+
+    try {
+      updateStatus("uploading", 8, file.name, jobId, href);
+      const presignParams = new URLSearchParams({
+        filename: file.name,
+        document_type: "transaction",
+      });
+      if (scope?.entityId) presignParams.set("entity_id", scope.entityId);
+      const presignRes = await fetch(
+        `/api/documents/presign?${presignParams.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!presignRes.ok) {
+        const body = await safeJson(presignRes);
+        throw new Error(
+          body.message || body.error || `Presign failed (${presignRes.status})`,
+        );
+      }
+      const {
+        upload_url,
+        s3_key,
+        document_id,
+      } = (await presignRes.json()) as {
+        upload_url: string;
+        s3_key: string;
+        document_id: string;
+      };
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: file.name,
+        documentId: document_id,
+        status: "uploading",
+        progress: 20,
+        href,
+        scope,
+      });
+      setProgress(20);
+
+      const putRes = await fetch(upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!putRes.ok) {
+        throw new Error(`Upload to S3 failed (${putRes.status})`);
+      }
+
+      updateStatus("extracting", 62, file.name, jobId, href);
+      const progressTimer = window.setInterval(() => {
+        setProgress((current) => {
+          if (current >= 94) return current;
+          const next = current + (current < 80 ? 4 : 1);
+          upsertDocumentProcessingJob({
+            id: jobId,
+            filename: file.name,
+            documentId: document_id,
+            status: "extracting",
+            progress: next,
+            href,
+            scope,
+          });
+          return next;
+        });
+      }, 650);
+      const extractRes = await fetch("/api/documents/extract", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ s3_key, ...(scope?.entityId ? { entity_id: scope.entityId } : {}) }),
+      }).finally(() => window.clearInterval(progressTimer));
+      if (!extractRes.ok) {
+        const body = await safeJson(extractRes);
+        throw new Error(
+          body.message || body.error || `Extract failed (${extractRes.status})`,
+        );
+      }
+      const result = (await extractRes.json()) as {
+        success: boolean;
+        data: ExtractedDocumentData;
+        matched_rule?: MatchedRule | null;
+      };
+
+      // Notify caller for each file processed. In single-file mode this
+      // will be the only call; in multi-file mode callers receive callbacks
+      // for each file as they complete. matched_rule (if any) lets the form
+      // auto-fill type / category / subcategory from the matched rule.
+      onExtracted(result.data ?? {}, document_id, {
+        filename: file.name,
+        jobId,
+        matchedRule: result.matched_rule ?? null,
+      });
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: file.name,
+        documentId: document_id,
+        status: "done",
+        progress: 100,
+        data: result.data ?? {},
+        href,
+        scope,
+      });
+      setProgress(100);
+      setStatus("done");
+      setQueueDone((current) => Math.min(total, current + 1));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Document processing failed";
+      setError(message);
+      setStatus("error");
+      setProgress(0);
+      upsertDocumentProcessingJob({
+        id: jobId,
+        filename: file.name,
+        status: "error",
+        progress: 0,
+        error: message,
+        href,
+        scope,
+      });
+    }
+  }
+
+  function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) handleFiles(files);
+    e.target.value = "";
+  }
+
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (busy) return;
+    setStatus("idle");
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) handleFiles(files);
+  }
+
+  async function handleFiles(files: File[]) {
+    // Respect single vs multiple mode
+    const toProcess = allowMultiple ? files : files.length ? [files[0]] : [];
+    setQueueTotal(toProcess.length);
+    setQueueDone(0);
+    for (let index = 0; index < toProcess.length; index += 1) {
+      await handleFile(toProcess[index], index, toProcess.length);
+    }
+  }
+
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function onDragEnter(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (busy) return;
+    setStatus((s) => (s === "idle" || s === "done" || s === "error" ? "dragover" : s));
+  }
+
+  function onDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setStatus((s) => (s === "dragover" ? "idle" : s));
+  }
+
+  const showProgress = status === "uploading" || status === "extracting" || isSubmitting;
+
+  return (
+    <div
+      className="transaction-document-drop-wrap"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      data-status={activeStatus}
+    >
+      <button
+        type="button"
+        className="transaction-document-drop"
+        onClick={pickFile}
+        disabled={busy}
+        aria-busy={busy}
+        style={style}
+      >
+        {showProgress ? (
+          <>
+            <div className="transaction-document-drop__progress" />
+            <div className="transaction-document-drop__gif-container">
+              <img
+                src="/document-loading.gif"
+                alt="Document Loading Animation"
+                className="transaction-document-drop__gif"
+                width={150}
+                height={150}
+              />
+            </div>
+            <span className="transaction-document-drop__percentage-label">
+              {isSubmitting ? submitProgress : progress}%
+            </span>
+            <div className="transaction-document-drop__percentage-bar-outer">
+              <div
+                className="transaction-document-drop__percentage-bar-inner"
+                style={{ width: `${isSubmitting ? submitProgress : progress}%` }}
+              />
+            </div>
+          </>
+        ) : activeStatus === "done" ? (
+          <span className="transaction-document-drop__lottie" aria-hidden="true">
+            <Lottie
+              animationData={transactionDocumentSuccessAnimation}
+              loop={false}
+            />
+          </span>
+        ) : (
+          (!hideIconOnIdle || activeStatus !== "idle") && (
+            activeStatus === "idle" && customIcon ? (
+              customIcon
+            ) : (
+              <span>{iconForStatus(activeStatus)}</span>
+            )
+          )
+        )}
+        <strong style={strongStyle}>
+          {isSubmitting ? "Adding Transaction…" : (primaryLabelText && activeStatus === "idle" ? primaryLabelText : primaryLabel(activeStatus, filename))}
+        </strong>
+        <small style={smallStyle}>
+          {isSubmitting ? "Writing record to secure ledger…" : (secondaryLabelText && activeStatus === "idle" ? secondaryLabelText : secondaryLabel(activeStatus, activeError, allowMultiple))}
+        </small>
+        {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
+          <div>
+            {filename}
+            {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
+          </div>
+        ) : null}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPT_ATTR}
+        multiple={allowMultiple}
+        style={{ display: "none" }}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+function documentReviewHref(jobId: string) {
+  if (typeof window === "undefined") {
+    return `/dashboard/accountant/transactions/new?reviewDocument=${encodeURIComponent(jobId)}`;
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("reviewDocument", jobId);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function iconForStatus(status: Status) {
+  switch (status) {
+    case "uploading":
+      return (
+        <svg
+          className="is-spinner"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+        >
+          <circle cx="12" cy="12" r="9" opacity="0.25" />
+          <path d="M21 12a9 9 0 0 0-9-9" />
+        </svg>
+      );
+    case "extracting":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <path d="M12 3v3" />
+          <path d="M12 18v3" />
+          <path d="M3 12h3" />
+          <path d="M18 12h3" />
+          <path d="M5.6 5.6l2.1 2.1" />
+          <path d="M16.3 16.3l2.1 2.1" />
+          <path d="M5.6 18.4l2.1-2.1" />
+          <path d="M16.3 7.7l2.1-2.1" />
+          <circle cx="12" cy="12" r="2.5" />
+        </svg>
+      );
+    case "done":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8 12 3 3 5-6" />
+        </svg>
+      );
+    case "error":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <path d="M12 3 2 21h20L12 3z" />
+          <path d="M12 10v5" />
+          <path d="M12 18h.01" />
+        </svg>
+      );
+    case "idle":
+    case "dragover":
+    default:
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <path d="M12 16V5" />
+          <path d="m7 10 5-5 5 5" />
+          <path d="M5 19h14" />
+        </svg>
+      );
+  }
+}
+
+function primaryLabel(status: Status, filename: string) {
+  switch (status) {
+    case "dragover":
+      return "Release to upload";
+    case "uploading":
+      return filename ? `Uploading…` : "Uploading…";
+    case "extracting":
+      return "Extracting data…";
+    case "done":
+      return "Document processed";
+    case "error":
+      return "Document upload failed";
+    case "idle":
+    default:
+      return "Drop your document here";
+  }
+}
+
+function secondaryLabel(status: Status, error: string, allowMultiple = false) {
+  switch (status) {
+    case "dragover":
+      return "We'll handle the rest";
+    case "uploading":
+      return "Securely transferring to storage…";
+    case "extracting":
+      return "Reading invoice details with AI…";
+    case "done":
+      return "Form fields below have been pre-filled — review and save";
+    case "error":
+      return error || "Try again or pick a different file";
+    case "idle":
+    default:
+      return allowMultiple
+        ? "or click to browse — PDF, PNG, JPG, JPEG. You can add multiple files."
+        : "or click to browse — PDF, PNG, JPG, JPEG.";
+  }
+}
+
+async function safeJson(res: Response): Promise<{
+  message?: string;
+  error?: string;
+}> {
+  try {
+    return (await res.json()) as { message?: string; error?: string };
+  } catch {
+    return {};
+  }
+}

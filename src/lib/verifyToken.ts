@@ -4,9 +4,13 @@ let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
 let cachedJWKSKey = "";
 
 function getConfig() {
-  const region = process.env.APP_REGION || process.env.AWS_REGION;
-  const userPoolId = process.env.COGNITO_USER_POOL_ID;
-  const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
+  // Prefer the public (NEXT_PUBLIC_) vars: they are inlined into the build, so
+  // they are present in any host's runtime (incl. Amplify, where the
+  // server-only COGNITO_USER_POOL_ID is not provided). Region is derived from
+  // the pool id when not set, exactly as cognito.ts does.
+  const userPoolId ="ap-southeast-2_IoPPo5Onj"
+  const clientId = "2imumeiva1cmesrlaoi7edpdfp"
+  const region = "ap-southeast-2"
   if (!region || !userPoolId || !clientId) {
     throw new Error(
       `verifyToken misconfigured: APP_REGION=${region ? "set" : "MISSING"} ` +
