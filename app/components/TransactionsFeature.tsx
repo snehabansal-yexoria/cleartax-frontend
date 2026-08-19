@@ -1100,9 +1100,9 @@ function TransactionDetailPopup({
     }
     const patchReviewStatus =
       canReview &&
-      reviewAction === null &&
-      (reviewStatus === "unreviewed" || reviewStatus === "reviewed") &&
-      reviewStatus !== initialReview
+        reviewAction === null &&
+        (reviewStatus === "unreviewed" || reviewStatus === "reviewed") &&
+        reviewStatus !== initialReview
         ? reviewStatus
         : undefined;
 
@@ -2209,9 +2209,8 @@ function AwaitingReviewTable({
                   <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
                   <td>
                     <span
-                      className={`transaction-type-badge ${
-                        isRevenue ? "is-revenue" : "is-expense"
-                      }`}
+                      className={`transaction-type-badge ${isRevenue ? "is-revenue" : "is-expense"
+                        }`}
                     >
                       {isRevenue ? "Revenue" : "Expense"}
                     </span>
@@ -4302,6 +4301,19 @@ export function AddTransactionView({
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
   const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
 
+  // Figma Redesign States
+  const [transactionType, setTransactionType] = useState<"income" | "expense" | "personal" | "cost_base" | "">("");
+  const [isPersonal, setIsPersonal] = useState(false);
+  const [personalAllocationType, setPersonalAllocationType] = useState<"percentage" | "amount">("percentage");
+  const [personalValue, setPersonalValue] = useState("20");
+
+  const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+  const [assetBuilderStep, setAssetBuilderStep] = useState<1 | 2 | 3>(1);
+  const [tempAssetClass, setTempAssetClass] = useState<CoreAssetClass | "">("");
+  const [tempAssetName, setTempAssetName] = useState("");
+  const [tempAssetLife, setTempAssetLife] = useState("");
+  const [tempDepreciationMethod, setTempDepreciationMethod] = useState<"diminishing_value" | "prime_cost" | "">("");
+
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -4497,6 +4509,44 @@ export function AddTransactionView({
     setIsEditingEntity(!entityId);
   }, [entityId]);
 
+  // Sync type state changes to custom Figma type categories
+  useEffect(() => {
+    if (type === "revenue") {
+      setTransactionType("income");
+    } else if (type === "expense") {
+      if (isPersonal) {
+        setTransactionType("personal");
+      } else if (isAssetPurchase) {
+        setTransactionType("cost_base");
+      } else {
+        setTransactionType("expense");
+      }
+    } else if (type === "") {
+      setTransactionType("");
+    }
+  }, [type, isPersonal, isAssetPurchase]);
+
+  function handleTransactionTypeChange(newType: "income" | "expense" | "personal" | "cost_base") {
+    setTransactionType(newType);
+    if (newType === "income") {
+      setType("revenue");
+      setIsPersonal(false);
+      setIsAssetPurchase(false);
+    } else if (newType === "expense") {
+      setType("expense");
+      setIsPersonal(false);
+      setIsAssetPurchase(false);
+    } else if (newType === "personal") {
+      setType("expense");
+      setIsPersonal(true);
+      setIsAssetPurchase(false);
+    } else if (newType === "cost_base") {
+      setType("expense");
+      setIsPersonal(false);
+      setIsAssetPurchase(true);
+    }
+  }
+
   useEffect(() => {
     if (!token || !requireClientSelection) return;
     let cancelled = false;
@@ -4633,7 +4683,7 @@ export function AddTransactionView({
 
         const currentPropertyValid =
           (prefillMatchId ? true : !!propertyIdRef.current &&
-          loadedProperties.some((property) => property.id === propertyIdRef.current));
+            loadedProperties.some((property) => property.id === propertyIdRef.current));
         const hasDefaultProperty =
           !!defaultPropertyId &&
           loadedProperties.some((property) => property.id === defaultPropertyId);
@@ -4814,6 +4864,25 @@ export function AddTransactionView({
     grossNumberValue > 0 &&
     Math.abs(splitTotal - grossNumberValue) < 0.01;
 
+  // Personal portions calculation for Figma redesign
+  const grossNumValue = Number.isNaN(grossNumberValue) ? 0 : grossNumberValue;
+  let personalPortion = 0;
+  let businessPortion = 0;
+  if (isPersonal) {
+    if (transactionType === "personal") {
+      personalPortion = grossNumValue;
+      businessPortion = 0;
+    } else if (personalAllocationType === "percentage") {
+      const pct = Number.parseFloat(personalValue) || 0;
+      personalPortion = grossNumValue * (pct / 100);
+      businessPortion = grossNumValue - personalPortion;
+    } else {
+      const amt = Number.parseFloat(personalValue) || 0;
+      personalPortion = amt;
+      businessPortion = Math.max(0, grossNumValue - personalPortion);
+    }
+  }
+
   const splitErrors = useMemo(() => {
     const errors: Record<string, string> = {};
     if (!isSplit) return errors;
@@ -4855,6 +4924,61 @@ export function AddTransactionView({
       setSubcategoryId(subcategories[0].id);
     }
   }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
+
+  // Default category/subcategory/property for personal transactions
+  useEffect(() => {
+    if (transactionType === "personal" && categories.length > 0) {
+      const personalCat = categories.find(c => 
+        c.name.toLowerCase().includes("personal") || 
+        c.name.toLowerCase().includes("drawing")
+      ) || categories[0];
+      if (personalCat && categoryId !== personalCat.id) {
+        setCategoryId(personalCat.id);
+      }
+    }
+  }, [transactionType, categories, categoryId]);
+
+  useEffect(() => {
+    if (transactionType === "personal" && subcategories.length > 0) {
+      const personalSub = subcategories.find(s => 
+        s.name.toLowerCase().includes("personal") || 
+        s.name.toLowerCase().includes("drawing") ||
+        s.name.toLowerCase().includes("general")
+      ) || subcategories[0];
+      if (personalSub && subcategoryId !== personalSub.id) {
+        setSubcategoryId(personalSub.id);
+      }
+    }
+  }, [transactionType, subcategories, subcategoryId]);
+
+  useEffect(() => {
+    if (transactionType === "personal" && !propertyId && properties.length > 0) {
+      setPropertyId(properties[0].id);
+    }
+  }, [transactionType, propertyId, properties]);
+
+  // Default category/subcategory/property for Property Cost Base
+  useEffect(() => {
+    if (transactionType === "cost_base") {
+      if (categories.length > 0 && !categoryId) {
+        setCategoryId(categories[0].id);
+      }
+    }
+  }, [transactionType, categories, categoryId]);
+
+  useEffect(() => {
+    if (transactionType === "cost_base") {
+      if (subcategories.length > 0 && !subcategoryId) {
+        setSubcategoryId(subcategories[0].id);
+      }
+    }
+  }, [transactionType, subcategories, subcategoryId]);
+
+  useEffect(() => {
+    if (transactionType === "cost_base" && !propertyId && properties.length > 0) {
+      setPropertyId(properties[0].id);
+    }
+  }, [transactionType, propertyId, properties]);
 
 
 
@@ -4925,11 +5049,11 @@ export function AddTransactionView({
 
   const canSubmit =
     !mustChooseClientFirst &&
-    !hasNoProperties &&
+    (transactionType === "personal" || transactionType === "cost_base" || !hasNoProperties) &&
     !!activeEntityId &&
     !!type &&
-    (lockAssetPurchaseCategory || !!categoryId) &&
-    (lockAssetPurchaseCategory || !!subcategoryId) &&
+    (transactionType === "personal" || transactionType === "cost_base" || lockAssetPurchaseCategory || !!categoryId) &&
+    (transactionType === "personal" || transactionType === "cost_base" || lockAssetPurchaseCategory || !!subcategoryId) &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
@@ -4943,7 +5067,7 @@ export function AddTransactionView({
       ? splitHasMultipleProperties &&
       Object.keys(splitErrors).length === 0 &&
       splitMatches
-      : !!propertyId);
+      : (transactionType === "personal" || transactionType === "cost_base" || !!propertyId));
 
   function handleOpenBulkImport() {
     if (mustChooseClientFirst) {
@@ -5578,11 +5702,12 @@ export function AddTransactionView({
           });
         }
       } else {
-        if (!propertyId) {
+        const resolvedPropertyId = (transactionType === "personal" || transactionType === "cost_base") ? (propertyId || (properties[0]?.id ?? "")) : propertyId;
+        if (!resolvedPropertyId) {
           setSubmitError("A property must be selected to continue.");
           return;
         }
-        splits = [{ property_id: propertyId, split_percentage: 100 }];
+        splits = [{ property_id: resolvedPropertyId, split_percentage: 100 }];
       }
 
       let resolvedCategoryId = categoryId;
@@ -5618,11 +5743,35 @@ export function AddTransactionView({
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
+      // Calculate portions again to ensure latest values are stored
+      const grossNumValueForSave = Number.isNaN(grossNum) ? 0 : grossNum;
+      let personalPortionVal = 0;
+      let businessPortionVal = 0;
+      if (isPersonal) {
+        if (transactionType === "personal") {
+          personalPortionVal = grossNumValueForSave;
+          businessPortionVal = 0;
+        } else if (personalAllocationType === "percentage") {
+          const pct = parseFloat(personalValue) || 0;
+          personalPortionVal = grossNumValueForSave * (pct / 100);
+          businessPortionVal = grossNumValueForSave - personalPortionVal;
+        } else {
+          const amt = parseFloat(personalValue) || 0;
+          personalPortionVal = amt;
+          businessPortionVal = Math.max(0, grossNumValueForSave - personalPortionVal);
+        }
+      }
+
       body.metadata = {
         ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
-        is_regular_payment: isRegularPayment,
-        due_date: isRegularPayment ? (dueDate || null) : null,
-        alert_name: isRegularPayment ? (alertName.trim() || null) : null,
+        is_regular_payment: transactionType === "personal" ? false : isRegularPayment,
+        due_date: transactionType === "personal" ? null : (isRegularPayment ? (dueDate || null) : null),
+        alert_name: transactionType === "personal" ? null : (isRegularPayment ? (alertName.trim() || null) : null),
+        is_personal: isPersonal,
+        personal_allocation_type: transactionType === "personal" ? "percentage" : personalAllocationType,
+        personal_percentage: transactionType === "personal" ? 100 : (isPersonal && personalValue ? parseFloat(personalValue) : null),
+        business_portion: Number(businessPortionVal.toFixed(2)),
+        personal_portion: Number(personalPortionVal.toFixed(2)),
       };
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
@@ -5630,6 +5779,7 @@ export function AddTransactionView({
           body.metadata = {
             ...(body.metadata as Record<string, unknown> | undefined),
             asset_item_name: assetItemName.trim(),
+            depreciation_method: tempDepreciationMethod || null,
           };
         }
         if (assetClass === "capital_allowance") {
@@ -5778,19 +5928,17 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
-
-
   return (
-    <section className="transactions-page transaction-add-page">
-      <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
+    <div className="figma-add-tx-container">
+      <Link href={effectiveBackHref} className="figma-add-tx-back">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 18l-6-6 6-6" />
+          <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {backLabel}
       </Link>
 
-      <div className="transactions-page-head">
-        <div>
+      <div className="figma-add-tx-header">
+        <div className="figma-add-tx-title-section">
           <h1>{isReviewing ? "Review Transaction" : "Add Transactions"}</h1>
           <p>
             {isReviewing
@@ -5801,8 +5949,8 @@ export function AddTransactionView({
         {!isReviewing && (
           <button
             type="button"
-            className={`transaction-outline-button${mustChooseClientFirst ? " is-disabled" : ""}`}
-            aria-disabled={mustChooseClientFirst}
+            className={`figma-bulk-import-btn${mustChooseClientFirst ? " is-disabled" : ""}`}
+            disabled={mustChooseClientFirst}
             title={mustChooseClientFirst ? "Select a client first" : undefined}
             onClick={handleOpenBulkImport}
           >
@@ -5812,230 +5960,248 @@ export function AddTransactionView({
         )}
       </div>
 
-      <div className="transaction-add-layout">
-        {documentId && uploadedFilename && token ? (
-          <DocumentPreviewPanel
-            documentId={documentId}
-            filename={uploadedFilename}
-            token={token}
-            onReset={() => {
-              setDocumentId(null);
-              setUploadedFilename(null);
-              appliedRuleIdRef.current = null;
-            }}
-          />
-        ) : (
-          <DocumentDropZone
-            token={token}
-            onExtracted={handleExtracted}
-            scope={activeEntityId ? { entityId: activeEntityId } : undefined}
-            isSubmitting={isSubmitting}
-            submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
-          />
-        )}
-
-        <form className="transaction-entry-form" onSubmit={handleSubmit} noValidate>
-          {requireClientSelection ? (
-            <StaticSelect
-              label="Client"
-              required
-              value={activeClientId}
-              options={[
-                { label: "Select Client", value: "" },
-                ...clients.map((client) => ({
-                  label: client.name,
-                  value: client.id,
-                })),
-              ]}
-              onChange={handleClientPicked}
+      <div className="figma-add-tx-card">
+        {/* Attach Invoice section */}
+        <div className="figma-uploader-section">
+          <span className="figma-uploader-label">Attach Invoice (optional)</span>
+          {documentId && uploadedFilename && token ? (
+            <DocumentPreviewPanel
+              documentId={documentId}
+              filename={uploadedFilename}
+              token={token}
+              onReset={() => {
+                setDocumentId(null);
+                setUploadedFilename(null);
+                appliedRuleIdRef.current = null;
+              }}
             />
-          ) : null}
+          ) : (
+            <DocumentDropZone
+              token={token}
+              onExtracted={handleExtracted}
+              scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+              isSubmitting={isSubmitting}
+              submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+              primaryLabelText="Upload an invoice or receipt"
+              secondaryLabelText="PDF, JPG or PNG — we'll read it and pre-fill the fields below"
+              customIcon={
+                <div className="figma-uploader-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <line x1="9" y1="15" x2="15" y2="15" />
+                  </svg>
+                </div>
+              }
+            />
+          )}
+        </div>
 
-          {requireClientSelection && !activeClientId && (
-            <p className="transaction-field-error" style={{ marginTop: "-12px", marginBottom: "4px" }}>
-              <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              A client must be selected to continue.
-            </p>
+        <form onSubmit={handleSubmit} noValidate>
+          {requireClientSelection && (
+            <div className="figma-form-row">
+              <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                <StaticSelect
+                  label="Client"
+                  required
+                  value={activeClientId}
+                  options={[
+                    { label: "Select Client", value: "" },
+                    ...clients.map((client) => ({
+                      label: client.name,
+                      value: client.id,
+                    })),
+                  ]}
+                  onChange={handleClientPicked}
+                />
+                {requireClientSelection && !activeClientId && (
+                  <p className="transaction-field-error" style={{ marginTop: "4px", color: "#da3838", fontSize: "12px" }}>
+                    A client must be selected to continue.
+                  </p>
+                )}
+              </div>
+            </div>
           )}
 
-          <EntityPropertyHeaderCard
-            entities={entities}
-            properties={properties}
-            activeEntityId={activeEntityId}
-            activePropertyId={propertyId}
-            isEditingEntity={isEditingEntity}
-            isEditingProperty={isEditingProperty}
-            isPropertyRequired={!isSplit}
-            isEntityLockable={!!activeEntityId}
-            isPropertyLockable={!!propertyId}
-            onSelectEntity={handleEntityPicked}
-            onSelectProperty={handlePropertyPicked}
-            onEditEntity={() => setIsEditingEntity(true)}
-            onEditProperty={() => setIsEditingProperty(true)}
-            disabled={requireClientSelection && !activeClientId}
-          />
-
           {showSelectionMessage && selectionMessage && (
-            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#da3838" }}>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ width: "20px", height: "20px" }}>
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <span>{selectionMessage}</span>
             </div>
           )}
 
-          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
-            <div className={"transaction-type-control" + flashClass("type")}>
-              <span className="transaction-field-label">
-                Transaction Type<em>*</em>
-              </span>
-              <div>
+          {/* Entity Name & Property Name dropdowns */}
+          <div className="figma-form-row">
+            <div className="figma-field-container">
+              <StaticSelect
+                label="Entity Name"
+                required
+                value={activeEntityId}
+                options={[
+                  { label: "Select Entity", value: "" },
+                  ...entities.map((e) => ({ label: pickerLabel(e), value: e.id })),
+                ]}
+                onChange={handleEntityPicked}
+                disabled={requireClientSelection && !activeClientId}
+              />
+            </div>
+
+            <div className="figma-field-container">
+              <StaticSelect
+                label="Property Name"
+                required={!isSplit}
+                value={propertyId}
+                options={[
+                  { label: "Select Property", value: "" },
+                  ...properties.map((p) => ({ label: pickerLabel(p), value: p.id })),
+                ]}
+                onChange={handlePropertyPicked}
+                disabled={!activeEntityId || isSplit}
+              />
+            </div>
+          </div>
+
+          <fieldset className="transaction-detail-fields" style={{ border: "none", padding: 0, margin: 0 }} disabled={!isSelectionComplete}>
+            {/* Transaction Type control */}
+            <div className="figma-field-container" style={{ marginBottom: "24px" }}>
+              <span className="figma-field-label">Transaction Type<em>*</em></span>
+              <div className="figma-type-row">
                 <button
                   type="button"
-                  className={type === "expense" ? "is-selected" : ""}
-                  onClick={() => setType("expense")}
+                  className={`figma-type-btn is-income${transactionType === "income" ? " active" : ""}`}
+                  onClick={() => handleTransactionTypeChange("income")}
                 >
+                  <span className="figma-type-circle is-income">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <polyline points="19 12 12 19 5 12" />
+                    </svg>
+                  </span>
+                  Income
+                </button>
+
+                <button
+                  type="button"
+                  className={`figma-type-btn is-expense${transactionType === "expense" ? " active" : ""}`}
+                  onClick={() => handleTransactionTypeChange("expense")}
+                >
+                  <span className="figma-type-circle is-expense">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="19" x2="12" y2="5" />
+                      <polyline points="5 12 12 5 19 12" />
+                    </svg>
+                  </span>
                   Expense
                 </button>
+
                 <button
                   type="button"
-                  className={
-                    type === "revenue" ? "is-selected is-revenue" : ""
-                  }
-                  onClick={() => setType("revenue")}
+                  className={`figma-type-btn is-personal${transactionType === "personal" ? " active" : ""}`}
+                  onClick={() => handleTransactionTypeChange("personal")}
                 >
-                  Revenue
+                  <span className="figma-type-circle is-personal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </span>
+                  Personal Transaction
+                </button>
+
+                <button
+                  type="button"
+                  className={`figma-type-btn is-cost-base${transactionType === "cost_base" ? " active" : ""}`}
+                  onClick={() => handleTransactionTypeChange("cost_base")}
+                >
+                  <span className="figma-type-circle is-cost-base">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <line x1="9" y1="9" x2="15" y2="9" />
+                      <line x1="9" y1="13" x2="15" y2="13" />
+                    </svg>
+                  </span>
+                  Property Cost Base
                 </button>
               </div>
             </div>
 
-            {type === "expense" ? (
-              <div className="transaction-asset-card">
-                <label className="transaction-checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={isAssetPurchase}
-                    onChange={(e) => setIsAssetPurchase(e.target.checked)}
-                  />
-                  <span>Is this an asset purchase?</span>
-                </label>
-                <small>Select if this expense should be depreciated over time</small>
-                {isAssetPurchase ? (
-                  <div className="transaction-asset-options">
-                    <label className="transaction-field">
-                      <span className="transaction-field-label">
-                        Purchased Asset
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="e.g., Fridge, AC, dishwasher"
-                        value={assetItemName}
-                        onChange={(e) => setAssetItemName(e.target.value)}
-                      />
-                    </label>
-                    <label className="transaction-radio-card">
-                      <input
-                        type="radio"
-                        checked={assetClass === "capital_allowance"}
-                        onChange={() => setAssetClass("capital_allowance")}
-                      />
-                      <span>
-                        <b>Capital Allowance</b>
-                        <small>Depreciate assets over their effective life</small>
-                      </span>
-                    </label>
-                    {assetClass === "capital_allowance" ? (
-                      <label className="transaction-field">
-                        <span className="transaction-field-label">
-                          Effective life (years)<em>*</em>
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.1"
-                          min="0"
-                          placeholder="Select years"
-                          value={effectiveLifeYears}
-                          onChange={(e) => setEffectiveLifeYears(e.target.value)}
-                        />
-                      </label>
-                    ) : null}
-                    <label className="transaction-radio-card">
-                      <input
-                        type="radio"
-                        checked={assetClass === "capital_works"}
-                        onChange={() => setAssetClass("capital_works")}
-                      />
-                      <span>
-                        <b>Capital Works</b>
-                        <small>Fixed depreciation period for capital improvements</small>
-                      </span>
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="transaction-form-grid">
-              <StaticSelect
-                label="Category"
-                required
-                value={categoryId == null ? "" : String(categoryId)}
-                options={categorySelectOptions}
-                onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                disabled={lockAssetPurchaseCategory}
-              />
-              {showSubcategorySelect && (
-                <div className="transaction-field-animate">
+            {/* Category / Sub-Category dropdowns */}
+            {transactionType === "cost_base" ? (
+              <div className="figma-form-row">
+                <div className="figma-field-container">
                   <StaticSelect
-                    label="Sub-Category"
+                    label="Category"
                     required
-                    value={subcategoryId == null ? "" : String(subcategoryId)}
-                    options={subcategorySelectOptions}
-                    onChange={(value) =>
-                      setSubcategoryId(value ? Number(value) : null)
-                    }
+                    value={categoryId == null ? "" : String(categoryId)}
+                    options={categorySelectOptions}
+                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                  />
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: '#f0f9ff',
+                  border: '1px solid #e0f2fe',
+                  color: '#0284c7',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  fontSize: '13px',
+                  height: '48px',
+                  marginTop: '22px',
+                  boxSizing: 'border-box'
+                }}>
+                  No subcategory for Property Cost Base — one free-text/typeable category only.
+                </div>
+              </div>
+            ) : transactionType !== "personal" ? (
+              <div className="figma-form-row">
+                <div className="figma-field-container" style={!showSubcategorySelect ? { gridColumn: "span 2" } : undefined}>
+                  <StaticSelect
+                    label="Category"
+                    required
+                    value={categoryId == null ? "" : String(categoryId)}
+                    options={categorySelectOptions}
+                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
                     disabled={lockAssetPurchaseCategory}
                   />
                 </div>
-              )}
-              <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
-                <span className="transaction-field-label">
-                  Invoice Date<em>*</em>
-                </span>
-                <input
-                  type="date"
-                  value={invoiceDate}
-                  min="1900-01-01"
-                  max="9999-12-31"
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const yearPart = val.split("-")[0];
-                    if (yearPart && yearPart.length > 4) {
-                      return;
-                    }
-                    setInvoiceDate(val);
-                    setInvoiceDateTouched(true);
-                  }}
-                  onBlur={() => setInvoiceDateTouched(true)}
-                />
-                {showDateError && (
-                  <p className="transaction-field-error">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    {invoiceDateError}
-                  </p>
+
+                {showSubcategorySelect && (
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Subcategory"
+                      required
+                      value={subcategoryId == null ? "" : String(subcategoryId)}
+                      options={subcategorySelectOptions}
+                      onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                      disabled={lockAssetPurchaseCategory}
+                    />
+                  </div>
                 )}
-              </label>
-              <label className={`transaction-field${flashClass("grossAmount")}${showGrossAmountError ? " has-error" : ""}`}>
-                <span className="transaction-field-label">
-                  Amount<em>*</em>
-                </span>
+              </div>
+            ) : null}
+
+            {/* Description & Amount */}
+            <div className="figma-form-row">
+              <div className="figma-field-container">
+                <span className="figma-field-label">Description<em>*</em></span>
+                <input
+                  type="text"
+                  className="figma-input"
+                  placeholder="Short description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+
+              <div className="figma-field-container">
+                <span className="figma-field-label">Amount<em>*</em></span>
                 <input
                   type="number"
+                  className="figma-input"
                   inputMode="decimal"
                   step="0.01"
                   placeholder="0.00"
@@ -6053,213 +6219,403 @@ export function AddTransactionView({
                   onBlur={() => setGrossAmountTouched(true)}
                 />
                 {showGrossAmountError && (
-                  <p className="transaction-field-error">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                    <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
-                    {grossAmountError}
+                    <span>{grossAmountError}</span>
                   </p>
                 )}
-              </label>
+              </div>
             </div>
 
-            <label className="transaction-checkbox-row">
-              <input
-                type="checkbox"
-                checked={showGstBreakdown}
-                onChange={(e) => setShowGstBreakdown(e.target.checked)}
-              />
-              <span>Add GST Breakdown</span>
-            </label>
-
-            {showGstBreakdown ? (
-              <label className={"transaction-field" + flashClass("gstAmount")}>
-                <span className="transaction-field-label">
-                  GST Amount<em>*</em>
-                </span>
+            {/* Invoice Date */}
+            <div className="figma-form-row">
+              <div className="figma-field-container">
+                <span className="figma-field-label">Date<em>*</em></span>
                 <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={gstAmount}
-                  onKeyDown={(e) => {
-                    if (e.key === "-" || e.key === "Minus") {
-                      e.preventDefault();
-                    }
-                  }}
+                  type="date"
+                  className="figma-input"
+                  value={invoiceDate}
+                  min="1900-01-01"
+                  max="9999-12-31"
                   onChange={(e) => {
-                    const val = e.target.value.replace(/-/g, "");
-                    setGstAmount(val);
+                    const val = e.target.value;
+                    const yearPart = val.split("-")[0];
+                    if (yearPart && yearPart.length > 4) {
+                      return;
+                    }
+                    setInvoiceDate(val);
+                    setInvoiceDateTouched(true);
                   }}
+                  onBlur={() => setInvoiceDateTouched(true)}
                 />
-              </label>
-            ) : null}
-
-            <label className="transaction-checkbox-row">
-              <input
-                type="checkbox"
-                checked={isSplit}
-                onChange={(e) => handleSplitToggle(e.target.checked)}
-              />
-              <span>Is this a split transaction?</span>
-            </label>
-
-            {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-              <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
-                {submitError}
-              </p>
-            ) : null}
-
-            {isSplit ? (
-              <div className="transaction-split-section">
-                {splitRows.map((row, index) => {
-                  const rowError = splitErrors[row.id];
-                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
-
-                  return (
-                    <div key={row.id} className="transaction-split-row">
-                      <StaticSelect
-                        label={index === 0 ? "Property Name" : undefined}
-                        required
-                        value={row.propertyId}
-                        options={[
-                          { label: "Select Property", value: "" },
-                          ...splitPropertyBaseOptions,
-                        ]}
-                        onChange={(value) =>
-                          updateSplitRow(row.id, { propertyId: value })
-                        }
-                        error={propertyError}
-                      />
-                      <label className="transaction-field">
-                        {index === 0 ? (
-                          <span className="transaction-field-label">
-                            Amount<em>*</em>
-                          </span>
-                        ) : null}
-                        <span className="transaction-money-input">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={row.amount}
-                            onKeyDown={(e) => {
-                              if (e.key === "-" || e.key === "Minus") {
-                                e.preventDefault();
-                              }
-                            }}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/-/g, "");
-                              updateSplitRow(row.id, { amount: val });
-                            }}
-                          />
-                          <b>A$</b>
-                        </span>
-                        {amountError && (
-                          <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
-                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                            </svg>
-                            <span>{amountError}</span>
-                          </p>
-                        )}
-                      </label>
-                      <button
-                        type="button"
-                        className="transaction-split-remove"
-                        aria-label="Remove split row"
-                        disabled={splitRows.length <= 1}
-                        onClick={() => removeSplitRow(row.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  );
-                })}
-                {splitErrors.__form ? (
-                  <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
+                {showDateError && (
+                  <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                    <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
-                    <span>{splitErrors.__form}</span>
+                    <span>{invoiceDateError}</span>
                   </p>
-                ) : null}
-                <div className="transaction-split-footer">
-                  <span
-                    className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
-                      }`}
-                  >
-                    {grossAmount && !Number.isNaN(grossNumberValue)
-                      ? `Split total: ${splitTotal.toFixed(
-                        2,
-                      )} of ${grossNumberValue.toFixed(2)}`
-                      : "Enter the total amount above to validate splits."}
-                  </span>
+                )}
+              </div>
+              <div className="figma-field-container" />
+            </div>
+
+            {/* GST Applicable */}
+            <div className="figma-form-row">
+              <div className="figma-field-container">
+                <span className="figma-field-label">GST Applicable</span>
+                <div className="figma-segmented-control">
                   <button
                     type="button"
-                    className="transaction-split-add"
-                    onClick={addSplitRow}
-                    disabled={properties.length < 2}
+                    className={`figma-segmented-btn${showGstBreakdown ? " active" : ""}`}
+                    onClick={() => setShowGstBreakdown(true)}
                   >
-                    + Add Property
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`figma-segmented-btn${!showGstBreakdown ? " active" : ""}`}
+                    onClick={() => {
+                      setShowGstBreakdown(false);
+                      setGstAmount("");
+                    }}
+                  >
+                    No
                   </button>
                 </div>
               </div>
-            ) : null}
 
-            {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-              <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
-                {submitError}
-              </p>
-            ) : null}
+              {showGstBreakdown && (
+                <div className="figma-field-container">
+                  <span className="figma-field-label">GST Amount<em>*</em></span>
+                  <input
+                    type="number"
+                    className="figma-input"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={gstAmount}
+                    onKeyDown={(e) => {
+                      if (e.key === "-" || e.key === "Minus") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/-/g, "");
+                      setGstAmount(val);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
 
-            <StaticSelect
-              label="Mode of Transaction"
-              required
-              value={modeOfTransaction}
-              options={MODE_OF_TRANSACTION_OPTIONS}
-              onChange={setModeOfTransaction}
-            />
-
-            <label className={"transaction-field" + flashClass("description")}>
-              <span className="transaction-field-label">Description</span>
-              <textarea
-                placeholder="Add description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </label>
-
-            <label
-              className={"transaction-field" + flashClass("internalRemarks")}
-            >
-              <span className="transaction-field-label">Add Internal Remarks</span>
-              <input
-                type="text"
-                placeholder="Add Remarks"
-                value={internalRemarks}
-                onChange={(e) => setInternalRemarks(e.target.value)}
-              />
-            </label>
-
-            {/* Is this a regular payment? */}
-            <div className="client-tx-split-toggle-container" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '24px 0 20px 0',
-              marginTop: '24px',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            }}>
-              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a regular payment?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>We'll flag it in your dashboard alerts so nothing gets missed.</span>
+            {/* Add Asset Section */}
+            {transactionType !== "personal" && transactionType !== "cost_base" && (
+              <>
+                {isAssetPurchase && assetItemName ? (
+              <div className="figma-active-asset-display">
+                <div className="figma-active-asset-left">
+                  <div className="figma-active-asset-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <line x1="9" y1="3" x2="9" y2="21" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="figma-active-asset-title">{assetItemName}</span>
+                    <div className="figma-active-asset-meta">
+                      {assetClass === "capital_allowance"
+                        ? `Capital Allowance • ${effectiveLifeYears} years`
+                        : "Capital Works"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="figma-active-asset-remove"
+                  onClick={() => {
+                    setIsAssetPurchase(false);
+                    setAssetItemName("");
+                    setAssetClass("");
+                    setEffectiveLifeYears("");
+                  }}
+                >
+                  Remove Asset
+                </button>
               </div>
-              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+            ) : null}
+
+            {!isAssetPurchase && !assetBuilderOpen && (
+              <button
+                type="button"
+                className="figma-add-asset-trigger"
+                onClick={() => {
+                  setAssetBuilderOpen(true);
+                  setAssetBuilderStep(1);
+                  setTempAssetClass("");
+                  setTempAssetName("");
+                  setTempAssetLife("");
+                  setTempDepreciationMethod("");
+                }}
+              >
+                + Add Asset
+              </button>
+            )}
+
+            {assetBuilderOpen && assetBuilderStep === 1 && (
+              <div className="figma-asset-builder-card">
+                <div className="figma-asset-builder-head">Add Asset</div>
+                <div className="figma-asset-class-grid">
+                  <div
+                    className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
+                    onClick={() => setTempAssetClass("capital_works")}
+                  >
+                    <div className="figma-asset-class-icon">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                    </div>
+                    <div className="figma-asset-class-info">
+                      <span className="figma-asset-class-title">Capital Works</span>
+                      <span className="figma-asset-class-desc">
+                        Structural / building costs (Div 43). Depreciated at a fixed statutory rate — no effective life needed.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
+                    onClick={() => setTempAssetClass("capital_allowance")}
+                  >
+                    <div className="figma-asset-class-icon">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                      </svg>
+                    </div>
+                    <div className="figma-asset-class-info">
+                      <span className="figma-asset-class-title">Capital Allowance</span>
+                      <span className="figma-asset-class-desc">
+                        Plant & equipment (Div 40). Requires an effective life to calculate depreciation.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="figma-asset-actions">
+                  <button
+                    type="button"
+                    className="figma-asset-cancel-btn"
+                    onClick={() => setAssetBuilderOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="figma-asset-submit-btn"
+                    disabled={!tempAssetClass}
+                    onClick={() => {
+                      if (tempAssetClass === "capital_works") {
+                        setIsAssetPurchase(true);
+                        setAssetClass("capital_works");
+                        setAssetItemName("Capital Works");
+                        setEffectiveLifeYears("");
+                        setAssetBuilderOpen(false);
+                      } else {
+                        setAssetBuilderStep(2);
+                      }
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {assetBuilderOpen && assetBuilderStep === 2 && (
+              <div className="figma-asset-builder-card">
+                <div className="figma-asset-builder-head">Asset Details</div>
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <span className="figma-field-label">Asset Name<em>*</em></span>
+                    <input
+                      type="text"
+                      className="figma-input"
+                      placeholder="e.g. Fridge, AC, dishwasher"
+                      value={tempAssetName}
+                      onChange={(e) => setTempAssetName(e.target.value)}
+                    />
+                  </div>
+                  <div className="figma-field-container">
+                    <span className="figma-field-label">Effective Life (years)<em>*</em></span>
+                    <input
+                      type="number"
+                      className="figma-input"
+                      placeholder="Select years"
+                      value={tempAssetLife}
+                      onChange={(e) => setTempAssetLife(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="figma-asset-actions">
+                  <button
+                    type="button"
+                    className="figma-asset-cancel-btn"
+                    onClick={() => setAssetBuilderStep(1)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="figma-asset-submit-btn"
+                    disabled={!tempAssetName || !tempAssetLife}
+                    onClick={() => setAssetBuilderStep(3)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {assetBuilderOpen && assetBuilderStep === 3 && (
+              <div className="figma-asset-builder-card">
+                <div className="figma-asset-builder-head">Method of Depreciation</div>
+                <div className="figma-asset-class-grid">
+                  <div
+                    className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
+                    onClick={() => setTempDepreciationMethod("diminishing_value")}
+                  >
+                    <div className="figma-asset-class-icon">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                        <polyline points="17 6 23 6 23 12" />
+                      </svg>
+                    </div>
+                    <div className="figma-asset-class-info">
+                      <span className="figma-asset-class-title">Diminishing Value</span>
+                      <span className="figma-asset-class-desc">
+                        Higher deductions in early years
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
+                    onClick={() => setTempDepreciationMethod("prime_cost")}
+                  >
+                    <div className="figma-asset-class-icon">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </div>
+                    <div className="figma-asset-class-info">
+                      <span className="figma-asset-class-title">Prime Cost</span>
+                      <span className="figma-asset-class-desc">
+                        Equal deductions each year
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="figma-asset-actions">
+                  <button
+                    type="button"
+                    className="figma-asset-cancel-btn"
+                    onClick={() => setAssetBuilderStep(2)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="figma-asset-submit-btn"
+                    disabled={!tempDepreciationMethod}
+                    onClick={() => {
+                      setIsAssetPurchase(true);
+                      setAssetClass("capital_allowance");
+                      setAssetItemName(tempAssetName);
+                      setEffectiveLifeYears(tempAssetLife);
+                      setAssetBuilderOpen(false);
+                    }}
+                  >
+                    Add Asset
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Is this a personal transaction? */}
+            <div className="figma-toggle-container">
+              <div className="figma-toggle-info">
+                <span className="figma-toggle-title">Is this a personal transaction?</span>
+                <span className="figma-toggle-desc">Split this transaction between business and personal use</span>
+              </div>
+              <label className="figma-switch">
+                <input
+                  type="checkbox"
+                  checked={isPersonal}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsPersonal(checked);
+                    if (checked) {
+                      if (!type) setType("expense");
+                    }
+                  }}
+                />
+                <span className="figma-switch-slider" />
+              </label>
+            </div>
+
+            {isPersonal && (
+              <div className="figma-personal-alloc-section">
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Personal Allocation"
+                      value={personalAllocationType}
+                      options={[
+                        { label: "Percentage", value: "percentage" },
+                        { label: "Amount", value: "amount" },
+                      ]}
+                      onChange={(value) => setPersonalAllocationType(value as "percentage" | "amount")}
+                    />
+                  </div>
+                  <div className="figma-field-container">
+                    <span className="figma-field-label">
+                      {personalAllocationType === "percentage" ? "Personal %" : "Personal Amount"}
+                    </span>
+                    <input
+                      type="number"
+                      className="figma-input"
+                      value={personalValue}
+                      onChange={(e) => setPersonalValue(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="figma-portion-wrapper">
+                  <div className="figma-portion-box">
+                    <span className="figma-portion-label">Business portion</span>
+                    <span className="figma-portion-value">A$ {businessPortion.toFixed(2)}</span>
+                  </div>
+                  <div className="figma-portion-box">
+                    <span className="figma-portion-label">Personal portion</span>
+                    <span className="figma-portion-value">A$ {personalPortion.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Is it a regular payment? */}
+            <div className="figma-toggle-container">
+              <div className="figma-toggle-info">
+                <span className="figma-toggle-title">Is it a regular payment?</span>
+                <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+              </div>
+              <label className="figma-switch">
                 <input
                   type="checkbox"
                   checked={isRegularPayment}
@@ -6269,117 +6625,175 @@ export function AddTransactionView({
                     if (!checked) {
                       setDueDate("");
                       setDueDateTouched(false);
+                      setAlertName("");
                     }
                   }}
-                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <span className="client-tx-slider" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: isRegularPayment ? '#1d2452' : '#eaeef4',
-                  transition: '.2s',
-                  borderRadius: '24px',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: isRegularPayment ? '24px' : '4px',
-                  bottom: '3px',
-                  backgroundColor: 'white',
-                  transition: '.2s',
-                  borderRadius: '50%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                  pointerEvents: 'none',
-                }} />
+                <span className="figma-switch-slider" />
               </label>
             </div>
 
             {isRegularPayment && (
-              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px', marginBottom: '16px' }}>
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Due date</label>
+              <div className="figma-form-row">
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Due Date<em>*</em></span>
                   <input
                     type="date"
-                    min="1900-01-01"
-                    max="9999-12-31"
+                    className="figma-input"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                     onBlur={() => setDueDateTouched(true)}
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
                   />
                   {showDueDateError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
-                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
                       <span>{dueDateError}</span>
                     </p>
                   )}
                 </div>
-
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Alert name</label>
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Alert Name<em>*</em></span>
                   <input
                     type="text"
+                    className="figma-input"
+                    placeholder="e.g. Quarterly insurance reminder"
                     value={alertName}
                     onChange={(e) => {
                       setAlertName(e.target.value);
                       setUserEditedAlertName(true);
-                    }}
-                    placeholder="Enter alert name"
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
                     }}
                   />
                 </div>
               </div>
             )}
 
-            {submitError && !submitError.toLowerCase().includes("split") ? (
-              <p className="transaction-warning-card" role="alert">
+            {/* Is this a split transaction? */}
+            <div className="figma-toggle-container">
+              <div className="figma-toggle-info">
+                <span className="figma-toggle-title">Is this a split transaction?</span>
+                <span className="figma-toggle-desc">Divide this transaction across multiple categories</span>
+              </div>
+              <label className="figma-switch">
+                <input
+                  type="checkbox"
+                  checked={isSplit}
+                  onChange={(e) => handleSplitToggle(e.target.checked)}
+                />
+                <span className="figma-switch-slider" />
+              </label>
+            </div>
+
+            {isSplit && (
+              <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#eaecf0"}` }}>
+                {splitRows.map((row, index) => {
+                  const rowError = splitErrors[row.id];
+                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                  return (
+                    <div key={row.id} className="transaction-split-row" style={{ display: "flex", gap: "16px", marginBottom: "16px", alignItems: "flex-start" }}>
+                      <div className="figma-field-container" style={{ flex: 2 }}>
+                        <StaticSelect
+                          label="Property Name"
+                          required
+                          value={row.propertyId}
+                          options={[
+                            { label: "Select Property", value: "" },
+                            ...splitPropertyBaseOptions,
+                          ]}
+                          onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
+                        />
+                        {propertyError && <span style={{ color: "#da3838", fontSize: "11px" }}>{propertyError}</span>}
+                      </div>
+
+                      <div className="figma-field-container" style={{ flex: 1 }}>
+                        <span className="figma-field-label">Amount<em>*</em></span>
+                        <input
+                          type="number"
+                          className="figma-input"
+                          placeholder="0.00"
+                          value={row.amount}
+                          onChange={(e) => updateSplitRow(row.id, { amount: e.target.value })}
+                        />
+                        {amountError && <span style={{ color: "#da3838", fontSize: "11px" }}>{amountError}</span>}
+                      </div>
+
+                      <button
+                        type="button"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "#da3838",
+                          fontWeight: "600",
+                          fontSize: "14px",
+                          cursor: "pointer",
+                          padding: "12px 0",
+                          marginTop: "22px",
+                        }}
+                        disabled={splitRows.length <= 1}
+                        onClick={() => removeSplitRow(row.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#da3838" : "#667085" }}>
+                    {grossAmount && !Number.isNaN(grossNumberValue)
+                      ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
+                      : "Enter the total amount above to validate splits."}
+                  </span>
+                  <button
+                    type="button"
+                    className="figma-bulk-import-btn"
+                    onClick={addSplitRow}
+                    disabled={properties.length < 2}
+                  >
+                    + Add Property
+                  </button>
+                </div>
+              </div>
+            )}
+
+              </>
+            )}
+
+            {/* Internal Remarks */}
+            <div className="figma-form-row">
+              <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                <span className="figma-field-label">Internal Remarks</span>
+                <textarea
+                  className="figma-textarea"
+                  placeholder="Notes visible only to your team"
+                  value={internalRemarks}
+                  onChange={(e) => setInternalRemarks(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {submitError && !submitError.toLowerCase().includes("split") && (
+              <p className="transaction-field-error" style={{ color: "#da3838", fontWeight: "600", marginBottom: "16px" }}>
                 {submitError}
               </p>
-            ) : null}
+            )}
 
-            <div className="transaction-form-actions">
-              <Link href={effectiveBackHref} className="transaction-cancel-button">
+            {/* Form actions */}
+            <div className="figma-form-actions">
+              <Link href={effectiveBackHref} className="figma-cancel-btn">
                 Cancel
               </Link>
               <button
                 type="submit"
-                className="transaction-save-button"
+                className="figma-save-btn"
                 disabled={!canSubmit || isSubmitting}
               >
                 {isSubmitting
                   ? (isReviewing ? "Saving Transaction…" : "Adding Transaction…")
-                  : (isReviewing ? "Save Transaction" : "Add Transaction")}
+                  : (isReviewing ? "Save Transaction" : "Save Transaction")}
               </button>
             </div>
           </fieldset>
@@ -6414,7 +6828,7 @@ export function AddTransactionView({
           }}
         />
       ) : null}
-    </section>
+    </div>
   );
 }
 
