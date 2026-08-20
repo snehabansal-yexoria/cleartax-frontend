@@ -22,6 +22,7 @@ import type {
   ReconciliationMatch,
   ReconciliationSessionDetail,
   ReconciliationTransaction,
+  CoreAssetClass,
 } from "@/src/lib/coreApi";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
@@ -83,6 +84,14 @@ let splitRowCounter = 0;
 function makeSplitRowId() {
   splitRowCounter += 1;
   return `split-${splitRowCounter}`;
+}
+
+function getLocalDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -371,6 +380,7 @@ export default function AccountantReconciliationSessionPage() {
   useEffect(() => {
     setPageInputValue(String(reconPage));
   }, [reconPage]);
+
   const [toastReconId, setToastReconId] = useState<string | null>(null);
 
   // Session completion
@@ -380,6 +390,11 @@ export default function AccountantReconciliationSessionPage() {
 
   // Table filter/sort
   const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed" | "excluded">("unreviewed");
+
+  useEffect(() => {
+    setSelectedRowKeys(new Set());
+  }, [activeTab]);
+
   const [filter, setFilter] = useState<ReconciliationFilter>("all");
   const [query, setQuery] = useState("");
   const [sortField, setSortField] = useState<string>("date");
@@ -412,6 +427,31 @@ export default function AccountantReconciliationSessionPage() {
   const [categorizeSplitRows, setCategorizeSplitRows] = useState<SplitRowState[]>(() => [
     { id: makeSplitRowId(), propertyId: "", amount: "" },
   ]);
+
+  // New states from add transaction form
+  const [categorizeTxType, setCategorizeTxType] = useState<"income" | "expense" | "personal" | "cost_base">("expense");
+  const [categorizeIsAssetPurchase, setCategorizeIsAssetPurchase] = useState(false);
+  const [categorizeAssetClass, setCategorizeAssetClass] = useState<CoreAssetClass | "">("");
+  const [categorizeEffectiveLifeYears, setCategorizeEffectiveLifeYears] = useState("");
+  const [categorizeAssetItemName, setCategorizeAssetItemName] = useState("");
+  const [categorizeDepreciationMethod, setCategorizeDepreciationMethod] = useState("");
+
+  const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+  const [assetBuilderStep, setAssetBuilderStep] = useState(1);
+  const [tempAssetClass, setTempAssetClass] = useState<string>("");
+  const [tempAssetName, setTempAssetName] = useState("");
+  const [tempAssetLife, setTempAssetLife] = useState("");
+  const [tempDepreciationMethod, setTempDepreciationMethod] = useState("");
+
+  const [categorizeIsPersonal, setCategorizeIsPersonal] = useState(false);
+  const [categorizePersonalAllocationType, setCategorizePersonalAllocationType] = useState<"percentage" | "amount">("percentage");
+  const [categorizePersonalValue, setCategorizePersonalValue] = useState("20");
+
+  const [categorizeIsRegularPayment, setCategorizeIsRegularPayment] = useState(false);
+  const [categorizeDueDate, setCategorizeDueDate] = useState("");
+  const [categorizeDueDateTouched, setCategorizeDueDateTouched] = useState(false);
+  const [categorizeAlertName, setCategorizeAlertName] = useState("");
+  const [categorizeUserEditedAlertName, setCategorizeUserEditedAlertName] = useState(false);
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkType, setBulkType] = useState<"expense" | "revenue">("expense");
@@ -598,6 +638,17 @@ export default function AccountantReconciliationSessionPage() {
     [combinedRows, selectedRowKeys, optimisticMatches],
   );
 
+  const selectedExcludedRows = useMemo(
+    () =>
+      combinedRows.filter(({ reconId, bankTxIndex }) => {
+        const key = mkey(reconId, bankTxIndex);
+        if (!selectedRowKeys.has(key)) return false;
+        const status = optimisticMatches.get(key)?.status;
+        return status === "excluded";
+      }),
+    [combinedRows, selectedRowKeys, optimisticMatches],
+  );
+
   const selectedType = useMemo(() => {
     if (selectedEligibleRows.length === 0) return null;
     const firstRow = selectedEligibleRows[0].row;
@@ -768,6 +819,31 @@ export default function AccountantReconciliationSessionPage() {
     if (!bankTx) return;
     const txType: "expense" | "revenue" = bankTx.debit != null ? "expense" : "revenue";
     setCategorizeType(txType);
+    setCategorizeTxType(txType === "revenue" ? "income" : "expense");
+
+    // Reset new states
+    setCategorizeIsAssetPurchase(false);
+    setCategorizeAssetClass("");
+    setCategorizeEffectiveLifeYears("");
+    setCategorizeAssetItemName("");
+    setCategorizeDepreciationMethod("");
+    setAssetBuilderOpen(false);
+    setAssetBuilderStep(1);
+    setTempAssetClass("");
+    setTempAssetName("");
+    setTempAssetLife("");
+    setTempDepreciationMethod("");
+
+    setCategorizeIsPersonal(false);
+    setCategorizePersonalAllocationType("percentage");
+    setCategorizePersonalValue("");
+
+    setCategorizeIsRegularPayment(false);
+    setCategorizeDueDate("");
+    setCategorizeDueDateTouched(false);
+    setCategorizeAlertName("");
+    setCategorizeUserEditedAlertName(false);
+
     setCategorizeCategoryId(null);
     setCategorizeSubcategoryId(null);
     setCategorizeSubcategories([]);
@@ -775,9 +851,13 @@ export default function AccountantReconciliationSessionPage() {
     setCategorizeGstAmount("");
     setCategorizeIsSplit(false);
     setCategorizeSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+  }, [categorizeKey, reconCache]);
+
+  useEffect(() => {
+    if (categorizeKey === null) return;
     let cancelled = false;
     void getFreshToken().then((token) => {
-      fetch(`/api/transactions/categories?type=${txType}`, {
+      fetch(`/api/transactions/categories?type=${categorizeType}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
@@ -787,7 +867,7 @@ export default function AccountantReconciliationSessionPage() {
         .catch(() => { });
     });
     return () => { cancelled = true; };
-  }, [categorizeKey, reconCache]);
+  }, [categorizeKey, categorizeType]);
 
   useEffect(() => {
     if (!categorizeCategoryId) { setCategorizeSubcategories([]); return; }
@@ -813,6 +893,111 @@ export default function AccountantReconciliationSessionPage() {
     });
     return () => { cancelled = true; };
   }, [categorizeCategoryId]);
+
+  // Default category/subcategory/property for personal transactions
+  useEffect(() => {
+    if (categorizeTxType === "personal" && categorizeCategories.length > 0) {
+      const personalCat = categorizeCategories.find(c => 
+        c.name.toLowerCase().includes("personal") || 
+        c.name.toLowerCase().includes("private")
+      ) || categorizeCategories[0];
+      if (personalCat && categorizeCategoryId !== personalCat.id) {
+        setCategorizeCategoryId(personalCat.id);
+      }
+    }
+  }, [categorizeTxType, categorizeCategories, categorizeCategoryId]);
+
+  useEffect(() => {
+    if (categorizeTxType === "personal" && categorizeSubcategories.length > 0) {
+      const personalSub = categorizeSubcategories.find(s => 
+        s.name.toLowerCase().includes("personal") || 
+        s.name.toLowerCase().includes("private")
+      ) || categorizeSubcategories[0];
+      if (personalSub && categorizeSubcategoryId !== personalSub.id) {
+        setCategorizeSubcategoryId(personalSub.id);
+      }
+    }
+  }, [categorizeTxType, categorizeSubcategories, categorizeSubcategoryId]);
+
+  useEffect(() => {
+    if (categorizeTxType === "personal" && !categorizePropertyId && properties.length > 0) {
+      setCategorizePropertyId(properties[0].id);
+    }
+  }, [categorizeTxType, categorizePropertyId, properties]);
+
+  // Default category/subcategory/property for Property Cost Base
+  useEffect(() => {
+    if (categorizeTxType === "cost_base") {
+      if (categorizeCategories.length > 0 && !categorizeCategoryId) {
+        setCategorizeCategoryId(categorizeCategories[0].id);
+      }
+    }
+  }, [categorizeTxType, categorizeCategories, categorizeCategoryId]);
+
+  useEffect(() => {
+    if (categorizeTxType === "cost_base") {
+      if (categorizeSubcategories.length > 0 && !categorizeSubcategoryId) {
+        setCategorizeSubcategoryId(categorizeSubcategories[0].id);
+      }
+    }
+  }, [categorizeTxType, categorizeSubcategories, categorizeSubcategoryId]);
+
+  useEffect(() => {
+    if (categorizeTxType === "cost_base" && !categorizePropertyId && properties.length > 0) {
+      setCategorizePropertyId(properties[0].id);
+    }
+  }, [categorizeTxType, categorizePropertyId, properties]);
+
+  // Auto-populate Alert Name based on subcategory and property
+  useEffect(() => {
+    if (categorizeUserEditedAlertName) return;
+    const subcat = categorizeSubcategories.find((s) => s.id === categorizeSubcategoryId);
+    const subcatName = subcat ? subcat.name : "";
+    const prop = properties.find((p) => p.id === categorizePropertyId);
+    const propName = prop ? prop.name : "";
+    if (subcatName && propName) {
+      setCategorizeAlertName(`${subcatName} - ${propName}`);
+    } else if (subcatName) {
+      setCategorizeAlertName(subcatName);
+    } else if (propName) {
+      setCategorizeAlertName(propName);
+    } else {
+      setCategorizeAlertName("");
+    }
+  }, [categorizeSubcategoryId, categorizePropertyId, categorizeSubcategories, properties, categorizeUserEditedAlertName]);
+
+  const categorizePersonalPortion = useMemo(() => {
+    if (!categorizeIsPersonal) return 0;
+    if (categorizeTxType === "personal") {
+      return activeGrossAmount;
+    }
+    if (categorizePersonalAllocationType === "percentage") {
+      const pct = Number.parseFloat(categorizePersonalValue) || 0;
+      return activeGrossAmount * (pct / 100);
+    } else {
+      const amt = Number.parseFloat(categorizePersonalValue) || 0;
+      return amt;
+    }
+  }, [categorizeIsPersonal, categorizeTxType, categorizePersonalAllocationType, categorizePersonalValue, activeGrossAmount]);
+
+  const categorizeBusinessPortion = useMemo(() => {
+    if (!categorizeIsPersonal) return activeGrossAmount;
+    if (categorizeTxType === "personal") {
+      return 0;
+    }
+    return Math.max(0, activeGrossAmount - categorizePersonalPortion);
+  }, [categorizeIsPersonal, categorizeTxType, activeGrossAmount, categorizePersonalPortion]);
+
+  const categorizeDueDateError = useMemo(() => {
+    if (!categorizeDueDate) {
+      return "Due date is required.";
+    }
+    const todayStr = getLocalDateString();
+    if (categorizeDueDate < todayStr) {
+      return "Due date must be in the future.";
+    }
+    return "";
+  }, [categorizeDueDate]);
 
   // ── Bulk categorize modal: load categories / subcategories ───────────────
 
@@ -1098,13 +1283,27 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
-    if (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId)) {
+    if (categorizeTxType !== "personal" && (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId))) {
       setCategorizeError("Category and Property are required.");
       return;
     }
-    if (!categorizeSubcategoryId) {
+    if (categorizeTxType !== "personal" && !categorizeSubcategoryId && categorizeTxType !== "cost_base") {
       setCategorizeError("Please select sub category to continue.");
       return;
+    }
+    if (categorizeIsRegularPayment) {
+      if (!categorizeDueDate) {
+        setCategorizeError("Due date is required.");
+        return;
+      }
+      if (categorizeDueDateError) {
+        setCategorizeError(categorizeDueDateError);
+        return;
+      }
+      if (!categorizeAlertName.trim()) {
+        setCategorizeError("Alert name is required.");
+        return;
+      }
     }
     const rec = reconCache.get(reconId);
     const bankTx = rec?.transactions[bankTxIndex];
@@ -1114,7 +1313,7 @@ export default function AccountantReconciliationSessionPage() {
     const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
 
     let splits: Array<Record<string, unknown>>;
-    if (categorizeIsSplit) {
+    if (categorizeIsSplit && categorizeTxType !== "personal" && categorizeTxType !== "cost_base") {
       const splitPropertyCount = new Set(
         categorizeSplitRows.map((row) => row.propertyId).filter(Boolean)
       ).size;
@@ -1146,12 +1345,13 @@ export default function AccountantReconciliationSessionPage() {
         };
       });
     } else {
-      if (!categorizePropertyId) {
+      const resolvedPropertyId = (categorizeTxType === "personal" || categorizeTxType === "cost_base") ? (categorizePropertyId || (properties[0]?.id ?? "")) : categorizePropertyId;
+      if (!resolvedPropertyId) {
         setCategorizeError("Property is required.");
         setCategorizeSaving(false);
         return;
       }
-      splits = [{ property_id: categorizePropertyId, split_percentage: 100, split_gross_amount: grossAmount }];
+      splits = [{ property_id: resolvedPropertyId, split_percentage: 100, split_gross_amount: grossAmount }];
     }
 
     let gstAmount = 0;
@@ -1169,26 +1369,77 @@ export default function AccountantReconciliationSessionPage() {
       }
       gstAmount = parsed;
     }
+
     try {
       const token = await getFreshToken();
+
+      // Portions calculation
+      const grossNumValueForSave = grossAmount;
+      let personalPortionVal = 0;
+      let businessPortionVal = 0;
+      if (categorizeIsPersonal) {
+        if (categorizeTxType === "personal") {
+          personalPortionVal = grossNumValueForSave;
+          businessPortionVal = 0;
+        } else if (categorizePersonalAllocationType === "percentage") {
+          const pct = parseFloat(categorizePersonalValue) || 0;
+          personalPortionVal = grossNumValueForSave * (pct / 100);
+          businessPortionVal = grossNumValueForSave - personalPortionVal;
+        } else {
+          const amt = parseFloat(categorizePersonalValue) || 0;
+          personalPortionVal = amt;
+          businessPortionVal = Math.max(0, grossNumValueForSave - personalPortionVal);
+        }
+      }
+
+      const metadata: Record<string, unknown> = {
+        source: "reconciliation_categorized",
+        is_regular_payment: categorizeTxType === "personal" ? false : categorizeIsRegularPayment,
+        due_date: categorizeTxType === "personal" ? null : (categorizeIsRegularPayment ? (categorizeDueDate || null) : null),
+        alert_name: categorizeTxType === "personal" ? null : (categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null),
+        is_personal: categorizeIsPersonal,
+        personal_allocation_type: categorizeTxType === "personal" ? "percentage" : categorizePersonalAllocationType,
+        personal_percentage: categorizeTxType === "personal" ? 100 : (categorizeIsPersonal && categorizePersonalValue ? parseFloat(categorizePersonalValue) : null),
+        business_portion: Number(businessPortionVal.toFixed(2)),
+        personal_portion: Number(personalPortionVal.toFixed(2)),
+      };
+
+      if (categorizeIsAssetPurchase) {
+        metadata.asset_item_name = categorizeAssetItemName.trim();
+        metadata.depreciation_method = categorizeDepreciationMethod || null;
+      }
+
+      const postBody: Record<string, unknown> = {
+        type: categorizeType,
+        category_id: categorizeCategoryId,
+        subcategory_id: categorizeSubcategoryId,
+        invoice_date: bankTx.date,
+        gross_amount: grossAmount,
+        gst_amount: gstAmount,
+        description: bankTx.payee ?? bankTx.description ?? null,
+        internal_remarks: null,
+        review_status: "reviewed",
+        is_asset_purchase: categorizeIsAssetPurchase,
+        metadata,
+        splits,
+      };
+
+      if (categorizeIsAssetPurchase) {
+        postBody.asset_class = categorizeAssetClass || null;
+        if (categorizeAssetClass === "capital_allowance") {
+          const yearsNum = Number.parseFloat(categorizeEffectiveLifeYears);
+          if (!Number.isNaN(yearsNum) && yearsNum > 0) {
+            postBody.effective_life_years = yearsNum;
+          }
+        }
+      }
+
       const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          type: categorizeType,
-          category_id: categorizeCategoryId,
-          subcategory_id: categorizeSubcategoryId,
-          invoice_date: bankTx.date,
-          gross_amount: grossAmount,
-          gst_amount: gstAmount,
-          description: bankTx.payee ?? bankTx.description ?? null,
-          internal_remarks: null,
-          review_status: "reviewed",
-          is_asset_purchase: false,
-          metadata: { source: "reconciliation_categorized" },
-          splits,
-        }),
+        body: JSON.stringify(postBody),
       });
+
       if (!txRes.ok) {
         const body = await txRes.json().catch(() => ({})) as { message?: string };
         setCategorizeError(body.message ?? "Failed to create transaction.");
@@ -1413,6 +1664,35 @@ export default function AccountantReconciliationSessionPage() {
           { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } },
         );
         await reloadMatches();
+      } catch { /* optimistic rolls back */ }
+    });
+  }
+
+  function doBulkUndoExcluded() {
+    const rows = selectedExcludedRows;
+    if (rows.length === 0) return;
+    startTransition(async () => {
+      rows.forEach(({ reconId, bankTxIndex }) => {
+        addOptimisticMatch({ remove: mkey(reconId, bankTxIndex) });
+      });
+      try {
+        const token = getToken();
+        await Promise.all(
+          rows.map(({ reconId, bankTxIndex }) =>
+            fetch(
+              `/api/entities/${entityId}/reconciliations/${reconId}/matches?bankTxIndex=${bankTxIndex}`,
+              { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+            ).catch(() => {})
+          )
+        );
+        await reloadMatches();
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          rows.forEach(({ reconId, bankTxIndex }) => {
+            next.delete(mkey(reconId, bankTxIndex));
+          });
+          return next;
+        });
       } catch { /* optimistic rolls back */ }
     });
   }
@@ -1676,6 +1956,9 @@ export default function AccountantReconciliationSessionPage() {
       const candidates = candidateMatches.get(key) ?? [];
       const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
       const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+      if (activeTab === "excluded") {
+        return isExcluded && !isSessionCompleted;
+      }
       const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
       if (!isEligible) return false;
       if (selectedType) {
@@ -1684,7 +1967,7 @@ export default function AccountantReconciliationSessionPage() {
       }
       return true;
     });
-  }, [pagedReconRows, candidateMatches, optimisticMatches, isSessionCompleted, selectedType]);
+  }, [pagedReconRows, candidateMatches, optimisticMatches, isSessionCompleted, selectedType, activeTab]);
 
   const unreviewedCount = combinedRows.length - reconciledCount - excludedCount;
 
@@ -2148,6 +2431,32 @@ export default function AccountantReconciliationSessionPage() {
           </div>
         )}
 
+        {/* ── Bulk action bar for Excluded ── */}
+        {activeTab === "excluded" && selectedExcludedRows.length > 0 && !isSessionCompleted && (
+          <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
+            <span className="recon-bulk-bar-count">
+              {selectedExcludedRows.length} transaction{selectedExcludedRows.length > 1 ? "s" : ""} selected
+            </span>
+            <div className="recon-bulk-bar-actions">
+              <button
+                type="button"
+                className="recon-bulk-clear-btn"
+                onClick={() => setSelectedRowKeys(new Set())}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="recon-bulk-categorize-btn"
+                disabled={isPending}
+                onClick={doBulkUndoExcluded}
+              >
+                Undo Exclude
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Combined transaction table ─────────────────────────────────── */}
         <section className="accountant-reconciliation-table">
           <div className="accountant-reconciliation-table-head">
@@ -2162,32 +2471,38 @@ export default function AccountantReconciliationSessionPage() {
                     setSelectedRowKeys((prev) => {
                       const next = new Set(prev);
                       if (checked) {
-                        let typeToSelect = selectedType;
-                        if (!typeToSelect) {
-                          const firstEligible = pagedReconRows.find((row) => {
+                        if (activeTab === "excluded") {
+                          selectableRowsOnPage.forEach((row) => {
+                            next.add(mkey(row.reconId, row.bankTxIndex));
+                          });
+                        } else {
+                          let typeToSelect = selectedType;
+                          if (!typeToSelect) {
+                            const firstEligible = pagedReconRows.find((row) => {
+                              const key = mkey(row.reconId, row.bankTxIndex);
+                              const candidates = candidateMatches.get(key) ?? [];
+                              const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
+                              const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+                              return !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+                            });
+                            if (firstEligible) {
+                              typeToSelect = firstEligible.row.credit != null ? "revenue" : "expense";
+                            }
+                          }
+                          pagedReconRows.forEach((row) => {
                             const key = mkey(row.reconId, row.bankTxIndex);
                             const candidates = candidateMatches.get(key) ?? [];
                             const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
                             const isExcluded = optimisticMatches.get(key)?.status === "excluded";
-                            return !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
-                          });
-                          if (firstEligible) {
-                            typeToSelect = firstEligible.row.credit != null ? "revenue" : "expense";
-                          }
-                        }
-                        pagedReconRows.forEach((row) => {
-                          const key = mkey(row.reconId, row.bankTxIndex);
-                          const candidates = candidateMatches.get(key) ?? [];
-                          const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
-                          const isExcluded = optimisticMatches.get(key)?.status === "excluded";
-                          const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
-                          if (isEligible) {
-                            const rowType = row.row.credit != null ? "revenue" : "expense";
-                            if (rowType === typeToSelect) {
-                              next.add(key);
+                            const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+                            if (isEligible) {
+                              const rowType = row.row.credit != null ? "revenue" : "expense";
+                              if (rowType === typeToSelect) {
+                                next.add(key);
+                              }
                             }
-                          }
-                        });
+                          });
+                        }
                       } else {
                         selectableRowsOnPage.forEach((row) => {
                           next.delete(mkey(row.reconId, row.bankTxIndex));
@@ -2574,9 +2889,13 @@ export default function AccountantReconciliationSessionPage() {
               const isExpanded = expandedKey === key;
               const isCatExpanded = categorizeKey === key;
 
-              const isSelectable = !isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted;
+              const isSelectable = activeTab === "excluded"
+                ? (isExcluded && !isSessionCompleted)
+                : (!isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted);
               const rowType = row.credit != null ? "revenue" : "expense";
-              const isRowDisabled = isSelectable && selectedType !== null && rowType !== selectedType;
+              const isRowDisabled = activeTab === "excluded"
+                ? false
+                : (isSelectable && selectedType !== null && rowType !== selectedType);
 
               const matchedTx = isConfirmed && matchEntry?.transactionId
                 ? entityTxs.find((t) => t.id === matchEntry.transactionId) ?? null
@@ -2896,33 +3215,76 @@ export default function AccountantReconciliationSessionPage() {
                               Transaction Type <span className="is-required">*</span>
                             </label>
                             <StaticSelect
-                              value={categorizeType}
+                              value={categorizeTxType === "income" ? "revenue" : categorizeTxType}
                               options={[
                                 { label: "Expense", value: "expense" },
                                 { label: "Revenue", value: "revenue" },
+                                { label: "Personal Transaction", value: "personal" },
+                                { label: "Property Cost Base", value: "cost_base" },
                               ]}
                               onChange={(val) => {
-                                setCategorizeType(val as "expense" | "revenue");
+                                const newTxType = val as "expense" | "revenue" | "personal" | "cost_base";
+                                const normalized = newTxType === "revenue" ? "income" : newTxType;
+                                setCategorizeTxType(normalized);
+                                if (normalized === "income") {
+                                  setCategorizeType("revenue");
+                                  setCategorizeIsPersonal(false);
+                                  setCategorizeIsAssetPurchase(false);
+                                } else if (normalized === "expense") {
+                                  setCategorizeType("expense");
+                                  setCategorizeIsPersonal(false);
+                                  setCategorizeIsAssetPurchase(false);
+                                } else if (normalized === "personal") {
+                                  setCategorizeType("expense");
+                                  setCategorizeIsPersonal(true);
+                                  setCategorizeIsAssetPurchase(false);
+                                } else if (normalized === "cost_base") {
+                                  setCategorizeType("expense");
+                                  setCategorizeIsPersonal(false);
+                                  setCategorizeIsAssetPurchase(true);
+                                }
                                 setCategorizeCategoryId(null);
                                 setCategorizeSubcategoryId(null);
                               }}
                             />
                           </div>
-                          <div className="recon-categorize-field">
-                            <label className="recon-categorize-label">
-                              Category <span className="is-required">*</span>
-                            </label>
-                            <StaticSelect
-                              value={String(categorizeCategoryId ?? "")}
-                              placeholder="Select category"
-                              options={categorizeCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
-                              onChange={(val) => {
-                                setCategorizeCategoryId(val ? Number(val) : null);
-                                setCategorizeSubcategoryId(null);
-                              }}
-                            />
-                          </div>
-                          {showCategorizeSubcategorySelect && (
+
+                          {categorizeTxType !== "personal" && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Category <span className="is-required">*</span>
+                              </label>
+                              <StaticSelect
+                                value={String(categorizeCategoryId ?? "")}
+                                placeholder="Select category"
+                                options={categorizeCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                                onChange={(val) => {
+                                  setCategorizeCategoryId(val ? Number(val) : null);
+                                  setCategorizeSubcategoryId(null);
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {categorizeTxType !== "personal" && categorizeTxType === "cost_base" && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              background: '#f0f9ff',
+                              border: '1px solid #e0f2fe',
+                              color: '#0284c7',
+                              borderRadius: '8px',
+                              padding: '12px 16px',
+                              fontSize: '13px',
+                              height: '50px',
+                              marginTop: '24px',
+                              boxSizing: 'border-box'
+                            }}>
+                              No subcategory for Property Cost Base — one free-text/typeable category only.
+                            </div>
+                          )}
+
+                          {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && showCategorizeSubcategorySelect && (
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Subcategory <span className="is-required">*</span>
@@ -2938,101 +3300,469 @@ export default function AccountantReconciliationSessionPage() {
                           )}
                         </div>
 
-                        {/* Split option and section placed before GST */}
-                        <div className="recon-categorize-split-container" style={{ marginTop: 16 }}>
-                          <label className="recon-categorize-checkbox-row">
-                            <input
-                              type="checkbox"
-                              className="custom-recon-checkbox"
-                              checked={categorizeIsSplit}
-                              onChange={(e) => handleCategorizeSplitToggle(e.target.checked)}
-                            />
-                            <span>Is this a split transaction?</span>
-                          </label>
-
-                          {categorizeIsSplit && (
-                            <div className="recon-categorize-split-section">
-                              <div className="recon-split-header">
-                                <span>Property Name <span className="is-required">*</span></span>
-                                <span>Amount <span className="is-required">*</span></span>
-                                <span></span>
-                              </div>
-
-                              {categorizeSplitRows.map((row) => {
-                                const rowError = categorizeSplitErrors[row.id];
-                                const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                                const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
-
-                                return (
-                                  <div key={row.id} className="recon-split-row">
-                                    <StaticSelect
-                                      value={row.propertyId}
-                                      placeholder="Select Property"
-                                      options={properties.map((p) => ({ label: p.name, value: p.id }))}
-                                      onChange={(value) => updateCategorizeSplitRow(row.id, { propertyId: value })}
-                                      error={propertyError}
-                                    />
-                                    <div className="recon-categorize-field">
-                                      <div className="recon-categorize-amount-input-wrapper">
-                                        <input
-                                          type="number"
-                                          inputMode="decimal"
-                                          step="0.01"
-                                          placeholder="0.00"
-                                          className={`recon-categorize-input${amountError ? " has-error" : ""}`}
-                                          value={row.amount}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "-" || e.key === "Minus") {
-                                              e.preventDefault();
-                                            }
-                                          }}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/-/g, "");
-                                            updateCategorizeSplitRow(row.id, { amount: val });
-                                          }}
-                                        />
-                                        <span className="recon-categorize-amount-currency">A$</span>
-                                      </div>
-                                      {amountError && (
-                                        <p className="recon-split-row-error">{amountError}</p>
-                                      )}
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="recon-split-remove-btn"
-                                      disabled={categorizeSplitRows.length <= 1}
-                                      onClick={() => removeCategorizeSplitRow(row.id)}
-                                    >
-                                      Remove
-                                    </button>
+                        {/* Add Asset Section */}
+                        {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && (
+                          <div style={{ marginTop: 16 }}>
+                            {categorizeIsAssetPurchase && categorizeAssetItemName ? (
+                              <div className="figma-active-asset-display" style={{ marginBottom: 16 }}>
+                                <div className="figma-active-asset-left">
+                                  <div className="figma-active-asset-icon">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                      <line x1="9" y1="3" x2="9" y2="21" />
+                                    </svg>
                                   </div>
-                                );
-                              })}
-
-                              {categorizeSplitErrors.__form && (
-                                <p className="recon-split-form-error">{categorizeSplitErrors.__form}</p>
-                              )}
-
-                              <div className="recon-split-footer">
-                                <span
-                                  className={`recon-split-total-info${!categorizeSplitMatches ? " is-mismatch" : ""}`}
-                                >
-                                  {activeGrossAmount > 0
-                                    ? `Split total: ${categorizeSplitTotal.toFixed(2)} of ${activeGrossAmount.toFixed(2)}`
-                                    : "Splits must equal the transaction total."}
-                                </span>
+                                  <div>
+                                    <span className="figma-active-asset-title">{categorizeAssetItemName}</span>
+                                    <div className="figma-active-asset-meta">
+                                      {categorizeAssetClass === "capital_allowance"
+                                        ? `Capital Allowance • ${categorizeEffectiveLifeYears} years`
+                                        : "Capital Works"}
+                                    </div>
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
-                                  className="recon-split-add-btn"
-                                  onClick={addCategorizeSplitRow}
-                                  disabled={properties.length < 2}
+                                  className="figma-active-asset-remove"
+                                  onClick={() => {
+                                    setCategorizeIsAssetPurchase(false);
+                                    setCategorizeAssetItemName("");
+                                    setCategorizeAssetClass("");
+                                    setCategorizeEffectiveLifeYears("");
+                                  }}
                                 >
-                                  + Add Property
+                                  Remove Asset
                                 </button>
                               </div>
+                            ) : null}
+
+                            {!categorizeIsAssetPurchase && !assetBuilderOpen && (
+                              <button
+                                type="button"
+                                className="figma-add-asset-trigger"
+                                onClick={() => {
+                                  setAssetBuilderOpen(true);
+                                  setAssetBuilderStep(1);
+                                  setTempAssetClass("");
+                                  setTempAssetName("");
+                                  setTempAssetLife("");
+                                  setTempDepreciationMethod("");
+                                }}
+                              >
+                                + Add Asset
+                              </button>
+                            )}
+
+                            {assetBuilderOpen && assetBuilderStep === 1 && (
+                              <div className="figma-asset-builder-card">
+                                <div className="figma-asset-builder-head">Add Asset</div>
+                                <div className="figma-asset-class-grid">
+                                  <div
+                                    className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
+                                    onClick={() => setTempAssetClass("capital_works")}
+                                  >
+                                    <div className="figma-asset-class-icon">
+                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                        <polyline points="9 22 9 12 15 12 15 22" />
+                                      </svg>
+                                    </div>
+                                    <div className="figma-asset-class-info">
+                                      <span className="figma-asset-class-title">Capital Works</span>
+                                      <span className="figma-asset-class-desc">
+                                        Structural / building costs (Div 43). Statutory rate depreciation.
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
+                                    onClick={() => setTempAssetClass("capital_allowance")}
+                                  >
+                                    <div className="figma-asset-class-icon">
+                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                      </svg>
+                                    </div>
+                                    <div className="figma-asset-class-info">
+                                      <span className="figma-asset-class-title">Capital Allowance</span>
+                                      <span className="figma-asset-class-desc">
+                                        Plant & equipment (Div 40). Requires effective life.
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="figma-asset-actions">
+                                  <button
+                                    type="button"
+                                    className="figma-asset-cancel-btn"
+                                    onClick={() => setAssetBuilderOpen(false)}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="figma-asset-submit-btn"
+                                    disabled={!tempAssetClass}
+                                    onClick={() => {
+                                      if (tempAssetClass === "capital_works") {
+                                        setCategorizeIsAssetPurchase(true);
+                                        setCategorizeAssetClass("capital_works");
+                                        setCategorizeAssetItemName("Capital Works");
+                                        setCategorizeEffectiveLifeYears("");
+                                        setAssetBuilderOpen(false);
+                                      } else {
+                                        setAssetBuilderStep(2);
+                                      }
+                                    }}
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {assetBuilderOpen && assetBuilderStep === 2 && (
+                              <div className="figma-asset-builder-card">
+                                <div className="figma-asset-builder-head">Asset Details</div>
+                                <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
+                                  <div className="recon-categorize-field">
+                                    <label className="recon-categorize-label">Asset Name <span className="is-required">*</span></label>
+                                    <input
+                                      type="text"
+                                      className="recon-categorize-input"
+                                      style={{ height: '48px' }}
+                                      placeholder="e.g. Fridge, AC"
+                                      value={tempAssetName}
+                                      onChange={(e) => setTempAssetName(e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="recon-categorize-field">
+                                    <label className="recon-categorize-label">Effective Life (years) <span className="is-required">*</span></label>
+                                    <input
+                                      type="number"
+                                      className="recon-categorize-input"
+                                      style={{ height: '48px' }}
+                                      placeholder="Select years"
+                                      value={tempAssetLife}
+                                      onChange={(e) => setTempAssetLife(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="figma-asset-actions">
+                                  <button
+                                    type="button"
+                                    className="figma-asset-cancel-btn"
+                                    onClick={() => setAssetBuilderStep(1)}
+                                  >
+                                    Back
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="figma-asset-submit-btn"
+                                    disabled={!tempAssetName || !tempAssetLife}
+                                    onClick={() => setAssetBuilderStep(3)}
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {assetBuilderOpen && assetBuilderStep === 3 && (
+                              <div className="figma-asset-builder-card">
+                                <div className="figma-asset-builder-head">Method of Depreciation</div>
+                                <div className="figma-asset-class-grid">
+                                  <div
+                                    className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
+                                    onClick={() => setTempDepreciationMethod("diminishing_value")}
+                                  >
+                                    <div className="figma-asset-class-icon">
+                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                        <polyline points="17 6 23 6 23 12" />
+                                      </svg>
+                                    </div>
+                                    <div className="figma-asset-class-info">
+                                      <span className="figma-asset-class-title">Diminishing Value</span>
+                                      <span className="figma-asset-class-desc">
+                                        Higher deductions in early years
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
+                                    onClick={() => setTempDepreciationMethod("prime_cost")}
+                                  >
+                                    <div className="figma-asset-class-icon">
+                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                      </svg>
+                                    </div>
+                                    <div className="figma-asset-class-info">
+                                      <span className="figma-asset-class-title">Prime Cost</span>
+                                      <span className="figma-asset-class-desc">
+                                        Equal deductions each year
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="figma-asset-actions">
+                                  <button
+                                    type="button"
+                                    className="figma-asset-cancel-btn"
+                                    onClick={() => setAssetBuilderStep(2)}
+                                  >
+                                    Back
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="figma-asset-submit-btn"
+                                    disabled={!tempDepreciationMethod}
+                                    onClick={() => {
+                                      setCategorizeIsAssetPurchase(true);
+                                      setCategorizeAssetClass("capital_allowance");
+                                      setCategorizeAssetItemName(tempAssetName);
+                                      setCategorizeEffectiveLifeYears(tempAssetLife);
+                                      setCategorizeDepreciationMethod(tempDepreciationMethod);
+                                      setAssetBuilderOpen(false);
+                                    }}
+                                  >
+                                    Add Asset
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Is this a personal transaction toggle & inputs */}
+                        {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && (
+                          <div style={{ marginTop: 16 }}>
+                            <div className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
+                              <div className="figma-toggle-info">
+                                <span className="figma-toggle-title">Is this a personal transaction?</span>
+                                <span className="figma-toggle-desc">Split this transaction between business and personal use</span>
+                              </div>
+                              <label className="figma-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={categorizeIsPersonal}
+                                  onChange={(e) => {
+                                    setCategorizeIsPersonal(e.target.checked);
+                                  }}
+                                />
+                                <span className="figma-switch-slider" />
+                              </label>
                             </div>
-                          )}
-                        </div>
+
+                            {categorizeIsPersonal && (
+                              <div className="figma-personal-alloc-section">
+                                <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
+                                  <div className="recon-categorize-field">
+                                    <label className="recon-categorize-label">Personal Allocation</label>
+                                    <StaticSelect
+                                      value={categorizePersonalAllocationType}
+                                      options={[
+                                        { label: "Percentage", value: "percentage" },
+                                        { label: "Amount", value: "amount" },
+                                      ]}
+                                      onChange={(value) => setCategorizePersonalAllocationType(value as "percentage" | "amount")}
+                                    />
+                                  </div>
+                                  <div className="recon-categorize-field">
+                                    <label className="recon-categorize-label">
+                                      {categorizePersonalAllocationType === "percentage" ? "Personal %" : "Personal Amount"}
+                                    </label>
+                                    <input
+                                      type="number"
+                                      className="recon-categorize-input"
+                                      style={{ height: '48px' }}
+                                      value={categorizePersonalValue}
+                                      onChange={(e) => setCategorizePersonalValue(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="figma-portion-wrapper">
+                                  <div className="figma-portion-box">
+                                    <span className="figma-portion-label">Business portion</span>
+                                    <span className="figma-portion-value">A$ {categorizeBusinessPortion.toFixed(2)}</span>
+                                  </div>
+                                  <div className="figma-portion-box">
+                                    <span className="figma-portion-label">Personal portion</span>
+                                    <span className="figma-portion-value">A$ {categorizePersonalPortion.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Is it a regular payment? */}
+                        {categorizeTxType !== "personal" && (
+                          <div style={{ marginTop: 16 }}>
+                            <div className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
+                              <div className="figma-toggle-info">
+                                <span className="figma-toggle-title">Is it a regular payment?</span>
+                                <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+                              </div>
+                              <label className="figma-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={categorizeIsRegularPayment}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setCategorizeIsRegularPayment(checked);
+                                    if (!checked) {
+                                      setCategorizeDueDate("");
+                                      setCategorizeDueDateTouched(false);
+                                      setCategorizeAlertName("");
+                                      setCategorizeUserEditedAlertName(false);
+                                    }
+                                  }}
+                                />
+                                <span className="figma-switch-slider" />
+                              </label>
+                            </div>
+
+                            {categorizeIsRegularPayment && (
+                              <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
+                                <div className="recon-categorize-field">
+                                  <label className="recon-categorize-label">Due Date <span className="is-required">*</span></label>
+                                  <input
+                                    type="date"
+                                    className="recon-categorize-input"
+                                    style={{ height: '48px' }}
+                                    value={categorizeDueDate}
+                                    onChange={(e) => setCategorizeDueDate(e.target.value)}
+                                    onBlur={() => setCategorizeDueDateTouched(true)}
+                                  />
+                                  {categorizeDueDateTouched && categorizeDueDateError && (
+                                    <p className="recon-split-row-error">{categorizeDueDateError}</p>
+                                  )}
+                                </div>
+                                <div className="recon-categorize-field">
+                                  <label className="recon-categorize-label">Alert Name <span className="is-required">*</span></label>
+                                  <input
+                                    type="text"
+                                    className="recon-categorize-input"
+                                    style={{ height: '48px' }}
+                                    placeholder="e.g. Quarterly insurance reminder"
+                                    value={categorizeAlertName}
+                                    onChange={(e) => {
+                                      setCategorizeAlertName(e.target.value);
+                                      setCategorizeUserEditedAlertName(true);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Split option and section placed before GST */}
+                        {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && (
+                          <div className="recon-categorize-split-container" style={{ marginTop: 16 }}>
+                            <label className="recon-categorize-checkbox-row">
+                              <input
+                                type="checkbox"
+                                className="custom-recon-checkbox"
+                                checked={categorizeIsSplit}
+                                onChange={(e) => handleCategorizeSplitToggle(e.target.checked)}
+                              />
+                              <span>Is this a split transaction?</span>
+                            </label>
+
+                            {categorizeIsSplit && (
+                              <div className="recon-categorize-split-section">
+                                <div className="recon-split-header">
+                                  <span>Property Name <span className="is-required">*</span></span>
+                                  <span>Amount <span className="is-required">*</span></span>
+                                  <span></span>
+                                </div>
+
+                                {categorizeSplitRows.map((row) => {
+                                  const rowError = categorizeSplitErrors[row.id];
+                                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                                  return (
+                                    <div key={row.id} className="recon-split-row">
+                                      <StaticSelect
+                                        value={row.propertyId}
+                                        placeholder="Select Property"
+                                        options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                                        onChange={(value) => updateCategorizeSplitRow(row.id, { propertyId: value })}
+                                        error={propertyError}
+                                      />
+                                      <div className="recon-categorize-field">
+                                        <div className="recon-categorize-amount-input-wrapper">
+                                          <input
+                                            type="number"
+                                            inputMode="decimal"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            className={`recon-categorize-input${amountError ? " has-error" : ""}`}
+                                            value={row.amount}
+                                            onKeyDown={(e) => {
+                                              if (e.key === "-" || e.key === "Minus") {
+                                                e.preventDefault();
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              const val = e.target.value.replace(/-/g, "");
+                                              updateCategorizeSplitRow(row.id, { amount: val });
+                                            }}
+                                          />
+                                          <span className="recon-categorize-amount-currency">A$</span>
+                                        </div>
+                                        {amountError && (
+                                          <p className="recon-split-row-error">{amountError}</p>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="recon-split-remove-btn"
+                                        disabled={categorizeSplitRows.length <= 1}
+                                        onClick={() => removeCategorizeSplitRow(row.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+
+                                {categorizeSplitErrors.__form && (
+                                  <p className="recon-split-form-error">{categorizeSplitErrors.__form}</p>
+                                )}
+
+                                <div className="recon-split-footer">
+                                  <span
+                                    className={`recon-split-total-info${!categorizeSplitMatches ? " is-mismatch" : ""}`}
+                                  >
+                                    {activeGrossAmount > 0
+                                      ? `Split total: ${categorizeSplitTotal.toFixed(2)} of ${activeGrossAmount.toFixed(2)}`
+                                      : "Splits must equal the transaction total."}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="recon-split-add-btn"
+                                    onClick={addCategorizeSplitRow}
+                                    disabled={properties.length < 2}
+                                  >
+                                    + Add Property
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="recon-categorize-gst">
                           <span className="recon-categorize-gst-label">GST Applicable</span>
                           <div className="recon-categorize-gst-options">
@@ -3100,9 +3830,10 @@ export default function AccountantReconciliationSessionPage() {
                             className="recon-categorize-save-btn"
                             disabled={
                               categorizeSaving ||
-                              !categorizeCategoryId ||
+                              (categorizeTxType !== "personal" && !categorizeCategoryId) ||
                               (!categorizeIsSplit && !categorizePropertyId) ||
-                              (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches))
+                              (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches)) ||
+                              (categorizeIsRegularPayment && (!categorizeDueDate || !!categorizeDueDateError || !categorizeAlertName.trim()))
                             }
                             onClick={() => { void doSaveCategorize(reconId, bankTxIndex); }}
                           >
