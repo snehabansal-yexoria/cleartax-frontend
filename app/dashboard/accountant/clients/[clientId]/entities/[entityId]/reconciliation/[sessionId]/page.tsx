@@ -23,7 +23,16 @@ import type {
   ReconciliationSessionDetail,
   ReconciliationTransaction,
   CoreAssetClass,
+  CoreTransactionType,
 } from "@/src/lib/coreApi";
+import {
+  TRANSACTION_TYPE_OPTIONS,
+  allowsAssetPurchase,
+  allowsBusinessExtras,
+  hidesCategoryPicker,
+  hidesSubcategoryPicker,
+  parseTransactionType,
+} from "@/src/lib/transactionTypes";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
 import { StaticSelect } from "@/app/components/TransactionsFeature";
@@ -412,7 +421,10 @@ export default function AccountantReconciliationSessionPage() {
 
   // Categorize panel
   const [categorizeKey, setCategorizeKey] = useState<MatchKey | null>(null);
-  const [categorizeType, setCategorizeType] = useState<"expense" | "revenue">("expense");
+  // One type, the API's. This used to be two pieces of state — an "expense" |
+  // "revenue" value for the request and a wider display union — which had to be
+  // kept in sync on every change.
+  const [categorizeType, setCategorizeType] = useState<CoreTransactionType>("expense");
   const [categorizeCategoryId, setCategorizeCategoryId] = useState<number | null>(null);
   const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
@@ -429,7 +441,6 @@ export default function AccountantReconciliationSessionPage() {
   ]);
 
   // New states from add transaction form
-  const [categorizeTxType, setCategorizeTxType] = useState<"income" | "expense" | "personal" | "cost_base">("expense");
   const [categorizeIsAssetPurchase, setCategorizeIsAssetPurchase] = useState(false);
   const [categorizeAssetClass, setCategorizeAssetClass] = useState<CoreAssetClass | "">("");
   const [categorizeEffectiveLifeYears, setCategorizeEffectiveLifeYears] = useState("");
@@ -454,7 +465,7 @@ export default function AccountantReconciliationSessionPage() {
   const [categorizeUserEditedAlertName, setCategorizeUserEditedAlertName] = useState(false);
 
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkType, setBulkType] = useState<"expense" | "revenue">("expense");
+  const [bulkType, setBulkType] = useState<CoreTransactionType>("expense");
   const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
   const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
   const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
@@ -817,9 +828,10 @@ export default function AccountantReconciliationSessionPage() {
     const idx = Number(idxStr);
     const bankTx = rec.transactions[idx];
     if (!bankTx) return;
-    const txType: "expense" | "revenue" = bankTx.debit != null ? "expense" : "revenue";
-    setCategorizeType(txType);
-    setCategorizeTxType(txType === "revenue" ? "income" : "expense");
+    // A bank line only tells us the direction; personal / cost base is a
+    // judgement the accountant makes in the drawer, so default from debit vs
+    // credit and let them change it.
+    setCategorizeType(bankTx.debit != null ? "expense" : "revenue");
 
     // Reset new states
     setCategorizeIsAssetPurchase(false);
@@ -894,59 +906,36 @@ export default function AccountantReconciliationSessionPage() {
     return () => { cancelled = true; };
   }, [categorizeCategoryId]);
 
-  // Default category/subcategory/property for personal transactions
+  // The asset section stays visible for revenue (as it always has), but the
+  // backend only accepts is_asset_purchase on an expense, so clear it rather
+  // than letting the save fail. Mirrors the same guard in AddTransactionView.
   useEffect(() => {
-    if (categorizeTxType === "personal" && categorizeCategories.length > 0) {
-      const personalCat = categorizeCategories.find(c => 
-        c.name.toLowerCase().includes("personal") || 
-        c.name.toLowerCase().includes("private")
-      ) || categorizeCategories[0];
-      if (personalCat && categorizeCategoryId !== personalCat.id) {
-        setCategorizeCategoryId(personalCat.id);
-      }
+    if (!allowsAssetPurchase(categorizeType) && categorizeIsAssetPurchase) {
+      setCategorizeIsAssetPurchase(false);
     }
-  }, [categorizeTxType, categorizeCategories, categorizeCategoryId]);
+  }, [categorizeType, categorizeIsAssetPurchase]);
+
+  // Personal hides the category picker and cost base hides the subcategory
+  // picker, so auto-select from the typed category fetch. Since migration 0032
+  // seeds a taxonomy per type, this is a plain first-option pick rather than
+  // matching category names against "personal"/"private".
+  useEffect(() => {
+    if (hidesCategoryPicker(categorizeType) && !categorizeCategoryId && categorizeCategories[0]) {
+      setCategorizeCategoryId(categorizeCategories[0].id);
+    }
+  }, [categorizeType, categorizeCategories, categorizeCategoryId]);
 
   useEffect(() => {
-    if (categorizeTxType === "personal" && categorizeSubcategories.length > 0) {
-      const personalSub = categorizeSubcategories.find(s => 
-        s.name.toLowerCase().includes("personal") || 
-        s.name.toLowerCase().includes("private")
-      ) || categorizeSubcategories[0];
-      if (personalSub && categorizeSubcategoryId !== personalSub.id) {
-        setCategorizeSubcategoryId(personalSub.id);
-      }
+    if (hidesSubcategoryPicker(categorizeType) && !categorizeSubcategoryId && categorizeSubcategories[0]) {
+      setCategorizeSubcategoryId(categorizeSubcategories[0].id);
     }
-  }, [categorizeTxType, categorizeSubcategories, categorizeSubcategoryId]);
+  }, [categorizeType, categorizeSubcategories, categorizeSubcategoryId]);
 
   useEffect(() => {
-    if (categorizeTxType === "personal" && !categorizePropertyId && properties.length > 0) {
+    if (!allowsBusinessExtras(categorizeType) && !categorizePropertyId && properties.length > 0) {
       setCategorizePropertyId(properties[0].id);
     }
-  }, [categorizeTxType, categorizePropertyId, properties]);
-
-  // Default category/subcategory/property for Property Cost Base
-  useEffect(() => {
-    if (categorizeTxType === "cost_base") {
-      if (categorizeCategories.length > 0 && !categorizeCategoryId) {
-        setCategorizeCategoryId(categorizeCategories[0].id);
-      }
-    }
-  }, [categorizeTxType, categorizeCategories, categorizeCategoryId]);
-
-  useEffect(() => {
-    if (categorizeTxType === "cost_base") {
-      if (categorizeSubcategories.length > 0 && !categorizeSubcategoryId) {
-        setCategorizeSubcategoryId(categorizeSubcategories[0].id);
-      }
-    }
-  }, [categorizeTxType, categorizeSubcategories, categorizeSubcategoryId]);
-
-  useEffect(() => {
-    if (categorizeTxType === "cost_base" && !categorizePropertyId && properties.length > 0) {
-      setCategorizePropertyId(properties[0].id);
-    }
-  }, [categorizeTxType, categorizePropertyId, properties]);
+  }, [categorizeType, categorizePropertyId, properties]);
 
   // Auto-populate Alert Name based on subcategory and property
   useEffect(() => {
@@ -966,11 +955,10 @@ export default function AccountantReconciliationSessionPage() {
     }
   }, [categorizeSubcategoryId, categorizePropertyId, categorizeSubcategories, properties, categorizeUserEditedAlertName]);
 
+  // Private-use split of a business expense. A wholly personal transaction is
+  // type === "personal" and carries no split, so categorizeIsPersonal is false.
   const categorizePersonalPortion = useMemo(() => {
     if (!categorizeIsPersonal) return 0;
-    if (categorizeTxType === "personal") {
-      return activeGrossAmount;
-    }
     if (categorizePersonalAllocationType === "percentage") {
       const pct = Number.parseFloat(categorizePersonalValue) || 0;
       return activeGrossAmount * (pct / 100);
@@ -978,15 +966,12 @@ export default function AccountantReconciliationSessionPage() {
       const amt = Number.parseFloat(categorizePersonalValue) || 0;
       return amt;
     }
-  }, [categorizeIsPersonal, categorizeTxType, categorizePersonalAllocationType, categorizePersonalValue, activeGrossAmount]);
+  }, [categorizeIsPersonal, categorizePersonalAllocationType, categorizePersonalValue, activeGrossAmount]);
 
   const categorizeBusinessPortion = useMemo(() => {
     if (!categorizeIsPersonal) return activeGrossAmount;
-    if (categorizeTxType === "personal") {
-      return 0;
-    }
     return Math.max(0, activeGrossAmount - categorizePersonalPortion);
-  }, [categorizeIsPersonal, categorizeTxType, activeGrossAmount, categorizePersonalPortion]);
+  }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPortion]);
 
   const categorizeDueDateError = useMemo(() => {
     if (!categorizeDueDate) {
@@ -1283,11 +1268,13 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
-    if (categorizeTxType !== "personal" && (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId))) {
+    // Every type has a category and subcategory now (hidden ones are
+    // auto-selected), and the backend requires both on every transaction.
+    if (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId)) {
       setCategorizeError("Category and Property are required.");
       return;
     }
-    if (categorizeTxType !== "personal" && !categorizeSubcategoryId && categorizeTxType !== "cost_base") {
+    if (!categorizeSubcategoryId) {
       setCategorizeError("Please select sub category to continue.");
       return;
     }
@@ -1313,7 +1300,7 @@ export default function AccountantReconciliationSessionPage() {
     const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
 
     let splits: Array<Record<string, unknown>>;
-    if (categorizeIsSplit && categorizeTxType !== "personal" && categorizeTxType !== "cost_base") {
+    if (categorizeIsSplit && allowsBusinessExtras(categorizeType)) {
       const splitPropertyCount = new Set(
         categorizeSplitRows.map((row) => row.propertyId).filter(Boolean)
       ).size;
@@ -1345,7 +1332,9 @@ export default function AccountantReconciliationSessionPage() {
         };
       });
     } else {
-      const resolvedPropertyId = (categorizeTxType === "personal" || categorizeTxType === "cost_base") ? (categorizePropertyId || (properties[0]?.id ?? "")) : categorizePropertyId;
+      const resolvedPropertyId = allowsBusinessExtras(categorizeType)
+        ? categorizePropertyId
+        : categorizePropertyId || (properties[0]?.id ?? "");
       if (!resolvedPropertyId) {
         setCategorizeError("Property is required.");
         setCategorizeSaving(false);
@@ -1378,10 +1367,7 @@ export default function AccountantReconciliationSessionPage() {
       let personalPortionVal = 0;
       let businessPortionVal = 0;
       if (categorizeIsPersonal) {
-        if (categorizeTxType === "personal") {
-          personalPortionVal = grossNumValueForSave;
-          businessPortionVal = 0;
-        } else if (categorizePersonalAllocationType === "percentage") {
+        if (categorizePersonalAllocationType === "percentage") {
           const pct = parseFloat(categorizePersonalValue) || 0;
           personalPortionVal = grossNumValueForSave * (pct / 100);
           businessPortionVal = grossNumValueForSave - personalPortionVal;
@@ -1392,14 +1378,17 @@ export default function AccountantReconciliationSessionPage() {
         }
       }
 
+      // Rent alerts and private-use splits only apply to business transactions.
+      const withBusinessExtras = allowsBusinessExtras(categorizeType);
       const metadata: Record<string, unknown> = {
         source: "reconciliation_categorized",
-        is_regular_payment: categorizeTxType === "personal" ? false : categorizeIsRegularPayment,
-        due_date: categorizeTxType === "personal" ? null : (categorizeIsRegularPayment ? (categorizeDueDate || null) : null),
-        alert_name: categorizeTxType === "personal" ? null : (categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null),
+        is_regular_payment: withBusinessExtras ? categorizeIsRegularPayment : false,
+        due_date: withBusinessExtras && categorizeIsRegularPayment ? (categorizeDueDate || null) : null,
+        alert_name: withBusinessExtras && categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null,
         is_personal: categorizeIsPersonal,
-        personal_allocation_type: categorizeTxType === "personal" ? "percentage" : categorizePersonalAllocationType,
-        personal_percentage: categorizeTxType === "personal" ? 100 : (categorizeIsPersonal && categorizePersonalValue ? parseFloat(categorizePersonalValue) : null),
+        personal_allocation_type: categorizePersonalAllocationType,
+        personal_percentage:
+          categorizeIsPersonal && categorizePersonalValue ? parseFloat(categorizePersonalValue) : null,
         business_portion: Number(businessPortionVal.toFixed(2)),
         personal_portion: Number(personalPortionVal.toFixed(2)),
       };
@@ -1418,7 +1407,8 @@ export default function AccountantReconciliationSessionPage() {
         gst_amount: gstAmount,
         description: bankTx.payee ?? bankTx.description ?? null,
         internal_remarks: null,
-        review_status: "reviewed",
+        // No review_status: creates default to 'active'. The review queue is
+        // only for transactions a client submits for sign-off.
         is_asset_purchase: categorizeIsAssetPurchase,
         metadata,
         splits,
@@ -1555,7 +1545,6 @@ export default function AccountantReconciliationSessionPage() {
               gst_amount: gst,
               description: row.payee ?? row.description ?? null,
               internal_remarks: null,
-              review_status: "reviewed",
               is_asset_purchase: false,
               metadata: { source: "reconciliation_categorized" },
               splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
@@ -3215,33 +3204,20 @@ export default function AccountantReconciliationSessionPage() {
                               Transaction Type <span className="is-required">*</span>
                             </label>
                             <StaticSelect
-                              value={categorizeTxType === "income" ? "revenue" : categorizeTxType}
-                              options={[
-                                { label: "Expense", value: "expense" },
-                                { label: "Revenue", value: "revenue" },
-                                { label: "Personal Transaction", value: "personal" },
-                                { label: "Property Cost Base", value: "cost_base" },
-                              ]}
+                              value={categorizeType}
+                              options={TRANSACTION_TYPE_OPTIONS}
                               onChange={(val) => {
-                                const newTxType = val as "expense" | "revenue" | "personal" | "cost_base";
-                                const normalized = newTxType === "revenue" ? "income" : newTxType;
-                                setCategorizeTxType(normalized);
-                                if (normalized === "income") {
-                                  setCategorizeType("revenue");
-                                  setCategorizeIsPersonal(false);
+                                const nextType = parseTransactionType(val);
+                                setCategorizeType(nextType);
+                                // Cost base is capitalised, not depreciated, so
+                                // it must NOT set is_asset_purchase — doing so
+                                // sent asset_class: null and the backend
+                                // rejected every cost-base save.
+                                if (!allowsAssetPurchase(nextType)) {
                                   setCategorizeIsAssetPurchase(false);
-                                } else if (normalized === "expense") {
-                                  setCategorizeType("expense");
+                                }
+                                if (!allowsBusinessExtras(nextType)) {
                                   setCategorizeIsPersonal(false);
-                                  setCategorizeIsAssetPurchase(false);
-                                } else if (normalized === "personal") {
-                                  setCategorizeType("expense");
-                                  setCategorizeIsPersonal(true);
-                                  setCategorizeIsAssetPurchase(false);
-                                } else if (normalized === "cost_base") {
-                                  setCategorizeType("expense");
-                                  setCategorizeIsPersonal(false);
-                                  setCategorizeIsAssetPurchase(true);
                                 }
                                 setCategorizeCategoryId(null);
                                 setCategorizeSubcategoryId(null);
@@ -3249,7 +3225,7 @@ export default function AccountantReconciliationSessionPage() {
                             />
                           </div>
 
-                          {categorizeTxType !== "personal" && (
+                          {!hidesCategoryPicker(categorizeType) && (
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Category <span className="is-required">*</span>
@@ -3266,7 +3242,7 @@ export default function AccountantReconciliationSessionPage() {
                             </div>
                           )}
 
-                          {categorizeTxType !== "personal" && categorizeTxType === "cost_base" && (
+                          {categorizeType === "cost_base" && (
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -3284,7 +3260,7 @@ export default function AccountantReconciliationSessionPage() {
                             </div>
                           )}
 
-                          {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && showCategorizeSubcategorySelect && (
+                          {!hidesSubcategoryPicker(categorizeType) && showCategorizeSubcategorySelect && (
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Subcategory <span className="is-required">*</span>
@@ -3301,7 +3277,7 @@ export default function AccountantReconciliationSessionPage() {
                         </div>
 
                         {/* Add Asset Section */}
-                        {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && (
+                        {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
                             {categorizeIsAssetPurchase && categorizeAssetItemName ? (
                               <div className="figma-active-asset-display" style={{ marginBottom: 16 }}>
@@ -3541,7 +3517,7 @@ export default function AccountantReconciliationSessionPage() {
                         )}
 
                         {/* Is this a personal transaction toggle & inputs */}
-                        {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && (
+                        {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
                             <div className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
                               <div className="figma-toggle-info">
@@ -3604,7 +3580,7 @@ export default function AccountantReconciliationSessionPage() {
                         )}
 
                         {/* Is it a regular payment? */}
-                        {categorizeTxType !== "personal" && (
+                        {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
                             <div className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
                               <div className="figma-toggle-info">
@@ -3666,7 +3642,7 @@ export default function AccountantReconciliationSessionPage() {
                         )}
 
                         {/* Split option and section placed before GST */}
-                        {categorizeTxType !== "personal" && categorizeTxType !== "cost_base" && (
+                        {allowsBusinessExtras(categorizeType) && (
                           <div className="recon-categorize-split-container" style={{ marginTop: 16 }}>
                             <label className="recon-categorize-checkbox-row">
                               <input
@@ -3830,7 +3806,7 @@ export default function AccountantReconciliationSessionPage() {
                             className="recon-categorize-save-btn"
                             disabled={
                               categorizeSaving ||
-                              (categorizeTxType !== "personal" && !categorizeCategoryId) ||
+                              !categorizeCategoryId ||
                               (!categorizeIsSplit && !categorizePropertyId) ||
                               (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches)) ||
                               (categorizeIsRegularPayment && (!categorizeDueDate || !!categorizeDueDateError || !categorizeAlertName.trim()))
@@ -4089,12 +4065,9 @@ export default function AccountantReconciliationSessionPage() {
                   </label>
                   <StaticSelect
                     value={bulkType}
-                    options={[
-                      { label: "Expense", value: "expense" },
-                      { label: "Revenue", value: "revenue" },
-                    ]}
+                    options={TRANSACTION_TYPE_OPTIONS}
                     onChange={(val) => {
-                      setBulkType(val as "expense" | "revenue");
+                      setBulkType(parseTransactionType(val));
                       setBulkCategoryId(null);
                       setBulkSubcategoryId(null);
                     }}

@@ -10,6 +10,7 @@ import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
+import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import {
   dropdownRegistryEvent,
@@ -419,7 +420,7 @@ export default function ClientPage() {
 
   const activityItems = transactions.slice(0, 5).map(tx => ({
     id: tx.id,
-    description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+    description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
     categoryName: tx.categoryName,
     meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
     type: tx.type,

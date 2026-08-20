@@ -14,7 +14,12 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const rawType = url.searchParams.get("type");
   const type: CoreTransactionType | undefined =
-    rawType === "revenue" || rawType === "expense" ? rawType : undefined;
+    rawType === "revenue" ||
+    rawType === "expense" ||
+    rawType === "personal" ||
+    rawType === "cost_base"
+      ? rawType
+      : undefined;
 
   try {
     const items = await listCoreTransactionCategories(token, type);

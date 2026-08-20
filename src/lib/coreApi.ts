@@ -893,8 +893,19 @@ export async function updateCorePropertyLogit(
 // Transactions
 // =============================================================================
 
-export type CoreTransactionType = "revenue" | "expense";
+// "personal" (wholly private spending) and "cost_base" (capitalised against a
+// property's CGT cost base) are money out but are not deductible expenses, so
+// they are distinct types rather than flags on an expense.
+export type CoreTransactionType =
+  | "revenue"
+  | "expense"
+  | "personal"
+  | "cost_base";
+// "active" is the default for every new transaction — live in the ledger, in
+// nobody's queue. "unreviewed" means a client pressed "Submit to accountant"
+// and it is waiting for sign-off, so it is the accountant's review queue.
 export type CoreReviewStatus =
+  | "active"
   | "unreviewed"
   | "reviewed"
   | "approved"
@@ -1078,13 +1089,23 @@ function toAssetClass(value: unknown): CoreAssetClass | null {
 
 function toTxnType(value: unknown): CoreTransactionType {
   const s = toStringValue(value).toLowerCase();
-  return s === "revenue" ? "revenue" : "expense";
+  if (s === "revenue" || s === "personal" || s === "cost_base") return s;
+  return "expense";
 }
 
 function toReviewStatus(value: unknown): CoreReviewStatus {
   const s = toStringValue(value).toLowerCase();
-  if (s === "reviewed" || s === "approved" || s === "rejected") return s;
-  return "unreviewed";
+  if (
+    s === "unreviewed" ||
+    s === "reviewed" ||
+    s === "approved" ||
+    s === "rejected"
+  ) {
+    return s;
+  }
+  // Fall back to "active", not "unreviewed": an absent or unrecognised value
+  // must not fabricate a review request the client never made.
+  return "active";
 }
 
 export function normalizeCoreTransactionAllocation(
@@ -1401,6 +1422,7 @@ export function toCoreReviewStatusParam(
 ): CoreReviewStatus | undefined {
   const s = (value ?? "").trim().toLowerCase();
   if (
+    s === "active" ||
     s === "unreviewed" ||
     s === "reviewed" ||
     s === "approved" ||

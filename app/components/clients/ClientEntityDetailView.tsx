@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
+import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import { formatClientCurrency, formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
 
@@ -343,7 +344,7 @@ export default function ClientEntityDetailView({
   const recentTransactions = useMemo(() => {
     return transactions.slice(0, 5).map((tx) => ({
       id: tx.id,
-      description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+      description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
       meta: tx.propertyNames?.[0] || "General",
       type: tx.type,
       amount: Math.abs(tx.netAmount || tx.grossAmount || 0),

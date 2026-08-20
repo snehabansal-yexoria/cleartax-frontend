@@ -8,6 +8,18 @@ import { useTheme } from "next-themes";
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import {
+  TRANSACTION_TYPE_OPTIONS,
+  allowsAssetPurchase,
+  allowsBusinessExtras,
+  hidesCategoryPicker,
+  hidesSubcategoryPicker,
+  isRevenueType,
+  parseTransactionType,
+  transactionTypeColor,
+  transactionTypeLabel,
+  transactionTypeModifier,
+} from "@/src/lib/transactionTypes";
 import type {
   CoreAssetClass,
   CorePropertyTransactionRow,
@@ -132,7 +144,7 @@ type CoreTransactionRule = {
 type SelectOption = {
   label: string;
   value: string;
-  type?: "revenue" | "expense" | string;
+  type?: CoreTransactionType | string;
 };
 
 type StaticSelectProps = {
@@ -394,7 +406,9 @@ export function StaticSelect({
                     height: "8px",
                     borderRadius: "50%",
                     marginRight: "8px",
-                    backgroundColor: selected.type === "revenue" ? "#12a150" : "#e11d48",
+                    backgroundColor: transactionTypeColor(
+                      selected.type as CoreTransactionType,
+                    ),
                     flexShrink: 0,
                   }}
                 />
@@ -431,7 +445,9 @@ export function StaticSelect({
                           height: "8px",
                           borderRadius: "50%",
                           marginRight: "8px",
-                          backgroundColor: option.type === "revenue" ? "#12a150" : "#e11d48",
+                          backgroundColor: transactionTypeColor(
+                            option.type as CoreTransactionType,
+                          ),
                           flexShrink: 0,
                         }}
                       />
@@ -835,7 +851,7 @@ function TransactionDetailPopup({
   }
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
-  const isRevenue = display.type === "revenue";
+  const isRevenue = isRevenueType(display.type);
   const splitRows =
     detail?.splits.map((split) => ({
       id: String(split.id),
@@ -1101,7 +1117,9 @@ function TransactionDetailPopup({
     const patchReviewStatus =
       canReview &&
         reviewAction === null &&
-        (reviewStatus === "unreviewed" || reviewStatus === "reviewed") &&
+        (reviewStatus === "active" ||
+          reviewStatus === "unreviewed" ||
+          reviewStatus === "reviewed") &&
         reviewStatus !== initialReview
         ? reviewStatus
         : undefined;
@@ -1201,28 +1219,24 @@ function TransactionDetailPopup({
               <div className="transaction-type-control">
                 <span className="transaction-field-label">Transaction Type<em>*</em></span>
                 <div>
-                  <button
-                    type="button"
-                    className={type === "expense" ? "is-selected" : ""}
-                    onClick={() => {
-                      setType("expense");
-                      setCategoryId(null);
-                      setSubcategoryId(null);
-                    }}
-                  >
-                    Expense
-                  </button>
-                  <button
-                    type="button"
-                    className={type === "revenue" ? "is-selected is-revenue" : ""}
-                    onClick={() => {
-                      setType("revenue");
-                      setCategoryId(null);
-                      setSubcategoryId(null);
-                    }}
-                  >
-                    Revenue
-                  </button>
+                  {TRANSACTION_TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={
+                        type === option.value
+                          ? `is-selected ${transactionTypeModifier(option.value)}`
+                          : ""
+                      }
+                      onClick={() => {
+                        setType(option.value);
+                        setCategoryId(null);
+                        setSubcategoryId(null);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
               {type === "expense" ? (
@@ -1513,10 +1527,9 @@ function TransactionDetailPopup({
               <div className={`transaction-detail-grid ${display.subcategoryName && display.subcategoryName.toLowerCase() !== "general" ? "is-three" : "is-two"}`}>
                 <DetailField label="Type">
                   <span
-                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                      }`}
+                    className={`transaction-type-pill ${transactionTypeModifier(display.type)}`}
                   >
-                    {isRevenue ? "Income" : "Expense"}
+                    {transactionTypeLabel(display.type)}
                   </span>
                 </DetailField>
                 <DetailField label="Category" value={display.categoryName} />
@@ -1572,18 +1585,20 @@ function TransactionDetailPopup({
                   label="Review Status"
                   value={reviewStatus}
                   options={[
-                    { label: "Unreviewed", value: "unreviewed" },
+                    { label: "Active", value: "active" },
+                    { label: "To Be Reviewed", value: "unreviewed" },
                     { label: "Reviewed", value: "reviewed" },
                     { label: "Approved", value: "approved" },
                     { label: "Rejected", value: "rejected" },
                   ]}
                   onChange={(value) =>
                     setReviewStatus(
-                      value === "reviewed" ||
+                      value === "unreviewed" ||
+                        value === "reviewed" ||
                         value === "approved" ||
                         value === "rejected"
                         ? value
-                        : "unreviewed",
+                        : "active",
                     )
                   }
                 />
@@ -1839,7 +1854,7 @@ function TransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = row.type === "revenue";
+              const isRevenue = isRevenueType(row.type);
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
@@ -1884,10 +1899,9 @@ function TransactionTable({
                   </td>
                   <td>
                     <span
-                      className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                        }`}
+                      className={`transaction-type-pill ${transactionTypeModifier(row.type)}`}
                     >
-                      {isRevenue ? "Revenue" : "Expense"}
+                      {transactionTypeLabel(row.type)}
                     </span>
                   </td>
                   <td>{row.categoryName}</td>
@@ -2053,7 +2067,7 @@ function PropertyTransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = row.transactionType === "revenue";
+              const isRevenue = isRevenueType(row.transactionType);
               const displayRow = propertyRowToDisplayRow(row);
               return (
                 <tr key={`${row.transactionId}-${row.splitId}`}>
@@ -2068,10 +2082,9 @@ function PropertyTransactionTable({
                   </td>
                   <td>
                     <span
-                      className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                        }`}
+                      className={`transaction-type-pill ${transactionTypeModifier(row.transactionType)}`}
                     >
-                      {isRevenue ? "Revenue" : "Expense"}
+                      {transactionTypeLabel(row.transactionType)}
                     </span>
                   </td>
                   <td>{row.categoryName}</td>
@@ -2185,7 +2198,6 @@ function AwaitingReviewTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = row.type === "revenue";
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
@@ -2209,10 +2221,9 @@ function AwaitingReviewTable({
                   <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
                   <td>
                     <span
-                      className={`transaction-type-badge ${isRevenue ? "is-revenue" : "is-expense"
-                        }`}
+                      className={`transaction-type-badge ${transactionTypeModifier(row.type)}`}
                     >
-                      {isRevenue ? "Revenue" : "Expense"}
+                      {transactionTypeLabel(row.type)}
                     </span>
                   </td>
                   <td>{formatSubmittedDate(row)}</td>
@@ -2940,14 +2951,13 @@ export function AllTransactionsView({
         propertyValues,
         "Unknown Property",
       ),
+      // Only offer types that are actually present in the current rows. Values
+      // are the raw API types so the filter compares against row.type directly.
       types: [
         { label: "All Types", value: "all" },
-        ...(transactionTypes.includes("expense")
-          ? [{ label: "Expense", value: "Expense" }]
-          : []),
-        ...(transactionTypes.includes("revenue")
-          ? [{ label: "Income", value: "Revenue" }]
-          : []),
+        ...TRANSACTION_TYPE_OPTIONS.filter((option) =>
+          transactionTypes.includes(option.value),
+        ),
       ],
       categories: makeCategoryOptions(
         "All Categories",
@@ -2963,15 +2973,13 @@ export function AllTransactionsView({
     return rows.filter((row) => {
       const rowClient = getRowClientFilterValue(row);
       const rowEntity = getRowEntityFilterValue(row);
-      const rowType = row.type === "revenue" ? "Revenue" : "Expense";
-
       return (
         (filters.client === "all" || rowClient === filters.client) &&
         (filters.entity === "all" || rowEntity === filters.entity) &&
         (filters.property === "all" ||
           row.propertyIds.includes(filters.property) ||
           row.propertyNames.includes(filters.property)) &&
-        (filters.type === "all" || rowType === filters.type) &&
+        (filters.type === "all" || row.type === filters.type) &&
         (filters.category === "all" || row.categoryName === filters.category)
       );
     });
@@ -2979,10 +2987,8 @@ export function AllTransactionsView({
 
   const filteredPropertyRows = useMemo(() => {
     return propertyRows.filter((row) => {
-      const rowType = row.transactionType === "revenue" ? "Revenue" : "Expense";
-
       return (
-        (filters.type === "all" || rowType === filters.type) &&
+        (filters.type === "all" || row.transactionType === filters.type) &&
         (filters.category === "all" || row.categoryName === filters.category)
       );
     });
@@ -3276,9 +3282,10 @@ export function AllTransactionsView({
     }
   }
 
-  // Tabs split the REAL rows by review status: "To Be Reviewed" is the
-  // unreviewed queue; "Reviewed" holds everything the accountant has touched
-  // (reviewed / approved / rejected).
+  // Tabs split the REAL rows by review status: "To Be Reviewed" is the queue a
+  // client submits into ("unreviewed"); "Transactions" is the working ledger —
+  // everything else, i.e. active uploads plus whatever the accountant has
+  // already touched (reviewed / approved / rejected).
   const reviewedCount = useMemo(() => {
     return contextKind === "property"
       ? propertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
@@ -3421,7 +3428,7 @@ export function AllTransactionsView({
             setCurrentPage(1);
           }}
         >
-          Reviewed <span className="transaction-tab-badge">{reviewedCount}</span>
+          Transactions <span className="transaction-tab-badge">{reviewedCount}</span>
         </button>
         <button
           type="button"
@@ -3510,7 +3517,7 @@ export function AllTransactionsView({
         <>
           <div className="transactions-showing-copy">
             Showing <strong>{totalCount}</strong> of{" "}
-            <strong>{unfilteredCount}</strong> transactions {activeTab === "unreviewed" ? "awaiting review" : "reviewed"}
+            <strong>{unfilteredCount}</strong> transactions {activeTab === "unreviewed" ? "awaiting review" : ""}
           </div>
           {activeTab === "unreviewed" ? (
             <AwaitingReviewTable
@@ -3787,6 +3794,8 @@ function BulkImportModal({
       "expense,Repairs & Maintenance,Plumbing,2026-03-02,850,85,bank_transfer,Emergency plumbing repair,Approved by client,false,,,,,",
       "revenue,Rental Income,Monthly Rent,2026-03-05,3200,0,bank_transfer,March rental payment,,false,,,,,",
       "expense,Utilities,Electricity,2026-03-10,500,50,bank_transfer,Shared electricity bill,,false,,,Sunset Villa|Ocean View,300|200,",
+      "personal,Personal,General,2026-03-12,120,0,bank_transfer,Private groceries,,false,,,,,",
+      "cost_base,Stamp duty,General,2026-03-15,18500,0,bank_transfer,Transfer duty on purchase,,false,,,,,",
     ].join("\n");
     const blob = new Blob([template], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -4301,8 +4310,8 @@ export function AddTransactionView({
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
   const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
 
-  // Figma Redesign States
-  const [transactionType, setTransactionType] = useState<"income" | "expense" | "personal" | "cost_base" | "">("");
+  // `isPersonal` is a partial private-use split on a business expense. A wholly
+  // personal transaction is its own type, so it no longer rides on this flag.
   const [isPersonal, setIsPersonal] = useState(false);
   const [personalAllocationType, setPersonalAllocationType] = useState<"percentage" | "amount">("percentage");
   const [personalValue, setPersonalValue] = useState("20");
@@ -4509,41 +4518,19 @@ export function AddTransactionView({
     setIsEditingEntity(!entityId);
   }, [entityId]);
 
-  // Sync type state changes to custom Figma type categories
-  useEffect(() => {
-    if (type === "revenue") {
-      setTransactionType("income");
-    } else if (type === "expense") {
-      if (isPersonal) {
-        setTransactionType("personal");
-      } else if (isAssetPurchase) {
-        setTransactionType("cost_base");
-      } else {
-        setTransactionType("expense");
-      }
-    } else if (type === "") {
-      setTransactionType("");
+  // `type` is now the API type verbatim — there is no separate display union to
+  // sync, and no projection of personal/cost_base back onto expense + flags.
+  // isPersonal stays meaningful only as a *partial* private-use split on a
+  // business expense; a wholly personal transaction is type === "personal".
+  function handleTransactionTypeChange(newType: CoreTransactionType) {
+    setType(newType);
+    setCategoryId(null);
+    setSubcategoryId(null);
+    if (!allowsAssetPurchase(newType)) {
+      setIsAssetPurchase(false);
     }
-  }, [type, isPersonal, isAssetPurchase]);
-
-  function handleTransactionTypeChange(newType: "income" | "expense" | "personal" | "cost_base") {
-    setTransactionType(newType);
-    if (newType === "income") {
-      setType("revenue");
+    if (!allowsBusinessExtras(newType)) {
       setIsPersonal(false);
-      setIsAssetPurchase(false);
-    } else if (newType === "expense") {
-      setType("expense");
-      setIsPersonal(false);
-      setIsAssetPurchase(false);
-    } else if (newType === "personal") {
-      setType("expense");
-      setIsPersonal(true);
-      setIsAssetPurchase(false);
-    } else if (newType === "cost_base") {
-      setType("expense");
-      setIsPersonal(false);
-      setIsAssetPurchase(true);
     }
   }
 
@@ -4864,15 +4851,13 @@ export function AddTransactionView({
     grossNumberValue > 0 &&
     Math.abs(splitTotal - grossNumberValue) < 0.01;
 
-  // Personal portions calculation for Figma redesign
+  // Private-use split of a business expense. A wholly personal transaction is
+  // type === "personal" and carries no split, so isPersonal is false there.
   const grossNumValue = Number.isNaN(grossNumberValue) ? 0 : grossNumberValue;
   let personalPortion = 0;
   let businessPortion = 0;
   if (isPersonal) {
-    if (transactionType === "personal") {
-      personalPortion = grossNumValue;
-      businessPortion = 0;
-    } else if (personalAllocationType === "percentage") {
+    if (personalAllocationType === "percentage") {
       const pct = Number.parseFloat(personalValue) || 0;
       personalPortion = grossNumValue * (pct / 100);
       businessPortion = grossNumValue - personalPortion;
@@ -4925,60 +4910,27 @@ export function AddTransactionView({
     }
   }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
 
-  // Default category/subcategory/property for personal transactions
+  // Personal hides the category picker and cost base hides the subcategory
+  // picker, so auto-select whatever the typed category fetch returned. The
+  // taxonomy is seeded per type (migration 0032), so this is a straight
+  // first-option pick — no name matching on "personal"/"drawing" any more.
   useEffect(() => {
-    if (transactionType === "personal" && categories.length > 0) {
-      const personalCat = categories.find(c => 
-        c.name.toLowerCase().includes("personal") || 
-        c.name.toLowerCase().includes("drawing")
-      ) || categories[0];
-      if (personalCat && categoryId !== personalCat.id) {
-        setCategoryId(personalCat.id);
-      }
+    if (hidesCategoryPicker(type) && !categoryId && categories[0]) {
+      setCategoryId(categories[0].id);
     }
-  }, [transactionType, categories, categoryId]);
+  }, [type, categories, categoryId]);
 
   useEffect(() => {
-    if (transactionType === "personal" && subcategories.length > 0) {
-      const personalSub = subcategories.find(s => 
-        s.name.toLowerCase().includes("personal") || 
-        s.name.toLowerCase().includes("drawing") ||
-        s.name.toLowerCase().includes("general")
-      ) || subcategories[0];
-      if (personalSub && subcategoryId !== personalSub.id) {
-        setSubcategoryId(personalSub.id);
-      }
+    if (hidesSubcategoryPicker(type) && !subcategoryId && subcategories[0]) {
+      setSubcategoryId(subcategories[0].id);
     }
-  }, [transactionType, subcategories, subcategoryId]);
+  }, [type, subcategories, subcategoryId]);
 
   useEffect(() => {
-    if (transactionType === "personal" && !propertyId && properties.length > 0) {
+    if (!allowsBusinessExtras(type) && !propertyId && properties.length > 0) {
       setPropertyId(properties[0].id);
     }
-  }, [transactionType, propertyId, properties]);
-
-  // Default category/subcategory/property for Property Cost Base
-  useEffect(() => {
-    if (transactionType === "cost_base") {
-      if (categories.length > 0 && !categoryId) {
-        setCategoryId(categories[0].id);
-      }
-    }
-  }, [transactionType, categories, categoryId]);
-
-  useEffect(() => {
-    if (transactionType === "cost_base") {
-      if (subcategories.length > 0 && !subcategoryId) {
-        setSubcategoryId(subcategories[0].id);
-      }
-    }
-  }, [transactionType, subcategories, subcategoryId]);
-
-  useEffect(() => {
-    if (transactionType === "cost_base" && !propertyId && properties.length > 0) {
-      setPropertyId(properties[0].id);
-    }
-  }, [transactionType, propertyId, properties]);
+  }, [type, propertyId, properties]);
 
 
 
@@ -5047,13 +4999,17 @@ export function AddTransactionView({
     }
   }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
 
+  // Category and subcategory are required for every type now that personal and
+  // cost base have a seeded taxonomy of their own — their pickers are hidden but
+  // auto-selected, so the ids are populated either way. The asset-purchase
+  // clause no longer blocks cost base: it is not an asset purchase.
   const canSubmit =
     !mustChooseClientFirst &&
-    (transactionType === "personal" || transactionType === "cost_base" || !hasNoProperties) &&
+    (!allowsBusinessExtras(type) || !hasNoProperties) &&
     !!activeEntityId &&
     !!type &&
-    (transactionType === "personal" || transactionType === "cost_base" || lockAssetPurchaseCategory || !!categoryId) &&
-    (transactionType === "personal" || transactionType === "cost_base" || lockAssetPurchaseCategory || !!subcategoryId) &&
+    (lockAssetPurchaseCategory || !!categoryId) &&
+    (lockAssetPurchaseCategory || !!subcategoryId) &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
@@ -5067,7 +5023,7 @@ export function AddTransactionView({
       ? splitHasMultipleProperties &&
       Object.keys(splitErrors).length === 0 &&
       splitMatches
-      : (transactionType === "personal" || transactionType === "cost_base" || !!propertyId));
+      : (!allowsBusinessExtras(type) || !!propertyId));
 
   function handleOpenBulkImport() {
     if (mustChooseClientFirst) {
@@ -5436,9 +5392,9 @@ export function AddTransactionView({
       for (let index = 0; index < rows.length; index += 1) {
         const row = rows[index];
         const rowNumber = index + 2;
-        const rawType = normalizeCsvLookup(row.type || row.transaction_type || "");
-        const importType: CoreTransactionType =
-          rawType === "revenue" || rawType === "income" ? "revenue" : "expense";
+        const importType: CoreTransactionType = parseTransactionType(
+          normalizeCsvLookup(row.type || row.transaction_type || ""),
+        );
         const isAsset = parseBooleanValue(row.is_asset_purchase || row.asset_purchase || "");
         const categoryValue = await resolveBulkCategory(
           importType,
@@ -5702,7 +5658,9 @@ export function AddTransactionView({
           });
         }
       } else {
-        const resolvedPropertyId = (transactionType === "personal" || transactionType === "cost_base") ? (propertyId || (properties[0]?.id ?? "")) : propertyId;
+        const resolvedPropertyId = allowsBusinessExtras(type)
+          ? propertyId
+          : propertyId || (properties[0]?.id ?? "");
         if (!resolvedPropertyId) {
           setSubmitError("A property must be selected to continue.");
           return;
@@ -5748,10 +5706,7 @@ export function AddTransactionView({
       let personalPortionVal = 0;
       let businessPortionVal = 0;
       if (isPersonal) {
-        if (transactionType === "personal") {
-          personalPortionVal = grossNumValueForSave;
-          businessPortionVal = 0;
-        } else if (personalAllocationType === "percentage") {
+        if (personalAllocationType === "percentage") {
           const pct = parseFloat(personalValue) || 0;
           personalPortionVal = grossNumValueForSave * (pct / 100);
           businessPortionVal = grossNumValueForSave - personalPortionVal;
@@ -5762,14 +5717,18 @@ export function AddTransactionView({
         }
       }
 
+      // Rent alerts and private-use splits only apply to business transactions;
+      // "personal" is already wholly private and cost base is capitalised.
+      const withBusinessExtras = allowsBusinessExtras(type);
       body.metadata = {
         ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
-        is_regular_payment: transactionType === "personal" ? false : isRegularPayment,
-        due_date: transactionType === "personal" ? null : (isRegularPayment ? (dueDate || null) : null),
-        alert_name: transactionType === "personal" ? null : (isRegularPayment ? (alertName.trim() || null) : null),
+        is_regular_payment: withBusinessExtras ? isRegularPayment : false,
+        due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
+        alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
         is_personal: isPersonal,
-        personal_allocation_type: transactionType === "personal" ? "percentage" : personalAllocationType,
-        personal_percentage: transactionType === "personal" ? 100 : (isPersonal && personalValue ? parseFloat(personalValue) : null),
+        personal_allocation_type: personalAllocationType,
+        personal_percentage:
+          isPersonal && personalValue ? parseFloat(personalValue) : null,
         business_portion: Number(businessPortionVal.toFixed(2)),
         personal_portion: Number(personalPortionVal.toFixed(2)),
       };
@@ -5961,6 +5920,10 @@ export function AddTransactionView({
       </div>
 
       <div className="figma-add-tx-card">
+        {/* Two panes: the document on the left, the form on the right, so the
+            invoice stays in view while the fields are filled in instead of the
+            720px preview pushing the whole form below the fold. */}
+        <div className="figma-add-tx-panes">
         {/* Attach Invoice section */}
         <div className="figma-uploader-section">
           <span className="figma-uploader-label">Attach Invoice (optional)</span>
@@ -6071,8 +6034,8 @@ export function AddTransactionView({
               <div className="figma-type-row">
                 <button
                   type="button"
-                  className={`figma-type-btn is-income${transactionType === "income" ? " active" : ""}`}
-                  onClick={() => handleTransactionTypeChange("income")}
+                  className={`figma-type-btn is-income${type === "revenue" ? " active" : ""}`}
+                  onClick={() => handleTransactionTypeChange("revenue")}
                 >
                   <span className="figma-type-circle is-income">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -6085,7 +6048,7 @@ export function AddTransactionView({
 
                 <button
                   type="button"
-                  className={`figma-type-btn is-expense${transactionType === "expense" ? " active" : ""}`}
+                  className={`figma-type-btn is-expense${type === "expense" ? " active" : ""}`}
                   onClick={() => handleTransactionTypeChange("expense")}
                 >
                   <span className="figma-type-circle is-expense">
@@ -6099,7 +6062,7 @@ export function AddTransactionView({
 
                 <button
                   type="button"
-                  className={`figma-type-btn is-personal${transactionType === "personal" ? " active" : ""}`}
+                  className={`figma-type-btn is-personal${type === "personal" ? " active" : ""}`}
                   onClick={() => handleTransactionTypeChange("personal")}
                 >
                   <span className="figma-type-circle is-personal">
@@ -6113,7 +6076,7 @@ export function AddTransactionView({
 
                 <button
                   type="button"
-                  className={`figma-type-btn is-cost-base${transactionType === "cost_base" ? " active" : ""}`}
+                  className={`figma-type-btn is-cost-base${type === "cost_base" ? " active" : ""}`}
                   onClick={() => handleTransactionTypeChange("cost_base")}
                 >
                   <span className="figma-type-circle is-cost-base">
@@ -6129,7 +6092,7 @@ export function AddTransactionView({
             </div>
 
             {/* Category / Sub-Category dropdowns */}
-            {transactionType === "cost_base" ? (
+            {type === "cost_base" ? (
               <div className="figma-form-row">
                 <div className="figma-field-container">
                   <StaticSelect
@@ -6156,7 +6119,7 @@ export function AddTransactionView({
                   No subcategory for Property Cost Base — one free-text/typeable category only.
                 </div>
               </div>
-            ) : transactionType !== "personal" ? (
+            ) : !hidesCategoryPicker(type) ? (
               <div className="figma-form-row">
                 <div className="figma-field-container" style={!showSubcategorySelect ? { gridColumn: "span 2" } : undefined}>
                   <StaticSelect
@@ -6312,8 +6275,11 @@ export function AddTransactionView({
               )}
             </div>
 
-            {/* Add Asset Section */}
-            {transactionType !== "personal" && transactionType !== "cost_base" && (
+            {/* Add Asset Section — shown for every type except the two new
+                ones, exactly as before. Choosing a non-expense type clears
+                isAssetPurchase via the effect above, so nothing invalid can be
+                submitted from here. */}
+            {allowsBusinessExtras(type) && (
               <>
                 {isAssetPurchase && assetItemName ? (
               <div className="figma-active-asset-display">
@@ -6798,6 +6764,7 @@ export function AddTransactionView({
             </div>
           </fieldset>
         </form>
+        </div>
       </div>
 
       {isBulkOpen && (

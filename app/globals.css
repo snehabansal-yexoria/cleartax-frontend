@@ -7689,9 +7689,21 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
   color: #ef4444;
 }
 
-.transaction-type-badge.is-revenue {
+.transaction-type-badge.is-revenue,
+.transaction-type-badge.is-income {
   background: #dcfce7;
   color: #22c55e;
+}
+
+/* Personal and Property Cost Base, matching the .figma-type-btn palette. */
+.transaction-type-badge.is-personal {
+  background: #faf5ff;
+  color: #7e22ce;
+}
+
+.transaction-type-badge.is-cost-base {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 /* Beautiful empty state for Awaiting Review */
@@ -7848,6 +7860,16 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
 .transaction-type-pill.is-income {
   color: #079455;
   background: #dcfae6;
+}
+
+.transaction-type-pill.is-personal {
+  color: #7e22ce;
+  background: #f3e8ff;
+}
+
+.transaction-type-pill.is-cost-base {
+  color: #c2410c;
+  background: #ffedd5;
 }
 
 .transaction-rule-pill.is-yes {
@@ -8434,26 +8456,41 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
 
 .transaction-type-control button {
   min-height: 58px;
+  padding: 0 10px;
   border: 1px solid #d7dce5;
   border-radius: 8px;
   background: #ffffff;
   color: #667085;
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
   cursor: pointer;
 }
 
+/* Selected state, one accent per type. is-expense inherits the base indigo. */
 .transaction-type-control button.is-selected {
   color: #28336e;
   border-color: #28336e;
   box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.1);
 }
 
+.transaction-type-control button.is-selected.is-income,
 .transaction-type-control button.is-selected.is-revenue {
   color: #047857;
   border-color: #047857;
   box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.1);
+}
+
+.transaction-type-control button.is-selected.is-personal {
+  color: #7e22ce;
+  border-color: #a855f7;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.12);
+}
+
+.transaction-type-control button.is-selected.is-cost-base {
+  color: #c2410c;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
 }
 
 .transaction-asset-card {
@@ -17918,10 +17955,11 @@ input:checked+.slider:before {
    NEW TRANSACTION REDESIGN STYLES (FIGMA)
    ========================================== */
 .figma-add-tx-container {
-  max-width: 1200px;
+  /* Full width, like the .transactions-page container this screen replaced.
+     The old 1200px cap centred the page and left dead space either side, which
+     the two-pane layout cannot afford — the document pane needs the room. */
   width: 100%;
-  margin: 0 auto;
-  padding: 8px 16px 40px;
+  padding: 8px 32px 40px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -18037,6 +18075,93 @@ html.dark .figma-bulk-import-btn {
   flex-direction: column;
   gap: 8px;
   margin-bottom: 24px;
+}
+
+/* ---------------------------------------------------------------------------
+   Add Transaction: document pane on the left, form pane on the right.
+
+   The single-column version stacked a 720px-tall .doc-preview-panel on top of
+   eleven form rows, so attaching an invoice pushed every field below the fold.
+   Side by side, the document stays readable while the form is filled in.
+   Mirrors the earlier .transaction-add-layout proportions.
+   ------------------------------------------------------------------------- */
+.figma-add-tx-panes {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(460px, 1.15fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.figma-add-tx-panes > .figma-uploader-section {
+  position: sticky;
+  top: 24px;
+  margin-bottom: 0;
+}
+
+/* In a column the drop target goes back to being tall and centred rather than
+   the wide strip the full-width layout used. */
+.figma-add-tx-panes .transaction-document-drop {
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  /* Tall drop target running alongside the form, bounded by the viewport so the
+     sticky pane never outgrows the screen. */
+  min-height: min(720px, calc(100vh - 200px)) !important;
+  padding: 32px 24px !important;
+  text-align: center;
+}
+
+.figma-add-tx-panes .transaction-document-drop strong,
+.figma-add-tx-panes .transaction-document-drop small {
+  text-align: center;
+}
+
+.figma-add-tx-panes [data-status="idle"] .transaction-document-drop::after {
+  margin-left: 0;
+  margin-top: 8px;
+}
+
+/* The preview is authored at a flat 720px, which would overflow a sticky pane
+   on shorter screens and defeat the stickiness. Bound it to the viewport. */
+.figma-add-tx-panes .doc-preview-panel {
+  min-height: min(720px, calc(100vh - 140px));
+  max-height: calc(100vh - 140px);
+}
+
+.figma-add-tx-panes .doc-preview-image {
+  max-height: 100%;
+}
+
+/* Below the two-pane breakpoint, fall back to the stacked strip layout. */
+@media (max-width: 1024px) {
+  .figma-add-tx-panes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .figma-add-tx-panes > .figma-uploader-section {
+    position: static;
+    margin-bottom: 24px;
+  }
+
+  .figma-add-tx-panes .transaction-document-drop {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    min-height: auto !important;
+    padding: 16px 24px !important;
+    text-align: left;
+  }
+
+  .figma-add-tx-panes .transaction-document-drop strong,
+  .figma-add-tx-panes .transaction-document-drop small {
+    text-align: left;
+  }
+
+  .figma-add-tx-panes [data-status="idle"] .transaction-document-drop::after {
+    margin-left: auto;
+    margin-top: 0;
+  }
 }
 
 .figma-uploader-label {

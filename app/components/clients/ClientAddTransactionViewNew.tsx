@@ -15,6 +15,14 @@ import type {
   CoreTransactionType,
 } from "@/src/lib/coreApi";
 import {
+  TRANSACTION_TYPE_OPTIONS,
+  allowsAssetPurchase,
+  allowsBusinessExtras,
+  hidesCategoryPicker,
+  hidesSubcategoryPicker,
+  parseTransactionType,
+} from "@/src/lib/transactionTypes";
+import {
   DocumentDropZone,
   type ExtractedDocumentData,
   type ExtractedMeta,
@@ -1765,6 +1773,16 @@ export default function ClientAddTransactionViewNew({
     }
   }, [isAssetPurchase, type]);
 
+  // Personal posts to the single seeded "Personal" category, so its picker is
+  // hidden and the category auto-selected. (Cost base keeps a visible category
+  // picker; its lone "General" subcategory is auto-selected by the subcategory
+  // loader above.)
+  useEffect(() => {
+    if (hidesCategoryPicker(type) && !categoryId && categories[0]) {
+      setCategoryId(categories[0].id);
+    }
+  }, [type, categories, categoryId]);
+
   useEffect(() => {
     if (!isAssetPurchase) {
       setAssetItemName("");
@@ -2181,6 +2199,10 @@ export default function ClientAddTransactionViewNew({
         is_asset_purchase: false,
         splits: [{ property_id: propertyId, split_percentage: 100 }],
         metadata: { source: "client_submit_invoice" },
+        // This is the one path that asks for accountant sign-off, so it is the
+        // one path that puts the transaction in the review queue. "Review &
+        // submit" below saves it as 'active', same as an accountant's upload.
+        submit_for_review: true,
       };
       if (documentId) body.document_id = documentId;
       if (appliedRuleIdRef.current) body.rule_id = appliedRuleIdRef.current;
@@ -3767,36 +3789,72 @@ export default function ClientAddTransactionViewNew({
               </div>
             </div>
 
-            {/* Row 2: Category and Sub-category */}
+            {/* Row 2: Transaction type. Kept on its own row so Category and
+                Sub-category below stay paired side by side — a third field in
+                that row wraps it onto two lines. The type is pre-filled from the
+                uploaded document or a matching rule, but the client can override
+                it; before this control existed the only way to get anything but
+                an expense was for OCR to say so. */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <StaticSelect
-                  label="Category"
+                  label="Transaction type"
                   required={true}
-                  placeholder="Select category"
-                  value={categoryId == null ? "" : String(categoryId)}
-                  options={categorySelectOptions}
-                  onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                  disabled={lockAssetPurchaseCategory}
+                  placeholder="Select transaction type"
+                  value={type}
+                  options={TRANSACTION_TYPE_OPTIONS}
+                  onChange={(value) => {
+                    const nextType = parseTransactionType(value);
+                    setType(nextType);
+                    setCategoryId(null);
+                    setSubcategoryId(null);
+                    if (!allowsAssetPurchase(nextType)) {
+                      setIsAssetPurchase(false);
+                    }
+                  }}
                 />
               </div>
-
-              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <StaticSelect
-                  label="Sub-category"
-                  required={true}
-                  placeholder="Select sub-category"
-                  value={subcategoryId == null ? "" : String(subcategoryId)}
-                  options={subcategorySelectOptions}
-                  onChange={(value) =>
-                    setSubcategoryId(value ? Number(value) : null)
-                  }
-                  disabled={lockAssetPurchaseCategory}
-                />
-              </div>
+              <div aria-hidden="true" />
             </div>
 
-            {/* Row 3: Amount (AUD) and GST (optional) */}
+            {/* Row 3: Category and Sub-category — unchanged pair. Personal posts
+                to its single seeded category and cost base to a single "General"
+                subcategory, so those pickers are hidden and auto-selected. */}
+            {!hidesCategoryPicker(type) && (
+              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <StaticSelect
+                    label="Category"
+                    required={true}
+                    placeholder="Select category"
+                    value={categoryId == null ? "" : String(categoryId)}
+                    options={categorySelectOptions}
+                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                    disabled={lockAssetPurchaseCategory}
+                  />
+                </div>
+
+                {hidesSubcategoryPicker(type) ? (
+                  <div aria-hidden="true" />
+                ) : (
+                  <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <StaticSelect
+                      label="Sub-category"
+                      required={true}
+                      placeholder="Select sub-category"
+                      value={subcategoryId == null ? "" : String(subcategoryId)}
+                      options={subcategorySelectOptions}
+                      onChange={(value) =>
+                        setSubcategoryId(value ? Number(value) : null)
+                      }
+                      disabled={lockAssetPurchaseCategory}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Row 4: Amount (AUD) and GST (optional) */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className={`client-tx-field-group ${flashClass("grossAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
@@ -3856,7 +3914,9 @@ export default function ClientAddTransactionViewNew({
               </div>
             </div>
 
-            {/* Split Toggle Switch */}
+            {/* Split Toggle Switch — a personal transaction or a cost-base
+                entry belongs to one property, so it is not split. */}
+            {allowsBusinessExtras(type) && (
             <div className="client-tx-split-toggle-container" style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -3901,6 +3961,7 @@ export default function ClientAddTransactionViewNew({
                 }} />
               </label>
             </div>
+            )}
 
             {!isSplit && submitError && submitError.toLowerCase().includes("split") && (
               <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>

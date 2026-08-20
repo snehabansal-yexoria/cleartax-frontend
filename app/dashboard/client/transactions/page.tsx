@@ -8,6 +8,7 @@ import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import ClientTransactionsSkeleton from "@/app/components/clients/ClientTransactionsSkeleton";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
+import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 
 interface SessionWithIdToken {
@@ -91,7 +92,7 @@ export default function ClientTransactionsPage() {
 
   const listData = transactions.map(tx => ({
     id: tx.id,
-    description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+    description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
     categoryName: tx.categoryName,
     subcategoryName: tx.subcategoryName || "",
     meta: tx.propertyName || tx.propertyNames?.[0] || "",
@@ -103,7 +104,7 @@ export default function ClientTransactionsPage() {
     entityId: tx.entityId || "",
     documentId: tx.documentId || tx.metadata?.document_id || null,
     documentFileName: tx.documentFileName || tx.metadata?.invoice_name || tx.metadata?.document_name || null,
-    reviewStatus: tx.reviewStatus || "unreviewed",
+    reviewStatus: tx.reviewStatus || "active",
     createdAt: tx.createdAt || "",
   }));
 
@@ -162,7 +163,9 @@ export default function ClientTransactionsPage() {
   const displayIncomeMtd = incomeMtd;
   const displayExpenseMtd = expenseMtd;
 
-  // Filter listData based on all active filters
+  // Filter listData based on all active filters. "unreviewed" rows are the
+  // ones sent to the accountant via "Submit to accountant"; they live in the
+  // "To Be Reviewed" tab, so the main list is everything else.
   let filtered = listData.filter(tx => tx.reviewStatus !== "unreviewed");
 
   // 1. Search Query
@@ -734,7 +737,7 @@ export default function ClientTransactionsPage() {
                 transition: 'all 0.2s'
               }}
             >
-              Reviewed
+              Transactions
             </button>
             <button
               type="button"
@@ -1643,7 +1646,7 @@ export default function ClientTransactionsPage() {
                 transition: 'all 0.2s'
               }}
             >
-              Reviewed
+              Transactions
             </button>
             <button
               type="button"

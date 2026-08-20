@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 
+import type { CoreTransactionType } from "@/src/lib/coreApi";
+import { parseTransactionType } from "@/src/lib/transactionTypes";
+
 // Local storage key for persistent state
 const STORAGE_KEY = "cleartax_mock_db_v1";
 
@@ -61,7 +64,7 @@ interface Entity {
 
 interface Transaction {
   id: string;
-  type: "revenue" | "expense";
+  type: CoreTransactionType;
   categoryId: number;
   categoryName: string;
   subcategoryId: number;
@@ -137,7 +140,26 @@ const categories = {
     { id: 14, name: "Rates", isSystem: true },
     { id: 15, name: "Insurance", isSystem: true },
   ],
+  // Mirrors the taxonomy seeded by migration 0032: one Personal category, and
+  // cost-base categories that each carry a single "General" subcategory.
+  personal: [
+    { id: 21, name: "Personal", isSystem: true },
+  ],
+  cost_base: [
+    { id: 31, name: "Acquisition costs", isSystem: true },
+    { id: 32, name: "Stamp duty", isSystem: true },
+    { id: 33, name: "Legal fees on purchase / sale", isSystem: true },
+    { id: 34, name: "Capital improvements", isSystem: true },
+    { id: 35, name: "Selling costs", isSystem: true },
+  ],
 };
+
+const allCategories = [
+  ...categories.revenue,
+  ...categories.expense,
+  ...categories.personal,
+  ...categories.cost_base,
+];
 
 const subcategories: Record<number, { id: number; name: string }[]> = {
   1: [
@@ -168,6 +190,12 @@ const subcategories: Record<number, { id: number; name: string }[]> = {
   15: [
     { id: 1501, name: "Landlord Insurance" },
   ],
+  21: [{ id: 2101, name: "General" }],
+  31: [{ id: 3101, name: "General" }],
+  32: [{ id: 3201, name: "General" }],
+  33: [{ id: 3301, name: "General" }],
+  34: [{ id: 3401, name: "General" }],
+  35: [{ id: 3501, name: "General" }],
 };
 
 // Initialize Mock DB state
@@ -922,11 +950,12 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
       const ent = db.entities.find((e) => e.id === entityId);
 
       const newTx: Transaction = (() => {
-        const type = body.type || "expense";
+        const type: CoreTransactionType = parseTransactionType(body.type);
 
-        const categoryId = Number(body.category_id || body.categoryId || (type === "revenue" ? 1 : 11));
-        const categoryObj = [...categories.revenue, ...categories.expense].find((c) => c.id === categoryId);
-        const categoryName = categoryObj ? categoryObj.name : (type === "revenue" ? "Rental Income" : "Loan interest");
+        const defaultCategoryId = categories[type][0].id;
+        const categoryId = Number(body.category_id || body.categoryId || defaultCategoryId);
+        const categoryObj = allCategories.find((c) => c.id === categoryId);
+        const categoryName = categoryObj ? categoryObj.name : categories[type][0].name;
 
         const subcategoryId = Number(body.subcategory_id || body.subcategoryId || (categoryId === 1 ? 101 : 1101));
         const subcategoryObj = subcategories[categoryId]?.find((s) => s.id === subcategoryId);
@@ -1071,13 +1100,10 @@ async function handleMockRequest(url: string, init?: RequestInit): Promise<Respo
   // 19. GET /api/transactions/categories
   if (path === "/api/transactions/categories" && method === "GET") {
     const type = parsedUrl.searchParams.get("type");
-    if (type === "revenue") {
-      return jsonResponse(categories.revenue);
+    if (type && type in categories) {
+      return jsonResponse(categories[type as CoreTransactionType]);
     }
-    if (type === "expense") {
-      return jsonResponse(categories.expense);
-    }
-    return jsonResponse([...categories.revenue, ...categories.expense]);
+    return jsonResponse(allCategories);
   }
 
   // 20. GET /api/transactions/categories/[categoryId]/sub-categories
