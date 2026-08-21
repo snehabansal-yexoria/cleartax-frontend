@@ -34,6 +34,7 @@ interface ClientRecord {
   assignedAccountantName?: string;
   isAssignedToCurrentAccountant?: boolean;
   isAssignedToAnotherAccountant?: boolean;
+  totalMarketValue?: number;
 }
 
 interface AccountantRecord {
@@ -285,6 +286,8 @@ function ClientDetailPageContent() {
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [pendingTransferExit, setPendingTransferExit] = useState<"cancel" | "close" | null>(null);
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [isPersonalExpanded, setIsPersonalExpanded] = useState(true);
+  const [isAssetExpanded, setIsAssetExpanded] = useState(true);
 
   useEffect(() => {
     const tab = searchParams?.get("tab");
@@ -704,7 +707,7 @@ function ClientDetailPageContent() {
         </div>
       </header>
 
-      <div className="client-stat-grid">
+      <div className="client-stat-grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
         <article className="client-stat-card">
           <span className="client-stat-icon is-entity">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -746,6 +749,283 @@ function ClientDetailPageContent() {
               <strong>{isTransactionsLoading ? "—" : totalTransactions}</strong>
           </div>
         </article>
+        <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#454a55', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              Market Value
+              <span title="Estimated market value of all active properties" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px', color: '#98a2b3' }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </span>
+            </span>
+            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
+              {isClientLoading ? "—" : `A$ ${(client?.totalMarketValue ?? 180000).toLocaleString()}`}
+            </strong>
+            <span style={{ fontSize: '12px', color: '#667085', fontWeight: 500 }}>
+              Across {totalProperties} {totalProperties === 1 ? "property" : "properties"}
+            </span>
+          </div>
+          <span className="client-stat-icon" style={{ background: '#fef0c7', color: '#d97706', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </span>
+        </article>
+      </div>
+
+      {/* GST Summary Cards Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px' }}>
+        <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #fee2e2', borderRadius: '10px', background: '#fef2f2', boxShadow: '0 8px 20px rgba(16, 24, 40, 0.05)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              GST ON PURCHASE
+            </span>
+            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
+              A$ 274.54
+            </strong>
+          </div>
+          <span className="client-stat-icon" style={{ background: '#ef4444', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+          </span>
+        </article>
+        <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #dcfce7', borderRadius: '10px', background: '#f0fdf4', boxShadow: '0 8px 20px rgba(16, 24, 40, 0.05)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              GST ON SALES
+            </span>
+            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
+              A$ 47.27
+            </strong>
+          </div>
+          <span className="client-stat-icon" style={{ background: '#12b76a', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+        </article>
+      </div>
+
+      {/* Personal & Asset Transactions Sections */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px', marginBottom: '24px' }}>
+        {/* Left Column: Personal Transactions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setIsPersonalExpanded(!isPersonalExpanded)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              border: '1px solid #dde4f2',
+              borderRadius: '12px',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ background: '#e0e7ff', color: '#4f46e5', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <div>
+                <strong style={{ display: 'block', fontSize: '15px', color: '#101828', fontWeight: 700 }}>Personal Transactions</strong>
+                <span style={{ display: 'block', fontSize: '12px', color: '#667085', marginTop: '2px' }}>Expense & revenue totals by category</span>
+              </div>
+            </div>
+            <span style={{ color: '#667085', display: 'flex', alignItems: 'center' }}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  transform: isPersonalExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+
+          {isPersonalExpanded && (
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
+                borderRadius: '12px',
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px',
+              }}
+            >
+              {/* Total Expenses Section */}
+              <div>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#b91c1c', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
+                  Total Expenses
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                    <span>Advertising for Tenants</span>
+                    <strong style={{ fontWeight: 600, color: '#101828' }}>-A$ 6,021.71</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                    <span>Repairs and maintenance</span>
+                    <strong style={{ fontWeight: 600, color: '#101828' }}>-A$ 4,856.37</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                    <span>Body Corporate Fees / Strata Levy</span>
+                    <strong style={{ fontWeight: 600, color: '#101828' }}>-A$ 411.00</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
+                    <strong style={{ fontWeight: 700 }}>Total</strong>
+                    <strong style={{ fontWeight: 800 }}>-A$ 11,289.08</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Revenue Section */}
+              <div>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#16a34a', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
+                  Total Revenue
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                    <span>Other Rental Income</span>
+                    <strong style={{ fontWeight: 600, color: '#101828' }}>A$ 9,856.00</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                    <span>Rental Income</span>
+                    <strong style={{ fontWeight: 600, color: '#101828' }}>A$ 6,464.00</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
+                    <strong style={{ fontWeight: 700 }}>Total</strong>
+                    <strong style={{ fontWeight: 800 }}>A$ 16,320.00</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Asset Transactions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setIsAssetExpanded(!isAssetExpanded)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              border: '1px solid #dde4f2',
+              borderRadius: '12px',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ background: '#fef3c7', color: '#d97706', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+              </span>
+              <div>
+                <strong style={{ display: 'block', fontSize: '15px', color: '#101828', fontWeight: 700 }}>Asset Transactions</strong>
+                <span style={{ display: 'block', fontSize: '12px', color: '#667085', marginTop: '2px' }}>Expenses marked as asset purchases</span>
+              </div>
+            </div>
+            <span style={{ color: '#667085', display: 'flex', alignItems: 'center' }}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  transform: isAssetExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+
+          {isAssetExpanded && (
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
+                borderRadius: '12px',
+                padding: '20px',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+                overflowX: 'auto',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '450px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #eaecf0' }}>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Category</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Property</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #f2f4f7' }}>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#101828', fontWeight: 500 }}>Supply and replace switchboard</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467' }}>Repairs and maintenance</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467' }}>Heaven Villa</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467', whiteSpace: 'nowrap' }}>25 July 2026</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#101828', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>-A$ 2,272.73</td>
+                  </tr>
+                  <tr style={{ borderBottom: 'none' }}>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#101828', fontWeight: 500 }}>New split system A/C unit</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467' }}>Repairs and maintenance</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467' }}>Heaven Villa</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467', whiteSpace: 'nowrap' }}>14 May 2026</td>
+                    <td style={{ padding: '14px 8px', fontSize: '13px', color: '#101828', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>-A$ 1,681.82</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       <section className="client-portfolio-panel">
