@@ -847,4 +847,98 @@ export function ClientPropertiesSkeleton() {
   );
 }
 
+export function JournalEntrySkeleton() {
+  return (
+    <section style={{ padding: "24px", maxWidth: "1280px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
+      {/* Header Skeleton */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+        <div className="skeleton-stack" style={{ gap: 8 }}>
+          <div className="skeleton-pill" style={{ width: 100, height: 16 }} />
+          <div className="skeleton-line-lg" style={{ width: 280, height: 32 }} />
+          <div className="skeleton-line" style={{ width: 160, height: 16 }} />
+        </div>
+        <div style={{ display: "flex", gap: "12px" }}>
+          <div className="skeleton-pill" style={{ width: 80, height: 40, borderRadius: 8 }} />
+          <div className="skeleton-pill" style={{ width: 160, height: 40, borderRadius: 8 }} />
+        </div>
+      </div>
+
+      {/* Tabs Skeleton */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+        <div className="skeleton-pill" style={{ width: 130, height: 36, borderRadius: 20 }} />
+        <div className="skeleton-pill" style={{ width: 150, height: 36, borderRadius: 20 }} />
+      </div>
+
+      {/* Info Boxes Skeleton */}
+      <div className="skeleton-input" style={{ height: 64, borderRadius: 10, marginBottom: "16px" }} />
+      <div className="skeleton-input" style={{ height: 64, borderRadius: 10, marginBottom: "24px" }} />
+
+      {/* Action Row Skeleton */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <div className="skeleton-pill" style={{ width: 100, height: 36, borderRadius: 6 }} />
+          <div className="skeleton-pill" style={{ width: 100, height: 36, borderRadius: 6 }} />
+        </div>
+        <div className="skeleton-pill" style={{ width: 50, height: 16 }} />
+      </div>
+
+      {/* Table Skeleton */}
+      <div style={{ border: "1px solid #cbd5e1", borderRadius: "12px", overflow: "hidden", marginBottom: "20px" }}>
+        {/* Table Header */}
+        <div className="skeleton-input" style={{ height: 42, borderRadius: 0, borderBottom: "1.5px solid #cbd5e1" }} />
+        {/* Table Rows */}
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <div
+            key={idx}
+            className="skeleton-row"
+            style={{
+              padding: "8px 12px",
+              borderBottom: "1px solid #e2e8f0",
+              alignItems: "center",
+              gap: 16,
+              justifyContent: "space-between"
+            }}
+          >
+            <div className="skeleton-pill" style={{ width: 20, height: 20 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1.2 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1.5 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1 }} />
+            <div className="skeleton-line" style={{ height: 16, flex: 1.5 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1.8 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1.2 }} />
+            <div className="skeleton-input" style={{ height: 36, flex: 1.5 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom Summary Skeleton */}
+      <div
+        className="skeleton-row"
+        style={{
+          padding: "16px 24px",
+          backgroundColor: "#f8fafc",
+          border: "1px solid #cbd5e1",
+          borderRadius: "12px",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}
+      >
+        <div style={{ display: "flex", gap: "32px" }}>
+          <div className="skeleton-stack" style={{ gap: 4 }}>
+            <div className="skeleton-line" style={{ width: 80, height: 11 }} />
+            <div className="skeleton-line" style={{ width: 100, height: 20 }} />
+          </div>
+          <div className="skeleton-stack" style={{ gap: 4 }}>
+            <div className="skeleton-line" style={{ width: 80, height: 11 }} />
+            <div className="skeleton-line" style={{ width: 100, height: 20 }} />
+          </div>
+        </div>
+        <div className="skeleton-pill" style={{ width: 120, height: 32, borderRadius: 20 }} />
+      </div>
+    </section>
+  );
+}
+
 

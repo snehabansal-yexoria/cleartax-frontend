@@ -6043,7 +6043,7 @@ export function AddTransactionView({
                       <polyline points="19 12 12 19 5 12" />
                     </svg>
                   </span>
-                  Income
+                  <span className="figma-type-text">Income</span>
                 </button>
 
                 <button
@@ -6057,7 +6057,7 @@ export function AddTransactionView({
                       <polyline points="5 12 12 5 19 12" />
                     </svg>
                   </span>
-                  Expense
+                  <span className="figma-type-text">Expense</span>
                 </button>
 
                 <button
@@ -6071,7 +6071,7 @@ export function AddTransactionView({
                       <circle cx="12" cy="7" r="4" />
                     </svg>
                   </span>
-                  Personal Transaction
+                  <span className="figma-type-text">Personal Transaction</span>
                 </button>
 
                 <button
@@ -6086,7 +6086,7 @@ export function AddTransactionView({
                       <line x1="9" y1="13" x2="15" y2="13" />
                     </svg>
                   </span>
-                  Property Cost Base
+                  <span className="figma-type-text">Property Cost Base</span>
                 </button>
               </div>
             </div>
@@ -6321,23 +6321,28 @@ export function AddTransactionView({
                 onClick={() => {
                   setAssetBuilderOpen(true);
                   setAssetBuilderStep(1);
-                  setTempAssetClass("");
+                  setTempAssetClass("capital_allowance");
                   setTempAssetName("");
                   setTempAssetLife("");
-                  setTempDepreciationMethod("");
+                  setTempDepreciationMethod("diminishing_value");
                 }}
               >
                 + Add Asset
               </button>
             )}
 
-            {assetBuilderOpen && assetBuilderStep === 1 && (
+            {assetBuilderOpen && (
               <div className="figma-asset-builder-card">
                 <div className="figma-asset-builder-head">Add Asset</div>
                 <div className="figma-asset-class-grid">
                   <div
                     className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
-                    onClick={() => setTempAssetClass("capital_works")}
+                    onClick={() => {
+                      setTempAssetClass("capital_works");
+                      if (tempAssetName === "") {
+                        setTempAssetName("Capital Works");
+                      }
+                    }}
                   >
                     <div className="figma-asset-class-icon">
                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -6355,7 +6360,12 @@ export function AddTransactionView({
 
                   <div
                     className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
-                    onClick={() => setTempAssetClass("capital_allowance")}
+                    onClick={() => {
+                      setTempAssetClass("capital_allowance");
+                      if (tempAssetName === "Capital Works") {
+                        setTempAssetName("");
+                      }
+                    }}
                   >
                     <div className="figma-asset-class-icon">
                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -6371,39 +6381,6 @@ export function AddTransactionView({
                   </div>
                 </div>
 
-                <div className="figma-asset-actions">
-                  <button
-                    type="button"
-                    className="figma-asset-cancel-btn"
-                    onClick={() => setAssetBuilderOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="figma-asset-submit-btn"
-                    disabled={!tempAssetClass}
-                    onClick={() => {
-                      if (tempAssetClass === "capital_works") {
-                        setIsAssetPurchase(true);
-                        setAssetClass("capital_works");
-                        setAssetItemName("Capital Works");
-                        setEffectiveLifeYears("");
-                        setAssetBuilderOpen(false);
-                      } else {
-                        setAssetBuilderStep(2);
-                      }
-                    }}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {assetBuilderOpen && assetBuilderStep === 2 && (
-              <div className="figma-asset-builder-card">
-                <div className="figma-asset-builder-head">Asset Details</div>
                 <div className="figma-form-row">
                   <div className="figma-field-container">
                     <span className="figma-field-label">Asset Name<em>*</em></span>
@@ -6415,95 +6392,83 @@ export function AddTransactionView({
                       onChange={(e) => setTempAssetName(e.target.value)}
                     />
                   </div>
-                  <div className="figma-field-container">
-                    <span className="figma-field-label">Effective Life (years)<em>*</em></span>
-                    <input
-                      type="number"
-                      className="figma-input"
-                      placeholder="Select years"
-                      value={tempAssetLife}
-                      onChange={(e) => setTempAssetLife(e.target.value)}
-                    />
-                  </div>
+                  {tempAssetClass === "capital_allowance" && (
+                    <div className="figma-field-container">
+                      <span className="figma-field-label">Effective Life (years)<em>*</em></span>
+                      <input
+                        type="number"
+                        className="figma-input"
+                        placeholder="Select years"
+                        value={tempAssetLife}
+                        onChange={(e) => setTempAssetLife(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {tempAssetClass === "capital_allowance" && (
+                  <div style={{ marginTop: "20px" }}>
+                    <span className="figma-field-label" style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Method of Depreciation<em>*</em></span>
+                    <div className="figma-asset-class-grid">
+                      <div
+                        className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
+                        onClick={() => setTempDepreciationMethod("diminishing_value")}
+                      >
+                        <div className="figma-asset-class-icon">
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                            <polyline points="17 6 23 6 23 12" />
+                          </svg>
+                        </div>
+                        <div className="figma-asset-class-info">
+                          <span className="figma-asset-class-title">Diminishing Value</span>
+                          <span className="figma-asset-class-desc">
+                            Higher deductions in early years
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
+                        onClick={() => setTempDepreciationMethod("prime_cost")}
+                      >
+                        <div className="figma-asset-class-icon">
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                        </div>
+                        <div className="figma-asset-class-info">
+                          <span className="figma-asset-class-title">Prime Cost</span>
+                          <span className="figma-asset-class-desc">
+                            Equal deductions each year
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="figma-asset-actions">
                   <button
                     type="button"
                     className="figma-asset-cancel-btn"
-                    onClick={() => setAssetBuilderStep(1)}
+                    onClick={() => setAssetBuilderOpen(false)}
                   >
-                    Back
+                    Cancel
                   </button>
                   <button
                     type="button"
                     className="figma-asset-submit-btn"
-                    disabled={!tempAssetName || !tempAssetLife}
-                    onClick={() => setAssetBuilderStep(3)}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {assetBuilderOpen && assetBuilderStep === 3 && (
-              <div className="figma-asset-builder-card">
-                <div className="figma-asset-builder-head">Method of Depreciation</div>
-                <div className="figma-asset-class-grid">
-                  <div
-                    className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
-                    onClick={() => setTempDepreciationMethod("diminishing_value")}
-                  >
-                    <div className="figma-asset-class-icon">
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                        <polyline points="17 6 23 6 23 12" />
-                      </svg>
-                    </div>
-                    <div className="figma-asset-class-info">
-                      <span className="figma-asset-class-title">Diminishing Value</span>
-                      <span className="figma-asset-class-desc">
-                        Higher deductions in early years
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
-                    onClick={() => setTempDepreciationMethod("prime_cost")}
-                  >
-                    <div className="figma-asset-class-icon">
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </div>
-                    <div className="figma-asset-class-info">
-                      <span className="figma-asset-class-title">Prime Cost</span>
-                      <span className="figma-asset-class-desc">
-                        Equal deductions each year
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="figma-asset-actions">
-                  <button
-                    type="button"
-                    className="figma-asset-cancel-btn"
-                    onClick={() => setAssetBuilderStep(2)}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    className="figma-asset-submit-btn"
-                    disabled={!tempDepreciationMethod}
+                    disabled={
+                      !tempAssetClass ||
+                      !tempAssetName.trim() ||
+                      (tempAssetClass === "capital_allowance" && (!tempAssetLife || !tempDepreciationMethod))
+                    }
                     onClick={() => {
                       setIsAssetPurchase(true);
-                      setAssetClass("capital_allowance");
-                      setAssetItemName(tempAssetName);
-                      setEffectiveLifeYears(tempAssetLife);
+                      setAssetClass(tempAssetClass);
+                      setAssetItemName(tempAssetName.trim());
+                      setEffectiveLifeYears(tempAssetClass === "capital_works" ? "" : tempAssetLife);
                       setAssetBuilderOpen(false);
                     }}
                   >

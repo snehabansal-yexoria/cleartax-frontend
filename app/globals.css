@@ -16072,6 +16072,32 @@ input:checked+.slider:before {
   opacity: 0.6;
 }
 
+/* Gold/Orange primary buttons style override */
+.entity-wizard-primary.is-orange,
+.entity-wizard .entity-wizard-primary.is-orange {
+  background: linear-gradient(180deg, #ffb834 0%, #ff9e1b 100%);
+  border-color: #ff9e1b;
+  color: #0d2b60;
+  box-shadow: 0 4px 14px rgba(255, 158, 27, 0.3);
+}
+
+.entity-wizard-primary.is-orange:not(:disabled):hover,
+.entity-wizard .entity-wizard-primary.is-orange:not(:disabled):hover {
+  background: linear-gradient(180deg, #ffa71a 0%, #e68a00 100%);
+  border-color: #e68a00;
+  box-shadow: 0 4px 14px rgba(255, 158, 27, 0.45);
+  transform: translateY(-1px);
+}
+
+.entity-wizard-primary.is-orange:disabled,
+.entity-wizard .entity-wizard-primary.is-orange:disabled {
+  background: #d0d5dd;
+  border-color: #d0d5dd;
+  color: #98a2b3;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .entity-wizard .entity-wizard-secondary {
   display: inline-flex;
   align-items: center;
@@ -18365,10 +18391,12 @@ html.dark .figma-select {
   resize: vertical;
 }
 
+
 /* Transaction Type Control */
 .figma-type-row {
   display: flex;
-  gap: 12px;
+  align-items: stretch; /* Stretch buttons to have the same height */
+  gap: 10px;
   width: 100%;
 }
 
@@ -18379,153 +18407,255 @@ html.dark .figma-select {
 }
 
 .figma-type-btn {
-  flex: 1;
+  flex: 1 1 0px;
+  min-width: 0; /* Allow scaling down on narrow layouts */
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 48px;
-  padding: 0 16px;
+  min-height: 48px;
+  height: auto;
+  padding: 8px 12px;
   border-radius: 24px;
   border: 1px solid #eaecf0;
   background: #ffffff;
   color: #475467;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.02);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 120px;
 }
 
 html.dark .figma-type-btn {
   background: var(--surface-2);
   border-color: var(--border);
   color: var(--text-secondary);
+  box-shadow: none;
 }
 
 .figma-type-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
-/* Active states for buttons */
-.figma-type-btn.active {
-  background: #eef2ff !important;
-  border-color: #3538cd !important;
-  color: #3538cd !important;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(79, 70, 229, 0.12) !important;
+.figma-type-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Left-align the lines of text relative to each other */
+  text-align: left;        /* Fallback left-align text */
+  line-height: 1.15;
+  min-width: 0;
 }
 
-.figma-type-btn.is-income:hover {
-  background: #f0fdf4;
-  border-color: #86efac;
-  color: #15803d;
-}
-.figma-type-btn.is-income.active {
-  background: #f0fdf4;
-  border-color: #22c55e;
-  color: #15803d;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(34, 197, 94, 0.12);
-}
-
-.figma-type-btn.is-expense:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #3730a3;
-}
-.figma-type-btn.is-expense.active {
-  background: #eef2ff;
-  border-color: #3538cd;
-  color: #3538cd;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(79, 70, 229, 0.12);
-}
-
-.figma-type-btn.is-personal:hover {
-  background: #faf5ff;
-  border-color: #e9d5ff;
-  color: #6b21a8;
-}
-.figma-type-btn.is-personal.active {
-  background: #faf5ff;
-  border-color: #a855f7;
-  color: #6b21a8;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(168, 85, 247, 0.12);
-}
-
-.figma-type-btn.is-cost-base:hover {
-  background: #fff7ed;
-  border-color: #ffedd5;
-  color: #c2410c;
-}
-.figma-type-btn.is-cost-base.active {
-  background: #fff7ed;
-  border-color: #f97316;
-  color: #c2410c;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(249, 115, 22, 0.12);
-}
-
+/* Inactive circle styles (neutral gray by default for senior designer look) */
 .figma-type-circle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: #f2f4f7;
+  color: #667085;
   transition: all 0.2s ease;
 }
 
+html.dark .figma-type-circle {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
 .figma-type-circle svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 12px !important;
+  height: 12px !important;
   fill: none !important;
   stroke: currentColor !important;
   stroke-width: 3px !important;
 }
 
-/* Circle backgrounds & colors */
-.figma-type-circle.is-income {
+/* --- Hover / Active state combinations --- */
+
+/* INCOME (Revenue) */
+.figma-type-btn.is-income:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.figma-type-btn.is-income:hover .figma-type-circle {
   background: #d1fadf;
   color: #12b76a;
 }
-.figma-type-circle.is-expense {
+.figma-type-btn.is-income.active {
+  background: #f0fdf4 !important;
+  border-color: #22c55e !important;
+  color: #15803d !important;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(34, 197, 94, 0.12) !important;
+}
+.figma-type-btn.is-income.active .figma-type-circle {
+  background: #d1fadf !important;
+  color: #12b76a !important;
+}
+
+/* EXPENSE */
+.figma-type-btn.is-expense:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.figma-type-btn.is-expense:hover .figma-type-circle {
   background: #fee4e2;
   color: #d92d20;
 }
-.figma-type-circle.is-personal {
+.figma-type-btn.is-expense.active {
+  background: #fef2f2 !important;
+  border-color: #ef4444 !important;
+  color: #b91c1c !important;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(239, 68, 68, 0.12) !important;
+}
+.figma-type-btn.is-expense.active .figma-type-circle {
+  background: #fee4e2 !important;
+  color: #d92d20 !important;
+}
+
+/* PERSONAL */
+.figma-type-btn.is-personal:hover {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #6b21a8;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.figma-type-btn.is-personal:hover .figma-type-circle {
   background: #f4f3ff;
   color: #7a5af8;
 }
-.figma-type-circle.is-cost-base {
+.figma-type-btn.is-personal.active {
+  background: #faf5ff !important;
+  border-color: #a855f7 !important;
+  color: #6b21a8 !important;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(168, 85, 247, 0.12) !important;
+}
+.figma-type-btn.is-personal.active .figma-type-circle {
+  background: #f4f3ff !important;
+  color: #7a5af8 !important;
+}
+
+/* PROPERTY COST BASE */
+.figma-type-btn.is-cost-base:hover {
+  background: #fff7ed;
+  border-color: #ffedd5;
+  color: #c2410c;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.figma-type-btn.is-cost-base:hover .figma-type-circle {
   background: #fef0e9;
   color: #ef6820;
 }
-
-/* Dark mode overrides for circles */
-html.dark .figma-type-circle.is-income {
-  background: rgba(34, 197, 94, 0.2);
-  color: #4ade80;
+.figma-type-btn.is-cost-base.active {
+  background: #fff7ed !important;
+  border-color: #f97316 !important;
+  color: #c2410c !important;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(249, 115, 22, 0.12) !important;
 }
-html.dark .figma-type-circle.is-expense {
-  background: rgba(217, 45, 32, 0.2);
+.figma-type-btn.is-cost-base.active .figma-type-circle {
+  background: #fef0e9 !important;
+  color: #ef6820 !important;
+}
+
+/* --- Dark Mode Active/Hover overrides --- */
+
+/* INCOME (Revenue) - Dark Mode */
+html.dark .figma-type-btn.is-income:hover {
+  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+html.dark .figma-type-btn.is-income:hover .figma-type-circle {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+html.dark .figma-type-btn.is-income.active {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-color: #10b981 !important;
+  color: #34d399 !important;
+  box-shadow: 0px 0px 0px 3px rgba(16, 185, 129, 0.25) !important;
+}
+html.dark .figma-type-btn.is-income.active .figma-type-circle {
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #34d399 !important;
+}
+
+/* EXPENSE - Dark Mode */
+html.dark .figma-type-btn.is-expense:hover {
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
 }
-html.dark .figma-type-circle.is-personal {
-  background: rgba(122, 90, 248, 0.2);
-  color: #a855f7;
+html.dark .figma-type-btn.is-expense:hover .figma-type-circle {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
-html.dark .figma-type-circle.is-cost-base {
-  background: rgba(239, 104, 32, 0.2);
-  color: #f97316;
+html.dark .figma-type-btn.is-expense.active {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
+  box-shadow: 0px 0px 0px 3px rgba(239, 68, 68, 0.25) !important;
+}
+html.dark .figma-type-btn.is-expense.active .figma-type-circle {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #fca5a5 !important;
 }
 
-/* Dark Mode Button Overrides */
-html.dark .figma-type-btn.active {
-  background: rgba(79, 70, 229, 0.1);
-  border-color: #6366f1;
-  color: #818cf8;
+/* PERSONAL - Dark Mode */
+html.dark .figma-type-btn.is-personal:hover {
+  background: rgba(168, 85, 247, 0.05);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+}
+html.dark .figma-type-btn.is-personal:hover .figma-type-circle {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+html.dark .figma-type-btn.is-personal.active {
+  background: rgba(168, 85, 247, 0.1) !important;
+  border-color: #a855f7 !important;
+  color: #c084fc !important;
+  box-shadow: 0px 0px 0px 3px rgba(168, 85, 247, 0.25) !important;
+}
+html.dark .figma-type-btn.is-personal.active .figma-type-circle {
+  background: rgba(168, 85, 247, 0.25) !important;
+  color: #c084fc !important;
+}
+
+/* PROPERTY COST BASE - Dark Mode */
+html.dark .figma-type-btn.is-cost-base:hover {
+  background: rgba(249, 115, 22, 0.05);
+  border-color: rgba(249, 115, 22, 0.4);
+  color: #ffb076;
+}
+html.dark .figma-type-btn.is-cost-base:hover .figma-type-circle {
+  background: rgba(249, 115, 22, 0.2);
+  color: #ffb076;
+}
+html.dark .figma-type-btn.is-cost-base.active {
+  background: rgba(249, 115, 22, 0.1) !important;
+  border-color: #f97316 !important;
+  color: #ffb076 !important;
+  box-shadow: 0px 0px 0px 3px rgba(249, 115, 22, 0.25) !important;
+}
+html.dark .figma-type-btn.is-cost-base.active .figma-type-circle {
+  background: rgba(249, 115, 22, 0.25) !important;
+  color: #ffb076 !important;
 }
 
 /* Radio Group (GST Applicable) */
@@ -18911,12 +19041,17 @@ html.dark .figma-asset-actions {
 .figma-asset-cancel-btn {
   background: #ffffff;
   border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
+  border-radius: 20px;
+  padding: 10px 24px;
+  font-size: 14px;
   font-weight: 600;
   color: #344054;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.figma-asset-cancel-btn:hover {
+  background: #f9fafb;
 }
 
 html.dark .figma-asset-cancel-btn {
@@ -18925,23 +19060,43 @@ html.dark .figma-asset-cancel-btn {
   color: var(--text-primary);
 }
 
+html.dark .figma-asset-cancel-btn:hover {
+  background: var(--surface-hover);
+}
+
 .figma-asset-submit-btn {
-  background: #28336e;
-  border: 1px solid #28336e;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
+  background: #3538cd;
+  border: 1px solid #3538cd;
+  border-radius: 20px;
+  padding: 10px 24px;
+  font-size: 14px;
   font-weight: 600;
   color: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
+.figma-asset-submit-btn:hover:not(:disabled) {
+  background: #2725a3;
+  border-color: #2725a3;
+}
+
 .figma-asset-submit-btn:disabled {
-  background: #eaeef4;
-  border-color: #eaeef4;
-  color: #98a2b3;
+  background: #e0e5f2;
+  border-color: #e0e5f2;
+  color: #a3aed0;
   cursor: not-allowed;
+}
+
+html.dark .figma-asset-submit-btn:disabled {
+  background: var(--surface-3);
+  border-color: var(--surface-3);
+  color: var(--text-muted);
+}
+
+html.dark .figma-asset-submit-btn {
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 html.dark .figma-asset-submit-btn:disabled {
