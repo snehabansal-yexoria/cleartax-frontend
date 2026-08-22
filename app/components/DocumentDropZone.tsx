@@ -364,56 +364,80 @@ export function DocumentDropZone({
         aria-busy={busy}
         style={style}
       >
-        {showProgress ? (
-          <>
-            <div className="transaction-document-drop__progress" />
-            <div className="transaction-document-drop__gif-container">
-              <img
-                src="/document-loading.gif"
-                alt="Document Loading Animation"
-                className="transaction-document-drop__gif"
-                width={150}
-                height={150}
+        {/* Left Side: Icon Container */}
+        <div className="transaction-document-drop__icon-wrap">
+          {activeStatus === "uploading" || activeStatus === "extracting" ? (
+            <div className="figma-uploader-icon">
+              <svg className="transaction-document-drop__spinner" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="spinner-bg" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </div>
+          ) : activeStatus === "done" ? (
+            <div className="figma-uploader-icon is-done">
+              <Lottie
+                animationData={transactionDocumentSuccessAnimation}
+                loop={false}
+                style={{ width: 28, height: 28 }}
               />
             </div>
-            <span className="transaction-document-drop__percentage-label">
-              {isSubmitting ? submitProgress : progress}%
-            </span>
-            <div className="transaction-document-drop__percentage-bar-outer">
-              <div
-                className="transaction-document-drop__percentage-bar-inner"
-                style={{ width: `${isSubmitting ? submitProgress : progress}%` }}
-              />
+          ) : activeStatus === "error" ? (
+            <div className="figma-uploader-icon is-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
             </div>
-          </>
-        ) : activeStatus === "done" ? (
-          <span className="transaction-document-drop__lottie" aria-hidden="true">
-            <Lottie
-              animationData={transactionDocumentSuccessAnimation}
-              loop={false}
-            />
-          </span>
-        ) : (
-          (!hideIconOnIdle || activeStatus !== "idle") && (
+          ) : (!hideIconOnIdle || activeStatus !== "idle") && (
             activeStatus === "idle" && customIcon ? (
               customIcon
             ) : (
-              <span>{iconForStatus(activeStatus)}</span>
+              <div className="figma-uploader-icon">
+                {iconForStatus(activeStatus)}
+              </div>
             )
-          )
-        )}
-        <strong style={strongStyle}>
-          {isSubmitting ? "Adding Transaction…" : (primaryLabelText && activeStatus === "idle" ? primaryLabelText : primaryLabel(activeStatus, filename))}
-        </strong>
-        <small style={smallStyle}>
-          {isSubmitting ? "Writing record to secure ledger…" : (secondaryLabelText && activeStatus === "idle" ? secondaryLabelText : secondaryLabel(activeStatus, activeError, allowMultiple))}
-        </small>
-        {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
-          <div>
-            {filename}
-            {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
+          )}
+        </div>
+
+        {/* Middle: Texts */}
+        <div className="transaction-document-drop__text-container">
+          <strong style={strongStyle}>
+            {isSubmitting ? "Adding Transaction…" : (primaryLabelText && activeStatus === "idle" ? primaryLabelText : primaryLabel(activeStatus, filename))}
+          </strong>
+          <small style={smallStyle}>
+            {isSubmitting ? "Writing record to secure ledger…" : (secondaryLabelText && activeStatus === "idle" ? secondaryLabelText : secondaryLabel(activeStatus, activeError, allowMultiple))}
+          </small>
+          {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
+            <div className="transaction-document-drop__filename">
+              {filename}
+              {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Right Side: Interactive Button/Progress Badge */}
+        {activeStatus === "uploading" || activeStatus === "extracting" ? (
+          <div className="transaction-document-drop__progress-badge">
+            {isSubmitting ? submitProgress : progress}%
           </div>
-        ) : null}
+        ) : activeStatus === "done" ? (
+          <div className="transaction-document-drop__status-badge is-done">Ready</div>
+        ) : activeStatus === "error" ? (
+          <div className="transaction-document-drop__status-badge is-error">Retry</div>
+        ) : (
+          <div className="transaction-document-drop__choose-btn">Choose File</div>
+        )}
+
+        {/* Thin bottom progress bar during loading */}
+        {(activeStatus === "uploading" || activeStatus === "extracting") && (
+          <div className="transaction-document-drop__bottom-bar">
+            <div
+              className="transaction-document-drop__bottom-bar-inner"
+              style={{ width: `${isSubmitting ? submitProgress : progress}%` }}
+            />
+          </div>
+        )}
       </button>
       <input
         ref={inputRef}

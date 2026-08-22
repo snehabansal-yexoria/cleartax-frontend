@@ -12,6 +12,7 @@ import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clie
 import type { CoreEntity } from "@/src/lib/coreApi";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
+import PaymentAlerts from "@/app/components/clients/PaymentAlerts";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
@@ -591,13 +592,6 @@ export default function ClientPage() {
             </div>
             <div className="m-db-actions-section">
               <ThemeToggle />
-              <Link href="/dashboard/client/alerts" className="m-db-bell-btn" aria-label="Notifications" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'inherit' }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="m-db-bell-dot" />
-              </Link>
               <Link href="/dashboard/client/profile" className="m-db-avatar-circle" style={{ textDecoration: 'none' }}>
                 {userInitials}
               </Link>
@@ -728,6 +722,11 @@ export default function ClientPage() {
                     <span className="m-db-stat-value">{formatCurrencyShort(displayLoansValue)}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Payment Alerts Section */}
+              <div className="m-db-activity-section">
+                <PaymentAlerts />
               </div>
 
               {/* Stacked Bar Chart Card */}
@@ -1257,8 +1256,13 @@ export default function ClientPage() {
             />
           </div>
 
-          {/* Recent Activity card */}
+          {/* Payment Alerts card in place of Recent Activity */}
           <div className="col-span-1 order-3 xl:order-2 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+            <PaymentAlerts />
+          </div>
+
+          {/* Recent Activity card where By Entity card was */}
+          <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="text-[#101828] text-base font-bold">Recent Activity</h3>
             </div>
@@ -1302,73 +1306,6 @@ export default function ClientPage() {
                     <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
                       {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                     </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* By Entity Section */}
-          <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-[#101828] text-base font-bold">By entity</h3>
-              {entities.length > 0 && (
-                <Link href="/dashboard/client/entities" className="text-[#175cd3] text-xs font-bold hover:underline">
-                  View all
-                </Link>
-              )}
-            </div>
-
-            <div className="flex flex-col divide-y divide-[#f2f4f7]">
-              {entityListItems.length === 0 ? (
-                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#98a2b3]">
-                    <path d="M3 21h18" />
-                    <path d="M3 10h18" />
-                    <path d="M5 6h14" />
-                    <path d="M4 10v11" />
-                    <path d="M20 10v11" />
-                  </svg>
-                  <span className="text-sm font-semibold">No entities available</span>
-                  <span className="text-xs text-[#98a2b3] mt-1">Create an entity to get started.</span>
-                </div>
-              ) : (
-                entityListItems.map((item) => (
-                  <div key={item.id}>
-                    {item.propertiesCount === 0 ? (
-                      <div className="py-4 flex justify-between items-center">
-                        <span className="text-[#101828] text-[14px] font-bold">{item.name}</span>
-                        <span className="text-[#8c9ba5] text-xs font-semibold">No properties yet</span>
-                      </div>
-                    ) : (
-                      <div className="py-4 flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <Link
-                            href={`/dashboard/client/entities/${item.id}`}
-                            className="text-[#101828] text-[14px] font-bold hover:underline"
-                          >
-                            {item.name}
-                          </Link>
-                          <span className="text-[#12b76a] text-[14px] font-bold">{formatCurrencyShort(item.netPosition)}</span>
-                        </div>
-
-                        <p className="text-[#667085] text-xs m-0">
-                          {item.propertiesCount} propert{item.propertiesCount === 1 ? 'y' : 'ies'}
-                        </p>
-
-                        <div className="h-2 w-full bg-[var(--accent)] rounded-full overflow-hidden my-1 relative">
-                          <div
-                            className="h-full bg-[var(--brand)] transition-all duration-300"
-                            style={{ width: `${Math.min(item.loanPercentage, 100)}%` }}
-                          />
-                        </div>
-
-                        <div className="flex justify-between text-[#475467] text-xs font-medium">
-                          <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                          <span>Equity <strong className="text-[#101828]">{formatCurrencyShort(item.netPosition)}</strong></span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))
               )}

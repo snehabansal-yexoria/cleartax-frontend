@@ -4529,6 +4529,9 @@ export function AddTransactionView({
     if (!allowsAssetPurchase(newType)) {
       setIsAssetPurchase(false);
     }
+    if (newType !== "expense") {
+      setIsRegularPayment(false);
+    }
     if (!allowsBusinessExtras(newType)) {
       setIsPersonal(false);
     }
@@ -6314,7 +6317,7 @@ export function AddTransactionView({
               </div>
             ) : null}
 
-            {!isAssetPurchase && !assetBuilderOpen && (
+            {!isAssetPurchase && !assetBuilderOpen && type === "expense" && (
               <button
                 type="button"
                 className="figma-add-asset-trigger"
@@ -6401,6 +6404,18 @@ export function AddTransactionView({
                         placeholder="Select years"
                         value={tempAssetLife}
                         onChange={(e) => setTempAssetLife(e.target.value)}
+                      />
+                    </div>
+                  )}
+                  {tempAssetClass === "capital_works" && (
+                    <div className="figma-field-container">
+                      <span className="figma-field-label">Effective Life (years)<em>*</em></span>
+                      <input
+                        type="number"
+                        className="figma-input"
+                        value="40"
+                        disabled
+                        readOnly
                       />
                     </div>
                   )}
@@ -6520,9 +6535,34 @@ export function AddTransactionView({
                     </span>
                     <input
                       type="number"
+                      inputMode="decimal"
+                      step="any"
                       className="figma-input"
                       value={personalValue}
-                      onChange={(e) => setPersonalValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "e" || e.key === "E" || e.key === "-" || e.key === "+" || e.key === "Minus") {
+                          e.preventDefault();
+                        }
+                        if (e.key === ".") {
+                          const input = e.currentTarget;
+                          const value = input.value;
+                          const hasDot = value.includes(".");
+                          if (hasDot) {
+                            const selectionStart = input.selectionStart ?? 0;
+                            const selectionEnd = input.selectionEnd ?? 0;
+                            const selectedText = value.substring(selectionStart, selectionEnd);
+                            if (!selectedText.includes(".")) {
+                              e.preventDefault();
+                            }
+                          }
+                        }
+                      }}
+                      onChange={(e) => {
+                        const cleanVal = e.target.value.replace(/[^0-9.]/g, "");
+                        const parts = cleanVal.split(".");
+                        const finalVal = parts.length > 1 ? parts[0] + "." + parts.slice(1).join("") : parts[0];
+                        setPersonalValue(finalVal);
+                      }}
                     />
                   </div>
                 </div>
@@ -6541,63 +6581,67 @@ export function AddTransactionView({
             )}
 
             {/* Is it a regular payment? */}
-            <div className="figma-toggle-container">
-              <div className="figma-toggle-info">
-                <span className="figma-toggle-title">Is it a regular payment?</span>
-                <span className="figma-toggle-desc">Set a due date and reminder alert</span>
-              </div>
-              <label className="figma-switch">
-                <input
-                  type="checkbox"
-                  checked={isRegularPayment}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setIsRegularPayment(checked);
-                    if (!checked) {
-                      setDueDate("");
-                      setDueDateTouched(false);
-                      setAlertName("");
-                    }
-                  }}
-                />
-                <span className="figma-switch-slider" />
-              </label>
-            </div>
+            {type === "expense" && (
+              <>
+                <div className="figma-toggle-container">
+                  <div className="figma-toggle-info">
+                    <span className="figma-toggle-title">Is it a regular payment?</span>
+                    <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+                  </div>
+                  <label className="figma-switch">
+                    <input
+                      type="checkbox"
+                      checked={isRegularPayment}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsRegularPayment(checked);
+                        if (!checked) {
+                          setDueDate("");
+                          setDueDateTouched(false);
+                          setAlertName("");
+                        }
+                      }}
+                    />
+                    <span className="figma-switch-slider" />
+                  </label>
+                </div>
 
-            {isRegularPayment && (
-              <div className="figma-form-row">
-                <div className="figma-field-container">
-                  <span className="figma-field-label">Due Date<em>*</em></span>
-                  <input
-                    type="date"
-                    className="figma-input"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    onBlur={() => setDueDateTouched(true)}
-                  />
-                  {showDueDateError && (
-                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
-                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                      </svg>
-                      <span>{dueDateError}</span>
-                    </p>
-                  )}
-                </div>
-                <div className="figma-field-container">
-                  <span className="figma-field-label">Alert Name<em>*</em></span>
-                  <input
-                    type="text"
-                    className="figma-input"
-                    placeholder="e.g. Quarterly insurance reminder"
-                    value={alertName}
-                    onChange={(e) => {
-                      setAlertName(e.target.value);
-                      setUserEditedAlertName(true);
-                    }}
-                  />
-                </div>
-              </div>
+                {isRegularPayment && (
+                  <div className="figma-form-row">
+                    <div className="figma-field-container">
+                      <span className="figma-field-label">Due Date<em>*</em></span>
+                      <input
+                        type="date"
+                        className="figma-input"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        onBlur={() => setDueDateTouched(true)}
+                      />
+                      {showDueDateError && (
+                        <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                          <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          </svg>
+                          <span>{dueDateError}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="figma-field-container">
+                      <span className="figma-field-label">Alert Name<em>*</em></span>
+                      <input
+                        type="text"
+                        className="figma-input"
+                        placeholder="e.g. Quarterly insurance reminder"
+                        value={alertName}
+                        onChange={(e) => {
+                          setAlertName(e.target.value);
+                          setUserEditedAlertName(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Is this a split transaction? */}
