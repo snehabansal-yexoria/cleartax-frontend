@@ -7,6 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
+import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -277,6 +278,7 @@ function ClientDetailPageContent() {
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
+  const [isGstModalOpen, setIsGstModalOpen] = useState(false);
 
   // Transfer states
   const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
@@ -665,6 +667,17 @@ function ClientDetailPageContent() {
                 </svg>
               )}
               {isExporting ? "Exporting…" : "Export CSV"}
+            </button>
+
+            {/* Rolls up every entity belonging to this client. Useful as an
+                overview; the lodgeable BAS figure is the per-entity one. */}
+            <button
+              type="button"
+              className="property-outline-button"
+              onClick={() => setIsGstModalOpen(true)}
+              title="View the GST summary across this client's entities"
+            >
+              GST Summary
             </button>
 
             {/* Transfer Ownership Button - Only visible when client is assigned to current accountant */}
@@ -1398,6 +1411,11 @@ function ClientDetailPageContent() {
           )}
         </div>
       )}
+      <GstSummaryModal
+        isOpen={isGstModalOpen}
+        onClose={() => setIsGstModalOpen(false)}
+        scope={{ level: "client", id: clientId, name: client.name }}
+      />
     </section>
   );
 }

@@ -11,6 +11,11 @@ import { getSession } from "@/src/lib/session";
 import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
+import {
+  ReviewQueueCount,
+  ReviewStatusBadge,
+} from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import PaymentAlerts from "@/app/components/clients/PaymentAlerts";
 import {
@@ -426,7 +431,14 @@ export default function ClientPage() {
     meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
     type: tx.type,
     amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
+    awaitingReview: isAwaitingReview(tx.reviewStatus),
+    awaitingExtraction: isAwaitingExtraction(tx.metadata),
   }));
+
+  // What the client has sent to their accountant and is still waiting on.
+  const awaitingReviewCount = transactions.filter(tx =>
+    isAwaitingReview(tx.reviewStatus),
+  ).length;
 
   const entityListItems = entities.map(entity => {
     const entityProperties = properties.filter(p => p.entityId === entity.id);
@@ -795,7 +807,10 @@ export default function ClientPage() {
               {/* Recent Activity Card */}
               <div className="m-db-activity-section">
                 <div className="m-db-activity-header">
-                  <h3 className="m-db-activity-title">Recent activity</h3>
+                  <h3 className="m-db-activity-title">
+                    Recent activity
+                    <ReviewQueueCount count={awaitingReviewCount} />
+                  </h3>
                   <button
                     type="button"
                     className="m-db-activity-view-all"
@@ -840,6 +855,10 @@ export default function ClientPage() {
                             <span className="m-db-activity-meta">
                               {item.categoryName} - {item.meta}
                             </span>
+                            <ReviewStatusBadge
+                              awaitingReview={item.awaitingReview}
+                              awaitingExtraction={item.awaitingExtraction}
+                            />
                           </div>
                         </div>
                         <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
@@ -1264,7 +1283,10 @@ export default function ClientPage() {
           {/* Recent Activity card where By Entity card was */}
           <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[#101828] text-base font-bold">Recent Activity</h3>
+              <h3 className="text-[#101828] text-base font-bold">
+                Recent Activity
+                <ReviewQueueCount count={awaitingReviewCount} />
+              </h3>
             </div>
 
             <div className="flex flex-col divide-y divide-[#f2f4f7]">
@@ -1301,6 +1323,10 @@ export default function ClientPage() {
                         <span className="text-[#667085] text-[11px] truncate">
                           {item.categoryName} · {item.meta}
                         </span>
+                        <ReviewStatusBadge
+                          awaitingReview={item.awaitingReview}
+                          awaitingExtraction={item.awaitingExtraction}
+                        />
                       </div>
                     </div>
                     <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>

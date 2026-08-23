@@ -5,6 +5,9 @@ import type { ExtractedDocumentData } from "@/app/components/DocumentDropZone";
 export type DocumentProcessingStatus =
   | "queued"
   | "uploading"
+  // In S3, extraction deliberately deferred — the client chose "Submit to
+  // accountant", so Bedrock runs when the accountant opens the transaction.
+  | "uploaded"
   | "extracting"
   | "done"
   | "error";

@@ -20,6 +20,8 @@ import {
   transactionTypeLabel,
   transactionTypeModifier,
 } from "@/src/lib/transactionTypes";
+import { isAwaitingExtraction } from "@/src/lib/reviewStatus";
+import { ReviewStatusBadge } from "@/app/components/ReviewStatusBadge";
 import type {
   CoreAssetClass,
   CorePropertyTransactionRow,
@@ -583,6 +585,7 @@ function TransactionDetailPopup({
   mode,
   isLoading,
   error,
+  notice = "",
   isSaving,
   isDeleting,
   relatedRules,
@@ -600,6 +603,8 @@ function TransactionDetailPopup({
   mode: TransactionModalMode;
   isLoading: boolean;
   error: string;
+  /** Informational, not a failure — e.g. "we just read this from the PDF". */
+  notice?: string;
   isSaving: boolean;
   isDeleting: boolean;
   relatedRules: CoreTransactionRule[];
@@ -1136,6 +1141,10 @@ function TransactionDetailPopup({
       metadata: {
         ...display.metadata,
         mode_of_transaction: modeOfTransaction || null,
+        // Saving is the moment the placeholder becomes real values, so the
+        // "Awaiting extraction" marker goes. PATCH replaces metadata wholesale
+        // and undefined keys drop out of JSON, which removes it.
+        extraction_pending: undefined,
       },
       splits,
     };
@@ -1189,6 +1198,27 @@ function TransactionDetailPopup({
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <span>{error}</span>
+            </div>
+          ) : null}
+          {notice ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                background: "rgba(53, 56, 205, 0.08)",
+                border: "1px solid rgba(53, 56, 205, 0.24)",
+                color: "var(--text-primary)",
+                fontSize: "13px",
+                fontWeight: 500,
+              }}
+            >
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.25v2.25H9a.75.75 0 000 1.5h2a.75.75 0 000-1.5h-.25V9.75A.75.75 0 0010 9H9z" clipRule="evenodd" />
+              </svg>
+              <span>{notice}</span>
             </div>
           ) : null}
 
@@ -1896,6 +1926,14 @@ function TransactionTable({
                     onMouseLeave={() => setHoveredDescription(null)}
                   >
                     {row.description || "—"}
+                    {/* The amount on this row is a $0 placeholder until the
+                        document is read, so say so rather than let it pass for
+                        a real zero. */}
+                    <ReviewStatusBadge
+                      awaitingReview={false}
+                      awaitingExtraction={isAwaitingExtraction(row.metadata)}
+                      style={{ marginTop: 0, marginLeft: "8px" }}
+                    />
                   </td>
                   <td>
                     <span
@@ -2820,6 +2858,9 @@ export function AllTransactionsView({
   const [detailError, setDetailError] = useState("");
   const [isDetailSaving, setIsDetailSaving] = useState(false);
   const [isDetailDeleting, setIsDetailDeleting] = useState(false);
+  // Set when opening the transaction is what triggered the extraction — the
+  // client deferred it by choosing "Submit to accountant".
+  const [extractionNotice, setExtractionNotice] = useState("");
   const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
   const [transactionToDelete, setTransactionToDelete] = useState<DisplayTransactionRow | null>(null);
   const contextKind = context.kind;
@@ -3076,6 +3117,122 @@ export function AllTransactionsView({
     return session?.getIdToken().getJwtToken() || "";
   }
 
+  /**
+   * Resolves the first category + sub-category for a transaction type, matching
+   * the convention the client's quick-submit and the bulk importer use. Needed
+   * when a deferred extraction flips the type: the placeholder was created with
+   * an expense category, which the API would reject against `revenue`.
+   */
+  async function resolveDefaultCategory(
+    type: CoreTransactionType,
+    headers: Record<string, string>,
+  ): Promise<{ categoryId: number; subcategoryId: number } | null> {
+    const catRes = await fetch(
+      `/api/transactions/categories?type=${encodeURIComponent(type)}`,
+      { headers },
+    );
+    if (!catRes.ok) return null;
+    const category = ((await catRes.json()) as { items?: CoreTransactionCategory[] })
+      .items?.[0];
+    if (!category) return null;
+
+    const subRes = await fetch(
+      `/api/transactions/categories/${category.id}/sub-categories`,
+      { headers },
+    );
+    if (!subRes.ok) return null;
+    const subcategory = ((await subRes.json()) as {
+      items?: CoreTransactionSubcategory[];
+    }).items?.[0];
+    if (!subcategory) return null;
+
+    return { categoryId: category.id, subcategoryId: subcategory.id };
+  }
+
+  /**
+   * Runs the extraction the client deferred, and folds the result into the
+   * detail so the edit form opens pre-filled.
+   *
+   * A client who picks "Submit to accountant" uploads without extracting, so
+   * the transaction is a placeholder — zero amount, filename as description,
+   * default category. Opening it here is what finally invokes Bedrock. The
+   * accountant then confirms the values through the ordinary save.
+   */
+  async function extractIntoDetail(
+    detail: CoreTransactionDetail,
+    headers: Record<string, string>,
+  ): Promise<CoreTransactionDetail | null> {
+    const res = await fetch("/api/documents/extract", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        s3_key: detail.documentS3Key,
+        ...(detail.entityId ? { entity_id: detail.entityId } : {}),
+      }),
+    });
+    if (!res.ok) return null;
+
+    const result = (await res.json()) as {
+      data?: Record<string, unknown>;
+      matched_rule?: {
+        assigned_type?: string;
+        assigned_category_id?: number;
+        assigned_subcategory_id?: number;
+      } | null;
+    };
+    const data = result.data ?? {};
+    const rule = result.matched_rule ?? null;
+
+    const next: CoreTransactionDetail = { ...detail };
+
+    const extractedType = rule?.assigned_type ?? data.type;
+    if (extractedType) next.type = parseTransactionType(extractedType);
+
+    if (typeof data.amount === "number" && Number.isFinite(data.amount)) {
+      next.grossAmount = data.amount;
+    }
+    if (
+      data.gst_included &&
+      typeof data.gst_amount === "number" &&
+      Number.isFinite(data.gst_amount) &&
+      data.gst_amount > 0
+    ) {
+      next.gstAmount = data.gst_amount;
+    }
+    next.netAmount = Number((next.grossAmount - next.gstAmount).toFixed(2));
+
+    if (typeof data.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+      next.invoiceDate = data.date;
+    }
+    const description = String(data.description ?? data.title ?? "").trim();
+    if (description) next.description = description;
+
+    const remarks = [
+      data.vendor && `Vendor: ${data.vendor}`,
+      data.payer && `Payer: ${data.payer}`,
+      data.reference && `Ref: ${data.reference}`,
+    ].filter(Boolean);
+    if (remarks.length) next.internalRemarks = remarks.join(" · ");
+
+    // Categories: the rule's assignment wins; otherwise only re-resolve when
+    // the type changed, so an accountant's earlier choice is left alone.
+    if (rule?.assigned_category_id && rule?.assigned_subcategory_id) {
+      next.categoryId = rule.assigned_category_id;
+      next.subcategoryId = rule.assigned_subcategory_id;
+    } else if (next.type !== detail.type) {
+      const defaults = await resolveDefaultCategory(next.type, headers);
+      if (defaults) {
+        next.categoryId = defaults.categoryId;
+        next.subcategoryId = defaults.subcategoryId;
+      }
+    }
+
+    // Extraction flipped the document to 'completed', so re-opening this
+    // transaction won't run Bedrock a second time.
+    next.documentProcessingStatus = "completed";
+    return next;
+  }
+
   async function openTransactionDetail(
     row: DisplayTransactionRow,
     mode: TransactionModalMode = "view",
@@ -3085,6 +3242,7 @@ export function AllTransactionsView({
     setRelatedRules([]);
     setDetailMode(mode);
     setDetailError("");
+    setExtractionNotice("");
     setIsDetailLoading(true);
     try {
       const token = await getAuthToken();
@@ -3111,6 +3269,35 @@ export function AllTransactionsView({
       }
       const detail = (await detailRes.json()) as CoreTransactionDetail;
       setSelectedDetail(detail);
+
+      // The client deferred extraction on this one — opening it to review is
+      // the trigger. Pre-fill the form from the document and switch to edit so
+      // the accountant confirms the values rather than reading a placeholder.
+      if (
+        detail.documentS3Key &&
+        detail.documentProcessingStatus !== "completed"
+      ) {
+        try {
+          const enriched = await extractIntoDetail(detail, headers);
+          if (enriched) {
+            setSelectedDetail(enriched);
+            setDetailMode("edit");
+            setExtractionNotice(
+              `Read from ${detail.documentFileName || "the uploaded document"} — check the values and save.`,
+            );
+          } else {
+            setExtractionNotice(
+              "We couldn't read the uploaded document. Enter the details manually.",
+            );
+          }
+        } catch (extractError) {
+          console.error("Deferred extraction failed:", extractError);
+          setExtractionNotice(
+            "We couldn't read the uploaded document. Enter the details manually.",
+          );
+        }
+      }
+
       if (detail.entityId) {
         const rulesRes = await fetch(
           `/api/entities/${encodeURIComponent(detail.entityId)}/transaction-rules`,
@@ -3706,6 +3893,7 @@ export function AllTransactionsView({
           mode={detailMode}
           isLoading={isDetailLoading}
           error={detailError}
+          notice={extractionNotice}
           isSaving={isDetailSaving}
           isDeleting={isDetailDeleting}
           relatedRules={relatedRules}
@@ -3714,6 +3902,7 @@ export function AllTransactionsView({
             setSelectedDetail(null);
             setRelatedRules([]);
             setDetailError("");
+            setExtractionNotice("");
           }}
           onEdit={() => setDetailMode("edit")}
           onCancelEdit={() => setDetailMode("view")}

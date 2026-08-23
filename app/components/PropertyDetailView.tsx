@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
@@ -17,6 +17,7 @@ import { getSession } from "@/src/lib/session";
 import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import type {
   CoreEntity,
+  CoreGstSummary,
   CoreProperty,
   CorePropertyTransactionRow,
 } from "@/src/lib/coreApi";
@@ -26,6 +27,33 @@ interface SessionWithIdToken {
     getJwtToken(): string;
   };
 }
+
+/**
+ * Australian financial year a date falls in: FY2026 = 1 Jul 2025 - 30 Jun 2026.
+ * July onwards belongs to the next FY.
+ */
+function auFinancialYearOf(date: Date): number {
+  return date.getMonth() >= 6 ? date.getFullYear() + 1 : date.getFullYear();
+}
+
+/** BAS quarter (1-4) a date falls in. Q1 is Jul-Sep. */
+function auQuarterOf(date: Date): number {
+  const m = date.getMonth();
+  if (m >= 6 && m <= 8) return 1; // Jul-Sep
+  if (m >= 9) return 2; // Oct-Dec
+  if (m <= 2) return 3; // Jan-Mar
+  return 4; // Apr-Jun
+}
+
+/** Whole-financial-year option in the GST period selector. */
+const GST_FULL_YEAR = 0;
+
+const GST_QUARTER_LABELS: Record<number, string> = {
+  1: "Q1 · Jul–Sep",
+  2: "Q2 · Oct–Dec",
+  3: "Q3 · Jan–Mar",
+  4: "Q4 · Apr–Jun",
+};
 
 export type PropertyDetailViewProps = {
   propertyId: string;
@@ -103,6 +131,16 @@ export default function PropertyDetailView({
   const [isAssetExpanded, setIsAssetExpanded] = useState(false);
   const [isGstSummaryOpen, setIsGstSummaryOpen] = useState(false);
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
+  // GST comes from the server aggregate, not from the `transactions` array on
+  // this page: that list is capped at 100 rows by the API and carries no period
+  // filter, so totalling it client-side silently under-reports a BAS.
+  const [gstSummary, setGstSummary] = useState<CoreGstSummary | null>(null);
+  const [isGstLoading, setIsGstLoading] = useState(false);
+  const [gstError, setGstError] = useState<string | null>(null);
+  const [gstFinancialYear, setGstFinancialYear] = useState(() =>
+    auFinancialYearOf(new Date()),
+  );
+  const [gstQuarter, setGstQuarter] = useState(() => auQuarterOf(new Date()));
   const pathname = usePathname();
   // The client dashboard reuses this view; only accountants manage the flag.
   const isClientView = (pathname || "").startsWith("/dashboard/client");
@@ -306,33 +344,57 @@ export default function PropertyDetailView({
     };
   }, [transactions]);
 
-  const gstOnPurchase = useMemo(() => {
-    const sum = transactions
-      .filter((t) => t.transactionType === "expense")
-      .reduce((sum, t) => sum + (t.splitGstAmount || t.transactionGstAmount || 0), 0);
-    return sum > 0 ? sum : 227.27;
-  }, [transactions]);
+  // Every GST figure below comes from GET /properties/{id}/gst-summary. It is
+  // deliberately NOT derived from `transactions`: that array is capped at 100
+  // rows server-side, spans all time rather than the selected BAS quarter, and
+  // would need to replicate the type/review-status bucketing rules (1B counts
+  // cost_base but not personal; rejected rows are excluded) that the aggregate
+  // already applies.
+  const gstSales = gstSummary?.gstOnSales ?? 0;
+  const gstPurchases = gstSummary?.gstOnPurchases ?? 0;
+  const totalIncomeVal = gstSummary?.salesNet ?? 0;
+  const totalSalesVal = gstSummary?.g1TotalSales ?? 0;
 
-  const gstOnSales = useMemo(() => {
-    const sum = transactions
-      .filter((t) => t.transactionType === "revenue")
-      .reduce((sum, t) => sum + (t.splitGstAmount || t.transactionGstAmount || 0), 0);
-    return sum > 0 ? sum : 47.27;
-  }, [transactions]);
+  // Kept as purchases - sales to preserve this modal's existing sign
+  // convention, where a positive value reads as a refund from the ATO.
+  const refundOrPayment = gstPurchases - gstSales;
 
-  const gstPurchases = gstOnPurchase;
-  const gstSales = gstOnSales;
-  const totalIncomeVal = useMemo(() => {
-    return transactionSummary.income || 25959.00;
-  }, [transactionSummary.income]);
+  const gstPeriodLabel = gstSummary?.period.label ?? "";
 
-  const totalSalesVal = useMemo(() => {
-    return totalIncomeVal + gstSales;
-  }, [totalIncomeVal, gstSales]);
+  const loadGstSummary = useCallback(async () => {
+    if (!sessionToken || !propertyId) return;
+    setIsGstLoading(true);
+    setGstError(null);
+    try {
+      const params = new URLSearchParams({
+        financial_year: String(gstFinancialYear),
+      });
+      if (gstQuarter !== 0) params.set("quarter", String(gstQuarter));
 
-  const refundOrPayment = useMemo(() => {
-    return gstPurchases - gstSales;
-  }, [gstPurchases, gstSales]);
+      const res = await fetch(
+        `/api/properties/${encodeURIComponent(propertyId)}/gst-summary?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${sessionToken}` } },
+      );
+      if (!res.ok) {
+        throw new Error(`Could not load the GST summary (${res.status}).`);
+      }
+      setGstSummary((await res.json()) as CoreGstSummary);
+    } catch (err) {
+      setGstSummary(null);
+      setGstError(
+        err instanceof Error ? err.message : "Could not load the GST summary.",
+      );
+    } finally {
+      setIsGstLoading(false);
+    }
+  }, [sessionToken, propertyId, gstFinancialYear, gstQuarter]);
+
+  // Loaded on mount, not on modal open: the GST-on-purchase/sales stat cards
+  // above the fold read the same figures, so they must be populated before the
+  // modal is ever opened.
+  useEffect(() => {
+    void loadGstSummary();
+  }, [loadGstSummary]);
 
   const formatGst = (val: number) => {
     const formatted = Math.abs(val).toLocaleString("en-AU", {
@@ -346,7 +408,10 @@ export default function PropertyDetailView({
     if (!property) return;
     const lines = [
       `GST Summary - ${property.name || 'Property'}`,
-      `Current period`,
+      gstPeriodLabel
+        ? `${gstPeriodLabel} (${gstSummary?.period.from} to ${gstSummary?.period.to})`
+        : `Current period`,
+      `Accruals basis - dated by invoice date`,
       ``,
       `Code,Field,Amount`,
       `G1,Total Sales,${formatGst(totalSalesVal)}`,
@@ -919,8 +984,13 @@ export default function PropertyDetailView({
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 GST ON PURCHASE
               </span>
+              {gstPeriodLabel && (
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', opacity: 0.75 }}>
+                  {gstPeriodLabel}
+                </span>
+              )}
               <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-                A$ {gstOnPurchase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                A$ {gstPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </strong>
             </div>
             <span className="client-stat-icon" style={{ background: '#ef4444', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -936,8 +1006,13 @@ export default function PropertyDetailView({
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 GST ON SALES
               </span>
+              {gstPeriodLabel && (
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', opacity: 0.75 }}>
+                  {gstPeriodLabel}
+                </span>
+              )}
               <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-                A$ {gstOnSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                A$ {gstSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </strong>
             </div>
             <span className="client-stat-icon" style={{ background: '#12b76a', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1260,7 +1335,8 @@ export default function PropertyDetailView({
               <div>
                 <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>GST Summary</h2>
                 <div style={{ fontSize: '14px', color: '#c7d2fe', marginTop: '4px' }}>
-                  {property.name} · Current period
+                  {property.name}
+                  {gstPeriodLabel ? ` · ${gstPeriodLabel}` : ""}
                 </div>
               </div>
               <button
@@ -1290,7 +1366,76 @@ export default function PropertyDetailView({
 
             {/* Body */}
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
+
+              {/* Period selector — BAS quarters, defaulting to the current one */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <label style={{ display: 'grid', gap: '6px', flex: '1 1 180px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
+                    Financial year
+                  </span>
+                  <select
+                    value={gstFinancialYear}
+                    onChange={(e) => setGstFinancialYear(Number(e.target.value))}
+                    style={{
+                      minHeight: '40px',
+                      padding: '0 12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {Array.from({ length: 6 }, (_, i) => auFinancialYearOf(new Date()) - i).map(
+                      (year) => (
+                        <option key={year} value={year}>
+                          FY{year} (Jul {year - 1} – Jun {year})
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+                <label style={{ display: 'grid', gap: '6px', flex: '1 1 180px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
+                    Period
+                  </span>
+                  <select
+                    value={gstQuarter}
+                    onChange={(e) => setGstQuarter(Number(e.target.value))}
+                    style={{
+                      minHeight: '40px',
+                      padding: '0 12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {[1, 2, 3, 4].map((q) => (
+                      <option key={q} value={q}>
+                        {GST_QUARTER_LABELS[q]}
+                      </option>
+                    ))}
+                    <option value={GST_FULL_YEAR}>Full financial year</option>
+                  </select>
+                </label>
+              </div>
+
+              {isGstLoading && (
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
+                  Loading…
+                </div>
+              )}
+
+              {gstError && (
+                <div role="alert" style={{ fontSize: '14px', fontWeight: 700, color: '#b42318' }}>
+                  {gstError}
+                </div>
+              )}
+
               {/* Table Column Headers */}
               <div style={{
                 display: 'grid',
@@ -1428,25 +1573,27 @@ export default function PropertyDetailView({
                 </div>
               </div>
 
-              {/* Green Highlight Box */}
+              {/* Net position. Colour follows the direction: money coming back
+                  reads green, money owed reads red. A payment due shown in
+                  green is the kind of thing that gets misread at a glance. */}
               <div style={{
-                backgroundColor: '#e8f7f0',
+                backgroundColor: refundOrPayment >= 0 ? '#e8f7f0' : '#fef4f2',
                 borderRadius: '12px',
                 padding: '20px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '4px',
               }}>
-                <span style={{ fontWeight: 700, fontSize: '16px', color: '#0f8b57' }}>
+                <span style={{ fontWeight: 700, fontSize: '16px', color: refundOrPayment >= 0 ? '#0f8b57' : '#b42318' }}>
                   {refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"}
                 </span>
-                <span style={{ fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
+                <span style={{ fontSize: '13px', color: refundOrPayment >= 0 ? '#10b981' : '#d1584a', fontWeight: 600 }}>
                   {refundOrPayment >= 0 
                     ? `GST on Purchases - GST on Sales = ${formatGst(gstPurchases)} - ${formatGst(gstSales)}`
                     : `GST on Sales - GST on Purchases = ${formatGst(gstSales)} - ${formatGst(gstPurchases)}`
                   }
                 </span>
-                <span style={{ fontSize: '32px', fontWeight: 800, color: '#0f8b57', marginTop: '8px' }}>
+                <span style={{ fontSize: '32px', fontWeight: 800, color: refundOrPayment >= 0 ? '#0f8b57' : '#b42318', marginTop: '8px' }}>
                   {formatGst(Math.abs(refundOrPayment))}
                 </span>
               </div>
@@ -1462,8 +1609,9 @@ export default function PropertyDetailView({
               alignItems: 'center',
               backgroundColor: '#f8fafc',
             }}>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>
-                Figures reflect this property's current Income/Expense GST totals.
+              <span style={{ fontSize: '13px', color: '#64748b', maxWidth: '58%', lineHeight: 1.45 }}>
+                Accruals basis, dated by invoice date &mdash; cash-basis reporting
+                will differ. Personal and rejected transactions are excluded.
               </span>
               <button
                 type="button"

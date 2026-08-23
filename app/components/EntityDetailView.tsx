@@ -5,6 +5,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState, useId, useRef } from "react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
+import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -297,6 +298,7 @@ export default function EntityDetailView({
   const [enabledError, setEnabledError] = useState<string | null>(null);
   const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
   const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
+  const [isGstModalOpen, setIsGstModalOpen] = useState(false);
   const [propertyToDeactivate, setPropertyToDeactivate] = useState<CoreProperty | null>(null);
   const [togglingPropertyId, setTogglingPropertyId] = useState<string | null>(null);
   const pathname = usePathname();
@@ -794,6 +796,16 @@ export default function EntityDetailView({
                 <span>Edit Details</span>
               </Link>
             )}
+            {/* Entity level is the BAS-lodging unit — GST is reported per ABN,
+                so this is the summary an accountant actually transcribes. */}
+            <button
+              type="button"
+              className="property-outline-button"
+              onClick={() => setIsGstModalOpen(true)}
+              title="View the BAS GST summary for this entity"
+            >
+              GST Summary
+            </button>
           </div>
         </header>
 
@@ -1732,6 +1744,11 @@ export default function EntityDetailView({
           setPropertyToDeactivate(null);
         }}
         type="property"
+      />
+      <GstSummaryModal
+        isOpen={isGstModalOpen}
+        onClose={() => setIsGstModalOpen(false)}
+        scope={{ level: "entity", id: entityId, name: entity?.name ?? "" }}
       />
     </>
   );
