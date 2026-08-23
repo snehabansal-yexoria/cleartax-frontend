@@ -8,6 +8,7 @@ import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import GstSummaryModal from "@/app/components/GstSummaryModal";
+import { useGstSummary } from "@/app/components/useGstSummary";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -279,6 +280,10 @@ function ClientDetailPageContent() {
   // Export state
   const [isExporting, setIsExporting] = useState(false);
   const [isGstModalOpen, setIsGstModalOpen] = useState(false);
+  // The two GST stat cards below were static placeholder markup
+  // ("A$ 274.54" / "A$ 47.27") shipped with the UI design pass. They now
+  // read the real per-client aggregate.
+  const gst = useGstSummary("client", clientId);
 
   // Transfer states
   const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
@@ -797,8 +802,13 @@ function ClientDetailPageContent() {
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               GST ON PURCHASE
             </span>
+            {gst.periodLabel && (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', opacity: 0.75 }}>
+                {gst.periodLabel}
+              </span>
+            )}
             <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-              A$ 274.54
+              A$ {gst.gstOnPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </strong>
           </div>
           <span className="client-stat-icon" style={{ background: '#ef4444', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -814,8 +824,13 @@ function ClientDetailPageContent() {
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               GST ON SALES
             </span>
+            {gst.periodLabel && (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', opacity: 0.75 }}>
+                {gst.periodLabel}
+              </span>
+            )}
             <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-              A$ 47.27
+              A$ {gst.gstOnSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </strong>
           </div>
           <span className="client-stat-icon" style={{ background: '#12b76a', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
