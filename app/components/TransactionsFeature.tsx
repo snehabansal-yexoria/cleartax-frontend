@@ -35,6 +35,7 @@ import {
   DocumentDropZone,
   type ExtractedDocumentData,
   type ExtractedMeta,
+  type MatchedRule,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
 import {
@@ -4630,23 +4631,37 @@ export function AddTransactionView({
         setIsEditingEntity(false);
       }
 
-      // Property IDs
-      if (matchedTx.propertyIds && matchedTx.propertyIds.length > 0) {
-        const mainPropertyId = matchedTx.propertyIds[0];
+      // Property linkage. `transaction` has no property_id column — the schema
+      // keeps it in transaction_property_split — so a real transaction fetched
+      // from the API carries it under `splits`, never as propertyIds/propertyId.
+      // Reading only those two left the property silently unselected on review.
+      const prefillSplits: { propertyId: string; splitGrossAmount?: number }[] =
+        Array.isArray(matchedTx.splits) && matchedTx.splits.length > 0
+          ? matchedTx.splits
+          : (matchedTx.propertyIds ?? []).map((pId: string) => ({ propertyId: pId }));
+
+      if (prefillSplits.length > 0) {
+        const mainPropertyId = prefillSplits[0].propertyId;
         setPropertyId(mainPropertyId);
         setDefaultPropertyId(mainPropertyId);
         setIsEditingProperty(false);
 
-        if (matchedTx.propertyIds.length > 1) {
+        if (prefillSplits.length > 1) {
           setIsSplit(true);
-          const count = matchedTx.propertyIds.length;
-          const individualAmount = (Number(matchedTx.grossAmount || 0) / count).toFixed(2);
+          // Use each split's own amount. Re-dividing the gross evenly, as this
+          // did before, silently rewrites uneven splits.
+          const evenShare = (
+            Number(matchedTx.grossAmount || 0) / prefillSplits.length
+          ).toFixed(2);
           setSplitRows(
-            matchedTx.propertyIds.map((pId: string) => ({
+            prefillSplits.map((split) => ({
               id: makeSplitRowId(),
-              propertyId: pId,
-              amount: individualAmount,
-            }))
+              propertyId: split.propertyId,
+              amount:
+                split.splitGrossAmount != null
+                  ? String(split.splitGrossAmount)
+                  : evenShare,
+            })),
           );
         }
       } else if (matchedTx.propertyId) {
@@ -4688,6 +4703,47 @@ export function AddTransactionView({
       }
       if (matchedTx.type) {
         setType(matchedTx.type);
+      }
+
+      // 6. Deferred extraction. A "Submit to accountant" placeholder was never
+      // read, and opening it to review is the trigger — this screen, not the
+      // detail modal, is where reviewing actually happens. Runs last so the
+      // extracted values win over the placeholder's zeros. The endpoint is
+      // idempotent: an already-extracted document returns its stored data
+      // without re-invoking the model.
+      if (
+        !cancelled &&
+        matchedTx.documentS3Key &&
+        matchedTx.documentProcessingStatus !== "completed"
+      ) {
+        try {
+          const res = await fetch("/api/documents/extract", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              s3_key: matchedTx.documentS3Key,
+              ...(matchedTx.entityId ? { entity_id: matchedTx.entityId } : {}),
+            }),
+          });
+          if (res.ok && !cancelled) {
+            const result = (await res.json()) as {
+              data?: ExtractedDocumentData;
+              matched_rule?: MatchedRule | null;
+            };
+            handleExtracted(result.data ?? {}, docId, {
+              filename: fname,
+              jobId: "",
+              matchedRule: result.matched_rule ?? null,
+            });
+          }
+        } catch (extractError) {
+          // Non-blocking: the form still opens on the placeholder values and
+          // the accountant can read the document in the preview pane.
+          console.error("Deferred extraction failed on review:", extractError);
+        }
       }
     }
 
@@ -5335,9 +5391,11 @@ export function AddTransactionView({
       filled.add("subcategoryId");
     }
 
+    // parseTransactionType rather than an equality check on the two literals:
+    // the model answers "income" often enough, and that used to fall through
+    // and leave the type unset entirely.
     const effectiveType =
-      ruleType ??
-      (data.type === "expense" || data.type === "revenue" ? data.type : null);
+      ruleType ?? (data.type ? parseTransactionType(data.type) : null);
     if (effectiveType) {
       setType(effectiveType);
       filled.add("type");
@@ -5884,7 +5942,13 @@ export function AddTransactionView({
         is_asset_purchase: isAssetPurchase,
         splits,
       };
-      if (documentId) {
+      // Reviewing an existing transaction updates that row. Its document_id is
+      // already set, and re-sending it on a create is what tripped
+      // transaction_document_id_unique_idx and 409'd the whole save.
+      const reviewingId = new URLSearchParams(window.location.search).get(
+        "prefillTransactionId",
+      );
+      if (documentId && !reviewingId) {
         body.document_id = documentId;
       }
       if (appliedRuleIdRef.current) {
@@ -5943,17 +6007,36 @@ export function AddTransactionView({
         }
       }
 
-      const res = await fetch(
-        `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
-        {
-          method: "POST",
+      if (reviewingId) {
+        // Saving a review means the accountant has confirmed the values, so
+        // the transaction leaves the queue and the placeholder marker goes.
+        body.review_status = "reviewed";
+        body.metadata = {
+          ...(body.metadata as Record<string, unknown> | undefined),
+          extraction_pending: undefined,
+        };
+      }
+
+      const res = reviewingId
+        ? await fetch(`/api/transactions/${encodeURIComponent(reviewingId)}`, {
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(body),
-        },
-      );
+        })
+        : await fetch(
+          `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          },
+        );
 
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -5965,9 +6048,8 @@ export function AddTransactionView({
         );
         return;
       }
-      const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
-      if (prefillId) {
-        PROCESSED_DUMMY_IDS.add(prefillId);
+      if (reviewingId) {
+        PROCESSED_DUMMY_IDS.add(reviewingId);
       }
       setIsMarked(true);
     } catch (error) {

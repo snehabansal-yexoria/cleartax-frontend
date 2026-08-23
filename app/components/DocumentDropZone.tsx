@@ -208,6 +208,10 @@ export function DocumentDropZone({
         document_type: "transaction",
       });
       if (scope?.entityId) presignParams.set("entity_id", scope.entityId);
+      // Presign cross-checks the two against each other and 400s on a
+      // mismatch, so sending both catches a bad entity/property pairing at
+      // upload rather than at transaction create.
+      if (scope?.propertyId) presignParams.set("property_id", scope.propertyId);
       const presignRes = await fetch(
         `/api/documents/presign?${presignParams.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } },

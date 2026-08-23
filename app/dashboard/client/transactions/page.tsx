@@ -24,7 +24,6 @@ export default function ClientTransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense' | 'month'>('all');
-  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'reviewed' | 'pending'>('reviewed');
 
   // Filter bottom sheet state variables
@@ -329,229 +328,6 @@ export default function ClientTransactionsPage() {
     }
   };
 
-  const renderTransactionDetailModal = () => {
-    if (!selectedTransaction) return null;
-
-    // Format Date
-    let formattedDate = "";
-    try {
-      const date = new Date(selectedTransaction.invoiceDate);
-      formattedDate = date.toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    } catch (e) {
-      formattedDate = selectedTransaction.invoiceDate;
-    }
-
-    // Generate dynamic file name
-    const sanitizedDesc = selectedTransaction.description
-      ? selectedTransaction.description.toLowerCase().replace(/[^a-z0-9]/g, '_')
-      : 'transaction';
-    const fileName = selectedTransaction.documentFileName || `${sanitizedDesc}_invoice.pdf`;
-
-    return (
-      <div 
-        className="m-filter-backdrop" 
-        onClick={() => setSelectedTransaction(null)}
-        style={{
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0, 0, 0, 0.45)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '24px'
-        }}
-      >
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            width: '100%',
-            maxWidth: '520px',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Title above the card */}
-          <div style={{ 
-            color: '#ffffff', 
-            fontSize: '18px', 
-            fontWeight: 600, 
-            marginBottom: '16px', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            padding: '0 4px'
-          }}>
-            <span>Transaction detail</span>
-            <button 
-              onClick={() => setSelectedTransaction(null)}
-              style={{ 
-                border: 'none', 
-                background: 'none', 
-                color: 'rgba(255, 255, 255, 0.7)', 
-                fontSize: '28px', 
-                cursor: 'pointer', 
-                padding: 0, 
-                lineHeight: 1 
-              }}
-              aria-label="Close modal"
-            >
-              &times;
-            </button>
-          </div>
-
-          {/* Card Body */}
-          <div style={{
-            background: 'var(--surface-1)',
-            border: '1px solid var(--border)',
-            borderRadius: '24px',
-            padding: isMobile ? '24px 20px' : '32px 28px',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.15)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
-          }}>
-            {/* Badge & Amount */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-              <span style={{
-                padding: '6px 12px',
-                borderRadius: '100px',
-                fontSize: '12px',
-                fontWeight: '600',
-                textTransform: 'capitalize',
-                background: selectedTransaction.type === 'revenue' ? 'rgba(93, 202, 165, 0.15)' : 'rgba(240, 149, 149, 0.15)',
-                color: selectedTransaction.type === 'revenue' ? 'var(--success)' : 'var(--danger)'
-              }}>
-                {selectedTransaction.type === 'revenue' ? 'Income' : 'Expense'}
-              </span>
-              <div style={{ fontSize: '34px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.5px', marginTop: '4px' }}>
-                {formatClientCurrency(selectedTransaction.type === 'revenue' ? selectedTransaction.amount : -selectedTransaction.amount, { decimals: 2, showPlus: true })}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {formattedDate} · {selectedTransaction.description}
-              </div>
-            </div>
-
-            <div style={{ height: '1px', background: 'var(--border)' }} />
-
-            {/* Details Table Grid */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {[
-                { label: 'Entity', value: selectedTransaction.entityName },
-                { label: 'Property', value: selectedTransaction.meta || 'N/A' },
-                { label: 'Category', value: selectedTransaction.categoryName },
-                { label: 'Subcategory', value: selectedTransaction.subcategoryName || 'N/A' },
-                { 
-                  label: 'GST', 
-                  value: selectedTransaction.gstAmount !== undefined && selectedTransaction.gstAmount > 0
-                    ? `10% (${formatClientCurrency(selectedTransaction.gstAmount, { decimals: 2 })})`
-                    : `10% (${formatClientCurrency(selectedTransaction.amount * 0.1, { decimals: 2 })})`
-                },
-                { label: 'Description', value: selectedTransaction.description }
-              ].map((row, index, arr) => (
-                <div 
-                  key={row.label} 
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'flex-start',
-                    paddingBottom: index < arr.length - 1 ? '14px' : '0',
-                    borderBottom: index < arr.length - 1 ? '1px solid var(--border)' : 'none'
-                  }}
-                >
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{row.label}</span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '600', textAlign: 'right', maxWidth: '70%', wordBreak: 'break-word' }}>
-                    {row.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Attached Document Section */}
-            {selectedTransaction.documentId && (
-              <div style={{
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                padding: '14px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: '6px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '8px',
-                    background: '#F0ECE4',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#D0A860" strokeWidth="2" style={{ width: '18px', height: '18px' }}>
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                      <polyline points="10 9 9 9 8 9" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {fileName}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      356 KB · {formattedDate}
-                    </span>
-                  </div>
-                </div>
-                <a 
-                  href="#" 
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    const docId = selectedTransaction.documentId;
-                    if (!docId) return;
-                    try {
-                      const session = (await getSession()) as SessionWithIdToken | null;
-                      if (!session) {
-                        alert("You're signed out.");
-                        return;
-                      }
-                      const token = session.getIdToken().getJwtToken();
-                      const res = await fetch(`/api/documents/${encodeURIComponent(docId)}/download`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                      });
-                      if (!res.ok) throw new Error("Failed to get download URL");
-                      const data = await res.json();
-                      window.open(data.download_url, "_blank", "noopener,noreferrer");
-                    } catch (err) {
-                      console.error("Failed to open invoice:", err);
-                      alert("Failed to open the attached invoice. Please try again.");
-                    }
-                  }}
-                  style={{ fontSize: '13px', fontWeight: '600', color: 'var(--brand)', textDecoration: 'none', marginLeft: '12px' }}
-                >
-                  View
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (isMobile) {
     return (
       <Skeleton
@@ -832,14 +608,12 @@ export default function ClientTransactionsPage() {
                       {items.map((tx, idx) => (
                         <div 
                           key={tx.id} 
-                          onClick={() => setSelectedTransaction(tx)}
                           style={{ 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'space-between', 
                             padding: '16px',
-                            borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
-                            cursor: 'pointer'
+                            borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
@@ -906,7 +680,6 @@ export default function ClientTransactionsPage() {
                 pendingTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  onClick={() => setSelectedTransaction(tx)}
                   style={{
                     background: 'var(--surface-1)',
                     border: '1px solid var(--border)',
@@ -915,8 +688,7 @@ export default function ClientTransactionsPage() {
                     boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer'
+                    justifyContent: 'space-between'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
@@ -1235,7 +1007,6 @@ export default function ClientTransactionsPage() {
               </div>
             </>
           )}
-          {renderTransactionDetailModal()}
         </div>
       </Skeleton>
     );
@@ -1717,7 +1488,7 @@ export default function ClientTransactionsPage() {
 
                     <div className="d-tx-list-card">
                       {items.map((tx, idx) => (
-                        <div key={tx.id} className="d-tx-row" onClick={() => setSelectedTransaction(tx)} style={{ cursor: 'pointer' }}>
+                        <div key={tx.id} className="d-tx-row">
                           <div className="d-tx-left">
                             <div className={`d-tx-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
                               {tx.type === 'revenue' ? (
@@ -1760,7 +1531,6 @@ export default function ClientTransactionsPage() {
                 pendingTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  onClick={() => setSelectedTransaction(tx)}
                   style={{
                     background: 'var(--surface-1)',
                     border: '1px solid var(--border)',
@@ -1769,8 +1539,7 @@ export default function ClientTransactionsPage() {
                     boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer'
+                    justifyContent: 'space-between'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
@@ -2042,7 +1811,6 @@ export default function ClientTransactionsPage() {
             </div>
           </div>
         )}
-        {renderTransactionDetailModal()}
       </div>
     </Skeleton>
   );

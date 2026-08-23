@@ -3360,7 +3360,17 @@ export default function ClientAddTransactionViewNew({
                 handleExtracted(data, docId, meta);
                 setWizardStep(3);
               }}
-              scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+              // Step 1 sets both ids off the picked property card, so the
+              // document is scoped to the same entity + property the
+              // transaction will carry.
+              scope={
+                activeEntityId
+                  ? {
+                    entityId: activeEntityId,
+                    ...(propertyId ? { propertyId } : {}),
+                  }
+                  : undefined
+              }
               isSubmitting={isSubmitting}
               submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
               primaryLabelText="Scan or upload invoice / receipt"

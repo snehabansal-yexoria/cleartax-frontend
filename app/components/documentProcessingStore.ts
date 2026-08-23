@@ -34,6 +34,12 @@ const JOB_TTL_MS = 24 * 60 * 60 * 1000;
 export type DocumentProcessingScope = {
   clientId?: string;
   entityId?: string;
+  /**
+   * The single property this upload belongs to. Sent to presign so
+   * `documents.property_id` is filled in — without it the document row is only
+   * entity-scoped, even though the transaction it becomes is property-scoped.
+   */
+  propertyId?: string;
   propertyIds?: string[];
 };
 
