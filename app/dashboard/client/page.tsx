@@ -590,7 +590,7 @@ export default function ClientPage() {
       <Skeleton
         name="client-portfolio-page"
         loading={isLoading}
-        fallback={<ClientPortfolioSkeleton />}
+        fallback={<ClientPortfolioSkeleton isMobile={true} activeTab={activeTab} activeMobileView={activeMobileView} />}
       >
         <div className="mobile-client-dashboard">
           {/* Header */}
@@ -1116,7 +1116,7 @@ export default function ClientPage() {
     <Skeleton
       name="client-portfolio-page"
       loading={isLoading}
-      fallback={<ClientPortfolioSkeleton />}
+      fallback={<ClientPortfolioSkeleton isMobile={false} activeTab={activeTab} activeMobileView={activeMobileView} />}
     >
       <div className="desktop-client-dashboard">
 

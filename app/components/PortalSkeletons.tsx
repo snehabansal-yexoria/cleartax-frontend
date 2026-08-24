@@ -210,70 +210,385 @@ export function ClientEntitiesSkeleton() {
   );
 }
 
-export function ClientPortfolioSkeleton() {
-  return (
-    <section className="client-detail-page client-portfolio-page boneyard-fallback">
-      <div className="skeleton-pill skeleton-pill-wide" />
-
-      <header className="client-profile-card">
-        <div className="client-profile-main skeleton-grow">
-          <div className="skeleton-circle skeleton-circle-lg" />
-          <div className="skeleton-stack skeleton-grow">
-            <div className="skeleton-line skeleton-line-lg" />
-            <div className="skeleton-line skeleton-line-md" />
+export function ClientPortfolioSkeleton({
+  isMobile = false,
+  activeTab = 'summary',
+  activeMobileView = 'home'
+}: {
+  isMobile?: boolean;
+  activeTab?: 'summary' | 'detailed';
+  activeMobileView?: 'home' | 'activity' | 'property' | 'entity' | 'insights';
+} = {}) {
+  if (isMobile) {
+    return (
+      <div className="mobile-client-dashboard boneyard-fallback">
+        {/* Header */}
+        <div className="m-db-header">
+          <div className="m-db-profile-section">
+            <div className="m-db-logo-box" />
+            <div className="m-db-profile-info">
+              <div className="skeleton-line" style={{ width: '70px', height: '11px', marginBottom: '6px' }} />
+              <div className="skeleton-line" style={{ width: '100px', height: '18px' }} />
+            </div>
+          </div>
+          <div className="m-db-actions-section">
+            <div className="skeleton-circle" style={{ width: '32px', height: '32px' }} />
+            <div className="skeleton-circle" style={{ width: '32px', height: '32px' }} />
           </div>
         </div>
-        <div className="skeleton-pill" />
-      </header>
 
-      <div className="client-stat-grid">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <article key={index} className="client-stat-card">
-            <div className="skeleton-circle skeleton-circle-sm" />
-            <div className="skeleton-stack skeleton-grow">
-              <div className="skeleton-line skeleton-line-md" />
-              <div className="skeleton-line skeleton-line-xl" />
+        {/* Tab switches */}
+        <div className="m-db-toggle-wrap">
+          <div className="m-db-toggle">
+            <div className={`m-db-toggle-btn${activeTab === 'summary' ? ' is-active' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="skeleton-line" style={{ width: '60px', height: '12px', background: activeTab === 'summary' ? 'rgba(0,0,0,0.05)' : undefined }} />
             </div>
-          </article>
+            <div className={`m-db-toggle-btn${activeTab === 'detailed' ? ' is-active' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="skeleton-line" style={{ width: '60px', height: '12px', background: activeTab === 'detailed' ? 'rgba(0,0,0,0.05)' : undefined }} />
+            </div>
+          </div>
+        </div>
+
+        {activeTab === 'summary' && (
+          <div className="m-db-content" style={{ marginTop: '16px' }}>
+            {/* Net Position Card */}
+            <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div className="skeleton-line" style={{ width: '80px', height: '12px' }} />
+                <div className="skeleton-pill" style={{ width: '90px', height: '22px' }} />
+              </div>
+              <div className="skeleton-line" style={{ width: '160px', height: '34px', marginTop: '12px', marginBottom: '16px' }} />
+              <div style={{ height: '1px', background: '#f2f4f7', margin: '16px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1, paddingRight: '12px', borderRight: '1px solid #f2f4f7' }}>
+                  <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '80px', height: '16px' }} />
+                </div>
+                <div style={{ flex: 1, paddingLeft: '12px' }}>
+                  <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '80px', height: '16px' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="m-db-actions-grid" style={{ marginTop: '16px' }}>
+              <div className="skeleton-line" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+              <div className="m-db-actions-row">
+                <div className="skeleton-line" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+                <div className="skeleton-line" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="m-db-summary-grid" style={{ marginTop: '16px' }}>
+              <div className="m-db-stat-card">
+                <div className="m-db-stat-header">
+                  <div className="skeleton-circle" style={{ width: '32px', height: '32px' }} />
+                  <div className="skeleton-pill" style={{ width: '45px', height: '18px' }} />
+                </div>
+                <div className="m-db-stat-body" style={{ marginTop: '8px' }}>
+                  <div className="skeleton-line" style={{ width: '100px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '70px', height: '16px' }} />
+                </div>
+              </div>
+              <div className="m-db-stat-card">
+                <div className="m-db-stat-header">
+                  <div className="skeleton-circle" style={{ width: '32px', height: '32px' }} />
+                  <div className="skeleton-pill" style={{ width: '45px', height: '18px' }} />
+                </div>
+                <div className="m-db-stat-body" style={{ marginTop: '8px' }}>
+                  <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '70px', height: '16px' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Alerts Section */}
+            <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
+              <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm">
+                <div className="skeleton-line" style={{ width: '120px', height: '16px', marginBottom: '12px' }} />
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-3 p-3 rounded-xl border border-[#f2f4f7]">
+                    <div className="skeleton-circle" style={{ width: '36px', height: '36px', flexShrink: 0 }} />
+                    <div className="flex-grow">
+                      <div className="skeleton-line" style={{ width: '70%', height: '14px', marginBottom: '8px' }} />
+                      <div className="skeleton-line" style={{ width: '45%', height: '11px' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart card */}
+            <div className="m-db-chart-card" style={{ marginTop: '16px' }}>
+              <div className="m-db-chart-header">
+                <div>
+                  <div className="skeleton-line" style={{ width: '80px', height: '16px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '120px', height: '11px' }} />
+                </div>
+                <div className="m-db-chart-legend">
+                  <div className="m-db-legend-item">
+                    <div className="skeleton-circle" style={{ width: '10px', height: '10px' }} />
+                    <div className="skeleton-line" style={{ width: '40px', height: '10px' }} />
+                  </div>
+                  <div className="m-db-legend-item">
+                    <div className="skeleton-circle" style={{ width: '10px', height: '10px' }} />
+                    <div className="skeleton-line" style={{ width: '40px', height: '10px' }} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '120px', paddingTop: '16px', paddingBottom: '8px' }}>
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flex: 1 }}>
+                    <div className="skeleton-line" style={{ width: '18px', height: `${50 + (idx % 3) * 20}px`, borderRadius: '4px' }} />
+                    <div className="skeleton-line" style={{ width: '25px', height: '10px' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Activity Card */}
+            <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
+              <div className="m-db-activity-header">
+                <div className="skeleton-line" style={{ width: '120px', height: '16px' }} />
+                <div className="skeleton-line" style={{ width: '50px', height: '12px' }} />
+              </div>
+              <div className="m-db-activity-list-card" style={{ marginTop: '8px' }}>
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} className="m-db-activity-row" style={{ borderBottom: idx < 2 ? '1px solid #f2f4f7' : 'none', padding: '12px' }}>
+                    <div className="m-db-activity-left">
+                      <div className="skeleton-circle" style={{ width: '32px', height: '32px' }} />
+                      <div className="m-db-activity-info">
+                        <div className="skeleton-line" style={{ width: '110px', height: '13px', marginBottom: '6px' }} />
+                        <div className="skeleton-line" style={{ width: '70px', height: '10px' }} />
+                      </div>
+                    </div>
+                    <div className="skeleton-line" style={{ width: '50px', height: '14px' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'detailed' && (
+          <div className="m-db-content" style={{ marginTop: '16px' }}>
+            {/* Detailed Net Position Card */}
+            <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div className="skeleton-line" style={{ width: '80px', height: '12px' }} />
+                <div className="skeleton-pill" style={{ width: '90px', height: '22px' }} />
+              </div>
+              <div className="skeleton-line" style={{ width: '160px', height: '34px', marginTop: '12px', marginBottom: '16px' }} />
+              <div style={{ height: '1px', background: '#f2f4f7', margin: '16px 0' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.1fr 1.2fr', gap: '4px' }}>
+                <div style={{ paddingLeft: 0 }}>
+                  <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
+                </div>
+                <div style={{ paddingLeft: '8px', borderLeft: '1px solid #f2f4f7' }}>
+                  <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
+                </div>
+                <div style={{ paddingLeft: '8px', borderLeft: '1px solid #f2f4f7' }}>
+                  <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
+                  <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="m-db-actions-grid" style={{ marginTop: '16px' }}>
+              <div className="skeleton-line" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+              <div className="m-db-actions-row">
+                <div className="skeleton-line" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+                <div className="skeleton-line" style={{ width: '100%', height: '48px', borderRadius: '12px' }} />
+              </div>
+            </div>
+
+            {/* By Entity Section */}
+            <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
+              <div className="m-db-activity-header">
+                <div className="skeleton-line" style={{ width: '90px', height: '16px' }} />
+                <div className="skeleton-line" style={{ width: '50px', height: '12px' }} />
+              </div>
+              <div className="m-db-activity-list-card" style={{ marginTop: '8px' }}>
+                {Array.from({ length: 2 }).map((_, idx) => (
+                  <div key={idx} className="m-db-entity-row" style={{ padding: '16px', borderBottom: idx < 1 ? '1px solid #f2f4f7' : 'none' }}>
+                    <div className="m-db-entity-row-top" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div className="skeleton-line" style={{ width: '120px', height: '14px' }} />
+                      <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
+                    </div>
+                    <div className="skeleton-line" style={{ width: '80px', height: '11px', marginBottom: '8px' }} />
+                    <div className="m-db-entity-bar-container" style={{ height: '6px', background: '#f2f4f7', borderRadius: '3px', marginBottom: '8px' }}>
+                      <div className="skeleton-line" style={{ width: '40%', height: '100%', borderRadius: '3px' }} />
+                    </div>
+                    <div className="m-db-entity-label-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <div className="skeleton-line" style={{ width: '70px', height: '11px' }} />
+                      <div className="skeleton-line" style={{ width: '70px', height: '11px' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* By Property Section */}
+            <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
+              <div className="m-db-activity-header">
+                <div className="skeleton-line" style={{ width: '90px', height: '16px' }} />
+                <div className="skeleton-line" style={{ width: '50px', height: '12px' }} />
+              </div>
+              <div className="m-db-activity-list-card" style={{ marginTop: '8px' }}>
+                {Array.from({ length: 2 }).map((_, idx) => (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < 1 ? '1px solid #f2f4f7' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div>
+                        <div className="skeleton-line" style={{ width: '140px', height: '14px', marginBottom: '6px' }} />
+                        <div className="skeleton-line" style={{ width: '80px', height: '11px' }} />
+                      </div>
+                      <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                      <div className="skeleton-line" style={{ width: '70px', height: '11px' }} />
+                      <div className="skeleton-line" style={{ width: '70px', height: '11px' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop Return
+  return (
+    <div className="desktop-client-dashboard boneyard-fallback">
+      {/* Quick Actions Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="skeleton-line" style={{ width: '100%', height: '56px', borderRadius: '12px' }} />
+        <div className="skeleton-line" style={{ width: '100%', height: '56px', borderRadius: '12px' }} />
+        <div className="skeleton-line" style={{ width: '100%', height: '56px', borderRadius: '12px' }} />
+      </div>
+
+      {/* Net Equity Card */}
+      <div className="bg-white border border-[#eaeef4] rounded-[18px] p-6 shadow-sm" style={{ width: '100%', marginTop: '24px' }}>
+        <div className="flex justify-between items-center">
+          <div className="skeleton-line" style={{ width: '80px', height: '14px' }} />
+          <div className="skeleton-pill" style={{ width: '110px', height: '24px' }} />
+        </div>
+        <div className="skeleton-line" style={{ width: '220px', height: '42px', marginTop: '12px', marginBottom: '16px' }} />
+        <div style={{ height: '1px', background: '#f2f4f7', margin: '16px 0' }} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={i === 0 ? { borderLeft: 'none', paddingLeft: 0 } : { borderLeft: '1px solid #f2f4f7', paddingLeft: '20px' }}>
+              <div className="skeleton-line" style={{ width: '70px', height: '12px', marginBottom: '8px' }} />
+              <div className="skeleton-line" style={{ width: '100px', height: '20px' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mini Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6" style={{ marginTop: '24px' }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+            <div className="flex justify-between items-center">
+              <div className="skeleton-circle" style={{ width: '36px', height: '36px' }} />
+              <div className="skeleton-pill" style={{ width: '45px', height: '20px' }} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="skeleton-line" style={{ width: '110px', height: '12px' }} />
+              <div className="skeleton-line" style={{ width: '80px', height: '20px' }} />
+            </div>
+          </div>
         ))}
       </div>
 
-      <section className="client-portfolio-panel">
-        <div className="client-portfolio-tabs">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="skeleton-tab" />
-          ))}
-        </div>
-        <div className="client-portfolio-tab-body">
-          <div className="client-portfolio-section-head">
-            <div className="skeleton-line skeleton-line-lg" />
-            <div className="skeleton-pill skeleton-pill-wide" />
+      {/* Dashboard Grid Sections */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" style={{ marginTop: '24px' }}>
+        {/* Chart card (span 2) */}
+        <div className="md:col-span-2 xl:col-span-2 order-1 xl:order-1 bg-white border border-[#eaeef4] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div className="skeleton-line" style={{ width: '120px', height: '18px' }} />
+            <div className="skeleton-pill" style={{ width: '100px', height: '28px' }} />
           </div>
-          <div className="entity-card-grid">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="entity-ownership-card">
-                <div className="entity-ownership-card-main">
-                  <div className="entity-ownership-card-top">
-                    <div className="skeleton-circle" />
-                    <div className="skeleton-pill" />
-                  </div>
-                  <div className="skeleton-stack">
-                    <div className="skeleton-line skeleton-line-lg" />
-                    <div className="skeleton-line skeleton-line-md" />
-                  </div>
-                  <div className="skeleton-stack skeleton-card-spacer">
-                    <div className="skeleton-line skeleton-line-md" />
-                    <div className="skeleton-line skeleton-line-md" />
-                    <div className="skeleton-line skeleton-line-sm" />
-                  </div>
-                </div>
-                <div className="skeleton-card-footer" />
+          {/* Skeleton Chart Bars */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '20px', paddingBottom: '10px' }}>
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                <div className="skeleton-line" style={{ width: '30px', height: `${80 + (idx % 3) * 30}px`, borderRadius: '6px' }} />
+                <div className="skeleton-line" style={{ width: '40px', height: '12px' }} />
               </div>
             ))}
           </div>
         </div>
-      </section>
-    </section>
+
+        {/* Payment Alerts card */}
+        <div className="col-span-1 order-3 xl:order-2 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          <div className="skeleton-line" style={{ width: '120px', height: '18px', marginBottom: '4px' }} />
+          <div className="flex flex-col gap-4">
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={idx} className="flex items-start gap-3 p-3 rounded-xl border border-[#f2f4f7]">
+                <div className="skeleton-circle" style={{ width: '36px', height: '36px', flexShrink: 0 }} />
+                <div className="flex-grow">
+                  <div className="skeleton-line" style={{ width: '70%', height: '14px', marginBottom: '8px' }} />
+                  <div className="skeleton-line" style={{ width: '45%', height: '11px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Activity card */}
+        <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          <div className="skeleton-line" style={{ width: '140px', height: '18px', marginBottom: '4px' }} />
+          <div className="flex flex-col gap-4">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="flex justify-between items-center py-2" style={{ borderBottom: idx < 2 ? '1px solid #f2f4f7' : 'none' }}>
+                <div className="flex items-center gap-3">
+                  <div className="skeleton-circle" style={{ width: '34px', height: '34px' }} />
+                  <div>
+                    <div className="skeleton-line" style={{ width: '120px', height: '13px', marginBottom: '6px' }} />
+                    <div className="skeleton-line" style={{ width: '80px', height: '10px' }} />
+                  </div>
+                </div>
+                <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* By Property Section (span 2) */}
+        <div className="md:col-span-2 xl:col-span-2 order-4 xl:order-4 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div className="skeleton-line" style={{ width: '120px', height: '18px' }} />
+            <div className="skeleton-line" style={{ width: '50px', height: '14px' }} />
+          </div>
+          <div className="flex flex-col gap-4">
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={idx} className="py-3 flex flex-col gap-3" style={{ borderBottom: idx < 1 ? '1px solid #f2f4f7' : 'none' }}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="skeleton-line" style={{ width: '160px', height: '14px', marginBottom: '6px' }} />
+                    <div className="skeleton-line" style={{ width: '90px', height: '11px' }} />
+                  </div>
+                  <div className="skeleton-line" style={{ width: '70px', height: '14px' }} />
+                </div>
+                <div className="flex gap-6">
+                  <div className="skeleton-line" style={{ width: '80px', height: '12px' }} />
+                  <div className="skeleton-line" style={{ width: '80px', height: '12px' }} />
+                  <div className="skeleton-line" style={{ width: '90px', height: '12px' }} />
+                  <div className="skeleton-line" style={{ width: '90px', height: '12px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

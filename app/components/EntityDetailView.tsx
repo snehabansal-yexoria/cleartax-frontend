@@ -665,6 +665,7 @@ export default function EntityDetailView({
     const assetTransactions = transactions.filter((t) => t.isAssetPurchase);
     if (assetTransactions.length > 0) {
       return assetTransactions.map((t) => ({
+        id: t.id,
         description: t.description || "Asset Purchase",
         category: t.categoryName || "Capital works",
         property: t.propertyNames?.[0] || "Heaven Villa",
@@ -674,6 +675,7 @@ export default function EntityDetailView({
     }
     return [
       {
+        id: "switchboard",
         description: "Supply and replace switchboard",
         category: "Repairs and maintenance",
         property: "Heaven Villa",
@@ -681,6 +683,7 @@ export default function EntityDetailView({
         amount: -2272.73,
       },
       {
+        id: "ac-unit",
         description: "New split system A/C unit",
         category: "Repairs and maintenance",
         property: "Heaven Villa",
@@ -791,16 +794,6 @@ export default function EntityDetailView({
                 <span>Edit Details</span>
               </Link>
             )}
-            {/* Entity level is the BAS-lodging unit — GST is reported per ABN,
-                so this is the summary an accountant actually transcribes. */}
-            <button
-              type="button"
-              className="property-outline-button"
-              onClick={() => setIsGstModalOpen(true)}
-              title="View the BAS GST summary for this entity"
-            >
-              GST Summary
-            </button>
           </div>
         </header>
 
@@ -1066,11 +1059,11 @@ export default function EntityDetailView({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '16px 20px',
+                padding: '18px 24px',
                 border: '1px solid #dde4f2',
-                borderRadius: '12px',
+                borderRadius: '16px',
                 background: '#ffffff',
-                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
                 cursor: 'pointer',
                 textAlign: 'left',
                 fontFamily: 'inherit',
@@ -1078,70 +1071,80 @@ export default function EntityDetailView({
                 outline: 'none',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <span style={{ background: '#fef3c7', color: '#d97706', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ background: '#fdf4e3', color: '#c27a00', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
                     <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                   </svg>
                 </span>
                 <div>
-                  <strong style={{ display: 'block', fontSize: '15px', color: '#101828', fontWeight: 700 }}>Asset Transactions</strong>
-                  <span style={{ display: 'block', fontSize: '12px', color: '#667085', marginTop: '2px' }}>Expenses marked as asset purchases</span>
-                </div>
+                <strong style={{ display: 'block', fontSize: '16px', color: '#28336e', fontWeight: 700 }}>Asset Transactions</strong>
+                <span style={{ display: 'block', fontSize: '13px', color: '#828fa7', marginTop: '2px' }}>Expenses marked as asset purchases</span>
               </div>
-              <span style={{ color: '#667085', display: 'flex', alignItems: 'center' }}>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    transform: isAssetExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s ease',
-                  }}
-                >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </span>
-            </button>
-
-            {isAssetExpanded && (
-              <div
+            </div>
+            <span style={{ color: '#828fa7', display: 'flex', alignItems: 'center' }}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 style={{
-                  background: '#ffffff',
-                  border: '1px solid #dde4f2',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
-                  overflowX: 'auto',
+                  width: '16px',
+                  height: '16px',
+                  transform: isAssetExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
                 }}
               >
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '450px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #eaecf0' }}>
-                      <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</th>
-                      <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Category</th>
-                      <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Property</th>
-                      <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date</th>
-                      <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#475467', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Amount</th>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+          </button>
+
+          {isAssetExpanded && (
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
+                overflowX: 'auto',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '450px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #eef2f6' }}>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
+                    <th style={{ padding: '12px 8px', width: '24px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assetTransactionsList.map((item, idx) => (
+                    <tr
+                      key={idx}
+                      onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}/assets/${item.id}`)}
+                      style={{ borderBottom: idx === assetTransactionsList.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{item.property}</td>
+                      <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{item.description}</td>
+                      <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{item.date}</td>
+                      <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>{formatAmount(item.amount)}</td>
+                      <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {assetTransactionsList.map((item, idx) => (
-                      <tr key={idx} style={{ borderBottom: idx === assetTransactionsList.length - 1 ? 'none' : '1px solid #f2f4f7' }}>
-                        <td style={{ padding: '14px 8px', fontSize: '13px', color: '#101828', fontWeight: 500 }}>{item.description}</td>
-                        <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467' }}>{item.category}</td>
-                        <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467' }}>{item.property}</td>
-                        <td style={{ padding: '14px 8px', fontSize: '13px', color: '#475467', whiteSpace: 'nowrap' }}>{item.date}</td>
-                        <td style={{ padding: '14px 8px', fontSize: '13px', color: '#101828', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>{formatAmount(item.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
+                  ))}
+                </tbody>
                 </table>
               </div>
             )}

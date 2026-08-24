@@ -2211,28 +2211,44 @@ function Pagination({ copy }: { copy: string }) {
 
 function AwaitingReviewTable({
   rows,
+  scope,
+  contextKind,
   onView,
   disabled = false,
   disabledReason,
 }: {
   rows: DisplayTransactionRow[];
+  scope: TransactionTableScope;
+  contextKind: string;
   onView: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
 }) {
+  const showClientName = scope === "global";
+  const showEntityName = scope !== "entity";
+  const showPropertyName = contextKind !== "property";
+
+  // Calculate dynamic min-width for the table to prevent squishing on narrow layouts while avoiding horizontal scroll when possible
+  const minWidthPx = 140 + (showClientName ? 200 : 0) + (showEntityName ? 200 : 0) + (showPropertyName ? 240 : 0) + 120 + 160 + 130 + 100;
+  const tableMinWidth = `${minWidthPx}px`;
+
   return (
     <div className="transactions-table-container">
       <div className="transactions-table-wrap">
-        <table className="transactions-table awaiting-review-table">
+        <table 
+          className="transactions-table awaiting-review-table"
+          style={{ minWidth: tableMinWidth }}
+        >
           <thead>
             <tr>
-              <th>TRANSACTION ID</th>
-              <th>CLIENT NAME</th>
-              <th>ENTITY NAME</th>
-              <th>PROPERTY NAME</th>
-              <th>TYPE</th>
-              <th>DATE SUBMITTED</th>
-              <th style={{ textAlign: "center" }}>ACTION</th>
+              <th style={{ width: "140px" }}>TRANSACTION ID</th>
+              {showClientName && <th style={{ width: "200px" }}>CLIENT NAME</th>}
+              {showEntityName && <th style={{ width: "200px" }}>ENTITY NAME</th>}
+              {showPropertyName && <th style={{ width: "244px" }}>PROPERTY NAME</th>}
+              <th style={{ width: "120px" }}>TYPE</th>
+              <th style={{ width: "160px" }}>DATE SUBMITTED</th>
+              <th style={{ width: "130px", textAlign: "center" }}>ACTION</th>
+              <th style={{ width: "auto" }}></th>
             </tr>
           </thead>
           <tbody>
@@ -2245,28 +2261,40 @@ function AwaitingReviewTable({
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
               return (
                 <tr key={row.id}>
-                  <td>
+                  <td style={{ width: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
                       className="transaction-id-button"
-                      style={{ color: "#2563eb" }}
+                      style={{ color: "#2563eb", whiteSpace: "nowrap" }}
                       onClick={() => onView(row)}
                     >
                       {row.id.slice(0, 8)}…
                     </button>
                   </td>
-                  <td>{row.clientName || "—"}</td>
-                  <td>{row.entityName || "—"}</td>
-                  <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
-                  <td>
+                  {showClientName && (
+                    <td style={{ width: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.clientName || "—"}>
+                      {row.clientName || "—"}
+                    </td>
+                  )}
+                  {showEntityName && (
+                    <td style={{ width: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.entityName || "—"}>
+                      {row.entityName || "—"}
+                    </td>
+                  )}
+                  {showPropertyName && (
+                    <td style={{ width: "244px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.propertyNames.join(", ")}>
+                      {propertyLabel}
+                    </td>
+                  )}
+                  <td style={{ width: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <span
                       className={`transaction-type-badge ${transactionTypeModifier(row.type)}`}
                     >
                       {transactionTypeLabel(row.type)}
                     </span>
                   </td>
-                  <td>{formatSubmittedDate(row)}</td>
-                  <td style={{ textAlign: "center" }}>
+                  <td style={{ width: "160px", whiteSpace: "nowrap" }}>{formatSubmittedDate(row)}</td>
+                  <td style={{ width: "130px", textAlign: "center", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
                       className="transaction-review-action-btn"
@@ -2291,6 +2319,7 @@ function AwaitingReviewTable({
                       Review
                     </button>
                   </td>
+                  <td style={{ width: "auto" }}></td>
                 </tr>
               );
             })}
@@ -3714,6 +3743,8 @@ export function AllTransactionsView({
                   ? (displayedPropertyRows as unknown as CorePropertyTransactionRow[]).map(propertyRowToDisplayRow)
                   : displayedRows
               }
+              scope={tableScope}
+              contextKind={contextKind}
               onView={(row) => {
                 const reviewHref = appendUrlParam(
                   addTransactionTargetHref,
