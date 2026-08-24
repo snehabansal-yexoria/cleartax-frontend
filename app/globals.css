@@ -960,6 +960,158 @@ p.darkBg {
   font-weight: 700;
 }
 
+/* ---------------------------------------------------------------------------
+   GST summary modal (BAS labels G1 / 1A / 1B / 9). Built on the
+   .portal-modal-* kit above; these classes style only the figures.
+   --------------------------------------------------------------------------- */
+
+.gst-period-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.gst-period-field {
+  display: grid;
+  gap: 6px;
+}
+
+.gst-period-field > span {
+  color: #677590;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.gst-period-field select {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d6deef;
+  border-radius: 8px;
+  background: #fbfcff;
+  color: #1f2d4f;
+  font: inherit;
+  font-weight: 600;
+}
+
+.gst-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.gst-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #e5ebf7;
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.gst-row-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #eef2fb;
+  color: #2f3c82;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.gst-row-label {
+  display: grid;
+  gap: 2px;
+  color: #1f2d4f;
+  font-weight: 700;
+}
+
+.gst-row-label small {
+  color: #677590;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.gst-row-value {
+  color: #1f2d4f;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The net position is the answer the user came for, so it gets the emphasis,
+   colour-coded by direction: payable, refund, or nil. */
+.gst-row-net {
+  margin-top: 6px;
+  border-width: 2px;
+}
+
+.gst-row-net.is-payable {
+  border-color: #f0b4ac;
+  background: #fef4f2;
+}
+
+.gst-row-net.is-payable .gst-row-code,
+.gst-row-net.is-payable .gst-row-value {
+  color: #b42318;
+}
+
+.gst-row-net.is-payable .gst-row-code {
+  background: #fde3de;
+}
+
+.gst-row-net.is-refund {
+  border-color: #a9dcc0;
+  background: #f2fbf6;
+}
+
+.gst-row-net.is-refund .gst-row-code,
+.gst-row-net.is-refund .gst-row-value {
+  color: #067647;
+}
+
+.gst-row-net.is-refund .gst-row-code {
+  background: #d8f2e4;
+}
+
+.gst-row-net.is-nil {
+  border-color: #d6deef;
+}
+
+.gst-supporting {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 4px 0 0;
+  padding: 14px 16px;
+  border: 1px solid #e5ebf7;
+  border-radius: 8px;
+}
+
+.gst-supporting dt {
+  color: #677590;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.gst-supporting dd {
+  margin: 4px 0 0;
+  color: #1f2d4f;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gst-basis-note {
+  margin: 0;
+  color: #677590;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .portal-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

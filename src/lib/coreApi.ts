@@ -968,6 +968,11 @@ export type CoreTransactionDetail = {
   metadata: Record<string, unknown>;
   documentId: string | null;
   documentFileName: string | null;
+  // Present when the transaction has an attached document. A status other than
+  // "completed" means extraction has not run yet — the client deferred it by
+  // choosing "Submit to accountant", and the reviewing accountant triggers it.
+  documentS3Key: string | null;
+  documentProcessingStatus: string | null;
   createdBy: string;
   updatedBy: string | null;
   isDeleted: boolean;
@@ -1190,6 +1195,10 @@ export function normalizeCoreTransactionDetail(
     metadata: toRecord(raw.metadata),
     documentId: toNullableString(raw.document_id ?? raw.documentId),
     documentFileName: toNullableString(raw.document_file_name ?? raw.documentFileName),
+    documentS3Key: toNullableString(raw.document_s3_key ?? raw.documentS3Key),
+    documentProcessingStatus: toNullableString(
+      raw.document_processing_status ?? raw.documentProcessingStatus,
+    ),
     createdBy: toStringValue(raw.created_by ?? raw.createdBy),
     updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
     isDeleted: Boolean(raw.is_deleted ?? raw.isDeleted),
@@ -1413,6 +1422,174 @@ function reviewStatusQuery(reviewStatus?: CoreReviewStatus): string {
   return reviewStatus
     ? `?review_status=${encodeURIComponent(reviewStatus)}`
     : "";
+}
+
+// ---------------------------------------------------------------------------
+// GST summary (BAS labels G1 / 1A / 1B / 9)
+// ---------------------------------------------------------------------------
+
+export type CoreGstScopeLevel = "property" | "entity" | "client";
+
+export type CoreGstOutcome = "payment_due" | "refund_due" | "nil";
+
+export type CoreGstPeriod = {
+  label: string;
+  financialYear: number;
+  /** 1-4, or 0 for a whole financial year / custom range. */
+  quarter: number;
+  from: string;
+  to: string;
+  custom: boolean;
+};
+
+export type CoreGstSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CoreGstPeriod;
+  /**
+   * Which date column the period filtered on. The backend only has
+   * invoice_date, so this report is accruals basis — surfaced so the UI can
+   * say so rather than let someone file it as a cash-basis BAS.
+   */
+  dateBasis: string;
+  /** G1 — total sales, GST-inclusive. */
+  g1TotalSales: number;
+  /** 1A — GST collected on sales. */
+  gstOnSales: number;
+  /** 1B — GST paid on purchases. */
+  gstOnPurchases: number;
+  /** 9 — signed net position; positive means payable to the ATO. */
+  netGst: number;
+  outcome: CoreGstOutcome;
+  /** |netGst|, so the UI never renders a minus sign. */
+  amountDue: number;
+  salesNet: number;
+  purchasesTotal: number;
+  purchasesNet: number;
+  salesCount: number;
+  purchasesCount: number;
+};
+
+export type CoreGstQuery = {
+  /** Year the FY ends in: 2026 means 1 Jul 2025 - 30 Jun 2026. */
+  financialYear?: number;
+  /** BAS quarter 1-4. Omit for the whole financial year. */
+  quarter?: number;
+  from?: string;
+  to?: string;
+};
+
+/**
+ * Builds the GST query string. Deliberately does NOT emit `period=` — the core
+ * API rejects it, because in the reports API `period=quarter` means "the last
+ * 90 days" rather than a calendar BAS quarter.
+ */
+export function gstQueryString(query: CoreGstQuery = {}): string {
+  const params = new URLSearchParams();
+  if (query.financialYear) {
+    params.set("financial_year", String(query.financialYear));
+  }
+  if (query.quarter) params.set("quarter", String(query.quarter));
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+/**
+ * Narrows untrusted query params into a CoreGstQuery. Used by the BFF routes
+ * to forward only recognised keys upstream.
+ */
+export function toCoreGstQuery(params: URLSearchParams): CoreGstQuery {
+  const query: CoreGstQuery = {};
+  const fy = Number.parseInt(params.get("financial_year") ?? "", 10);
+  if (Number.isFinite(fy)) query.financialYear = fy;
+  const quarter = Number.parseInt(params.get("quarter") ?? "", 10);
+  if (Number.isFinite(quarter)) query.quarter = quarter;
+  const from = params.get("from");
+  if (from) query.from = from;
+  const to = params.get("to");
+  if (to) query.to = to;
+  return query;
+}
+
+function toGstOutcome(value: unknown): CoreGstOutcome {
+  const s = toStringValue(value);
+  return s === "payment_due" || s === "refund_due" ? s : "nil";
+}
+
+function toGstScopeLevel(value: unknown): CoreGstScopeLevel {
+  const s = toStringValue(value);
+  return s === "entity" || s === "client" ? s : "property";
+}
+
+export function normalizeCoreGstSummary(raw: RawRecord): CoreGstSummary {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const period = (raw.period ?? {}) as RawRecord;
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: {
+      label: toStringValue(period.label),
+      financialYear:
+        toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+      quarter: toNumberValue(period.quarter) ?? 0,
+      from: toStringValue(period.from),
+      to: toStringValue(period.to),
+      custom: Boolean(period.custom),
+    },
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    g1TotalSales: toFloatValue(raw.g1_total_sales ?? raw.g1TotalSales),
+    gstOnSales: toFloatValue(raw.gst_on_sales ?? raw.gstOnSales),
+    gstOnPurchases: toFloatValue(raw.gst_on_purchases ?? raw.gstOnPurchases),
+    netGst: toFloatValue(raw.net_gst ?? raw.netGst),
+    outcome: toGstOutcome(raw.outcome),
+    amountDue: toFloatValue(raw.amount_due ?? raw.amountDue),
+    salesNet: toFloatValue(raw.sales_net ?? raw.salesNet),
+    purchasesTotal: toFloatValue(raw.purchases_total ?? raw.purchasesTotal),
+    purchasesNet: toFloatValue(raw.purchases_net ?? raw.purchasesNet),
+    salesCount: toNumberValue(raw.sales_count ?? raw.salesCount) ?? 0,
+    purchasesCount:
+      toNumberValue(raw.purchases_count ?? raw.purchasesCount) ?? 0,
+  };
+}
+
+export async function getCoreGstSummaryByProperty(
+  token: string,
+  propertyId: string,
+  query?: CoreGstQuery,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/gst-summary${gstQueryString(query)}`,
+    { token },
+  );
+  return normalizeCoreGstSummary(getJsonObject(payload));
+}
+
+export async function getCoreGstSummaryByEntity(
+  token: string,
+  entityId: string,
+  query?: CoreGstQuery,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/gst-summary${gstQueryString(query)}`,
+    { token },
+  );
+  return normalizeCoreGstSummary(getJsonObject(payload));
+}
+
+export async function getCoreGstSummaryForClient(
+  token: string,
+  clientId: string,
+  query?: CoreGstQuery,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/gst-summary${gstQueryString(query)}`,
+    { token },
+  );
+  return normalizeCoreGstSummary(getJsonObject(payload));
 }
 
 // Narrows an untrusted query-param value to a CoreReviewStatus, or undefined

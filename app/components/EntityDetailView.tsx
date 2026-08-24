@@ -5,6 +5,8 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState, useId, useRef } from "react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
+import GstSummaryModal from "@/app/components/GstSummaryModal";
+import { useGstSummary } from "@/app/components/useGstSummary";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -297,6 +299,7 @@ export default function EntityDetailView({
   const [enabledError, setEnabledError] = useState<string | null>(null);
   const [isTogglingEnabled, setIsTogglingEnabled] = useState(false);
   const [isInactiveModalOpen, setIsInactiveModalOpen] = useState(false);
+  const [isGstModalOpen, setIsGstModalOpen] = useState(false);
   const [propertyToDeactivate, setPropertyToDeactivate] = useState<CoreProperty | null>(null);
   const [togglingPropertyId, setTogglingPropertyId] = useState<string | null>(null);
   const pathname = usePathname();
@@ -607,22 +610,16 @@ export default function EntityDetailView({
 
   const entityMarketValue = useMemo(() => {
     const sum = properties.reduce((sum, p) => sum + (p.estimatedMarketValue ?? 0), 0);
-    return sum > 0 ? sum : 90000;
+    return sum;
   }, [properties]);
 
-  const gstOnPurchase = useMemo(() => {
-    const sum = transactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + (t.gstAmount ?? 0), 0);
-    return sum > 0 ? sum : 227.27;
-  }, [transactions]);
-
-  const gstOnSales = useMemo(() => {
-    const sum = transactions
-      .filter((t) => t.type === "revenue")
-      .reduce((sum, t) => sum + (t.gstAmount ?? 0), 0);
-    return sum > 0 ? sum : 47.27;
-  }, [transactions]);
+  // GST comes from GET /entities/{id}/gst-summary, never from `transactions`:
+  // that array is capped at 100 rows server-side, spans all time rather than a
+  // BAS quarter, and would have to re-implement the bucketing rules (1B counts
+  // cost_base but not personal; rejected rows excluded) the aggregate applies.
+  const gst = useGstSummary("entity", entityId);
+  const gstOnPurchase = gst.gstOnPurchases;
+  const gstOnSales = gst.gstOnSales;
 
   const personalBreakdown = useMemo(() => {
     const personalTransactions = transactions.filter((t) => t.type === "personal");
@@ -794,6 +791,16 @@ export default function EntityDetailView({
                 <span>Edit Details</span>
               </Link>
             )}
+            {/* Entity level is the BAS-lodging unit — GST is reported per ABN,
+                so this is the summary an accountant actually transcribes. */}
+            <button
+              type="button"
+              className="property-outline-button"
+              onClick={() => setIsGstModalOpen(true)}
+              title="View the BAS GST summary for this entity"
+            >
+              GST Summary
+            </button>
           </div>
         </header>
 
@@ -900,6 +907,11 @@ export default function EntityDetailView({
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 GST ON PURCHASE
               </span>
+              {gst.periodLabel && (
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', opacity: 0.75 }}>
+                  {gst.periodLabel}
+                </span>
+              )}
               <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
                 A$ {gstOnPurchase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </strong>
@@ -917,6 +929,11 @@ export default function EntityDetailView({
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 GST ON SALES
               </span>
+              {gst.periodLabel && (
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', opacity: 0.75 }}>
+                  {gst.periodLabel}
+                </span>
+              )}
               <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
                 A$ {gstOnSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </strong>
@@ -1732,6 +1749,11 @@ export default function EntityDetailView({
           setPropertyToDeactivate(null);
         }}
         type="property"
+      />
+      <GstSummaryModal
+        isOpen={isGstModalOpen}
+        onClose={() => setIsGstModalOpen(false)}
+        scope={{ level: "entity", id: entityId, name: entity?.name ?? "" }}
       />
     </>
   );

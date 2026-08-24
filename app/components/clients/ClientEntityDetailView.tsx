@@ -7,6 +7,11 @@ import { Skeleton } from "boneyard-js/react";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
+import {
+  ReviewQueueCount,
+  ReviewStatusBadge,
+} from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import { formatClientCurrency, formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
 
@@ -91,6 +96,7 @@ function formatUSD(val: number, showPlus = false) {
   if (showPlus && val > 0) return `+${str}`;
   return str;
 }
+
 
 export default function ClientEntityDetailView({
   entityId,
@@ -340,7 +346,9 @@ export default function ClientEntityDetailView({
     });
   }, [properties, transactions, entity]);
 
-  // Recent transactions list
+  // Recent transactions list. Anything the client sent to their accountant is
+  // surfaced here rather than only on the transactions page — at entity level
+  // you should be able to see what is still waiting on sign-off.
   const recentTransactions = useMemo(() => {
     return transactions.slice(0, 5).map((tx) => ({
       id: tx.id,
@@ -349,8 +357,15 @@ export default function ClientEntityDetailView({
       type: tx.type,
       amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
       dateText: tx.invoiceDate ? formatDateLabel(tx.invoiceDate) : "today",
+      awaitingReview: isAwaitingReview(tx.reviewStatus),
+      awaitingExtraction: isAwaitingExtraction(tx.metadata),
     }));
   }, [transactions]);
+
+  const awaitingReviewCount = useMemo(
+    () => transactions.filter((tx) => isAwaitingReview(tx.reviewStatus)).length,
+    [transactions],
+  );
 
   function formatDateLabel(dateString: string) {
     try {
@@ -719,7 +734,10 @@ export default function ClientEntityDetailView({
             {/* Recent Transactions (1/3 width) */}
             <div className="client-entity-chart-card flex flex-col gap-4">
               <div className="flex justify-between items-center">
-                <h3 className="client-entity-chart-title">Recent transactions</h3>
+                <h3 className="client-entity-chart-title">
+                  Recent transactions
+                  <ReviewQueueCount count={awaitingReviewCount} />
+                </h3>
                 <Link href="/dashboard/client/transactions" className="text-xs font-bold text-slate-500 hover:text-slate-700" style={{ textDecoration: "none" }}>
                   View all
                 </Link>
@@ -753,6 +771,10 @@ export default function ClientEntityDetailView({
                           <span className="text-slate-400 text-xs font-semibold mt-1">
                             {tx.meta} • {tx.dateText}
                           </span>
+                          <ReviewStatusBadge
+                            awaitingReview={tx.awaitingReview}
+                            awaitingExtraction={tx.awaitingExtraction}
+                          />
                         </div>
                       </div>
 
@@ -952,7 +974,10 @@ export default function ClientEntityDetailView({
           {/* Mobile Recent Transactions */}
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Recent transactions</h3>
+              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">
+                Recent transactions
+                <ReviewQueueCount count={awaitingReviewCount} />
+              </h3>
               <Link href="/dashboard/client/transactions" className="text-xs font-bold text-slate-500 hover:text-slate-700" style={{ textDecoration: 'none' }}>
                 View all
               </Link>
@@ -986,6 +1011,10 @@ export default function ClientEntityDetailView({
                         <span className="text-slate-400 text-xs font-semibold mt-1">
                           {tx.meta} • {tx.dateText}
                         </span>
+                        <ReviewStatusBadge
+                          awaitingReview={tx.awaitingReview}
+                          awaitingExtraction={tx.awaitingExtraction}
+                        />
                       </div>
                     </div>
 

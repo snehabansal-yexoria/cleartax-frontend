@@ -52,9 +52,19 @@ type Status =
 const ALLOWED_EXT = [".pdf", ".png", ".jpg", ".jpeg"];
 const ACCEPT_ATTR = ALLOWED_EXT.join(",");
 
+/** What the caller gets back when extraction is deferred. */
+export type UploadedDocumentInfo = {
+  documentId: string;
+  s3Key: string;
+  filename: string;
+  jobId: string;
+};
+
 export function DocumentDropZone({
   token,
   onExtracted,
+  onUploaded,
+  deferExtraction = false,
   scope,
   allowMultiple = false,
   isSubmitting = false,
@@ -73,6 +83,18 @@ export function DocumentDropZone({
     documentId: string,
     meta?: ExtractedMeta,
   ) => void;
+  /**
+   * Called instead of `onExtracted` when `deferExtraction` is set — the file is
+   * in S3 but Bedrock has not run. The caller decides when (or whether) to
+   * extract, using the returned `s3Key`.
+   */
+  onUploaded?: (info: UploadedDocumentInfo) => void;
+  /**
+   * Stop after the S3 upload rather than extracting. Used by the client's
+   * add-transaction wizard, where "Submit to accountant" must not burn a
+   * Bedrock call on a document the accountant will process later.
+   */
+  deferExtraction?: boolean;
   scope?: DocumentProcessingScope;
   allowMultiple?: boolean;
   isSubmitting?: boolean;
@@ -186,6 +208,10 @@ export function DocumentDropZone({
         document_type: "transaction",
       });
       if (scope?.entityId) presignParams.set("entity_id", scope.entityId);
+      // Presign cross-checks the two against each other and 400s on a
+      // mismatch, so sending both catches a bad entity/property pairing at
+      // upload rather than at transaction create.
+      if (scope?.propertyId) presignParams.set("property_id", scope.propertyId);
       const presignRes = await fetch(
         `/api/documents/presign?${presignParams.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } },
@@ -223,6 +249,52 @@ export function DocumentDropZone({
       });
       if (!putRes.ok) {
         throw new Error(`Upload to S3 failed (${putRes.status})`);
+      }
+
+      // Deferred mode: the bytes are in S3 and that is all we promise. Flag the
+      // document so "uploaded, extraction pending" is distinguishable from a
+      // presigned row whose upload never landed, then hand the caller the
+      // s3_key so it can extract later on its own terms.
+      if (deferExtraction) {
+        const statusRes = await fetch(
+          `/api/documents/${encodeURIComponent(document_id)}/status`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ status: "uploaded" }),
+          },
+        );
+        // A failed status write is cosmetic — the upload itself succeeded and
+        // the document simply stays 'pending', which the reviewer treats the
+        // same way. Don't fail the upload over it.
+        if (!statusRes.ok) {
+          console.warn(
+            `Could not mark document ${document_id} as uploaded (${statusRes.status})`,
+          );
+        }
+
+        upsertDocumentProcessingJob({
+          id: jobId,
+          filename: file.name,
+          documentId: document_id,
+          status: "uploaded",
+          progress: 100,
+          href,
+          scope,
+        });
+        onUploaded?.({
+          documentId: document_id,
+          s3Key: s3_key,
+          filename: file.name,
+          jobId,
+        });
+        setProgress(100);
+        setStatus("done");
+        setQueueDone((current) => Math.min(total, current + 1));
+        return;
       }
 
       updateStatus("extracting", 62, file.name, jobId, href);

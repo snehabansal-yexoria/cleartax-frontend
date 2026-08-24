@@ -26,6 +26,7 @@ import {
   DocumentDropZone,
   type ExtractedDocumentData,
   type ExtractedMeta,
+  type MatchedRule,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
 import {
@@ -1500,6 +1501,10 @@ export default function ClientAddTransactionViewNew({
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  // Kept from the upload so "Review & submit" can run the extraction that no
+  // longer happens at upload time.
+  const [documentS3Key, setDocumentS3Key] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Auto-calculate GST amount when GST Option or Gross Amount changes
   useEffect(() => {
@@ -2015,9 +2020,11 @@ export default function ClientAddTransactionViewNew({
       filled.add("subcategoryId");
     }
 
+    // parseTransactionType rather than an equality check on the two literals:
+    // the model answers "income" often enough, and that used to fall through
+    // and leave the type unset entirely.
     const effectiveType =
-      ruleType ??
-      (data.type === "expense" || data.type === "revenue" ? data.type : null);
+      ruleType ?? (data.type ? parseTransactionType(data.type) : null);
     if (effectiveType) {
       setType(effectiveType);
       filled.add("type");
@@ -2091,6 +2098,60 @@ export default function ClientAddTransactionViewNew({
     setWizardStep(3);
   };
 
+  /**
+   * Runs the extraction that used to fire automatically at upload.
+   *
+   * Uploads no longer extract — "Submit to accountant" must not spend a
+   * Bedrock call on a document the accountant will process later. So the
+   * "Review & submit" path, which genuinely needs the pre-filled values, runs
+   * it here instead. Returns an error message to display, or null on success.
+   */
+  const runExtraction = async (): Promise<string | null> => {
+    if (!token) return "You're signed out. Refresh and log in again.";
+    if (!documentS3Key || !documentId) return null; // nothing uploaded to read
+
+    setIsExtracting(true);
+    try {
+      const res = await fetch("/api/documents/extract", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          s3_key: documentS3Key,
+          ...(activeEntityId ? { entity_id: activeEntityId } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          message?: string;
+          error?: string;
+        } | null;
+        return (
+          data?.message ||
+          data?.error ||
+          `We couldn't read the document (${res.status}). Enter the details manually.`
+        );
+      }
+      const result = (await res.json()) as {
+        data?: ExtractedDocumentData;
+        matched_rule?: MatchedRule | null;
+      };
+      handleExtracted(result.data ?? {}, documentId, {
+        filename: uploadedFilename ?? "",
+        jobId: "",
+        matchedRule: result.matched_rule ?? null,
+      });
+      return null;
+    } catch (err) {
+      console.error("Extraction failed:", err);
+      return "We couldn't read the document. Enter the details manually.";
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   // POSTs a create-transaction body to the core API via the BFF. Returns an
   // error message to display, or null on success.
   const postTransaction = async (
@@ -2159,13 +2220,14 @@ export default function ClientAddTransactionViewNew({
         setSubmitError("Select a property before submitting.");
         return;
       }
+
+      // No extraction has run on this path by design, so there is usually no
+      // amount to read — this is a placeholder the accountant fills in when
+      // they open it to review. A parsed amount is used only in the rare case
+      // where the client typed one before switching to this option.
       const grossNum = Number.parseFloat(grossAmount);
-      if (Number.isNaN(grossNum) || grossNum <= 0) {
-        setSubmitError(
-          "We couldn't read an amount from the document. Use 'Review & Submit' to enter it.",
-        );
-        return;
-      }
+      const placeholderGross =
+        Number.isNaN(grossNum) || grossNum <= 0 ? 0 : grossNum;
 
       const effectiveType: CoreTransactionType =
         type === "revenue" ? "revenue" : "expense";
@@ -2193,12 +2255,19 @@ export default function ClientAddTransactionViewNew({
         category_id: resolvedCategoryId,
         subcategory_id: resolvedSubcategoryId,
         invoice_date: invoiceDate || getLocalDateString(),
-        gross_amount: grossNum,
-        description: description.trim() || null,
+        gross_amount: placeholderGross,
+        // Falling back to the filename gives the accountant something to
+        // recognise in the queue before extraction has filled in the details.
+        description:
+          description.trim() || uploadedFilename || "Uploaded document",
         internal_remarks: internalRemarks.trim() || null,
         is_asset_purchase: false,
         splits: [{ property_id: propertyId, split_percentage: 100 }],
-        metadata: { source: "client_submit_invoice" },
+        // extraction_pending marks this as a placeholder: no extraction has
+        // run, so the amount and category are stand-ins. List rows carry
+        // metadata but not the document's status, so this is what the
+        // "Awaiting extraction" badge keys off. The accountant's save clears it.
+        metadata: { source: "client_submit_invoice", extraction_pending: true },
         // This is the one path that asks for accountant sign-off, so it is the
         // one path that puts the transaction in the review queue. "Review &
         // submit" below saves it as 'active', same as an accountant's upload.
@@ -3277,11 +3346,31 @@ export default function ClientAddTransactionViewNew({
           <div style={{ width: '100%' }}>
             <DocumentDropZone
               token={token}
+              // Upload only. Which of the two options the client picks on step
+              // 3 decides whether extraction ever runs, so paying for it here
+              // would waste a Bedrock call on every "Submit to accountant".
+              deferExtraction
+              onUploaded={({ documentId: docId, s3Key, filename }) => {
+                setDocumentId(docId);
+                setDocumentS3Key(s3Key);
+                setUploadedFilename(filename);
+                setWizardStep(3);
+              }}
               onExtracted={(data, docId, meta) => {
                 handleExtracted(data, docId, meta);
                 setWizardStep(3);
               }}
-              scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+              // Step 1 sets both ids off the picked property card, so the
+              // document is scoped to the same entity + property the
+              // transaction will carry.
+              scope={
+                activeEntityId
+                  ? {
+                    entityId: activeEntityId,
+                    ...(propertyId ? { propertyId } : {}),
+                  }
+                  : undefined
+              }
               isSubmitting={isSubmitting}
               submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
               primaryLabelText="Scan or upload invoice / receipt"
@@ -3493,13 +3582,19 @@ export default function ClientAddTransactionViewNew({
           {/* Option 2: Review & Submit */}
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               setIsEditingEntity(false);
               setIsEditingProperty(false);
               setSelectedMethod("review_submit");
+              setSubmitError("");
+              // This is the path that needs the extracted values, so run the
+              // extraction the upload skipped. A failure is non-blocking: the
+              // form still opens and the client types the details in.
+              const extractError = await runExtraction();
+              if (extractError) setSubmitError(extractError);
               setWizardStep("form");
             }}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isExtracting}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -3533,10 +3628,12 @@ export default function ClientAddTransactionViewNew({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
               <span style={{ fontSize: '17px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
-                Review & submit
+                {isExtracting ? "Reading your receipt…" : "Review & submit"}
               </span>
               <span style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#475467', lineHeight: '1.4' }}>
-                We've pre-filled the details from your receipt — check them and save.
+                {isExtracting
+                  ? "This takes a few seconds. We'll pre-fill what we find."
+                  : "We'll pre-fill the details from your receipt — check them and save."}
               </span>
             </div>
           </button>
