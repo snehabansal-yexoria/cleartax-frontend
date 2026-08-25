@@ -335,6 +335,15 @@ p.darkBg {
   animation: fallbackShimmer 1.5s linear infinite;
 }
 
+.m-db-net-card .skeleton-line,
+.m-db-net-card .skeleton-circle,
+.m-db-net-card .skeleton-pill,
+.m-db-net-card .skeleton-input,
+.m-db-net-card .skeleton-panel {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.18) 50%, rgba(255, 255, 255, 0.08) 100%);
+  background-size: 200% 100%;
+}
+
 .skeleton-line {
   height: 14px;
   border-radius: 999px;
@@ -976,7 +985,7 @@ p.darkBg {
   gap: 6px;
 }
 
-.gst-period-field > span {
+.gst-period-field>span {
   color: #677590;
   font-size: 0.85rem;
   font-weight: 700;
@@ -7696,34 +7705,47 @@ p.darkBg {
 .transaction-tabs {
   display: inline-flex;
   align-items: center;
-  height: 46px; /* Explicit height to contain buttons perfectly */
-  padding: 4px; /* Internal spacing around buttons */
-  border-radius: 12px; /* Box-like design with rounded corners */
-  border: 1px solid #e4e7ec; /* light border */
+  height: 46px;
+  /* Explicit height to contain buttons perfectly */
+  padding: 4px;
+  /* Internal spacing around buttons */
+  border-radius: 12px;
+  /* Box-like design with rounded corners */
+  border: 1px solid #e4e7ec;
+  /* light border */
   background: #ffffff;
   margin-bottom: 20px;
-  gap: 4px; /* small gap between buttons */
+  gap: 4px;
+  /* small gap between buttons */
   box-sizing: border-box;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
-  width: fit-content; /* Hug content width */
-  align-self: flex-start; /* Avoid stretching inside flex column layouts */
+  width: fit-content;
+  /* Hug content width */
+  align-self: flex-start;
+  /* Avoid stretching inside flex column layouts */
 }
 
 .transaction-tab-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 100%; /* Fill container height perfectly */
+  height: 100%;
+  /* Fill container height perfectly */
   padding: 0 16px;
-  border-radius: 8px; /* nested border-radius for box-like shape */
+  border-radius: 8px;
+  /* nested border-radius for box-like shape */
   font-family: inherit;
   font-size: 14px;
   font-weight: 700;
-  border: none; /* No individual borders */
-  background: transparent; /* Transparent background */
-  color: #5c6479; /* Cool muted gray-blue text */
+  border: none;
+  /* No individual borders */
+  background: transparent;
+  /* Transparent background */
+  color: #5c6479;
+  /* Cool muted gray-blue text */
   cursor: pointer;
-  margin: 0; /* Reset default browser margins */
+  margin: 0;
+  /* Reset default browser margins */
   box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -7734,12 +7756,15 @@ p.darkBg {
 }
 
 .transaction-tab-btn.is-active {
-  background: #28336e; /* User-specified primary button color */
-  color: #ffffff; /* White text */
+  background: #28336e;
+  /* User-specified primary button color */
+  color: #ffffff;
+  /* White text */
 }
 
 .transaction-tab-btn.is-active:hover {
-  background: #1e2652; /* slightly darker on hover */
+  background: #1e2652;
+  /* slightly darker on hover */
 }
 
 .transaction-tab-badge {
@@ -7752,13 +7777,15 @@ p.darkBg {
   height: 22px;
   min-width: 28px;
   border-radius: 12px;
-  background: #f1f5f9; /* Light slate gray */
+  background: #f1f5f9;
+  /* Light slate gray */
   color: #5c6479;
   transition: all 0.2s ease;
 }
 
 .transaction-tab-btn.is-active .transaction-tab-badge {
-  background: rgba(255, 255, 255, 0.16); /* Translucent white overlay */
+  background: rgba(255, 255, 255, 0.16);
+  /* Translucent white overlay */
   color: #ffffff;
 }
 
@@ -18427,7 +18454,7 @@ html.dark .figma-bulk-import-btn {
   align-items: start;
 }
 
-.figma-add-tx-panes > .figma-uploader-section {
+.figma-add-tx-panes>.figma-uploader-section {
   position: sticky;
   top: 24px;
   margin-bottom: 0;
@@ -18474,7 +18501,7 @@ html.dark .figma-bulk-import-btn {
     gap: 0;
   }
 
-  .figma-add-tx-panes > .figma-uploader-section {
+  .figma-add-tx-panes>.figma-uploader-section {
     position: static;
     margin-bottom: 24px;
   }
@@ -18645,7 +18672,9 @@ html.dark .figma-field-label {
 }
 
 /* Custom inputs & dropdowns styling */
-.figma-input, .figma-select, .figma-textarea {
+.figma-input,
+.figma-select,
+.figma-textarea {
   font-family: inherit;
   width: 100%;
   height: 48px;
@@ -18661,13 +18690,17 @@ html.dark .figma-field-label {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-html.dark .figma-input, html.dark .figma-select, html.dark .figma-textarea {
+html.dark .figma-input,
+html.dark .figma-select,
+html.dark .figma-textarea {
   background: var(--surface-2);
   border-color: var(--border);
   color: var(--text-primary);
 }
 
-.figma-input:disabled, .figma-select:disabled, .figma-textarea:disabled {
+.figma-input:disabled,
+.figma-select:disabled,
+.figma-textarea:disabled {
   background-color: #f2f4f7 !important;
   color: #85888e !important;
   cursor: not-allowed !important;
@@ -18675,7 +18708,9 @@ html.dark .figma-input, html.dark .figma-select, html.dark .figma-textarea {
   opacity: 0.7 !important;
 }
 
-html.dark .figma-input:disabled, html.dark .figma-select:disabled, html.dark .figma-textarea:disabled {
+html.dark .figma-input:disabled,
+html.dark .figma-select:disabled,
+html.dark .figma-textarea:disabled {
   background-color: var(--surface-3) !important;
   color: var(--text-secondary) !important;
   border-color: var(--border) !important;
@@ -18684,12 +18719,16 @@ html.dark .figma-input:disabled, html.dark .figma-select:disabled, html.dark .fi
 }
 
 
-.figma-input:focus, .figma-select:focus, .figma-textarea:focus {
+.figma-input:focus,
+.figma-select:focus,
+.figma-textarea:focus {
   border-color: #1d2452;
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(29, 36, 82, 0.1);
 }
 
-html.dark .figma-input:focus, html.dark .figma-select:focus, html.dark .figma-textarea:focus {
+html.dark .figma-input:focus,
+html.dark .figma-select:focus,
+html.dark .figma-textarea:focus {
   border-color: var(--accent);
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(92, 133, 214, 0.15);
 }
@@ -18722,7 +18761,8 @@ html.dark .figma-select {
 /* Transaction Type Control */
 .figma-type-row {
   display: flex;
-  align-items: stretch; /* Stretch buttons to have the same height */
+  align-items: stretch;
+  /* Stretch buttons to have the same height */
   gap: 10px;
   width: 100%;
 }
@@ -18735,7 +18775,8 @@ html.dark .figma-select {
 
 .figma-type-btn {
   flex: 1 1 0px;
-  min-width: 0; /* Allow scaling down on narrow layouts */
+  min-width: 0;
+  /* Allow scaling down on narrow layouts */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -18772,8 +18813,10 @@ html.dark .figma-type-btn {
 .figma-type-text {
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* Left-align the lines of text relative to each other */
-  text-align: left;        /* Fallback left-align text */
+  align-items: flex-start;
+  /* Left-align the lines of text relative to each other */
+  text-align: left;
+  /* Fallback left-align text */
   line-height: 1.15;
   min-width: 0;
 }
@@ -18815,16 +18858,19 @@ html.dark .figma-type-circle {
   transform: translateY(-1px);
   box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+
 .figma-type-btn.is-income:hover .figma-type-circle {
   background: #d1fadf;
   color: #12b76a;
 }
+
 .figma-type-btn.is-income.active {
   background: #f0fdf4 !important;
   border-color: #22c55e !important;
   color: #15803d !important;
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(34, 197, 94, 0.12) !important;
 }
+
 .figma-type-btn.is-income.active .figma-type-circle {
   background: #d1fadf !important;
   color: #12b76a !important;
@@ -18838,16 +18884,19 @@ html.dark .figma-type-circle {
   transform: translateY(-1px);
   box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+
 .figma-type-btn.is-expense:hover .figma-type-circle {
   background: #fee4e2;
   color: #d92d20;
 }
+
 .figma-type-btn.is-expense.active {
   background: #fef2f2 !important;
   border-color: #ef4444 !important;
   color: #b91c1c !important;
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(239, 68, 68, 0.12) !important;
 }
+
 .figma-type-btn.is-expense.active .figma-type-circle {
   background: #fee4e2 !important;
   color: #d92d20 !important;
@@ -18861,16 +18910,19 @@ html.dark .figma-type-circle {
   transform: translateY(-1px);
   box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+
 .figma-type-btn.is-personal:hover .figma-type-circle {
   background: #f4f3ff;
   color: #7a5af8;
 }
+
 .figma-type-btn.is-personal.active {
   background: #faf5ff !important;
   border-color: #a855f7 !important;
   color: #6b21a8 !important;
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(168, 85, 247, 0.12) !important;
 }
+
 .figma-type-btn.is-personal.active .figma-type-circle {
   background: #f4f3ff !important;
   color: #7a5af8 !important;
@@ -18884,16 +18936,19 @@ html.dark .figma-type-circle {
   transform: translateY(-1px);
   box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+
 .figma-type-btn.is-cost-base:hover .figma-type-circle {
   background: #fef0e9;
   color: #ef6820;
 }
+
 .figma-type-btn.is-cost-base.active {
   background: #fff7ed !important;
   border-color: #f97316 !important;
   color: #c2410c !important;
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(249, 115, 22, 0.12) !important;
 }
+
 .figma-type-btn.is-cost-base.active .figma-type-circle {
   background: #fef0e9 !important;
   color: #ef6820 !important;
@@ -18907,16 +18962,19 @@ html.dark .figma-type-btn.is-income:hover {
   border-color: rgba(16, 185, 129, 0.4);
   color: #34d399;
 }
+
 html.dark .figma-type-btn.is-income:hover .figma-type-circle {
   background: rgba(16, 185, 129, 0.2);
   color: #34d399;
 }
+
 html.dark .figma-type-btn.is-income.active {
   background: rgba(16, 185, 129, 0.1) !important;
   border-color: #10b981 !important;
   color: #34d399 !important;
   box-shadow: 0px 0px 0px 3px rgba(16, 185, 129, 0.25) !important;
 }
+
 html.dark .figma-type-btn.is-income.active .figma-type-circle {
   background: rgba(16, 185, 129, 0.25) !important;
   color: #34d399 !important;
@@ -18928,16 +18986,19 @@ html.dark .figma-type-btn.is-expense:hover {
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
 }
+
 html.dark .figma-type-btn.is-expense:hover .figma-type-circle {
   background: rgba(239, 68, 68, 0.2);
   color: #fca5a5;
 }
+
 html.dark .figma-type-btn.is-expense.active {
   background: rgba(239, 68, 68, 0.1) !important;
   border-color: #ef4444 !important;
   color: #fca5a5 !important;
   box-shadow: 0px 0px 0px 3px rgba(239, 68, 68, 0.25) !important;
 }
+
 html.dark .figma-type-btn.is-expense.active .figma-type-circle {
   background: rgba(239, 68, 68, 0.25) !important;
   color: #fca5a5 !important;
@@ -18949,16 +19010,19 @@ html.dark .figma-type-btn.is-personal:hover {
   border-color: rgba(168, 85, 247, 0.4);
   color: #c084fc;
 }
+
 html.dark .figma-type-btn.is-personal:hover .figma-type-circle {
   background: rgba(168, 85, 247, 0.2);
   color: #c084fc;
 }
+
 html.dark .figma-type-btn.is-personal.active {
   background: rgba(168, 85, 247, 0.1) !important;
   border-color: #a855f7 !important;
   color: #c084fc !important;
   box-shadow: 0px 0px 0px 3px rgba(168, 85, 247, 0.25) !important;
 }
+
 html.dark .figma-type-btn.is-personal.active .figma-type-circle {
   background: rgba(168, 85, 247, 0.25) !important;
   color: #c084fc !important;
@@ -18970,16 +19034,19 @@ html.dark .figma-type-btn.is-cost-base:hover {
   border-color: rgba(249, 115, 22, 0.4);
   color: #ffb076;
 }
+
 html.dark .figma-type-btn.is-cost-base:hover .figma-type-circle {
   background: rgba(249, 115, 22, 0.2);
   color: #ffb076;
 }
+
 html.dark .figma-type-btn.is-cost-base.active {
   background: rgba(249, 115, 22, 0.1) !important;
   border-color: #f97316 !important;
   color: #ffb076 !important;
   box-shadow: 0px 0px 0px 3px rgba(249, 115, 22, 0.25) !important;
 }
+
 html.dark .figma-type-btn.is-cost-base.active .figma-type-circle {
   background: rgba(249, 115, 22, 0.25) !important;
   color: #ffb076 !important;
@@ -19122,11 +19189,11 @@ html.dark .figma-switch-slider {
   background-color: var(--surface-3);
 }
 
-.figma-switch input:checked + .figma-switch-slider {
+.figma-switch input:checked+.figma-switch-slider {
   background-color: #28336e;
 }
 
-html.dark .figma-switch input:checked + .figma-switch-slider {
+html.dark .figma-switch input:checked+.figma-switch-slider {
   background-color: var(--accent);
 }
 
@@ -19143,7 +19210,7 @@ html.dark .figma-switch input:checked + .figma-switch-slider {
   box-shadow: 0px 1px 3px rgba(16, 24, 40, 0.1);
 }
 
-.figma-switch input:checked + .figma-switch-slider:before {
+.figma-switch input:checked+.figma-switch-slider:before {
   transform: translateX(20px);
 }
 
@@ -19735,4 +19802,11 @@ html.dark .figma-segmented-btn {
 html.dark .figma-segmented-btn.active {
   background: var(--surface-1) !important;
   color: var(--text-primary) !important;
+}
+
+/* Awaiting Review Table styling overrides to prevent horizontal scroll and fit screen nicely */
+.transactions-table.awaiting-review-table {
+  min-width: unset; /* Let the dynamic minWidth style on the table element govern this */
+  width: 100%;
+  table-layout: fixed;
 }
