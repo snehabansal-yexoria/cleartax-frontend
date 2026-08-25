@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import {
+  announceDropdownOpen,
+  dropdownRegistryEvent,
+  isDropdownRegistryEvent,
+} from "@/src/lib/dropdownRegistry";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -51,6 +56,130 @@ function formatDateToDDMMYYYY(dateStr: string) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return dateStr;
+}
+
+interface TableDropdownSelectProps {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+function TableDropdownSelect({
+  value,
+  options,
+  onChange,
+  disabled = false,
+}: TableDropdownSelectProps) {
+  const reactId = useId();
+  const dropdownId = `table-select-${reactId}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function closeIfAnotherOpened(event: Event) {
+      if (
+        isDropdownRegistryEvent(event) &&
+        event.detail?.id &&
+        event.detail.id !== dropdownId
+      ) {
+        setIsOpen(false);
+      }
+    }
+    window.addEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+    return () =>
+      window.removeEventListener(dropdownRegistryEvent, closeIfAnotherOpened);
+  }, [dropdownId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      announceDropdownOpen(dropdownId);
+    }
+  }, [dropdownId, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`borrowing-cost-dropdown-container ${isOpen ? "is-open" : ""} ${
+        disabled ? "is-disabled" : ""
+      }`}
+    >
+      <button
+        type="button"
+        className="borrowing-cost-dropdown-trigger"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        disabled={disabled}
+      >
+        <span className="borrowing-cost-dropdown-value">{value}</span>
+        <svg
+          className="borrowing-cost-dropdown-arrow"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="borrowing-cost-dropdown-menu" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={option === value}
+              className={`borrowing-cost-dropdown-item ${
+                option === value ? "is-selected" : ""
+              }`}
+              onClick={() => {
+                onChange(option);
+                setIsOpen(false);
+              }}
+            >
+              <span>{option}</span>
+              {option === value && (
+                <svg
+                  className="borrowing-cost-dropdown-check"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function BorrowingCostView({
@@ -500,6 +629,109 @@ export default function BorrowingCostView({
           padding: 12px 8px;
           vertical-align: middle;
         }
+        .borrowing-cost-dropdown-container {
+          position: relative;
+          width: 100%;
+        }
+        .borrowing-cost-dropdown-container.is-open {
+          z-index: 100;
+        }
+        .borrowing-cost-dropdown-trigger {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 8px;
+          border: 1px solid #d0d5dd;
+          font-size: 14px;
+          color: #1d2939;
+          background-color: #ffffff;
+          transition: all 0.2s ease;
+          outline: none;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          cursor: pointer;
+          font-family: inherit;
+          text-align: left;
+          height: 42px;
+        }
+        .borrowing-cost-dropdown-trigger:hover:not(:disabled) {
+          border-color: #98a2b3;
+          background-color: #fcfcfd;
+        }
+        .borrowing-cost-dropdown-container.is-open .borrowing-cost-dropdown-trigger {
+          border-color: #28336e;
+          box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.12);
+        }
+        .borrowing-cost-dropdown-arrow {
+          width: 16px;
+          height: 16px;
+          color: #667085;
+          transition: transform 0.2s ease;
+          flex-shrink: 0;
+        }
+        .borrowing-cost-dropdown-container.is-open .borrowing-cost-dropdown-arrow {
+          transform: rotate(180deg);
+        }
+        .borrowing-cost-dropdown-value {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-weight: 500;
+        }
+        .borrowing-cost-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          right: 0;
+          z-index: 99;
+          background-color: #ffffff;
+          border: 1px solid #e4e7ef;
+          border-radius: 8px;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          max-height: 200px;
+          overflow-y: auto;
+          padding: 4px;
+        }
+        .borrowing-cost-dropdown-item {
+          width: 100%;
+          padding: 10px 12px;
+          font-size: 14px;
+          color: #344054;
+          background: transparent;
+          border: none;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          text-align: left;
+          font-family: inherit;
+          transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .borrowing-cost-dropdown-item:hover {
+          background-color: #f4f5f9;
+          color: #1e295b;
+        }
+        .borrowing-cost-dropdown-item.is-selected {
+          background-color: #f0f2f9;
+          color: #1e295b;
+          font-weight: 600;
+        }
+        .borrowing-cost-dropdown-check {
+          width: 16px;
+          height: 16px;
+          color: #28336e;
+          flex-shrink: 0;
+        }
+        .borrowing-cost-dropdown-container.is-disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .borrowing-cost-dropdown-trigger:disabled {
+          cursor: not-allowed;
+          background-color: #f8f9fc;
+        }
         .borrowing-cost-btn-secondary {
           display: inline-flex;
           align-items: center;
@@ -643,7 +875,7 @@ export default function BorrowingCostView({
             </button>
           </header>
 
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflow: "visible" }}>
             <table className="borrowing-cost-table">
               <thead>
                 <tr>
@@ -659,17 +891,11 @@ export default function BorrowingCostView({
                   <tr key={exp.id} style={{ borderBottom: "1px solid #f2f4f7" }}>
                     {/* Subcategory Dropdown */}
                     <td>
-                      <select
+                      <TableDropdownSelect
                         value={exp.subcategory}
-                        onChange={(e) => handleUpdateField(exp.id, "subcategory", e.target.value)}
-                        className="borrowing-cost-select"
-                      >
-                        {SUBCATEGORY_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
+                        options={SUBCATEGORY_OPTIONS}
+                        onChange={(val) => handleUpdateField(exp.id, "subcategory", val)}
+                      />
                     </td>
 
                     {/* Amount Input */}

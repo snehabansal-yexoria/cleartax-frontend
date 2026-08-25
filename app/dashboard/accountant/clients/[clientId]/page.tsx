@@ -7,8 +7,6 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
-import GstSummaryModal from "@/app/components/GstSummaryModal";
-import { useGstSummary } from "@/app/components/useGstSummary";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -279,11 +277,6 @@ function ClientDetailPageContent() {
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
-  const [isGstModalOpen, setIsGstModalOpen] = useState(false);
-  // The two GST stat cards below were static placeholder markup
-  // ("A$ 274.54" / "A$ 47.27") shipped with the UI design pass. They now
-  // read the real per-client aggregate.
-  const gst = useGstSummary("client", clientId);
 
   // Transfer states
   const [isTransferDrawerOpen, setTransferDrawerOpen] = useState(false);
@@ -674,17 +667,6 @@ function ClientDetailPageContent() {
               {isExporting ? "Exporting…" : "Export CSV"}
             </button>
 
-            {/* Rolls up every entity belonging to this client. Useful as an
-                overview; the lodgeable BAS figure is the per-entity one. */}
-            <button
-              type="button"
-              className="property-outline-button"
-              onClick={() => setIsGstModalOpen(true)}
-              title="View the GST summary across this client's entities"
-            >
-              GST Summary
-            </button>
-
             {/* Transfer Ownership Button - Only visible when client is assigned to current accountant */}
             {client.isAssignedToCurrentAccountant && (
               <button
@@ -795,51 +777,7 @@ function ClientDetailPageContent() {
         </article>
       </div>
 
-      {/* GST Summary Cards Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px' }}>
-        <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #fee2e2', borderRadius: '10px', background: '#fef2f2', boxShadow: '0 8px 20px rgba(16, 24, 40, 0.05)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              GST ON PURCHASE
-            </span>
-            {gst.periodLabel && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', opacity: 0.75 }}>
-                {gst.periodLabel}
-              </span>
-            )}
-            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-              A$ {gst.gstOnPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </strong>
-          </div>
-          <span className="client-stat-icon" style={{ background: '#ef4444', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-              <circle cx="9" cy="21" r="1" />
-              <circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
-          </span>
-        </article>
-        <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #dcfce7', borderRadius: '10px', background: '#f0fdf4', boxShadow: '0 8px 20px rgba(16, 24, 40, 0.05)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              GST ON SALES
-            </span>
-            {gst.periodLabel && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', opacity: 0.75 }}>
-                {gst.periodLabel}
-              </span>
-            )}
-            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-              A$ {gst.gstOnSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </strong>
-          </div>
-          <span className="client-stat-icon" style={{ background: '#12b76a', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </span>
-        </article>
-      </div>
+
 
       {/* Personal & Asset Transactions Sections */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px', marginBottom: '24px' }}>
@@ -1447,11 +1385,6 @@ function ClientDetailPageContent() {
           )}
         </div>
       )}
-      <GstSummaryModal
-        isOpen={isGstModalOpen}
-        onClose={() => setIsGstModalOpen(false)}
-        scope={{ level: "client", id: clientId, name: client.name }}
-      />
     </section>
   );
 }
