@@ -2228,9 +2228,9 @@ function AwaitingReviewTable({
   const showEntityName = scope !== "entity";
   const showPropertyName = contextKind !== "property";
 
-  // Calculate dynamic min-width for the table to prevent squishing on narrow layouts while avoiding horizontal scroll when possible
-  const minWidthPx = 140 + (showClientName ? 200 : 0) + (showEntityName ? 200 : 0) + (showPropertyName ? 240 : 0) + 120 + 160 + 130 + 100;
-  const tableMinWidth = `${minWidthPx}px`;
+  const totalColumns = 4 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) + (showPropertyName ? 1 : 0);
+  const colWidth = `${(100 / totalColumns).toFixed(2)}%`;
+  const tableMinWidth = `${totalColumns * 160}px`;
 
   return (
     <div className="transactions-table-container">
@@ -2241,14 +2241,13 @@ function AwaitingReviewTable({
         >
           <thead>
             <tr>
-              <th style={{ width: "140px" }}>TRANSACTION ID</th>
-              {showClientName && <th style={{ width: "200px" }}>CLIENT NAME</th>}
-              {showEntityName && <th style={{ width: "200px" }}>ENTITY NAME</th>}
-              {showPropertyName && <th style={{ width: "244px" }}>PROPERTY NAME</th>}
-              <th style={{ width: "120px" }}>TYPE</th>
-              <th style={{ width: "160px" }}>DATE SUBMITTED</th>
-              <th style={{ width: "130px", textAlign: "center" }}>ACTION</th>
-              <th style={{ width: "auto" }}></th>
+              <th style={{ width: colWidth, textAlign: "left" }}>TRANSACTION ID</th>
+              {showClientName && <th style={{ width: colWidth, textAlign: "left" }}>CLIENT NAME</th>}
+              {showEntityName && <th style={{ width: colWidth, textAlign: "left" }}>ENTITY NAME</th>}
+              {showPropertyName && <th style={{ width: colWidth, textAlign: "left" }}>PROPERTY NAME</th>}
+              <th style={{ width: colWidth, textAlign: "left" }}>TYPE</th>
+              <th style={{ width: colWidth, textAlign: "left" }}>DATE SUBMITTED</th>
+              <th style={{ width: colWidth, textAlign: "center" }}>ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -2261,7 +2260,7 @@ function AwaitingReviewTable({
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
               return (
                 <tr key={row.id}>
-                  <td style={{ width: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
                       className="transaction-id-button"
@@ -2272,29 +2271,29 @@ function AwaitingReviewTable({
                     </button>
                   </td>
                   {showClientName && (
-                    <td style={{ width: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.clientName || "—"}>
+                    <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.clientName || "—"}>
                       {row.clientName || "—"}
                     </td>
                   )}
                   {showEntityName && (
-                    <td style={{ width: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.entityName || "—"}>
+                    <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.entityName || "—"}>
                       {row.entityName || "—"}
                     </td>
                   )}
                   {showPropertyName && (
-                    <td style={{ width: "244px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.propertyNames.join(", ")}>
+                    <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.propertyNames.join(", ")}>
                       {propertyLabel}
                     </td>
                   )}
-                  <td style={{ width: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <span
                       className={`transaction-type-badge ${transactionTypeModifier(row.type)}`}
                     >
                       {transactionTypeLabel(row.type)}
                     </span>
                   </td>
-                  <td style={{ width: "160px", whiteSpace: "nowrap" }}>{formatSubmittedDate(row)}</td>
-                  <td style={{ width: "130px", textAlign: "center", whiteSpace: "nowrap" }}>
+                  <td style={{ width: colWidth, textAlign: "left", whiteSpace: "nowrap" }}>{formatSubmittedDate(row)}</td>
+                  <td style={{ width: colWidth, textAlign: "center", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
                       className="transaction-review-action-btn"
@@ -2319,7 +2318,6 @@ function AwaitingReviewTable({
                       Review
                     </button>
                   </td>
-                  <td style={{ width: "auto" }}></td>
                 </tr>
               );
             })}
