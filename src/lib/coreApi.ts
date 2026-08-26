@@ -1418,10 +1418,109 @@ export function normalizeCoreTransactionRuleList(payload: unknown): unknown {
 }
 
 // Optional server-side review filter shared by the transaction list helpers.
-function reviewStatusQuery(reviewStatus?: CoreReviewStatus): string {
-  return reviewStatus
-    ? `?review_status=${encodeURIComponent(reviewStatus)}`
-    : "";
+// ---------------------------------------------------------------------------
+// Transaction list query
+//
+// Search, sorting, the date range and pagination are all resolved in Postgres
+// rather than in the browser. Before this, the grid downloaded every row (and
+// the backend silently capped each list at 100), so anything computed on the
+// client was working from a truncated set.
+// ---------------------------------------------------------------------------
+
+// Sort keys the Go API whitelists. Which ones a given scope accepts depends on
+// the columns that scope renders — an out-of-scope key is a 400, not a silent
+// fallback. See sortExprs in internal/handlers/transaction/query.go.
+export type CoreTransactionSortKey =
+  | "date"
+  | "created"
+  | "client"
+  | "entity"
+  | "property"
+  | "description"
+  | "gross"
+  | "net"
+  | "share";
+
+export type CoreTransactionListQuery = {
+  search?: string;
+  /** Inclusive invoice_date bounds, YYYY-MM-DD. */
+  from?: string;
+  to?: string;
+  reviewStatus?: CoreReviewStatus;
+  /**
+   * The grid's two tabs. "queue" is review_status = 'unreviewed' (what a client
+   * submitted for review); "ledger" is everything else. A single-value
+   * reviewStatus cannot express "not unreviewed".
+   */
+  reviewBucket?: "queue" | "ledger";
+  clientId?: string;
+  entityId?: string;
+  propertyId?: string;
+  type?: CoreTransactionType;
+  categoryId?: number | string;
+  sort?: CoreTransactionSortKey | string;
+  dir?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+};
+
+export type CorePaginated<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+// The single place the query object becomes a query string, so the BFF proxy
+// and any direct caller agree on parameter names.
+export function transactionListQueryString(
+  q: CoreTransactionListQuery = {},
+): string {
+  const sp = new URLSearchParams();
+  const put = (key: string, value: unknown) => {
+    if (value === undefined || value === null || value === "") return;
+    sp.set(key, String(value));
+  };
+
+  put("search", q.search?.trim());
+  put("from", q.from);
+  put("to", q.to);
+  put("review_status", q.reviewStatus);
+  put("review_bucket", q.reviewBucket);
+  put("client_id", q.clientId);
+  put("entity_id", q.entityId);
+  put("property_id", q.propertyId);
+  put("type", q.type);
+  put("category_id", q.categoryId);
+  put("sort", q.sort);
+  put("dir", q.dir);
+  put("limit", q.limit);
+  put("offset", q.offset);
+
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+function toPaginated<T>(
+  payload: unknown,
+  items: T[],
+  fallbackLimit: number | undefined,
+): CorePaginated<T> {
+  const record =
+    typeof payload === "object" && payload !== null
+      ? (payload as RawRecord)
+      : {};
+  // total is absent on a backend that predates pagination; falling back to the
+  // page length keeps "Showing X of Y" truthful rather than reporting zero.
+  const total = toNumberValue(record.total);
+  const limit = toNumberValue(record.limit);
+  const offset = toNumberValue(record.offset);
+  return {
+    items,
+    total: total ?? items.length,
+    limit: limit ?? fallbackLimit ?? items.length,
+    offset: offset ?? 0,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1610,40 +1709,140 @@ export function toCoreReviewStatusParam(
   return undefined;
 }
 
+// GET /transactions — the org-wide list behind the "All Transactions" page.
+// This replaces a BFF fan-out that issued one upstream call per client, then
+// per entity, then per property, and merged every row in Node memory.
+export async function listCoreTransactionsForOrg(
+  token: string,
+  query: CoreTransactionListQuery = {},
+) {
+  const payload = await coreApiRequest(
+    `/transactions${transactionListQueryString(query)}`,
+    { token },
+  );
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
+}
+
 export async function listCoreTransactionsByClient(
   token: string,
   clientId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/clients/${encodeURIComponent(clientId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
 }
 
 export async function listCoreTransactionsByEntity(
   token: string,
   entityId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/entities/${encodeURIComponent(entityId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
 }
 
 export async function listCoreTransactionsByProperty(
   token: string,
   propertyId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/properties/${encodeURIComponent(propertyId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+  const items = getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+  return toPaginated(payload, items, query.limit);
+}
+
+// GET /transactions/facets — the filter dropdown options and the review-status
+// tab counts for a scope. Both used to be derived in the browser from the fully
+// loaded row array; under server pagination that array is one page, so they
+// need their own aggregate.
+export type CoreTransactionFacetOption = {
+  id: string;
+  name: string;
+  /** Categories only — lets the grid tint each option revenue/expense. */
+  type?: string;
+};
+
+export type CoreTransactionFacets = {
+  reviewStatusCounts: Record<string, number>;
+  clients: CoreTransactionFacetOption[];
+  entities: CoreTransactionFacetOption[];
+  properties: CoreTransactionFacetOption[];
+  categories: CoreTransactionFacetOption[];
+  types: string[];
+};
+
+function toFacetOptions(value: unknown): CoreTransactionFacetOption[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((item) => {
+      const type = toStringValue(item.type);
+      return {
+        id: toStringValue(item.id),
+        name: toStringValue(item.name),
+        ...(type ? { type } : {}),
+      };
+    })
+    .filter((option) => option.id !== "");
+}
+
+export async function getCoreTransactionFacets(
+  token: string,
+  query: CoreTransactionListQuery = {},
+): Promise<CoreTransactionFacets> {
+  const payload = await coreApiRequest(
+    `/transactions/facets${transactionListQueryString(query)}`,
+    { token },
+  );
+  const record = getJsonObject(payload);
+
+  const counts: Record<string, number> = {};
+  const rawCounts = record.review_status_counts ?? record.reviewStatusCounts;
+  if (typeof rawCounts === "object" && rawCounts !== null) {
+    for (const [key, value] of Object.entries(rawCounts as RawRecord)) {
+      counts[key] = toNumberValue(value) ?? 0;
+    }
+  }
+
+  return {
+    reviewStatusCounts: counts,
+    clients: toFacetOptions(record.clients),
+    entities: toFacetOptions(record.entities),
+    properties: toFacetOptions(record.properties),
+    categories: toFacetOptions(record.categories),
+    types: Array.isArray(record.types)
+      ? record.types.map((t) => toStringValue(t)).filter(Boolean)
+      : [],
+  };
+}
+
+export type CoreTransactionExportFormat = "csv" | "xlsx" | "pdf";
+
+// Returns the upstream Response untouched so the BFF can stream the body
+// through instead of buffering an export in Node memory.
+export async function fetchCoreTransactionExport(
+  token: string,
+  format: CoreTransactionExportFormat,
+  query: CoreTransactionListQuery = {},
+): Promise<Response> {
+  const qs = transactionListQueryString({ ...query, limit: undefined, offset: undefined });
+  const separator = qs ? "&" : "?";
+  return fetch(
+    `${getCoreApiBaseUrl()}/transactions/export${qs}${separator}format=${encodeURIComponent(format)}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
 }
 
 export async function getCoreTransaction(token: string, id: string) {

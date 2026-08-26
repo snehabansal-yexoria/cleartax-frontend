@@ -7607,6 +7607,245 @@ p.darkBg {
   gap: 16px;
 }
 
+/* ---------------------------------------------------------------------------
+   Transactions grid: description search, invoice-date range, sortable headers
+   and the export menu. All four drive server-side queries, so these controls
+   are the only entry points to search/sort/filter — the table itself no longer
+   reorders anything in the browser.
+   --------------------------------------------------------------------------- */
+
+.transaction-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.transaction-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.transaction-search-field svg {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #667085;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.transaction-search-field input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.transaction-search-field input:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+/* The UA clear affordance on type="search" is inconsistent across browsers,
+   so the component renders its own. */
+.transaction-search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.transaction-search-clear {
+  position: absolute;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.transaction-search-clear:hover {
+  background: #f2f4f7;
+}
+
+.transaction-search-clear svg {
+  position: static;
+  width: 12px;
+  height: 12px;
+  stroke: #475467;
+}
+
+.transaction-date-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.transaction-date-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transaction-date-range input {
+  padding: 9px 10px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.transaction-date-range input:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+.transaction-date-range .transaction-filter-reset {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+}
+
+.transaction-filter-error {
+  margin: 0 0 12px 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Sortable column headers ------------------------------------------------- */
+
+.transactions-table th.is-sortable {
+  padding: 0;
+}
+
+.transactions-table th.is-sortable > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: inherit;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transactions-table th.is-sortable.is-numeric > button {
+  justify-content: flex-end;
+}
+
+.transactions-table th.is-sortable > button:hover {
+  color: #28336e;
+}
+
+.transactions-table th.is-sortable > button:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: -2px;
+}
+
+.transactions-table th .sort-indicator {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Unsorted columns keep the affordance visible but quiet. */
+  opacity: 0.35;
+}
+
+.transactions-table th.is-sorted {
+  color: #28336e;
+}
+
+.transactions-table th.is-sorted .sort-indicator {
+  opacity: 1;
+}
+
+/* Export menu -------------------------------------------------------------- */
+
+.transaction-export-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.transaction-export-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(16, 24, 40, 0.16);
+}
+
+.transaction-export-menu-list button {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transaction-export-menu-list button:hover:not(:disabled) {
+  background: #f2f4f7;
+}
+
+.transaction-export-menu-list button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Visually hidden, still announced — used for the sort state on each header. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .transaction-filter-reset {
   margin-left: auto;
   border: none;

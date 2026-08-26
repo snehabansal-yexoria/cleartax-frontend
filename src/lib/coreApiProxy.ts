@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { CoreApiError } from "./coreApi";
+import {
+  CoreApiError,
+  toCoreReviewStatusParam,
+  type CoreTransactionListQuery,
+  type CoreTransactionType,
+} from "./coreApi";
 
 export function getBearerToken(req: Request): string | null {
   const header = req.headers.get("authorization");
@@ -87,4 +92,58 @@ export function renderUpstreamError(
     requestBody: requestBodySummary,
   });
   return NextResponse.json({ error: message }, { status: 502 });
+}
+
+/**
+ * Parse the transactions grid's query string into a typed CoreTransactionListQuery.
+ *
+ * Every parameter is read by name and validated rather than forwarding the raw
+ * query string: the sort key reaches an ORDER BY clause upstream, and a blind
+ * passthrough would also let a caller smuggle in filters the BFF has not
+ * accounted for. The Go API whitelists these again — this is the first gate,
+ * not the only one.
+ */
+export function parseTransactionListQuery(req: Request): CoreTransactionListQuery {
+  const sp = new URL(req.url).searchParams;
+  const str = (key: string) => {
+    const value = sp.get(key)?.trim();
+    return value ? value : undefined;
+  };
+  const int = (key: string) => {
+    const raw = sp.get(key);
+    if (raw === null || raw.trim() === "") return undefined;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+  // Only ISO dates reach the API; anything else is dropped so a typo cannot
+  // turn into an upstream 400 on every keystroke.
+  const isoDate = (key: string) => {
+    const value = str(key);
+    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+  };
+
+  const dir = sp.get("dir")?.trim().toLowerCase();
+  const type = sp.get("type")?.trim().toLowerCase();
+  const bucket = sp.get("review_bucket")?.trim().toLowerCase();
+
+  return {
+    search: str("search"),
+    from: isoDate("from"),
+    to: isoDate("to"),
+    reviewStatus: toCoreReviewStatusParam(sp.get("review_status")),
+    reviewBucket:
+      bucket === "queue" || bucket === "ledger" ? bucket : undefined,
+    clientId: str("client_id"),
+    entityId: str("entity_id"),
+    propertyId: str("property_id"),
+    type:
+      type === "revenue" || type === "expense"
+        ? (type as CoreTransactionType)
+        : undefined,
+    categoryId: str("category_id"),
+    sort: str("sort"),
+    dir: dir === "asc" || dir === "desc" ? dir : undefined,
+    limit: int("limit"),
+    offset: int("offset"),
+  };
 }

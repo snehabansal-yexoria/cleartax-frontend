@@ -69,7 +69,13 @@ type TransactionFilters = {
   entity: string;
   property: string;
   type: string;
+  /** Category id, not name — the API filters on category_id. */
   category: string;
+  /** Substring match on the transaction description. */
+  search: string;
+  /** Inclusive invoice-date bounds, YYYY-MM-DD. */
+  from: string;
+  to: string;
 };
 
 type TransactionFilterOptions = {
@@ -86,7 +92,195 @@ const defaultTransactionFilters: TransactionFilters = {
   property: "all",
   type: "all",
   category: "all",
+  search: "",
+  from: "",
+  to: "",
 };
+
+/** Shape of GET /api/transactions/facets. */
+type TransactionFacets = {
+  reviewStatusCounts: Record<string, number>;
+  clients: { id: string; name: string }[];
+  entities: { id: string; name: string }[];
+  properties: { id: string; name: string }[];
+  categories: { id: string; name: string; type?: string }[];
+  types: string[];
+};
+
+const EXPORT_FORMATS: { format: "csv" | "xlsx" | "pdf"; label: string }[] = [
+  { format: "csv", label: "CSV (.csv)" },
+  { format: "xlsx", label: "Excel (.xlsx)" },
+  { format: "pdf", label: "PDF (.pdf)" },
+];
+
+/**
+ * Export dropdown. The file is generated from the same filters, search, tab and
+ * sort the grid is showing — over the whole result set, not the loaded page.
+ */
+function ExportMenu({
+  onExport,
+  disabled,
+}: {
+  onExport: (format: "csv" | "xlsx" | "pdf") => Promise<void>;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busyFormat, setBusyFormat] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocumentClick(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocumentClick);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("mousedown", onDocumentClick);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="transaction-export-menu" ref={containerRef}>
+      <button
+        type="button"
+        className="transaction-outline-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={disabled || busyFormat !== null}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        {busyFormat ? "Exporting…" : "Export"}
+      </button>
+      {open ? (
+        <div className="transaction-export-menu-list" role="menu">
+          {EXPORT_FORMATS.map(({ format, label }) => (
+            <button
+              key={format}
+              type="button"
+              role="menuitem"
+              disabled={busyFormat !== null}
+              onClick={async () => {
+                setBusyFormat(format);
+                setOpen(false);
+                try {
+                  await onExport(format);
+                } finally {
+                  setBusyFormat(null);
+                }
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function countActiveFilters(filters: TransactionFilters) {
+  const dropdowns = [
+    filters.client,
+    filters.entity,
+    filters.property,
+    filters.type,
+    filters.category,
+  ].filter((value) => value !== "all").length;
+  const text = [filters.search, filters.from, filters.to].filter(Boolean).length;
+  return dropdowns + text;
+}
+
+// Sorting, searching and paging all happen in Postgres. These keys mirror the
+// whitelist in internal/handlers/transaction/query.go — sending one a scope
+// does not accept is a 400 upstream, not a silent fallback, so the tables only
+// offer the keys listed in SORTABLE_KEYS_BY_SCOPE below.
+type TransactionSortKey =
+  | "date"
+  | "created"
+  | "client"
+  | "entity"
+  | "property"
+  | "description"
+  | "gross"
+  | "net"
+  | "share";
+
+type SortDirection = "asc" | "desc";
+
+type TransactionSort = { key: TransactionSortKey; dir: SortDirection };
+
+const SORTABLE_KEYS_BY_SCOPE: Record<
+  TransactionsContext["kind"],
+  TransactionSortKey[]
+> = {
+  none: ["date", "created", "client", "entity", "property", "description", "gross", "net"],
+  client: ["date", "created", "entity", "property", "description", "gross", "net", "share"],
+  entity: ["date", "created", "property", "description", "gross", "net"],
+  property: ["date", "created", "description", "gross", "net", "share"],
+};
+
+// Matches defaultSort in the Go handler, so an untouched grid keeps the
+// ordering it had before pagination existed.
+const DEFAULT_SORT_BY_SCOPE: Record<
+  TransactionsContext["kind"],
+  TransactionSort
+> = {
+  none: { key: "date", dir: "desc" },
+  client: { key: "created", dir: "desc" },
+  entity: { key: "created", dir: "desc" },
+  property: { key: "date", dir: "desc" },
+};
+
+// Text sorts read A-Z ascending; dates and amounts read largest-first
+// descending. The labels spell that out so the dropdown is unambiguous.
+const SORT_LABELS: Record<TransactionSortKey, Record<SortDirection, string>> = {
+  date: { desc: "Date (Newest first)", asc: "Date (Oldest first)" },
+  created: { desc: "Date submitted (Newest first)", asc: "Date submitted (Oldest first)" },
+  client: { asc: "Client Name (A-Z)", desc: "Client Name (Z-A)" },
+  entity: { asc: "Entity Name (A-Z)", desc: "Entity Name (Z-A)" },
+  property: { asc: "Property Name (A-Z)", desc: "Property Name (Z-A)" },
+  description: { asc: "Description (A-Z)", desc: "Description (Z-A)" },
+  gross: { desc: "Gross Amount (High to Low)", asc: "Gross Amount (Low to High)" },
+  net: { desc: "Net Amount (High to Low)", asc: "Net Amount (Low to High)" },
+  share: { desc: "Share Amount (High to Low)", asc: "Share Amount (Low to High)" },
+};
+
+// A first click should show the most useful end of the column: Z is rarely
+// what you want from a name, but the largest amount usually is.
+const INITIAL_SORT_DIR: Record<TransactionSortKey, SortDirection> = {
+  date: "desc",
+  created: "desc",
+  client: "asc",
+  entity: "asc",
+  property: "asc",
+  description: "asc",
+  gross: "desc",
+  net: "desc",
+  share: "desc",
+};
+
+function encodeSort(sort: TransactionSort) {
+  return `${sort.key}-${sort.dir}`;
+}
+
+function decodeSort(value: string, fallback: TransactionSort): TransactionSort {
+  const index = value.lastIndexOf("-");
+  if (index <= 0) return fallback;
+  const key = value.slice(0, index) as TransactionSortKey;
+  const dir = value.slice(index + 1);
+  if (!SORT_LABELS[key] || (dir !== "asc" && dir !== "desc")) return fallback;
+  return { key, dir };
+}
 
 function appendUrlParam(href: string, key: string, value: string) {
   const separator = href.includes("?") ? "&" : "?";
@@ -1833,6 +2027,74 @@ function TransactionDetailPopup({
   );
 }
 
+type SortHandlers = {
+  sort: TransactionSort;
+  onSort: (key: TransactionSortKey) => void;
+  sortableKeys: TransactionSortKey[];
+};
+
+/**
+ * A column header that doubles as a sort control.
+ *
+ * Sorting is resolved by the database, so a header is only interactive when
+ * the current scope's endpoint accepts that key; otherwise it renders as plain
+ * text rather than as a button that would 400.
+ */
+function SortableTh({
+  label,
+  sortKey,
+  handlers,
+  align = "left",
+}: {
+  label: string;
+  sortKey: TransactionSortKey;
+  handlers?: SortHandlers;
+  align?: "left" | "right";
+}) {
+  const sortable = handlers?.sortableKeys.includes(sortKey) ?? false;
+  if (!sortable || !handlers) {
+    return <th>{label}</th>;
+  }
+
+  const isActive = handlers.sort.key === sortKey;
+  const direction = isActive ? handlers.sort.dir : null;
+  return (
+    <th
+      className={`is-sortable${isActive ? " is-sorted" : ""}${align === "right" ? " is-numeric" : ""}`}
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button type="button" onClick={() => handlers.onSort(sortKey)}>
+        <span>{label}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-indicator">
+          {direction === "asc" ? (
+            <polyline points="6 14 12 8 18 14" />
+          ) : direction === "desc" ? (
+            <polyline points="6 10 12 16 18 10" />
+          ) : (
+            <>
+              <polyline points="7 10 12 5 17 10" />
+              <polyline points="7 14 12 19 17 14" />
+            </>
+          )}
+        </svg>
+        <span className="sr-only">
+          {direction === "asc"
+            ? " (sorted ascending)"
+            : direction === "desc"
+              ? " (sorted descending)"
+              : " (activate to sort)"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function TransactionTable({
   rows,
   scope,
@@ -1842,6 +2104,7 @@ function TransactionTable({
   onDelete,
   disabled = false,
   disabledReason,
+  sortHandlers,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -1851,6 +2114,7 @@ function TransactionTable({
   onDelete: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
+  sortHandlers?: SortHandlers;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
@@ -1867,18 +2131,24 @@ function TransactionTable({
           <thead>
             <tr>
               <th>Transaction ID</th>
-              {showClientName ? <th>Client Name</th> : null}
-              {showEntityName ? <th>Entity</th> : null}
-              <th>Property</th>
-              <th>Description</th>
+              {showClientName ? (
+                <SortableTh label="Client Name" sortKey="client" handlers={sortHandlers} />
+              ) : null}
+              {showEntityName ? (
+                <SortableTh label="Entity" sortKey="entity" handlers={sortHandlers} />
+              ) : null}
+              <SortableTh label="Property" sortKey="property" handlers={sortHandlers} />
+              <SortableTh label="Description" sortKey="description" handlers={sortHandlers} />
               <th>Type</th>
               <th>Category</th>
               <th>Subcategory</th>
-              <th>Date</th>
-              <th>Gross</th>
+              <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
+              <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
               <th>GST</th>
-              <th>Net</th>
-              {showClientShare ? <th>Client Share</th> : null}
+              <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
+              {showClientShare ? (
+                <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
+              ) : null}
               <th>Rule</th>
               <th>Actions</th>
             </tr>
@@ -2076,6 +2346,7 @@ function PropertyTransactionTable({
   onDelete,
   disabled = false,
   disabledReason,
+  sortHandlers,
 }: {
   rows: CorePropertyTransactionRow[];
   onView: (row: DisplayTransactionRow) => void;
@@ -2083,6 +2354,7 @@ function PropertyTransactionTable({
   onDelete: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
+  sortHandlers?: SortHandlers;
 }) {
   return (
     <div className="transactions-table-container">
@@ -2094,12 +2366,12 @@ function PropertyTransactionTable({
               <th>Type</th>
               <th>Category</th>
               <th>Subcategory</th>
-              <th>Date</th>
-              <th>Bill total</th>
+              <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
+              <SortableTh label="Bill total" sortKey="gross" handlers={sortHandlers} align="right" />
               <th>Split %</th>
-              <th>Property share</th>
+              <SortableTh label="Property share" sortKey="share" handlers={sortHandlers} align="right" />
               <th>GST</th>
-              <th>Net</th>
+              <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
               <th>Rule</th>
               <th>Actions</th>
             </tr>
@@ -2328,19 +2600,22 @@ function AwaitingReviewTable({
   );
 }
 
-type SortOption = {
-  label: string;
-  value: string;
-};
-
-const SORT_OPTIONS: SortOption[] = [
-  { label: "Date (Newest first)", value: "date-desc" },
-  { label: "Date (Oldest first)", value: "date-asc" },
-  { label: "Amount (High to Low)", value: "gross-desc" },
-  { label: "Amount (Low to High)", value: "gross-asc" },
-  { label: "Client Name (A-Z)", value: "client-asc" },
-  { label: "Client Name (Z-A)", value: "client-desc" },
-];
+// Builds the "Sort By" dropdown for a scope, offering both directions of every
+// key that scope's grid can actually sort on.
+function sortOptionsForScope(kind: TransactionsContext["kind"]): SelectOption[] {
+  const options: SelectOption[] = [];
+  for (const key of SORTABLE_KEYS_BY_SCOPE[kind]) {
+    const preferred = INITIAL_SORT_DIR[key];
+    const other: SortDirection = preferred === "asc" ? "desc" : "asc";
+    for (const dir of [preferred, other]) {
+      options.push({
+        label: SORT_LABELS[key][dir],
+        value: encodeSort({ key, dir }),
+      });
+    }
+  }
+  return options;
+}
 
 function Filters({
   context,
@@ -2351,6 +2626,8 @@ function Filters({
   activeCount,
   sortBy,
   onChangeSort,
+  searchDraft,
+  onChangeSearchDraft,
 }: {
   context: TransactionsContext;
   filters: TransactionFilters;
@@ -2363,10 +2640,25 @@ function Filters({
   activeCount: number;
   sortBy: string;
   onChangeSort: (value: string) => void;
+  /**
+   * Held separately from filters.search so the input stays responsive while
+   * the committed value is debounced — every commit is a database query.
+   */
+  searchDraft: string;
+  onChangeSearchDraft: (value: string) => void;
 }) {
   const showClientFilter = context.kind === "none";
   const showEntityFilter = context.kind === "none" || context.kind === "client";
   const showPropertyFilter = context.kind !== "property";
+  const sortOptions = useMemo(
+    () => sortOptionsForScope(context.kind),
+    [context.kind],
+  );
+  // Bounding each input by the other stops an inverted range reaching the API,
+  // which would come back as a 400 rather than an empty result.
+  const dateRangeInvalid = Boolean(
+    filters.from && filters.to && filters.to < filters.from,
+  );
 
   return (
     <section className="transaction-filter-card" aria-label="Transaction filters">
@@ -2382,6 +2674,65 @@ function Filters({
           </button>
         ) : null}
       </div>
+      <div className="transaction-search-row">
+        <div className="transaction-search-field">
+          <SearchIcon />
+          <input
+            type="search"
+            value={searchDraft}
+            onChange={(event) => onChangeSearchDraft(event.target.value)}
+            placeholder="Search descriptions…"
+            aria-label="Search transaction descriptions"
+          />
+          {searchDraft ? (
+            <button
+              type="button"
+              className="transaction-search-clear"
+              aria-label="Clear search"
+              onClick={() => onChangeSearchDraft("")}
+            >
+              <CloseIcon />
+            </button>
+          ) : null}
+        </div>
+        <div className="transaction-date-range">
+          <label>
+            <span>From</span>
+            <input
+              type="date"
+              value={filters.from}
+              max={filters.to || undefined}
+              onChange={(event) => onChange("from", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>To</span>
+            <input
+              type="date"
+              value={filters.to}
+              min={filters.from || undefined}
+              onChange={(event) => onChange("to", event.target.value)}
+            />
+          </label>
+          {filters.from || filters.to ? (
+            <button
+              type="button"
+              className="transaction-filter-reset"
+              onClick={() => {
+                onChange("from", "");
+                onChange("to", "");
+              }}
+            >
+              Clear dates
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {dateRangeInvalid ? (
+        <p className="transaction-filter-error" role="alert">
+          The &ldquo;To&rdquo; date is earlier than the &ldquo;From&rdquo; date.
+        </p>
+      ) : null}
       <div className="transaction-filter-grid">
         {showClientFilter ? (
           <StaticSelect
@@ -2423,7 +2774,7 @@ function Filters({
         <StaticSelect
           label="Sort By"
           value={sortBy}
-          options={SORT_OPTIONS}
+          options={sortOptions}
           onChange={onChangeSort}
         />
       </div>
@@ -2462,92 +2813,6 @@ function TransactionLoadingSkeleton({
       </div>
     </div>
   );
-}
-
-function makeOptions(
-  label: string,
-  values: string[],
-  fallbackPrefix = "Unknown",
-): SelectOption[] {
-  const unique = Array.from(
-    new Set(values.map((value) => value.trim()).filter(Boolean)),
-  ).sort((a, b) => a.localeCompare(b));
-
-  return [
-    { label, value: "all" },
-    ...unique.map((value) => ({
-      label: value || fallbackPrefix,
-      value,
-    })),
-  ];
-}
-
-function makeNamedOptions(
-  label: string,
-  values: Array<{ id: string; name: string }>,
-  fallbackPrefix = "Unknown",
-): SelectOption[] {
-  const byValue = new Map<string, string>();
-  for (const item of values) {
-    const id = item.id.trim();
-    const name = item.name.trim();
-    const value = id || name;
-    if (!value) continue;
-    byValue.set(value, name || id || fallbackPrefix);
-  }
-
-  return [
-    { label, value: "all" },
-    ...Array.from(byValue.entries())
-      .map(([value, optionLabel]) => ({ label: optionLabel, value }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
-  ];
-}
-
-function makeCategoryOptions(
-  label: string,
-  rows: DisplayTransactionRow[],
-  propertyRows: CorePropertyTransactionRow[],
-  contextKind: string,
-  fallbackPrefix = "Unknown",
-): SelectOption[] {
-  const categoryMap = new Map<string, string>();
-  if (contextKind === "property") {
-    for (const row of propertyRows) {
-      const name = (row.categoryName || "").trim();
-      if (name) {
-        categoryMap.set(name, row.transactionType);
-      }
-    }
-  } else {
-    for (const row of rows) {
-      const name = (row.categoryName || "").trim();
-      if (name) {
-        categoryMap.set(name, row.type);
-      }
-    }
-  }
-
-  const unique = Array.from(categoryMap.keys()).sort((a, b) =>
-    a.localeCompare(b),
-  );
-
-  return [
-    { label, value: "all" },
-    ...unique.map((name) => ({
-      label: name || fallbackPrefix,
-      value: name,
-      type: categoryMap.get(name) as "revenue" | "expense" | undefined,
-    })),
-  ];
-}
-
-function getRowClientFilterValue(row: CoreTransactionListItem) {
-  return row.clientId || row.clientName;
-}
-
-function getRowEntityFilterValue(row: CoreTransactionListItem) {
-  return row.entityId || row.entityName;
 }
 
 const DUMMY_TRANSACTIONS: DisplayTransactionRow[] = [
@@ -2835,18 +3100,30 @@ export function AllTransactionsView({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  // `rows` / `propertyRows` hold exactly one page. Search, filtering, sorting
+  // and paging are all resolved in Postgres — the grid used to download every
+  // row and do this work in JS, which was both slow and wrong (each upstream
+  // list silently capped at 100 rows).
   const [rows, setRows] = useState<DisplayTransactionRow[]>([]);
   const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [facets, setFacets] = useState<TransactionFacets | null>(null);
   const [filters, setFilters] = useState<TransactionFilters>(
     defaultTransactionFilters,
   );
-  const [sortBy, setSortBy] = useState<string>("date-desc");
+  // Typing must not fire a query per keystroke; the draft feeds the input and
+  // is debounced into filters.search, which is what the effect depends on.
+  const [searchDraft, setSearchDraft] = useState("");
+  const [sort, setSort] = useState<TransactionSort>(
+    DEFAULT_SORT_BY_SCOPE[context.kind],
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [pageSize, setPageSize] = useState<string>("10");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [activeTab, setActiveTab] = useState<"reviewed" | "unreviewed">("reviewed");
+  const [exportError, setExportError] = useState("");
   // Approve/reject is reviewer-only (accountant/admin/super_admin) — the
   // backend 403s clients, so the modal hides those controls for them.
   const [viewerRole, setViewerRole] = useState<string | null>(null);
@@ -2873,9 +3150,10 @@ export function AllTransactionsView({
     setPageInputValue(String(currentPage));
   }, [currentPage]);
 
+  // Any change to the result set invalidates the page number.
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, sortBy]);
+  }, [filters, sort, pageSize, activeTab]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<DisplayTransactionRow | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
@@ -2901,8 +3179,63 @@ export function AllTransactionsView({
           ? context.propertyId
           : "";
 
+  const numericPageSize = Number(pageSize) || 10;
+
+  // The query string every fetch is keyed on. Kept as a single memo so the
+  // list effect, the facets effect and the export links cannot drift apart.
+  const listQuery = useMemo(() => {
+    const sp = new URLSearchParams();
+    const put = (key: string, value: string) => {
+      if (value && value !== "all") sp.set(key, value);
+    };
+    put("search", filters.search);
+    put("from", filters.from);
+    put("to", filters.to);
+    put("type", filters.type);
+    put("category_id", filters.category);
+    // On a scoped page the path already pins the scope, so only send the
+    // narrowing filters the grid actually offers there.
+    if (contextKind === "none") put("client_id", filters.client);
+    if (contextKind === "none" || contextKind === "client") {
+      put("entity_id", filters.entity);
+    }
+    if (contextKind !== "property") put("property_id", filters.property);
+    return sp;
+  }, [contextKind, filters]);
+
+  // The tabs split the ledger from the accountant's review queue. That is
+  // "review_status <> 'unreviewed'" vs "= 'unreviewed'", which a single-value
+  // filter cannot express, hence review_bucket.
+  const reviewBucket = activeTab === "unreviewed" ? "queue" : "ledger";
+
+  const pageQuery = useMemo(() => {
+    const sp = new URLSearchParams(listQuery);
+    sp.set("review_bucket", reviewBucket);
+    sp.set("sort", sort.key);
+    sp.set("dir", sort.dir);
+    sp.set("limit", String(numericPageSize));
+    sp.set("offset", String((currentPage - 1) * numericPageSize));
+    return sp.toString();
+  }, [listQuery, reviewBucket, sort, numericPageSize, currentPage]);
+
+  const scopedListPath = useMemo(() => {
+    switch (contextKind) {
+      case "client":
+        return `/api/clients/${encodeURIComponent(contextId)}/transactions`;
+      case "entity":
+        return `/api/entities/${encodeURIComponent(contextId)}/transactions`;
+      case "property":
+        return `/api/properties/${encodeURIComponent(contextId)}/transactions`;
+      default:
+        return "/api/transactions";
+    }
+  }, [contextId, contextKind]);
+
   useEffect(() => {
-    let cancelled = false;
+    // Abort the in-flight request whenever the query changes: a fast typist
+    // would otherwise race stale responses into the table and keep database
+    // work running for results nobody will see.
+    const controller = new AbortController();
     setIsLoading(true);
     setErrorMessage("");
 
@@ -2910,228 +3243,135 @@ export function AllTransactionsView({
       try {
         const session = (await getSession()) as SessionWithIdToken | null;
         if (!session) {
-          if (!cancelled) setErrorMessage("You're signed out.");
+          setErrorMessage("You're signed out.");
           return;
         }
         const token = session.getIdToken().getJwtToken();
 
-        if (contextKind === "none") {
-          const res = await fetch("/api/transactions", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) {
-            if (!cancelled) setErrorMessage("Failed to load transactions.");
-            return;
-          }
-          const data = (await res.json()) as {
-            items?: CoreTransactionListItem[];
-          };
-          if (!cancelled) {
-            setRows(data.items || []);
-            setPropertyRows([]);
-          }
-          return;
-        }
-
-        let url = "";
-        switch (contextKind) {
-          case "client":
-            url = `/api/clients/${encodeURIComponent(contextId)}/transactions`;
-            break;
-          case "entity":
-            url = `/api/entities/${encodeURIComponent(contextId)}/transactions`;
-            break;
-          case "property":
-            url = `/api/properties/${encodeURIComponent(contextId)}/transactions`;
-            break;
-        }
-
-        console.log(`[AllTransactionsView] Fetching ${contextKind} transactions from: ${url}`);
-        const res = await fetch(url, {
+        const res = await fetch(`${scopedListPath}?${pageQuery}`, {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
-        console.log(`[AllTransactionsView] Response status: ${res.status}`);
         if (!res.ok) {
-          console.error(`[AllTransactionsView] Failed to load transactions. Status: ${res.status}`);
-          if (!cancelled) setErrorMessage("Failed to load transactions.");
+          const body = await res.json().catch(() => null);
+          setErrorMessage(
+            (body as { message?: string } | null)?.message ||
+              "Failed to load transactions.",
+          );
           return;
         }
-        const data = await res.json();
-        console.log(`[AllTransactionsView] Fetched ${(data.items || []).length} items`);
-        if (cancelled) return;
+
+        const data = (await res.json()) as {
+          items?: unknown[];
+          total?: number;
+        };
+        const items = data.items ?? [];
         if (contextKind === "property") {
-          setPropertyRows((data.items as CorePropertyTransactionRow[]) || []);
+          setPropertyRows(items as CorePropertyTransactionRow[]);
           setRows([]);
         } else {
-          setRows((data.items as DisplayTransactionRow[]) || []);
+          setRows(items as DisplayTransactionRow[]);
           setPropertyRows([]);
         }
+        setTotalItems(data.total ?? items.length);
       } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
         console.error("Failed to load transactions:", error);
-        if (!cancelled) {
-          setErrorMessage("Unexpected error loading transactions.");
-        }
+        setErrorMessage("Unexpected error loading transactions.");
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [contextId, contextKind]);
+    return () => controller.abort();
+  }, [contextKind, pageQuery, scopedListPath]);
+
+  // Facets drive the filter dropdowns and the tab badges. They deliberately
+  // exclude the tab and the page, so both badges stay correct while a tab is
+  // selected and the dropdowns offer every value in the filtered set rather
+  // than only those on the visible page.
+  const facetsQuery = useMemo(() => {
+    const sp = new URLSearchParams(listQuery);
+    if (contextKind === "client") sp.set("client_id", contextId);
+    if (contextKind === "entity") sp.set("entity_id", contextId);
+    if (contextKind === "property") sp.set("property_id", contextId);
+    return sp.toString();
+  }, [contextId, contextKind, listQuery]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) return;
+        const token = session.getIdToken().getJwtToken();
+        const res = await fetch(`/api/transactions/facets?${facetsQuery}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        setFacets((await res.json()) as TransactionFacets);
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
+        console.error("Failed to load transaction facets:", error);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [facetsQuery]);
+
+  // Debounce the search box into the committed filter. 300ms is long enough
+  // that a normal typing burst is one query, short enough to feel live.
+  useEffect(() => {
+    if (searchDraft === filters.search) return;
+    const timer = setTimeout(() => {
+      setFilters((current) => ({ ...current, search: searchDraft }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchDraft, filters.search]);
 
   useEffect(() => {
     setFilters(defaultTransactionFilters);
+    setSearchDraft("");
+    setSort(DEFAULT_SORT_BY_SCOPE[contextKind]);
     setCurrentPage(1);
     setPageSize("10");
   }, [contextId, contextKind]);
 
+  // Options come from the facets endpoint. Deriving them from `rows` would now
+  // only offer values present on the current page.
   const filterOptions = useMemo<TransactionFilterOptions>(() => {
-    const clientValues = rows.map((row) => ({
-      id: row.clientId,
-      name: row.clientName,
-    }));
-    const entityValues = rows.map((row) => ({
-      id: row.entityId,
-      name: row.entityName,
-    }));
-    const propertyValues = rows.flatMap((row) =>
-      row.propertyNames.map((name, index) => ({
-        id: row.propertyIds[index] || name,
-        name,
-      })),
-    );
-    const transactionTypes =
-      contextKind === "property"
-        ? propertyRows.map((row) => row.transactionType)
-        : rows.map((row) => row.type);
-    const categories =
-      contextKind === "property"
-        ? propertyRows.map((row) => row.categoryName)
-        : rows.map((row) => row.categoryName);
+    const toOptions = (
+      label: string,
+      values: { id: string; name: string; type?: string }[] | undefined,
+      fallback: string,
+    ): SelectOption[] => [
+      { label, value: "all" },
+      ...(values ?? [])
+        .filter((option) => option.id)
+        .map((option) => ({
+          label: option.name || fallback,
+          value: option.id,
+          ...(option.type ? { type: option.type } : {}),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ];
 
     return {
-      clients: makeNamedOptions("All Clients", clientValues, "Unknown Client"),
-      entities: makeNamedOptions("All Entities", entityValues, "Unknown Entity"),
-      properties: makeNamedOptions(
-        "All Properties",
-        propertyValues,
-        "Unknown Property",
-      ),
-      // Only offer types that are actually present in the current rows. Values
-      // are the raw API types so the filter compares against row.type directly.
+      clients: toOptions("All Clients", facets?.clients, "Unknown Client"),
+      entities: toOptions("All Entities", facets?.entities, "Unknown Entity"),
+      properties: toOptions("All Properties", facets?.properties, "Unknown Property"),
       types: [
         { label: "All Types", value: "all" },
         ...TRANSACTION_TYPE_OPTIONS.filter((option) =>
-          transactionTypes.includes(option.value),
+          (facets?.types ?? []).includes(option.value),
         ),
       ],
-      categories: makeCategoryOptions(
-        "All Categories",
-        rows,
-        propertyRows,
-        contextKind,
-        "Uncategorized",
-      ),
+      categories: toOptions("All Categories", facets?.categories, "Uncategorized"),
     };
-  }, [contextKind, propertyRows, rows]);
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      const rowClient = getRowClientFilterValue(row);
-      const rowEntity = getRowEntityFilterValue(row);
-      return (
-        (filters.client === "all" || rowClient === filters.client) &&
-        (filters.entity === "all" || rowEntity === filters.entity) &&
-        (filters.property === "all" ||
-          row.propertyIds.includes(filters.property) ||
-          row.propertyNames.includes(filters.property)) &&
-        (filters.type === "all" || row.type === filters.type) &&
-        (filters.category === "all" || row.categoryName === filters.category)
-      );
-    });
-  }, [filters, rows]);
-
-  const filteredPropertyRows = useMemo(() => {
-    return propertyRows.filter((row) => {
-      return (
-        (filters.type === "all" || row.transactionType === filters.type) &&
-        (filters.category === "all" || row.categoryName === filters.category)
-      );
-    });
-  }, [filters.category, filters.type, propertyRows]);
-
-  const sortedRows = useMemo(() => {
-    const items = [...filteredRows];
-    switch (sortBy) {
-      case "date-desc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateB - dateA;
-        });
-      case "date-asc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateA - dateB;
-        });
-      case "gross-desc":
-        return items.sort((a, b) => {
-          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
-          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
-          return valB - valA;
-        });
-      case "gross-asc":
-        return items.sort((a, b) => {
-          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
-          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
-          return valA - valB;
-        });
-      case "client-asc":
-        return items.sort((a, b) => (a.clientName || "").localeCompare(b.clientName || ""));
-      case "client-desc":
-        return items.sort((a, b) => (b.clientName || "").localeCompare(a.clientName || ""));
-      default:
-        return items;
-    }
-  }, [filteredRows, sortBy]);
-
-  const sortedPropertyRows = useMemo(() => {
-    const items = [...filteredPropertyRows];
-    switch (sortBy) {
-      case "date-desc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateB - dateA;
-        });
-      case "date-asc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateA - dateB;
-        });
-      case "gross-desc":
-        return items.sort((a, b) => {
-          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
-          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
-          return valB - valA;
-        });
-      case "gross-asc":
-        return items.sort((a, b) => {
-          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
-          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
-          return valA - valB;
-        });
-      case "client-asc":
-      case "client-desc":
-      default:
-        return items;
-    }
-  }, [filteredPropertyRows, sortBy]);
+  }, [facets]);
 
   function updateFilter<K extends keyof TransactionFilters>(
     key: K,
@@ -3497,70 +3737,102 @@ export function AllTransactionsView({
     }
   }
 
-  // Tabs split the REAL rows by review status: "To Be Reviewed" is the queue a
+  // Tabs split the rows by review status: "To Be Reviewed" is the queue a
   // client submits into ("unreviewed"); "Transactions" is the working ledger —
-  // everything else, i.e. active uploads plus whatever the accountant has
-  // already touched (reviewed / approved / rejected).
-  const reviewedCount = useMemo(() => {
-    return contextKind === "property"
-      ? propertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
-      : rows.filter((row) => row.reviewStatus !== "unreviewed").length;
-  }, [contextKind, propertyRows, rows]);
+  // everything else. Both counts come from the facets aggregate, so they cover
+  // the whole filtered set rather than the visible page.
+  const reviewStatusCounts = facets?.reviewStatusCounts ?? {};
+  const unreviewedCount = reviewStatusCounts.unreviewed ?? 0;
+  const reviewedCount = Object.entries(reviewStatusCounts).reduce(
+    (sum, [status, count]) => (status === "unreviewed" ? sum : sum + count),
+    0,
+  );
 
-  const unreviewedCount = useMemo(() => {
-    return contextKind === "property"
-      ? propertyRows.filter((row) => row.reviewStatus === "unreviewed").length
-      : rows.filter((row) => row.reviewStatus === "unreviewed").length;
-  }, [contextKind, propertyRows, rows]);
+  const activeFilterCount = countActiveFilters(filters);
 
-  // Dynamic lists based on active tab
-  const tabFilteredRows = useMemo(() => {
-    return activeTab === "unreviewed"
-      ? sortedRows.filter((row) => row.reviewStatus === "unreviewed")
-      : sortedRows.filter((row) => row.reviewStatus !== "unreviewed");
-  }, [activeTab, sortedRows]);
+  const displayedRows = rows;
+  const displayedPropertyRows = propertyRows;
+  const totalCount = totalItems;
 
-  const tabFilteredPropertyRows = useMemo(() => {
-    return activeTab === "unreviewed"
-      ? sortedPropertyRows.filter((row) => row.reviewStatus === "unreviewed")
-      : sortedPropertyRows.filter((row) => row.reviewStatus !== "unreviewed");
-  }, [activeTab, sortedPropertyRows]);
-
-  const activeFilterCount = Object.values(filters).filter(
-    (value) => value !== "all",
-  ).length;
-
-  const totalCount =
-    contextKind === "property" ? tabFilteredPropertyRows.length : tabFilteredRows.length;
-
-  const unfilteredCount = useMemo(() => {
-    const wantUnreviewed = activeTab === "unreviewed";
-    if (contextKind === "property") {
-      return propertyRows.filter(
-        (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
-      ).length;
-    }
-    return rows.filter(
-      (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
-    ).length;
-  }, [activeTab, contextKind, propertyRows, rows]);
-
-  const totalItems = totalCount;
-  const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
-  const totalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const totalPages = Math.max(Math.ceil(totalItems / numericPageSize), 1);
   const activePage = Math.min(currentPage, totalPages);
 
-  const displayedRows = useMemo(() => {
-    const startIndex = (activePage - 1) * numericPageSize;
-    const endIndex = startIndex + numericPageSize;
-    return tabFilteredRows.slice(startIndex, endIndex);
-  }, [tabFilteredRows, activePage, numericPageSize]);
+  // The offset sent to the API comes from currentPage, so if the result set
+  // shrinks under the current page (a delete elsewhere, a narrowed filter that
+  // raced the reset) the request would page past the end and return nothing.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
-  const displayedPropertyRows = useMemo(() => {
-    const startIndex = (activePage - 1) * numericPageSize;
-    const endIndex = startIndex + numericPageSize;
-    return tabFilteredPropertyRows.slice(startIndex, endIndex);
-  }, [tabFilteredPropertyRows, activePage, numericPageSize]);
+  const sortHandlers: SortHandlers = useMemo(
+    () => ({
+      sort,
+      sortableKeys: SORTABLE_KEYS_BY_SCOPE[contextKind],
+      // Clicking the active column flips direction; a new column starts at
+      // whichever end of it is most useful (newest date, largest amount, A-Z).
+      onSort: (key) =>
+        setSort((current) =>
+          current.key === key
+            ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+            : { key, dir: INITIAL_SORT_DIR[key] },
+        ),
+    }),
+    [contextKind, sort],
+  );
+
+  async function exportTransactions(format: "csv" | "xlsx" | "pdf") {
+    setExportError("");
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        setExportError("You're signed out.");
+        return;
+      }
+      const token = session.getIdToken().getJwtToken();
+
+      // The export covers the whole filter set, not the loaded page, so it
+      // carries the filters, search, tab and sort but no limit/offset.
+      const sp = new URLSearchParams(listQuery);
+      if (contextKind === "client") sp.set("client_id", contextId);
+      if (contextKind === "entity") sp.set("entity_id", contextId);
+      if (contextKind === "property") sp.set("property_id", contextId);
+      sp.set("review_bucket", reviewBucket);
+      sp.set("sort", sort.key);
+      sp.set("dir", sort.dir);
+      sp.set("format", format);
+
+      const res = await fetch(`/api/transactions/export?${sp.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        // An over-cap export returns a specific "narrow your filters" message.
+        const body = await res.json().catch(() => null);
+        setExportError(
+          (body as { message?: string; error?: string } | null)?.message ||
+            (body as { error?: string } | null)?.error ||
+            "Failed to export transactions.",
+        );
+        return;
+      }
+
+      // The endpoint needs the Cognito bearer token, so a plain <a download>
+      // cannot fetch it — the blob is built here and handed to a click.
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = match?.[1] || `transactions.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export transactions failed:", error);
+      setExportError("Something went wrong while exporting.");
+    }
+  }
 
   const showClientShare = contextKind === "client";
   const tableScope: TransactionTableScope =
@@ -3591,6 +3863,7 @@ export function AllTransactionsView({
           <p>View and manage all transactions across clients and properties</p>
         </div>
         <div className="transactions-head-actions">
+          <ExportMenu onExport={exportTransactions} />
           {showRulesButton && (
             <Link
               href={rulesTargetHref}
@@ -3662,10 +3935,15 @@ export function AllTransactionsView({
         filters={filters}
         options={filterOptions}
         onChange={updateFilter}
-        onReset={() => setFilters(defaultTransactionFilters)}
+        onReset={() => {
+          setFilters(defaultTransactionFilters);
+          setSearchDraft("");
+        }}
         activeCount={activeFilterCount}
-        sortBy={sortBy}
-        onChangeSort={setSortBy}
+        sortBy={encodeSort(sort)}
+        onChangeSort={(value) => setSort(decodeSort(value, sort))}
+        searchDraft={searchDraft}
+        onChangeSearchDraft={setSearchDraft}
       />
 
       {isLoading ? (
@@ -3695,16 +3973,19 @@ export function AllTransactionsView({
             </div>
             <h3>All Caught Up!</h3>
             <p>
-              {unfilteredCount === 0
+              {activeFilterCount === 0
                 ? "There are no transactions currently awaiting review."
                 : "No transactions awaiting review match the active filters."}
             </p>
-            {unfilteredCount > 0 ? (
+            {activeFilterCount > 0 ? (
               <button
                 type="button"
                 className="transaction-filter-reset"
                 style={{ marginTop: '16px' }}
-                onClick={() => setFilters(defaultTransactionFilters)}
+                onClick={() => {
+                  setFilters(defaultTransactionFilters);
+                  setSearchDraft("");
+                }}
               >
                 Clear filters
               </button>
@@ -3713,15 +3994,18 @@ export function AllTransactionsView({
         ) : (
           <div className="transactions-empty-state">
             <strong>
-              {unfilteredCount === 0
+              {activeFilterCount === 0
                 ? "No transactions yet."
                 : "No transactions match these filters."}
             </strong>
-            {unfilteredCount > 0 ? (
+            {activeFilterCount > 0 ? (
               <button
                 type="button"
                 className="transaction-filter-reset"
-                onClick={() => setFilters(defaultTransactionFilters)}
+                onClick={() => {
+                  setFilters(defaultTransactionFilters);
+                  setSearchDraft("");
+                }}
               >
                 Clear filters
               </button>
@@ -3731,9 +4015,19 @@ export function AllTransactionsView({
       ) : (
         <>
           <div className="transactions-showing-copy">
-            Showing <strong>{totalCount}</strong> of{" "}
-            <strong>{unfilteredCount}</strong> transactions {activeTab === "unreviewed" ? "awaiting review" : ""}
+            Showing{" "}
+            <strong>
+              {(activePage - 1) * numericPageSize + 1}&ndash;
+              {Math.min(activePage * numericPageSize, totalItems)}
+            </strong>{" "}
+            of <strong>{totalItems}</strong> transactions{" "}
+            {activeTab === "unreviewed" ? "awaiting review" : ""}
           </div>
+          {exportError ? (
+            <div className="transaction-filter-error" role="alert">
+              {exportError}
+            </div>
+          ) : null}
           {activeTab === "unreviewed" ? (
             <AwaitingReviewTable
               rows={
@@ -3757,6 +4051,7 @@ export function AllTransactionsView({
           ) : contextKind === "property" ? (
             <PropertyTransactionTable
               rows={displayedPropertyRows}
+              sortHandlers={sortHandlers}
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
@@ -3766,6 +4061,7 @@ export function AllTransactionsView({
           ) : (
             <TransactionTable
               rows={displayedRows}
+              sortHandlers={sortHandlers}
               scope={tableScope}
               showClientShare={showClientShare}
               onView={(row) => openTransactionDetail(row, "view")}
@@ -3789,11 +4085,13 @@ export function AllTransactionsView({
                       setCurrentPage(1);
                     }}
                   >
+                    {/* No "All": the page size is a SQL LIMIT now, and the
+                        API caps it at 200. */}
                     <option value="10">10</option>
                     <option value="20">20</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
-                    <option value="all">All</option>
+                    <option value="200">200</option>
                   </select>
                 </div>
                 <span className="premium-pagination-info">
