@@ -8304,6 +8304,200 @@ html.dark .transactions-table tbody tr:hover {
   background: #ffedd5;
 }
 
+/* A part-private bill appears in the grid as its parent row — an expense whose
+   private slice lives on a child the display grain hides. Without this the row
+   reads as fully deductible, and a row matched by the Personal filter looks
+   like it was matched by mistake. Deliberately quieter than a type pill: it
+   qualifies the type, it is not a second one. */
+.transaction-personal-portion-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #e9d5ff;
+  background: #faf5ff;
+  color: #7e22ce;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Bills / Tax lines switch.
+   Deliberately quieter than the review tabs beside it: those choose which set
+   of transactions you are looking at, this one only changes how much of each
+   bill is broken out, so it should not compete with them.
+   ------------------------------------------------------------------------ */
+.transaction-grain-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 12px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid #e4e7ec;
+  background: #f9fafb;
+}
+
+.transaction-grain-btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.transaction-grain-btn:hover {
+  color: #1d2939;
+}
+
+.transaction-grain-btn.is-active {
+  background: #ffffff;
+  color: #1d2939;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.transaction-grain-btn:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+.transaction-grain-note {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #e9d5ff;
+  background: #faf5ff;
+  color: #6b21a8;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------------------
+   Expanding a part-private bill.
+   ------------------------------------------------------------------------ */
+.transactions-expand-col {
+  width: 34px;
+  padding-right: 0 !important;
+}
+
+.transaction-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+}
+
+.transaction-expand-btn:hover {
+  background: #f2f4f7;
+  color: #1d2939;
+}
+
+.transaction-expand-btn:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+.transaction-expand-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Points right when closed, down when open. */
+  transition: transform 0.16s ease;
+}
+
+.transaction-expand-btn.is-open svg {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transaction-expand-btn svg {
+    transition: none;
+  }
+}
+
+/* The child row is visibly subordinate to the bill above it — inset, on a
+   tinted ground, with no borders of its own — so it never reads as another
+   result. It is not counted, paged or totalled with the rows around it. */
+.transaction-child-row > td {
+  padding: 0 !important;
+  background: #fbfaff;
+  border-top: none !important;
+  box-shadow: inset 3px 0 0 #c084fc;
+}
+
+.transaction-child-list {
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+}
+
+.transaction-child-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 16px 7px 44px;
+  font-size: 13px;
+  color: #475467;
+}
+
+.transaction-child-item + .transaction-child-item {
+  border-top: 1px dashed #ece9f6;
+}
+
+.transaction-child-category {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-child-amounts {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.transaction-child-gst,
+.transaction-child-deductible {
+  font-size: 12px;
+  color: #667085;
+}
+
+.transaction-child-note {
+  display: block;
+  padding: 10px 16px 10px 44px;
+  font-size: 12.5px;
+  color: #667085;
+}
+
+.transaction-child-note.is-error {
+  color: #b42318;
+}
+
 .transaction-rule-pill.is-yes {
   color: #2563eb;
   background: #dbeafe;

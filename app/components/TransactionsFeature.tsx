@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState, useRef } from "react";
+import { Fragment, useEffect, useId, useMemo, useState, useRef } from "react";
 import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
@@ -27,6 +27,7 @@ import type {
   CoreAssetClass,
   CorePropertyTransactionRow,
   CoreTransactionCategory,
+  CoreTransactionChild,
   CoreTransactionDetail,
   CoreTransactionListItem,
   CoreTransactionSubcategory,
@@ -2160,6 +2161,9 @@ function TransactionTable({
   disabled = false,
   disabledReason,
   sortHandlers,
+  expandedRowIds,
+  rowChildren,
+  onToggleExpand,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -2170,9 +2174,23 @@ function TransactionTable({
   disabled?: boolean;
   disabledReason?: string;
   sortHandlers?: SortHandlers;
+  /**
+   * Expansion of part-private bills. Omitted on the grids that do not offer it
+   * (nothing expands, and no disclosure column is rendered), so this stays an
+   * opt-in rather than something every caller has to thread through.
+   */
+  expandedRowIds?: Set<string>;
+  rowChildren?: Record<string, CoreTransactionChild[] | "loading" | "error">;
+  onToggleExpand?: (row: DisplayTransactionRow) => void;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
+  const canExpand = Boolean(onToggleExpand);
+  // Child rows span the full table, so the count has to track the optional
+  // columns or the indented row stops short of the right edge.
+  const columnCount =
+    9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
+    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -2185,6 +2203,7 @@ function TransactionTable({
         <table className="transactions-table">
           <thead>
             <tr>
+              {canExpand ? <th className="transactions-expand-col" aria-label="Expand" /> : null}
               <th>Transaction ID</th>
               {showClientName ? (
                 <SortableTh label="Client Name" sortKey="client" handlers={sortHandlers} />
@@ -2217,8 +2236,34 @@ function TransactionTable({
                   : row.propertyNames.length === 1
                     ? row.propertyNames[0]
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
+              const isExpanded = expandedRowIds?.has(row.id) ?? false;
+              const children = rowChildren?.[row.id];
               return (
-                <tr key={row.id}>
+                <Fragment key={row.id}>
+                <tr>
+                  {canExpand ? (
+                    <td className="transactions-expand-col">
+                      {/* Only a container has anything to reveal. Ordinary rows
+                          keep an empty cell so the columns stay aligned. */}
+                      {row.hasChildren ? (
+                        <button
+                          type="button"
+                          className={`transaction-expand-btn${isExpanded ? " is-open" : ""}`}
+                          aria-expanded={isExpanded}
+                          aria-label={
+                            isExpanded
+                              ? "Hide the business and personal split"
+                              : "Show the business and personal split"
+                          }
+                          onClick={() => onToggleExpand?.(row)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 6l6 6-6 6" />
+                          </svg>
+                        </button>
+                      ) : null}
+                    </td>
+                  ) : null}
                   <td>
                     <button
                       type="button"
@@ -2267,6 +2312,24 @@ function TransactionTable({
                     >
                       {transactionTypeLabel(row.type)}
                     </span>
+                    {/* A container is an expense whose private slice sits on a
+                        child this grain hides, so the amounts on this row are
+                        the whole bill. Say so, or it reads as fully
+                        deductible. */}
+                    {row.hasChildren ? (
+                      <span
+                        className="transaction-personal-portion-pill"
+                        title={
+                          row.personalPercentage != null
+                            ? `${row.personalPercentage}% of this bill is private use`
+                            : "Part of this bill is private use"
+                        }
+                      >
+                        {row.personalPercentage != null
+                          ? `${row.personalPercentage}% personal`
+                          : "Part personal"}
+                      </span>
+                    ) : null}
                   </td>
                   <td>{row.categoryName}</td>
                   <td>{row.subcategoryName}</td>
@@ -2328,6 +2391,58 @@ function TransactionTable({
                     </div>
                   </td>
                 </tr>
+
+                {/* The two slices of a part-private bill, shown under their
+                    parent. These are a detail of the row above, not rows of
+                    the page: they are outside the result count, the paging and
+                    every column total, which all stay per-bill. */}
+                {isExpanded ? (
+                  <tr className="transaction-child-row">
+                    <td colSpan={columnCount}>
+                      {children === "loading" ? (
+                        <span className="transaction-child-note">Loading the split…</span>
+                      ) : children === "error" ? (
+                        <span className="transaction-child-note is-error">
+                          Couldn&apos;t load the split. Close and reopen the row to retry.
+                        </span>
+                      ) : !children || children.length === 0 ? (
+                        <span className="transaction-child-note">No split recorded.</span>
+                      ) : (
+                        <ul className="transaction-child-list">
+                          {children.map((child) => {
+                            const isPersonalSide = child.type === "personal";
+                            return (
+                              <li key={child.id} className="transaction-child-item">
+                                <span
+                                  className={`transaction-type-pill ${transactionTypeModifier(child.type)}`}
+                                >
+                                  {isPersonalSide ? "Personal" : "Business"}
+                                </span>
+                                <span className="transaction-child-category">
+                                  {child.categoryName || "—"}
+                                </span>
+                                <span className="transaction-child-amounts">
+                                  <span className="amount-negative">
+                                    {formatTransactionCurrency(child.grossAmount, false)}
+                                  </span>
+                                  <span className="transaction-child-gst">
+                                    GST {formatCurrency(child.gstAmount)}
+                                  </span>
+                                  <span className="transaction-child-deductible">
+                                    {isPersonalSide
+                                      ? "Not deductible"
+                                      : `Deductible ${formatCurrency(child.netAmount)}`}
+                                  </span>
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               );
             })}
           </tbody>
@@ -2452,6 +2567,23 @@ function PropertyTransactionTable({
                     >
                       {transactionTypeLabel(row.transactionType)}
                     </span>
+                    {/* The property grid runs at display grain too, so a
+                        part-private bill shows here as its container and the
+                        amounts are the whole bill. */}
+                    {row.hasChildren ? (
+                      <span
+                        className="transaction-personal-portion-pill"
+                        title={
+                          row.personalPercentage != null
+                            ? `${row.personalPercentage}% of this bill is private use`
+                            : "Part of this bill is private use"
+                        }
+                      >
+                        {row.personalPercentage != null
+                          ? `${row.personalPercentage}% personal`
+                          : "Part personal"}
+                      </span>
+                    ) : null}
                   </td>
                   <td>{row.categoryName}</td>
                   <td>{row.subcategoryName}</td>
@@ -2618,6 +2750,23 @@ function AwaitingReviewTable({
                     >
                       {transactionTypeLabel(row.type)}
                     </span>
+                    {/* Also flagged in the review queue: an accountant
+                        approving a bill should see that part of it was private
+                        before they sign it off, not after. */}
+                    {row.hasChildren ? (
+                      <span
+                        className="transaction-personal-portion-pill"
+                        title={
+                          row.personalPercentage != null
+                            ? `${row.personalPercentage}% of this bill is private use`
+                            : "Part of this bill is private use"
+                        }
+                      >
+                        {row.personalPercentage != null
+                          ? `${row.personalPercentage}% personal`
+                          : "Part personal"}
+                      </span>
+                    ) : null}
                   </td>
                   <td style={{ width: colWidth, textAlign: "left", whiteSpace: "nowrap" }}>{formatSubmittedDate(row)}</td>
                   <td style={{ width: colWidth, textAlign: "center", whiteSpace: "nowrap" }}>
@@ -3205,10 +3354,37 @@ export function AllTransactionsView({
     setPageInputValue(String(currentPage));
   }, [currentPage]);
 
+  // Which level of the parent/child tree the grid reads.
+  //
+  //   "top"  — Bills. One row per bill: a part-private expense is its parent
+  //            container, expandable to reveal the two slices.
+  //   "leaf" — Tax lines. The rows money is actually summed from, so that same
+  //            bill is two separate rows. This is the view that reconciles
+  //            against a BAS, because it is exactly what GST and the P&L see.
+  //
+  // Never both at once: a container and its children hold the same money, so a
+  // mixed list would count every split bill twice.
+  const [grain, setGrain] = useState<"top" | "leaf">("top");
+
+  // Which container rows are expanded, and the children fetched for them.
+  // Children are a detail of their parent, never rows of the page — they are
+  // outside the count, the paging and every column total.
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
+  const [rowChildren, setRowChildren] = useState<
+    Record<string, CoreTransactionChild[] | "loading" | "error">
+  >({});
+
   // Any change to the result set invalidates the page number.
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, sort, pageSize, activeTab]);
+  }, [filters, sort, pageSize, activeTab, grain]);
+
+  // Expansion is a property of the rows on screen. Once those change — a new
+  // page, a new filter, the other grain — the open state refers to rows that
+  // may no longer be there, so it is dropped rather than left dangling.
+  useEffect(() => {
+    setExpandedRowIds(new Set());
+  }, [filters, sort, pageSize, activeTab, grain, currentPage]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<DisplayTransactionRow | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
@@ -3255,8 +3431,12 @@ export function AllTransactionsView({
       put("entity_id", filters.entity);
     }
     if (contextKind !== "property") put("property_id", filters.property);
+    // Sent from the shared memo so the list, the facet dropdowns and the export
+    // all describe the same set of rows. Omitted for "top" because that is the
+    // API default — one row per bill.
+    if (grain === "leaf") sp.set("grain", "leaf");
     return sp;
-  }, [contextKind, filters]);
+  }, [contextKind, filters, grain]);
 
   // The tabs split the ledger from the accountant's review queue. That is
   // "review_status <> 'unreviewed'" vs "= 'unreviewed'", which a single-value
@@ -3418,12 +3598,12 @@ export function AllTransactionsView({
       clients: toOptions("All Clients", facets?.clients, "Unknown Client"),
       entities: toOptions("All Entities", facets?.entities, "Unknown Entity"),
       properties: toOptions("All Properties", facets?.properties, "Unknown Property"),
-      types: [
-        { label: "All Types", value: "all" },
-        ...TRANSACTION_TYPE_OPTIONS.filter((option) =>
-          (facets?.types ?? []).includes(option.value),
-        ),
-      ],
+      // Type is the one closed vocabulary here — four fixed values, not an
+      // open-ended list of the org's own records. It used to be intersected
+      // with `facets.types`, which meant Personal and Property Cost Base were
+      // absent from the dropdown until the org already had one, hiding the
+      // filter exactly when you wanted to ask "do I have any of these?".
+      types: [{ label: "All Types", value: "all" }, ...TRANSACTION_TYPE_OPTIONS],
       categories: toOptions("All Categories", facets?.categories, "Uncategorized"),
     };
   }, [facets]);
@@ -3554,6 +3734,43 @@ export function AllTransactionsView({
     // transaction won't run Bedrock a second time.
     next.documentProcessingStatus = "completed";
     return next;
+  }
+
+  /**
+   * Expand or collapse a part-private bill to show its business and personal
+   * slices.
+   *
+   * The children come from the detail endpoint rather than being derived from
+   * the parent's amount and percentage: deriving would re-do the rounding the
+   * backend already did, and could show a cent that differs from what is
+   * actually stored. Fetched once per row and cached, so collapsing and
+   * re-expanding costs nothing.
+   */
+  async function toggleRowExpanded(row: DisplayTransactionRow) {
+    const isOpen = expandedRowIds.has(row.id);
+    setExpandedRowIds((prev) => {
+      const next = new Set(prev);
+      if (isOpen) next.delete(row.id);
+      else next.add(row.id);
+      return next;
+    });
+    if (isOpen) return;
+
+    const cached = rowChildren[row.id];
+    if (Array.isArray(cached)) return;
+
+    setRowChildren((prev) => ({ ...prev, [row.id]: "loading" }));
+    try {
+      const freshToken = await getAuthToken();
+      const res = await fetch(`/api/transactions/${encodeURIComponent(row.id)}`, {
+        headers: { Authorization: `Bearer ${freshToken}` },
+      });
+      if (!res.ok) throw new Error(`detail ${res.status}`);
+      const detail = (await res.json()) as CoreTransactionDetail;
+      setRowChildren((prev) => ({ ...prev, [row.id]: detail.children ?? [] }));
+    } catch {
+      setRowChildren((prev) => ({ ...prev, [row.id]: "error" }));
+    }
   }
 
   async function openTransactionDetail(
@@ -3983,7 +4200,41 @@ export function AllTransactionsView({
         >
           To Be Reviewed <span className="transaction-tab-badge">{unreviewedCount}</span>
         </button>
+
+        {/* Which level of a part-private bill the grid lists.
+            Bills is what a person reads — one row per bill, expandable.
+            Tax lines is what the tax figures are made of, so it reconciles
+            against a BAS. Every filter works in both; the difference is only
+            which rows the same filters are applied to. */}
+        <div className="transaction-grain-switch" role="group" aria-label="Row detail">
+          <button
+            type="button"
+            className={`transaction-grain-btn ${grain === "top" ? "is-active" : ""}`}
+            aria-pressed={grain === "top"}
+            onClick={() => setGrain("top")}
+            title="One row per bill. Part-private bills can be expanded to show both slices."
+          >
+            Bills
+          </button>
+          <button
+            type="button"
+            className={`transaction-grain-btn ${grain === "leaf" ? "is-active" : ""}`}
+            aria-pressed={grain === "leaf"}
+            onClick={() => setGrain("leaf")}
+            title="The rows GST and the P&L are summed from — a part-private bill appears as its business and personal slices."
+          >
+            Tax lines
+          </button>
+        </div>
       </div>
+
+      {grain === "leaf" && (
+        <p className="transaction-grain-note">
+          Showing tax lines: a part-private bill appears as its business and personal slices
+          rather than as one row, so the amounts here are what GST and the P&amp;L are
+          calculated from.
+        </p>
+      )}
 
       <Filters
         context={context}
@@ -4124,6 +4375,12 @@ export function AllTransactionsView({
               onDelete={(row) => deleteTransaction(row)}
               disabled={addTransactionDisabled}
               disabledReason={addTransactionDisabledReason}
+              // Expansion belongs to the Bills view only. In Tax lines the
+              // slices are already the rows, so there is nothing to reveal —
+              // passing no handler also drops the disclosure column entirely.
+              expandedRowIds={grain === "top" ? expandedRowIds : undefined}
+              rowChildren={grain === "top" ? rowChildren : undefined}
+              onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
             />
           )}
           {totalItems > 0 && (
