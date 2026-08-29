@@ -33,6 +33,12 @@ export type MatchedRule = {
   assigned_category_id?: number;
   assigned_subcategory_id?: number;
   auto_confirm?: boolean;
+  /**
+   * A standing private-use portion — "this vendor is always 30% personal".
+   * Only ever pre-fills the Add Transaction form; the rule never writes a
+   * transaction itself, so the person saving it still sees and owns the split.
+   */
+  assigned_personal_percentage?: number | null;
 };
 
 export type ExtractedMeta = {

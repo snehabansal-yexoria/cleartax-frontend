@@ -938,6 +938,41 @@ export type CoreTransactionSplit = {
   allocations: CoreTransactionAllocation[];
 };
 
+/**
+ * One side of a private-use split, nested on its parent's detail response.
+ *
+ * A partly-private expense is stored as three rows: a parent holding the full
+ * bill, a business child that is deductible, and a personal child that is not.
+ * The grid only ever shows the parent — these are what the detail view expands
+ * underneath it.
+ */
+export type CoreTransactionChild = {
+  id: string;
+  type: CoreTransactionType;
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  isAssetPurchase: boolean;
+};
+
+/**
+ * Fields shared by every transaction shape describing where it sits in the
+ * parent/child tree.
+ *
+ * `hasChildren` marks a container: its own amount is the whole bill and must
+ * never be added to its children's. `parentTransactionId` marks a child, which
+ * the UI refuses to edit directly — the API returns 409 for those.
+ */
+export type CorePersonalSplitFields = {
+  parentTransactionId?: string | null;
+  hasChildren?: boolean;
+  personalPercentage?: number | null;
+};
+
 export type CoreTransactionDetail = {
   id: string;
   orgId: string;
@@ -979,7 +1014,8 @@ export type CoreTransactionDetail = {
   createdAt: string;
   updatedAt: string;
   splits: CoreTransactionSplit[];
-};
+  children?: CoreTransactionChild[];
+} & CorePersonalSplitFields;
 
 export type CoreTransactionListItem = {
   id: string;
@@ -1014,7 +1050,7 @@ export type CoreTransactionListItem = {
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
-};
+} & CorePersonalSplitFields;
 
 export type CorePropertyTransactionRow = {
   transactionId: string;
@@ -1039,6 +1075,10 @@ export type CorePropertyTransactionRow = {
   splitGstAmount: number;
   splitNetAmount: number;
   createdAt: string;
+  // Optional for the same reason the reviewer stamp is: sample rows and mock
+  // fixtures predate the field, and the normalizer always populates it.
+  hasChildren?: boolean;
+  personalPercentage?: number | null;
 };
 
 export type CoreTransactionCategory = {
@@ -1157,10 +1197,47 @@ export function normalizeCoreTransactionSplit(
   };
 }
 
+/**
+ * Where a row sits in the parent/child tree.
+ *
+ * Defaults are the "no private-use split" shape, so a response from a backend
+ * that predates migration 0036 normalizes to an ordinary standalone
+ * transaction rather than to undefined.
+ */
+function normalizePersonalSplitFields(raw: RawRecord): CorePersonalSplitFields {
+  return {
+    parentTransactionId: toNullableString(
+      raw.parent_transaction_id ?? raw.parentTransactionId,
+    ),
+    hasChildren: Boolean(raw.has_children ?? raw.hasChildren),
+    personalPercentage: toNullableNumber(
+      raw.personal_percentage ?? raw.personalPercentage,
+    ),
+  };
+}
+
+export function normalizeCoreTransactionChild(
+  raw: RawRecord,
+): CoreTransactionChild {
+  return {
+    id: toStringValue(raw.id),
+    type: toTxnType(raw.type),
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+    subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+    grossAmount: toFloatValue(raw.gross_amount ?? raw.grossAmount),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    netAmount: toFloatValue(raw.net_amount ?? raw.netAmount),
+    isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
+  };
+}
+
 export function normalizeCoreTransactionDetail(
   raw: RawRecord,
 ): CoreTransactionDetail {
   const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
+  const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
   return {
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
@@ -1207,6 +1284,10 @@ export function normalizeCoreTransactionDetail(
     splits: splitsRaw
       .filter((s): s is RawRecord => typeof s === "object" && s !== null)
       .map(normalizeCoreTransactionSplit),
+    children: childrenRaw
+      .filter((c): c is RawRecord => typeof c === "object" && c !== null)
+      .map(normalizeCoreTransactionChild),
+    ...normalizePersonalSplitFields(raw),
   };
 }
 
@@ -1263,6 +1344,7 @@ export function normalizeCoreTransactionListItem(
     metadata: toRecord(raw.metadata),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    ...normalizePersonalSplitFields(raw),
   };
 }
 
@@ -1300,6 +1382,10 @@ export function normalizeCorePropertyTransactionRow(
     splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
     splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    hasChildren: Boolean(raw.has_children ?? raw.hasChildren),
+    personalPercentage: toNullableNumber(
+      raw.personal_percentage ?? raw.personalPercentage,
+    ),
   };
 }
 
@@ -1458,6 +1544,19 @@ export type CoreTransactionListQuery = {
   propertyId?: string;
   type?: CoreTransactionType;
   categoryId?: number | string;
+  /**
+   * Which level of the parent/child tree to read.
+   *
+   * "top" (the default when omitted) returns one row per bill: parent
+   * containers and standalone transactions. "leaf" returns the rows money is
+   * summed from — the business and personal children, plus standalone
+   * transactions — and is what the personal list uses, paired with
+   * `type: "personal"`.
+   *
+   * Reading both levels at once would double-count, so the backend always
+   * applies one or the other.
+   */
+  grain?: "top" | "leaf";
   sort?: CoreTransactionSortKey | string;
   dir?: "asc" | "desc";
   limit?: number;
@@ -1492,6 +1591,7 @@ export function transactionListQueryString(
   put("property_id", q.propertyId);
   put("type", q.type);
   put("category_id", q.categoryId);
+  put("grain", q.grain);
   put("sort", q.sort);
   put("dir", q.dir);
   put("limit", q.limit);

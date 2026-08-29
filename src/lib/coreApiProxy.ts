@@ -5,6 +5,7 @@ import {
   type CoreTransactionListQuery,
   type CoreTransactionType,
 } from "./coreApi";
+import { TRANSACTION_TYPES } from "./transactionTypes";
 
 export function getBearerToken(req: Request): string | null {
   const header = req.headers.get("authorization");
@@ -125,6 +126,7 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
   const dir = sp.get("dir")?.trim().toLowerCase();
   const type = sp.get("type")?.trim().toLowerCase();
   const bucket = sp.get("review_bucket")?.trim().toLowerCase();
+  const grain = sp.get("grain")?.trim().toLowerCase();
 
   return {
     search: str("search"),
@@ -136,11 +138,17 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
     clientId: str("client_id"),
     entityId: str("entity_id"),
     propertyId: str("property_id"),
-    type:
-      type === "revenue" || type === "expense"
-        ? (type as CoreTransactionType)
-        : undefined,
+    // Checked against the full type list rather than a hardcoded
+    // revenue/expense pair. That pair predated migration 0032, so filtering by
+    // "personal" or "cost_base" was dropped here and came back as an unfiltered
+    // list — which is exactly what the personal view asks for.
+    type: TRANSACTION_TYPES.includes(type as CoreTransactionType)
+      ? (type as CoreTransactionType)
+      : undefined,
     categoryId: str("category_id"),
+    // Which level of the parent/child tree to read. Omitted means the backend's
+    // default, "top" — one row per bill.
+    grain: grain === "top" || grain === "leaf" ? grain : undefined,
     sort: str("sort"),
     dir: dir === "asc" || dir === "desc" ? dir : undefined,
     limit: int("limit"),

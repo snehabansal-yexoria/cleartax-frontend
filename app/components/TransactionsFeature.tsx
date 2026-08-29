@@ -12,6 +12,7 @@ import {
   TRANSACTION_TYPE_OPTIONS,
   allowsAssetPurchase,
   allowsBusinessExtras,
+  allowsPersonalPortion,
   hidesCategoryPicker,
   hidesSubcategoryPicker,
   isRevenueType,
@@ -328,6 +329,8 @@ type CoreTransactionRule = {
   assignedType: string;
   assignedCategoryId: number;
   assignedSubcategoryId: number;
+  /** Standing private-use share applied to everything this rule matches. */
+  assignedPersonalPercentage: number | null;
   autoConfirm: boolean;
   isEnabled: boolean;
   metadata: Record<string, unknown>;
@@ -373,6 +376,10 @@ function normalizeRule(raw: Record<string, unknown>): CoreTransactionRule {
     assignedType: String(raw.assigned_type ?? ""),
     assignedCategoryId: Number(raw.assigned_category_id ?? 0),
     assignedSubcategoryId: Number(raw.assigned_subcategory_id ?? 0),
+    assignedPersonalPercentage:
+      raw.assigned_personal_percentage != null
+        ? Number(raw.assigned_personal_percentage)
+        : null,
     autoConfirm: Boolean(raw.auto_confirm),
     isEnabled: Boolean(raw.is_enabled),
     metadata: (raw.metadata && typeof raw.metadata === "object" && !Array.isArray(raw.metadata))
@@ -1064,6 +1071,9 @@ function TransactionDetailPopup({
     })) || [];
   const hasPropertySplit =
     new Set(splitRows.map((split) => split.propertyId).filter(Boolean)).size > 1;
+  // The two sides of a private-use split, business first (the API orders them
+  // that way). Empty on every transaction without a private portion.
+  const personalChildren = detail?.children ?? [];
   const purchasedAssetName =
     typeof display.metadata.asset_item_name === "string"
       ? display.metadata.asset_item_name
@@ -1850,6 +1860,51 @@ function TransactionDetailPopup({
               ) : null}
             </>
           )}
+
+          {/* Private-use breakdown. The grid shows one row per bill, so this
+              is where the two halves of a part-personal expense become
+              visible: what was claimed and what was not. Amounts come from the
+              child rows themselves rather than being recomputed here, so the
+              screen shows what is actually stored. */}
+          {mode !== "edit" && personalChildren.length > 0 ? (
+            <section className="transaction-detail-splits">
+              <h3>
+                Business / Personal Split
+                {typeof detail?.personalPercentage === "number"
+                  ? ` — ${detail.personalPercentage}% personal`
+                  : ""}
+              </h3>
+              {personalChildren.map((child) => {
+                const isPersonalSide = child.type === "personal";
+                return (
+                  <div
+                    key={child.id}
+                    className="transaction-detail-split-card"
+                    style={{
+                      borderLeft: `3px solid ${transactionTypeColor(child.type)}`,
+                      paddingLeft: 12,
+                    }}
+                  >
+                    <DetailField
+                      label={isPersonalSide ? "Personal portion" : "Business portion"}
+                      value={formatCurrency(child.grossAmount)}
+                    />
+                    <DetailField label="Category" value={child.categoryName || "—"} />
+                    {child.gstAmount > 0 && (
+                      <DetailField
+                        label={isPersonalSide ? "GST (not claimable)" : "GST (claimable)"}
+                        value={formatCurrency(child.gstAmount)}
+                      />
+                    )}
+                    <DetailField
+                      label={isPersonalSide ? "Deductible" : "Deductible (net)"}
+                      value={isPersonalSide ? "No — private use" : formatCurrency(child.netAmount)}
+                    />
+                  </div>
+                );
+              })}
+            </section>
+          ) : null}
 
           {mode !== "edit" && hasPropertySplit ? (
             <section className="transaction-detail-splits">
@@ -5021,6 +5076,20 @@ export function AddTransactionView({
         if (matchedTx.effectiveLifeYears) setEffectiveLifeYears(String(matchedTx.effectiveLifeYears));
       }
 
+      // Restore the private-use split. This is the gap that made the old
+      // metadata version quietly lossy: the toggle never came back, so
+      // reopening a 30%-private expense showed it as fully deductible and
+      // re-saving dropped the split without saying so. matchedTx is raw API
+      // JSON on the fetch path, so both casings are read.
+      const prefillPersonalPct = Number(
+        matchedTx.personal_percentage ?? matchedTx.personalPercentage ?? 0,
+      );
+      if (Number.isFinite(prefillPersonalPct) && prefillPersonalPct > 0) {
+        setIsPersonal(true);
+        setPersonalAllocationType("percentage");
+        setPersonalValue(String(prefillPersonalPct));
+      }
+
       // 5. Prefill category / subcategory cascade
       if (matchedTx.categoryId) {
         pendingRuleRef.current = {
@@ -5104,7 +5173,9 @@ export function AddTransactionView({
     if (newType !== "expense") {
       setIsRegularPayment(false);
     }
-    if (!allowsBusinessExtras(newType)) {
+    // A private-use portion is expense-only. Retyping away from expense clears
+    // it rather than leaving a hidden split that the API would 400 on.
+    if (!allowsPersonalPortion(newType)) {
       setIsPersonal(false);
     }
   }
@@ -5428,20 +5499,40 @@ export function AddTransactionView({
 
   // Private-use split of a business expense. A wholly personal transaction is
   // type === "personal" and carries no split, so isPersonal is false there.
+  //
+  // Both input modes collapse to a percentage before anything else reads them.
+  // That is the only shape the API accepts: a fixed dollar amount cannot be
+  // re-derived when the bill total later changes, and the two children have to
+  // keep summing back to their parent.
   const grossNumValue = Number.isNaN(grossNumberValue) ? 0 : grossNumberValue;
-  let personalPortion = 0;
-  let businessPortion = 0;
-  if (isPersonal) {
-    if (personalAllocationType === "percentage") {
-      const pct = Number.parseFloat(personalValue) || 0;
-      personalPortion = grossNumValue * (pct / 100);
-      businessPortion = grossNumValue - personalPortion;
-    } else {
-      const amt = Number.parseFloat(personalValue) || 0;
-      personalPortion = amt;
-      businessPortion = Math.max(0, grossNumValue - personalPortion);
+  const personalPercentageValue = (() => {
+    if (!isPersonal) return 0;
+    const raw = Number.parseFloat(personalValue) || 0;
+    if (personalAllocationType === "percentage") return raw;
+    if (grossNumValue <= 0) return 0;
+    return (raw / grossNumValue) * 100;
+  })();
+  const personalPortion = grossNumValue * (personalPercentageValue / 100);
+  const businessPortion = grossNumValue - personalPortion;
+
+  // The split is strictly partial at both ends. Nothing private is just an
+  // expense; wholly private is the "Personal Transaction" type, which is a
+  // different row shape rather than a 100% split.
+  const personalSplitError = (() => {
+    if (!isPersonal) return "";
+    if (grossNumValue <= 0) return "Enter the amount first.";
+    if (personalPercentageValue <= 0) {
+      return personalAllocationType === "percentage"
+        ? "Enter a personal percentage above 0."
+        : "Enter a personal amount above 0.";
     }
-  }
+    if (personalPercentageValue >= 100) {
+      return personalAllocationType === "percentage"
+        ? "Personal use must be under 100%. Choose the Personal Transaction type for a wholly private one."
+        : "The personal amount must be less than the total. Choose the Personal Transaction type for a wholly private one.";
+    }
+    return "";
+  })();
 
   const splitErrors = useMemo(() => {
     const errors: Record<string, string> = {};
@@ -5726,6 +5817,22 @@ export function AddTransactionView({
     if (effectiveType) {
       setType(effectiveType);
       filled.add("type");
+    }
+
+    // A rule can declare a standing private-use portion — "this vendor is
+    // always 30% personal". It only pre-fills the form; the accountant still
+    // sees the split and can change or clear it before saving.
+    const rulePersonalPct = rule?.assigned_personal_percentage;
+    if (
+      typeof rulePersonalPct === "number" &&
+      rulePersonalPct > 0 &&
+      rulePersonalPct < 100 &&
+      allowsPersonalPortion(effectiveType ?? "")
+    ) {
+      setIsPersonal(true);
+      setPersonalAllocationType("percentage");
+      setPersonalValue(String(rulePersonalPct));
+      filled.add("personalSplit");
     }
     if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
       setInvoiceDate(data.date);
@@ -6284,36 +6391,39 @@ export function AddTransactionView({
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
-      // Calculate portions again to ensure latest values are stored
-      const grossNumValueForSave = Number.isNaN(grossNum) ? 0 : grossNum;
-      let personalPortionVal = 0;
-      let businessPortionVal = 0;
-      if (isPersonal) {
-        if (personalAllocationType === "percentage") {
-          const pct = parseFloat(personalValue) || 0;
-          personalPortionVal = grossNumValueForSave * (pct / 100);
-          businessPortionVal = grossNumValueForSave - personalPortionVal;
+      // The private-use split is a first-class field, not metadata. It used to
+      // be written as is_personal / personal_portion / business_portion inside
+      // the metadata blob, which nothing ever read back — the private portion
+      // stayed fully deductible. The backend now turns `personal_split` into a
+      // business child and a personal child and derives every amount itself, so
+      // the form sends only the percentage.
+      if (allowsPersonalPortion(type)) {
+        if (isPersonal) {
+          if (personalSplitError) {
+            setSubmitError(personalSplitError);
+            return;
+          }
+          body.personal_split = {
+            percentage: Number(personalPercentageValue.toFixed(2)),
+          };
         } else {
-          const amt = parseFloat(personalValue) || 0;
-          personalPortionVal = amt;
-          businessPortionVal = Math.max(0, grossNumValueForSave - personalPortionVal);
+          // Sent explicitly rather than omitted: on an edit this is what
+          // removes a split the transaction already had. Omitting the field
+          // means "leave it alone", which would silently keep a private
+          // portion the user has just switched off. On a create the backend
+          // normalises a zero away.
+          body.personal_split = { percentage: 0 };
         }
       }
 
-      // Rent alerts and private-use splits only apply to business transactions;
-      // "personal" is already wholly private and cost base is capitalised.
+      // Rent alerts only apply to business transactions; "personal" is already
+      // wholly private and cost base is capitalised.
       const withBusinessExtras = allowsBusinessExtras(type);
       body.metadata = {
         ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
         is_regular_payment: withBusinessExtras ? isRegularPayment : false,
         due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
         alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
-        is_personal: isPersonal,
-        personal_allocation_type: personalAllocationType,
-        personal_percentage:
-          isPersonal && personalValue ? parseFloat(personalValue) : null,
-        business_portion: Number(businessPortionVal.toFixed(2)),
-        personal_portion: Number(personalPortionVal.toFixed(2)),
       };
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
@@ -7091,29 +7201,27 @@ export function AddTransactionView({
               </div>
             )}
 
-            {/* Is this a personal transaction? */}
+            {/* Part of this was private use. Expense only — the backend
+                rejects a personal split on any other type, and the wholly
+                private case is the "Personal Transaction" type instead. */}
+            {allowsPersonalPortion(type) && (
             <div className="figma-toggle-container">
               <div className="figma-toggle-info">
-                <span className="figma-toggle-title">Is this a personal transaction?</span>
-                <span className="figma-toggle-desc">Split this transaction between business and personal use</span>
+                <span className="figma-toggle-title">Was part of this personal?</span>
+                <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
               </div>
               <label className="figma-switch">
                 <input
                   type="checkbox"
                   checked={isPersonal}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setIsPersonal(checked);
-                    if (checked) {
-                      if (!type) setType("expense");
-                    }
-                  }}
+                  onChange={(e) => setIsPersonal(e.target.checked)}
                 />
                 <span className="figma-switch-slider" />
               </label>
             </div>
+            )}
 
-            {isPersonal && (
+            {allowsPersonalPortion(type) && isPersonal && (
               <div className="figma-personal-alloc-section">
                 <div className="figma-form-row">
                   <div className="figma-field-container">
@@ -7167,7 +7275,7 @@ export function AddTransactionView({
 
                 <div className="figma-portion-wrapper">
                   <div className="figma-portion-box">
-                    <span className="figma-portion-label">Business portion</span>
+                    <span className="figma-portion-label">Business portion (deductible)</span>
                     <span className="figma-portion-value">A$ {businessPortion.toFixed(2)}</span>
                   </div>
                   <div className="figma-portion-box">
@@ -7175,6 +7283,12 @@ export function AddTransactionView({
                     <span className="figma-portion-value">A$ {personalPortion.toFixed(2)}</span>
                   </div>
                 </div>
+
+                {personalSplitError && (
+                  <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "8px 0 0" }}>
+                    {personalSplitError}
+                  </p>
+                )}
               </div>
             )}
 
@@ -7474,6 +7588,13 @@ function RuleModal({
   );
   const [autoConfirm, setAutoConfirm] = useState(rule?.autoConfirm ?? false);
   const [enabled, setEnabled] = useState(rule?.isEnabled ?? true);
+  // A standing private-use share for everything this rule matches — "this
+  // vendor is always 30% personal". Expense-only, like the split itself.
+  const [rulePersonalPercentage, setRulePersonalPercentage] = useState<string>(
+    rule?.assignedPersonalPercentage != null
+      ? String(rule.assignedPersonalPercentage)
+      : "",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [entitiesLoaded, setEntitiesLoaded] = useState(false);
@@ -7653,6 +7774,16 @@ function RuleModal({
     setConditions((prev) => prev.map((c) => c.id === id ? { ...c, ...patch } : c));
   }
 
+  // Blank means "no private-use portion" and is the common case, so an empty
+  // field is valid; only a value outside (0,100) is an error.
+  const rulePersonalPercentageValue = Number.parseFloat(rulePersonalPercentage) || 0;
+  const rulePersonalError =
+    assignedType === "expense" &&
+      rulePersonalPercentage.trim() !== "" &&
+      (rulePersonalPercentageValue <= 0 || rulePersonalPercentageValue >= 100)
+      ? "Personal use must be above 0 and under 100%."
+      : "";
+
   const canSave =
     isSelectionComplete &&
     Boolean(ruleName.trim()) &&
@@ -7660,6 +7791,7 @@ function RuleModal({
     conditions.every((c) => c.field && c.operator && c.value.trim()) &&
     Boolean(categoryId) &&
     Boolean(subcategoryId) &&
+    !rulePersonalError &&
     !isSaving;
 
   async function handleSave() {
@@ -7677,6 +7809,11 @@ function RuleModal({
         assigned_subcategory_id: Number(subcategoryId),
         auto_confirm: autoConfirm,
         is_enabled: enabled,
+        // Always sent, so clearing the field on an edit clears the stored
+        // value: the API treats 0 as "no private-use portion" and omitting the
+        // field as "leave whatever is there".
+        assigned_personal_percentage:
+          assignedType === "expense" ? rulePersonalPercentageValue : 0,
       };
 
       let res: Response;
@@ -7926,6 +8063,45 @@ function RuleModal({
                   options={subcategorySelectOptions}
                   onChange={setSubcategoryId}
                 />
+              </div>
+            )}
+
+            {/* Standing private-use share. Expense only, and optional — most
+                rules have none. It pre-fills the Add Transaction form rather
+                than writing anything on its own, so whoever saves the
+                transaction still sees and owns the split. */}
+            {assignedType === "expense" && (
+              <div className="transaction-field-animate">
+                <label className="transaction-field-label" htmlFor="rule-personal-pct">
+                  Personal use % <span style={{ fontWeight: 400, opacity: 0.65 }}>(optional)</span>
+                </label>
+                <input
+                  id="rule-personal-pct"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="any"
+                  className="figma-input"
+                  placeholder="e.g. 30 — leave blank if fully business"
+                  value={rulePersonalPercentage}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^0-9.]/g, "");
+                    const parts = clean.split(".");
+                    setRulePersonalPercentage(
+                      parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : parts[0],
+                    );
+                  }}
+                />
+                <p style={{ fontSize: 12.5, opacity: 0.7, margin: "6px 0 0" }}>
+                  Matching transactions are pre-filled with this private-use share. Only the
+                  business portion is deductible.
+                </p>
+                {rulePersonalError && (
+                  <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "6px 0 0" }}>
+                    {rulePersonalError}
+                  </p>
+                )}
               </div>
             )}
 
