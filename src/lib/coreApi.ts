@@ -1557,6 +1557,8 @@ export type CoreTransactionListQuery = {
    * applies one or the other.
    */
   grain?: "top" | "leaf";
+  /** Filters on the depreciation flag; drives the Asset Transactions panel. */
+  assetPurchase?: boolean;
   sort?: CoreTransactionSortKey | string;
   dir?: "asc" | "desc";
   limit?: number;
@@ -1592,6 +1594,9 @@ export function transactionListQueryString(
   put("type", q.type);
   put("category_id", q.categoryId);
   put("grain", q.grain);
+  // Explicit undefined check: `put` skips empty-ish values, and `false` is a
+  // meaningful filter here (rows that are NOT asset purchases), not an absence.
+  if (q.assetPurchase !== undefined) sp.set("asset_purchase", String(q.assetPurchase));
   put("sort", q.sort);
   put("dir", q.dir);
   put("limit", q.limit);
@@ -1789,6 +1794,103 @@ export async function getCoreGstSummaryForClient(
     { token },
   );
   return normalizeCoreGstSummary(getJsonObject(payload));
+}
+
+// -----------------------------------------------------------------------------
+// Personal (private-use) spending summary
+// -----------------------------------------------------------------------------
+
+/**
+ * Private, non-deductible spending totalled by category, for the Personal
+ * Transactions panel on the property, entity and client pages.
+ *
+ * Aggregated server-side rather than by filtering a page's transactions array:
+ * that array is one capped page at display grain, where the personal child of a
+ * part-private bill is hidden and its container is typed 'expense'. Totalling
+ * it client-side therefore both truncates and misses every partial split.
+ *
+ * Amounts are positive magnitudes; private spending is money out by definition,
+ * so the UI applies the sign.
+ */
+export type CorePersonalCategoryTotal = {
+  categoryId: number;
+  categoryName: string;
+  subcategoryName: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  count: number;
+};
+
+export type CorePersonalSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  categories: CorePersonalCategoryTotal[];
+  totalGross: number;
+  totalGst: number;
+  totalNet: number;
+  count: number;
+};
+
+export function normalizeCorePersonalSummary(
+  raw: RawRecord,
+): CorePersonalSummary {
+  const scope = toRecord(raw.scope);
+  const categories = Array.isArray(raw.categories) ? raw.categories : [];
+  return {
+    scope: {
+      level: (toStringValue(scope.level) || "entity") as CoreGstScopeLevel,
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    categories: categories
+      .filter((c): c is RawRecord => typeof c === "object" && c !== null)
+      .map((c) => ({
+        categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+        categoryName: toStringValue(c.category_name ?? c.categoryName),
+        subcategoryName: toStringValue(c.subcategory_name ?? c.subcategoryName),
+        grossAmount: toFloatValue(c.gross_amount ?? c.grossAmount),
+        gstAmount: toFloatValue(c.gst_amount ?? c.gstAmount),
+        netAmount: toFloatValue(c.net_amount ?? c.netAmount),
+        count: toNumberValue(c.count) ?? 0,
+      })),
+    totalGross: toFloatValue(raw.total_gross ?? raw.totalGross),
+    totalGst: toFloatValue(raw.total_gst ?? raw.totalGst),
+    totalNet: toFloatValue(raw.total_net ?? raw.totalNet),
+    count: toNumberValue(raw.count) ?? 0,
+  };
+}
+
+export async function getCorePersonalSummaryForProperty(
+  token: string,
+  propertyId: string,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
+export async function getCorePersonalSummaryForEntity(
+  token: string,
+  entityId: string,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
+export async function getCorePersonalSummaryForClient(
+  token: string,
+  clientId: string,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
 }
 
 // Narrows an untrusted query-param value to a CoreReviewStatus, or undefined

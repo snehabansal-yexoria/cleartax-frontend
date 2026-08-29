@@ -7,6 +7,11 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
+import {
+  assetItemName,
+  useAssetTransactions,
+  usePersonalSummary,
+} from "@/app/components/usePersonalAndAssetTransactions";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -83,6 +88,27 @@ function formatJoinedDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+/** Money for the Personal / Asset panels: "-A$ 1,234.56". */
+function formatPanelAmount(value: number) {
+  const abs = Math.abs(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${value < 0 ? "-" : ""}A$ ${abs}`;
+}
+
+/** "25 July 2026" for the Asset panel's date column. */
+function formatPanelDate(value: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
     year: "numeric",
   }).format(date);
 }
@@ -260,6 +286,40 @@ function ClientDetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const clientId = params?.clientId ?? "";
+
+  // Both panels were hardcoded: the same invented categories and the same two
+  // invented asset rows on every client, shown as if they were that client's
+  // real figures. They now read the server.
+  //
+  // The personal summary aggregates at money grain, so a bill that was part
+  // private contributes its personal child here — the panel is where a partial
+  // private-use split becomes visible, since the grid shows only the bill.
+  const personal = usePersonalSummary("client", clientId, { enabled: !!clientId });
+  const assets = useAssetTransactions("client", clientId, { enabled: !!clientId });
+
+  const personalCategories = useMemo(
+    () =>
+      (personal.summary?.categories ?? []).map((c) => ({
+        category: c.subcategoryName || c.categoryName || "Other",
+        // Private spending is money out; the API returns magnitudes.
+        amount: -c.grossAmount,
+      })),
+    [personal.summary],
+  );
+  const personalTotal = -(personal.summary?.totalGross ?? 0);
+
+  const assetRows = useMemo(
+    () =>
+      assets.rows.map((t) => ({
+        id: t.id,
+        entityName: t.entityName || "—",
+        propertyName: t.propertyNames?.[0] || "—",
+        name: assetItemName(t),
+        date: t.invoiceDate,
+        amount: -(t.grossAmount ?? 0),
+      })),
+    [assets.rows],
+  );
 
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [entities, setEntities] = useState<CoreEntity[]>([]);
@@ -848,50 +908,35 @@ function ClientDetailPageContent() {
                 gap: '24px',
               }}
             >
-              {/* Total Expenses Section */}
+              {/* Private spending by category. There is no revenue half:
+                  a personal transaction is money out by definition, so the
+                  section that used to sit here could only ever be empty. */}
               <div>
                 <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#b91c1c', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
-                  Total Expenses
+                  Private spending
                 </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                    <span>Advertising for Tenants</span>
-                    <strong style={{ fontWeight: 600, color: '#101828' }}>-A$ 6,021.71</strong>
+                {personal.isLoading ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>Loading…</p>
+                ) : personal.error ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#b42318' }}>{personal.error}</p>
+                ) : personalCategories.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>
+                    No personal transactions recorded for this client.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {personalCategories.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                        <span>{item.category}</span>
+                        <strong style={{ fontWeight: 600, color: '#101828' }}>{formatPanelAmount(item.amount)}</strong>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
+                      <strong style={{ fontWeight: 700 }}>Total</strong>
+                      <strong style={{ fontWeight: 800 }}>{formatPanelAmount(personalTotal)}</strong>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                    <span>Repairs and maintenance</span>
-                    <strong style={{ fontWeight: 600, color: '#101828' }}>-A$ 4,856.37</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                    <span>Body Corporate Fees / Strata Levy</span>
-                    <strong style={{ fontWeight: 600, color: '#101828' }}>-A$ 411.00</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
-                    <strong style={{ fontWeight: 700 }}>Total</strong>
-                    <strong style={{ fontWeight: 800 }}>-A$ 11,289.08</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Revenue Section */}
-              <div>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#16a34a', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
-                  Total Revenue
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                    <span>Other Rental Income</span>
-                    <strong style={{ fontWeight: 600, color: '#101828' }}>A$ 9,856.00</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                    <span>Rental Income</span>
-                    <strong style={{ fontWeight: 600, color: '#101828' }}>A$ 6,464.00</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
-                    <strong style={{ fontWeight: 700 }}>Total</strong>
-                    <strong style={{ fontWeight: 800 }}>A$ 16,320.00</strong>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -974,40 +1019,46 @@ function ClientDetailPageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/assets/switchboard`)}
-                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>Smith & Co.</td>
-                    <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>Heaven Villa</td>
-                    <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>Supply and replace switchboard</td>
-                    <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>25 July 2026</td>
-                    <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>-A$ 2,272.73</td>
-                    <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </td>
-                  </tr>
-                  <tr
-                    onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/assets/ac-unit`)}
-                    style={{ borderBottom: 'none', cursor: 'pointer', transition: 'background 0.2s ease' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>Smith & Co.</td>
-                    <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>Heaven Villa</td>
-                    <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>New split system A/C unit</td>
-                    <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>14 May 2026</td>
-                    <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>-A$ 1,681.82</td>
-                    <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </td>
-                  </tr>
+                  {assets.isLoading ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#667085' }}>
+                        Loading…
+                      </td>
+                    </tr>
+                  ) : assets.error ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#b42318' }}>
+                        {assets.error}
+                      </td>
+                    </tr>
+                  ) : assetRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#667085' }}>
+                        No transactions marked as asset purchases yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    assetRows.map((row, idx) => (
+                      <tr
+                        key={row.id}
+                        onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/transactions?prefillTransactionId=${encodeURIComponent(row.id)}`)}
+                        style={{ borderBottom: idx === assetRows.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>{row.entityName}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{row.propertyName}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{row.name}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>{formatPanelAmount(row.amount)}</td>
+                        <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -127,6 +127,7 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
   const type = sp.get("type")?.trim().toLowerCase();
   const bucket = sp.get("review_bucket")?.trim().toLowerCase();
   const grain = sp.get("grain")?.trim().toLowerCase();
+  const assetPurchase = sp.get("asset_purchase")?.trim().toLowerCase();
 
   return {
     search: str("search"),
@@ -149,6 +150,14 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
     // Which level of the parent/child tree to read. Omitted means the backend's
     // default, "top" — one row per bill.
     grain: grain === "top" || grain === "leaf" ? grain : undefined,
+    // Tri-state: absent means no filter at all, so an unrecognised value is
+    // dropped rather than defaulting to false and hiding every ordinary row.
+    assetPurchase:
+      assetPurchase === "true" || assetPurchase === "1"
+        ? true
+        : assetPurchase === "false" || assetPurchase === "0"
+          ? false
+          : undefined,
     sort: str("sort"),
     dir: dir === "asc" || dir === "desc" ? dir : undefined,
     limit: int("limit"),

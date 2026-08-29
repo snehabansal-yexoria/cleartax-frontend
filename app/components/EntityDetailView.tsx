@@ -7,6 +7,11 @@ import ToggleSwitch from "@/app/components/ToggleSwitch";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
 import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { useGstSummary } from "@/app/components/useGstSummary";
+import {
+  assetItemName,
+  useAssetTransactions,
+  usePersonalSummary,
+} from "@/app/components/usePersonalAndAssetTransactions";
 import { Skeleton } from "boneyard-js/react";
 import {
   EntityDetailSkeleton,
@@ -621,77 +626,42 @@ export default function EntityDetailView({
   const gstOnPurchase = gst.gstOnPurchases;
   const gstOnSales = gst.gstOnSales;
 
+  // Both panels read the server rather than this page's `transactions` array.
+  //
+  // The array is one capped page at display grain, so filtering it for personal
+  // spending missed every partial private-use split (the personal child is
+  // hidden there and its container is typed 'expense') and truncated the rest.
+  // Neither hook invents a fallback: empty renders as empty.
+  const personal = usePersonalSummary("entity", entityId);
+  const assets = useAssetTransactions("entity", entityId);
+
   const personalBreakdown = useMemo(() => {
-    const personalTransactions = transactions.filter((t) => t.type === "personal");
-    const expensesMap = new Map<string, number>();
-    const revenueMap = new Map<string, number>();
-
-    personalTransactions.forEach((t) => {
-      const category = t.subcategoryName || t.categoryName || "Other";
-      const amt = t.grossAmount ?? 0;
-      if (amt < 0) {
-        expensesMap.set(category, (expensesMap.get(category) ?? 0) + amt);
-      } else {
-        revenueMap.set(category, (revenueMap.get(category) ?? 0) + amt);
-      }
-    });
-
-    const expensesList = Array.from(expensesMap.entries()).map(([category, amount]) => ({ category, amount }));
-    const revenueList = Array.from(revenueMap.entries()).map(([category, amount]) => ({ category, amount }));
-
-    const finalExpenses = expensesList.length > 0 ? expensesList : [
-      { category: "Advertising for Tenants", amount: -6021.71 },
-      { category: "Repairs and maintenance", amount: -4856.37 },
-      { category: "Body Corporate Fees / Strata Levy", amount: -411.00 },
-    ];
-
-    const finalRevenue = revenueList.length > 0 ? revenueList : [
-      { category: "Other Rental Income", amount: 9856.00 },
-      { category: "Rental Income", amount: 6464.00 },
-    ];
-
-    const totalExpense = finalExpenses.reduce((sum, item) => sum + item.amount, 0);
-    const totalRevenue = finalRevenue.reduce((sum, item) => sum + item.amount, 0);
-
+    const categories = personal.summary?.categories ?? [];
     return {
-      expenses: finalExpenses,
-      revenue: finalRevenue,
-      totalExpense,
-      totalRevenue,
+      // Private spending is money out by definition, so the API returns
+      // magnitudes and the sign is applied here — there is no revenue side.
+      expenses: categories.map((c) => ({
+        category: c.subcategoryName || c.categoryName || "Other",
+        amount: -c.grossAmount,
+      })),
+      totalExpense: -(personal.summary?.totalGross ?? 0),
     };
-  }, [transactions]);
+  }, [personal.summary]);
 
-  const assetTransactionsList = useMemo(() => {
-    const assetTransactions = transactions.filter((t) => t.isAssetPurchase);
-    if (assetTransactions.length > 0) {
-      return assetTransactions.map((t) => ({
+  const assetTransactionsList = useMemo(
+    () =>
+      assets.rows.map((t) => ({
         id: t.id,
-        description: t.description || "Asset Purchase",
-        category: t.categoryName || "Capital works",
-        property: t.propertyNames?.[0] || "Heaven Villa",
+        description: assetItemName(t),
+        category: t.categoryName || "—",
+        property: t.propertyNames?.[0] || "—",
         date: formatDate(t.invoiceDate),
-        amount: t.grossAmount ?? 0,
-      }));
-    }
-    return [
-      {
-        id: "switchboard",
-        description: "Supply and replace switchboard",
-        category: "Repairs and maintenance",
-        property: "Heaven Villa",
-        date: "25 July 2026",
-        amount: -2272.73,
-      },
-      {
-        id: "ac-unit",
-        description: "New split system A/C unit",
-        category: "Repairs and maintenance",
-        property: "Heaven Villa",
-        date: "14 May 2026",
-        amount: -1681.82,
-      },
-    ];
-  }, [transactions]);
+        // gross_amount is a non-negative column; an asset purchase is an
+        // expense, so it renders negative.
+        amount: -(t.grossAmount ?? 0),
+      })),
+    [assets.rows],
+  );
 
   const formatAmount = (num: number) => {
     const absVal = Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1008,43 +978,37 @@ export default function EntityDetailView({
                   gap: '24px',
                 }}
               >
-                {/* Total Expenses Section */}
+                {/* Private spending by category. There is no revenue half:
+                    a personal transaction is money out by definition, so the
+                    section that used to sit here could only ever be empty. */}
                 <div>
                   <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#b91c1c', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
-                    Total Expenses
+                    Private spending
                   </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {personalBreakdown.expenses.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                        <span>{item.category}</span>
-                        <strong style={{ fontWeight: 600, color: '#101828' }}>{formatAmount(item.amount)}</strong>
+                  {personal.isLoading ? (
+                    <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>Loading…</p>
+                  ) : personal.error ? (
+                    <p style={{ margin: 0, fontSize: '13px', color: '#b42318' }}>{personal.error}</p>
+                  ) : personalBreakdown.expenses.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>
+                      No personal transactions recorded for this entity.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {personalBreakdown.expenses.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                          <span>{item.category}</span>
+                          <strong style={{ fontWeight: 600, color: '#101828' }}>{formatAmount(item.amount)}</strong>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
+                        <strong style={{ fontWeight: 700 }}>Total</strong>
+                        <strong style={{ fontWeight: 800 }}>{formatAmount(personalBreakdown.totalExpense)}</strong>
                       </div>
-                    ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
-                      <strong style={{ fontWeight: 700 }}>Total</strong>
-                      <strong style={{ fontWeight: 800 }}>{formatAmount(personalBreakdown.totalExpense)}</strong>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Total Revenue Section */}
-                <div>
-                  <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#16a34a', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
-                    Total Revenue
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {personalBreakdown.revenue.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
-                        <span>{item.category}</span>
-                        <strong style={{ fontWeight: 600, color: '#101828' }}>{formatAmount(item.amount)}</strong>
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
-                      <strong style={{ fontWeight: 700 }}>Total</strong>
-                      <strong style={{ fontWeight: 800 }}>{formatAmount(personalBreakdown.totalRevenue)}</strong>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
           </div>
