@@ -8439,57 +8439,49 @@ html.dark .transactions-table tbody tr:hover {
    tinted ground, with no borders of its own — so it never reads as another
    result. It is not counted, paged or totalled with the rows around it. */
 .transaction-child-row > td {
-  padding: 0 !important;
-  background: #fbfaff;
-  border-top: none !important;
+  background: #fcfbfe;
+  border-top: 1px dashed #ece9f6;
+  border-bottom: 1px solid #edf0f4;
+  font-size: 13px;
+  color: #475467;
+  padding: 12px 18px;
+  white-space: nowrap;
+}
+
+.transaction-child-row > td.amount-negative,
+.transaction-child-row > td .amount-negative {
+  color: #e11d48 !important;
+  font-weight: 800;
+}
+
+.transaction-child-row > td.amount-positive,
+.transaction-child-row > td .amount-positive {
+  color: #12a150 !important;
+  font-weight: 800;
+}
+
+.transaction-child-row > td:first-child {
   box-shadow: inset 3px 0 0 #c084fc;
 }
 
-.transaction-child-list {
-  margin: 0;
-  padding: 6px 0;
-  list-style: none;
+.transaction-child-row:hover > td {
+  background: #f7f3ff;
 }
 
-.transaction-child-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 16px 7px 44px;
-  font-size: 13px;
-  color: #475467;
+html.dark .transaction-child-row > td {
+  background: rgba(192, 132, 252, 0.05);
+  border-top-color: rgba(192, 132, 252, 0.15);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  color: #d1d5db;
 }
 
-.transaction-child-item + .transaction-child-item {
-  border-top: 1px dashed #ece9f6;
-}
-
-.transaction-child-category {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.transaction-child-amounts {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 16px;
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.transaction-child-gst,
-.transaction-child-deductible {
-  font-size: 12px;
-  color: #667085;
+html.dark .transaction-child-row:hover > td {
+  background: rgba(192, 132, 252, 0.09);
 }
 
 .transaction-child-note {
   display: block;
-  padding: 10px 16px 10px 44px;
+  padding: 12px 18px;
   font-size: 12.5px;
   color: #667085;
 }
