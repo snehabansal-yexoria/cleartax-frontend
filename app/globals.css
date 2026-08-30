@@ -7607,6 +7607,245 @@ p.darkBg {
   gap: 16px;
 }
 
+/* ---------------------------------------------------------------------------
+   Transactions grid: description search, invoice-date range, sortable headers
+   and the export menu. All four drive server-side queries, so these controls
+   are the only entry points to search/sort/filter — the table itself no longer
+   reorders anything in the browser.
+   --------------------------------------------------------------------------- */
+
+.transaction-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.transaction-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.transaction-search-field svg {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #667085;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.transaction-search-field input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.transaction-search-field input:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+/* The UA clear affordance on type="search" is inconsistent across browsers,
+   so the component renders its own. */
+.transaction-search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.transaction-search-clear {
+  position: absolute;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.transaction-search-clear:hover {
+  background: #f2f4f7;
+}
+
+.transaction-search-clear svg {
+  position: static;
+  width: 12px;
+  height: 12px;
+  stroke: #475467;
+}
+
+.transaction-date-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.transaction-date-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transaction-date-range input {
+  padding: 9px 10px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.transaction-date-range input:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+.transaction-date-range .transaction-filter-reset {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+}
+
+.transaction-filter-error {
+  margin: 0 0 12px 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Sortable column headers ------------------------------------------------- */
+
+.transactions-table th.is-sortable {
+  padding: 0;
+}
+
+.transactions-table th.is-sortable > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: inherit;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transactions-table th.is-sortable.is-numeric > button {
+  justify-content: flex-end;
+}
+
+.transactions-table th.is-sortable > button:hover {
+  color: #28336e;
+}
+
+.transactions-table th.is-sortable > button:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: -2px;
+}
+
+.transactions-table th .sort-indicator {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Unsorted columns keep the affordance visible but quiet. */
+  opacity: 0.35;
+}
+
+.transactions-table th.is-sorted {
+  color: #28336e;
+}
+
+.transactions-table th.is-sorted .sort-indicator {
+  opacity: 1;
+}
+
+/* Export menu -------------------------------------------------------------- */
+
+.transaction-export-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.transaction-export-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(16, 24, 40, 0.16);
+}
+
+.transaction-export-menu-list button {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #101828;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transaction-export-menu-list button:hover:not(:disabled) {
+  background: #f2f4f7;
+}
+
+.transaction-export-menu-list button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Visually hidden, still announced — used for the sort state on each header. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .transaction-filter-reset {
   margin-left: auto;
   border: none;
@@ -8063,6 +8302,200 @@ html.dark .transactions-table tbody tr:hover {
 .transaction-type-pill.is-cost-base {
   color: #c2410c;
   background: #ffedd5;
+}
+
+/* A part-private bill appears in the grid as its parent row — an expense whose
+   private slice lives on a child the display grain hides. Without this the row
+   reads as fully deductible, and a row matched by the Personal filter looks
+   like it was matched by mistake. Deliberately quieter than a type pill: it
+   qualifies the type, it is not a second one. */
+.transaction-personal-portion-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #e9d5ff;
+  background: #faf5ff;
+  color: #7e22ce;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Bills / Tax lines switch.
+   Deliberately quieter than the review tabs beside it: those choose which set
+   of transactions you are looking at, this one only changes how much of each
+   bill is broken out, so it should not compete with them.
+   ------------------------------------------------------------------------ */
+.transaction-grain-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 12px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid #e4e7ec;
+  background: #f9fafb;
+}
+
+.transaction-grain-btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.transaction-grain-btn:hover {
+  color: #1d2939;
+}
+
+.transaction-grain-btn.is-active {
+  background: #ffffff;
+  color: #1d2939;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.transaction-grain-btn:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+.transaction-grain-note {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #e9d5ff;
+  background: #faf5ff;
+  color: #6b21a8;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------------------
+   Expanding a part-private bill.
+   ------------------------------------------------------------------------ */
+.transactions-expand-col {
+  width: 34px;
+  padding-right: 0 !important;
+}
+
+.transaction-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+}
+
+.transaction-expand-btn:hover {
+  background: #f2f4f7;
+  color: #1d2939;
+}
+
+.transaction-expand-btn:focus-visible {
+  outline: 2px solid #28336e;
+  outline-offset: 1px;
+}
+
+.transaction-expand-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Points right when closed, down when open. */
+  transition: transform 0.16s ease;
+}
+
+.transaction-expand-btn.is-open svg {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transaction-expand-btn svg {
+    transition: none;
+  }
+}
+
+/* The child row is visibly subordinate to the bill above it — inset, on a
+   tinted ground, with no borders of its own — so it never reads as another
+   result. It is not counted, paged or totalled with the rows around it. */
+.transaction-child-row > td {
+  padding: 0 !important;
+  background: #fbfaff;
+  border-top: none !important;
+  box-shadow: inset 3px 0 0 #c084fc;
+}
+
+.transaction-child-list {
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+}
+
+.transaction-child-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 16px 7px 44px;
+  font-size: 13px;
+  color: #475467;
+}
+
+.transaction-child-item + .transaction-child-item {
+  border-top: 1px dashed #ece9f6;
+}
+
+.transaction-child-category {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-child-amounts {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.transaction-child-gst,
+.transaction-child-deductible {
+  font-size: 12px;
+  color: #667085;
+}
+
+.transaction-child-note {
+  display: block;
+  padding: 10px 16px 10px 44px;
+  font-size: 12.5px;
+  color: #667085;
+}
+
+.transaction-child-note.is-error {
+  color: #b42318;
 }
 
 .transaction-rule-pill.is-yes {

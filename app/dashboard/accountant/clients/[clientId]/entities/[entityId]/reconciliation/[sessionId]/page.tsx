@@ -29,6 +29,7 @@ import {
   TRANSACTION_TYPE_OPTIONS,
   allowsAssetPurchase,
   allowsBusinessExtras,
+  allowsPersonalPortion,
   hidesCategoryPicker,
   hidesSubcategoryPicker,
   parseTransactionType,
@@ -472,6 +473,13 @@ export default function AccountantReconciliationSessionPage() {
   const [bulkGst, setBulkGst] = useState(false);
   const [bulkCategories, setBulkCategories] = useState<CoreTransactionCategory[]>([]);
   const [bulkSubcategories, setBulkSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  // Bulk private-use split. Percentage ONLY, deliberately — the single-line
+  // drawer offers "percentage or amount", but a fixed dollar amount applied
+  // across a set of differently-sized bank lines is meaningless, and on any
+  // line smaller than the amount it would clamp the business side to zero and
+  // break the invariant that the two children sum to their parent.
+  const [bulkIsPersonal, setBulkIsPersonal] = useState(false);
+  const [bulkPersonalPercentage, setBulkPersonalPercentage] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkExcluding, setBulkExcluding] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
@@ -486,6 +494,18 @@ export default function AccountantReconciliationSessionPage() {
   const showBulkSubcategorySelect =
     !!bulkCategoryId &&
     bulkSubcategories.some((s) => s.name.toLowerCase() !== "general");
+
+  // Applied identically to every selected line, so it is validated once here
+  // rather than per row.
+  const bulkPersonalError = useMemo(() => {
+    if (!bulkIsPersonal) return "";
+    const pct = Number.parseFloat(bulkPersonalPercentage);
+    if (!Number.isFinite(pct) || pct <= 0) return "Enter a personal percentage above 0.";
+    if (pct >= 100) {
+      return "Personal use must be under 100%. Categorize these as Personal Transactions instead.";
+    }
+    return "";
+  }, [bulkIsPersonal, bulkPersonalPercentage]);
 
   const activeBankTx = useMemo(() => {
     if (!categorizeKey) return null;
@@ -957,21 +977,39 @@ export default function AccountantReconciliationSessionPage() {
 
   // Private-use split of a business expense. A wholly personal transaction is
   // type === "personal" and carries no split, so categorizeIsPersonal is false.
-  const categorizePersonalPortion = useMemo(() => {
+  //
+  // Both input modes collapse to a percentage: that is the only shape the API
+  // accepts, because the backend derives the two child rows from it and they
+  // have to keep summing back to the parent bill.
+  const categorizePersonalPercentage = useMemo(() => {
     if (!categorizeIsPersonal) return 0;
-    if (categorizePersonalAllocationType === "percentage") {
-      const pct = Number.parseFloat(categorizePersonalValue) || 0;
-      return activeGrossAmount * (pct / 100);
-    } else {
-      const amt = Number.parseFloat(categorizePersonalValue) || 0;
-      return amt;
-    }
+    const raw = Number.parseFloat(categorizePersonalValue) || 0;
+    if (categorizePersonalAllocationType === "percentage") return raw;
+    if (activeGrossAmount <= 0) return 0;
+    return (raw / activeGrossAmount) * 100;
   }, [categorizeIsPersonal, categorizePersonalAllocationType, categorizePersonalValue, activeGrossAmount]);
+
+  const categorizePersonalPortion = useMemo(
+    () => activeGrossAmount * (categorizePersonalPercentage / 100),
+    [activeGrossAmount, categorizePersonalPercentage],
+  );
 
   const categorizeBusinessPortion = useMemo(() => {
     if (!categorizeIsPersonal) return activeGrossAmount;
-    return Math.max(0, activeGrossAmount - categorizePersonalPortion);
+    return activeGrossAmount - categorizePersonalPortion;
   }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPortion]);
+
+  // Strictly partial at both ends — nothing private is just an expense, and
+  // wholly private is the Personal Transaction type rather than a 100% split.
+  const categorizePersonalError = useMemo(() => {
+    if (!categorizeIsPersonal) return "";
+    if (activeGrossAmount <= 0) return "This line has no amount to split.";
+    if (categorizePersonalPercentage <= 0) return "Enter a personal portion above 0.";
+    if (categorizePersonalPercentage >= 100) {
+      return "The personal portion must be less than the whole amount. Use the Personal Transaction type instead.";
+    }
+    return "";
+  }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPercentage]);
 
   const categorizeDueDateError = useMemo(() => {
     if (!categorizeDueDate) {
@@ -1362,35 +1400,13 @@ export default function AccountantReconciliationSessionPage() {
     try {
       const token = await getFreshToken();
 
-      // Portions calculation
-      const grossNumValueForSave = grossAmount;
-      let personalPortionVal = 0;
-      let businessPortionVal = 0;
-      if (categorizeIsPersonal) {
-        if (categorizePersonalAllocationType === "percentage") {
-          const pct = parseFloat(categorizePersonalValue) || 0;
-          personalPortionVal = grossNumValueForSave * (pct / 100);
-          businessPortionVal = grossNumValueForSave - personalPortionVal;
-        } else {
-          const amt = parseFloat(categorizePersonalValue) || 0;
-          personalPortionVal = amt;
-          businessPortionVal = Math.max(0, grossNumValueForSave - personalPortionVal);
-        }
-      }
-
-      // Rent alerts and private-use splits only apply to business transactions.
+      // Rent alerts only apply to business transactions.
       const withBusinessExtras = allowsBusinessExtras(categorizeType);
       const metadata: Record<string, unknown> = {
         source: "reconciliation_categorized",
         is_regular_payment: withBusinessExtras ? categorizeIsRegularPayment : false,
         due_date: withBusinessExtras && categorizeIsRegularPayment ? (categorizeDueDate || null) : null,
         alert_name: withBusinessExtras && categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null,
-        is_personal: categorizeIsPersonal,
-        personal_allocation_type: categorizePersonalAllocationType,
-        personal_percentage:
-          categorizeIsPersonal && categorizePersonalValue ? parseFloat(categorizePersonalValue) : null,
-        business_portion: Number(businessPortionVal.toFixed(2)),
-        personal_portion: Number(personalPortionVal.toFixed(2)),
       };
 
       if (categorizeIsAssetPurchase) {
@@ -1413,6 +1429,20 @@ export default function AccountantReconciliationSessionPage() {
         metadata,
         splits,
       };
+
+      // The private-use split is a first-class field. The backend turns it into
+      // a business child and a personal child; this drawer only states the
+      // percentage. It used to write is_personal / personal_portion into
+      // metadata, which nothing read — the private share stayed deductible.
+      if (allowsPersonalPortion(categorizeType) && categorizeIsPersonal) {
+        if (categorizePersonalError) {
+          setCategorizeError(categorizePersonalError);
+          return;
+        }
+        postBody.personal_split = {
+          percentage: Number(categorizePersonalPercentage.toFixed(2)),
+        };
+      }
 
       if (categorizeIsAssetPurchase) {
         postBody.asset_class = categorizeAssetClass || null;
@@ -1504,6 +1534,8 @@ export default function AccountantReconciliationSessionPage() {
     setBulkSubcategories([]);
     setBulkPropertyId("");
     setBulkGst(false);
+    setBulkIsPersonal(false);
+    setBulkPersonalPercentage("");
     setBulkError(null);
     setBulkProgress(null);
     setBulkOpen(true);
@@ -1519,6 +1551,16 @@ export default function AccountantReconciliationSessionPage() {
       setBulkError("Please select sub category to continue.");
       return;
     }
+    // Validated once, before any row is written: a bad percentage would
+    // otherwise fail every line individually partway through the batch.
+    const applyBulkPersonalSplit = allowsPersonalPortion(bulkType) && bulkIsPersonal;
+    if (applyBulkPersonalSplit && bulkPersonalError) {
+      setBulkError(bulkPersonalError);
+      return;
+    }
+    const bulkPersonalPercentageValue = Number(
+      (Number.parseFloat(bulkPersonalPercentage) || 0).toFixed(2),
+    );
     const rows = selectedEligibleRows;
     if (rows.length === 0) return;
     setBulkError(null);
@@ -1548,6 +1590,12 @@ export default function AccountantReconciliationSessionPage() {
               is_asset_purchase: false,
               metadata: { source: "reconciliation_categorized" },
               splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
+              // One percentage across every selected line. Each line's own
+              // business and personal amounts are derived by the backend from
+              // its own total, so lines of different sizes each split correctly.
+              ...(applyBulkPersonalSplit
+                ? { personal_split: { percentage: bulkPersonalPercentageValue } }
+                : {}),
             }),
           });
           if (!txRes.ok) throw new Error("create failed");
@@ -3516,13 +3564,15 @@ export default function AccountantReconciliationSessionPage() {
                           </div>
                         )}
 
-                        {/* Is this a personal transaction toggle & inputs */}
-                        {allowsBusinessExtras(categorizeType) && (
+                        {/* Private-use split. Expense only — the backend
+                            rejects it on any other type, and a wholly private
+                            line is the Personal Transaction type instead. */}
+                        {allowsPersonalPortion(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
                             <div className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
                               <div className="figma-toggle-info">
-                                <span className="figma-toggle-title">Is this a personal transaction?</span>
-                                <span className="figma-toggle-desc">Split this transaction between business and personal use</span>
+                                <span className="figma-toggle-title">Was part of this personal?</span>
+                                <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
                               </div>
                               <label className="figma-switch">
                                 <input
@@ -3566,7 +3616,7 @@ export default function AccountantReconciliationSessionPage() {
 
                                 <div className="figma-portion-wrapper">
                                   <div className="figma-portion-box">
-                                    <span className="figma-portion-label">Business portion</span>
+                                    <span className="figma-portion-label">Business portion (deductible)</span>
                                     <span className="figma-portion-value">A$ {categorizeBusinessPortion.toFixed(2)}</span>
                                   </div>
                                   <div className="figma-portion-box">
@@ -3574,6 +3624,12 @@ export default function AccountantReconciliationSessionPage() {
                                     <span className="figma-portion-value">A$ {categorizePersonalPortion.toFixed(2)}</span>
                                   </div>
                                 </div>
+
+                                {categorizePersonalError && (
+                                  <p className="recon-split-row-error" role="alert">
+                                    {categorizePersonalError}
+                                  </p>
+                                )}
                               </div>
                             )}
                           </div>
@@ -4133,6 +4189,64 @@ export default function AccountantReconciliationSessionPage() {
                   </p>
                 )}
               </div>
+
+              {/* Private-use split applied to every selected line. Percentage
+                  only: each line's own amounts are then derived from its own
+                  total, so lines of different sizes all split correctly. */}
+              {allowsPersonalPortion(bulkType) && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="figma-toggle-container" style={{ marginBottom: bulkIsPersonal ? 16 : 0 }}>
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Was part of these personal?</span>
+                      <span className="figma-toggle-desc">
+                        Applies the same private-use share to all {selectedEligibleRows.length} selected
+                        {selectedEligibleRows.length === 1 ? " transaction" : " transactions"}. Only the business share is deductible.
+                      </span>
+                    </div>
+                    <label className="figma-switch">
+                      <input
+                        type="checkbox"
+                        checked={bulkIsPersonal}
+                        onChange={(e) => setBulkIsPersonal(e.target.checked)}
+                      />
+                      <span className="figma-switch-slider" />
+                    </label>
+                  </div>
+
+                  {bulkIsPersonal && (
+                    <div className="figma-personal-alloc-section">
+                      <div className="recon-categorize-field">
+                        <label className="recon-categorize-label">
+                          Personal % <span className="is-required">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          max="100"
+                          step="any"
+                          className="recon-categorize-input"
+                          style={{ height: "48px" }}
+                          placeholder="e.g. 30"
+                          value={bulkPersonalPercentage}
+                          onChange={(e) => {
+                            // Digits and one dot only — the same guard the
+                            // single-line drawer uses.
+                            const clean = e.target.value.replace(/[^0-9.]/g, "");
+                            const parts = clean.split(".");
+                            setBulkPersonalPercentage(
+                              parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : parts[0],
+                            );
+                          }}
+                        />
+                        {bulkPersonalError && (
+                          <p className="recon-split-row-error" role="alert">{bulkPersonalError}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {bulkError && (
                 <div className="recon-match-error" role="alert" style={{ marginTop: 12 }}>

@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { listCoreTransactionsByProperty } from "@/src/lib/coreApi";
-import {
-  getBearerToken,
-  parseTransactionListQuery,
-  renderUpstreamError,
-} from "@/src/lib/coreApiProxy";
+import { getCorePersonalSummaryForEntity } from "@/src/lib/coreApi";
+import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,15 +12,11 @@ export async function GET(req: Request, context: RouteContext) {
 
   const { id } = await context.params;
   try {
-    const page = await listCoreTransactionsByProperty(
-      token,
-      id,
-      parseTransactionListQuery(req),
-    );
-    return NextResponse.json(page);
+    const summary = await getCorePersonalSummaryForEntity(token, id);
+    return NextResponse.json(summary);
   } catch (error) {
     return renderUpstreamError(
-      `GET /api/properties/${id}/transactions`,
+      `GET /api/entities/${id}/personal-summary`,
       error,
     );
   }

@@ -102,6 +102,23 @@ export function allowsAssetPurchase(type: CoreTransactionType | ""): boolean {
 }
 
 /**
+ * A *partial* private-use portion — "40% of this bill was personal" — applies
+ * to expenses only.
+ *
+ * Revenue has no deduction to reduce, cost base is capitalised against CGT
+ * rather than claimed, and `personal` is already wholly private. The toggle
+ * used to be gated on `allowsBusinessExtras`, which also showed it on Income;
+ * the backend now rejects that combination outright, so the gate has to match.
+ *
+ * A transaction carrying one is stored as three rows — the parent bill, a
+ * deductible business child and a non-deductible personal child — but the form
+ * only ever sends `personal_split: { percentage }` and the backend builds them.
+ */
+export function allowsPersonalPortion(type: CoreTransactionType | ""): boolean {
+  return type === "expense";
+}
+
+/**
  * Personal and cost base carry no GST claim, no rent-alert scheduling and no
  * property split.
  *

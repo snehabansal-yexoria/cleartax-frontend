@@ -938,6 +938,41 @@ export type CoreTransactionSplit = {
   allocations: CoreTransactionAllocation[];
 };
 
+/**
+ * One side of a private-use split, nested on its parent's detail response.
+ *
+ * A partly-private expense is stored as three rows: a parent holding the full
+ * bill, a business child that is deductible, and a personal child that is not.
+ * The grid only ever shows the parent — these are what the detail view expands
+ * underneath it.
+ */
+export type CoreTransactionChild = {
+  id: string;
+  type: CoreTransactionType;
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  isAssetPurchase: boolean;
+};
+
+/**
+ * Fields shared by every transaction shape describing where it sits in the
+ * parent/child tree.
+ *
+ * `hasChildren` marks a container: its own amount is the whole bill and must
+ * never be added to its children's. `parentTransactionId` marks a child, which
+ * the UI refuses to edit directly — the API returns 409 for those.
+ */
+export type CorePersonalSplitFields = {
+  parentTransactionId?: string | null;
+  hasChildren?: boolean;
+  personalPercentage?: number | null;
+};
+
 export type CoreTransactionDetail = {
   id: string;
   orgId: string;
@@ -979,7 +1014,8 @@ export type CoreTransactionDetail = {
   createdAt: string;
   updatedAt: string;
   splits: CoreTransactionSplit[];
-};
+  children?: CoreTransactionChild[];
+} & CorePersonalSplitFields;
 
 export type CoreTransactionListItem = {
   id: string;
@@ -1014,7 +1050,7 @@ export type CoreTransactionListItem = {
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
-};
+} & CorePersonalSplitFields;
 
 export type CorePropertyTransactionRow = {
   transactionId: string;
@@ -1039,6 +1075,10 @@ export type CorePropertyTransactionRow = {
   splitGstAmount: number;
   splitNetAmount: number;
   createdAt: string;
+  // Optional for the same reason the reviewer stamp is: sample rows and mock
+  // fixtures predate the field, and the normalizer always populates it.
+  hasChildren?: boolean;
+  personalPercentage?: number | null;
 };
 
 export type CoreTransactionCategory = {
@@ -1157,10 +1197,47 @@ export function normalizeCoreTransactionSplit(
   };
 }
 
+/**
+ * Where a row sits in the parent/child tree.
+ *
+ * Defaults are the "no private-use split" shape, so a response from a backend
+ * that predates migration 0036 normalizes to an ordinary standalone
+ * transaction rather than to undefined.
+ */
+function normalizePersonalSplitFields(raw: RawRecord): CorePersonalSplitFields {
+  return {
+    parentTransactionId: toNullableString(
+      raw.parent_transaction_id ?? raw.parentTransactionId,
+    ),
+    hasChildren: Boolean(raw.has_children ?? raw.hasChildren),
+    personalPercentage: toNullableNumber(
+      raw.personal_percentage ?? raw.personalPercentage,
+    ),
+  };
+}
+
+export function normalizeCoreTransactionChild(
+  raw: RawRecord,
+): CoreTransactionChild {
+  return {
+    id: toStringValue(raw.id),
+    type: toTxnType(raw.type),
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+    subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+    grossAmount: toFloatValue(raw.gross_amount ?? raw.grossAmount),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    netAmount: toFloatValue(raw.net_amount ?? raw.netAmount),
+    isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
+  };
+}
+
 export function normalizeCoreTransactionDetail(
   raw: RawRecord,
 ): CoreTransactionDetail {
   const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
+  const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
   return {
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
@@ -1207,6 +1284,10 @@ export function normalizeCoreTransactionDetail(
     splits: splitsRaw
       .filter((s): s is RawRecord => typeof s === "object" && s !== null)
       .map(normalizeCoreTransactionSplit),
+    children: childrenRaw
+      .filter((c): c is RawRecord => typeof c === "object" && c !== null)
+      .map(normalizeCoreTransactionChild),
+    ...normalizePersonalSplitFields(raw),
   };
 }
 
@@ -1263,6 +1344,7 @@ export function normalizeCoreTransactionListItem(
     metadata: toRecord(raw.metadata),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    ...normalizePersonalSplitFields(raw),
   };
 }
 
@@ -1300,6 +1382,10 @@ export function normalizeCorePropertyTransactionRow(
     splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
     splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    hasChildren: Boolean(raw.has_children ?? raw.hasChildren),
+    personalPercentage: toNullableNumber(
+      raw.personal_percentage ?? raw.personalPercentage,
+    ),
   };
 }
 
@@ -1418,10 +1504,128 @@ export function normalizeCoreTransactionRuleList(payload: unknown): unknown {
 }
 
 // Optional server-side review filter shared by the transaction list helpers.
-function reviewStatusQuery(reviewStatus?: CoreReviewStatus): string {
-  return reviewStatus
-    ? `?review_status=${encodeURIComponent(reviewStatus)}`
-    : "";
+// ---------------------------------------------------------------------------
+// Transaction list query
+//
+// Search, sorting, the date range and pagination are all resolved in Postgres
+// rather than in the browser. Before this, the grid downloaded every row (and
+// the backend silently capped each list at 100), so anything computed on the
+// client was working from a truncated set.
+// ---------------------------------------------------------------------------
+
+// Sort keys the Go API whitelists. Which ones a given scope accepts depends on
+// the columns that scope renders — an out-of-scope key is a 400, not a silent
+// fallback. See sortExprs in internal/handlers/transaction/query.go.
+export type CoreTransactionSortKey =
+  | "date"
+  | "created"
+  | "client"
+  | "entity"
+  | "property"
+  | "description"
+  | "gross"
+  | "net"
+  | "share";
+
+export type CoreTransactionListQuery = {
+  search?: string;
+  /** Inclusive invoice_date bounds, YYYY-MM-DD. */
+  from?: string;
+  to?: string;
+  reviewStatus?: CoreReviewStatus;
+  /**
+   * The grid's two tabs. "queue" is review_status = 'unreviewed' (what a client
+   * submitted for review); "ledger" is everything else. A single-value
+   * reviewStatus cannot express "not unreviewed".
+   */
+  reviewBucket?: "queue" | "ledger";
+  clientId?: string;
+  entityId?: string;
+  propertyId?: string;
+  type?: CoreTransactionType;
+  categoryId?: number | string;
+  /**
+   * Which level of the parent/child tree to read.
+   *
+   * "top" (the default when omitted) returns one row per bill: parent
+   * containers and standalone transactions. "leaf" returns the rows money is
+   * summed from — the business and personal children, plus standalone
+   * transactions — and is what the personal list uses, paired with
+   * `type: "personal"`.
+   *
+   * Reading both levels at once would double-count, so the backend always
+   * applies one or the other.
+   */
+  grain?: "top" | "leaf";
+  /** Filters on the depreciation flag; drives the Asset Transactions panel. */
+  assetPurchase?: boolean;
+  sort?: CoreTransactionSortKey | string;
+  dir?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+};
+
+export type CorePaginated<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+// The single place the query object becomes a query string, so the BFF proxy
+// and any direct caller agree on parameter names.
+export function transactionListQueryString(
+  q: CoreTransactionListQuery = {},
+): string {
+  const sp = new URLSearchParams();
+  const put = (key: string, value: unknown) => {
+    if (value === undefined || value === null || value === "") return;
+    sp.set(key, String(value));
+  };
+
+  put("search", q.search?.trim());
+  put("from", q.from);
+  put("to", q.to);
+  put("review_status", q.reviewStatus);
+  put("review_bucket", q.reviewBucket);
+  put("client_id", q.clientId);
+  put("entity_id", q.entityId);
+  put("property_id", q.propertyId);
+  put("type", q.type);
+  put("category_id", q.categoryId);
+  put("grain", q.grain);
+  // Explicit undefined check: `put` skips empty-ish values, and `false` is a
+  // meaningful filter here (rows that are NOT asset purchases), not an absence.
+  if (q.assetPurchase !== undefined) sp.set("asset_purchase", String(q.assetPurchase));
+  put("sort", q.sort);
+  put("dir", q.dir);
+  put("limit", q.limit);
+  put("offset", q.offset);
+
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+function toPaginated<T>(
+  payload: unknown,
+  items: T[],
+  fallbackLimit: number | undefined,
+): CorePaginated<T> {
+  const record =
+    typeof payload === "object" && payload !== null
+      ? (payload as RawRecord)
+      : {};
+  // total is absent on a backend that predates pagination; falling back to the
+  // page length keeps "Showing X of Y" truthful rather than reporting zero.
+  const total = toNumberValue(record.total);
+  const limit = toNumberValue(record.limit);
+  const offset = toNumberValue(record.offset);
+  return {
+    items,
+    total: total ?? items.length,
+    limit: limit ?? fallbackLimit ?? items.length,
+    offset: offset ?? 0,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1592,6 +1796,103 @@ export async function getCoreGstSummaryForClient(
   return normalizeCoreGstSummary(getJsonObject(payload));
 }
 
+// -----------------------------------------------------------------------------
+// Personal (private-use) spending summary
+// -----------------------------------------------------------------------------
+
+/**
+ * Private, non-deductible spending totalled by category, for the Personal
+ * Transactions panel on the property, entity and client pages.
+ *
+ * Aggregated server-side rather than by filtering a page's transactions array:
+ * that array is one capped page at display grain, where the personal child of a
+ * part-private bill is hidden and its container is typed 'expense'. Totalling
+ * it client-side therefore both truncates and misses every partial split.
+ *
+ * Amounts are positive magnitudes; private spending is money out by definition,
+ * so the UI applies the sign.
+ */
+export type CorePersonalCategoryTotal = {
+  categoryId: number;
+  categoryName: string;
+  subcategoryName: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  count: number;
+};
+
+export type CorePersonalSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  categories: CorePersonalCategoryTotal[];
+  totalGross: number;
+  totalGst: number;
+  totalNet: number;
+  count: number;
+};
+
+export function normalizeCorePersonalSummary(
+  raw: RawRecord,
+): CorePersonalSummary {
+  const scope = toRecord(raw.scope);
+  const categories = Array.isArray(raw.categories) ? raw.categories : [];
+  return {
+    scope: {
+      level: (toStringValue(scope.level) || "entity") as CoreGstScopeLevel,
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    categories: categories
+      .filter((c): c is RawRecord => typeof c === "object" && c !== null)
+      .map((c) => ({
+        categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+        categoryName: toStringValue(c.category_name ?? c.categoryName),
+        subcategoryName: toStringValue(c.subcategory_name ?? c.subcategoryName),
+        grossAmount: toFloatValue(c.gross_amount ?? c.grossAmount),
+        gstAmount: toFloatValue(c.gst_amount ?? c.gstAmount),
+        netAmount: toFloatValue(c.net_amount ?? c.netAmount),
+        count: toNumberValue(c.count) ?? 0,
+      })),
+    totalGross: toFloatValue(raw.total_gross ?? raw.totalGross),
+    totalGst: toFloatValue(raw.total_gst ?? raw.totalGst),
+    totalNet: toFloatValue(raw.total_net ?? raw.totalNet),
+    count: toNumberValue(raw.count) ?? 0,
+  };
+}
+
+export async function getCorePersonalSummaryForProperty(
+  token: string,
+  propertyId: string,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
+export async function getCorePersonalSummaryForEntity(
+  token: string,
+  entityId: string,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
+export async function getCorePersonalSummaryForClient(
+  token: string,
+  clientId: string,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
 // Narrows an untrusted query-param value to a CoreReviewStatus, or undefined
 // when absent/invalid — used by BFF routes forwarding ?review_status=.
 export function toCoreReviewStatusParam(
@@ -1610,40 +1911,140 @@ export function toCoreReviewStatusParam(
   return undefined;
 }
 
+// GET /transactions — the org-wide list behind the "All Transactions" page.
+// This replaces a BFF fan-out that issued one upstream call per client, then
+// per entity, then per property, and merged every row in Node memory.
+export async function listCoreTransactionsForOrg(
+  token: string,
+  query: CoreTransactionListQuery = {},
+) {
+  const payload = await coreApiRequest(
+    `/transactions${transactionListQueryString(query)}`,
+    { token },
+  );
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
+}
+
 export async function listCoreTransactionsByClient(
   token: string,
   clientId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/clients/${encodeURIComponent(clientId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
 }
 
 export async function listCoreTransactionsByEntity(
   token: string,
   entityId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/entities/${encodeURIComponent(entityId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
 }
 
 export async function listCoreTransactionsByProperty(
   token: string,
   propertyId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/properties/${encodeURIComponent(propertyId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+  const items = getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+  return toPaginated(payload, items, query.limit);
+}
+
+// GET /transactions/facets — the filter dropdown options and the review-status
+// tab counts for a scope. Both used to be derived in the browser from the fully
+// loaded row array; under server pagination that array is one page, so they
+// need their own aggregate.
+export type CoreTransactionFacetOption = {
+  id: string;
+  name: string;
+  /** Categories only — lets the grid tint each option revenue/expense. */
+  type?: string;
+};
+
+export type CoreTransactionFacets = {
+  reviewStatusCounts: Record<string, number>;
+  clients: CoreTransactionFacetOption[];
+  entities: CoreTransactionFacetOption[];
+  properties: CoreTransactionFacetOption[];
+  categories: CoreTransactionFacetOption[];
+  types: string[];
+};
+
+function toFacetOptions(value: unknown): CoreTransactionFacetOption[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((item) => {
+      const type = toStringValue(item.type);
+      return {
+        id: toStringValue(item.id),
+        name: toStringValue(item.name),
+        ...(type ? { type } : {}),
+      };
+    })
+    .filter((option) => option.id !== "");
+}
+
+export async function getCoreTransactionFacets(
+  token: string,
+  query: CoreTransactionListQuery = {},
+): Promise<CoreTransactionFacets> {
+  const payload = await coreApiRequest(
+    `/transactions/facets${transactionListQueryString(query)}`,
+    { token },
+  );
+  const record = getJsonObject(payload);
+
+  const counts: Record<string, number> = {};
+  const rawCounts = record.review_status_counts ?? record.reviewStatusCounts;
+  if (typeof rawCounts === "object" && rawCounts !== null) {
+    for (const [key, value] of Object.entries(rawCounts as RawRecord)) {
+      counts[key] = toNumberValue(value) ?? 0;
+    }
+  }
+
+  return {
+    reviewStatusCounts: counts,
+    clients: toFacetOptions(record.clients),
+    entities: toFacetOptions(record.entities),
+    properties: toFacetOptions(record.properties),
+    categories: toFacetOptions(record.categories),
+    types: Array.isArray(record.types)
+      ? record.types.map((t) => toStringValue(t)).filter(Boolean)
+      : [],
+  };
+}
+
+export type CoreTransactionExportFormat = "csv" | "xlsx" | "pdf";
+
+// Returns the upstream Response untouched so the BFF can stream the body
+// through instead of buffering an export in Node memory.
+export async function fetchCoreTransactionExport(
+  token: string,
+  format: CoreTransactionExportFormat,
+  query: CoreTransactionListQuery = {},
+): Promise<Response> {
+  const qs = transactionListQueryString({ ...query, limit: undefined, offset: undefined });
+  const separator = qs ? "&" : "?";
+  return fetch(
+    `${getCoreApiBaseUrl()}/transactions/export${qs}${separator}format=${encodeURIComponent(format)}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
 }
 
 export async function getCoreTransaction(token: string, id: string) {
