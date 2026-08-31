@@ -9,6 +9,7 @@ import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import {
   assetItemName,
+  personalCategoryLabel,
   useAssetTransactions,
   usePersonalSummary,
 } from "@/app/components/usePersonalAndAssetTransactions";
@@ -300,7 +301,7 @@ function ClientDetailPageContent() {
   const personalCategories = useMemo(
     () =>
       (personal.summary?.categories ?? []).map((c) => ({
-        category: c.subcategoryName || c.categoryName || "Other",
+        category: personalCategoryLabel(c),
         // Private spending is money out; the API returns magnitudes.
         amount: -c.grossAmount,
       })),
