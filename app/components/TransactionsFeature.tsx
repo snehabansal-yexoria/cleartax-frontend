@@ -762,6 +762,8 @@ function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransa
     metadata: {},
     createdAt: row.createdAt,
     updatedAt: "",
+    hasChildren: row.hasChildren,
+    personalPercentage: row.personalPercentage,
   };
 }
 
@@ -2218,7 +2220,7 @@ function TransactionTable({
               <th>Subcategory</th>
               <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
               <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
-              <th>GST</th>
+              <th style={{ textAlign: "right" }}>GST</th>
               <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
               {showClientShare ? (
                 <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
@@ -2240,208 +2242,223 @@ function TransactionTable({
               const children = rowChildren?.[row.id];
               return (
                 <Fragment key={row.id}>
-                <tr>
-                  {canExpand ? (
-                    <td className="transactions-expand-col">
-                      {/* Only a container has anything to reveal. Ordinary rows
+                  <tr>
+                    {canExpand ? (
+                      <td className="transactions-expand-col">
+                        {/* Only a container has anything to reveal. Ordinary rows
                           keep an empty cell so the columns stay aligned. */}
-                      {row.hasChildren ? (
-                        <button
-                          type="button"
-                          className={`transaction-expand-btn${isExpanded ? " is-open" : ""}`}
-                          aria-expanded={isExpanded}
-                          aria-label={
-                            isExpanded
-                              ? "Hide the business and personal split"
-                              : "Show the business and personal split"
-                          }
-                          onClick={() => onToggleExpand?.(row)}
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M9 6l6 6-6 6" />
-                          </svg>
-                        </button>
-                      ) : null}
+                        {row.hasChildren ? (
+                          <button
+                            type="button"
+                            className={`transaction-expand-btn${isExpanded ? " is-open" : ""}`}
+                            aria-expanded={isExpanded}
+                            aria-label={
+                              isExpanded
+                                ? "Hide the business and personal split"
+                                : "Show the business and personal split"
+                            }
+                            onClick={() => onToggleExpand?.(row)}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </td>
+                    ) : null}
+                    <td>
+                      <button
+                        type="button"
+                        className="transaction-id-button"
+                        onClick={() => onView(row)}
+                      >
+                        {row.id.slice(0, 8)}…
+                      </button>
                     </td>
-                  ) : null}
-                  <td>
-                    <button
-                      type="button"
-                      className="transaction-id-button"
-                      onClick={() => onView(row)}
+                    {showClientName ? <td>{row.clientName || "—"}</td> : null}
+                    {showEntityName ? <td>{row.entityName || "—"}</td> : null}
+                    <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
+                    <td
+                      style={{
+                        maxWidth: '180px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (row.description) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredDescription({
+                            text: row.description,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                          });
+                        }
+                      }}
+                      onMouseLeave={() => setHoveredDescription(null)}
                     >
-                      {row.id.slice(0, 8)}…
-                    </button>
-                  </td>
-                  {showClientName ? <td>{row.clientName || "—"}</td> : null}
-                  {showEntityName ? <td>{row.entityName || "—"}</td> : null}
-                  <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
-                  <td
-                    style={{
-                      maxWidth: '180px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (row.description) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredDescription({
-                          text: row.description,
-                          x: rect.left + rect.width / 2,
-                          y: rect.top,
-                        });
-                      }
-                    }}
-                    onMouseLeave={() => setHoveredDescription(null)}
-                  >
-                    {row.description || "—"}
-                    {/* The amount on this row is a $0 placeholder until the
+                      {row.description || "—"}
+                      {/* The amount on this row is a $0 placeholder until the
                         document is read, so say so rather than let it pass for
                         a real zero. */}
-                    <ReviewStatusBadge
-                      awaitingReview={false}
-                      awaitingExtraction={isAwaitingExtraction(row.metadata)}
-                      style={{ marginTop: 0, marginLeft: "8px" }}
-                    />
-                  </td>
-                  <td>
-                    <span
-                      className={`transaction-type-pill ${transactionTypeModifier(row.type)}`}
-                    >
-                      {transactionTypeLabel(row.type)}
-                    </span>
-                    {/* A container is an expense whose private slice sits on a
+                      <ReviewStatusBadge
+                        awaitingReview={false}
+                        awaitingExtraction={isAwaitingExtraction(row.metadata)}
+                        style={{ marginTop: 0, marginLeft: "8px" }}
+                      />
+                    </td>
+                    <td>
+                      <span
+                        className={`transaction-type-pill ${transactionTypeModifier(row.type)}`}
+                      >
+                        {transactionTypeLabel(row.type)}
+                      </span>
+                      {/* A container is an expense whose private slice sits on a
                         child this grain hides, so the amounts on this row are
                         the whole bill. Say so, or it reads as fully
                         deductible. */}
-                    {row.hasChildren ? (
-                      <span
-                        className="transaction-personal-portion-pill"
-                        title={
-                          row.personalPercentage != null
-                            ? `${row.personalPercentage}% of this bill is private use`
-                            : "Part of this bill is private use"
-                        }
-                      >
-                        {row.personalPercentage != null
-                          ? `${row.personalPercentage}% personal`
-                          : "Part personal"}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td>{row.categoryName}</td>
-                  <td>{row.subcategoryName}</td>
-                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.grossAmount, isRevenue)}
-                  </td>
-                  <td>{formatCurrency(row.gstAmount)}</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.netAmount, isRevenue)}
-                  </td>
-                  {showClientShare ? (
-                    <td>
-                      {row.clientShareNet != null
-                        ? formatCurrency(row.clientShareNet)
-                        : "—"}
+                      {row.hasChildren ? (
+                        <span
+                          className="transaction-personal-portion-pill"
+                          title={
+                            row.personalPercentage != null
+                              ? `${row.personalPercentage}% of this bill is private use`
+                              : "Part of this bill is private use"
+                          }
+                        >
+                          {row.personalPercentage != null
+                            ? `${row.personalPercentage}% personal`
+                            : "Part personal"}
+                        </span>
+                      ) : null}
                     </td>
-                  ) : null}
-                  <td>
-                    <span
-                      className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
-                        }`}
-                    >
-                      {row.ruleId != null ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="transaction-action-set">
-                      <button
-                        type="button"
-                        aria-label={`Edit ${row.id}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onEdit(row)}
+                    <td>{row.categoryName}</td>
+                    <td>{row.subcategoryName}</td>
+                    <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                    <td className={isRevenue ? "amount-positive" : "amount-negative"} style={{ textAlign: "right" }}>
+                      {formatTransactionCurrency(row.grossAmount, isRevenue)}
+                    </td>
+                    <td style={{ textAlign: "right" }}>{formatCurrency(row.gstAmount)}</td>
+                    <td className={isRevenue ? "amount-positive" : "amount-negative"} style={{ textAlign: "right" }}>
+                      {formatTransactionCurrency(row.netAmount, isRevenue)}
+                    </td>
+                    {showClientShare ? (
+                      <td style={{ textAlign: "right" }}>
+                        {row.clientShareNet != null
+                          ? formatCurrency(row.clientShareNet)
+                          : "—"}
+                      </td>
+                    ) : null}
+                    <td>
+                      <span
+                        className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                          }`}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="is-danger"
-                        aria-label={`Delete ${row.id}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onDelete(row)}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4h8v2" />
-                          <path d="M19 6l-1 14H6L5 6" />
-                          <path d="M10 11v5" />
-                          <path d="M14 11v5" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        {row.ruleId != null ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="transaction-action-set">
+                        <button
+                          type="button"
+                          aria-label={`Edit ${row.id}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onEdit(row)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="is-danger"
+                          aria-label={`Delete ${row.id}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onDelete(row)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
 
-                {/* The two slices of a part-private bill, shown under their
+                  {/* The two slices of a part-private bill, shown under their
                     parent. These are a detail of the row above, not rows of
                     the page: they are outside the result count, the paging and
                     every column total, which all stay per-bill. */}
-                {isExpanded ? (
-                  <tr className="transaction-child-row">
-                    <td colSpan={columnCount}>
-                      {children === "loading" ? (
-                        <span className="transaction-child-note">Loading the split…</span>
-                      ) : children === "error" ? (
-                        <span className="transaction-child-note is-error">
-                          Couldn&apos;t load the split. Close and reopen the row to retry.
-                        </span>
-                      ) : !children || children.length === 0 ? (
-                        <span className="transaction-child-note">No split recorded.</span>
-                      ) : (
-                        <ul className="transaction-child-list">
-                          {children.map((child) => {
-                            const isPersonalSide = child.type === "personal";
-                            return (
-                              <li key={child.id} className="transaction-child-item">
-                                <span
-                                  className={`transaction-type-pill ${transactionTypeModifier(child.type)}`}
-                                >
-                                  {isPersonalSide ? "Personal" : "Business"}
-                                </span>
-                                <span className="transaction-child-category">
-                                  {child.categoryName || "—"}
-                                </span>
-                                <span className="transaction-child-amounts">
-                                  <span className="amount-negative">
-                                    {formatTransactionCurrency(child.grossAmount, false)}
-                                  </span>
-                                  <span className="transaction-child-gst">
-                                    GST {formatCurrency(child.gstAmount)}
-                                  </span>
-                                  <span className="transaction-child-deductible">
-                                    {isPersonalSide
-                                      ? "Not deductible"
-                                      : `Deductible ${formatCurrency(child.netAmount)}`}
-                                  </span>
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </td>
-                  </tr>
-                ) : null}
+                  {isExpanded ? (
+                    children === "loading" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">Loading the split…</span>
+                        </td>
+                      </tr>
+                    ) : children === "error" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note is-error">
+                            Couldn&apos;t load the split. Close and reopen the row to retry.
+                          </span>
+                        </td>
+                      </tr>
+                    ) : !children || children.length === 0 ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">No split recorded.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      children.map((child) => {
+                        const isPersonalSide = child.type === "personal";
+                        return (
+                          <tr key={child.id} className="transaction-child-row">
+                            {canExpand ? <td className="transactions-expand-col" /> : null}
+                            <td></td>
+                            {showClientName ? <td></td> : null}
+                            {showEntityName ? <td></td> : null}
+                            <td></td>
+                            <td></td>
+                            <td>
+                              <span
+                                className={`transaction-type-pill ${transactionTypeModifier(child.type)}`}
+                              >
+                                {isPersonalSide ? "Personal" : "Business"}
+                              </span>
+                            </td>
+                            <td>{child.categoryName || "—"}</td>
+                            <td></td>
+                            <td></td>
+                            <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
+                              {formatTransactionCurrency(child.grossAmount, false)}
+                            </td>
+                            <td className="transaction-child-gst" style={{ textAlign: "right" }}>
+                              GST {formatCurrency(child.gstAmount)}
+                            </td>
+                            <td className="transaction-child-deductible" style={{ textAlign: "right" }}>
+                              {isPersonalSide
+                                ? "Not deductible"
+                                : `Deductible ${formatCurrency(child.netAmount)}`}
+                            </td>
+                            {showClientShare ? <td></td> : null}
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        );
+                      })
+                    )
+                  ) : null}
                 </Fragment>
               );
             })}
@@ -2517,6 +2534,9 @@ function PropertyTransactionTable({
   disabled = false,
   disabledReason,
   sortHandlers,
+  expandedRowIds,
+  rowChildren,
+  onToggleExpand,
 }: {
   rows: CorePropertyTransactionRow[];
   onView: (row: DisplayTransactionRow) => void;
@@ -2525,13 +2545,20 @@ function PropertyTransactionTable({
   disabled?: boolean;
   disabledReason?: string;
   sortHandlers?: SortHandlers;
+  expandedRowIds?: Set<string>;
+  rowChildren?: Record<string, CoreTransactionChild[] | "loading" | "error">;
+  onToggleExpand?: (row: DisplayTransactionRow) => void;
 }) {
+  const canExpand = Boolean(onToggleExpand);
+  const columnCount = 12 + (canExpand ? 1 : 0);
+
   return (
     <div className="transactions-table-container">
       <div className="transactions-table-wrap">
         <table className="transactions-table">
           <thead>
             <tr>
+              {canExpand ? <th className="transactions-expand-col" aria-label="Expand" /> : null}
               <th>Transaction ID</th>
               <th>Type</th>
               <th>Category</th>
@@ -2550,96 +2577,184 @@ function PropertyTransactionTable({
             {rows.map((row) => {
               const isRevenue = isRevenueType(row.transactionType);
               const displayRow = propertyRowToDisplayRow(row);
+              const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
+              const children = rowChildren?.[row.transactionId];
               return (
-                <tr key={`${row.transactionId}-${row.splitId}`}>
-                  <td>
-                    <button
-                      type="button"
-                      className="transaction-id-button"
-                      onClick={() => onView(displayRow)}
-                    >
-                      {row.transactionId.slice(0, 8)}…
-                    </button>
-                  </td>
-                  <td>
-                    <span
-                      className={`transaction-type-pill ${transactionTypeModifier(row.transactionType)}`}
-                    >
-                      {transactionTypeLabel(row.transactionType)}
-                    </span>
-                    {/* The property grid runs at display grain too, so a
-                        part-private bill shows here as its container and the
-                        amounts are the whole bill. */}
-                    {row.hasChildren ? (
-                      <span
-                        className="transaction-personal-portion-pill"
-                        title={
-                          row.personalPercentage != null
-                            ? `${row.personalPercentage}% of this bill is private use`
-                            : "Part of this bill is private use"
-                        }
-                      >
-                        {row.personalPercentage != null
-                          ? `${row.personalPercentage}% personal`
-                          : "Part personal"}
-                      </span>
+                <Fragment key={`${row.transactionId}-${row.splitId}`}>
+                  <tr>
+                    {canExpand ? (
+                      <td className="transactions-expand-col">
+                        {row.hasChildren ? (
+                          <button
+                            type="button"
+                            className={`transaction-expand-btn${isExpanded ? " is-open" : ""}`}
+                            aria-expanded={isExpanded}
+                            aria-label={
+                              isExpanded
+                                ? "Hide the business and personal split"
+                                : "Show the business and personal split"
+                            }
+                            onClick={() => onToggleExpand?.(displayRow)}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </td>
                     ) : null}
-                  </td>
-                  <td>{row.categoryName}</td>
-                  <td>{row.subcategoryName}</td>
-                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                  <td>{formatCurrency(row.transactionGrossAmount)}</td>
-                  <td>{row.splitPercentage.toFixed(2)}%</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
-                  </td>
-                  <td>{formatCurrency(row.splitGstAmount)}</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
-                  </td>
-                  <td>
-                    <span
-                      className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
-                        }`}
-                    >
-                      {row.ruleId != null ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="transaction-action-set">
+                    <td>
                       <button
                         type="button"
-                        aria-label={`Edit ${row.transactionId}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onEdit(displayRow)}
+                        className="transaction-id-button"
+                        onClick={() => onView(displayRow)}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </svg>
+                        {row.transactionId.slice(0, 8)}…
                       </button>
-                      <button
-                        type="button"
-                        className="is-danger"
-                        aria-label={`Delete ${row.transactionId}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onDelete(displayRow)}
+                    </td>
+                    <td>
+                      <span
+                        className={`transaction-type-pill ${transactionTypeModifier(row.transactionType)}`}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4h8v2" />
-                          <path d="M19 6l-1 14H6L5 6" />
-                          <path d="M10 11v5" />
-                          <path d="M14 11v5" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        {transactionTypeLabel(row.transactionType)}
+                      </span>
+                      {/* The property grid runs at display grain too, so a
+                          part-private bill shows here as its container and the
+                          amounts are the whole bill. */}
+                      {row.hasChildren ? (
+                        <span
+                          className="transaction-personal-portion-pill"
+                          title={
+                            row.personalPercentage != null
+                              ? `${row.personalPercentage}% of this bill is private use`
+                              : "Part of this bill is private use"
+                          }
+                        >
+                          {row.personalPercentage != null
+                            ? `${row.personalPercentage}% personal`
+                            : "Part personal"}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td>{row.categoryName}</td>
+                    <td>{row.subcategoryName}</td>
+                    <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                    <td>{formatCurrency(row.transactionGrossAmount)}</td>
+                    <td>{row.splitPercentage.toFixed(2)}%</td>
+                    <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                      {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
+                    </td>
+                    <td>{formatCurrency(row.splitGstAmount)}</td>
+                    <td className={isRevenue ? "amount-positive" : "amount-negative"}>
+                      {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
+                    </td>
+                    <td>
+                      <span
+                        className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                          }`}
+                      >
+                        {row.ruleId != null ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="transaction-action-set">
+                        <button
+                          type="button"
+                          aria-label={`Edit ${row.transactionId}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onEdit(displayRow)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="is-danger"
+                          aria-label={`Delete ${row.transactionId}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onDelete(displayRow)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* The two slices of a part-private bill, shown under their
+                    parent. These are a detail of the row above, not rows of
+                    the page: they are outside the result count, the paging and
+                    every column total, which all stay per-bill. */}
+                  {isExpanded ? (
+                    children === "loading" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">Loading the split…</span>
+                        </td>
+                      </tr>
+                    ) : children === "error" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note is-error">
+                            Couldn&apos;t load the split. Close and reopen the row to retry.
+                          </span>
+                        </td>
+                      </tr>
+                    ) : !children || children.length === 0 ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">No split recorded.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      children.map((child) => {
+                        const isPersonalSide = child.type === "personal";
+                        return (
+                          <tr key={child.id} className="transaction-child-row">
+                            {canExpand ? <td className="transactions-expand-col" /> : null}
+                            <td></td>
+                            <td>
+                              <span
+                                className={`transaction-type-pill ${transactionTypeModifier(child.type)}`}
+                              >
+                                {isPersonalSide ? "Personal" : "Business"}
+                              </span>
+                            </td>
+                            <td>{child.categoryName || "—"}</td>
+                            <td></td>
+                            <td></td>
+                            <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
+                              {formatTransactionCurrency(child.grossAmount, false)}
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td className="transaction-child-gst" style={{ textAlign: "right" }}>
+                              GST {formatCurrency(child.gstAmount)}
+                            </td>
+                            <td className="transaction-child-deductible" style={{ textAlign: "right" }}>
+                              {isPersonalSide
+                                ? "Not deductible"
+                                : `Deductible ${formatCurrency(child.netAmount)}`}
+                            </td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        );
+                      })
+                    )
+                  ) : null}
+                </Fragment>
               );
             })}
           </tbody>
@@ -2694,7 +2809,7 @@ function AwaitingReviewTable({
   return (
     <div className="transactions-table-container">
       <div className="transactions-table-wrap">
-        <table 
+        <table
           className="transactions-table awaiting-review-table"
           style={{ minWidth: tableMinWidth }}
         >
@@ -3491,7 +3606,7 @@ export function AllTransactionsView({
           const body = await res.json().catch(() => null);
           setErrorMessage(
             (body as { message?: string } | null)?.message ||
-              "Failed to load transactions.",
+            "Failed to load transactions.",
           );
           return;
         }
@@ -3583,16 +3698,16 @@ export function AllTransactionsView({
       values: { id: string; name: string; type?: string }[] | undefined,
       fallback: string,
     ): SelectOption[] => [
-      { label, value: "all" },
-      ...(values ?? [])
-        .filter((option) => option.id)
-        .map((option) => ({
-          label: option.name || fallback,
-          value: option.id,
-          ...(option.type ? { type: option.type } : {}),
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    ];
+        { label, value: "all" },
+        ...(values ?? [])
+          .filter((option) => option.id)
+          .map((option) => ({
+            label: option.name || fallback,
+            value: option.id,
+            ...(option.type ? { type: option.type } : {}),
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      ];
 
     return {
       clients: toOptions("All Clients", facets?.clients, "Unknown Client"),
@@ -4081,8 +4196,8 @@ export function AllTransactionsView({
         const body = await res.json().catch(() => null);
         setExportError(
           (body as { message?: string; error?: string } | null)?.message ||
-            (body as { error?: string } | null)?.error ||
-            "Failed to export transactions.",
+          (body as { error?: string } | null)?.error ||
+          "Failed to export transactions.",
         );
         return;
       }
@@ -4363,6 +4478,9 @@ export function AllTransactionsView({
               onDelete={(row) => deleteTransaction(row)}
               disabled={addTransactionDisabled}
               disabledReason={addTransactionDisabledReason}
+              expandedRowIds={grain === "top" ? expandedRowIds : undefined}
+              rowChildren={grain === "top" ? rowChildren : undefined}
+              onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
             />
           ) : (
             <TransactionTable
@@ -6892,343 +7010,251 @@ export function AddTransactionView({
             invoice stays in view while the fields are filled in instead of the
             720px preview pushing the whole form below the fold. */}
         <div className="figma-add-tx-panes">
-        {/* Attach Invoice section */}
-        <div className="figma-uploader-section">
-          <span className="figma-uploader-label">Attach Invoice (optional)</span>
-          {documentId && uploadedFilename && token ? (
-            <DocumentPreviewPanel
-              documentId={documentId}
-              filename={uploadedFilename}
-              token={token}
-              onReset={() => {
-                setDocumentId(null);
-                setUploadedFilename(null);
-                appliedRuleIdRef.current = null;
-              }}
-            />
-          ) : (
-            <DocumentDropZone
-              token={token}
-              onExtracted={handleExtracted}
-              scope={activeEntityId ? { entityId: activeEntityId } : undefined}
-              isSubmitting={isSubmitting}
-              submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
-              primaryLabelText="Upload an invoice or receipt"
-              secondaryLabelText="PDF, JPG or PNG — we'll read it and pre-fill the fields below"
-              customIcon={
-                <div className="figma-uploader-icon">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="12" y1="18" x2="12" y2="12" />
-                    <line x1="9" y1="15" x2="15" y2="15" />
-                  </svg>
-                </div>
-              }
-            />
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} noValidate>
-          {requireClientSelection && (
-            <div className="figma-form-row">
-              <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
-                <StaticSelect
-                  label="Client"
-                  required
-                  value={activeClientId}
-                  options={[
-                    { label: "Select Client", value: "" },
-                    ...clients.map((client) => ({
-                      label: client.name,
-                      value: client.id,
-                    })),
-                  ]}
-                  onChange={handleClientPicked}
-                />
-                {requireClientSelection && !activeClientId && (
-                  <p className="transaction-field-error" style={{ marginTop: "4px", color: "#da3838", fontSize: "12px" }}>
-                    A client must be selected to continue.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {showSelectionMessage && selectionMessage && (
-            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#da3838" }}>
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ width: "20px", height: "20px" }}>
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              <span>{selectionMessage}</span>
-            </div>
-          )}
-
-          {/* Entity Name & Property Name dropdowns */}
-          <div className="figma-form-row">
-            <div className="figma-field-container">
-              <StaticSelect
-                label="Entity Name"
-                required
-                value={activeEntityId}
-                options={[
-                  { label: "Select Entity", value: "" },
-                  ...entities.map((e) => ({ label: pickerLabel(e), value: e.id })),
-                ]}
-                onChange={handleEntityPicked}
-                disabled={requireClientSelection && !activeClientId}
+          {/* Attach Invoice section */}
+          <div className="figma-uploader-section">
+            <span className="figma-uploader-label">Attach Invoice (optional)</span>
+            {documentId && uploadedFilename && token ? (
+              <DocumentPreviewPanel
+                documentId={documentId}
+                filename={uploadedFilename}
+                token={token}
+                onReset={() => {
+                  setDocumentId(null);
+                  setUploadedFilename(null);
+                  appliedRuleIdRef.current = null;
+                }}
               />
-            </div>
-
-            <div className="figma-field-container">
-              <StaticSelect
-                label="Property Name"
-                required={!isSplit}
-                value={propertyId}
-                options={[
-                  { label: "Select Property", value: "" },
-                  ...properties.map((p) => ({ label: pickerLabel(p), value: p.id })),
-                ]}
-                onChange={handlePropertyPicked}
-                disabled={!activeEntityId || isSplit}
+            ) : (
+              <DocumentDropZone
+                token={token}
+                onExtracted={handleExtracted}
+                scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+                isSubmitting={isSubmitting}
+                submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+                primaryLabelText="Upload an invoice or receipt"
+                secondaryLabelText="PDF, JPG or PNG — we'll read it and pre-fill the fields below"
+                customIcon={
+                  <div className="figma-uploader-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="12" y1="18" x2="12" y2="12" />
+                      <line x1="9" y1="15" x2="15" y2="15" />
+                    </svg>
+                  </div>
+                }
               />
-            </div>
+            )}
           </div>
 
-          <fieldset className="transaction-detail-fields" style={{ border: "none", padding: 0, margin: 0 }} disabled={!isSelectionComplete}>
-            {/* Transaction Type control */}
-            <div className="figma-field-container" style={{ marginBottom: "24px" }}>
-              <span className="figma-field-label">Transaction Type<em>*</em></span>
-              <div className="figma-type-row">
-                <button
-                  type="button"
-                  className={`figma-type-btn is-income${type === "revenue" ? " active" : ""}`}
-                  onClick={() => handleTransactionTypeChange("revenue")}
-                >
-                  <span className="figma-type-circle is-income">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <polyline points="19 12 12 19 5 12" />
-                    </svg>
-                  </span>
-                  <span className="figma-type-text">Income</span>
-                </button>
+          <form onSubmit={handleSubmit} noValidate>
+            {requireClientSelection && (
+              <div className="figma-form-row">
+                <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                  <StaticSelect
+                    label="Client"
+                    required
+                    value={activeClientId}
+                    options={[
+                      { label: "Select Client", value: "" },
+                      ...clients.map((client) => ({
+                        label: client.name,
+                        value: client.id,
+                      })),
+                    ]}
+                    onChange={handleClientPicked}
+                  />
+                  {requireClientSelection && !activeClientId && (
+                    <p className="transaction-field-error" style={{ marginTop: "4px", color: "#da3838", fontSize: "12px" }}>
+                      A client must be selected to continue.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
-                <button
-                  type="button"
-                  className={`figma-type-btn is-expense${type === "expense" ? " active" : ""}`}
-                  onClick={() => handleTransactionTypeChange("expense")}
-                >
-                  <span className="figma-type-circle is-expense">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="19" x2="12" y2="5" />
-                      <polyline points="5 12 12 5 19 12" />
-                    </svg>
-                  </span>
-                  <span className="figma-type-text">Expense</span>
-                </button>
+            {showSelectionMessage && selectionMessage && (
+              <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#da3838" }}>
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ width: "20px", height: "20px" }}>
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{selectionMessage}</span>
+              </div>
+            )}
 
-                <button
-                  type="button"
-                  className={`figma-type-btn is-personal${type === "personal" ? " active" : ""}`}
-                  onClick={() => handleTransactionTypeChange("personal")}
-                >
-                  <span className="figma-type-circle is-personal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </span>
-                  <span className="figma-type-text">Personal Transaction</span>
-                </button>
+            {/* Entity Name & Property Name dropdowns */}
+            <div className="figma-form-row">
+              <div className="figma-field-container">
+                <StaticSelect
+                  label="Entity Name"
+                  required
+                  value={activeEntityId}
+                  options={[
+                    { label: "Select Entity", value: "" },
+                    ...entities.map((e) => ({ label: pickerLabel(e), value: e.id })),
+                  ]}
+                  onChange={handleEntityPicked}
+                  disabled={requireClientSelection && !activeClientId}
+                />
+              </div>
 
-                <button
-                  type="button"
-                  className={`figma-type-btn is-cost-base${type === "cost_base" ? " active" : ""}`}
-                  onClick={() => handleTransactionTypeChange("cost_base")}
-                >
-                  <span className="figma-type-circle is-cost-base">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <line x1="9" y1="9" x2="15" y2="9" />
-                      <line x1="9" y1="13" x2="15" y2="13" />
-                    </svg>
-                  </span>
-                  <span className="figma-type-text">Property Cost Base</span>
-                </button>
+              <div className="figma-field-container">
+                <StaticSelect
+                  label="Property Name"
+                  required={!isSplit}
+                  value={propertyId}
+                  options={[
+                    { label: "Select Property", value: "" },
+                    ...properties.map((p) => ({ label: pickerLabel(p), value: p.id })),
+                  ]}
+                  onChange={handlePropertyPicked}
+                  disabled={!activeEntityId || isSplit}
+                />
               </div>
             </div>
 
-            {/* Category / Sub-Category dropdowns */}
-            {type === "cost_base" ? (
-              <div className="figma-form-row">
-                <div className="figma-field-container">
-                  <StaticSelect
-                    label="Category"
-                    required
-                    value={categoryId == null ? "" : String(categoryId)}
-                    options={categorySelectOptions}
-                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                  />
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: '#f0f9ff',
-                  border: '1px solid #e0f2fe',
-                  color: '#0284c7',
-                  borderRadius: '8px',
-                  padding: '12px 16px',
-                  fontSize: '13px',
-                  height: '48px',
-                  marginTop: '22px',
-                  boxSizing: 'border-box'
-                }}>
-                  No subcategory for Property Cost Base — one free-text/typeable category only.
+            <fieldset className="transaction-detail-fields" style={{ border: "none", padding: 0, margin: 0 }} disabled={!isSelectionComplete}>
+              {/* Transaction Type control */}
+              <div className="figma-field-container" style={{ marginBottom: "24px" }}>
+                <span className="figma-field-label">Transaction Type<em>*</em></span>
+                <div className="figma-type-row">
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-income${type === "revenue" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("revenue")}
+                  >
+                    <span className="figma-type-circle is-income">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <polyline points="19 12 12 19 5 12" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Income</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-expense${type === "expense" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("expense")}
+                  >
+                    <span className="figma-type-circle is-expense">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="19" x2="12" y2="5" />
+                        <polyline points="5 12 12 5 19 12" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Expense</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-personal${type === "personal" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("personal")}
+                  >
+                    <span className="figma-type-circle is-personal">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Personal Transaction</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-cost-base${type === "cost_base" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("cost_base")}
+                  >
+                    <span className="figma-type-circle is-cost-base">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="9" y1="9" x2="15" y2="9" />
+                        <line x1="9" y1="13" x2="15" y2="13" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Property Cost Base</span>
+                  </button>
                 </div>
               </div>
-            ) : !hidesCategoryPicker(type) ? (
-              <div className="figma-form-row">
-                <div className="figma-field-container" style={!showSubcategorySelect ? { gridColumn: "span 2" } : undefined}>
-                  <StaticSelect
-                    label="Category"
-                    required
-                    value={categoryId == null ? "" : String(categoryId)}
-                    options={categorySelectOptions}
-                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                    disabled={lockAssetPurchaseCategory}
-                  />
-                </div>
 
-                {showSubcategorySelect && (
+              {/* Category / Sub-Category dropdowns */}
+              {type === "cost_base" ? (
+                <div className="figma-form-row">
                   <div className="figma-field-container">
                     <StaticSelect
-                      label="Subcategory"
+                      label="Category"
                       required
-                      value={subcategoryId == null ? "" : String(subcategoryId)}
-                      options={subcategorySelectOptions}
-                      onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                      value={categoryId == null ? "" : String(categoryId)}
+                      options={categorySelectOptions}
+                      onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                    />
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#f0f9ff',
+                    border: '1px solid #e0f2fe',
+                    color: '#0284c7',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    height: '48px',
+                    marginTop: '22px',
+                    boxSizing: 'border-box'
+                  }}>
+                    No subcategory for Property Cost Base — one free-text/typeable category only.
+                  </div>
+                </div>
+              ) : !hidesCategoryPicker(type) ? (
+                <div className="figma-form-row">
+                  <div className="figma-field-container" style={!showSubcategorySelect ? { gridColumn: "span 2" } : undefined}>
+                    <StaticSelect
+                      label="Category"
+                      required
+                      value={categoryId == null ? "" : String(categoryId)}
+                      options={categorySelectOptions}
+                      onChange={(value) => setCategoryId(value ? Number(value) : null)}
                       disabled={lockAssetPurchaseCategory}
                     />
                   </div>
-                )}
-              </div>
-            ) : null}
 
-            {/* Description & Amount */}
-            <div className="figma-form-row">
-              <div className="figma-field-container">
-                <span className="figma-field-label">Description<em>*</em></span>
-                <input
-                  type="text"
-                  className="figma-input"
-                  placeholder="Short description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              <div className="figma-field-container">
-                <span className="figma-field-label">Amount<em>*</em></span>
-                <input
-                  type="number"
-                  className="figma-input"
-                  inputMode="decimal"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={grossAmount}
-                  onKeyDown={(e) => {
-                    if (e.key === "-" || e.key === "Minus") {
-                      e.preventDefault();
-                    }
-                  }}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/-/g, "");
-                    setGrossAmount(val);
-                    setGrossAmountTouched(true);
-                  }}
-                  onBlur={() => setGrossAmountTouched(true)}
-                />
-                {showGrossAmountError && (
-                  <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
-                    <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    <span>{grossAmountError}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Invoice Date */}
-            <div className="figma-form-row">
-              <div className="figma-field-container">
-                <span className="figma-field-label">Date<em>*</em></span>
-                <input
-                  type="date"
-                  className="figma-input"
-                  value={invoiceDate}
-                  min="1900-01-01"
-                  max="9999-12-31"
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const yearPart = val.split("-")[0];
-                    if (yearPart && yearPart.length > 4) {
-                      return;
-                    }
-                    setInvoiceDate(val);
-                    setInvoiceDateTouched(true);
-                  }}
-                  onBlur={() => setInvoiceDateTouched(true)}
-                />
-                {showDateError && (
-                  <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
-                    <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    <span>{invoiceDateError}</span>
-                  </p>
-                )}
-              </div>
-              <div className="figma-field-container" />
-            </div>
-
-            {/* GST Applicable */}
-            <div className="figma-form-row">
-              <div className="figma-field-container">
-                <span className="figma-field-label">GST Applicable</span>
-                <div className="figma-segmented-control">
-                  <button
-                    type="button"
-                    className={`figma-segmented-btn${showGstBreakdown ? " active" : ""}`}
-                    onClick={() => setShowGstBreakdown(true)}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    className={`figma-segmented-btn${!showGstBreakdown ? " active" : ""}`}
-                    onClick={() => {
-                      setShowGstBreakdown(false);
-                      setGstAmount("");
-                    }}
-                  >
-                    No
-                  </button>
+                  {showSubcategorySelect && (
+                    <div className="figma-field-container">
+                      <StaticSelect
+                        label="Subcategory"
+                        required
+                        value={subcategoryId == null ? "" : String(subcategoryId)}
+                        options={subcategorySelectOptions}
+                        onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                        disabled={lockAssetPurchaseCategory}
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : null}
 
-              {showGstBreakdown && (
+              {/* Description & Amount */}
+              <div className="figma-form-row">
                 <div className="figma-field-container">
-                  <span className="figma-field-label">GST Amount<em>*</em></span>
+                  <span className="figma-field-label">Description<em>*</em></span>
+                  <input
+                    type="text"
+                    className="figma-input"
+                    placeholder="Short description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Amount<em>*</em></span>
                   <input
                     type="number"
                     className="figma-input"
                     inputMode="decimal"
                     step="0.01"
-                    min="0"
                     placeholder="0.00"
-                    value={gstAmount}
+                    value={grossAmount}
                     onKeyDown={(e) => {
                       if (e.key === "-" || e.key === "Minus") {
                         e.preventDefault();
@@ -7236,512 +7262,604 @@ export function AddTransactionView({
                     }}
                     onChange={(e) => {
                       const val = e.target.value.replace(/-/g, "");
-                      setGstAmount(val);
+                      setGrossAmount(val);
+                      setGrossAmountTouched(true);
                     }}
+                    onBlur={() => setGrossAmountTouched(true)}
                   />
+                  {showGrossAmountError && (
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{grossAmountError}</span>
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Add Asset Section — shown for every type except the two new
+              {/* Invoice Date */}
+              <div className="figma-form-row">
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Date<em>*</em></span>
+                  <input
+                    type="date"
+                    className="figma-input"
+                    value={invoiceDate}
+                    min="1900-01-01"
+                    max="9999-12-31"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const yearPart = val.split("-")[0];
+                      if (yearPart && yearPart.length > 4) {
+                        return;
+                      }
+                      setInvoiceDate(val);
+                      setInvoiceDateTouched(true);
+                    }}
+                    onBlur={() => setInvoiceDateTouched(true)}
+                  />
+                  {showDateError && (
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{invoiceDateError}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="figma-field-container" />
+              </div>
+
+              {/* GST Applicable */}
+              <div className="figma-form-row">
+                <div className="figma-field-container">
+                  <span className="figma-field-label">GST Applicable</span>
+                  <div className="figma-segmented-control">
+                    <button
+                      type="button"
+                      className={`figma-segmented-btn${showGstBreakdown ? " active" : ""}`}
+                      onClick={() => setShowGstBreakdown(true)}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      className={`figma-segmented-btn${!showGstBreakdown ? " active" : ""}`}
+                      onClick={() => {
+                        setShowGstBreakdown(false);
+                        setGstAmount("");
+                      }}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                {showGstBreakdown && (
+                  <div className="figma-field-container">
+                    <span className="figma-field-label">GST Amount<em>*</em></span>
+                    <input
+                      type="number"
+                      className="figma-input"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={gstAmount}
+                      onKeyDown={(e) => {
+                        if (e.key === "-" || e.key === "Minus") {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/-/g, "");
+                        setGstAmount(val);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Add Asset Section — shown for every type except the two new
                 ones, exactly as before. Choosing a non-expense type clears
                 isAssetPurchase via the effect above, so nothing invalid can be
                 submitted from here. */}
-            {allowsBusinessExtras(type) && (
-              <>
-                {isAssetPurchase && assetItemName ? (
-              <div className="figma-active-asset-display">
-                <div className="figma-active-asset-left">
-                  <div className="figma-active-asset-icon">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <line x1="9" y1="3" x2="9" y2="21" />
-                    </svg>
-                  </div>
-                  <div>
-                    <span className="figma-active-asset-title">{assetItemName}</span>
-                    <div className="figma-active-asset-meta">
-                      {assetClass === "capital_allowance"
-                        ? `Capital Allowance • ${effectiveLifeYears} years`
-                        : "Capital Works"}
+              {allowsBusinessExtras(type) && (
+                <>
+                  {isAssetPurchase && assetItemName ? (
+                    <div className="figma-active-asset-display">
+                      <div className="figma-active-asset-left">
+                        <div className="figma-active-asset-icon">
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <line x1="9" y1="3" x2="9" y2="21" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="figma-active-asset-title">{assetItemName}</span>
+                          <div className="figma-active-asset-meta">
+                            {assetClass === "capital_allowance"
+                              ? `Capital Allowance • ${effectiveLifeYears} years`
+                              : "Capital Works"}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="figma-active-asset-remove"
+                        onClick={() => {
+                          setIsAssetPurchase(false);
+                          setAssetItemName("");
+                          setAssetClass("");
+                          setEffectiveLifeYears("");
+                        }}
+                      >
+                        Remove Asset
+                      </button>
                     </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="figma-active-asset-remove"
-                  onClick={() => {
-                    setIsAssetPurchase(false);
-                    setAssetItemName("");
-                    setAssetClass("");
-                    setEffectiveLifeYears("");
-                  }}
-                >
-                  Remove Asset
-                </button>
-              </div>
-            ) : null}
+                  ) : null}
 
-            {!isAssetPurchase && !assetBuilderOpen && type === "expense" && (
-              <button
-                type="button"
-                className="figma-add-asset-trigger"
-                onClick={() => {
-                  setAssetBuilderOpen(true);
-                  setAssetBuilderStep(1);
-                  setTempAssetClass("capital_allowance");
-                  setTempAssetName("");
-                  setTempAssetLife("");
-                  setTempDepreciationMethod("diminishing_value");
-                }}
-              >
-                + Add Asset
-              </button>
-            )}
-
-            {assetBuilderOpen && (
-              <div className="figma-asset-builder-card">
-                <div className="figma-asset-builder-head">Add Asset</div>
-                <div className="figma-asset-class-grid">
-                  <div
-                    className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
-                    onClick={() => {
-                      setTempAssetClass("capital_works");
-                      if (tempAssetName === "") {
-                        setTempAssetName("Capital Works");
-                      }
-                    }}
-                  >
-                    <div className="figma-asset-class-icon">
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                        <polyline points="9 22 9 12 15 12 15 22" />
-                      </svg>
-                    </div>
-                    <div className="figma-asset-class-info">
-                      <span className="figma-asset-class-title">Capital Works</span>
-                      <span className="figma-asset-class-desc">
-                        Structural / building costs (Div 43). Depreciated at a fixed statutory rate — no effective life needed.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
-                    onClick={() => {
-                      setTempAssetClass("capital_allowance");
-                      if (tempAssetName === "Capital Works") {
+                  {!isAssetPurchase && !assetBuilderOpen && type === "expense" && (
+                    <button
+                      type="button"
+                      className="figma-add-asset-trigger"
+                      onClick={() => {
+                        setAssetBuilderOpen(true);
+                        setAssetBuilderStep(1);
+                        setTempAssetClass("capital_allowance");
                         setTempAssetName("");
-                      }
-                    }}
-                  >
-                    <div className="figma-asset-class-icon">
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                      </svg>
-                    </div>
-                    <div className="figma-asset-class-info">
-                      <span className="figma-asset-class-title">Capital Allowance</span>
-                      <span className="figma-asset-class-desc">
-                        Plant & equipment (Div 40). Requires an effective life to calculate depreciation.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="figma-form-row">
-                  <div className="figma-field-container">
-                    <span className="figma-field-label">Asset Name<em>*</em></span>
-                    <input
-                      type="text"
-                      className="figma-input"
-                      placeholder="e.g. Fridge, AC, dishwasher"
-                      value={tempAssetName}
-                      onChange={(e) => setTempAssetName(e.target.value)}
-                    />
-                  </div>
-                  {tempAssetClass === "capital_allowance" && (
-                    <div className="figma-field-container">
-                      <span className="figma-field-label">Effective Life (years)<em>*</em></span>
-                      <input
-                        type="number"
-                        className="figma-input"
-                        placeholder="Select years"
-                        value={tempAssetLife}
-                        onChange={(e) => setTempAssetLife(e.target.value)}
-                      />
-                    </div>
+                        setTempAssetLife("");
+                        setTempDepreciationMethod("diminishing_value");
+                      }}
+                    >
+                      + Add Asset
+                    </button>
                   )}
-                  {tempAssetClass === "capital_works" && (
-                    <div className="figma-field-container">
-                      <span className="figma-field-label">Effective Life (years)<em>*</em></span>
-                      <input
-                        type="number"
-                        className="figma-input"
-                        value="40"
-                        disabled
-                        readOnly
-                      />
-                    </div>
-                  )}
-                </div>
 
-                {tempAssetClass === "capital_allowance" && (
-                  <div style={{ marginTop: "20px" }}>
-                    <span className="figma-field-label" style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Method of Depreciation<em>*</em></span>
-                    <div className="figma-asset-class-grid">
-                      <div
-                        className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
-                        onClick={() => setTempDepreciationMethod("diminishing_value")}
-                      >
-                        <div className="figma-asset-class-icon">
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                            <polyline points="17 6 23 6 23 12" />
-                          </svg>
+                  {assetBuilderOpen && (
+                    <div className="figma-asset-builder-card">
+                      <div className="figma-asset-builder-head">Add Asset</div>
+                      <div className="figma-asset-class-grid">
+                        <div
+                          className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
+                          onClick={() => {
+                            setTempAssetClass("capital_works");
+                            if (tempAssetName === "") {
+                              setTempAssetName("Capital Works");
+                            }
+                          }}
+                        >
+                          <div className="figma-asset-class-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                              <polyline points="9 22 9 12 15 12 15 22" />
+                            </svg>
+                          </div>
+                          <div className="figma-asset-class-info">
+                            <span className="figma-asset-class-title">Capital Works</span>
+                            <span className="figma-asset-class-desc">
+                              Structural / building costs (Div 43). Depreciated at a fixed statutory rate — no effective life needed.
+                            </span>
+                          </div>
                         </div>
-                        <div className="figma-asset-class-info">
-                          <span className="figma-asset-class-title">Diminishing Value</span>
-                          <span className="figma-asset-class-desc">
-                            Higher deductions in early years
-                          </span>
+
+                        <div
+                          className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
+                          onClick={() => {
+                            setTempAssetClass("capital_allowance");
+                            if (tempAssetName === "Capital Works") {
+                              setTempAssetName("");
+                            }
+                          }}
+                        >
+                          <div className="figma-asset-class-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                            </svg>
+                          </div>
+                          <div className="figma-asset-class-info">
+                            <span className="figma-asset-class-title">Capital Allowance</span>
+                            <span className="figma-asset-class-desc">
+                              Plant & equipment (Div 40). Requires an effective life to calculate depreciation.
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      <div
-                        className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
-                        onClick={() => setTempDepreciationMethod("prime_cost")}
-                      >
-                        <div className="figma-asset-class-icon">
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                          </svg>
+                      <div className="figma-form-row">
+                        <div className="figma-field-container">
+                          <span className="figma-field-label">Asset Name<em>*</em></span>
+                          <input
+                            type="text"
+                            className="figma-input"
+                            placeholder="e.g. Fridge, AC, dishwasher"
+                            value={tempAssetName}
+                            onChange={(e) => setTempAssetName(e.target.value)}
+                          />
                         </div>
-                        <div className="figma-asset-class-info">
-                          <span className="figma-asset-class-title">Prime Cost</span>
-                          <span className="figma-asset-class-desc">
-                            Equal deductions each year
-                          </span>
+                        {tempAssetClass === "capital_allowance" && (
+                          <div className="figma-field-container">
+                            <span className="figma-field-label">Effective Life (years)<em>*</em></span>
+                            <input
+                              type="number"
+                              className="figma-input"
+                              placeholder="Select years"
+                              value={tempAssetLife}
+                              onChange={(e) => setTempAssetLife(e.target.value)}
+                            />
+                          </div>
+                        )}
+                        {tempAssetClass === "capital_works" && (
+                          <div className="figma-field-container">
+                            <span className="figma-field-label">Effective Life (years)<em>*</em></span>
+                            <input
+                              type="number"
+                              className="figma-input"
+                              value="40"
+                              disabled
+                              readOnly
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {tempAssetClass === "capital_allowance" && (
+                        <div style={{ marginTop: "20px" }}>
+                          <span className="figma-field-label" style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Method of Depreciation<em>*</em></span>
+                          <div className="figma-asset-class-grid">
+                            <div
+                              className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
+                              onClick={() => setTempDepreciationMethod("diminishing_value")}
+                            >
+                              <div className="figma-asset-class-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                  <polyline points="17 6 23 6 23 12" />
+                                </svg>
+                              </div>
+                              <div className="figma-asset-class-info">
+                                <span className="figma-asset-class-title">Diminishing Value</span>
+                                <span className="figma-asset-class-desc">
+                                  Higher deductions in early years
+                                </span>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
+                              onClick={() => setTempDepreciationMethod("prime_cost")}
+                            >
+                              <div className="figma-asset-class-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                              </div>
+                              <div className="figma-asset-class-info">
+                                <span className="figma-asset-class-title">Prime Cost</span>
+                                <span className="figma-asset-class-desc">
+                                  Equal deductions each year
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                      )}
+
+                      <div className="figma-asset-actions">
+                        <button
+                          type="button"
+                          className="figma-asset-cancel-btn"
+                          onClick={() => setAssetBuilderOpen(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="figma-asset-submit-btn"
+                          disabled={
+                            !tempAssetClass ||
+                            !tempAssetName.trim() ||
+                            (tempAssetClass === "capital_allowance" && (!tempAssetLife || !tempDepreciationMethod))
+                          }
+                          onClick={() => {
+                            setIsAssetPurchase(true);
+                            setAssetClass(tempAssetClass);
+                            setAssetItemName(tempAssetName.trim());
+                            setEffectiveLifeYears(tempAssetClass === "capital_works" ? "" : tempAssetLife);
+                            setAssetBuilderOpen(false);
+                          }}
+                        >
+                          Add Asset
+                        </button>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="figma-asset-actions">
-                  <button
-                    type="button"
-                    className="figma-asset-cancel-btn"
-                    onClick={() => setAssetBuilderOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="figma-asset-submit-btn"
-                    disabled={
-                      !tempAssetClass ||
-                      !tempAssetName.trim() ||
-                      (tempAssetClass === "capital_allowance" && (!tempAssetLife || !tempDepreciationMethod))
-                    }
-                    onClick={() => {
-                      setIsAssetPurchase(true);
-                      setAssetClass(tempAssetClass);
-                      setAssetItemName(tempAssetName.trim());
-                      setEffectiveLifeYears(tempAssetClass === "capital_works" ? "" : tempAssetLife);
-                      setAssetBuilderOpen(false);
-                    }}
-                  >
-                    Add Asset
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Part of this was private use. Expense only — the backend
+                  {/* Part of this was private use. Expense only — the backend
                 rejects a personal split on any other type, and the wholly
                 private case is the "Personal Transaction" type instead. */}
-            {allowsPersonalPortion(type) && (
-            <div className="figma-toggle-container">
-              <div className="figma-toggle-info">
-                <span className="figma-toggle-title">Was part of this personal?</span>
-                <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
-              </div>
-              <label className="figma-switch">
-                <input
-                  type="checkbox"
-                  checked={isPersonal}
-                  onChange={(e) => setIsPersonal(e.target.checked)}
-                />
-                <span className="figma-switch-slider" />
-              </label>
-            </div>
-            )}
+                  {allowsPersonalPortion(type) && (
+                    <div className="figma-toggle-container">
+                      <div className="figma-toggle-info">
+                        <span className="figma-toggle-title">Was part of this personal?</span>
+                        <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
+                      </div>
+                      <label className="figma-switch">
+                        <input
+                          type="checkbox"
+                          checked={isPersonal}
+                          onChange={(e) => setIsPersonal(e.target.checked)}
+                        />
+                        <span className="figma-switch-slider" />
+                      </label>
+                    </div>
+                  )}
 
-            {allowsPersonalPortion(type) && isPersonal && (
-              <div className="figma-personal-alloc-section">
-                <div className="figma-form-row">
-                  <div className="figma-field-container">
-                    <StaticSelect
-                      label="Personal Allocation"
-                      value={personalAllocationType}
-                      options={[
-                        { label: "Percentage", value: "percentage" },
-                        { label: "Amount", value: "amount" },
-                      ]}
-                      onChange={(value) => setPersonalAllocationType(value as "percentage" | "amount")}
-                    />
-                  </div>
-                  <div className="figma-field-container">
-                    <span className="figma-field-label">
-                      {personalAllocationType === "percentage" ? "Personal %" : "Personal Amount"}
-                    </span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="any"
-                      className="figma-input"
-                      value={personalValue}
-                      onKeyDown={(e) => {
-                        if (e.key === "e" || e.key === "E" || e.key === "-" || e.key === "+" || e.key === "Minus") {
-                          e.preventDefault();
-                        }
-                        if (e.key === ".") {
-                          const input = e.currentTarget;
-                          const value = input.value;
-                          const hasDot = value.includes(".");
-                          if (hasDot) {
-                            const selectionStart = input.selectionStart ?? 0;
-                            const selectionEnd = input.selectionEnd ?? 0;
-                            const selectedText = value.substring(selectionStart, selectionEnd);
-                            if (!selectedText.includes(".")) {
-                              e.preventDefault();
-                            }
-                          }
-                        }
-                      }}
-                      onChange={(e) => {
-                        const cleanVal = e.target.value.replace(/[^0-9.]/g, "");
-                        const parts = cleanVal.split(".");
-                        const finalVal = parts.length > 1 ? parts[0] + "." + parts.slice(1).join("") : parts[0];
-                        setPersonalValue(finalVal);
-                      }}
-                    />
-                  </div>
-                </div>
+                  {allowsPersonalPortion(type) && isPersonal && (
+                    <div className="figma-personal-alloc-section">
+                      <div className="figma-form-row">
+                        <div className="figma-field-container">
+                          <StaticSelect
+                            label="Personal Allocation"
+                            value={personalAllocationType}
+                            options={[
+                              { label: "Percentage", value: "percentage" },
+                              { label: "Amount", value: "amount" },
+                            ]}
+                            onChange={(value) => setPersonalAllocationType(value as "percentage" | "amount")}
+                          />
+                        </div>
+                        <div className="figma-field-container">
+                          <span className="figma-field-label">
+                            {personalAllocationType === "percentage" ? "Personal %" : "Personal Amount"}
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
+                            className="figma-input"
+                            value={personalValue}
+                            onKeyDown={(e) => {
+                              if (e.key === "e" || e.key === "E" || e.key === "-" || e.key === "+" || e.key === "Minus") {
+                                e.preventDefault();
+                              }
+                              if (e.key === ".") {
+                                const input = e.currentTarget;
+                                const value = input.value;
+                                const hasDot = value.includes(".");
+                                if (hasDot) {
+                                  const selectionStart = input.selectionStart ?? 0;
+                                  const selectionEnd = input.selectionEnd ?? 0;
+                                  const selectedText = value.substring(selectionStart, selectionEnd);
+                                  if (!selectedText.includes(".")) {
+                                    e.preventDefault();
+                                  }
+                                }
+                              }
+                            }}
+                            onChange={(e) => {
+                              const cleanVal = e.target.value.replace(/[^0-9.]/g, "");
+                              const parts = cleanVal.split(".");
+                              const finalVal = parts.length > 1 ? parts[0] + "." + parts.slice(1).join("") : parts[0];
+                              setPersonalValue(finalVal);
+                            }}
+                          />
+                        </div>
+                      </div>
 
-                <div className="figma-portion-wrapper">
-                  <div className="figma-portion-box">
-                    <span className="figma-portion-label">Business portion (deductible)</span>
-                    <span className="figma-portion-value">A$ {businessPortion.toFixed(2)}</span>
-                  </div>
-                  <div className="figma-portion-box">
-                    <span className="figma-portion-label">Personal portion</span>
-                    <span className="figma-portion-value">A$ {personalPortion.toFixed(2)}</span>
-                  </div>
-                </div>
+                      <div className="figma-portion-wrapper">
+                        <div className="figma-portion-box">
+                          <span className="figma-portion-label">Business portion (deductible)</span>
+                          <span className="figma-portion-value">A$ {businessPortion.toFixed(2)}</span>
+                        </div>
+                        <div className="figma-portion-box">
+                          <span className="figma-portion-label">Personal portion</span>
+                          <span className="figma-portion-value">A$ {personalPortion.toFixed(2)}</span>
+                        </div>
+                      </div>
 
-                {personalSplitError && (
-                  <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "8px 0 0" }}>
-                    {personalSplitError}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Is it a regular payment? */}
-            {type === "expense" && (
-              <>
-                <div className="figma-toggle-container">
-                  <div className="figma-toggle-info">
-                    <span className="figma-toggle-title">Is it a regular payment?</span>
-                    <span className="figma-toggle-desc">Set a due date and reminder alert</span>
-                  </div>
-                  <label className="figma-switch">
-                    <input
-                      type="checkbox"
-                      checked={isRegularPayment}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setIsRegularPayment(checked);
-                        if (!checked) {
-                          setDueDate("");
-                          setDueDateTouched(false);
-                          setAlertName("");
-                        }
-                      }}
-                    />
-                    <span className="figma-switch-slider" />
-                  </label>
-                </div>
-
-                {isRegularPayment && (
-                  <div className="figma-form-row">
-                    <div className="figma-field-container">
-                      <span className="figma-field-label">Due Date<em>*</em></span>
-                      <input
-                        type="date"
-                        className="figma-input"
-                        value={dueDate}
-                        onChange={(e) => setDueDate(e.target.value)}
-                        onBlur={() => setDueDateTouched(true)}
-                      />
-                      {showDueDateError && (
-                        <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
-                          <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                          </svg>
-                          <span>{dueDateError}</span>
+                      {personalSplitError && (
+                        <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "8px 0 0" }}>
+                          {personalSplitError}
                         </p>
                       )}
                     </div>
-                    <div className="figma-field-container">
-                      <span className="figma-field-label">Alert Name<em>*</em></span>
+                  )}
+
+                  {/* Is it a regular payment? */}
+                  {type === "expense" && (
+                    <>
+                      <div className="figma-toggle-container">
+                        <div className="figma-toggle-info">
+                          <span className="figma-toggle-title">Is it a regular payment?</span>
+                          <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+                        </div>
+                        <label className="figma-switch">
+                          <input
+                            type="checkbox"
+                            checked={isRegularPayment}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setIsRegularPayment(checked);
+                              if (!checked) {
+                                setDueDate("");
+                                setDueDateTouched(false);
+                                setAlertName("");
+                              }
+                            }}
+                          />
+                          <span className="figma-switch-slider" />
+                        </label>
+                      </div>
+
+                      {isRegularPayment && (
+                        <div className="figma-form-row">
+                          <div className="figma-field-container">
+                            <span className="figma-field-label">Due Date<em>*</em></span>
+                            <input
+                              type="date"
+                              className="figma-input"
+                              value={dueDate}
+                              onChange={(e) => setDueDate(e.target.value)}
+                              onBlur={() => setDueDateTouched(true)}
+                            />
+                            {showDueDateError && (
+                              <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                                <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                </svg>
+                                <span>{dueDateError}</span>
+                              </p>
+                            )}
+                          </div>
+                          <div className="figma-field-container">
+                            <span className="figma-field-label">Alert Name<em>*</em></span>
+                            <input
+                              type="text"
+                              className="figma-input"
+                              placeholder="e.g. Quarterly insurance reminder"
+                              value={alertName}
+                              onChange={(e) => {
+                                setAlertName(e.target.value);
+                                setUserEditedAlertName(true);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Is this a split transaction? */}
+                  <div className="figma-toggle-container">
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Is this a split transaction?</span>
+                      <span className="figma-toggle-desc">Divide this transaction across multiple categories</span>
+                    </div>
+                    <label className="figma-switch">
                       <input
-                        type="text"
-                        className="figma-input"
-                        placeholder="e.g. Quarterly insurance reminder"
-                        value={alertName}
-                        onChange={(e) => {
-                          setAlertName(e.target.value);
-                          setUserEditedAlertName(true);
-                        }}
+                        type="checkbox"
+                        checked={isSplit}
+                        onChange={(e) => handleSplitToggle(e.target.checked)}
                       />
-                    </div>
+                      <span className="figma-switch-slider" />
+                    </label>
                   </div>
-                )}
-              </>
-            )}
 
-            {/* Is this a split transaction? */}
-            <div className="figma-toggle-container">
-              <div className="figma-toggle-info">
-                <span className="figma-toggle-title">Is this a split transaction?</span>
-                <span className="figma-toggle-desc">Divide this transaction across multiple categories</span>
-              </div>
-              <label className="figma-switch">
-                <input
-                  type="checkbox"
-                  checked={isSplit}
-                  onChange={(e) => handleSplitToggle(e.target.checked)}
-                />
-                <span className="figma-switch-slider" />
-              </label>
-            </div>
+                  {isSplit && (
+                    <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#eaecf0"}` }}>
+                      {splitRows.map((row, index) => {
+                        const rowError = splitErrors[row.id];
+                        const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                        const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
 
-            {isSplit && (
-              <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#eaecf0"}` }}>
-                {splitRows.map((row, index) => {
-                  const rowError = splitErrors[row.id];
-                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+                        return (
+                          <div key={row.id} className="transaction-split-row" style={{ display: "flex", gap: "16px", marginBottom: "16px", alignItems: "flex-start" }}>
+                            <div className="figma-field-container" style={{ flex: 2 }}>
+                              <StaticSelect
+                                label="Property Name"
+                                required
+                                value={row.propertyId}
+                                options={[
+                                  { label: "Select Property", value: "" },
+                                  ...splitPropertyBaseOptions,
+                                ]}
+                                onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
+                              />
+                              {propertyError && <span style={{ color: "#da3838", fontSize: "11px" }}>{propertyError}</span>}
+                            </div>
 
-                  return (
-                    <div key={row.id} className="transaction-split-row" style={{ display: "flex", gap: "16px", marginBottom: "16px", alignItems: "flex-start" }}>
-                      <div className="figma-field-container" style={{ flex: 2 }}>
-                        <StaticSelect
-                          label="Property Name"
-                          required
-                          value={row.propertyId}
-                          options={[
-                            { label: "Select Property", value: "" },
-                            ...splitPropertyBaseOptions,
-                          ]}
-                          onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
-                        />
-                        {propertyError && <span style={{ color: "#da3838", fontSize: "11px" }}>{propertyError}</span>}
+                            <div className="figma-field-container" style={{ flex: 1 }}>
+                              <span className="figma-field-label">Amount<em>*</em></span>
+                              <input
+                                type="number"
+                                className="figma-input"
+                                placeholder="0.00"
+                                value={row.amount}
+                                onChange={(e) => updateSplitRow(row.id, { amount: e.target.value })}
+                              />
+                              {amountError && <span style={{ color: "#da3838", fontSize: "11px" }}>{amountError}</span>}
+                            </div>
+
+                            <button
+                              type="button"
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "#da3838",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                                cursor: "pointer",
+                                padding: "12px 0",
+                                marginTop: "22px",
+                              }}
+                              disabled={splitRows.length <= 1}
+                              onClick={() => removeSplitRow(row.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#da3838" : "#667085" }}>
+                          {grossAmount && !Number.isNaN(grossNumberValue)
+                            ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
+                            : "Enter the total amount above to validate splits."}
+                        </span>
+                        <button
+                          type="button"
+                          className="figma-bulk-import-btn"
+                          onClick={addSplitRow}
+                          disabled={properties.length < 2}
+                        >
+                          + Add Property
+                        </button>
                       </div>
-
-                      <div className="figma-field-container" style={{ flex: 1 }}>
-                        <span className="figma-field-label">Amount<em>*</em></span>
-                        <input
-                          type="number"
-                          className="figma-input"
-                          placeholder="0.00"
-                          value={row.amount}
-                          onChange={(e) => updateSplitRow(row.id, { amount: e.target.value })}
-                        />
-                        {amountError && <span style={{ color: "#da3838", fontSize: "11px" }}>{amountError}</span>}
-                      </div>
-
-                      <button
-                        type="button"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: "#da3838",
-                          fontWeight: "600",
-                          fontSize: "14px",
-                          cursor: "pointer",
-                          padding: "12px 0",
-                          marginTop: "22px",
-                        }}
-                        disabled={splitRows.length <= 1}
-                        onClick={() => removeSplitRow(row.id)}
-                      >
-                        Remove
-                      </button>
                     </div>
-                  );
-                })}
+                  )}
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#da3838" : "#667085" }}>
-                    {grossAmount && !Number.isNaN(grossNumberValue)
-                      ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
-                      : "Enter the total amount above to validate splits."}
-                  </span>
-                  <button
-                    type="button"
-                    className="figma-bulk-import-btn"
-                    onClick={addSplitRow}
-                    disabled={properties.length < 2}
-                  >
-                    + Add Property
-                  </button>
+                </>
+              )}
+
+              {/* Internal Remarks */}
+              <div className="figma-form-row">
+                <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                  <span className="figma-field-label">Internal Remarks</span>
+                  <textarea
+                    className="figma-textarea"
+                    placeholder="Notes visible only to your team"
+                    value={internalRemarks}
+                    onChange={(e) => setInternalRemarks(e.target.value)}
+                  />
                 </div>
               </div>
-            )}
 
-              </>
-            )}
+              {submitError && !submitError.toLowerCase().includes("split") && (
+                <p className="transaction-field-error" style={{ color: "#da3838", fontWeight: "600", marginBottom: "16px" }}>
+                  {submitError}
+                </p>
+              )}
 
-            {/* Internal Remarks */}
-            <div className="figma-form-row">
-              <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
-                <span className="figma-field-label">Internal Remarks</span>
-                <textarea
-                  className="figma-textarea"
-                  placeholder="Notes visible only to your team"
-                  value={internalRemarks}
-                  onChange={(e) => setInternalRemarks(e.target.value)}
-                />
+              {/* Form actions */}
+              <div className="figma-form-actions">
+                <Link href={effectiveBackHref} className="figma-cancel-btn">
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  className="figma-save-btn"
+                  disabled={!canSubmit || isSubmitting}
+                >
+                  {isSubmitting
+                    ? (isReviewing ? "Saving Transaction…" : "Adding Transaction…")
+                    : (isReviewing ? "Save Transaction" : "Save Transaction")}
+                </button>
               </div>
-            </div>
-
-            {submitError && !submitError.toLowerCase().includes("split") && (
-              <p className="transaction-field-error" style={{ color: "#da3838", fontWeight: "600", marginBottom: "16px" }}>
-                {submitError}
-              </p>
-            )}
-
-            {/* Form actions */}
-            <div className="figma-form-actions">
-              <Link href={effectiveBackHref} className="figma-cancel-btn">
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="figma-save-btn"
-                disabled={!canSubmit || isSubmitting}
-              >
-                {isSubmitting
-                  ? (isReviewing ? "Saving Transaction…" : "Adding Transaction…")
-                  : (isReviewing ? "Save Transaction" : "Save Transaction")}
-              </button>
-            </div>
-          </fieldset>
-        </form>
+            </fieldset>
+          </form>
         </div>
       </div>
 
