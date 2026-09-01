@@ -25,6 +25,7 @@ import { isAwaitingExtraction } from "@/src/lib/reviewStatus";
 import { ReviewStatusBadge } from "@/app/components/ReviewStatusBadge";
 import type {
   CoreAssetClass,
+  CoreDepreciationMethod,
   CorePropertyTransactionRow,
   CoreTransactionCategory,
   CoreTransactionChild,
@@ -40,6 +41,12 @@ import {
   type MatchedRule,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
+import AssetBuilder, {
+  AssetSummaryChip,
+  assetRequestFields,
+  CAPITAL_WORKS_EFFECTIVE_LIFE,
+  type AssetDraft,
+} from "@/app/components/AssetBuilder";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -845,10 +852,14 @@ function TransactionDetailPopup({
       ? row.metadata.mode_of_transaction
       : "",
   );
+  // asset_name and depreciation_method became real columns in migration 0037.
+  // The metadata fallback is only for rows written before it ran; the column is
+  // authoritative once it is populated.
   const [assetItemName, setAssetItemName] = useState(
-    typeof row.metadata.asset_item_name === "string"
-      ? row.metadata.asset_item_name
-      : "",
+    row.assetName ??
+      (typeof row.metadata.asset_item_name === "string"
+        ? row.metadata.asset_item_name
+        : ""),
   );
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">(
     row.assetClass || "",
@@ -856,6 +867,9 @@ function TransactionDetailPopup({
   const [effectiveLifeYears, setEffectiveLifeYears] = useState(
     row.effectiveLifeYears == null ? "" : String(row.effectiveLifeYears),
   );
+  const [depreciationMethod, setDepreciationMethod] = useState<
+    CoreDepreciationMethod | ""
+  >(row.depreciationMethod ?? "");
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [isSplit, setIsSplit] = useState(row.propertyIds.length > 1);
   const [editSplitRows, setEditSplitRows] = useState<SplitRowState[]>(() =>
@@ -1361,16 +1375,35 @@ function TransactionDetailPopup({
     }
     body.gst_amount = gstNum ?? 0;
     if (isAssetPurchase) {
-      body.asset_class = assetClass || null;
-      if (assetItemName.trim()) {
-        body.metadata = {
-          ...(body.metadata as Record<string, unknown>),
-          asset_item_name: assetItemName.trim(),
-        };
+      // First-class fields since migration 0037. The name and the method used
+      // to be written into metadata, where nothing validated them and the
+      // backend never read them — an asset could be saved with no method and
+      // therefore no depreciation schedule at all.
+      if (!assetClass) {
+        setEditError("Choose a depreciation category for this asset.");
+        return;
       }
-      if (assetClass === "capital_allowance") {
-        body.effective_life_years = Number.parseFloat(effectiveLifeYears);
+      if (!assetItemName.trim()) {
+        setEditError("Give the asset a name — it names its depreciation schedule.");
+        return;
       }
+      const isCapitalWorks = assetClass === "capital_works";
+      const method = isCapitalWorks ? "prime_cost" : depreciationMethod;
+      if (!method) {
+        setEditError("Choose a depreciation method for this asset.");
+        return;
+      }
+      const life = isCapitalWorks
+        ? CAPITAL_WORKS_EFFECTIVE_LIFE
+        : Number.parseFloat(effectiveLifeYears);
+      if (!Number.isFinite(life) || life <= 0) {
+        setEditError("Effective life must be a positive number of years.");
+        return;
+      }
+      body.asset_class = assetClass;
+      body.asset_name = assetItemName.trim();
+      body.depreciation_method = method;
+      body.effective_life_years = life;
     }
     setEditError("");
     await onSave(body, reviewAction);
@@ -1529,13 +1562,60 @@ function TransactionDetailPopup({
                         <input
                           type="radio"
                           checked={assetClass === "capital_works"}
-                          onChange={() => setAssetClass("capital_works")}
+                          onChange={() => {
+                            // Division 43 fixes both: 40 years at prime cost.
+                            setAssetClass("capital_works");
+                            setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                            setDepreciationMethod("prime_cost");
+                          }}
                         />
                         <span>
                           <b>Capital Works</b>
-                          <small>Fixed depreciation period for capital improvements</small>
+                          <small>Fixed 40-year life at 2.5% prime cost (Div 43)</small>
                         </span>
                       </label>
+
+                      {/* The method drives the whole schedule and was never
+                          captured here before, so an asset edited in this
+                          drawer had no method to depreciate on. */}
+                      {assetClass ? (
+                        <div className="transaction-asset-method">
+                          <span className="transaction-field-label">
+                            Method of depreciation<em>*</em>
+                          </span>
+                          {assetClass === "capital_works" ? (
+                            <p className="transaction-field-hint">
+                              Capital works is prime cost only — diminishing value is not
+                              available for Division 43.
+                            </p>
+                          ) : (
+                            <div className="transaction-asset-method-options">
+                              <label className="transaction-radio-card">
+                                <input
+                                  type="radio"
+                                  checked={depreciationMethod === "diminishing_value"}
+                                  onChange={() => setDepreciationMethod("diminishing_value")}
+                                />
+                                <span>
+                                  <b>Diminishing Value</b>
+                                  <small>Higher deductions in early years</small>
+                                </span>
+                              </label>
+                              <label className="transaction-radio-card">
+                                <input
+                                  type="radio"
+                                  checked={depreciationMethod === "prime_cost"}
+                                  onChange={() => setDepreciationMethod("prime_cost")}
+                                />
+                                <span>
+                                  <b>Prime Cost</b>
+                                  <small>Equal deductions each year</small>
+                                </span>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -5252,10 +5332,12 @@ export function AddTransactionView({
   const [description, setDescription] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
 
-  const [isAssetPurchase, setIsAssetPurchase] = useState(false);
-  const [assetItemName, setAssetItemName] = useState("");
-  const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
-  const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
+  // One draft rather than five loose fields. The old shape kept the asset's
+  // class, name, life and method in separate `temp*` variables that were copied
+  // into four more on submit, and the copy dropped the method whenever the name
+  // was empty — so an asset could be saved with no method to depreciate on.
+  const [assetDraft, setAssetDraft] = useState<AssetDraft | null>(null);
+  const isAssetPurchase = assetDraft !== null;
 
   // `isPersonal` is a partial private-use split on a business expense. A wholly
   // personal transaction is its own type, so it no longer rides on this flag.
@@ -5264,11 +5346,6 @@ export function AddTransactionView({
   const [personalValue, setPersonalValue] = useState("20");
 
   const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
-  const [assetBuilderStep, setAssetBuilderStep] = useState<1 | 2 | 3>(1);
-  const [tempAssetClass, setTempAssetClass] = useState<CoreAssetClass | "">("");
-  const [tempAssetName, setTempAssetName] = useState("");
-  const [tempAssetLife, setTempAssetLife] = useState("");
-  const [tempDepreciationMethod, setTempDepreciationMethod] = useState<"diminishing_value" | "prime_cost" | "">("");
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -5444,11 +5521,22 @@ export function AddTransactionView({
       if (matchedTx.internalRemarks) {
         setInternalRemarks(matchedTx.internalRemarks);
       }
-      if (matchedTx.isAssetPurchase) {
-        setIsAssetPurchase(true);
-        if (matchedTx.assetItemName) setAssetItemName(matchedTx.assetItemName);
-        if (matchedTx.assetClass) setAssetClass(matchedTx.assetClass);
-        if (matchedTx.effectiveLifeYears) setEffectiveLifeYears(String(matchedTx.effectiveLifeYears));
+      // A matched transaction only restores an asset when it carries a
+      // complete bundle. A partial restore would put the form into a state the
+      // builder cannot produce and the API would reject.
+      if (
+        matchedTx.isAssetPurchase &&
+        matchedTx.assetClass &&
+        matchedTx.assetItemName &&
+        matchedTx.effectiveLifeYears
+      ) {
+        setAssetDraft({
+          assetClass: matchedTx.assetClass,
+          assetName: matchedTx.assetItemName,
+          effectiveLifeYears: matchedTx.effectiveLifeYears,
+          depreciationMethod:
+            matchedTx.assetClass === "capital_works" ? "prime_cost" : "diminishing_value",
+        });
       }
 
       // Restore the private-use split. This is the gap that made the old
@@ -5543,7 +5631,7 @@ export function AddTransactionView({
     setCategoryId(null);
     setSubcategoryId(null);
     if (!allowsAssetPurchase(newType)) {
-      setIsAssetPurchase(false);
+      setAssetDraft(null);
     }
     if (newType !== "expense") {
       setIsRegularPayment(false);
@@ -5818,22 +5906,13 @@ export function AddTransactionView({
     };
   }, [token, categoryId]);
 
+  // Only an expense can be an asset purchase. The draft is all-or-nothing, so
+  // clearing it is the whole reset — there are no dependent fields left over.
   useEffect(() => {
-    if (type !== "expense" && isAssetPurchase) {
-      setIsAssetPurchase(false);
+    if (type !== "expense" && assetDraft) {
+      setAssetDraft(null);
     }
-  }, [isAssetPurchase, type]);
-
-  // When the user un-checks "asset purchase", reset its dependent fields.
-  useEffect(() => {
-    if (!isAssetPurchase) {
-      setAssetItemName("");
-      setAssetClass("");
-      setEffectiveLifeYears("");
-    } else if (!assetClass) {
-      setAssetClass("capital_allowance");
-    }
-  }, [assetClass, isAssetPurchase]);
+  }, [assetDraft, type]);
 
   // When GST breakdown is unchecked, drop any entered GST so the body omits it.
   useEffect(() => {
@@ -6057,9 +6136,9 @@ export function AddTransactionView({
     !grossAmountError &&
     (!isRegularPayment || !dueDateError) &&
     !!modeOfTransaction &&
-    (!isAssetPurchase ||
-      (assetClass === "capital_works" ||
-        (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
+    // No asset clause: AssetBuilder cannot emit an incomplete draft, so
+    // `assetDraft !== null` already means "valid asset".
+
     (isSplit
       ? splitHasMultipleProperties &&
       Object.keys(splitErrors).length === 0 &&
@@ -6800,24 +6879,11 @@ export function AddTransactionView({
         due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
         alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
       };
-      if (isAssetPurchase) {
-        body.asset_class = assetClass || null;
-        if (assetItemName.trim()) {
-          body.metadata = {
-            ...(body.metadata as Record<string, unknown> | undefined),
-            asset_item_name: assetItemName.trim(),
-            depreciation_method: tempDepreciationMethod || null,
-          };
-        }
-        if (assetClass === "capital_allowance") {
-          const yearsNum = Number.parseFloat(effectiveLifeYears);
-          if (Number.isNaN(yearsNum) || yearsNum <= 0) {
-            setSubmitError("Effective life must be a positive number.");
-            return;
-          }
-          body.effective_life_years = yearsNum;
-        }
-      }
+      // asset_class / asset_name / depreciation_method / effective_life_years
+      // are first-class body fields since migration 0037 — never metadata. The
+      // builder cannot produce a partial draft, so there is nothing left to
+      // validate here.
+      Object.assign(body, assetRequestFields(assetDraft));
 
       if (reviewingId) {
         // Saving a review means the accountant has confirmed the values, so
@@ -7361,219 +7427,41 @@ export function AddTransactionView({
                 )}
               </div>
 
-              {/* Add Asset Section — shown for every type except the two new
-                ones, exactly as before. Choosing a non-expense type clears
-                isAssetPurchase via the effect above, so nothing invalid can be
-                submitted from here. */}
+              {/* Add Asset.
+                  The whole builder — category, name, effective life, method —
+                  lives in AssetBuilder now. It used to be ~200 lines inline
+                  here, duplicated again in the reconciliation drawer and a
+                  third time (without the method picker at all) in the client
+                  form. Choosing a non-expense type clears the draft via the
+                  effect above, so nothing invalid can be submitted. */}
               {allowsBusinessExtras(type) && (
                 <>
-                  {isAssetPurchase && assetItemName ? (
-                    <div className="figma-active-asset-display">
-                      <div className="figma-active-asset-left">
-                        <div className="figma-active-asset-icon">
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <line x1="9" y1="3" x2="9" y2="21" />
-                          </svg>
-                        </div>
-                        <div>
-                          <span className="figma-active-asset-title">{assetItemName}</span>
-                          <div className="figma-active-asset-meta">
-                            {assetClass === "capital_allowance"
-                              ? `Capital Allowance • ${effectiveLifeYears} years`
-                              : "Capital Works"}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="figma-active-asset-remove"
-                        onClick={() => {
-                          setIsAssetPurchase(false);
-                          setAssetItemName("");
-                          setAssetClass("");
-                          setEffectiveLifeYears("");
-                        }}
-                      >
-                        Remove Asset
-                      </button>
-                    </div>
-                  ) : null}
+                  {assetDraft && (
+                    <AssetSummaryChip
+                      draft={assetDraft}
+                      onRemove={() => setAssetDraft(null)}
+                    />
+                  )}
 
-                  {!isAssetPurchase && !assetBuilderOpen && type === "expense" && (
+                  {!assetDraft && !assetBuilderOpen && type === "expense" && (
                     <button
                       type="button"
                       className="figma-add-asset-trigger"
-                      onClick={() => {
-                        setAssetBuilderOpen(true);
-                        setAssetBuilderStep(1);
-                        setTempAssetClass("capital_allowance");
-                        setTempAssetName("");
-                        setTempAssetLife("");
-                        setTempDepreciationMethod("diminishing_value");
-                      }}
+                      onClick={() => setAssetBuilderOpen(true)}
                     >
                       + Add Asset
                     </button>
                   )}
 
                   {assetBuilderOpen && (
-                    <div className="figma-asset-builder-card">
-                      <div className="figma-asset-builder-head">Add Asset</div>
-                      <div className="figma-asset-class-grid">
-                        <div
-                          className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
-                          onClick={() => {
-                            setTempAssetClass("capital_works");
-                            if (tempAssetName === "") {
-                              setTempAssetName("Capital Works");
-                            }
-                          }}
-                        >
-                          <div className="figma-asset-class-icon">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                              <polyline points="9 22 9 12 15 12 15 22" />
-                            </svg>
-                          </div>
-                          <div className="figma-asset-class-info">
-                            <span className="figma-asset-class-title">Capital Works</span>
-                            <span className="figma-asset-class-desc">
-                              Structural / building costs (Div 43). Depreciated at a fixed statutory rate — no effective life needed.
-                            </span>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
-                          onClick={() => {
-                            setTempAssetClass("capital_allowance");
-                            if (tempAssetName === "Capital Works") {
-                              setTempAssetName("");
-                            }
-                          }}
-                        >
-                          <div className="figma-asset-class-icon">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                            </svg>
-                          </div>
-                          <div className="figma-asset-class-info">
-                            <span className="figma-asset-class-title">Capital Allowance</span>
-                            <span className="figma-asset-class-desc">
-                              Plant & equipment (Div 40). Requires an effective life to calculate depreciation.
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="figma-form-row">
-                        <div className="figma-field-container">
-                          <span className="figma-field-label">Asset Name<em>*</em></span>
-                          <input
-                            type="text"
-                            className="figma-input"
-                            placeholder="e.g. Fridge, AC, dishwasher"
-                            value={tempAssetName}
-                            onChange={(e) => setTempAssetName(e.target.value)}
-                          />
-                        </div>
-                        {tempAssetClass === "capital_allowance" && (
-                          <div className="figma-field-container">
-                            <span className="figma-field-label">Effective Life (years)<em>*</em></span>
-                            <input
-                              type="number"
-                              className="figma-input"
-                              placeholder="Select years"
-                              value={tempAssetLife}
-                              onChange={(e) => setTempAssetLife(e.target.value)}
-                            />
-                          </div>
-                        )}
-                        {tempAssetClass === "capital_works" && (
-                          <div className="figma-field-container">
-                            <span className="figma-field-label">Effective Life (years)<em>*</em></span>
-                            <input
-                              type="number"
-                              className="figma-input"
-                              value="40"
-                              disabled
-                              readOnly
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {tempAssetClass === "capital_allowance" && (
-                        <div style={{ marginTop: "20px" }}>
-                          <span className="figma-field-label" style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Method of Depreciation<em>*</em></span>
-                          <div className="figma-asset-class-grid">
-                            <div
-                              className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
-                              onClick={() => setTempDepreciationMethod("diminishing_value")}
-                            >
-                              <div className="figma-asset-class-icon">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                                  <polyline points="17 6 23 6 23 12" />
-                                </svg>
-                              </div>
-                              <div className="figma-asset-class-info">
-                                <span className="figma-asset-class-title">Diminishing Value</span>
-                                <span className="figma-asset-class-desc">
-                                  Higher deductions in early years
-                                </span>
-                              </div>
-                            </div>
-
-                            <div
-                              className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
-                              onClick={() => setTempDepreciationMethod("prime_cost")}
-                            >
-                              <div className="figma-asset-class-icon">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                              </div>
-                              <div className="figma-asset-class-info">
-                                <span className="figma-asset-class-title">Prime Cost</span>
-                                <span className="figma-asset-class-desc">
-                                  Equal deductions each year
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="figma-asset-actions">
-                        <button
-                          type="button"
-                          className="figma-asset-cancel-btn"
-                          onClick={() => setAssetBuilderOpen(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="figma-asset-submit-btn"
-                          disabled={
-                            !tempAssetClass ||
-                            !tempAssetName.trim() ||
-                            (tempAssetClass === "capital_allowance" && (!tempAssetLife || !tempDepreciationMethod))
-                          }
-                          onClick={() => {
-                            setIsAssetPurchase(true);
-                            setAssetClass(tempAssetClass);
-                            setAssetItemName(tempAssetName.trim());
-                            setEffectiveLifeYears(tempAssetClass === "capital_works" ? "" : tempAssetLife);
-                            setAssetBuilderOpen(false);
-                          }}
-                        >
-                          Add Asset
-                        </button>
-                      </div>
-                    </div>
+                    <AssetBuilder
+                      initial={assetDraft}
+                      onCancel={() => setAssetBuilderOpen(false)}
+                      onSubmit={(draft) => {
+                        setAssetDraft(draft);
+                        setAssetBuilderOpen(false);
+                      }}
+                    />
                   )}
 
                   {/* Part of this was private use. Expense only — the backend

@@ -20249,3 +20249,78 @@ html.dark .figma-segmented-btn.active {
   width: 100%;
   table-layout: fixed;
 }
+/* ---------------------------------------------------------------------------
+   Depreciation (migration 0037)
+
+   The shared AssetBuilder and the depreciation report. Everything else the
+   builder uses — .figma-asset-builder-card, .figma-asset-class-grid,
+   .figma-add-asset-trigger, .figma-active-asset-display — already existed from
+   the three inline copies it replaced; only these are new.
+   --------------------------------------------------------------------------- */
+
+/* Explanatory line under a field: why the value matters, not what it is. */
+.figma-field-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+html.dark .figma-field-hint {
+  color: var(--text-secondary);
+}
+
+/* The client form's asset card header. */
+.transaction-asset-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.transaction-asset-head b {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f1330;
+}
+
+html.dark .transaction-asset-head b {
+  color: var(--text-primary);
+}
+
+.transaction-asset-head small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+html.dark .transaction-asset-head small {
+  color: var(--text-secondary);
+}
+
+/* Method picker inside the accountant's edit drawer, which keeps the
+   transaction-* styling rather than the figma-* builder styling. */
+.transaction-asset-method {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.transaction-asset-method-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.transaction-field-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+  margin: 0;
+}
+
+html.dark .transaction-field-hint {
+  color: var(--text-secondary);
+}

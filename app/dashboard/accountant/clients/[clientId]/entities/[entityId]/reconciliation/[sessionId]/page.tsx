@@ -37,6 +37,11 @@ import {
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
 import { StaticSelect } from "@/app/components/TransactionsFeature";
+import AssetBuilder, {
+  AssetSummaryChip,
+  assetRequestFields,
+  type AssetDraft,
+} from "@/app/components/AssetBuilder";
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -442,18 +447,14 @@ export default function AccountantReconciliationSessionPage() {
   ]);
 
   // New states from add transaction form
-  const [categorizeIsAssetPurchase, setCategorizeIsAssetPurchase] = useState(false);
-  const [categorizeAssetClass, setCategorizeAssetClass] = useState<CoreAssetClass | "">("");
-  const [categorizeEffectiveLifeYears, setCategorizeEffectiveLifeYears] = useState("");
-  const [categorizeAssetItemName, setCategorizeAssetItemName] = useState("");
-  const [categorizeDepreciationMethod, setCategorizeDepreciationMethod] = useState("");
+  // One draft rather than nine loose fields across a three-step wizard. The old
+  // shape wrote the name and the method into `metadata`, where nothing read
+  // them, and only when the name was non-empty — so a categorized asset could
+  // reach the ledger with no depreciation method at all.
+  const [categorizeAssetDraft, setCategorizeAssetDraft] = useState<AssetDraft | null>(null);
+  const categorizeIsAssetPurchase = categorizeAssetDraft !== null;
 
   const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
-  const [assetBuilderStep, setAssetBuilderStep] = useState(1);
-  const [tempAssetClass, setTempAssetClass] = useState<string>("");
-  const [tempAssetName, setTempAssetName] = useState("");
-  const [tempAssetLife, setTempAssetLife] = useState("");
-  const [tempDepreciationMethod, setTempDepreciationMethod] = useState("");
 
   const [categorizeIsPersonal, setCategorizeIsPersonal] = useState(false);
   const [categorizePersonalAllocationType, setCategorizePersonalAllocationType] = useState<"percentage" | "amount">("percentage");
@@ -854,17 +855,8 @@ export default function AccountantReconciliationSessionPage() {
     setCategorizeType(bankTx.debit != null ? "expense" : "revenue");
 
     // Reset new states
-    setCategorizeIsAssetPurchase(false);
-    setCategorizeAssetClass("");
-    setCategorizeEffectiveLifeYears("");
-    setCategorizeAssetItemName("");
-    setCategorizeDepreciationMethod("");
+    setCategorizeAssetDraft(null);
     setAssetBuilderOpen(false);
-    setAssetBuilderStep(1);
-    setTempAssetClass("");
-    setTempAssetName("");
-    setTempAssetLife("");
-    setTempDepreciationMethod("");
 
     setCategorizeIsPersonal(false);
     setCategorizePersonalAllocationType("percentage");
@@ -930,10 +922,10 @@ export default function AccountantReconciliationSessionPage() {
   // backend only accepts is_asset_purchase on an expense, so clear it rather
   // than letting the save fail. Mirrors the same guard in AddTransactionView.
   useEffect(() => {
-    if (!allowsAssetPurchase(categorizeType) && categorizeIsAssetPurchase) {
-      setCategorizeIsAssetPurchase(false);
+    if (!allowsAssetPurchase(categorizeType) && categorizeAssetDraft) {
+      setCategorizeAssetDraft(null);
     }
-  }, [categorizeType, categorizeIsAssetPurchase]);
+  }, [categorizeType, categorizeAssetDraft]);
 
   // Personal hides the category picker and cost base hides the subcategory
   // picker, so auto-select from the typed category fetch. Since migration 0032
@@ -1409,10 +1401,6 @@ export default function AccountantReconciliationSessionPage() {
         alert_name: withBusinessExtras && categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null,
       };
 
-      if (categorizeIsAssetPurchase) {
-        metadata.asset_item_name = categorizeAssetItemName.trim();
-        metadata.depreciation_method = categorizeDepreciationMethod || null;
-      }
 
       const postBody: Record<string, unknown> = {
         type: categorizeType,
@@ -1425,7 +1413,6 @@ export default function AccountantReconciliationSessionPage() {
         internal_remarks: null,
         // No review_status: creates default to 'active'. The review queue is
         // only for transactions a client submits for sign-off.
-        is_asset_purchase: categorizeIsAssetPurchase,
         metadata,
         splits,
       };
@@ -1444,15 +1431,9 @@ export default function AccountantReconciliationSessionPage() {
         };
       }
 
-      if (categorizeIsAssetPurchase) {
-        postBody.asset_class = categorizeAssetClass || null;
-        if (categorizeAssetClass === "capital_allowance") {
-          const yearsNum = Number.parseFloat(categorizeEffectiveLifeYears);
-          if (!Number.isNaN(yearsNum) && yearsNum > 0) {
-            postBody.effective_life_years = yearsNum;
-          }
-        }
-      }
+      // First-class fields since migration 0037 — never metadata. The builder
+      // cannot emit a partial draft, so there is nothing to validate here.
+      Object.assign(postBody, assetRequestFields(categorizeAssetDraft));
 
       const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
         method: "POST",
@@ -3262,7 +3243,7 @@ export default function AccountantReconciliationSessionPage() {
                                 // sent asset_class: null and the backend
                                 // rejected every cost-base save.
                                 if (!allowsAssetPurchase(nextType)) {
-                                  setCategorizeIsAssetPurchase(false);
+                                  setCategorizeAssetDraft(null);
                                 }
                                 if (!allowsBusinessExtras(nextType)) {
                                   setCategorizeIsPersonal(false);
@@ -3324,242 +3305,39 @@ export default function AccountantReconciliationSessionPage() {
                           )}
                         </div>
 
-                        {/* Add Asset Section */}
+                        {/* Add Asset.
+                            Was a ~240-line three-step wizard here, a second
+                            copy of the one in TransactionsFeature. Both are
+                            AssetBuilder now, so the categorize drawer and the
+                            add-transaction form cannot drift apart again. */}
                         {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
-                            {categorizeIsAssetPurchase && categorizeAssetItemName ? (
-                              <div className="figma-active-asset-display" style={{ marginBottom: 16 }}>
-                                <div className="figma-active-asset-left">
-                                  <div className="figma-active-asset-icon">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                      <line x1="9" y1="3" x2="9" y2="21" />
-                                    </svg>
-                                  </div>
-                                  <div>
-                                    <span className="figma-active-asset-title">{categorizeAssetItemName}</span>
-                                    <div className="figma-active-asset-meta">
-                                      {categorizeAssetClass === "capital_allowance"
-                                        ? `Capital Allowance • ${categorizeEffectiveLifeYears} years`
-                                        : "Capital Works"}
-                                    </div>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="figma-active-asset-remove"
-                                  onClick={() => {
-                                    setCategorizeIsAssetPurchase(false);
-                                    setCategorizeAssetItemName("");
-                                    setCategorizeAssetClass("");
-                                    setCategorizeEffectiveLifeYears("");
-                                  }}
-                                >
-                                  Remove Asset
-                                </button>
-                              </div>
-                            ) : null}
+                            {categorizeAssetDraft && (
+                              <AssetSummaryChip
+                                draft={categorizeAssetDraft}
+                                onRemove={() => setCategorizeAssetDraft(null)}
+                              />
+                            )}
 
-                            {!categorizeIsAssetPurchase && !assetBuilderOpen && (
+                            {!categorizeAssetDraft && !assetBuilderOpen && (
                               <button
                                 type="button"
                                 className="figma-add-asset-trigger"
-                                onClick={() => {
-                                  setAssetBuilderOpen(true);
-                                  setAssetBuilderStep(1);
-                                  setTempAssetClass("");
-                                  setTempAssetName("");
-                                  setTempAssetLife("");
-                                  setTempDepreciationMethod("");
-                                }}
+                                onClick={() => setAssetBuilderOpen(true)}
                               >
                                 + Add Asset
                               </button>
                             )}
 
-                            {assetBuilderOpen && assetBuilderStep === 1 && (
-                              <div className="figma-asset-builder-card">
-                                <div className="figma-asset-builder-head">Add Asset</div>
-                                <div className="figma-asset-class-grid">
-                                  <div
-                                    className={`figma-asset-class-card${tempAssetClass === "capital_works" ? " active" : ""}`}
-                                    onClick={() => setTempAssetClass("capital_works")}
-                                  >
-                                    <div className="figma-asset-class-icon">
-                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                                        <polyline points="9 22 9 12 15 12 15 22" />
-                                      </svg>
-                                    </div>
-                                    <div className="figma-asset-class-info">
-                                      <span className="figma-asset-class-title">Capital Works</span>
-                                      <span className="figma-asset-class-desc">
-                                        Structural / building costs (Div 43). Statutory rate depreciation.
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div
-                                    className={`figma-asset-class-card${tempAssetClass === "capital_allowance" ? " active" : ""}`}
-                                    onClick={() => setTempAssetClass("capital_allowance")}
-                                  >
-                                    <div className="figma-asset-class-icon">
-                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                                      </svg>
-                                    </div>
-                                    <div className="figma-asset-class-info">
-                                      <span className="figma-asset-class-title">Capital Allowance</span>
-                                      <span className="figma-asset-class-desc">
-                                        Plant & equipment (Div 40). Requires effective life.
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="figma-asset-actions">
-                                  <button
-                                    type="button"
-                                    className="figma-asset-cancel-btn"
-                                    onClick={() => setAssetBuilderOpen(false)}
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="figma-asset-submit-btn"
-                                    disabled={!tempAssetClass}
-                                    onClick={() => {
-                                      if (tempAssetClass === "capital_works") {
-                                        setCategorizeIsAssetPurchase(true);
-                                        setCategorizeAssetClass("capital_works");
-                                        setCategorizeAssetItemName("Capital Works");
-                                        setCategorizeEffectiveLifeYears("");
-                                        setAssetBuilderOpen(false);
-                                      } else {
-                                        setAssetBuilderStep(2);
-                                      }
-                                    }}
-                                  >
-                                    Next
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {assetBuilderOpen && assetBuilderStep === 2 && (
-                              <div className="figma-asset-builder-card">
-                                <div className="figma-asset-builder-head">Asset Details</div>
-                                <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
-                                  <div className="recon-categorize-field">
-                                    <label className="recon-categorize-label">Asset Name <span className="is-required">*</span></label>
-                                    <input
-                                      type="text"
-                                      className="recon-categorize-input"
-                                      style={{ height: '48px' }}
-                                      placeholder="e.g. Fridge, AC"
-                                      value={tempAssetName}
-                                      onChange={(e) => setTempAssetName(e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="recon-categorize-field">
-                                    <label className="recon-categorize-label">Effective Life (years) <span className="is-required">*</span></label>
-                                    <input
-                                      type="number"
-                                      className="recon-categorize-input"
-                                      style={{ height: '48px' }}
-                                      placeholder="Select years"
-                                      value={tempAssetLife}
-                                      onChange={(e) => setTempAssetLife(e.target.value)}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="figma-asset-actions">
-                                  <button
-                                    type="button"
-                                    className="figma-asset-cancel-btn"
-                                    onClick={() => setAssetBuilderStep(1)}
-                                  >
-                                    Back
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="figma-asset-submit-btn"
-                                    disabled={!tempAssetName || !tempAssetLife}
-                                    onClick={() => setAssetBuilderStep(3)}
-                                  >
-                                    Next
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {assetBuilderOpen && assetBuilderStep === 3 && (
-                              <div className="figma-asset-builder-card">
-                                <div className="figma-asset-builder-head">Method of Depreciation</div>
-                                <div className="figma-asset-class-grid">
-                                  <div
-                                    className={`figma-asset-class-card${tempDepreciationMethod === "diminishing_value" ? " active" : ""}`}
-                                    onClick={() => setTempDepreciationMethod("diminishing_value")}
-                                  >
-                                    <div className="figma-asset-class-icon">
-                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                                        <polyline points="17 6 23 6 23 12" />
-                                      </svg>
-                                    </div>
-                                    <div className="figma-asset-class-info">
-                                      <span className="figma-asset-class-title">Diminishing Value</span>
-                                      <span className="figma-asset-class-desc">
-                                        Higher deductions in early years
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div
-                                    className={`figma-asset-class-card${tempDepreciationMethod === "prime_cost" ? " active" : ""}`}
-                                    onClick={() => setTempDepreciationMethod("prime_cost")}
-                                  >
-                                    <div className="figma-asset-class-icon">
-                                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="5" y1="12" x2="19" y2="12" />
-                                      </svg>
-                                    </div>
-                                    <div className="figma-asset-class-info">
-                                      <span className="figma-asset-class-title">Prime Cost</span>
-                                      <span className="figma-asset-class-desc">
-                                        Equal deductions each year
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="figma-asset-actions">
-                                  <button
-                                    type="button"
-                                    className="figma-asset-cancel-btn"
-                                    onClick={() => setAssetBuilderStep(2)}
-                                  >
-                                    Back
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="figma-asset-submit-btn"
-                                    disabled={!tempDepreciationMethod}
-                                    onClick={() => {
-                                      setCategorizeIsAssetPurchase(true);
-                                      setCategorizeAssetClass("capital_allowance");
-                                      setCategorizeAssetItemName(tempAssetName);
-                                      setCategorizeEffectiveLifeYears(tempAssetLife);
-                                      setCategorizeDepreciationMethod(tempDepreciationMethod);
-                                      setAssetBuilderOpen(false);
-                                    }}
-                                  >
-                                    Add Asset
-                                  </button>
-                                </div>
-                              </div>
+                            {assetBuilderOpen && (
+                              <AssetBuilder
+                                initial={categorizeAssetDraft}
+                                onCancel={() => setAssetBuilderOpen(false)}
+                                onSubmit={(draft) => {
+                                  setCategorizeAssetDraft(draft);
+                                  setAssetBuilderOpen(false);
+                                }}
+                              />
                             )}
                           </div>
                         )}

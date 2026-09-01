@@ -992,6 +992,12 @@ export type CoreTransactionDetail = {
   isAssetPurchase: boolean;
   assetClass: CoreAssetClass | null;
   effectiveLifeYears: number | null;
+  // Migration 0037 promoted these out of metadata.asset_item_name /
+  // metadata.depreciation_method. Optional for the same reason reviewedBy is:
+  // sample and mock row literals predate them, and the normalizers always
+  // populate them from the API.
+  assetName?: string | null;
+  depreciationMethod?: CoreDepreciationMethod | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
   // Reviewer stamp — optional so pre-workflow object literals (mocks, sample
@@ -1033,6 +1039,12 @@ export type CoreTransactionListItem = {
   isAssetPurchase: boolean;
   assetClass: CoreAssetClass | null;
   effectiveLifeYears: number | null;
+  // Migration 0037 promoted these out of metadata.asset_item_name /
+  // metadata.depreciation_method. Optional for the same reason reviewedBy is:
+  // sample and mock row literals predate them, and the normalizers always
+  // populate them from the API.
+  assetName?: string | null;
+  depreciationMethod?: CoreDepreciationMethod | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
   reviewedBy?: string | null;
@@ -1124,6 +1136,10 @@ function toNullableInt(value: unknown): number | null {
   if (value == null) return null;
   const parsed = toNumberValue(value);
   return parsed;
+}
+
+function toOptionalDepreciationMethod(value: unknown): CoreDepreciationMethod | null {
+  return value === "prime_cost" || value === "diminishing_value" ? value : null;
 }
 
 function toAssetClass(value: unknown): CoreAssetClass | null {
@@ -1258,6 +1274,10 @@ export function normalizeCoreTransactionDetail(
     ),
     isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
     assetClass: toAssetClass(raw.asset_class ?? raw.assetClass),
+    assetName: toStringValue(raw.asset_name ?? raw.assetName) || null,
+    depreciationMethod: toOptionalDepreciationMethod(
+      raw.depreciation_method ?? raw.depreciationMethod,
+    ),
     effectiveLifeYears: toNullableNumber(
       raw.effective_life_years ?? raw.effectiveLifeYears,
     ),
@@ -1311,6 +1331,10 @@ export function normalizeCoreTransactionListItem(
     ),
     isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
     assetClass: toAssetClass(raw.asset_class ?? raw.assetClass),
+    assetName: toStringValue(raw.asset_name ?? raw.assetName) || null,
+    depreciationMethod: toOptionalDepreciationMethod(
+      raw.depreciation_method ?? raw.depreciationMethod,
+    ),
     effectiveLifeYears: toNullableNumber(
       raw.effective_life_years ?? raw.effectiveLifeYears,
     ),
@@ -2809,4 +2833,248 @@ export async function listReportRules(token: string, q: ReportQuery = {}) {
     token,
   });
   return getJsonArray(payload).map(normalizeReportRule);
+}
+
+// =============================================================================
+// Depreciation (migration 0037)
+//
+// Schedules are computed and stored by the backend when an asset is saved. The
+// frontend never recalculates them: there used to be a second engine in
+// AssetDepreciationDetailPage.tsx and it disagreed with the backend about leap
+// years and about where a schedule ends. One engine, in Go.
+// =============================================================================
+
+export type CoreDepreciationMethod = "prime_cost" | "diminishing_value";
+
+export type CoreDepreciationYear = {
+  fyStartYear: number;
+  fyLabel: string;
+  periodStart: string;
+  periodEnd: string;
+  daysHeld: number;
+  openingAdjustableValue: number;
+  /** Annual percentage, e.g. 2.5 for capital works or 40 for a 5-year DV asset. */
+  rate: number;
+  depreciation: number;
+  closingAdjustableValue: number;
+  /** The year of purchase and the stub at the end of the effective life. */
+  isPartial: boolean;
+};
+
+export type CoreDepreciationSchedule = {
+  id: string;
+  transactionId: string;
+  propertyId: string;
+  propertyName: string;
+  entityId: string;
+  entityName: string;
+  clientId: string;
+
+  assetName: string;
+  assetClass: CoreAssetClass;
+  depreciationMethod: CoreDepreciationMethod;
+  effectiveLifeYears: number;
+  startDate: string;
+
+  costBase: number;
+  personalPercentage: number;
+  businessPercentage: number;
+  /** Cost base after the private-use portion is removed — what the engine ran on. */
+  depreciableAmount: number;
+  annualRate: number;
+
+  /** Whole-of-life figures; unaffected by any financial-year filter. */
+  totalDepreciation: number;
+  residualValue: number;
+  /** The selected year's claim, or null when no `fy` was requested. */
+  fyDepreciation: number | null;
+
+  documentId: string | null;
+  documentName: string;
+  generatedAt: string;
+
+  /** Populated by the per-transaction and single-schedule endpoints only. */
+  years: CoreDepreciationYear[];
+};
+
+export type CoreDepreciationTotals = {
+  assetCount: number;
+  capitalWorks: number;
+  capitalAllowances: number;
+  depreciation: number;
+  depreciableAmount: number;
+  closingValue: number;
+};
+
+export type CoreDepreciationList = {
+  scope: { level: string; id: string; name: string };
+  fyStartYear: number | null;
+  fyLabel: string;
+  totals: CoreDepreciationTotals;
+  items: CoreDepreciationSchedule[];
+};
+
+function toDepreciationMethod(value: unknown): CoreDepreciationMethod {
+  return value === "prime_cost" ? "prime_cost" : "diminishing_value";
+}
+
+function normalizeDepreciationYear(raw: RawRecord): CoreDepreciationYear {
+  return {
+    fyStartYear: toNumberValue(raw.fy_start_year ?? raw.fyStartYear) ?? 0,
+    fyLabel: toStringValue(raw.fy_label ?? raw.fyLabel),
+    periodStart: toStringValue(raw.period_start ?? raw.periodStart),
+    periodEnd: toStringValue(raw.period_end ?? raw.periodEnd),
+    daysHeld: toNumberValue(raw.days_held ?? raw.daysHeld) ?? 0,
+    openingAdjustableValue:
+      toFloatValue(raw.opening_adjustable_value ?? raw.openingAdjustableValue) ?? 0,
+    rate: toFloatValue(raw.rate) ?? 0,
+    depreciation: toFloatValue(raw.depreciation) ?? 0,
+    closingAdjustableValue:
+      toFloatValue(raw.closing_adjustable_value ?? raw.closingAdjustableValue) ?? 0,
+    isPartial: Boolean(raw.is_partial ?? raw.isPartial),
+  };
+}
+
+function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule {
+  const fyDep = toFloatValue(raw.fy_depreciation ?? raw.fyDepreciation);
+  return {
+    id: toStringValue(raw.id),
+    transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    propertyName: toStringValue(raw.property_name ?? raw.propertyName),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entityName: toStringValue(raw.entity_name ?? raw.entityName),
+    clientId: toStringValue(raw.client_id ?? raw.clientId),
+
+    assetName: toStringValue(raw.asset_name ?? raw.assetName),
+    assetClass: toAssetClass(raw.asset_class ?? raw.assetClass) ?? "capital_allowance",
+    depreciationMethod: toDepreciationMethod(
+      raw.depreciation_method ?? raw.depreciationMethod,
+    ),
+    effectiveLifeYears:
+      toFloatValue(raw.effective_life_years ?? raw.effectiveLifeYears) ?? 0,
+    startDate: toStringValue(raw.start_date ?? raw.startDate),
+
+    costBase: toFloatValue(raw.cost_base ?? raw.costBase) ?? 0,
+    personalPercentage:
+      toFloatValue(raw.personal_percentage ?? raw.personalPercentage) ?? 0,
+    businessPercentage:
+      toFloatValue(raw.business_percentage ?? raw.businessPercentage) ?? 100,
+    depreciableAmount:
+      toFloatValue(raw.depreciable_amount ?? raw.depreciableAmount) ?? 0,
+    annualRate: toFloatValue(raw.annual_rate ?? raw.annualRate) ?? 0,
+
+    totalDepreciation:
+      toFloatValue(raw.total_depreciation ?? raw.totalDepreciation) ?? 0,
+    residualValue: toFloatValue(raw.residual_value ?? raw.residualValue) ?? 0,
+    fyDepreciation: fyDep,
+
+    documentId: toStringValue(raw.document_id ?? raw.documentId) || null,
+    documentName: toStringValue(raw.document_name ?? raw.documentName),
+    generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
+
+    years: Array.isArray(raw.years)
+      ? raw.years.map((y) => normalizeDepreciationYear(getJsonObject(y)))
+      : [],
+  };
+}
+
+function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
+  const record = getJsonObject(payload);
+  const scope = getJsonObject(record.scope);
+  const totals = getJsonObject(record.totals);
+  return {
+    scope: {
+      level: toStringValue(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    fyStartYear: toNumberValue(record.fy_start_year ?? record.fyStartYear),
+    fyLabel: toStringValue(record.fy_label ?? record.fyLabel),
+    totals: {
+      assetCount: toNumberValue(totals.asset_count ?? totals.assetCount) ?? 0,
+      capitalWorks: toFloatValue(totals.capital_works ?? totals.capitalWorks) ?? 0,
+      capitalAllowances:
+        toFloatValue(totals.capital_allowances ?? totals.capitalAllowances) ?? 0,
+      depreciation: toFloatValue(totals.depreciation) ?? 0,
+      depreciableAmount:
+        toFloatValue(totals.depreciable_amount ?? totals.depreciableAmount) ?? 0,
+      closingValue: toFloatValue(totals.closing_value ?? totals.closingValue) ?? 0,
+    },
+    items: Array.isArray(record.items)
+      ? record.items.map((i) => normalizeDepreciationSchedule(getJsonObject(i)))
+      : [],
+  };
+}
+
+/** `fy` is the July side of the financial year: 2025 means FY 2025-26. */
+function fyQuery(fy?: number | null) {
+  return fy == null ? "" : `?fy=${encodeURIComponent(String(fy))}`;
+}
+
+export type CoreDepreciationScopeLevel =
+  | "transaction"
+  | "property"
+  | "entity"
+  | "client";
+
+function depreciationScopePath(level: CoreDepreciationScopeLevel, id: string) {
+  const encoded = encodeURIComponent(id);
+  switch (level) {
+    case "transaction":
+      return `/transactions/${encoded}/depreciation`;
+    case "property":
+      return `/properties/${encoded}/depreciation`;
+    case "entity":
+      return `/entities/${encoded}/depreciation`;
+    default:
+      return `/clients/${encoded}/depreciation`;
+  }
+}
+
+export async function listCoreDepreciation(
+  token: string,
+  level: CoreDepreciationScopeLevel,
+  id: string,
+  fy?: number | null,
+): Promise<CoreDepreciationList> {
+  const payload = await coreApiRequest(
+    `${depreciationScopePath(level, id)}${fyQuery(fy)}`,
+    { token },
+  );
+  return normalizeDepreciationList(payload);
+}
+
+export async function getCoreDepreciationSchedule(
+  token: string,
+  scheduleId: string,
+  fy?: number | null,
+): Promise<CoreDepreciationSchedule> {
+  const payload = await coreApiRequest(
+    `/depreciation/${encodeURIComponent(scheduleId)}${fyQuery(fy)}`,
+    { token },
+  );
+  return normalizeDepreciationSchedule(getJsonObject(payload));
+}
+
+export async function rebuildCoreDepreciation(token: string, transactionId: string) {
+  await coreApiRequest(
+    `/transactions/${encodeURIComponent(transactionId)}/depreciation/rebuild`,
+    { method: "POST", token },
+  );
+}
+
+/**
+ * The generated schedule PDF, as a raw Response so the route handler can pipe
+ * the body straight through rather than buffering it — the same shape as
+ * fetchCoreTransactionExport.
+ */
+export async function fetchCoreDepreciationDocument(
+  token: string,
+  scheduleId: string,
+): Promise<Response> {
+  return fetch(
+    `${getCoreApiBaseUrl()}/depreciation/${encodeURIComponent(scheduleId)}/document`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
 }
