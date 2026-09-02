@@ -9,6 +9,7 @@ import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { useGstSummary } from "@/app/components/useGstSummary";
 import {
   assetItemName,
+  personalCategoryLabel,
   useAssetTransactions,
   usePersonalSummary,
 } from "@/app/components/usePersonalAndAssetTransactions";
@@ -641,7 +642,7 @@ export default function EntityDetailView({
       // Private spending is money out by definition, so the API returns
       // magnitudes and the sign is applied here — there is no revenue side.
       expenses: categories.map((c) => ({
-        category: c.subcategoryName || c.categoryName || "Other",
+        category: personalCategoryLabel(c),
         amount: -c.grossAmount,
       })),
       totalExpense: -(personal.summary?.totalGross ?? 0),

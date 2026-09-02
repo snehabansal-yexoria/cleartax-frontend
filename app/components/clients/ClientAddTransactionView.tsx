@@ -19,6 +19,11 @@ import {
   type ExtractedMeta,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
+import AssetBuilder, {
+  AssetSummaryChip,
+  assetRequestFields,
+  type AssetDraft,
+} from "@/app/components/AssetBuilder";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -423,10 +428,12 @@ export default function ClientAddTransactionView({
   const [description, setDescription] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
 
-  const [isAssetPurchase, setIsAssetPurchase] = useState(false);
-  const [assetItemName, setAssetItemName] = useState("");
-  const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
-  const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
+  // This form never captured a depreciation method, so every asset a client
+  // added arrived with nothing to depreciate on. Migration 0037 makes that a
+  // 400; the shared builder makes it impossible to submit in the first place.
+  const [assetDraft, setAssetDraft] = useState<AssetDraft | null>(null);
+  const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+  const isAssetPurchase = assetDraft !== null;
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -638,21 +645,14 @@ export default function ClientAddTransactionView({
     };
   }, [token, categoryId]);
 
+  // Only an expense can be an asset purchase. The draft is all-or-nothing, so
+  // clearing it is the whole reset.
   useEffect(() => {
-    if (type !== "expense" && isAssetPurchase) {
-      setIsAssetPurchase(false);
+    if (type !== "expense" && assetDraft) {
+      setAssetDraft(null);
+      setAssetBuilderOpen(false);
     }
-  }, [isAssetPurchase, type]);
-
-  useEffect(() => {
-    if (!isAssetPurchase) {
-      setAssetItemName("");
-      setAssetClass("");
-      setEffectiveLifeYears("");
-    } else if (!assetClass) {
-      setAssetClass("capital_allowance");
-    }
-  }, [assetClass, isAssetPurchase]);
+  }, [assetDraft, type]);
 
   useEffect(() => {
     if (!showGstBreakdown) setGstAmount("");
@@ -737,9 +737,8 @@ export default function ClientAddTransactionView({
     !invoiceDateError &&
     !!grossAmount &&
     !!modeOfTransaction &&
-    (!isAssetPurchase ||
-      (assetClass === "capital_works" ||
-        (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
+    // No asset clause: AssetBuilder cannot emit an incomplete draft.
+
     (isSplit
       ? splitHasMultipleProperties &&
       Object.keys(splitErrors).length === 0 &&
@@ -1265,7 +1264,6 @@ export default function ClientAddTransactionView({
         gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
         internal_remarks: internalRemarks.trim() || null,
-        is_asset_purchase: isAssetPurchase,
         splits,
       };
 
@@ -1281,23 +1279,8 @@ export default function ClientAddTransactionView({
       if (modeOfTransaction) {
         body.metadata = { mode_of_transaction: modeOfTransaction };
       }
-      if (isAssetPurchase) {
-        body.asset_class = assetClass || null;
-        if (assetItemName.trim()) {
-          body.metadata = {
-            ...(body.metadata as Record<string, unknown> | undefined),
-            asset_item_name: assetItemName.trim(),
-          };
-        }
-        if (assetClass === "capital_allowance") {
-          const yearsNum = Number.parseFloat(effectiveLifeYears);
-          if (Number.isNaN(yearsNum) || yearsNum <= 0) {
-            setSubmitError("Effective life must be a positive number.");
-            return;
-          }
-          body.effective_life_years = yearsNum;
-        }
-      }
+      // First-class fields since migration 0037 — never metadata.
+      Object.assign(body, assetRequestFields(assetDraft));
 
       const res = await fetch(
         `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
@@ -1521,68 +1504,41 @@ export default function ClientAddTransactionView({
 
             {type === "expense" ? (
               <div className="transaction-asset-card">
-                <label className="transaction-checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={isAssetPurchase}
-                    onChange={(e) => setIsAssetPurchase(e.target.checked)}
+                <div className="transaction-asset-head">
+                  <b>Asset purchase</b>
+                  <small>
+                    Select if this expense should be depreciated over time. We will
+                    generate its depreciation schedule automatically.
+                  </small>
+                </div>
+
+                {assetDraft && (
+                  <AssetSummaryChip
+                    draft={assetDraft}
+                    onRemove={() => setAssetDraft(null)}
                   />
-                  <span>Is this an asset purchase?</span>
-                </label>
-                <small>Select if this expense should be depreciated over time</small>
-                {isAssetPurchase ? (
-                  <div className="transaction-asset-options">
-                    <label className="transaction-field">
-                      <span className="transaction-field-label">
-                        Purchased Asset
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="e.g., Fridge, AC, dishwasher"
-                        value={assetItemName}
-                        onChange={(e) => setAssetItemName(e.target.value)}
-                      />
-                    </label>
-                    <label className="transaction-radio-card">
-                      <input
-                        type="radio"
-                        checked={assetClass === "capital_allowance"}
-                        onChange={() => setAssetClass("capital_allowance")}
-                      />
-                      <span>
-                        <b>Capital Allowance</b>
-                        <small>Depreciate assets over their effective life</small>
-                      </span>
-                    </label>
-                    {assetClass === "capital_allowance" ? (
-                      <label className="transaction-field">
-                        <span className="transaction-field-label">
-                          Effective life (years)<em>*</em>
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.1"
-                          min="0"
-                          placeholder="Select years"
-                          value={effectiveLifeYears}
-                          onChange={(e) => setEffectiveLifeYears(e.target.value)}
-                        />
-                      </label>
-                    ) : null}
-                    <label className="transaction-radio-card">
-                      <input
-                        type="radio"
-                        checked={assetClass === "capital_works"}
-                        onChange={() => setAssetClass("capital_works")}
-                      />
-                      <span>
-                        <b>Capital Works</b>
-                        <small>Fixed depreciation period for capital improvements</small>
-                      </span>
-                    </label>
-                  </div>
-                ) : null}
+                )}
+
+                {!assetDraft && !assetBuilderOpen && (
+                  <button
+                    type="button"
+                    className="figma-add-asset-trigger"
+                    onClick={() => setAssetBuilderOpen(true)}
+                  >
+                    + Add Asset
+                  </button>
+                )}
+
+                {assetBuilderOpen && (
+                  <AssetBuilder
+                    initial={assetDraft}
+                    onCancel={() => setAssetBuilderOpen(false)}
+                    onSubmit={(draft) => {
+                      setAssetDraft(draft);
+                      setAssetBuilderOpen(false);
+                    }}
+                  />
+                )}
               </div>
             ) : null}
 

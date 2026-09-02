@@ -225,3 +225,29 @@ export function assetItemName(row: CoreTransactionListItem): string {
   if (typeof named === "string" && named.trim()) return named.trim();
   return row.description?.trim() || "—";
 }
+
+/**
+ * The label for one line of the private-spending breakdown.
+ *
+ * Leads with the CATEGORY, not the subcategory. The panel previously did
+ * `subcategoryName || categoryName`, which put the subcategory first — and nine
+ * of the seeded categories carry a filler subcategory literally named "General"
+ * (Council rates/General, Cleaning/General, …). Every one of those rendered as
+ * "General", telling the reader nothing.
+ *
+ * The subcategory is appended only when it adds something, which is the same
+ * rule the rest of the app already applies: the categorize drawer hides the
+ * subcategory picker when "General" is the only option, and the transaction
+ * detail view omits a "General" subcategory line.
+ */
+export function personalCategoryLabel(c: {
+  categoryName: string;
+  subcategoryName: string;
+}): string {
+  const category = c.categoryName?.trim();
+  const sub = c.subcategoryName?.trim();
+  const subIsMeaningful = !!sub && sub.toLowerCase() !== "general";
+
+  if (!category) return subIsMeaningful ? sub : "Other";
+  return subIsMeaningful ? `${category} · ${sub}` : category;
+}
