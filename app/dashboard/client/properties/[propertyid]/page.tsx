@@ -9,6 +9,7 @@ import { getSession } from "@/src/lib/session";
 import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreProperty, CoreEntity, CorePropertyTransactionRow } from "@/src/lib/coreApi";
 import PropertyTrendChart from "@/app/components/clients/PropertyTrendChart";
+import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -687,6 +688,16 @@ export default function ClientPropertyDetailPage() {
             )}
           </div>
 
+          {/* Depreciation.
+              Above Documents on purpose: the generated schedules also appear in
+              Documents as PDFs, and a client who has just read the year's
+              deduction here knows what the file in that list is. */}
+          <ClientDepreciationCard
+            level="property"
+            id={propertyId}
+            assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
+          />
+
           {/* Documents Card */}
           <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -1021,6 +1032,13 @@ export default function ClientPropertyDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Row 3, Col 1: Depreciation */}
+          <ClientDepreciationCard
+            level="property"
+            id={propertyId}
+            assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
+          />
 
           {/* Row 2, Col 2: Documents */}
           <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">

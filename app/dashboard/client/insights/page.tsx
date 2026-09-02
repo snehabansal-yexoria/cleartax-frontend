@@ -9,6 +9,7 @@ import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency as globalFormatCurrency, getCurrencyPrefix, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
+import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -29,7 +30,7 @@ export default function ClientInsightsPage() {
   const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id?: string; fullName?: string; email?: string } | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -1256,7 +1257,8 @@ export default function ClientInsightsPage() {
               grid-template-columns: 1fr 1.25fr;
               grid-template-areas:
                 "cashflow income-expense"
-                "expense-breakdown top-performing";
+                "expense-breakdown top-performing"
+                "depreciation depreciation";
             }
           }
           @media (min-width: 768px) and (max-width: 1023px) {
@@ -1265,13 +1267,15 @@ export default function ClientInsightsPage() {
               grid-template-areas:
                 "cashflow cashflow"
                 "income-expense income-expense"
-                "expense-breakdown top-performing";
+                "expense-breakdown top-performing"
+                "depreciation depreciation";
             }
           }
           .area-cashflow { grid-area: cashflow; }
           .area-income-expense { grid-area: income-expense; }
           .area-expense-breakdown { grid-area: expense-breakdown; }
           .area-top-performing { grid-area: top-performing; }
+          .area-depreciation { grid-area: depreciation; }
 
           .insights-card {
             background: var(--surface-1);
@@ -1826,6 +1830,19 @@ export default function ClientInsightsPage() {
                 )}
               </div>
             </div>
+
+            {/* Depreciation across the whole portfolio.
+                Full width at the foot of the grid: it is a list rather than a
+                chart, and it answers a different question from the four cards
+                above — not "how did the year go" but "what is being claimed". */}
+            {currentUser?.id && (
+              <ClientDepreciationCard
+                level="client"
+                id={currentUser.id}
+                className="insights-card area-depreciation"
+                title="Depreciation"
+              />
+            )}
           </div>
         )}
       </div>
