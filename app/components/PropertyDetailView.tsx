@@ -19,6 +19,11 @@ import {
   useAssetTransactions,
   usePersonalSummary,
 } from "@/app/components/usePersonalAndAssetTransactions";
+import {
+  pnlChangePct,
+  pnlLineLabel,
+  usePnlSummary,
+} from "@/app/components/usePnlSummary";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import type {
@@ -109,43 +114,6 @@ function getLoanAmount(property: CoreProperty | null) {
   const value = typeof raw === "number" ? raw : Number.parseFloat(String(raw ?? ""));
   return Number.isFinite(value) ? value : 0;
 }
-
-const BASE_MOCK_DATA: Record<number, Record<string, { gross: number; gst: number; net: number }>> = {
-  2027: {
-    "Coaching Income": { gross: 1000.00, gst: 90.91, net: 909.09 },
-    "Rental Income": { gross: 15765.71, gst: 1433.25, net: 14332.46 },
-    "Borrowing expense": { gross: -153.15, gst: -13.92, net: -139.23 },
-    "Filing fee": { gross: -329.00, gst: -29.91, net: -299.09 },
-    "Insurance": { gross: -1801.20, gst: -163.75, net: -1637.45 },
-    "Water rates": { gross: -629.07, gst: -57.19, net: -571.88 },
-    "Interest expense": { gross: -17785.51, gst: -1616.86, net: -16168.65 },
-    "Management fee": { gross: -1387.38, gst: -126.13, net: -1261.25 },
-    "Admin fee": { gross: -440.00, gst: -40.00, net: -400.00 },
-    "Air Conditioning": { gross: -242.00, gst: -22.00, net: -220.00 },
-    "Blinds/curtains": { gross: -154.00, gst: -14.00, net: -140.00 },
-    "Electrical": { gross: -181.50, gst: -16.50, net: -165.00 },
-    "Gardening": { gross: -95.00, gst: -8.64, net: -86.36 },
-    "General Repairs & Maintenance": { gross: -517.00, gst: -47.00, net: -470.00 },
-    "Plumbing": { gross: -160.00, gst: -14.55, net: -145.45 }
-  },
-  2026: {
-    "Coaching Income": { gross: 800.00, gst: 72.73, net: 727.27 },
-    "Rental Income": { gross: 14200.00, gst: 1290.91, net: 12909.09 },
-    "Borrowing expense": { gross: -140.00, gst: -12.73, net: -127.27 },
-    "Filing fee": { gross: -300.00, gst: -27.27, net: -272.73 },
-    "Insurance": { gross: -1650.00, gst: -150.00, net: -1500.00 },
-    "Water rates": { gross: -580.00, gst: -52.73, net: -527.27 },
-    "Interest expense": { gross: -15200.00, gst: -1381.82, net: -13818.18 },
-    "Management fee": { gross: -1250.00, gst: -113.64, net: -1136.36 },
-    "Admin fee": { gross: -400.00, gst: -36.36, net: -363.64 },
-    "Air Conditioning": { gross: -210.00, gst: -19.09, net: -190.91 },
-    "Blinds/curtains": { gross: -120.00, gst: -10.91, net: -109.09 },
-    "Electrical": { gross: -160.00, gst: -14.55, net: -145.45 },
-    "Gardening": { gross: -85.00, gst: -7.73, net: -77.27 },
-    "General Repairs & Maintenance": { gross: -430.00, gst: -39.09, net: -390.91 },
-    "Plumbing": { gross: -140.00, gst: -12.73, net: -127.27 }
-  }
-};
 
 export default function PropertyDetailView({
   propertyId,
@@ -460,230 +428,136 @@ export default function PropertyDetailView({
 
   const loanAmount = useMemo(() => getLoanAmount(property), [property]);
 
-  const pnlData = useMemo(() => {
-    const currentYear = pnlFinancialYear;
-    const previousYear = currentYear - 1;
+  // The statement comes from the server: GET /api/properties/{id}/pnl returns
+  // one line per category with both financial years already summed, the
+  // depreciation deduction from the stored schedules, and footed totals.
+  //
+  // It replaces a useMemo that summed this page's `transactions` array, which
+  // is one 50-row page of DISPLAY-grain rows seeded with hardcoded FY2026 and
+  // FY2027 figures. That version deducted the private slice of every
+  // part-private bill (it summed containers, not the money grain), expensed
+  // capital purchases in full in their purchase year, added expenses to income
+  // because the API returns non-negative magnitudes, and reported one page as a
+  // whole year.
+  const pnl = usePnlSummary(propertyId, pnlFinancialYear, {
+    enabled: showPnLStatement,
+  });
 
-    // Initialize with mock values if available, otherwise empty
-    const mockCurrent = BASE_MOCK_DATA[currentYear] || {};
-    const mockPrevious = BASE_MOCK_DATA[previousYear] || {};
-
-    // Build the list of all categories
-    const incomeCats = new Set(["Coaching Income", "Rental Income"]);
-    const expenseCats = new Set([
-      "Borrowing expense",
-      "Filing fee",
-      "Insurance",
-      "Water rates",
-      "Interest expense",
-      "Management fee",
-      "Admin fee",
-      "Air Conditioning",
-      "Blinds/curtains",
-      "Electrical",
-      "Gardening",
-      "General Repairs & Maintenance",
-      "Plumbing"
-    ]);
-
-    // Aggregate structures
-    const currentYearAgg: Record<string, { gross: number; gst: number; net: number }> = {};
-    const previousYearAgg: Record<string, { gross: number; gst: number; net: number }> = {};
-
-    // Seed with mock data
-    for (const cat of Array.from(incomeCats).concat(Array.from(expenseCats))) {
-      currentYearAgg[cat] = mockCurrent[cat] ? { ...mockCurrent[cat] } : { gross: 0, gst: 0, net: 0 };
-      previousYearAgg[cat] = mockPrevious[cat] ? { ...mockPrevious[cat] } : { gross: 0, gst: 0, net: 0 };
-    }
-
-    // Helper to normalize and find matching category key
-    const findMatchingCategoryKey = (name: string, type: string) => {
-      const norm = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const targetSet = type === "revenue" ? incomeCats : expenseCats;
-      for (const key of Array.from(targetSet)) {
-        if (key.toLowerCase().replace(/[^a-z0-9]/g, "") === norm) {
-          return key;
-        }
-      }
-      // Check fuzzy match
-      for (const key of Array.from(targetSet)) {
-        if (key.toLowerCase().includes(norm) || norm.includes(key.toLowerCase().replace(/[^a-z0-9]/g, ""))) {
-          return key;
-        }
-      }
-      return null;
+  // Expenses and depreciation are printed as separate bands but deducted
+  // together, so the cards and the chart read the combined figure — otherwise
+  // income minus expenses would not equal the net profit shown beside them.
+  const pnlTotals = useMemo(() => {
+    const t = pnl.summary?.totals;
+    const sum = (a: number | undefined, b: number | undefined) => (a ?? 0) + (b ?? 0);
+    return {
+      incomeCurrent: t?.income.current.gross ?? 0,
+      incomePrevious: t?.income.previous.gross ?? 0,
+      expenseCurrent: sum(t?.expenses.current.gross, t?.deductions.current.gross),
+      expensePrevious: sum(t?.expenses.previous.gross, t?.deductions.previous.gross),
+      // Signed: negative is a loss. The server subtracts; nothing here re-derives it.
+      netCurrent: t?.netProfit.current.gross ?? 0,
+      netPrevious: t?.netProfit.previous.gross ?? 0,
     };
+  }, [pnl.summary]);
 
-    // Process transactions
-    for (const t of transactions) {
-      if (t.transactionType === "personal" || t.reviewStatus === "rejected") {
-        continue;
-      }
+  // Top five deductions by value, for the breakdown bars. Depreciation is
+  // included because on most rental properties it is one of the largest.
+  const pnlTopExpenses = useMemo(() => {
+    const rows = [
+      ...(pnl.summary?.expenses ?? []).map((line) => ({
+        label: pnlLineLabel(line),
+        amount: line.current.gross,
+      })),
+      ...(pnl.summary?.deductions ?? []).map((line) => ({
+        label: line.label,
+        amount: line.current.gross,
+      })),
+    ];
+    return rows.sort((a, b) => b.amount - a.amount).slice(0, 5);
+  }, [pnl.summary]);
 
-      const tDate = new Date(t.invoiceDate);
-      if (Number.isNaN(tDate.getTime())) continue;
-
-      const tYear = auFinancialYearOf(tDate);
-      const grossVal = t.splitGrossAmount !== undefined && t.splitGrossAmount !== null ? t.splitGrossAmount : t.transactionGrossAmount;
-      const gstVal = t.splitGstAmount !== undefined && t.splitGstAmount !== null ? t.splitGstAmount : t.transactionGstAmount;
-      const netVal = t.splitNetAmount !== undefined && t.splitNetAmount !== null ? t.splitNetAmount : t.transactionNetAmount;
-
-      const type = t.transactionType === "revenue" ? "revenue" : "expense";
-      const rawCatName = t.subcategoryName || t.categoryName || "Other";
-
-      let matchedKey = findMatchingCategoryKey(rawCatName, type);
-      if (!matchedKey) {
-        matchedKey = rawCatName;
-        if (type === "revenue") {
-          incomeCats.add(matchedKey);
-        } else {
-          expenseCats.add(matchedKey);
-        }
-        currentYearAgg[matchedKey] = { gross: 0, gst: 0, net: 0 };
-        previousYearAgg[matchedKey] = { gross: 0, gst: 0, net: 0 };
-      }
-
-      if (tYear === currentYear) {
-        currentYearAgg[matchedKey].gross += grossVal;
-        currentYearAgg[matchedKey].gst += gstVal;
-        currentYearAgg[matchedKey].net += netVal;
-      } else if (tYear === previousYear) {
-        previousYearAgg[matchedKey].gross += grossVal;
-        previousYearAgg[matchedKey].gst += gstVal;
-        previousYearAgg[matchedKey].net += netVal;
-      }
-    }
-
-    // Format final row arrays
-    const incomeRows = Array.from(incomeCats).map(cat => ({
-      category: cat,
-      gross: currentYearAgg[cat]?.gross || 0,
-      gst: currentYearAgg[cat]?.gst || 0,
-      net: currentYearAgg[cat]?.net || 0,
-      previousGross: previousYearAgg[cat]?.gross || 0
-    }));
-
-    const expenseRows = Array.from(expenseCats).map(cat => ({
-      category: cat,
-      gross: currentYearAgg[cat]?.gross || 0,
-      gst: currentYearAgg[cat]?.gst || 0,
-      net: currentYearAgg[cat]?.net || 0,
-      previousGross: previousYearAgg[cat]?.gross || 0
-    }));
-
-    return { incomeRows, expenseRows };
-  }, [transactions, pnlFinancialYear]);
-
+  // Written from the server response, so the file and the screen cannot
+  // disagree. The previous version re-derived every figure from the raw
+  // transaction array, which meant the export reproduced the statement's bugs
+  // independently rather than inheriting them.
   const handleExportPnLCsv = () => {
-    if (!property) return;
-    const { incomeRows, expenseRows } = pnlData;
-    const previousYear = pnlFinancialYear - 1;
+    const summary = pnl.summary;
+    if (!property || !summary) return;
 
     const esc = (value: string | number | null | undefined) => {
       const s = value == null ? "" : String(value);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const money = (value: number) => value.toFixed(2);
+    const changeCell = (current: number, previous: number) => {
+      const pct = pnlChangePct(current, previous);
+      return pct === null ? "-" : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+    };
 
     const lines: string[] = [];
     lines.push(`--- PROFIT & LOSS STATEMENT - ${property.name} ---`);
-    lines.push(`Reporting Period: 1 Jul ${previousYear} - 30 Jun ${pnlFinancialYear}`);
+    lines.push(`Reporting Period: ${summary.period.from} to ${summary.period.to} (${summary.period.label})`);
+    // Stated explicitly: the backend only has invoice_date, so these figures
+    // are accruals basis and must not be transcribed onto a cash-basis return.
+    lines.push(`Basis: accruals (dated by ${summary.dateBasis})`);
     lines.push("");
 
-    if (compareWithPrevious) {
-      lines.push([
-        "Category",
-        `FY ${previousYear - 1}-${String(previousYear).slice(-2)} Gross`,
-        "FY Gross",
-        "GST",
-        "Net",
-        "Change %"
-      ].map(esc).join(","));
+    const header = ["Category"];
+    if (compareWithPrevious) header.push(`${summary.comparison.label} Gross`);
+    header.push("Gross", "GST", "Net");
+    if (compareWithPrevious) header.push("Change %");
+    lines.push(header.map(esc).join(","));
 
-      lines.push("01 INCOME");
-      for (const row of incomeRows) {
-        const changeVal = row.previousGross ? ((row.gross - row.previousGross) / Math.abs(row.previousGross)) * 100 : 0;
-        lines.push([
-          row.category,
-          money(row.previousGross),
-          money(row.gross),
-          money(row.gst),
-          money(row.net),
-          row.previousGross ? `${changeVal > 0 ? "+" : ""}${changeVal.toFixed(1)}%` : "-"
-        ].map(esc).join(","));
-      }
-      lines.push([
-        "Total Income",
-        money(incomeRows.reduce((sum, r) => sum + r.previousGross, 0)),
-        money(incomeRows.reduce((sum, r) => sum + r.gross, 0)),
-        money(incomeRows.reduce((sum, r) => sum + r.gst, 0)),
-        money(incomeRows.reduce((sum, r) => sum + r.net, 0)),
-        ""
-      ].map(esc).join(","));
+    const bandRow = (
+      label: string,
+      current: { gross: number; gst: number; net: number },
+      previous: { gross: number; gst: number; net: number },
+    ) => {
+      const cells: (string | number)[] = [label];
+      if (compareWithPrevious) cells.push(money(previous.gross));
+      cells.push(money(current.gross), money(current.gst), money(current.net));
+      if (compareWithPrevious) cells.push(changeCell(current.gross, previous.gross));
+      return cells.map(esc).join(",");
+    };
 
-      lines.push("");
-      lines.push("02 EXPENSE");
-      for (const row of expenseRows) {
-        const changeVal = row.previousGross ? ((row.gross - row.previousGross) / Math.abs(row.previousGross)) * 100 : 0;
-        lines.push([
-          row.category,
-          money(row.previousGross),
-          money(row.gross),
-          money(row.gst),
-          money(row.net),
-          row.previousGross ? `${changeVal > 0 ? "+" : ""}${changeVal.toFixed(1)}%` : "-"
-        ].map(esc).join(","));
-      }
-      lines.push([
-        "Total Expense",
-        money(expenseRows.reduce((sum, r) => sum + r.previousGross, 0)),
-        money(expenseRows.reduce((sum, r) => sum + r.gross, 0)),
-        money(expenseRows.reduce((sum, r) => sum + r.gst, 0)),
-        money(expenseRows.reduce((sum, r) => sum + r.net, 0)),
-        ""
-      ].map(esc).join(","));
-    } else {
-      lines.push(["Category", "Gross", "GST", "Net"].map(esc).join(","));
-
-      lines.push("01 INCOME");
-      for (const row of incomeRows) {
-        lines.push([
-          row.category,
-          money(row.gross),
-          money(row.gst),
-          money(row.net)
-        ].map(esc).join(","));
-      }
-      lines.push([
-        "Total Income",
-        money(incomeRows.reduce((sum, r) => sum + r.gross, 0)),
-        money(incomeRows.reduce((sum, r) => sum + r.gst, 0)),
-        money(incomeRows.reduce((sum, r) => sum + r.net, 0))
-      ].map(esc).join(","));
-
-      lines.push("");
-      lines.push("02 EXPENSE");
-      for (const row of expenseRows) {
-        lines.push([
-          row.category,
-          money(row.gross),
-          money(row.gst),
-          money(row.net)
-        ].map(esc).join(","));
-      }
-      lines.push([
-        "Total Expense",
-        money(expenseRows.reduce((sum, r) => sum + r.gross, 0)),
-        money(expenseRows.reduce((sum, r) => sum + r.gst, 0)),
-        money(expenseRows.reduce((sum, r) => sum + r.net, 0))
-      ].map(esc).join(","));
+    lines.push("01 INCOME");
+    for (const line of summary.income) {
+      lines.push(bandRow(pnlLineLabel(line), line.current, line.previous));
     }
+    lines.push(bandRow("Total Income", summary.totals.income.current, summary.totals.income.previous));
+
+    lines.push("");
+    lines.push("02 EXPENSE");
+    for (const line of summary.expenses) {
+      lines.push(bandRow(pnlLineLabel(line), line.current, line.previous));
+    }
+    lines.push(bandRow("Total Expense", summary.totals.expenses.current, summary.totals.expenses.previous));
+
+    if (summary.deductions.length > 0) {
+      lines.push("");
+      lines.push("03 DEPRECIATION");
+      for (const line of summary.deductions) {
+        lines.push(bandRow(line.label, line.current, line.previous));
+      }
+      lines.push(bandRow(
+        "Total Depreciation",
+        summary.totals.deductions.current,
+        summary.totals.deductions.previous,
+      ));
+    }
+
+    lines.push("");
+    lines.push(bandRow(
+      "Net Profit / (Loss)",
+      summary.totals.netProfit.current,
+      summary.totals.netProfit.previous,
+    ));
 
     const safeName = (property.name || propertyId).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "Property";
     const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Profit_Loss_${safeName}_${pnlFinancialYear}_Export.csv`;
+    a.download = `Profit_Loss_${safeName}_${summary.period.financialYear}_Export.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1105,7 +979,13 @@ export default function PropertyDetailView({
               <div>
                 <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 800, color: "#1c244b" }}>Profit & Loss Statement</h1>
                 <p style={{ margin: "4px 0 0 0", fontSize: "14px", color: "#64748b", fontWeight: 500 }}>
-                  {property.name} &middot; {entity?.name || "Smith & Co."} &middot; {titleCase(property.propertyType)}
+                  {/* No invented entity name. This header sits above a tax
+                      statement; "Smith & Co." appearing on a property whose
+                      entity has not loaded is worse than the entity being
+                      absent. */}
+                  {[property.name, entity?.name, titleCase(property.propertyType)]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -1200,9 +1080,12 @@ export default function PropertyDetailView({
                   </span>
                 </button>
 
-                {/* Export Button */}
+                {/* Export Button. Disabled until the statement has loaded —
+                    the CSV is written from the same response the screen
+                    renders, so there is nothing to export before then. */}
                 <button
                   onClick={handleExportPnLCsv}
+                  disabled={!pnl.summary}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -1211,11 +1094,11 @@ export default function PropertyDetailView({
                     borderRadius: "8px",
                     border: "1px solid #cbd5e1",
                     backgroundColor: "#ffffff",
-                    color: "#334155",
+                    color: pnl.summary ? "#334155" : "#94a3b8",
                     fontSize: "14px",
                     fontWeight: 700,
                     height: "40px",
-                    cursor: "pointer",
+                    cursor: pnl.summary ? "pointer" : "not-allowed",
                     transition: "all 0.2s"
                   }}
                 >
@@ -1258,306 +1141,292 @@ export default function PropertyDetailView({
               </div>
             </div>
 
-            {/* P&L Metric Cards */}
+            {/* P&L load failure. The statement is cleared rather than left
+                stale — a confident wrong total on a tax screen is worse than
+                none — so this replaces the numbers instead of sitting above
+                them. */}
+            {pnl.error && (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                padding: "16px 20px",
+                marginBottom: "24px",
+                borderRadius: "12px",
+                border: "1.5px solid #fecaca",
+                backgroundColor: "#fef2f2"
+              }}>
+                <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#b91c1c" }}>
+                  {pnl.error}
+                </span>
+                <button
+                  type="button"
+                  onClick={pnl.reload}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #fecaca",
+                    backgroundColor: "#ffffff",
+                    color: "#b91c1c",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    flexShrink: 0
+                  }}
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
             {(() => {
-              const { incomeRows, expenseRows } = pnlData;
-              const totalIncomeSum = incomeRows.reduce((sum, r) => sum + r.gross, 0);
-              const totalExpenseSum = expenseRows.reduce((sum, r) => sum + r.gross, 0);
-              const netProfitVal = totalIncomeSum + totalExpenseSum;
-
-              const prevIncomeSum = incomeRows.reduce((sum, r) => sum + r.previousGross, 0);
-              const prevExpenseSum = expenseRows.reduce((sum, r) => sum + r.previousGross, 0);
-              const prevNetProfitVal = prevIncomeSum + prevExpenseSum;
-
-              const incomeChangePct = prevIncomeSum ? ((totalIncomeSum - prevIncomeSum) / Math.abs(prevIncomeSum)) * 100 : 0;
-              const expenseChangePct = prevExpenseSum ? ((totalExpenseSum - prevExpenseSum) / Math.abs(prevExpenseSum)) * 100 : 0;
-              const netChangeDiff = netProfitVal - prevNetProfitVal;
-              const netChangeDirection = netChangeDiff < 0 ? "widened" : "improved";
-
-              const formatPLAmount = (num: number) => {
-                return num.toLocaleString("en-AU", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
+              if (pnl.isLoading && !pnl.summary) {
+                const placeholder = (height: string) => ({
+                  height,
+                  borderRadius: "16px",
+                  backgroundColor: "#e2e8f0",
+                  opacity: 0.6
                 });
-              };
-
-              return (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
-                  {/* TOTAL INCOME */}
-                  <div style={{
-                    backgroundColor: "#ffffff",
-                    border: "1.5px solid #e2e8f0",
-                    borderRadius: "16px",
-                    padding: "20px 24px",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center"
-                  }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>TOTAL INCOME</div>
-                    <div style={{ fontSize: "28px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>
-                      A$ {formatPLAmount(totalIncomeSum)}
-                    </div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#10b981", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
-                      ▲ {incomeChangePct.toFixed(1)}% vs FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}
-                    </div>
-                  </div>
-
-                  {/* TOTAL EXPENSE */}
-                  <div style={{
-                    backgroundColor: "#ffffff",
-                    border: "1.5px solid #e2e8f0",
-                    borderRadius: "16px",
-                    padding: "20px 24px",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center"
-                  }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>TOTAL EXPENSE</div>
-                    <div style={{ fontSize: "28px", fontWeight: 800, color: "#ef4444", marginTop: "4px" }}>
-                      A$ {formatPLAmount(Math.abs(totalExpenseSum))}
-                    </div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#ef4444", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
-                      ▲ {expenseChangePct.toFixed(1)}% vs FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}
-                    </div>
-                  </div>
-
-                  {/* NET PROFIT / (LOSS) */}
-                  <div style={{
-                    backgroundColor: "#28336e",
-                    borderRadius: "16px",
-                    padding: "20px 24px",
-                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center"
-                  }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>NET PROFIT / (LOSS)</div>
-                    <div style={{ fontSize: "28px", fontWeight: 800, color: "#ffffff", marginTop: "4px" }}>
-                      {netProfitVal < 0 ? "-" : ""}A$ {formatPLAmount(Math.abs(netProfitVal))}
-                    </div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#ef4444", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
-                      ▼ Loss {netChangeDirection} by A$ {formatPLAmount(Math.abs(netChangeDiff))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* P&L Layout Content */}
-            {(() => {
-              const { incomeRows, expenseRows } = pnlData;
-              const totalIncomeSum = incomeRows.reduce((sum, r) => sum + r.gross, 0);
-              const totalIncomeGst = incomeRows.reduce((sum, r) => sum + r.gst, 0);
-              const totalIncomeNet = incomeRows.reduce((sum, r) => sum + r.net, 0);
-              const prevIncomeSum = incomeRows.reduce((sum, r) => sum + r.previousGross, 0);
-
-              const totalExpenseSum = expenseRows.reduce((sum, r) => sum + r.gross, 0);
-              const totalExpenseGst = expenseRows.reduce((sum, r) => sum + r.gst, 0);
-              const totalExpenseNet = expenseRows.reduce((sum, r) => sum + r.net, 0);
-              const prevExpenseSum = expenseRows.reduce((sum, r) => sum + r.previousGross, 0);
-
-              const netProfitGross = totalIncomeSum + totalExpenseSum;
-              const netProfitGst = totalIncomeGst + totalExpenseGst;
-              const netProfitNet = totalIncomeNet + totalExpenseNet;
-              const prevNetProfitGross = prevIncomeSum + prevExpenseSum;
-
-              const formatPLAmount = (num: number) => {
-                return num.toLocaleString("en-AU", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                });
-              };
-
-              // Sort expenses for breakdown
-              const topExpenses = [...expenseRows]
-                .sort((a, b) => Math.abs(b.gross) - Math.abs(a.gross))
-                .slice(0, 5);
-              const maxExpenseVal = topExpenses.length > 0 ? Math.abs(topExpenses[0].gross) : 1;
-
-              return (
-                <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "24px", alignItems: "start" }}>
-                  {/* Table Column */}
-                  <div style={{
-                    backgroundColor: "#ffffff",
-                    borderRadius: "16px",
-                    border: "1.5px solid #e2e8f0",
-                    padding: "24px",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#1c244b" }}>Statement of Profit & Loss</h3>
-                      <span style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        backgroundColor: "#f1f5f9",
-                        color: "#475569",
-                        padding: "4px 10px",
-                        borderRadius: "9999px"
-                      }}>
-                        Reporting period: 1 Jul {pnlFinancialYear - 1} &ndash; 30 Jun {pnlFinancialYear}
-                      </span>
-                    </div>
-
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
-                          {compareWithPrevious && (
-                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}</th>
-                          )}
-                          <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Gross</th>
-                          <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>GST</th>
-                          <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Net</th>
-                          {compareWithPrevious && (
-                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Change</th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* 01 INCOME Section */}
-                        <tr style={{ backgroundColor: "#f8fafc" }}>
-                          <td colSpan={compareWithPrevious ? 6 : 4} style={{ padding: "8px 8px", fontSize: "12px", fontWeight: 800, color: "#1c244b" }}>01 INCOME</td>
-                        </tr>
-                        {incomeRows.map((row, idx) => {
-                          const changeVal = row.previousGross ? ((row.gross - row.previousGross) / Math.abs(row.previousGross)) * 100 : 0;
-                          return (
-                            <tr key={`income-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                              <td style={{ padding: "12px 8px 12px 16px", fontSize: "13.5px", fontWeight: 500, color: "#334155" }}>{row.category}</td>
-                              {compareWithPrevious && (
-                                <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 600, color: "#475569" }}>{formatPLAmount(row.previousGross)}</td>
-                              )}
-                              <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 600, color: "#475569" }}>{formatPLAmount(row.gross)}</td>
-                              <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 500, color: "#64748b" }}>{formatPLAmount(row.gst)}</td>
-                              <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 600, color: "#1e293b" }}>{formatPLAmount(row.net)}</td>
-                              {compareWithPrevious && (
-                                <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 700, color: changeVal >= 0 ? "#10b981" : "#ef4444" }}>
-                                  {row.previousGross ? `${changeVal >= 0 ? "+" : ""}${changeVal.toFixed(1)}%` : "-"}
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                        {/* Total Income Row */}
-                        <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <td style={{ padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#10b981" }}>Total Income</td>
-                          {compareWithPrevious && (
-                            <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#10b981" }}>{formatPLAmount(prevIncomeSum)}</td>
-                          )}
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#10b981" }}>{formatPLAmount(totalIncomeSum)}</td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#10b981" }}>{formatPLAmount(totalIncomeGst)}</td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#10b981" }}>{formatPLAmount(totalIncomeNet)}</td>
-                          {compareWithPrevious && (
-                            <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#10b981" }}>
-                              {prevIncomeSum ? `${((totalIncomeSum - prevIncomeSum) / Math.abs(prevIncomeSum) * 100) >= 0 ? "+" : ""}${((totalIncomeSum - prevIncomeSum) / Math.abs(prevIncomeSum) * 100).toFixed(1)}%` : "-"}
-                            </td>
-                          )}
-                        </tr>
-
-                        {/* 02 EXPENSE Section */}
-                        <tr style={{ backgroundColor: "#f8fafc", height: "10px" }}><td colSpan={compareWithPrevious ? 6 : 4} style={{ padding: 0 }}></td></tr>
-                        <tr style={{ backgroundColor: "#f8fafc" }}>
-                          <td colSpan={compareWithPrevious ? 6 : 4} style={{ padding: "8px 8px", fontSize: "12px", fontWeight: 800, color: "#1c244b" }}>02 EXPENSE</td>
-                        </tr>
-                        {expenseRows.map((row, idx) => {
-                          const changeVal = row.previousGross ? ((row.gross - row.previousGross) / Math.abs(row.previousGross)) * 100 : 0;
-                          return (
-                            <tr key={`expense-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                              <td style={{ padding: "12px 8px 12px 16px", fontSize: "13.5px", fontWeight: 500, color: "#334155" }}>{row.category}</td>
-                              {compareWithPrevious && (
-                                <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 600, color: "#475569" }}>{formatPLAmount(row.previousGross)}</td>
-                              )}
-                              <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 600, color: "#475569" }}>{formatPLAmount(row.gross)}</td>
-                              <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 500, color: "#64748b" }}>{formatPLAmount(row.gst)}</td>
-                              <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13.5px", fontWeight: 600, color: "#1e293b" }}>{formatPLAmount(row.net)}</td>
-                              {compareWithPrevious && (
-                                <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 700, color: changeVal > 0 ? "#ef4444" : "#10b981" }}>
-                                  {row.previousGross ? `${changeVal >= 0 ? "+" : ""}${changeVal.toFixed(1)}%` : "-"}
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                        {/* Total Expense Row */}
-                        <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <td style={{ padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#ef4444" }}>Total Expense</td>
-                          {compareWithPrevious && (
-                            <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#ef4444" }}>{formatPLAmount(prevExpenseSum)}</td>
-                          )}
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#ef4444" }}>{formatPLAmount(totalExpenseSum)}</td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#ef4444" }}>{formatPLAmount(totalExpenseGst)}</td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color: "#ef4444" }}>{formatPLAmount(totalExpenseNet)}</td>
-                          {compareWithPrevious && (
-                            <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#ef4444" }}>
-                              {prevExpenseSum ? `${((totalExpenseSum - prevExpenseSum) / Math.abs(prevExpenseSum) * 100) >= 0 ? "+" : ""}${((totalExpenseSum - prevExpenseSum) / Math.abs(prevExpenseSum) * 100).toFixed(1)}%` : "-"}
-                            </td>
-                          )}
-                        </tr>
-
-                        {/* Net Profit / (Loss) Bottom Row */}
-                        <tr style={{ backgroundColor: "#28336e", color: "#ffffff" }}>
-                          <td style={{ padding: "16px 12px", fontSize: "14px", fontWeight: 800, borderBottomLeftRadius: "8px", borderTopLeftRadius: "8px" }}>Net Profit / (Loss)</td>
-                          {compareWithPrevious && (
-                            <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>{formatPLAmount(prevNetProfitGross)}</td>
-                          )}
-                          <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>{formatPLAmount(netProfitGross)}</td>
-                          <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>{formatPLAmount(netProfitGst)}</td>
-                          <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800, borderBottomRightRadius: compareWithPrevious ? "0" : "8px", borderTopRightRadius: compareWithPrevious ? "0" : "8px" }}>{formatPLAmount(netProfitNet)}</td>
-                          {compareWithPrevious && (
-                            <td style={{ textAlign: "right", padding: "16px 12px", borderBottomRightRadius: "8px", borderTopRightRadius: "8px" }}>
-                              <span style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "2px",
-                                backgroundColor: netProfitGross - prevNetProfitGross < 0 ? "#ef4444" : "#10b981",
-                                color: "#ffffff",
-                                padding: "2px 8px",
-                                borderRadius: "4px",
-                                fontSize: "11px",
-                                fontWeight: 800
-                              }}>
-                                {netProfitGross - prevNetProfitGross < 0 ? "▼" : "▲"} A$ {formatPLAmount(Math.abs(netProfitGross - prevNetProfitGross))}
-                              </span>
-                            </td>
-                          )}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Right Side Column (Breakdown & Chart) */}
+                return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                    {/* Expense Breakdown */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px" }}>
+                      {[0, 1, 2].map((i) => (
+                        <div key={`pnl-card-skeleton-${i}`} style={placeholder("108px")} />
+                      ))}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "24px", alignItems: "start" }}>
+                      <div style={placeholder("420px")} />
+                      <div style={placeholder("420px")} />
+                    </div>
+                  </div>
+                );
+              }
+
+              const summary = pnl.summary;
+              if (!summary) return null;
+
+              const formatPLAmount = (num: number) =>
+                num.toLocaleString("en-AU", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                });
+
+              const {
+                incomeCurrent,
+                incomePrevious,
+                expenseCurrent,
+                expensePrevious,
+                netCurrent,
+                netPrevious
+              } = pnlTotals;
+
+              const incomeChangePct = pnlChangePct(incomeCurrent, incomePrevious);
+              const expenseChangePct = pnlChangePct(expenseCurrent, expensePrevious);
+              const netChangeDiff = netCurrent - netPrevious;
+
+              // A change line is only drawn when there is a prior year to
+              // compare against. The old version rendered a hardcoded "▲ 0.0%"
+              // and a hardcoded "▼ Loss widened" regardless of direction, so a
+              // brand-new property reported confident movement against nothing.
+              const changeLine = (pct: number | null, higherIsGood: boolean) => {
+                if (pct === null) {
+                  return (
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", marginTop: "8px" }}>
+                      No {summary.comparison.label} figure
+                    </div>
+                  );
+                }
+                const good = pct >= 0 ? higherIsGood : !higherIsGood;
+                return (
+                  <div style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: good ? "#10b981" : "#ef4444",
+                    marginTop: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px"
+                  }}>
+                    {pct >= 0 ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% vs {summary.comparison.label}
+                  </div>
+                );
+              };
+
+              const isEmpty =
+                summary.income.length === 0 &&
+                summary.expenses.length === 0 &&
+                summary.deductions.length === 0;
+
+              const columnCount = compareWithPrevious ? 6 : 4;
+
+              const amountCells = (
+                current: { gross: number; gst: number; net: number },
+                previous: { gross: number; gst: number; net: number },
+                bold: boolean,
+                color: string,
+                higherIsGood: boolean
+              ) => {
+                const pct = pnlChangePct(current.gross, previous.gross);
+                const cellBase = {
+                  textAlign: "right" as const,
+                  padding: bold ? "14px 8px" : "12px 8px",
+                  fontSize: "13.5px",
+                  fontWeight: bold ? 700 : 600,
+                  color: bold ? color : "#475569"
+                };
+                return (
+                  <>
+                    {compareWithPrevious && (
+                      <td style={cellBase}>{formatPLAmount(previous.gross)}</td>
+                    )}
+                    <td style={cellBase}>{formatPLAmount(current.gross)}</td>
+                    <td style={{ ...cellBase, fontWeight: bold ? 700 : 500, color: bold ? color : "#64748b" }}>
+                      {formatPLAmount(current.gst)}
+                    </td>
+                    <td style={{ ...cellBase, color: bold ? color : "#1e293b" }}>
+                      {formatPLAmount(current.net)}
+                    </td>
+                    {compareWithPrevious && (
+                      <td style={{
+                        textAlign: "right",
+                        padding: bold ? "14px 8px" : "12px 8px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: pct === null
+                          ? "#94a3b8"
+                          : (pct >= 0) === higherIsGood ? "#10b981" : "#ef4444"
+                      }}>
+                        {pct === null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}
+                      </td>
+                    )}
+                  </>
+                );
+              };
+
+              const bandHeader = (key: string, label: string) => (
+                <tr key={key} style={{ backgroundColor: "#f8fafc" }}>
+                  <td colSpan={columnCount} style={{ padding: "8px 8px", fontSize: "12px", fontWeight: 800, color: "#1c244b" }}>
+                    {label}
+                  </td>
+                </tr>
+              );
+
+              const detailRow = (
+                key: string,
+                label: string,
+                current: { gross: number; gst: number; net: number },
+                previous: { gross: number; gst: number; net: number },
+                higherIsGood: boolean
+              ) => (
+                <tr key={key} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "12px 8px 12px 16px", fontSize: "13.5px", fontWeight: 500, color: "#334155" }}>
+                    {label}
+                  </td>
+                  {amountCells(current, previous, false, "#334155", higherIsGood)}
+                </tr>
+              );
+
+              const totalRow = (
+                key: string,
+                label: string,
+                current: { gross: number; gst: number; net: number },
+                previous: { gross: number; gst: number; net: number },
+                color: string,
+                higherIsGood: boolean
+              ) => (
+                <tr key={key} style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                  <td style={{ padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color }}>{label}</td>
+                  {amountCells(current, previous, true, color, higherIsGood)}
+                </tr>
+              );
+
+              const spacerRow = (key: string) => (
+                <tr key={key} style={{ backgroundColor: "#f8fafc", height: "10px" }}>
+                  <td colSpan={columnCount} style={{ padding: 0 }}></td>
+                </tr>
+              );
+
+              const maxExpenseVal = pnlTopExpenses.length > 0
+                ? Math.max(pnlTopExpenses[0].amount, 1)
+                : 1;
+              const maxChartVal = Math.max(incomeCurrent, expenseCurrent, 1);
+
+              return (
+                <>
+                  {/* P&L Metric Cards */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
+                    {/* TOTAL INCOME */}
                     <div style={{
                       backgroundColor: "#ffffff",
-                      borderRadius: "16px",
                       border: "1.5px solid #e2e8f0",
-                      padding: "24px",
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
+                      borderRadius: "16px",
+                      padding: "20px 24px",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center"
                     }}>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>Expense Breakdown</h3>
-                      <p style={{ margin: "4px 0 16px 0", fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Top categories for FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}</p>
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>TOTAL INCOME</div>
+                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>
+                        A$ {formatPLAmount(incomeCurrent)}
+                      </div>
+                      {changeLine(incomeChangePct, true)}
+                    </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        {topExpenses.map((exp, idx) => {
-                          const pct = (Math.abs(exp.gross) / maxExpenseVal) * 100;
-                          return (
-                            <div key={`exp-breakdown-${idx}`} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", fontWeight: 700, color: "#334155" }}>
-                                <span style={{ maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.category}</span>
-                                <span style={{ color: "#1e293b", fontFamily: "monospace" }}>A$ {formatPLAmount(Math.abs(exp.gross))}</span>
-                              </div>
-                              <div style={{ width: "100%", height: "8px", backgroundColor: "#f1f5f9", borderRadius: "9999px", overflow: "hidden" }}>
-                                <div style={{ width: `${pct}%`, height: "100%", backgroundColor: "#28336e", borderRadius: "9999px" }}></div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                    {/* TOTAL EXPENSES — expenses plus depreciation, so that
+                        income minus this equals the net profit beside it. The
+                        table below keeps the two bands separate. */}
+                    <div style={{
+                      backgroundColor: "#ffffff",
+                      border: "1.5px solid #e2e8f0",
+                      borderRadius: "16px",
+                      padding: "20px 24px",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center"
+                    }}>
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        TOTAL EXPENSES{summary.deductions.length > 0 ? " (INCL. DEPRECIATION)" : ""}
+                      </div>
+                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#ef4444", marginTop: "4px" }}>
+                        A$ {formatPLAmount(expenseCurrent)}
+                      </div>
+                      {changeLine(expenseChangePct, false)}
+                    </div>
+
+                    {/* NET PROFIT / (LOSS) — the one genuinely signed figure. */}
+                    <div style={{
+                      backgroundColor: "#28336e",
+                      borderRadius: "16px",
+                      padding: "20px 24px",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center"
+                    }}>
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>NET PROFIT / (LOSS)</div>
+                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#ffffff", marginTop: "4px" }}>
+                        {netCurrent < 0 ? "-" : ""}A$ {formatPLAmount(Math.abs(netCurrent))}
+                      </div>
+                      <div style={{
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: netChangeDiff >= 0 ? "#4ade80" : "#fca5a5",
+                        marginTop: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px"
+                      }}>
+                        {netChangeDiff >= 0 ? "▲" : "▼"} A$ {formatPLAmount(Math.abs(netChangeDiff))} vs {summary.comparison.label}
                       </div>
                     </div>
+                  </div>
 
-                    {/* Income vs Expense Bar Chart */}
+                  {/* P&L Layout Content */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "24px", alignItems: "start" }}>
+                    {/* Table Column */}
                     <div style={{
                       backgroundColor: "#ffffff",
                       borderRadius: "16px",
@@ -1565,49 +1434,237 @@ export default function PropertyDetailView({
                       padding: "24px",
                       boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
                     }}>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>Income vs Expense</h3>
-                      <p style={{ margin: "4px 0 20px 0", fontSize: "12px", color: "#64748b", fontWeight: 600 }}>FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#1c244b" }}>Statement of Profit &amp; Loss</h3>
+                        <span style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          backgroundColor: "#f1f5f9",
+                          color: "#475569",
+                          padding: "4px 10px",
+                          borderRadius: "9999px"
+                        }}>
+                          Reporting period: {formatDisplayDate(summary.period.from)} &ndash; {formatDisplayDate(summary.period.to)}
+                        </span>
+                      </div>
 
-                      {(() => {
-                        const maxChartVal = Math.max(totalIncomeSum, Math.abs(totalExpenseSum));
-                        const incomeHeight = maxChartVal ? (totalIncomeSum / maxChartVal) * 120 : 0;
-                        const expenseHeight = maxChartVal ? (Math.abs(totalExpenseSum) / maxChartVal) * 120 : 0;
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                            <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
+                            {compareWithPrevious && (
+                              <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>{summary.comparison.label}</th>
+                            )}
+                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Gross</th>
+                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>GST</th>
+                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Net</th>
+                            {compareWithPrevious && (
+                              <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Change</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {isEmpty ? (
+                            <tr>
+                              <td colSpan={columnCount} style={{ padding: "48px 8px", textAlign: "center", fontSize: "13.5px", fontWeight: 600, color: "#64748b" }}>
+                                No income or expenses recorded for {summary.period.label}.
+                              </td>
+                            </tr>
+                          ) : (
+                            <>
+                              {bandHeader("band-income", "01 INCOME")}
+                              {summary.income.map((line) =>
+                                detailRow(
+                                  `income-${line.categoryId}-${line.subcategoryId}`,
+                                  pnlLineLabel(line),
+                                  line.current,
+                                  line.previous,
+                                  true
+                                )
+                              )}
+                              {totalRow(
+                                "total-income",
+                                "Total Income",
+                                summary.totals.income.current,
+                                summary.totals.income.previous,
+                                "#10b981",
+                                true
+                              )}
 
-                        return (
-                          <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "160px", paddingBottom: "10px", borderBottom: "1px solid #f1f5f9" }}>
-                            {/* Income Column */}
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {Math.round(totalIncomeSum).toLocaleString()}</span>
-                              <div style={{
-                                width: "36px",
-                                height: `${incomeHeight}px`,
-                                backgroundColor: "#10b981",
-                                borderTopLeftRadius: "6px",
-                                borderTopRightRadius: "6px",
-                                transition: "height 0.3s ease"
-                              }}></div>
-                              <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", marginTop: "4px" }}>Income</span>
-                            </div>
+                              {spacerRow("spacer-expense")}
+                              {bandHeader("band-expense", "02 EXPENSE")}
+                              {summary.expenses.map((line) =>
+                                detailRow(
+                                  `expense-${line.categoryId}-${line.subcategoryId}`,
+                                  pnlLineLabel(line),
+                                  line.current,
+                                  line.previous,
+                                  false
+                                )
+                              )}
+                              {totalRow(
+                                "total-expense",
+                                "Total Expense",
+                                summary.totals.expenses.current,
+                                summary.totals.expenses.previous,
+                                "#ef4444",
+                                false
+                              )}
 
-                            {/* Expense Column */}
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {Math.round(Math.abs(totalExpenseSum)).toLocaleString()}</span>
-                              <div style={{
-                                width: "36px",
-                                height: `${expenseHeight}px`,
-                                backgroundColor: "#ef4444",
-                                borderTopLeftRadius: "6px",
-                                borderTopRightRadius: "6px",
-                                transition: "height 0.3s ease"
-                              }}></div>
-                              <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", marginTop: "4px" }}>Expense</span>
-                            </div>
+                              {/* Depreciation is its own band: these lines have
+                                  no transactions in the reporting year, only a
+                                  schedule written when the asset was saved. */}
+                              {summary.deductions.length > 0 && (
+                                <>
+                                  {spacerRow("spacer-depreciation")}
+                                  {bandHeader("band-depreciation", "03 DEPRECIATION")}
+                                  {summary.deductions.map((line) =>
+                                    detailRow(
+                                      `deduction-${line.kind}`,
+                                      line.label,
+                                      line.current,
+                                      line.previous,
+                                      false
+                                    )
+                                  )}
+                                  {totalRow(
+                                    "total-depreciation",
+                                    "Total Depreciation",
+                                    summary.totals.deductions.current,
+                                    summary.totals.deductions.previous,
+                                    "#ef4444",
+                                    false
+                                  )}
+                                </>
+                              )}
+
+                              {/* Net Profit / (Loss) */}
+                              <tr style={{ backgroundColor: "#28336e", color: "#ffffff" }}>
+                                <td style={{ padding: "16px 12px", fontSize: "14px", fontWeight: 800, borderBottomLeftRadius: "8px", borderTopLeftRadius: "8px" }}>Net Profit / (Loss)</td>
+                                {compareWithPrevious && (
+                                  <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>
+                                    {formatPLAmount(summary.totals.netProfit.previous.gross)}
+                                  </td>
+                                )}
+                                <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>
+                                  {formatPLAmount(summary.totals.netProfit.current.gross)}
+                                </td>
+                                <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>
+                                  {formatPLAmount(summary.totals.netProfit.current.gst)}
+                                </td>
+                                <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800, borderBottomRightRadius: compareWithPrevious ? "0" : "8px", borderTopRightRadius: compareWithPrevious ? "0" : "8px" }}>
+                                  {formatPLAmount(summary.totals.netProfit.current.net)}
+                                </td>
+                                {compareWithPrevious && (
+                                  <td style={{ textAlign: "right", padding: "16px 12px", borderBottomRightRadius: "8px", borderTopRightRadius: "8px" }}>
+                                    <span style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "2px",
+                                      backgroundColor: netChangeDiff < 0 ? "#ef4444" : "#10b981",
+                                      color: "#ffffff",
+                                      padding: "2px 8px",
+                                      borderRadius: "4px",
+                                      fontSize: "11px",
+                                      fontWeight: 800
+                                    }}>
+                                      {netChangeDiff < 0 ? "▼" : "▲"} A$ {formatPLAmount(Math.abs(netChangeDiff))}
+                                    </span>
+                                  </td>
+                                )}
+                              </tr>
+                            </>
+                          )}
+                        </tbody>
+                      </table>
+
+                      {/* The backend has only invoice_date, so this statement
+                          is accruals basis. Said out loud so nobody transcribes
+                          it onto a cash-basis return. */}
+                      <p style={{ margin: "16px 0 0 0", fontSize: "11.5px", color: "#94a3b8", fontWeight: 600 }}>
+                        Accruals basis &mdash; dated by invoice date. Asset purchases are excluded from expenses and
+                        claimed through the depreciation schedule.
+                      </p>
+                    </div>
+
+                    {/* Right Side Column (Breakdown & Chart) */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                      {/* Expense Breakdown */}
+                      <div style={{
+                        backgroundColor: "#ffffff",
+                        borderRadius: "16px",
+                        border: "1.5px solid #e2e8f0",
+                        padding: "24px",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
+                      }}>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>Expense Breakdown</h3>
+                        <p style={{ margin: "4px 0 16px 0", fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
+                          Top categories for {summary.period.label}
+                        </p>
+
+                        {pnlTopExpenses.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8", fontWeight: 600 }}>
+                            No expenses recorded.
+                          </p>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            {pnlTopExpenses.map((exp, idx) => (
+                              <div key={`exp-breakdown-${idx}`} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", fontWeight: 700, color: "#334155" }}>
+                                  <span style={{ maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.label}</span>
+                                  <span style={{ color: "#1e293b", fontFamily: "monospace" }}>A$ {formatPLAmount(exp.amount)}</span>
+                                </div>
+                                <div style={{ width: "100%", height: "8px", backgroundColor: "#f1f5f9", borderRadius: "9999px", overflow: "hidden" }}>
+                                  <div style={{ width: `${(exp.amount / maxExpenseVal) * 100}%`, height: "100%", backgroundColor: "#28336e", borderRadius: "9999px" }}></div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
+
+                      {/* Income vs Expense Bar Chart */}
+                      <div style={{
+                        backgroundColor: "#ffffff",
+                        borderRadius: "16px",
+                        border: "1.5px solid #e2e8f0",
+                        padding: "24px",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
+                      }}>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>Income vs Expense</h3>
+                        <p style={{ margin: "4px 0 20px 0", fontSize: "12px", color: "#64748b", fontWeight: 600 }}>{summary.period.label}</p>
+
+                        <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "160px", paddingBottom: "10px", borderBottom: "1px solid #f1f5f9" }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {Math.round(incomeCurrent).toLocaleString()}</span>
+                            <div style={{
+                              width: "36px",
+                              height: `${(incomeCurrent / maxChartVal) * 120}px`,
+                              backgroundColor: "#10b981",
+                              borderTopLeftRadius: "6px",
+                              borderTopRightRadius: "6px",
+                              transition: "height 0.3s ease"
+                            }}></div>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", marginTop: "4px" }}>Income</span>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {Math.round(expenseCurrent).toLocaleString()}</span>
+                            <div style={{
+                              width: "36px",
+                              height: `${(expenseCurrent / maxChartVal) * 120}px`,
+                              backgroundColor: "#ef4444",
+                              borderTopLeftRadius: "6px",
+                              borderTopRightRadius: "6px",
+                              transition: "height 0.3s ease"
+                            }}></div>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", marginTop: "4px" }}>Expense</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </>
               );
             })()}
 
