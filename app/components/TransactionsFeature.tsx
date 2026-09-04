@@ -858,9 +858,9 @@ function TransactionDetailPopup({
   // authoritative once it is populated.
   const [assetItemName, setAssetItemName] = useState(
     row.assetName ??
-      (typeof row.metadata.asset_item_name === "string"
-        ? row.metadata.asset_item_name
-        : ""),
+    (typeof row.metadata.asset_item_name === "string"
+      ? row.metadata.asset_item_name
+      : ""),
   );
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">(
     row.assetClass || "",
@@ -4405,7 +4405,7 @@ export function AllTransactionsView({
             Tax lines is what the tax figures are made of, so it reconciles
             against a BAS. Every filter works in both; the difference is only
             which rows the same filters are applied to. */}
-        <div className="transaction-grain-switch" role="group" aria-label="Row detail">
+        {/* <div className="transaction-grain-switch" role="group" aria-label="Row detail">
           <button
             type="button"
             className={`transaction-grain-btn ${grain === "top" ? "is-active" : ""}`}
@@ -4424,7 +4424,7 @@ export function AllTransactionsView({
           >
             Tax lines
           </button>
-        </div>
+        </div> */}
       </div>
 
       {grain === "leaf" && (

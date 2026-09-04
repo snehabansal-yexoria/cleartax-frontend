@@ -19775,6 +19775,8 @@ html.dark .figma-asset-builder-head {
 
 .figma-asset-class-card {
   display: flex;
+  align-items: center;
+  text-align: left;
   gap: 14px;
   padding: 16px;
   background: #ffffff;
@@ -19782,6 +19784,8 @@ html.dark .figma-asset-builder-head {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  width: 100%;
 }
 
 html.dark .figma-asset-class-card {
@@ -19834,13 +19838,18 @@ html.dark .figma-asset-class-card.active .figma-asset-class-icon {
 .figma-asset-class-info {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
   gap: 4px;
+  flex: 1;
 }
 
 .figma-asset-class-title {
   font-size: 14px;
   font-weight: 700;
   color: #101828;
+  text-align: left;
+  line-height: 1.3;
 }
 
 html.dark .figma-asset-class-title {
@@ -19851,6 +19860,7 @@ html.dark .figma-asset-class-title {
   font-size: 11px;
   color: #667085;
   line-height: 1.4;
+  text-align: left;
 }
 
 html.dark .figma-asset-class-desc {
