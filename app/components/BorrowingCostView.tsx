@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
+import ValidatedDateInput from "@/app/components/ValidatedDateInput";
 import { getSession } from "@/src/lib/session";
 import type {
   CoreEntity,
@@ -594,6 +595,15 @@ export default function BorrowingCostView({
 
     // Validate before writing anything: a partial save would leave some
     // expenses created and others not, with no way to tell which from the UI.
+    if (loanStartDate && loanEndDate && loanStartDate > loanEndDate) {
+      setSaveError("Loan End Date cannot be earlier than Loan Start Date.");
+      return;
+    }
+    if ((loanStartDate && !loanEndDate) || (!loanStartDate && loanEndDate)) {
+      setSaveError("Please provide both Loan Start Date and Loan End Date, or leave both empty.");
+      return;
+    }
+
     for (const exp of borrowingExpenses) {
       if (!exp.subcategoryId) {
         setSaveError("Every borrowing expense needs a subcategory.");
@@ -604,8 +614,8 @@ export default function BorrowingCostView({
         setSaveError("Every borrowing expense needs an amount greater than zero.");
         return;
       }
-      if (!exp.date) {
-        setSaveError("Every borrowing expense needs a date.");
+      if (!exp.date || !/^\d{4}-\d{2}-\d{2}$/.test(exp.date)) {
+        setSaveError("Every borrowing expense needs a valid date (YYYY-MM-DD).");
         return;
       }
     }
@@ -1088,9 +1098,21 @@ export default function BorrowingCostView({
                     <td>
                       <input
                         type="number"
-                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
                         value={exp.amount}
-                        onChange={(e) => handleUpdateField(exp.key, "amount", e.target.value)}
+                        onKeyDown={(e) => {
+                          if (["-", "+", "e", "E"].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "" || /^\d*\.?\d*$/.test(val) || Number(val) >= 0) {
+                            handleUpdateField(exp.key, "amount", val);
+                          }
+                        }}
                         className="borrowing-cost-input"
                         style={{ textAlign: "right" }}
                       />
@@ -1098,8 +1120,7 @@ export default function BorrowingCostView({
 
                     {/* Date Picker */}
                     <td>
-                      <input
-                        type="date"
+                      <ValidatedDateInput
                         value={exp.date}
                         onChange={(e) => handleUpdateField(exp.key, "date", e.target.value)}
                         className="borrowing-cost-input"
@@ -1111,6 +1132,7 @@ export default function BorrowingCostView({
                       <input
                         type="text"
                         placeholder="Description"
+                        maxLength={255}
                         value={exp.description}
                         onChange={(e) => handleUpdateField(exp.key, "description", e.target.value)}
                         className="borrowing-cost-input"
@@ -1183,9 +1205,9 @@ export default function BorrowingCostView({
               <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
                 Loan Start Date
               </label>
-              <input
-                type="date"
+              <ValidatedDateInput
                 value={loanStartDate}
+                max={loanEndDate || undefined}
                 onChange={(e) => setLoanStartDate(e.target.value)}
                 className="borrowing-cost-input"
               />
@@ -1196,9 +1218,9 @@ export default function BorrowingCostView({
               <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
                 Loan End Date
               </label>
-              <input
-                type="date"
+              <ValidatedDateInput
                 value={loanEndDate}
+                min={loanStartDate || undefined}
                 onChange={(e) => setLoanEndDate(e.target.value)}
                 className="borrowing-cost-input"
               />
@@ -1230,6 +1252,12 @@ export default function BorrowingCostView({
               />
             </div>
           </div>
+
+          {loanStartDate && loanEndDate && loanStartDate > loanEndDate && (
+            <div style={{ color: "#d92d20", fontSize: "13px", fontWeight: 600, marginTop: "16px" }}>
+              ⚠️ Loan End Date cannot be earlier than Loan Start Date.
+            </div>
+          )}
         </section>
 
         {/* Section 3: Borrowing Cost Schedule */}
@@ -1259,7 +1287,9 @@ export default function BorrowingCostView({
                 {schedule.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ padding: "32px 16px", textAlign: "center", color: "#667085", fontSize: "14px" }}>
-                      Provide valid Loan Start Date and Loan End Date to display the borrowing cost schedule.
+                      {loanStartDate && loanEndDate && loanStartDate > loanEndDate
+                        ? "Loan End Date cannot be earlier than Loan Start Date."
+                        : "Provide valid Loan Start Date and Loan End Date to display the borrowing cost schedule."}
                     </td>
                   </tr>
                 ) : (

@@ -13,6 +13,7 @@ import {
   TransactionRulesView,
 } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
+import ValidatedDateInput from "@/app/components/ValidatedDateInput";
 import {
   assetItemName,
   personalCategoryLabel,
@@ -153,10 +154,10 @@ export default function PropertyDetailView({
   const [contractDate, setContractDate] = useState("2026-08-15");
   const [settlementDate, setSettlementDate] = useState("2026-09-30");
   const [showCostBase, setShowCostBase] = useState(true);
-  const [manualCostBaseRows, setManualCostBaseRows] = useState<Array<{ id: string; category: string; gross: string; net: string }>>([
-    { id: "1", category: "Building & Pest Inspection", gross: "660", net: "600" },
-    { id: "2", category: "Conveyancing Fees", gross: "1320", net: "1200" },
-    { id: "3", category: "Loan Establishment Fee", gross: "600", net: "600" }
+  const [manualCostBaseRows, setManualCostBaseRows] = useState<Array<{ id: string; category: string; description: string; gross: string; net: string }>>([
+    { id: "1", category: "Building & Pest Inspection", description: "Pre-purchase inspection report", gross: "660", net: "600" },
+    { id: "2", category: "Conveyancing Fees", description: "Legal transfer & conveyancing", gross: "1320", net: "1200" },
+    { id: "3", category: "Loan Establishment Fee", description: "Mortgage application & setup", gross: "600", net: "600" }
   ]);
   const [errorMessage, setErrorMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
@@ -169,6 +170,15 @@ export default function PropertyDetailView({
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
   const [isFyDropdownOpen, setIsFyDropdownOpen] = useState(false);
   const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
+  const [isPnlFyDropdownOpen, setIsPnlFyDropdownOpen] = useState(false);
+  const [fundingSources, setFundingSources] = useState<Array<{ id: string; name: string; amount: string; isCustom?: boolean }>>([
+    { id: "deposit", name: "Deposit", amount: "0.00" },
+    { id: "loan", name: "Loan", amount: "0.00" },
+    { id: "bank_trust", name: "Bank / Trust Account", amount: "0.00" },
+    { id: "surplus_fund", name: "Surplus Fund Refund", amount: "0.00" },
+    { id: "personal_capital", name: "Personal Fund for Capital Expense", amount: "0.00" },
+    { id: "personal_revenue", name: "Personal Fund for Revenue Expense", amount: "0.00" },
+  ]);
   const borrowingCostHref = editPropertyHref.replace(/\/edit$/, "/borrowing-cost");
   // GST comes from the server aggregate, not from the `transactions` array on
   // this page: that list is capped at 100 rows by the API and carries no period
@@ -305,14 +315,15 @@ export default function PropertyDetailView({
   }, [isActionsDropdownOpen]);
 
   useEffect(() => {
-    if (!isFyDropdownOpen && !isPeriodDropdownOpen) return;
+    if (!isFyDropdownOpen && !isPeriodDropdownOpen && !isPnlFyDropdownOpen) return;
     const handleClose = () => {
       setIsFyDropdownOpen(false);
       setIsPeriodDropdownOpen(false);
+      setIsPnlFyDropdownOpen(false);
     };
     window.addEventListener("click", handleClose);
     return () => window.removeEventListener("click", handleClose);
-  }, [isFyDropdownOpen, isPeriodDropdownOpen]);
+  }, [isFyDropdownOpen, isPeriodDropdownOpen, isPnlFyDropdownOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -644,13 +655,13 @@ export default function PropertyDetailView({
     lines.push("");
 
     lines.push("--- MANUAL COST BASE BALANCE ---");
-    lines.push(["Category", "Gross Amount", "Estimated Net"].map(esc).join(","));
+    lines.push(["Category", "Description", "Gross Amount", "Estimated Net"].map(esc).join(","));
     for (const r of manualCostBaseRows) {
-      lines.push([r.category, money(parseFloat(r.gross) || 0), money(parseFloat(r.net) || 0)].map(esc).join(","));
+      lines.push([r.category, r.description || "", money(parseFloat(r.gross) || 0), money(parseFloat(r.net) || 0)].map(esc).join(","));
     }
     const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
     const manualNetTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.net) || 0), 0);
-    lines.push(["Total Manual", money(manualGrossTotal), money(manualNetTotal)].map(esc).join(","));
+    lines.push(["Total Manual", "", money(manualGrossTotal), money(manualNetTotal)].map(esc).join(","));
     lines.push("");
 
     lines.push(`Grand Total,,${money(autoNetTotal + manualGrossTotal)}`);
@@ -680,7 +691,7 @@ export default function PropertyDetailView({
   const handleAddManualCostBaseRow = () => {
     setManualCostBaseRows(prev => [
       ...prev,
-      { id: String(Date.now()), category: "", gross: "", net: "" }
+      { id: String(Date.now()), category: "", description: "", gross: "", net: "" }
     ]);
   };
 
@@ -688,13 +699,28 @@ export default function PropertyDetailView({
     setManualCostBaseRows(prev => prev.filter(r => r.id !== id));
   };
 
-  const handleUpdateManualCostBaseRow = (id: string, field: "category" | "gross" | "net", value: string) => {
+  const handleUpdateManualCostBaseRow = (id: string, field: "category" | "description" | "gross" | "net", value: string) => {
     setManualCostBaseRows(prev => prev.map(r => {
       if (r.id === id) {
         return { ...r, [field]: value };
       }
       return r;
     }));
+  };
+
+  const handleAddFundingSource = () => {
+    setFundingSources(prev => [
+      ...prev,
+      { id: String(Date.now()), name: "", amount: "0.00", isCustom: true }
+    ]);
+  };
+
+  const handleDeleteFundingSource = (id: string) => {
+    setFundingSources(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleUpdateFundingSource = (id: string, field: "name" | "amount", val: string) => {
+    setFundingSources(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
   };
 
   const handleAddBalanceSubmit = async (e: React.FormEvent) => {
@@ -989,29 +1015,117 @@ export default function PropertyDetailView({
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                {/* FY Dropdown */}
-                <select
-                  value={pnlFinancialYear}
-                  onChange={(e) => setPnlFinancialYear(Number(e.target.value))}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid #cbd5e1",
-                    backgroundColor: "#ffffff",
-                    color: "#1e293b",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    height: "40px",
-                    cursor: "pointer",
-                    outline: "none"
-                  }}
-                >
-                  {Array.from({ length: 6 }, (_, i) => auFinancialYearOf(new Date()) - i).map((year) => (
-                    <option key={year} value={year}>
-                      FY {year - 1}-{String(year).slice(-2)}
-                    </option>
-                  ))}
-                </select>
+                {/* FY Custom Dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsPnlFyDropdownOpen((prev) => !prev);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "10px",
+                      minWidth: "140px",
+                      height: "40px",
+                      padding: "0 14px",
+                      borderRadius: "8px",
+                      border: isPnlFyDropdownOpen ? "1.5px solid #28336e" : "1px solid #cbd5e1",
+                      backgroundColor: "#ffffff",
+                      color: "#1e293b",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      outline: "none",
+                      boxShadow: isPnlFyDropdownOpen ? "0 0 0 3px rgba(40, 51, 110, 0.12)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isPnlFyDropdownOpen) e.currentTarget.style.borderColor = "#94a3b8";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isPnlFyDropdownOpen) e.currentTarget.style.borderColor = "#cbd5e1";
+                    }}
+                  >
+                    <span>FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        color: "#64748b",
+                        transition: "transform 0.2s ease",
+                        transform: isPnlFyDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+
+                  {isPnlFyDropdownOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 4px)",
+                        right: 0,
+                        minWidth: "160px",
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "10px",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+                        zIndex: 1000,
+                        padding: "4px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px",
+                      }}
+                    >
+                      {Array.from({ length: 6 }, (_, i) => auFinancialYearOf(new Date()) - i).map((year) => {
+                        const isSelected = year === pnlFinancialYear;
+                        return (
+                          <div
+                            key={year}
+                            onClick={() => {
+                              setPnlFinancialYear(year);
+                              setIsPnlFyDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: "6px",
+                              fontSize: "13px",
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? "#28336e" : "#334155",
+                              backgroundColor: isSelected ? "#eff6ff" : "transparent",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = "#f8fafc";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
+                            }}
+                          >
+                            <span>FY {year - 1}-{String(year).slice(-2)}</span>
+                            {isSelected && (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px", color: "#28336e" }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                              </svg>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 {/* Compare Toggle */}
                 <button
@@ -1706,7 +1820,7 @@ export default function PropertyDetailView({
               border: "1.5px solid #e2e8f0",
               padding: "24px",
               boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
-              marginBottom: "40px"
+              marginBottom: "32px"
             }}>
               {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
@@ -1778,9 +1892,9 @@ export default function PropertyDetailView({
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <span style={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>Contract Date</span>
-                      <input
-                        type="date"
+                      <ValidatedDateInput
                         value={contractDate}
+                        max={settlementDate || undefined}
                         onChange={(e) => setContractDate(e.target.value)}
                         style={{
                           padding: "6px 10px",
@@ -1806,9 +1920,9 @@ export default function PropertyDetailView({
 
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <span style={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>Settlement Date</span>
-                      <input
-                        type="date"
+                      <ValidatedDateInput
                         value={settlementDate}
+                        min={contractDate || undefined}
                         onChange={(e) => setSettlementDate(e.target.value)}
                         style={{
                           padding: "6px 10px",
@@ -1968,10 +2082,11 @@ export default function PropertyDetailView({
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "40%" }}>Category</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "25%" }}>Gross Amount</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "25%" }}>Estimated Net</th>
-                          <th style={{ width: "10%" }}></th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "26%" }}>Category</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "32%" }}>Description</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "19%" }}>Gross Amount</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "19%" }}>Estimated Net</th>
+                          <th style={{ width: "4%" }}></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1984,12 +2099,32 @@ export default function PropertyDetailView({
                                 placeholder="Category Name"
                                 onChange={(e) => handleUpdateManualCostBaseRow(row.id, "category", e.target.value)}
                                 style={{
-                                  width: "90%",
+                                  width: "100%",
+                                  boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
                                   border: "1px solid #cbd5e1",
                                   fontSize: "13px",
-                                  fontWeight: 500
+                                  fontWeight: 500,
+                                  outline: "none"
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 8px" }}>
+                              <input
+                                type="text"
+                                value={row.description || ""}
+                                placeholder="Description"
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "description", e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  boxSizing: "border-box",
+                                  padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #cbd5e1",
+                                  fontSize: "13px",
+                                  fontWeight: 500,
+                                  outline: "none"
                                 }}
                               />
                             </td>
@@ -1997,16 +2132,18 @@ export default function PropertyDetailView({
                               <input
                                 type="number"
                                 value={row.gross}
-                                placeholder="Gross Amount"
+                                placeholder="0.00"
                                 onChange={(e) => handleUpdateManualCostBaseRow(row.id, "gross", e.target.value)}
                                 style={{
-                                  width: "80%",
+                                  width: "100%",
+                                  boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
                                   border: "1px solid #cbd5e1",
                                   fontSize: "13px",
                                   fontWeight: 500,
-                                  textAlign: "right"
+                                  textAlign: "right",
+                                  outline: "none"
                                 }}
                               />
                             </td>
@@ -2014,16 +2151,18 @@ export default function PropertyDetailView({
                               <input
                                 type="number"
                                 value={row.net}
-                                placeholder="Estimated Net"
+                                placeholder="0.00"
                                 onChange={(e) => handleUpdateManualCostBaseRow(row.id, "net", e.target.value)}
                                 style={{
-                                  width: "80%",
+                                  width: "100%",
+                                  boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
                                   border: "1px solid #cbd5e1",
                                   fontSize: "13px",
                                   fontWeight: 500,
-                                  textAlign: "right"
+                                  textAlign: "right",
+                                  outline: "none"
                                 }}
                               />
                             </td>
@@ -2036,8 +2175,13 @@ export default function PropertyDetailView({
                                   border: "none",
                                   color: "#ef4444",
                                   cursor: "pointer",
-                                  padding: "4px"
+                                  padding: "4px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: "4px"
                                 }}
+                                title="Delete row"
                               >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -2052,7 +2196,7 @@ export default function PropertyDetailView({
 
                           return (
                             <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                              <td style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Balance</td>
+                              <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Balance</td>
                               <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
                                 A$ {manualGrossTotal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
@@ -2108,6 +2252,226 @@ export default function PropertyDetailView({
                   })()}
                 </div>
               )}
+            </div>
+
+            {/* Settlement Funding Section */}
+            <div style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "16px",
+              border: "1.5px solid #e2e8f0",
+              padding: "24px",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+              marginBottom: "40px"
+            }}>
+              {/* Header */}
+              <div style={{ marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                  <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#1c244b" }}>
+                    Settlement Funding (Amount Settled By)
+                  </h2>
+                  <span style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    backgroundColor: "#f1f5f9",
+                    color: "#64748b",
+                    padding: "3px 8px",
+                    borderRadius: "6px"
+                  }}>
+                    Manual Entry
+                  </span>
+                </div>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12.5px",
+                  color: "#64748b",
+                  fontWeight: 500
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px", color: "#94a3b8", flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>
+                    Enter how this property purchase was funded on settlement. These values are used for settlement reconciliation and journal creation. They do not affect Profit & Loss.
+                  </span>
+                </div>
+              </div>
+
+              {/* Subheader */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>
+                  Funding Sources
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleAddFundingSource}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "6px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    backgroundColor: "#ffffff",
+                    color: "#1c244b",
+                    fontSize: "12.5px",
+                    fontWeight: 750,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f8fafc";
+                    e.currentTarget.style.borderColor = "#94a3b8";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#ffffff";
+                    e.currentTarget.style.borderColor = "#cbd5e1";
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ width: "10px", height: "10px" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Category
+                </button>
+              </div>
+
+              {/* Table / List */}
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      FUNDING SOURCE
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      AMOUNT (AUD)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fundingSources.map((row) => (
+                    <tr key={row.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                      <td style={{ padding: "12px 8px", verticalAlign: "middle" }}>
+                        {row.isCustom ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <input
+                              type="text"
+                              value={row.name}
+                              placeholder="Funding Category Name"
+                              onChange={(e) => handleUpdateFundingSource(row.id, "name", e.target.value)}
+                              style={{
+                                width: "300px",
+                                padding: "8px 12px",
+                                borderRadius: "8px",
+                                border: "1px solid #cbd5e1",
+                                fontSize: "13.5px",
+                                fontWeight: 600,
+                                color: "#334155",
+                                outline: "none"
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFundingSource(row.id)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#ef4444",
+                                cursor: "pointer",
+                                padding: "4px"
+                              }}
+                              title="Remove category"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#334155" }}>
+                            {row.name}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 8px", textAlign: "right", verticalAlign: "middle" }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={row.amount}
+                          onChange={(e) => handleUpdateFundingSource(row.id, "amount", e.target.value)}
+                          placeholder="0.00"
+                          style={{
+                            width: "360px",
+                            maxWidth: "100%",
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            border: "1px solid #e2e8f0",
+                            backgroundColor: "#ffffff",
+                            color: "#1e293b",
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            textAlign: "right",
+                            outline: "none",
+                            transition: "all 0.2s ease"
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = "#28336e";
+                            e.target.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.08)";
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = "#e2e8f0";
+                            e.target.style.boxShadow = "none";
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Summary Box */}
+              {(() => {
+                const totalFundingEntered = fundingSources.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                const autoNetTotal = costBaseAutoRows.reduce((sum, r) => sum + r.net, 0);
+                const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
+                const grandTotalVal = autoNetTotal + manualGrossTotal;
+                const settlementDifference = grandTotalVal - totalFundingEntered;
+
+                return (
+                  <div style={{
+                    marginTop: "24px",
+                    backgroundColor: "#f8fafc",
+                    borderRadius: "12px",
+                    border: "1px solid #f1f5f9",
+                    padding: "20px 24px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>Total Funding Entered</span>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>
+                        A$ {totalFundingEntered.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>Property Cost Base Grand Total</span>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>
+                        A$ {grandTotalVal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "2px 0" }}></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "16px", fontWeight: 800, color: "#1c244b" }}>Settlement Difference</span>
+                      <span style={{ fontSize: "18px", fontWeight: 800, color: "#b45309" }}>
+                        A$ {settlementDifference.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Add Balance Modal */}
@@ -2178,8 +2542,7 @@ export default function PropertyDetailView({
                       {/* Date */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Invoice Date *</span>
-                        <input
-                          type="date"
+                        <ValidatedDateInput
                           required
                           value={balanceDate}
                           onChange={(e) => setBalanceDate(e.target.value)}
@@ -2193,7 +2556,33 @@ export default function PropertyDetailView({
                         <select
                           value={addBalanceType}
                           onChange={(e) => setAddBalanceType(e.target.value as any)}
-                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600, height: "38px" }}
+                          style={{
+                            padding: "8px 32px 8px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            height: "38px",
+                            backgroundColor: "#ffffff",
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "right 10px center",
+                            backgroundSize: "14px 14px",
+                            appearance: "none",
+                            WebkitAppearance: "none",
+                            cursor: "pointer",
+                            outline: "none",
+                            transition: "all 0.2s ease",
+                            color: "#1e293b",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = "#28336e";
+                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.12)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = "#cbd5e1";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
                         >
                           <option value="revenue">Income</option>
                           <option value="expense">Expense</option>
@@ -2209,7 +2598,33 @@ export default function PropertyDetailView({
                           required
                           value={selectedCatId}
                           onChange={(e) => setSelectedCatId(e.target.value)}
-                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600, height: "38px" }}
+                          style={{
+                            padding: "8px 32px 8px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            height: "38px",
+                            backgroundColor: "#ffffff",
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "right 10px center",
+                            backgroundSize: "14px 14px",
+                            appearance: "none",
+                            WebkitAppearance: "none",
+                            cursor: "pointer",
+                            outline: "none",
+                            transition: "all 0.2s ease",
+                            color: "#1e293b",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = "#28336e";
+                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.12)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = "#cbd5e1";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
                         >
                           <option value="">Select Category</option>
                           {categoriesList.map((cat) => (
@@ -2226,7 +2641,34 @@ export default function PropertyDetailView({
                           disabled={!selectedCatId}
                           value={selectedSubcatId}
                           onChange={(e) => setSelectedSubcatId(e.target.value)}
-                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600, height: "38px", opacity: selectedCatId ? 1 : 0.6 }}
+                          style={{
+                            padding: "8px 32px 8px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            height: "38px",
+                            backgroundColor: "#ffffff",
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "right 10px center",
+                            backgroundSize: "14px 14px",
+                            appearance: "none",
+                            WebkitAppearance: "none",
+                            cursor: selectedCatId ? "pointer" : "not-allowed",
+                            outline: "none",
+                            transition: "all 0.2s ease",
+                            color: "#1e293b",
+                            opacity: selectedCatId ? 1 : 0.6
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = "#28336e";
+                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.12)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = "#cbd5e1";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
                         >
                           <option value="">Select Subcategory</option>
                           {subcategoriesList.map((sub) => (

@@ -122,9 +122,8 @@ export default function AssetBuilder({
   }, [assetClass, assetName, method, lifeIsValid, lifeYears]);
 
   const ratePreview = draft
-    ? `${annualRateFor(draft.depreciationMethod, draft.effectiveLifeYears).toFixed(2)}% p.a. (${
-        draft.depreciationMethod === "diminishing_value" ? "200%" : "100%"
-      } ÷ ${draft.effectiveLifeYears} yrs)`
+    ? `${annualRateFor(draft.depreciationMethod, draft.effectiveLifeYears).toFixed(2)}% p.a. (${draft.depreciationMethod === "diminishing_value" ? "200%" : "100%"
+    } ÷ ${draft.effectiveLifeYears} yrs)`
     : null;
 
   const submit = () => {
@@ -158,9 +157,9 @@ export default function AssetBuilder({
           </div>
           <div className="figma-asset-class-info">
             <span className="figma-asset-class-title">Capital Works</span>
-            <span className="figma-asset-class-desc">
+            {/* <span className="figma-asset-class-desc">
               Structural / building costs (Div 43). Fixed 40-year life at 2.5% prime cost.
-            </span>
+            </span> */}
           </div>
         </button>
 
@@ -182,9 +181,9 @@ export default function AssetBuilder({
           </div>
           <div className="figma-asset-class-info">
             <span className="figma-asset-class-title">Capital Allowance</span>
-            <span className="figma-asset-class-desc">
+            {/* <span className="figma-asset-class-desc">
               Plant &amp; equipment (Div 40). You choose the effective life and method.
-            </span>
+            </span> */}
           </div>
         </button>
       </div>
@@ -233,7 +232,7 @@ export default function AssetBuilder({
       </div>
 
       {/* ---- Method --------------------------------------------------------- */}
-      {assetClass !== "" && (
+      {assetClass === "capital_allowance" && (
         <div style={{ marginTop: "20px" }}>
           <span
             className="figma-field-label"
@@ -242,15 +241,8 @@ export default function AssetBuilder({
             Method of Depreciation<em>*</em>
           </span>
 
-          {assetClass === "capital_works" ? (
-            <p className="figma-field-hint" style={{ margin: "0 0 8px" }}>
-              Capital works is prime cost only — diminishing value is not available for
-              Division 43.
-            </p>
-          ) : null}
-
           <div className="figma-asset-class-grid">
-            {methodsFor(assetClass).map((m) => (
+            {methodsFor("capital_allowance").map((m) => (
               <button
                 key={m}
                 type="button"
