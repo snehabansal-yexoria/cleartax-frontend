@@ -1820,6 +1820,179 @@ export async function getCoreGstSummaryForClient(
   return normalizeCoreGstSummary(getJsonObject(payload));
 }
 
+// ---------------------------------------------------------------------------
+// Profit & Loss statement
+//
+// GET /properties/{id}/pnl?financial_year=YYYY
+//
+// The server does the aggregation. That is not an optimisation — the statement
+// this replaces was summed in the browser from one capped page of
+// display-grain transaction rows, which meant it deducted the private slice of
+// every part-private bill, expensed capital purchases in full, added expenses
+// to income instead of subtracting them, and silently reported the first fifty
+// rows as a whole year.
+//
+// Two conventions to hold on to when rendering:
+//
+//   - Every amount is a POSITIVE magnitude, including expenses. The sign is a
+//     display choice. `netProfit` is the one genuinely signed figure.
+//   - `totals` is authoritative. Do not re-sum the lines; the server foots the
+//     statement so it cannot disagree with itself.
+// ---------------------------------------------------------------------------
+
+/** One bucket of money at the three grains the statement prints. */
+export type CorePnlAmount = {
+  gross: number;
+  gst: number;
+  net: number;
+};
+
+/** A figure paired with the same figure a financial year earlier. */
+export type CorePnlComparison = {
+  current: CorePnlAmount;
+  previous: CorePnlAmount;
+};
+
+export type CorePnlPeriod = {
+  /** Year the FY ends in: 2026 means 1 Jul 2025 - 30 Jun 2026. */
+  financialYear: number;
+  /** Printed label, e.g. "FY 2025-26". */
+  label: string;
+  from: string;
+  to: string;
+};
+
+/**
+ * One category/subcategory row.
+ *
+ * The ids are the stable key — group and diff on those, never on the display
+ * name. The old client-side version matched categories by normalising strings,
+ * which merged or split lines depending on punctuation.
+ */
+export type CorePnlLine = CorePnlComparison & {
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+};
+
+/**
+ * A depreciation deduction. These have no transaction rows in the reporting
+ * year — they come from the schedules written when each asset was saved — so
+ * they are a separate band rather than an expense category.
+ */
+export type CorePnlDeductionLine = CorePnlComparison & {
+  kind: "capital_works" | "capital_allowance" | string;
+  label: string;
+};
+
+export type CorePnlSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CorePnlPeriod;
+  comparison: CorePnlPeriod;
+  /** Always "invoice_date": the statement is unavoidably accruals basis. */
+  dateBasis: string;
+  income: CorePnlLine[];
+  expenses: CorePnlLine[];
+  deductions: CorePnlDeductionLine[];
+  totals: {
+    income: CorePnlComparison;
+    expenses: CorePnlComparison;
+    deductions: CorePnlComparison;
+    /** Income - expenses - deductions. Negative is a loss. */
+    netProfit: CorePnlComparison;
+  };
+};
+
+function toPnlAmount(value: unknown): CorePnlAmount {
+  const raw = (value ?? {}) as RawRecord;
+  return {
+    gross: toFloatValue(raw.gross),
+    gst: toFloatValue(raw.gst),
+    net: toFloatValue(raw.net),
+  };
+}
+
+function toPnlComparison(raw: RawRecord): CorePnlComparison {
+  return {
+    current: toPnlAmount(raw.current),
+    previous: toPnlAmount(raw.previous),
+  };
+}
+
+function toPnlPeriod(value: unknown): CorePnlPeriod {
+  const raw = (value ?? {}) as RawRecord;
+  return {
+    financialYear: toNumberValue(raw.financial_year ?? raw.financialYear) ?? 0,
+    label: toStringValue(raw.label),
+    from: toStringValue(raw.from),
+    to: toStringValue(raw.to),
+  };
+}
+
+function toPnlLines(value: unknown): CorePnlLine[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((raw) => ({
+      categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+      categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+      subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+      subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+      ...toPnlComparison(raw),
+    }));
+}
+
+function toPnlDeductions(value: unknown): CorePnlDeductionLine[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((raw) => ({
+      kind: toStringValue(raw.kind),
+      label: toStringValue(raw.label),
+      ...toPnlComparison(raw),
+    }));
+}
+
+export function normalizeCorePnlSummary(raw: RawRecord): CorePnlSummary {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const totals = (raw.totals ?? {}) as RawRecord;
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: toPnlPeriod(raw.period),
+    comparison: toPnlPeriod(raw.comparison),
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    income: toPnlLines(raw.income),
+    expenses: toPnlLines(raw.expenses),
+    deductions: toPnlDeductions(raw.deductions),
+    totals: {
+      income: toPnlComparison((totals.income ?? {}) as RawRecord),
+      expenses: toPnlComparison((totals.expenses ?? {}) as RawRecord),
+      deductions: toPnlComparison((totals.deductions ?? {}) as RawRecord),
+      netProfit: toPnlComparison(
+        (totals.net_profit ?? totals.netProfit ?? {}) as RawRecord,
+      ),
+    },
+  };
+}
+
+export async function getCorePnlSummaryByProperty(
+  token: string,
+  propertyId: string,
+  financialYear?: number,
+) {
+  const qs = financialYear ? `?financial_year=${financialYear}` : "";
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/pnl${qs}`,
+    { token },
+  );
+  return normalizeCorePnlSummary(getJsonObject(payload));
+}
+
 // -----------------------------------------------------------------------------
 // Personal (private-use) spending summary
 // -----------------------------------------------------------------------------

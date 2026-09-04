@@ -21,6 +21,7 @@ import {
   transactionTypeLabel,
   transactionTypeModifier,
 } from "@/src/lib/transactionTypes";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { isAwaitingExtraction } from "@/src/lib/reviewStatus";
 import { ReviewStatusBadge } from "@/app/components/ReviewStatusBadge";
 import type {
@@ -1158,7 +1159,9 @@ function TransactionDetailPopup({
       );
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
-      if (!cancelled) setCategories(data.items || []);
+      if (!cancelled) {
+        setCategories(withoutDedicatedFlowCategories(data.items || []));
+      }
     }
     loadCategories();
     return () => {
@@ -3830,8 +3833,9 @@ export function AllTransactionsView({
       { headers },
     );
     if (!catRes.ok) return null;
-    const category = ((await catRes.json()) as { items?: CoreTransactionCategory[] })
-      .items?.[0];
+    const category = withoutDedicatedFlowCategories(
+      ((await catRes.json()) as { items?: CoreTransactionCategory[] }).items || [],
+    )[0];
     if (!category) return null;
 
     const subRes = await fetch(
@@ -5843,7 +5847,7 @@ export function AddTransactionView({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
-        const items = data.items || [];
+        const items = withoutDedicatedFlowCategories(data.items || []);
         setCategories(items);
         // If a matched rule is pending and its category exists for this type,
         // select it (the subcategory effect will then apply the rule's subcat).

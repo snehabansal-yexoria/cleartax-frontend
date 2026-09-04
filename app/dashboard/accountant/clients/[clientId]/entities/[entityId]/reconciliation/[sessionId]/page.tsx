@@ -34,6 +34,7 @@ import {
   hidesSubcategoryPicker,
   parseTransactionType,
 } from "@/src/lib/transactionTypes";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
 import { StaticSelect } from "@/app/components/TransactionsFeature";
@@ -886,7 +887,11 @@ export default function AccountantReconciliationSessionPage() {
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
         .then((d: { items?: CoreTransactionCategory[] }) => {
-          if (!cancelled) setCategorizeCategories(d.items ?? []);
+          if (!cancelled) {
+            setCategorizeCategories(
+              withoutDedicatedFlowCategories(d.items ?? []),
+            );
+          }
         })
         .catch(() => { });
     });
@@ -1025,7 +1030,9 @@ export default function AccountantReconciliationSessionPage() {
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
         .then((d: { items?: CoreTransactionCategory[] }) => {
-          if (!cancelled) setBulkCategories(d.items ?? []);
+          if (!cancelled) {
+            setBulkCategories(withoutDedicatedFlowCategories(d.items ?? []));
+          }
         })
         .catch(() => { });
     });

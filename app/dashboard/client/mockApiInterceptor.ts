@@ -1249,6 +1249,13 @@ const ENABLE_MOCK_API =
   (process.env.NEXT_PUBLIC_ENABLE_MOCK_CLIENT_API ?? "false").toLowerCase() ===
   "true";
 
+// Paths the mock never answers, even when it is enabled. See the note at the
+// call site: these are real-backend-only surfaces with no localStorage model.
+const PASSTHROUGH_PATHS: RegExp[] = [
+  /^\/api\/depreciation\//,
+  /\/depreciation(\?|$)/,
+];
+
 let originalFetch: typeof window.fetch | null = null;
 
 export function useMockClientApi() {
@@ -1273,6 +1280,15 @@ export function useMockClientApi() {
         // Find relative start index of /api/
         const idx = url.indexOf("/api/");
         const relativeUrl = url.slice(idx);
+
+        // Depreciation is real-only. There is no mock model for a schedule —
+        // it is a computed, stored artefact, not a localStorage row — and the
+        // catch-all below 404s anything it does not recognise, which would
+        // break the client's depreciation card whenever the mock is switched
+        // on. Pass these straight through to the real backend instead.
+        if (PASSTHROUGH_PATHS.some((re) => re.test(relativeUrl))) {
+          return originalFetch!(input, init);
+        }
 
         try {
           console.log(`[Mock Client API Interceptor] Intercepted: ${init?.method || "GET"} ${relativeUrl}`);
