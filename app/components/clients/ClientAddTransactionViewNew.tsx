@@ -22,6 +22,7 @@ import {
   hidesSubcategoryPicker,
   parseTransactionType,
 } from "@/src/lib/transactionTypes";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import {
   DocumentDropZone,
   type ExtractedDocumentData,
@@ -1713,7 +1714,7 @@ export default function ClientAddTransactionViewNew({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
-        const items = data.items || [];
+        const items = withoutDedicatedFlowCategories(data.items || []);
         setCategories(items);
         const pending = pendingRuleRef.current;
         if (pending && items.some((c) => c.id === pending.categoryId)) {
@@ -2195,7 +2196,7 @@ export default function ClientAddTransactionViewNew({
     );
     if (!catRes.ok) return null;
     const catData = (await catRes.json()) as { items?: CoreTransactionCategory[] };
-    const category = catData.items?.[0];
+    const category = withoutDedicatedFlowCategories(catData.items || [])[0];
     if (!category) return null;
     const subRes = await fetch(
       `/api/transactions/categories/${category.id}/sub-categories`,
@@ -2316,7 +2317,7 @@ export default function ClientAddTransactionViewNew({
       );
       if (!res.ok) return null;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
-      options = data.items || [];
+      options = withoutDedicatedFlowCategories(data.items || []);
       cache.set(importType, options);
     }
     if (!categoryName.trim()) return options[0]?.id ?? null;

@@ -7,6 +7,7 @@ import { useEffect, useId, useMemo, useState, useRef } from "react";
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import type {
   CoreAssetClass,
   CoreTransactionCategory,
@@ -586,7 +587,7 @@ export default function ClientAddTransactionView({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
-        const items = data.items || [];
+        const items = withoutDedicatedFlowCategories(data.items || []);
         setCategories(items);
         const pending = pendingRuleRef.current;
         if (pending && items.some((c) => c.id === pending.categoryId)) {
@@ -902,7 +903,7 @@ export default function ClientAddTransactionView({
       );
       if (!res.ok) return null;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
-      options = data.items || [];
+      options = withoutDedicatedFlowCategories(data.items || []);
       cache.set(importType, options);
     }
     if (!categoryName.trim()) return options[0]?.id ?? null;

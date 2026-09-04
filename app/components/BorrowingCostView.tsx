@@ -6,7 +6,17 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import type {
+  CoreEntity,
+  CoreProperty,
+  CoreTransactionCategory,
+  CoreTransactionListItem,
+  CoreTransactionSubcategory,
+} from "@/src/lib/coreApi";
+import {
+  BORROWING_EXPENSE_CATEGORY_NAME,
+  findBorrowingExpenseCategory,
+} from "@/src/lib/borrowingCost";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -19,10 +29,20 @@ interface SessionWithIdToken {
   };
 }
 
+/**
+ * One row of the expense grid, backed by a real transaction.
+ *
+ * `transactionId` is empty on a row the accountant has added but not yet saved;
+ * that is what tells the save which rows to POST and which to PATCH. Amount and
+ * date stay strings so the inputs can hold a half-typed value without the
+ * schedule recalculating against NaN.
+ */
 type BorrowingExpense = {
-  id: string;
-  subcategory: string;
-  amount: string; // Keep as string for input editing ease, parse on calculate
+  /** Row identity in React. Stable across a save so inputs keep focus. */
+  key: string;
+  transactionId: string;
+  subcategoryId: number | null;
+  amount: string;
   date: string;
   description: string;
 };
@@ -32,13 +52,26 @@ type BorrowingCostViewProps = {
   backHref: string;
 };
 
-const SUBCATEGORY_OPTIONS = [
-  "Processing Fees",
-  "Registration Fee-Mortgage",
-  "Bill Of Sale Search Fee",
-];
-
 const CURRENCY_SYMBOL = "A$ ";
+
+/** Row keys for expenses the accountant has added but not yet saved. */
+let draftKeySeq = 0;
+function nextDraftKey() {
+  draftKeySeq += 1;
+  return `draft-${draftKeySeq}`;
+}
+
+function transactionToExpense(row: CoreTransactionListItem): BorrowingExpense {
+  return {
+    key: row.id,
+    transactionId: row.id,
+    subcategoryId: row.subcategoryId,
+    // The grid edits amounts as text; grossAmount is the authoritative number.
+    amount: row.grossAmount.toFixed(2),
+    date: row.invoiceDate ? row.invoiceDate.slice(0, 10) : "",
+    description: row.description || "",
+  };
+}
 
 function formatMoney(value: number) {
   const formattedNumber = new Intl.NumberFormat("en-AU", {
@@ -58,10 +91,13 @@ function formatDateToDDMMYYYY(dateStr: string) {
   return dateStr;
 }
 
+type SubcategoryOption = { id: number; name: string };
+
 interface TableDropdownSelectProps {
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
+  value: number | null;
+  options: SubcategoryOption[];
+  onChange: (value: number) => void;
+  placeholder?: string;
   disabled?: boolean;
 }
 
@@ -69,6 +105,7 @@ function TableDropdownSelect({
   value,
   options,
   onChange,
+  placeholder = "Select subcategory",
   disabled = false,
 }: TableDropdownSelectProps) {
   const reactId = useId();
@@ -96,6 +133,9 @@ function TableDropdownSelect({
       announceDropdownOpen(dropdownId);
     }
   }, [dropdownId, isOpen]);
+
+  const selectedLabel =
+    options.find((option) => option.id === value)?.name ?? "";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -130,7 +170,12 @@ function TableDropdownSelect({
         aria-expanded={isOpen}
         disabled={disabled}
       >
-        <span className="borrowing-cost-dropdown-value">{value}</span>
+        <span
+          className="borrowing-cost-dropdown-value"
+          style={selectedLabel ? undefined : { color: "#98a2b3" }}
+        >
+          {selectedLabel || placeholder}
+        </span>
         <svg
           className="borrowing-cost-dropdown-arrow"
           viewBox="0 0 24 24"
@@ -146,22 +191,27 @@ function TableDropdownSelect({
 
       {isOpen && (
         <div className="borrowing-cost-dropdown-menu" role="listbox">
+          {options.length === 0 && (
+            <div className="borrowing-cost-dropdown-empty">
+              No borrowing subcategories configured.
+            </div>
+          )}
           {options.map((option) => (
             <button
-              key={option}
+              key={option.id}
               type="button"
               role="option"
-              aria-selected={option === value}
+              aria-selected={option.id === value}
               className={`borrowing-cost-dropdown-item ${
-                option === value ? "is-selected" : ""
+                option.id === value ? "is-selected" : ""
               }`}
               onClick={() => {
-                onChange(option);
+                onChange(option.id);
                 setIsOpen(false);
               }}
             >
-              <span>{option}</span>
-              {option === value && (
+              <span>{option.name}</span>
+              {option.id === value && (
                 <svg
                   className="borrowing-cost-dropdown-check"
                   viewBox="0 0 24 24"
@@ -192,6 +242,7 @@ export default function BorrowingCostView({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Form State
@@ -199,6 +250,15 @@ export default function BorrowingCostView({
   const [loanStartDate, setLoanStartDate] = useState("");
   const [loanEndDate, setLoanEndDate] = useState("");
   const [sessionToken, setSessionToken] = useState("");
+
+  // The borrowing expense taxonomy, read from the database rather than a
+  // constant so an admin adding a subcategory shows up here without a release.
+  const [category, setCategory] = useState<CoreTransactionCategory | null>(null);
+  const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+
+  // Transaction ids present when the page loaded. Diffed against the grid on
+  // save to work out which rows the accountant deleted.
+  const loadedTransactionIdsRef = useRef<string[]>([]);
 
   // Load Data
   useEffect(() => {
@@ -214,12 +274,11 @@ export default function BorrowingCostView({
 
         const token = session.getIdToken().getJwtToken();
         if (!cancelled) setSessionToken(token);
+        const authHeaders = { Authorization: `Bearer ${token}` };
 
         const propertyRes = await fetch(
           `/api/properties/${encodeURIComponent(propertyId)}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { headers: authHeaders }
         );
 
         if (cancelled) return;
@@ -235,79 +294,80 @@ export default function BorrowingCostView({
         if (loadedProperty.entityId) {
           const entityRes = await fetch(
             `/api/entities/${encodeURIComponent(loadedProperty.entityId)}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
+            { headers: authHeaders }
           );
           if (!cancelled && entityRes.ok) {
             setEntity((await entityRes.json()) as CoreEntity);
           }
         }
 
-        // Initialize borrowing cost form fields
+        // Only the loan dates live on the property now. The expenses themselves
+        // are transactions, loaded below — keeping a second copy in the JSON
+        // blob is what let the two drift apart.
         const loanDetails = loadedProperty.loanDetails;
-        if (loanDetails) {
+        if (!cancelled && loanDetails) {
           if (loanDetails.loan_start_date) {
             setLoanStartDate(String(loanDetails.loan_start_date).slice(0, 10));
           }
           if (loanDetails.loan_end_date) {
             setLoanEndDate(String(loanDetails.loan_end_date).slice(0, 10));
           }
-          if (Array.isArray(loanDetails.borrowing_expenses)) {
-            const expenses = (loanDetails.borrowing_expenses as any[]).map((exp, idx) => ({
-              id: exp.id || String(idx),
-              subcategory: exp.subcategory || SUBCATEGORY_OPTIONS[0],
-              amount: String(exp.amount ?? ""),
-              date: exp.date ? String(exp.date).slice(0, 10) : "",
-              description: exp.description || "",
-            }));
-            setBorrowingExpenses(expenses);
-          } else {
-            // Default first row if no database data
-            setBorrowingExpenses([
-              {
-                id: "0",
-                subcategory: "Processing Fees",
-                amount: "2500",
-                date: "2026-08-10",
-                description: "Loan processing",
-              },
-            ]);
-          }
-        } else {
-          // Default mock data matching image 2
-          setBorrowingExpenses([
-            {
-              id: "1",
-              subcategory: "Processing Fees",
-              amount: "2500",
-              date: "2026-08-10",
-              description: "Loan processing",
-            },
-            {
-              id: "2",
-              subcategory: "Registration Fee-Mortgage",
-              amount: "3000",
-              date: "2026-08-11",
-              description: "Mortgage registration",
-            },
-            {
-              id: "3",
-              subcategory: "Bill Of Sale Search Fee",
-              amount: "900",
-              date: "2003-09-08",
-              description: "",
-            },
-            {
-              id: "4",
-              subcategory: "Bill Of Sale Search Fee",
-              amount: "100",
-              date: "2026-12-12",
-              description: "",
-            },
-          ]);
-          setLoanStartDate("2019-04-02");
-          setLoanEndDate("2020-09-08");
+        }
+
+        // Resolve the borrowing expense category by name: its id is a
+        // BIGSERIAL that differs per environment, so there is nothing stable to
+        // hardcode.
+        const categoryRes = await fetch(
+          `/api/transactions/categories?type=expense`,
+          { headers: authHeaders }
+        );
+        if (cancelled) return;
+        if (!categoryRes.ok) {
+          setLoadError("Failed to load borrowing expense categories.");
+          return;
+        }
+        const categoryData = (await categoryRes.json()) as {
+          items?: CoreTransactionCategory[];
+        };
+        const borrowingCategory = findBorrowingExpenseCategory(
+          categoryData.items || []
+        );
+        if (!borrowingCategory) {
+          setLoadError(
+            `The "${BORROWING_EXPENSE_CATEGORY_NAME}" category is missing from this organisation's chart of accounts.`
+          );
+          return;
+        }
+        if (cancelled) return;
+        setCategory(borrowingCategory);
+
+        const [subcategoryRes, transactionsRes] = await Promise.all([
+          fetch(
+            `/api/transactions/categories/${borrowingCategory.id}/sub-categories`,
+            { headers: authHeaders }
+          ),
+          fetch(
+            `/api/transactions?property_id=${encodeURIComponent(propertyId)}` +
+              `&category_id=${borrowingCategory.id}&grain=top&limit=200`,
+            { headers: authHeaders }
+          ),
+        ]);
+        if (cancelled) return;
+
+        if (subcategoryRes.ok) {
+          const subcategoryData = (await subcategoryRes.json()) as {
+            items?: CoreTransactionSubcategory[];
+          };
+          setSubcategories(subcategoryData.items || []);
+        }
+
+        if (transactionsRes.ok) {
+          const page = (await transactionsRes.json()) as {
+            items?: CoreTransactionListItem[];
+          };
+          const rows = (page.items || []).map(transactionToExpense);
+          setBorrowingExpenses(rows);
+          loadedTransactionIdsRef.current = rows.map((row) => row.transactionId);
         }
       } catch (err) {
         if (!cancelled) {
@@ -324,6 +384,24 @@ export default function BorrowingCostView({
       cancelled = true;
     };
   }, [propertyId, router]);
+
+  /**
+   * Re-reads the expense grid from the transactions behind it. Called after a
+   * save so freshly created rows learn their transaction id; until they do,
+   * they still look like drafts and a second save would create them again.
+   */
+  const reloadExpenses = async (token: string, categoryId: number) => {
+    const res = await fetch(
+      `/api/transactions?property_id=${encodeURIComponent(propertyId)}` +
+        `&category_id=${categoryId}&grain=top&limit=200`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) return;
+    const page = (await res.json()) as { items?: CoreTransactionListItem[] };
+    const rows = (page.items || []).map(transactionToExpense);
+    setBorrowingExpenses(rows);
+    loadedTransactionIdsRef.current = rows.map((row) => row.transactionId);
+  };
 
   // Calculations
   const totalBorrowingCost = useMemo(() => {
@@ -453,14 +531,14 @@ export default function BorrowingCostView({
     return schedule.reduce((sum, p) => sum + p.days, 0);
   }, [schedule]);
 
-  // Add Row
+  // Add Row — appended as a draft; it becomes a transaction on save.
   const handleAddExpense = () => {
-    const nextId = String(Date.now() + Math.random());
     setBorrowingExpenses((prev) => [
       ...prev,
       {
-        id: nextId,
-        subcategory: SUBCATEGORY_OPTIONS[0],
+        key: nextDraftKey(),
+        transactionId: "",
+        subcategoryId: null,
         amount: "",
         date: new Date().toISOString().slice(0, 10),
         description: "",
@@ -468,57 +546,143 @@ export default function BorrowingCostView({
     ]);
   };
 
-  // Delete Row
-  const handleDeleteExpense = (id: string) => {
-    setBorrowingExpenses((prev) => prev.filter((exp) => exp.id !== id));
+  // Delete Row. The transaction itself is deleted on save, so a mis-click is
+  // recoverable by leaving the page.
+  const handleDeleteExpense = (key: string) => {
+    setBorrowingExpenses((prev) => prev.filter((exp) => exp.key !== key));
   };
 
   // Update field
-  const handleUpdateField = (id: string, field: keyof BorrowingExpense, value: string) => {
+  const handleUpdateField = <K extends keyof BorrowingExpense>(
+    key: string,
+    field: K,
+    value: BorrowingExpense[K],
+  ) => {
     setBorrowingExpenses((prev) =>
-      prev.map((exp) => (exp.id === id ? { ...exp, [field]: value } : exp))
+      prev.map((exp) => (exp.key === key ? { ...exp, [field]: value } : exp))
     );
   };
 
-  // Save details
+  /**
+   * Builds the create/update body for one expense row.
+   *
+   * Every borrowing expense is an ordinary expense transaction: type and
+   * category are fixed by this page (the general Add Transaction form no longer
+   * offers the category), and the single split puts 100% of it on this
+   * property, which is what the property-level reports read.
+   */
+  const expenseRequestBody = (exp: BorrowingExpense, categoryId: number) => ({
+    type: "expense",
+    category_id: categoryId,
+    subcategory_id: exp.subcategoryId,
+    invoice_date: exp.date,
+    gross_amount: Number.parseFloat(exp.amount),
+    description: exp.description.trim() || null,
+    splits: [{ property_id: propertyId, split_percentage: 100 }],
+  });
+
+  // Save details — reconciles the grid against the transactions behind it, then
+  // stores the loan dates on the property.
   const handleSave = async () => {
-    if (!sessionToken || !property) return;
+    if (!sessionToken || !property || !category) return;
+
+    const entityId = property.entityId;
+    if (!entityId) {
+      setSaveError("This property is not linked to an entity, so borrowing expenses cannot be recorded against it.");
+      return;
+    }
+
+    // Validate before writing anything: a partial save would leave some
+    // expenses created and others not, with no way to tell which from the UI.
+    for (const exp of borrowingExpenses) {
+      if (!exp.subcategoryId) {
+        setSaveError("Every borrowing expense needs a subcategory.");
+        return;
+      }
+      const amount = Number.parseFloat(exp.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setSaveError("Every borrowing expense needs an amount greater than zero.");
+        return;
+      }
+      if (!exp.date) {
+        setSaveError("Every borrowing expense needs a date.");
+        return;
+      }
+    }
+
     setIsSaving(true);
     setSaveSuccess(false);
+    setSaveError("");
     try {
-      const expensesPayload = borrowingExpenses.map((exp) => ({
-        subcategory: exp.subcategory,
-        amount: Number.parseFloat(exp.amount) || 0,
-        date: exp.date,
-        description: exp.description,
-      }));
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      };
 
-      const res = await fetch(`/api/properties/${propertyId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({
-          loan_details: {
-            ...(property.loanDetails || {}),
-            borrowing_expenses: expensesPayload,
-            loan_start_date: loanStartDate,
-            loan_end_date: loanEndDate,
-          },
+      const remainingIds = new Set(
+        borrowingExpenses.map((exp) => exp.transactionId).filter(Boolean)
+      );
+      const deletedIds = loadedTransactionIdsRef.current.filter(
+        (id) => !remainingIds.has(id)
+      );
+
+      const responses = await Promise.all([
+        ...borrowingExpenses.map((exp) =>
+          exp.transactionId
+            ? fetch(`/api/transactions/${encodeURIComponent(exp.transactionId)}`, {
+                method: "PATCH",
+                headers: authHeaders,
+                body: JSON.stringify(expenseRequestBody(exp, category.id)),
+              })
+            : fetch(`/api/entities/${encodeURIComponent(entityId)}/transactions`, {
+                method: "POST",
+                headers: authHeaders,
+                body: JSON.stringify(expenseRequestBody(exp, category.id)),
+              })
+        ),
+        ...deletedIds.map((id) =>
+          fetch(`/api/transactions/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          })
+        ),
+        fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+          method: "PATCH",
+          headers: authHeaders,
+          body: JSON.stringify({
+            loan_details: {
+              ...(property.loanDetails || {}),
+              // Superseded by the transactions this page now writes. Sent as
+              // null so a property saved under the old shape stops carrying a
+              // stale second copy of the expenses.
+              borrowing_expenses: null,
+              loan_start_date: loanStartDate || null,
+              loan_end_date: loanEndDate || null,
+            },
+          }),
         }),
-      });
+      ]);
 
-      if (res.ok) {
-        setSaveSuccess(true);
-        // Clean success message after 3 seconds
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        alert("Failed to save borrowing cost details.");
+      const failed = responses.filter((res) => !res.ok);
+      if (failed.length > 0) {
+        const detail = (await failed[0].json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setSaveError(
+          detail?.message || detail?.error || "Failed to save borrowing cost details."
+        );
+        return;
       }
+
+      // Re-read so new rows pick up their transaction ids — without this a
+      // second save would create duplicates of everything just added.
+      await reloadExpenses(sessionToken, category.id);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      console.error("Error patching property:", err);
-      alert("Error saving borrowing cost details.");
+      console.error("Error saving borrowing expenses:", err);
+      setSaveError("Error saving borrowing cost details.");
     } finally {
       setIsSaving(false);
     }
@@ -750,6 +914,11 @@ export default function BorrowingCostView({
           background-color: #f9fafb;
           border-color: #bac2de;
         }
+        .borrowing-cost-dropdown-empty {
+          padding: 10px 12px;
+          font-size: 13px;
+          color: #667085;
+        }
       `}</style>
 
       {/* Breadcrumbs Back */}
@@ -854,6 +1023,23 @@ export default function BorrowingCostView({
         </div>
       )}
 
+      {saveError && (
+        <div
+          style={{
+            backgroundColor: "#fef3f2",
+            color: "#b42318",
+            border: "1px solid #fecdca",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: 600,
+            marginBottom: "24px",
+          }}
+        >
+          {saveError}
+        </div>
+      )}
+
       <div className="logit-review-form">
         {/* Section 1: Borrowing Expenses */}
         <section className="entity-wizard-card logit-card borrowing-cost-card">
@@ -865,7 +1051,7 @@ export default function BorrowingCostView({
             </div>
             <button
               type="button"
-              onClick={handleAddExpense}
+              onClick={() => handleAddExpense()}
               className="borrowing-cost-btn-secondary"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ width: "12px", height: "12px" }}>
@@ -888,13 +1074,13 @@ export default function BorrowingCostView({
               </thead>
               <tbody>
                 {borrowingExpenses.map((exp) => (
-                  <tr key={exp.id} style={{ borderBottom: "1px solid #f2f4f7" }}>
+                  <tr key={exp.key} style={{ borderBottom: "1px solid #f2f4f7" }}>
                     {/* Subcategory Dropdown */}
                     <td>
                       <TableDropdownSelect
-                        value={exp.subcategory}
-                        options={SUBCATEGORY_OPTIONS}
-                        onChange={(val) => handleUpdateField(exp.id, "subcategory", val)}
+                        value={exp.subcategoryId}
+                        options={subcategories}
+                        onChange={(val) => handleUpdateField(exp.key, "subcategoryId", val)}
                       />
                     </td>
 
@@ -904,7 +1090,7 @@ export default function BorrowingCostView({
                         type="number"
                         placeholder="0"
                         value={exp.amount}
-                        onChange={(e) => handleUpdateField(exp.id, "amount", e.target.value)}
+                        onChange={(e) => handleUpdateField(exp.key, "amount", e.target.value)}
                         className="borrowing-cost-input"
                         style={{ textAlign: "right" }}
                       />
@@ -915,7 +1101,7 @@ export default function BorrowingCostView({
                       <input
                         type="date"
                         value={exp.date}
-                        onChange={(e) => handleUpdateField(exp.id, "date", e.target.value)}
+                        onChange={(e) => handleUpdateField(exp.key, "date", e.target.value)}
                         className="borrowing-cost-input"
                       />
                     </td>
@@ -926,7 +1112,7 @@ export default function BorrowingCostView({
                         type="text"
                         placeholder="Description"
                         value={exp.description}
-                        onChange={(e) => handleUpdateField(exp.id, "description", e.target.value)}
+                        onChange={(e) => handleUpdateField(exp.key, "description", e.target.value)}
                         className="borrowing-cost-input"
                       />
                     </td>
@@ -935,16 +1121,15 @@ export default function BorrowingCostView({
                     <td style={{ textAlign: "center" }}>
                       <button
                         type="button"
-                        onClick={() => handleDeleteExpense(exp.id)}
-                        disabled={borrowingExpenses.length <= 1}
+                        onClick={() => handleDeleteExpense(exp.key)}
+                        aria-label="Delete borrowing expense"
                         style={{
                           background: "none",
                           border: "1px solid #fecdca",
                           borderRadius: "6px",
                           padding: "6px 8px",
-                          cursor: borrowingExpenses.length <= 1 ? "not-allowed" : "pointer",
+                          cursor: "pointer",
                           color: "#f04438",
-                          opacity: borrowingExpenses.length <= 1 ? 0.4 : 1,
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -952,7 +1137,7 @@ export default function BorrowingCostView({
                           width: "36px",
                         }}
                         onMouseEnter={(e) => {
-                          if (borrowingExpenses.length > 1) e.currentTarget.style.backgroundColor = "#fee4e2";
+                          e.currentTarget.style.backgroundColor = "#fee4e2";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "transparent";
