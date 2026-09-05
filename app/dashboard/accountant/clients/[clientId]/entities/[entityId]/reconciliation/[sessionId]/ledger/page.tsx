@@ -243,10 +243,15 @@ export default function GeneralLedgerPage() {
   const firstRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastRow = Math.min(page * pageSize, total);
 
-  // The balance column is always the true account balance, so a category or
-  // type filter leaves visible gaps in it. Say so rather than letting it read
-  // as an arithmetic error.
+  // The balance column is always the true account balance, and the ledger only
+  // ever lists reviewed, reconciled lines — so it has visible jumps even with no
+  // filter applied. Say so unconditionally rather than letting it read as an
+  // arithmetic error.
   const balanceIsFiltered = categoryFilter !== "All" || typeFilter !== "";
+  // Drives the empty state: with nothing filtered, an empty ledger means
+  // nothing has been reconciled and reviewed yet, which is a different problem
+  // from "your filters are too narrow".
+  const hasActiveFilters = balanceIsFiltered || datePreset !== "All Dates";
 
   const handleStartEdit = (row: CoreLedgerRow) => {
     setEditingIndex(row.bankTxIndex);
@@ -985,16 +990,6 @@ export default function GeneralLedgerPage() {
           background: #f1f3f9;
           color: #6b7590;
         }
-        .ledger-page .unreconciled-chip {
-          display: inline-block;
-          padding: 3px 9px;
-          border-radius: 999px;
-          background: #fff4e5;
-          color: #b45309;
-          font-size: 0.72rem;
-          font-weight: 700;
-          letter-spacing: 0.01em;
-        }
         .ledger-page .name-empty {
           color: #a3adc4;
           font-style: italic;
@@ -1369,12 +1364,14 @@ export default function GeneralLedgerPage() {
         {/* Table Card */}
         {ledger && !notCompleted && (
           <div className="table-card">
-            {balanceIsFiltered && (
-              <p className="balance-note">
-                Balance stays the full account balance, so it skips rows hidden
-                by the category or type filter.
-              </p>
-            )}
+            <p className="balance-note">
+              This ledger lists reconciled transactions that are not awaiting
+              review or rejected. Balance stays the full account balance, so it
+              still counts every statement line
+              {balanceIsFiltered
+                ? " — including the ones hidden here by the category or type filter."
+                : " — including any not listed here."}
+            </p>
             <div className="table-scroll">
               <table>
                 <thead>
@@ -1403,7 +1400,9 @@ export default function GeneralLedgerPage() {
                   {rows.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="no-results">
-                        No transactions match the selected filters.
+                        {hasActiveFilters
+                          ? "No transactions match the selected filters."
+                          : "Nothing to show yet. The ledger lists statement lines reconciled to a transaction that is not awaiting review or rejected."}
                       </td>
                     </tr>
                   ) : (
@@ -1472,11 +1471,9 @@ export default function GeneralLedgerPage() {
                             )}
                           </td>
                           <td className="col-desc">{row.description}</td>
-                          <td className="col-split">
-                            {row.split || (
-                              <span className="unreconciled-chip">Unreconciled</span>
-                            )}
-                          </td>
+                          {/* Every row is reconciled now, so the only gap left
+                              is a category that has since been deactivated. */}
+                          <td className="col-split">{row.split || "—"}</td>
                           <td className={`col-amount ${amountClassFor(row.amount)}`}>
                             {formatAmount(row.amount)}
                           </td>

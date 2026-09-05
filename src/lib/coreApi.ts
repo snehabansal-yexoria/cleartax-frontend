@@ -2735,6 +2735,9 @@ export type CoreLedgerRow = {
   balance: number;
   transactionId: string | null;
   matchStatus: CoreLedgerMatchStatus;
+  /** "active", "reviewed" or "approved" — the ledger excludes anything awaiting
+   *  review or rejected, so those three are all that can appear. */
+  reviewStatus: string;
 };
 
 export type CoreLedgerCategory = {
@@ -2830,6 +2833,7 @@ function normalizeLedgerRow(raw: RawRecord): CoreLedgerRow {
       status === "confirmed" || status === "excluded"
         ? (status as CoreLedgerMatchStatus)
         : "unmatched",
+    reviewStatus: String(raw.review_status ?? ""),
   };
 }
 

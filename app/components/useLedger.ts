@@ -8,9 +8,13 @@ import type { CoreLedgerResponse } from "@/src/lib/coreApi";
  * The account ledger for a completed reconciliation.
  *
  * Reads GET /api/entities/{id}/reconciliation-sessions/{sessionId}/ledger,
- * which returns a server-side statement: one row per bank statement line, in
- * statement order, with the running balance already computed over every line so
- * paging cannot break it.
+ * which returns a server-side statement: one row per bank statement line that
+ * has been reconciled to a transaction which is neither awaiting review nor
+ * rejected, in statement order.
+ *
+ * The running balance is computed upstream over EVERY line, including the ones
+ * no row is shown for, so it stays the bank account's balance and paging cannot
+ * break it. The page says so, because otherwise the jumps read as an error.
  *
  * This replaces a page seeded with eleven hardcoded rows, a $10,000 opening
  * balance and a "Business Account – ANZ" caption, which rendered a complete,
