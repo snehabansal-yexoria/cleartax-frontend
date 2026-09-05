@@ -2050,7 +2050,7 @@ export default function AccountantReconciliationSessionPage() {
             {statements.length} statement{statements.length === 1 ? "" : "s"}
           </p>
         </div>
-        {!isSessionCompleted && (
+        {!isSessionCompleted ? (
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button
               type="button"
@@ -2069,6 +2069,21 @@ export default function AccountantReconciliationSessionPage() {
               Upload Statement
             </button>
           </div>
+        ) : (
+          // A completed session's header was empty. The ledger is the thing an
+          // accountant wants next, and it is only reachable once the status is
+          // completed — so this is where it belongs.
+          <Link
+            className="accountant-reconciliation-upload-button"
+            href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation/${sessionId}/ledger`}
+            style={{ textDecoration: "none" }}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+            </svg>
+            View Ledger
+          </Link>
         )}
         <input
           ref={fileRef}

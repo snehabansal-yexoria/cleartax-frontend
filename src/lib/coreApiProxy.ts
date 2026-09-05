@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   CoreApiError,
   toCoreReviewStatusParam,
+  type CoreLedgerQuery,
   type CoreTransactionListQuery,
   type CoreTransactionType,
 } from "./coreApi";
@@ -160,6 +161,50 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
           : undefined,
     sort: str("sort"),
     dir: dir === "asc" || dir === "desc" ? dir : undefined,
+    limit: int("limit"),
+    offset: int("offset"),
+  };
+}
+
+/**
+ * Parse the account ledger's query string into a typed CoreLedgerQuery.
+ *
+ * Same discipline as parseTransactionListQuery: read each parameter by name and
+ * validate it rather than forwarding the raw query string, so a caller cannot
+ * smuggle in a filter the BFF has not accounted for. The Go API whitelists
+ * these again — this is the first gate, not the only one.
+ */
+export function parseLedgerQuery(req: Request): CoreLedgerQuery {
+  const sp = new URL(req.url).searchParams;
+  const str = (key: string) => {
+    const value = sp.get(key)?.trim();
+    return value ? value : undefined;
+  };
+  const int = (key: string) => {
+    const raw = sp.get(key);
+    if (raw === null || raw.trim() === "") return undefined;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+  const isoDate = (key: string) => {
+    const value = str(key);
+    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+  };
+
+  const type = sp.get("type")?.trim().toLowerCase();
+
+  return {
+    reconciliationId: str("reconciliation_id"),
+    from: isoDate("from"),
+    to: isoDate("to"),
+    categoryId: int("category_id"),
+    // The ledger's type tabs map onto transaction.type; "all" and anything
+    // unrecognised mean no filter. The spec's Transfer and Journal Entry have
+    // no stored type, so they are dropped here rather than sent upstream to
+    // become a 400 on every tab click.
+    type: TRANSACTION_TYPES.includes(type as CoreTransactionType)
+      ? (type as CoreTransactionType)
+      : undefined,
     limit: int("limit"),
     offset: int("offset"),
   };

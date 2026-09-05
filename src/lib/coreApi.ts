@@ -2692,6 +2692,276 @@ export async function updateReconciliationSession(
   return normalizeReconciliationSession(getJsonObject(payload) as RawRecord);
 }
 
+// ── Account ledger ───────────────────────────────────────────────────────────
+//
+// The ledger is a statement-shaped view of a completed reconciliation: one row
+// per bank statement line, with a running balance anchored to the statement's
+// opening balance. Note these paths carry the `/api` prefix, matching the other
+// reconciliation endpoints upstream (the transaction endpoints do not).
+
+export type CoreLedgerMatchStatus = "confirmed" | "excluded" | "unmatched";
+
+export type CoreLedgerAccount = {
+  reconciliationId: string;
+  label: string;
+  bank: string;
+  accountNumber: string;
+  accountType: string;
+  holder: string;
+  openingBalance: number;
+  closingBalance: number;
+  /** False for every CSV-sourced statement — the parser stores no account
+   *  metadata, so the ledger has nothing to anchor its balance to until an
+   *  accountant sets one. The page prompts rather than showing a fake zero. */
+  hasOpeningBalance: boolean;
+  statementFrom: string;
+  statementTo: string;
+  lineCount: number;
+};
+
+export type CoreLedgerRow = {
+  bankTxIndex: number;
+  distributionAccount: string;
+  date: string;
+  transactionType: string | null;
+  transactionTypeLabel: string;
+  name: string;
+  description: string;
+  categoryId: number | null;
+  split: string;
+  subcategoryId: number | null;
+  subcategory: string;
+  amount: number;
+  balance: number;
+  transactionId: string | null;
+  matchStatus: CoreLedgerMatchStatus;
+};
+
+export type CoreLedgerCategory = {
+  categoryId: number;
+  categoryName: string;
+  type: string;
+};
+
+export type CoreLedgerUnusedCategory = CoreLedgerCategory & { amount: number };
+
+export type CoreLedgerResponse = {
+  session: {
+    id: string;
+    label: string;
+    status: ReconciliationSessionStatus;
+    periodFrom: string | null;
+    periodTo: string | null;
+  };
+  accounts: CoreLedgerAccount[];
+  account: CoreLedgerAccount;
+  period: { from: string | null; to: string | null };
+  openingBalance: number;
+  statementOpeningBalance: number;
+  closingBalance: number;
+  rows: CoreLedgerRow[];
+  totals: { debits: number; credits: number; net: number };
+  categories: CoreLedgerCategory[];
+  unusedCategories: CoreLedgerUnusedCategory[];
+  total: number;
+  limit: number;
+  offset: number;
+  dateBasis: string;
+};
+
+export type CoreLedgerQuery = {
+  reconciliationId?: string;
+  from?: string;
+  to?: string;
+  categoryId?: number;
+  type?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export function ledgerQueryString(query: CoreLedgerQuery): string {
+  const sp = new URLSearchParams();
+  if (query.reconciliationId) sp.set("reconciliation_id", query.reconciliationId);
+  if (query.from) sp.set("from", query.from);
+  if (query.to) sp.set("to", query.to);
+  if (query.categoryId != null) sp.set("category_id", String(query.categoryId));
+  if (query.type) sp.set("type", query.type);
+  if (query.limit != null) sp.set("limit", String(query.limit));
+  if (query.offset != null) sp.set("offset", String(query.offset));
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
+
+function normalizeLedgerAccount(raw: RawRecord): CoreLedgerAccount {
+  return {
+    reconciliationId: String(raw.reconciliation_id ?? ""),
+    label: String(raw.label ?? ""),
+    bank: String(raw.bank ?? ""),
+    accountNumber: String(raw.account_number ?? ""),
+    accountType: String(raw.account_type ?? ""),
+    holder: String(raw.holder ?? ""),
+    openingBalance: Number(raw.opening_balance ?? 0),
+    closingBalance: Number(raw.closing_balance ?? 0),
+    hasOpeningBalance: Boolean(raw.has_opening_balance),
+    statementFrom: String(raw.statement_from ?? ""),
+    statementTo: String(raw.statement_to ?? ""),
+    lineCount: Number(raw.line_count ?? 0),
+  };
+}
+
+function normalizeLedgerRow(raw: RawRecord): CoreLedgerRow {
+  const status = String(raw.match_status ?? "unmatched");
+  return {
+    bankTxIndex: Number(raw.bank_tx_index ?? 0),
+    distributionAccount: String(raw.distribution_account ?? ""),
+    date: String(raw.date ?? ""),
+    transactionType: raw.transaction_type != null ? String(raw.transaction_type) : null,
+    transactionTypeLabel: String(raw.transaction_type_label ?? ""),
+    name: String(raw.name ?? ""),
+    description: String(raw.description ?? ""),
+    categoryId: raw.category_id != null ? Number(raw.category_id) : null,
+    split: String(raw.split ?? ""),
+    subcategoryId: raw.subcategory_id != null ? Number(raw.subcategory_id) : null,
+    subcategory: String(raw.subcategory ?? ""),
+    amount: Number(raw.amount ?? 0),
+    balance: Number(raw.balance ?? 0),
+    transactionId: raw.transaction_id != null ? String(raw.transaction_id) : null,
+    matchStatus:
+      status === "confirmed" || status === "excluded"
+        ? (status as CoreLedgerMatchStatus)
+        : "unmatched",
+  };
+}
+
+function normalizeLedgerCategory(raw: RawRecord): CoreLedgerCategory {
+  return {
+    categoryId: Number(raw.category_id ?? 0),
+    categoryName: String(raw.category_name ?? ""),
+    type: String(raw.type ?? ""),
+  };
+}
+
+export function normalizeCoreLedger(payload: RawRecord): CoreLedgerResponse {
+  const session = (payload.session ?? {}) as RawRecord;
+  const period = (payload.period ?? {}) as RawRecord;
+  const totals = (payload.totals ?? {}) as RawRecord;
+  const accounts = Array.isArray(payload.accounts)
+    ? (payload.accounts as RawRecord[]).map(normalizeLedgerAccount)
+    : [];
+
+  return {
+    session: {
+      id: String(session.id ?? ""),
+      label: String(session.label ?? ""),
+      status: session.status === "completed" ? "completed" : "open",
+      periodFrom: session.period_from != null ? String(session.period_from) : null,
+      periodTo: session.period_to != null ? String(session.period_to) : null,
+    },
+    accounts,
+    account: normalizeLedgerAccount((payload.account ?? {}) as RawRecord),
+    period: {
+      from: period.from != null ? String(period.from) : null,
+      to: period.to != null ? String(period.to) : null,
+    },
+    openingBalance: Number(payload.opening_balance ?? 0),
+    statementOpeningBalance: Number(payload.statement_opening_balance ?? 0),
+    closingBalance: Number(payload.closing_balance ?? 0),
+    rows: Array.isArray(payload.rows)
+      ? (payload.rows as RawRecord[]).map(normalizeLedgerRow)
+      : [],
+    totals: {
+      debits: Number(totals.debits ?? 0),
+      credits: Number(totals.credits ?? 0),
+      net: Number(totals.net ?? 0),
+    },
+    categories: Array.isArray(payload.categories)
+      ? (payload.categories as RawRecord[]).map(normalizeLedgerCategory)
+      : [],
+    unusedCategories: Array.isArray(payload.unused_categories)
+      ? (payload.unused_categories as RawRecord[]).map((r) => ({
+          ...normalizeLedgerCategory(r),
+          amount: Number(r.amount ?? 0),
+        }))
+      : [],
+    total: Number(payload.total ?? 0),
+    limit: Number(payload.limit ?? 0),
+    offset: Number(payload.offset ?? 0),
+    dateBasis: String(payload.date_basis ?? ""),
+  };
+}
+
+export async function fetchCoreLedger(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  query: CoreLedgerQuery = {},
+): Promise<CoreLedgerResponse> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger${ledgerQueryString(query)}`,
+    { token },
+  )) as RawRecord;
+  return normalizeCoreLedger(payload);
+}
+
+/**
+ * Returns the upstream Response untouched so the BFF can stream the body
+ * through instead of buffering an export in Node memory — same contract as
+ * fetchCoreTransactionExport.
+ */
+export async function fetchCoreLedgerExport(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  format: CoreTransactionExportFormat,
+  query: CoreLedgerQuery = {},
+): Promise<Response> {
+  const qs = ledgerQueryString({ ...query, limit: undefined, offset: undefined });
+  const separator = qs ? "&" : "?";
+  return fetch(
+    `${getCoreApiBaseUrl()}/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/export${qs}${separator}format=${encodeURIComponent(format)}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+export async function patchCoreLedgerEntryName(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  bankTxIndex: number,
+  body: { reconciliationId: string; name: string },
+): Promise<{ bankTxIndex: number; name: string }> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/entries/${bankTxIndex}`,
+    {
+      method: "PATCH",
+      token,
+      body: { reconciliation_id: body.reconciliationId, name: body.name },
+    },
+  )) as RawRecord;
+  return {
+    bankTxIndex: Number(payload.bank_tx_index ?? bankTxIndex),
+    name: String(payload.name ?? ""),
+  };
+}
+
+export async function patchCoreReconciliationAccount(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+  body: { bank?: string; accountNumber?: string; openingBalance?: number },
+): Promise<RawRecord> {
+  const reqBody: Record<string, unknown> = {};
+  if (body.bank !== undefined) reqBody.bank = body.bank;
+  if (body.accountNumber !== undefined) reqBody.account_number = body.accountNumber;
+  if (body.openingBalance !== undefined) reqBody.opening_balance = body.openingBalance;
+
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/account`,
+    { method: "PATCH", token, body: reqBody },
+  )) as RawRecord;
+  return payload;
+}
+
 export async function listCoreTransactionCategories(
   token: string,
   type?: CoreTransactionType,

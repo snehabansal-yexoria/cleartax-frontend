@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-
-interface LedgerRow {
-  id: string;
-  date: string; // DD/MM/YYYY
-  type: "Income" | "Expense" | "Transfer" | "Journal Entry";
-  name: string;
-  description: string;
-  split: string;
-  amount: number;
-  balance: number;
-  distributionAccount: string;
-}
+import {
+  formatLedgerDate,
+  formatLedgerRange,
+  ledgerBearerToken,
+  ledgerSearchParams,
+  resolveLedgerPreset,
+  useLedger,
+  LEDGER_DATE_PRESETS,
+  type LedgerDatePreset,
+  type LedgerQueryState,
+} from "@/app/components/useLedger";
+import type { CoreLedgerRow } from "@/src/lib/coreApi";
 
 interface SelectOption {
   label: string;
@@ -22,59 +22,28 @@ interface SelectOption {
   isHeader?: boolean;
 }
 
-const ALL_CATEGORIES = [
-  "Sales",
-  "Interest Income",
-  "Rental Income",
-  "Office Expenses",
-  "Electricity",
-  "Depreciation",
-  "Borrowing Expenses",
-  "Insurance Expense",
-  "Repairs & Maintenance",
-  "Marketing Expense",
+/**
+ * Ledger transaction-type tabs.
+ *
+ * The spec also lists Transfer and Journal Entry. `transaction.type` has no such
+ * values, and adding them would reach into the P&L row filter, the GST
+ * sales/purchases split and the migration-0036 grain rules — so they are absent
+ * rather than shown as tabs that can never match anything.
+ */
+const TYPE_TABS: { label: string; value: string }[] = [
+  { label: "All", value: "" },
+  { label: "Income", value: "revenue" },
+  { label: "Expense", value: "expense" },
+  { label: "Personal", value: "personal" },
+  { label: "Capital", value: "cost_base" },
 ];
 
-const DISTRIBUTION_ACCOUNT = "Business Account – ANZ";
-const OPENING_BALANCE = 10000.00;
+const PAGE_SIZES = [50, 100, 200];
 
-const DATE_PRESETS: SelectOption[] = [
-  { label: "Today", value: "Today" },
-  { label: "Last 7 Days", value: "Last 7 Days" },
-  { label: "Last Month", value: "Last Month" },
-  { label: "This Month", value: "This Month" },
-  { label: "Custom Date Range", value: "Custom Date Range" },
-];
-
-const CATEGORY_OPTIONS: SelectOption[] = [
-  { label: "All Categories", value: "All" },
-  { label: "Income Categories", value: "header-income", isHeader: true },
-  { label: "Sales", value: "Sales" },
-  { label: "Interest Income", value: "Interest Income" },
-  { label: "Rental Income", value: "Rental Income" },
-  { label: "Expense Categories", value: "header-expense", isHeader: true },
-  { label: "Office Expenses", value: "Office Expenses" },
-  { label: "Electricity", value: "Electricity" },
-  { label: "Depreciation", value: "Depreciation" },
-  { label: "Borrowing Expenses", value: "Borrowing Expenses" },
-  { label: "Insurance Expense", value: "Insurance Expense" },
-  { label: "Repairs & Maintenance", value: "Repairs & Maintenance" },
-  { label: "Marketing Expense", value: "Marketing Expense" },
-];
-
-const BASE_ROWS: LedgerRow[] = [
-  { id: "t1", date: "01/07/2026", type: "Expense", name: "Adobe Creative Cloud", description: "Adobe Subscription", split: "Office Expenses", amount: -200.00, balance: 9800.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t2", date: "03/07/2026", type: "Income", name: "Stripe Payout", description: "Stripe Deposit", split: "Sales", amount: 500.00, balance: 10300.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t3", date: "05/07/2026", type: "Expense", name: "Origin Energy", description: "Electricity Bill Payment", split: "Electricity", amount: -150.00, balance: 10150.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t4", date: "08/07/2026", type: "Transfer", name: "Business Savings Transfer", description: "Transfer to Savings Account", split: "Transfer", amount: -1200.00, balance: 8950.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t5", date: "10/07/2026", type: "Income", name: "Rental Income – Unit 4", description: "Rental Income Deposit", split: "Rental Income", amount: 2400.00, balance: 11350.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t6", date: "12/07/2026", type: "Expense", name: "Dropbox", description: "Dropbox Subscription", split: "Office Expenses", amount: -45.00, balance: 11305.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t7", date: "15/07/2026", type: "Journal Entry", name: "Depreciation Adjustment", description: "Monthly Depreciation Adjustment", split: "Depreciation", amount: -300.00, balance: 11005.00, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t8", date: "18/07/2026", type: "Expense", name: "Woolworths", description: "Woolworths Payment", split: "Office Expenses", amount: -85.50, balance: 10919.50, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t9", date: "22/07/2026", type: "Income", name: "ANZ Bank", description: "Interest Payment", split: "Interest Income", amount: 32.10, balance: 10951.60, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t10", date: "28/07/2026", type: "Expense", name: "Telstra", description: "Phone & Internet Bill", split: "Office Expenses", amount: -120.00, balance: 10831.60, distributionAccount: DISTRIBUTION_ACCOUNT },
-  { id: "t11", date: "30/07/2026", type: "Transfer", name: "Business Savings Transfer", description: "Transfer from Savings Account", split: "Transfer", amount: 800.00, balance: 11631.60, distributionAccount: DISTRIBUTION_ACCOUNT }
-];
+const DATE_PRESET_OPTIONS: SelectOption[] = LEDGER_DATE_PRESETS.map((p) => ({
+  label: p,
+  value: p,
+}));
 
 interface CustomSelectProps {
   value: string;
@@ -141,6 +110,36 @@ function CustomSelect({ value, options, onChange, placeholder, className = "" }:
   );
 }
 
+const formatMoneyAbs = (n: number) => {
+  const parts = Math.abs(n).toFixed(2).split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return "$" + parts[0] + "." + parts[1];
+};
+
+const formatMoney = (n: number) => (n < 0 ? "−" : "") + formatMoneyAbs(n);
+const formatAmount = (n: number) => (n < 0 ? "−" : "+") + formatMoneyAbs(n);
+
+function badgeClassFor(row: CoreLedgerRow) {
+  switch (row.transactionType) {
+    case "revenue":
+      return "badge-income";
+    case "expense":
+      return "badge-expense";
+    case "personal":
+      return "badge-journal";
+    case "cost_base":
+      return "badge-transfer";
+    default:
+      return "badge-unreconciled";
+  }
+}
+
+function amountClassFor(amount: number) {
+  if (amount > 0) return "amount-income";
+  if (amount < 0) return "amount-expense";
+  return "amount-neutral";
+}
+
 export default function GeneralLedgerPage() {
   const params = useParams<{ clientId: string; entityId: string; sessionId: string }>();
 
@@ -148,135 +147,246 @@ export default function GeneralLedgerPage() {
   const entityId = params?.entityId ?? "";
   const sessionId = params?.sessionId ?? "";
 
-  // State (using mockup's exact data values)
-  const [rows, setRows] = useState<LedgerRow[]>(BASE_ROWS);
-  const [typeFilter, setTypeFilter] = useState<string>("All");
+  // Filters
+  const [accountId, setAccountId] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
-  const [datePreset, setDatePreset] = useState<string>("This Month");
+  const [datePreset, setDatePreset] = useState<LedgerDatePreset>("All Dates");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
 
-  // Editing state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftName, setDraftName] = useState("");
+  // Paging
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[1]);
+  const [page, setPage] = useState<number>(1);
 
-  // Toast notifications
+  // Editing
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  // Opening balance prompt
+  const [openingDraft, setOpeningDraft] = useState("");
+  const [savingOpening, setSavingOpening] = useState(false);
+
   const [toastMessage, setToastMessage] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (toastMessage) {
-      timer = setTimeout(() => {
-        setToastMessage("");
-      }, 2600);
-    }
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(""), 3200);
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
-  // Date parser helper
-  const parseDateStr = (str: string): Date => {
-    const [day, month, year] = str.split("/").map(Number);
-    return new Date(year, month - 1, day);
-  };
+  const range = useMemo(
+    () => resolveLedgerPreset(datePreset, customFrom, customTo),
+    [datePreset, customFrom, customTo],
+  );
 
-  // Filter rows dynamically
-  const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      // 1. Type filter
-      if (typeFilter !== "All" && r.type !== typeFilter) return false;
+  const query: LedgerQueryState = useMemo(
+    () => ({
+      reconciliationId: accountId || undefined,
+      from: range.from,
+      to: range.to,
+      categoryId: categoryFilter === "All" ? undefined : Number(categoryFilter),
+      type: typeFilter || undefined,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    }),
+    [accountId, range.from, range.to, categoryFilter, typeFilter, pageSize, page],
+  );
 
-      // 2. Category filter
-      if (categoryFilter !== "All" && r.split !== categoryFilter) return false;
+  const { ledger, isLoading, error, notCompleted, reload, applyRowName } =
+    useLedger(entityId, sessionId, query);
 
-      // 3. Date range filter
-      const rDate = parseDateStr(r.date);
-      if (datePreset === "Today") {
-        const today = new Date(2026, 7, 25); // August 25, 2026
-        return rDate.toDateString() === today.toDateString();
-      } else if (datePreset === "Last 7 Days") {
-        const start = new Date(2026, 7, 18);
-        const end = new Date(2026, 7, 25);
-        return rDate >= start && rDate <= end;
-      } else if (datePreset === "Last Month") {
-        // June 2026
-        return rDate.getMonth() === 5 && rDate.getFullYear() === 2026;
-      } else if (datePreset === "This Month") {
-        // July 2026 (as per mockup reporting period)
-        return rDate.getMonth() === 6 && rDate.getFullYear() === 2026;
-      } else if (datePreset === "Custom Date Range") {
-        if (customFrom) {
-          const fromDate = new Date(customFrom);
-          if (rDate < fromDate) return false;
-        }
-        if (customTo) {
-          const toDate = new Date(customTo);
-          if (rDate > toDate) return false;
-        }
-      }
-      return true;
-    });
-  }, [rows, typeFilter, categoryFilter, datePreset, customFrom, customTo]);
+  // Any filter change re-reads from the first page; leaving the offset behind
+  // would show an empty table on a narrowed result set.
+  useEffect(() => {
+    setPage(1);
+  }, [accountId, range.from, range.to, categoryFilter, typeFilter, pageSize]);
 
-  // Unused categories mapping
-  const unusedCategories = useMemo(() => {
-    const used = new Set(filteredRows.map((r) => r.split));
-    return ALL_CATEGORIES.filter((cat) => !used.has(cat));
-  }, [filteredRows]);
+  // The selector shows whichever statement the API resolved until the
+  // accountant picks one. Copying that id into state instead would change the
+  // query and refetch the same ledger a second time on every mount.
+  const selectedAccountId = accountId || ledger?.account.reconciliationId || "";
 
-  // Formatter functions
-  const formatMoneyAbs = (n: number) => {
-    const parts = Math.abs(n).toFixed(2).split(".");
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return "$" + parts[0] + "." + parts[1];
-  };
+  const categoryOptions: SelectOption[] = useMemo(() => {
+    const options: SelectOption[] = [{ label: "All Categories", value: "All" }];
+    const income = (ledger?.categories ?? []).filter((c) => c.type === "revenue");
+    const expense = (ledger?.categories ?? []).filter((c) => c.type !== "revenue");
+    if (income.length) {
+      options.push({ label: "Income Categories", value: "header-income", isHeader: true });
+      income.forEach((c) =>
+        options.push({ label: c.categoryName, value: String(c.categoryId) }),
+      );
+    }
+    if (expense.length) {
+      options.push({ label: "Expense Categories", value: "header-expense", isHeader: true });
+      expense.forEach((c) =>
+        options.push({ label: c.categoryName, value: String(c.categoryId) }),
+      );
+    }
+    return options;
+  }, [ledger?.categories]);
 
-  const formatMoney = (n: number) => {
-    const sign = n < 0 ? "−" : "";
-    return sign + formatMoneyAbs(n);
-  };
+  const accountOptions: SelectOption[] = useMemo(
+    () =>
+      (ledger?.accounts ?? []).map((a) => ({
+        label: a.label,
+        value: a.reconciliationId,
+      })),
+    [ledger?.accounts],
+  );
 
-  const formatAmount = (n: number) => {
-    const sign = n < 0 ? "−" : "+";
-    return sign + formatMoneyAbs(n);
-  };
+  const rows = ledger?.rows ?? [];
+  const total = ledger?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const firstRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const lastRow = Math.min(page * pageSize, total);
 
-  const badgeClassFor = (type: string) => {
-    if (type === "Income") return "badge-income";
-    if (type === "Expense") return "badge-expense";
-    if (type === "Transfer") return "badge-transfer";
-    if (type === "Journal Entry") return "badge-journal";
-    return "";
-  };
+  // The balance column is always the true account balance, so a category or
+  // type filter leaves visible gaps in it. Say so rather than letting it read
+  // as an arithmetic error.
+  const balanceIsFiltered = categoryFilter !== "All" || typeFilter !== "";
 
-  const amountClassFor = (type: string) => {
-    if (type === "Income") return "amount-income";
-    if (type === "Expense") return "amount-expense";
-    return "amount-neutral";
-  };
-
-  // Actions
-  const handleStartEdit = (id: string, currentName: string) => {
-    setEditingId(id);
-    setDraftName(currentName);
-  };
-
-  const handleSaveEdit = (id: string) => {
-    setRows(rows.map((r) => (r.id === id ? { ...r, name: draftName } : r)));
-    setEditingId(null);
+  const handleStartEdit = (row: CoreLedgerRow) => {
+    setEditingIndex(row.bankTxIndex);
+    setDraftName(row.name);
   };
 
   const handleCancelEdit = () => {
-    setEditingId(null);
+    setEditingIndex(null);
+    setDraftName("");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
-    if (e.key === "Enter") handleSaveEdit(id);
-    if (e.key === "Escape") handleCancelEdit();
-  };
+  const handleSaveEdit = useCallback(
+    async (row: CoreLedgerRow) => {
+      const next = draftName.trim();
+      if (next === row.name) {
+        handleCancelEdit();
+        return;
+      }
+      setSavingName(true);
+      try {
+        const token = await ledgerBearerToken();
+        const res = await fetch(
+          `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/entries/${row.bankTxIndex}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              reconciliation_id: ledger?.account.reconciliationId,
+              name: next,
+            }),
+          },
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.message || `Could not save the name (${res.status}).`);
+        }
+        const saved = (await res.json()) as { name: string };
+        applyRowName(row.bankTxIndex, saved.name);
+        handleCancelEdit();
+      } catch (err) {
+        // The row keeps its previous name — nothing is applied until the write
+        // is confirmed.
+        setToastMessage(err instanceof Error ? err.message : "Could not save the name.");
+      } finally {
+        setSavingName(false);
+      }
+    },
+    [draftName, entityId, sessionId, ledger?.account.reconciliationId, applyRowName],
+  );
 
-  const doExport = (kind: string) => {
-    setToastMessage(`Preparing ${kind} export with the current filters…`);
-  };
+  const handleSaveOpening = useCallback(async () => {
+    const value = Number(openingDraft);
+    if (!Number.isFinite(value)) {
+      setToastMessage("Enter the opening balance as a number.");
+      return;
+    }
+    const reconciliationId = ledger?.account.reconciliationId;
+    if (!reconciliationId) return;
+
+    setSavingOpening(true);
+    try {
+      const token = await ledgerBearerToken();
+      const res = await fetch(
+        `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/account`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ opening_balance: value }),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          body?.message || `Could not save the opening balance (${res.status}).`,
+        );
+      }
+      setOpeningDraft("");
+      setToastMessage("Opening balance saved.");
+      reload();
+    } catch (err) {
+      setToastMessage(
+        err instanceof Error ? err.message : "Could not save the opening balance.",
+      );
+    } finally {
+      setSavingOpening(false);
+    }
+  }, [openingDraft, entityId, ledger?.account.reconciliationId, reload]);
+
+  const doExport = useCallback(
+    async (format: "csv" | "xlsx" | "pdf", label: string) => {
+      setIsExporting(true);
+      setToastMessage(`Preparing the ${label} export…`);
+      try {
+        const token = await ledgerBearerToken();
+        const sp = ledgerSearchParams(query);
+        // An export is the whole filter set, never the visible page.
+        sp.delete("limit");
+        sp.delete("offset");
+        sp.set("format", format);
+
+        const res = await fetch(
+          `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/export?${sp.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.message || `Export failed (${res.status}).`);
+        }
+
+        // The endpoint needs the bearer token, so a plain <a download> cannot
+        // fetch it — the blob is built here and handed to a click.
+        const blob = await res.blob();
+        const disposition = res.headers.get("content-disposition") || "";
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = match?.[1] || `ledger.${format}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+        setToastMessage(`${label} export downloaded.`);
+      } catch (err) {
+        setToastMessage(err instanceof Error ? err.message : "Export failed.");
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [entityId, sessionId, query],
+  );
+
+  const accountLabel = ledger?.account.label || "Bank Account";
+  const backHref = `/dashboard/accountant/clients/${clientId}/entities/${entityId}?tab=reconciliation`;
 
   return (
     <div className="ledger-page">
@@ -816,26 +926,195 @@ export default function GeneralLedgerPage() {
           color: #8892ab;
           font-size: 0.88rem;
         }
+
+        /* ── Added when the page was wired to the API ───────────────── */
+
+        .ledger-page .status-pill.is-open {
+          background: #fef3c7;
+          color: #92400e;
+        }
+        .ledger-page .hero-note {
+          margin: 14px 0 0;
+          font-size: 0.82rem;
+          color: #dbe2f5;
+          max-width: 62ch;
+          line-height: 1.5;
+        }
+        .ledger-page .opening-prompt {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 4px;
+        }
+        .ledger-page .opening-prompt input {
+          width: 130px;
+          padding: 7px 10px;
+          border-radius: 7px;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          background: rgba(255, 255, 255, 0.12);
+          color: #fff;
+          font-size: 0.9rem;
+          font-weight: 700;
+        }
+        .ledger-page .opening-prompt input::placeholder {
+          color: rgba(255, 255, 255, 0.5);
+        }
+        .ledger-page .opening-prompt button {
+          padding: 7px 14px;
+          border-radius: 7px;
+          border: none;
+          background: #ffd166;
+          color: #28336e;
+          font-weight: 800;
+          font-size: 0.82rem;
+          cursor: pointer;
+        }
+        .ledger-page .opening-prompt button:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        .ledger-page .export-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        .ledger-page .icon-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .ledger-page .badge-unreconciled {
+          background: #f1f3f9;
+          color: #6b7590;
+        }
+        .ledger-page .unreconciled-chip {
+          display: inline-block;
+          padding: 3px 9px;
+          border-radius: 999px;
+          background: #fff4e5;
+          color: #b45309;
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+        .ledger-page .name-empty {
+          color: #a3adc4;
+          font-style: italic;
+        }
+        .ledger-page .opening-row.is-closing td {
+          border-top: 2px solid #d8dff0;
+        }
+        .ledger-page .balance-note {
+          margin: 0;
+          padding: 11px 18px;
+          background: #f6f8ff;
+          border-bottom: 1px solid #e6ebf7;
+          color: #5a6484;
+          font-size: 0.8rem;
+        }
+        .ledger-page .ledger-state {
+          background: #fff;
+          border-radius: 14px;
+          padding: 34px 28px;
+          text-align: center;
+          box-shadow: 0 10px 30px rgba(40, 51, 110, 0.07);
+        }
+        .ledger-page .ledger-state h3 {
+          margin: 0 0 8px;
+          color: #28336e;
+          font-size: 1.05rem;
+        }
+        .ledger-page .ledger-state p {
+          margin: 0 auto 18px;
+          max-width: 58ch;
+          color: #6b7590;
+          font-size: 0.88rem;
+          line-height: 1.55;
+        }
+        .ledger-page .ledger-state.is-error h3 {
+          color: #b42318;
+        }
+        .ledger-page .ledger-state-action {
+          display: inline-block;
+          padding: 9px 18px;
+          border-radius: 8px;
+          border: none;
+          background: #28336e;
+          color: #fff !important;
+          font-weight: 700;
+          font-size: 0.85rem;
+          cursor: pointer;
+        }
+        .ledger-page .ledger-skeleton {
+          padding: 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .ledger-page .ledger-skeleton-row {
+          height: 34px;
+          border-radius: 8px;
+          background: linear-gradient(90deg, #eef1f8 25%, #f7f9ff 50%, #eef1f8 75%);
+          background-size: 400% 100%;
+          animation: ledger-shimmer 1.4s ease infinite;
+        }
+        @keyframes ledger-shimmer {
+          0% { background-position: 100% 0; }
+          100% { background-position: 0 0; }
+        }
+        .ledger-page .ledger-pagination {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 18px;
+          border-top: 1px solid #e6ebf7;
+          font-size: 0.83rem;
+          color: #5a6484;
+        }
+        .ledger-page .ledger-pagination-left,
+        .ledger-page .ledger-pagination-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .ledger-page .ledger-pagination select {
+          padding: 6px 9px;
+          border-radius: 7px;
+          border: 1px solid #dbe1ef;
+          background: #fff;
+          color: #28336e;
+          font-size: 0.8rem;
+        }
+        .ledger-page .ledger-pagination button {
+          padding: 6px 13px;
+          border-radius: 7px;
+          border: 1px solid #dbe1ef;
+          background: #fff;
+          color: #28336e;
+          font-weight: 700;
+          font-size: 0.8rem;
+          cursor: pointer;
+        }
+        .ledger-page .ledger-pagination button:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
       ` }} />
 
       <div className="wrap">
 
-
         {/* Breadcrumbs & Status */}
         <div className="crumbs-row">
           <div className="crumbs">
-            <Link
-              className="crumb-back"
-              href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}?tab=reconciliation`}
-            >
+            <Link className="crumb-back" href={backHref}>
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
-                width="16"
-                height="16"
+                width="15"
+                height="15"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
@@ -844,61 +1123,113 @@ export default function GeneralLedgerPage() {
               Reconciliation
             </Link>
             <span className="crumb-sep">/</span>
-            <span className="crumb-muted">{DISTRIBUTION_ACCOUNT}</span>
+            <span className="crumb-muted">{accountLabel}</span>
             <span className="crumb-sep">/</span>
             <span className="crumb-current">Ledger</span>
           </div>
-          <span className="status-pill">
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              width="13"
-              height="13"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-            Reconciliation Completed
-          </span>
+          {ledger && (
+            <span className={`status-pill${ledger.session.status === "completed" ? "" : " is-open"}`}>
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              {ledger.session.status === "completed"
+                ? "Reconciliation Completed"
+                : "Reconciliation Open"}
+            </span>
+          )}
         </div>
 
         {/* Hero Card */}
         <div className="hero">
           <p className="hero-eyebrow">General Ledger</p>
-          <h1>{DISTRIBUTION_ACCOUNT}</h1>
+          <h1>{accountLabel}</h1>
           <div className="hero-meta">
             <div>
               <p className="hero-meta-label">Reporting Period</p>
-              <p className="hero-meta-value">01 Jul 2026 – 31 Jul 2026</p>
+              <p className="hero-meta-value">
+                {ledger
+                  ? formatLedgerRange(ledger.period.from, ledger.period.to)
+                  : "—"}
+              </p>
             </div>
             <div className="hero-meta-divider">
               <p className="hero-meta-label">Opening Balance</p>
-              <p className="hero-meta-value" style={{ color: "#ffd166" }}>
-                $10,000.00
-              </p>
+              {ledger && !ledger.account.hasOpeningBalance ? (
+                <div className="opening-prompt">
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={openingDraft}
+                    onChange={(e) => setOpeningDraft(e.target.value)}
+                    aria-label="Opening balance"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveOpening}
+                    disabled={savingOpening || openingDraft.trim() === ""}
+                  >
+                    {savingOpening ? "Saving…" : "Set"}
+                  </button>
+                </div>
+              ) : (
+                <p className="hero-meta-value" style={{ color: "#ffd166" }}>
+                  {ledger ? formatMoney(ledger.openingBalance) : "—"}
+                </p>
+              )}
             </div>
+            {ledger && (
+              <div className="hero-meta-divider">
+                <p className="hero-meta-label">Closing Balance</p>
+                <p className="hero-meta-value">{formatMoney(ledger.closingBalance)}</p>
+              </div>
+            )}
           </div>
+          {ledger && !ledger.account.hasOpeningBalance && (
+            <p className="hero-note">
+              This statement was uploaded as a CSV, which carries no account
+              balance. Set the opening balance so the running balance reflects
+              the real account.
+            </p>
+          )}
         </div>
 
         {/* Filters Card */}
         <div className="card">
           <div className="filters-row">
             <div className="filters-left">
-              {/* Date Preset */}
+              {accountOptions.length > 1 && (
+                <div className="field">
+                  <label>Bank Account</label>
+                  <CustomSelect
+                    className="category"
+                    value={selectedAccountId}
+                    options={accountOptions}
+                    onChange={setAccountId}
+                  />
+                </div>
+              )}
+
               <div className="field">
                 <label>Date Range</label>
                 <CustomSelect
                   value={datePreset}
-                  options={DATE_PRESETS}
-                  onChange={(val) => setDatePreset(val)}
+                  options={DATE_PRESET_OPTIONS}
+                  onChange={(val) => setDatePreset(val as LedgerDatePreset)}
                 />
               </div>
 
-              {/* Custom Date Picker */}
               {datePreset === "Custom Date Range" && (
                 <>
                   <div className="field">
@@ -906,6 +1237,7 @@ export default function GeneralLedgerPage() {
                     <input
                       type="date"
                       value={customFrom}
+                      max={customTo || undefined}
                       onChange={(e) => setCustomFrom(e.target.value)}
                     />
                   </div>
@@ -914,98 +1246,70 @@ export default function GeneralLedgerPage() {
                     <input
                       type="date"
                       value={customTo}
+                      min={customFrom || undefined}
                       onChange={(e) => setCustomTo(e.target.value)}
                     />
                   </div>
                 </>
               )}
 
-              {/* Category Filter */}
               <div className="field">
                 <label>Category</label>
                 <CustomSelect
                   className="category"
                   value={categoryFilter}
-                  options={CATEGORY_OPTIONS}
-                  onChange={(val) => setCategoryFilter(val)}
+                  options={categoryOptions}
+                  onChange={setCategoryFilter}
                 />
               </div>
             </div>
 
-            {/* Export Buttons */}
             <div className="export-buttons">
-              <button className="export-btn" onClick={() => doExport("CSV")}>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  width="15"
-                  height="15"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {([
+                ["csv", "CSV", ""],
+                ["xlsx", "Excel", ""],
+                ["pdf", "PDF", "pdf"],
+              ] as const).map(([format, label, modifier]) => (
+                <button
+                  key={format}
+                  className={`export-btn ${modifier}`}
+                  disabled={isExporting || !ledger}
+                  onClick={() => doExport(format, label)}
                 >
-                  <path d="M12 3v12" />
-                  <path d="M7 10l5 5 5-5" />
-                  <path d="M4 19h16" />
-                </svg>
-                CSV
-              </button>
-              <button className="export-btn" onClick={() => doExport("Excel")}>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  width="15"
-                  height="15"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 3v12" />
-                  <path d="M7 10l5 5 5-5" />
-                  <path d="M4 19h16" />
-                </svg>
-                Excel
-              </button>
-              <button className="export-btn pdf" onClick={() => doExport("PDF")}>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  width="15"
-                  height="15"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 3v12" />
-                  <path d="M7 10l5 5 5-5" />
-                  <path d="M4 19h16" />
-                </svg>
-                PDF
-              </button>
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3v12" />
+                    <path d="M7 10l5 5 5-5" />
+                    <path d="M4 19h16" />
+                  </svg>
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Type Tabs */}
           <div className="type-tabs">
-            {["All", "Income", "Expense", "Transfer", "Journal Entry"].map((t) => (
+            {TYPE_TABS.map((tab) => (
               <button
-                key={t}
-                className={`type-tab${typeFilter === t ? " active" : ""}`}
-                onClick={() => setTypeFilter(t)}
+                key={tab.label}
+                className={`type-tab${typeFilter === tab.value ? " active" : ""}`}
+                onClick={() => setTypeFilter(tab.value)}
               >
-                {t}
+                {tab.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Toast holder */}
         {toastMessage && (
           <div>
             <div className="toast">
@@ -1027,159 +1331,234 @@ export default function GeneralLedgerPage() {
           </div>
         )}
 
-        {/* Table Card */}
-        <div className="table-card">
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Distribution Account</th>
-                  <th>Transaction Date</th>
-                  <th>Transaction Type</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Split</th>
-                  <th className="num">Amount</th>
-                  <th className="num">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Opening Balance Row */}
-                <tr className="opening-row">
-                  <td colSpan={6} className="opening-label">
-                    Opening Balance
-                  </td>
-                  <td style={{ textAlign: "right", color: "#a3adc4" }}>—</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#28336e", fontWeight: 800 }}>
-                    {formatMoney(OPENING_BALANCE)}
-                  </td>
-                </tr>
-
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="no-results">
-                      No transactions match the selected filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRows.map((row) => {
-                    const isEditing = editingId === row.id;
-                    return (
-                      <tr key={row.id}>
-                        <td className="col-account">{row.distributionAccount}</td>
-                        <td className="col-date">{row.date}</td>
-                        <td className="col-type">
-                          <span className={`badge ${badgeClassFor(row.type)}`}>
-                            {row.type}
-                          </span>
-                        </td>
-                        <td className="name-cell">
-                          {isEditing ? (
-                            <div className="name-edit">
-                              <input
-                                type="text"
-                                value={draftName}
-                                onChange={(e) => setDraftName(e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, row.id)}
-                                autoFocus
-                              />
-                              <button
-                                className="icon-btn save"
-                                onClick={() => handleSaveEdit(row.id)}
-                                aria-label="Save name"
-                              >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  width="14"
-                                  height="14"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M20 6L9 17l-5-5" />
-                                </svg>
-                              </button>
-                              <button
-                                className="icon-btn cancel"
-                                onClick={handleCancelEdit}
-                                aria-label="Cancel edit"
-                              >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  width="14"
-                                  height="14"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <line x1="18" y1="6" x2="6" y2="18" />
-                                  <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="name-display">
-                              <span>{row.name}</span>
-                              <button
-                                className="icon-btn"
-                                onClick={() => handleStartEdit(row.id, row.name)}
-                                aria-label="Edit name"
-                              >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  width="14"
-                                  height="14"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.9"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M12 20h9" />
-                                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                </svg>
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                        <td className="col-desc">{row.description}</td>
-                        <td className="col-split">{row.split}</td>
-                        <td className={`col-amount ${amountClassFor(row.type)}`}>
-                          {formatAmount(row.amount)}
-                        </td>
-                        <td className="col-balance">{formatMoney(row.balance)}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+        {/* States */}
+        {notCompleted && (
+          <div className="ledger-state">
+            <h3>This reconciliation is still open</h3>
+            <p>
+              The ledger is generated once the reconciliation is marked as
+              completed. Finish matching the statement, then complete the
+              session.
+            </p>
+            <Link className="ledger-state-action" href={backHref}>
+              Back to Reconciliation
+            </Link>
           </div>
+        )}
 
-          {/* Unused Categories Section */}
-          <div className="unused-section">
-            <h3>Unused Categories</h3>
-            <p>Configured categories with no reconciled transactions in this reporting period.</p>
-            <div className="unused-grid">
-              {unusedCategories.length === 0 ? (
-                <div className="unused-item" style={{ gridColumn: "1 / -1", justifyContent: "center" }}>
-                  <span>All categories have reconciled transactions.</span>
-                </div>
-              ) : (
-                unusedCategories.map((cat) => (
-                  <div key={cat} className="unused-item">
-                    <span>{cat}</span>
-                    <span>$0.00</span>
-                  </div>
-                ))
-              )}
+        {error && !notCompleted && (
+          <div className="ledger-state is-error">
+            <h3>Could not load the ledger</h3>
+            <p>{error}</p>
+            <button type="button" className="ledger-state-action" onClick={reload}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {isLoading && !ledger && !error && (
+          <div className="table-card">
+            <div className="ledger-skeleton">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="ledger-skeleton-row" />
+              ))}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Table Card */}
+        {ledger && !notCompleted && (
+          <div className="table-card">
+            {balanceIsFiltered && (
+              <p className="balance-note">
+                Balance stays the full account balance, so it skips rows hidden
+                by the category or type filter.
+              </p>
+            )}
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Distribution Account</th>
+                    <th>Transaction Date</th>
+                    <th>Transaction Type</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Split</th>
+                    <th className="num">Amount</th>
+                    <th className="num">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="opening-row">
+                    <td colSpan={6} className="opening-label">
+                      Opening Balance
+                    </td>
+                    <td style={{ textAlign: "right", color: "#a3adc4" }}>—</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#28336e", fontWeight: 800 }}>
+                      {formatMoney(ledger.openingBalance)}
+                    </td>
+                  </tr>
+
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="no-results">
+                        No transactions match the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((row) => {
+                      const isEditing = editingIndex === row.bankTxIndex;
+                      return (
+                        <tr key={row.bankTxIndex}>
+                          <td className="col-account">{row.distributionAccount}</td>
+                          <td className="col-date">{formatLedgerDate(row.date)}</td>
+                          <td className="col-type">
+                            <span className={`badge ${badgeClassFor(row)}`}>
+                              {row.transactionTypeLabel}
+                            </span>
+                          </td>
+                          <td className="name-cell">
+                            {isEditing ? (
+                              <div className="name-edit">
+                                <input
+                                  type="text"
+                                  value={draftName}
+                                  maxLength={255}
+                                  disabled={savingName}
+                                  onChange={(e) => setDraftName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") void handleSaveEdit(row);
+                                    if (e.key === "Escape") handleCancelEdit();
+                                  }}
+                                  autoFocus
+                                />
+                                <button
+                                  className="icon-btn save"
+                                  disabled={savingName}
+                                  onClick={() => void handleSaveEdit(row)}
+                                  aria-label="Save name"
+                                >
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20 6L9 17l-5-5" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="icon-btn cancel"
+                                  disabled={savingName}
+                                  onClick={handleCancelEdit}
+                                  aria-label="Cancel edit"
+                                >
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="name-display">
+                                <span>{row.name || <em className="name-empty">Unnamed</em>}</span>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => handleStartEdit(row)}
+                                  aria-label="Edit name"
+                                >
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="col-desc">{row.description}</td>
+                          <td className="col-split">
+                            {row.split || (
+                              <span className="unreconciled-chip">Unreconciled</span>
+                            )}
+                          </td>
+                          <td className={`col-amount ${amountClassFor(row.amount)}`}>
+                            {formatAmount(row.amount)}
+                          </td>
+                          <td className="col-balance">{formatMoney(row.balance)}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+
+                  <tr className="opening-row is-closing">
+                    <td colSpan={6} className="opening-label">
+                      Closing Balance
+                    </td>
+                    <td style={{ textAlign: "right", color: "#a3adc4" }}>—</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#28336e", fontWeight: 800 }}>
+                      {formatMoney(ledger.closingBalance)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="ledger-pagination">
+              <div className="ledger-pagination-left">
+                <span>
+                  {total === 0 ? "No lines" : `${firstRow}–${lastRow} of ${total} lines`}
+                </span>
+                <select
+                  value={pageSize}
+                  aria-label="Lines per page"
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                >
+                  {PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size} / page
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ledger-pagination-right">
+                <button
+                  type="button"
+                  disabled={page <= 1 || isLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages || isLoading}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            {/* Unused Categories */}
+            <div className="unused-section">
+              <h3>Unused Categories</h3>
+              <p>Configured categories with no reconciled transactions in this reporting period.</p>
+              <div className="unused-grid">
+                {ledger.unusedCategories.length === 0 ? (
+                  <div className="unused-item" style={{ gridColumn: "1 / -1", justifyContent: "center" }}>
+                    <span>All categories have reconciled transactions.</span>
+                  </div>
+                ) : (
+                  ledger.unusedCategories.map((cat) => (
+                    <div key={cat.categoryId} className="unused-item">
+                      <span>{cat.categoryName}</span>
+                      <span>{formatMoneyAbs(cat.amount)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
