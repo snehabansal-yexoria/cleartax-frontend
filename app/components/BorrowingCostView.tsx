@@ -17,7 +17,9 @@ import type {
 import {
   BORROWING_EXPENSE_CATEGORY_NAME,
   findBorrowingExpenseCategory,
+  orderBorrowingSubcategories,
 } from "@/src/lib/borrowingCost";
+import { buildBorrowingCostWorkbook } from "@/src/lib/borrowingCostWorkbook";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -90,6 +92,25 @@ function formatDateToDDMMYYYY(dateStr: string) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return dateStr;
+}
+
+/**
+ * The last day the loan actually runs, given its end date.
+ *
+ * Borrowing expenses amortise over the loan term [start, end) — the end date is
+ * the day the loan is discharged, not a day it was on foot. A five-year loan
+ * from 12/06/2026 to 12/06/2031 is 1826 days, and that is the divisor the
+ * supplied template uses ($5,000 / 1826 = $2.738225/day, so year one is
+ * 19 × 2.738225 = $52.03).
+ *
+ * Counting the end date as well gave 1827 days and $52.00 for year one, which
+ * is off against the template on every row of the schedule. Both the on-screen
+ * table and the export read this, so they cannot drift apart.
+ */
+function lastCoveredDay(end: Date): Date {
+  const last = new Date(end);
+  last.setDate(last.getDate() - 1);
+  return last;
 }
 
 type SubcategoryOption = { id: number; name: string };
@@ -240,6 +261,10 @@ export default function BorrowingCostView({
   const router = useRouter();
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [entity, setEntity] = useState<CoreEntity | null>(null);
+  // For the export's "Client:" cell. Read off any loaded borrowing expense —
+  // the list rows carry the resolved client name, and there is no client
+  // endpoint this page would otherwise call. Falls back to the entity name.
+  const [clientName, setClientName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -359,16 +384,20 @@ export default function BorrowingCostView({
           const subcategoryData = (await subcategoryRes.json()) as {
             items?: CoreTransactionSubcategory[];
           };
-          setSubcategories(subcategoryData.items || []);
+          // Ordered to the xlsx template up front so the dropdown, the grid
+          // and the export all list them the same way.
+          setSubcategories(orderBorrowingSubcategories(subcategoryData.items || []));
         }
 
         if (transactionsRes.ok) {
           const page = (await transactionsRes.json()) as {
             items?: CoreTransactionListItem[];
           };
-          const rows = (page.items || []).map(transactionToExpense);
+          const items = page.items || [];
+          const rows = items.map(transactionToExpense);
           setBorrowingExpenses(rows);
           loadedTransactionIdsRef.current = rows.map((row) => row.transactionId);
+          if (items[0]?.clientName) setClientName(items[0].clientName);
         }
       } catch (err) {
         if (!cancelled) {
@@ -425,8 +454,12 @@ export default function BorrowingCostView({
     }
 
     const start = new Date(Number(startParts[0]), Number(startParts[1]) - 1, Number(startParts[2]));
-    const end = new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]));
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    const rawEnd = new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]));
+    if (Number.isNaN(start.getTime()) || Number.isNaN(rawEnd.getTime())) {
+      return { periodEndDateStr: "", days: 0 };
+    }
+    const end = lastCoveredDay(rawEnd);
+    if (start > end) {
       return { periodEndDateStr: "", days: 0 };
     }
 
@@ -458,11 +491,19 @@ export default function BorrowingCostView({
     if (startParts.length !== 3 || endParts.length !== 3) return [];
 
     const start = new Date(Number(startParts[0]), Number(startParts[1]) - 1, Number(startParts[2]));
-    const end = new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]));
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+    const rawEnd = new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]));
+    if (Number.isNaN(start.getTime()) || Number.isNaN(rawEnd.getTime())) return [];
+    // [start, end): the discharge date is not a day the loan was on foot.
+    const end = lastCoveredDay(rawEnd);
+    if (start > end) return [];
 
     type Period = {
       label: string;
+      // The plain financial-year end year. The on-screen label is "FY 2025–26"
+      // or "Final Period (to 12/06/2031)"; the xlsx template's Year column is
+      // just "2026". Same periods, different rendering — so both are carried
+      // rather than re-deriving one from the other.
+      fyEndYear: number;
       days: number;
       cost: number;
       closingBalance: number;
@@ -483,9 +524,11 @@ export default function BorrowingCostView({
 
       let label = "";
       if (currentEnd.getTime() === end.getTime() && currentEnd.getTime() !== currentFyEnd.getTime()) {
-        const dStr = String(currentEnd.getDate()).padStart(2, "0");
-        const mStr = String(currentEnd.getMonth() + 1).padStart(2, "0");
-        const yStr = currentEnd.getFullYear();
+        // Labelled with the loan's own end date, which is the date the
+        // accountant knows, even though the period stops the day before it.
+        const dStr = String(rawEnd.getDate()).padStart(2, "0");
+        const mStr = String(rawEnd.getMonth() + 1).padStart(2, "0");
+        const yStr = rawEnd.getFullYear();
         label = `Final Period (to ${dStr}/${mStr}/${yStr})`;
       } else {
         label = `FY ${fyEndYear - 1}–${String(fyEndYear).slice(-2)}`;
@@ -493,6 +536,7 @@ export default function BorrowingCostView({
 
       periods.push({
         label,
+        fyEndYear,
         days,
         cost: 0,
         closingBalance: 0,
@@ -698,30 +742,79 @@ export default function BorrowingCostView({
     }
   };
 
-  // CSV Export
-  const handleExportCsv = () => {
+  /**
+   * The expense block of the export: the full subcategory list in template
+   * order with the entered amounts joined on.
+   *
+   * Grouped by subcategory rather than emitted one row per transaction, because
+   * the template has one line per subcategory — two "Processing Fees" entries
+   * foot into a single row. A subcategory with nothing against it stays blank
+   * (null, not 0) so it prints as an empty cell like the template does.
+   */
+  const exportExpenseRows = useMemo(() => {
+    const totals = new Map<number, number>();
+    for (const exp of borrowingExpenses) {
+      if (exp.subcategoryId == null) continue;
+      const value = Number.parseFloat(exp.amount);
+      if (!Number.isFinite(value)) continue;
+      totals.set(exp.subcategoryId, (totals.get(exp.subcategoryId) || 0) + value);
+    }
+    return subcategories.map((sub) => ({
+      name: sub.name,
+      amount: totals.has(sub.id) ? (totals.get(sub.id) as number) : null,
+    }));
+  }, [borrowingExpenses, subcategories]);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  // xlsx Export — replaces the hand-rolled data:text/csv string. The supplied
+  // template is a styled worksheet, so a CSV could never match it.
+  const handleExportXlsx = async () => {
     if (schedule.length === 0) {
-      alert("No schedule to export.");
+      setSaveError("Enter the loan dates and at least one borrowing expense before exporting.");
       return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "YEAR / PERIOD,NUMBER OF DAYS,BORROWING COST,CLOSING BALANCE\n";
+    setIsExporting(true);
+    setSaveError("");
+    try {
+      const blob = await buildBorrowingCostWorkbook({
+        clientName: clientName || entity?.name || "",
+        propertyName: property?.name || "",
+        expenses: exportExpenseRows,
+        totalBorrowingCost,
+        loanStartDate,
+        loanEndDate,
+        periodEndDate: systemValues.periodEndDateStr,
+        daysCurrentYear: systemValues.days,
+        schedule: schedule.map((p) => ({
+          fyEndYear: p.fyEndYear,
+          days: p.days,
+          cost: p.cost,
+          closingBalance: p.closingBalance,
+        })),
+        totalScheduleDays,
+      });
 
-    schedule.forEach((p) => {
-      csvContent += `"${p.label}",${p.days},${p.cost.toFixed(2)},${p.closingBalance.toFixed(2)}\n`;
-    });
-
-    // Total Row
-    csvContent += `"Total",${totalScheduleDays},${totalBorrowingCost.toFixed(2)},0.00\n`;
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `borrowing_cost_schedule_${propertyId}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const safeName =
+        (property?.name || propertyId)
+          .replace(/[^\w\- ]+/g, "")
+          .trim()
+          .replace(/\s+/g, "_") || "Property";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Borrowing_Cost_${safeName}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error exporting borrowing cost workbook:", err);
+      setSaveError("Failed to build the borrowing cost export.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -979,7 +1072,8 @@ export default function BorrowingCostView({
           {/* Export Borrowing Cost Button */}
           <button
             type="button"
-            onClick={handleExportCsv}
+            onClick={handleExportXlsx}
+            disabled={isExporting}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -991,7 +1085,8 @@ export default function BorrowingCostView({
               color: "#1b2559",
               fontSize: "14px",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: isExporting ? "not-allowed" : "pointer",
+              opacity: isExporting ? 0.6 : 1,
               transition: "all 0.2s",
               height: "42px",
             }}
@@ -1005,7 +1100,7 @@ export default function BorrowingCostView({
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Export Borrowing Cost
+            {isExporting ? "Preparing…" : "Export Borrowing Cost"}
           </button>
         </div>
       </header>

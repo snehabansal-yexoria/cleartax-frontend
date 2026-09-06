@@ -890,6 +890,96 @@ export async function updateCorePropertyLogit(
 }
 
 // =============================================================================
+// Property settlement entries — "Amount Settled By"
+// =============================================================================
+
+/**
+ * One funding line on the property's settlement statement: how the purchase was
+ * paid for (deposit, loan drawdown, trust account, ...).
+ *
+ * Deliberately NOT a transaction. A deposit is neither income, an expense nor a
+ * cost base item — it is how the cost base was funded — so it lives in its own
+ * table (migration 0040) and is invisible to P&L, GST, the ledger and All
+ * Transactions. The only consumer is the Property Cost Base panel.
+ */
+export type CoreSettlementEntry = {
+  id: string;
+  orgId: string;
+  propertyId: string;
+  entryType: string;
+  /** Signed: a refund line reduces the amount settled. */
+  amount: number;
+  description: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function normalizeCoreSettlementEntry(
+  raw: RawRecord,
+): CoreSettlementEntry {
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    entryType: toStringValue(raw.entry_type ?? raw.entryType),
+    amount: toFloatValue(raw.amount),
+    description:
+      raw.description == null ? null : toStringValue(raw.description) || null,
+    position: toNumberValue(raw.position) ?? 0,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export async function listCoreSettlementEntries(
+  token: string,
+  propertyId: string,
+): Promise<CoreSettlementEntry[]> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreSettlementEntry);
+}
+
+export async function createCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<CoreSettlementEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreSettlementEntry(getJsonObject(payload));
+}
+
+export async function updateCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreSettlementEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreSettlementEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries/${encodeURIComponent(entryId)}`,
+    { method: "DELETE", token },
+  );
+}
+
+// =============================================================================
 // Transactions
 // =============================================================================
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
@@ -32,6 +32,7 @@ import type {
   CoreGstSummary,
   CoreProperty,
   CorePropertyTransactionRow,
+  CoreSettlementEntry,
 } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -66,6 +67,61 @@ const GST_QUARTER_LABELS: Record<number, string> = {
   3: "Q3 · Jan–Mar",
   4: "Q4 · Apr–Jun",
 };
+
+/**
+ * One line of the Settlement Funding table.
+ *
+ * `entryId` empty means the row exists only in the browser and has never been
+ * saved; the save POSTs those and PATCHes the rest.
+ */
+type FundingRow = {
+  key: string;
+  entryId: string;
+  name: string;
+  amount: string;
+  description: string;
+};
+
+/**
+ * The funding sources every settlement statement starts from. They are seeded
+ * into the grid as UNSAVED rows when a property has no entries yet — nothing is
+ * written until the accountant hits Save, so merely opening the page never
+ * creates six rows in the database.
+ */
+const DEFAULT_FUNDING_SOURCE_NAMES = [
+  "Deposit",
+  "Loan",
+  "Bank / Trust Account",
+  "Surplus Fund Refund",
+  "Personal Fund for Capital Expense",
+  "Personal Fund for Revenue Expense",
+];
+
+let fundingDraftKeySeq = 0;
+function nextFundingDraftKey() {
+  fundingDraftKeySeq += 1;
+  return `funding-draft-${fundingDraftKeySeq}`;
+}
+
+function settlementEntryToRow(entry: CoreSettlementEntry): FundingRow {
+  return {
+    key: entry.id,
+    entryId: entry.id,
+    name: entry.entryType,
+    amount: entry.amount.toFixed(2),
+    description: entry.description || "",
+  };
+}
+
+function defaultFundingRows(): FundingRow[] {
+  return DEFAULT_FUNDING_SOURCE_NAMES.map((name) => ({
+    key: nextFundingDraftKey(),
+    entryId: "",
+    name,
+    amount: "0.00",
+    description: "",
+  }));
+}
 
 export type PropertyDetailViewProps = {
   propertyId: string;
@@ -154,11 +210,17 @@ export default function PropertyDetailView({
   const [contractDate, setContractDate] = useState("2026-08-15");
   const [settlementDate, setSettlementDate] = useState("2026-09-30");
   const [showCostBase, setShowCostBase] = useState(true);
-  const [manualCostBaseRows, setManualCostBaseRows] = useState<Array<{ id: string; category: string; description: string; gross: string; net: string }>>([
-    { id: "1", category: "Building & Pest Inspection", description: "Pre-purchase inspection report", gross: "660", net: "600" },
-    { id: "2", category: "Conveyancing Fees", description: "Legal transfer & conveyancing", gross: "1320", net: "1200" },
-    { id: "3", category: "Loan Establishment Fee", description: "Mortgage application & setup", gross: "600", net: "600" }
-  ]);
+  // Estimates the accountant has not turned into transactions yet. Starts
+  // empty: it used to be seeded with three invented rows (Building & Pest $660,
+  // Conveyancing $1,320, Loan Establishment $600) that footed into the grand
+  // total and the settlement difference as if they were real money.
+  const [manualCostBaseRows, setManualCostBaseRows] = useState<Array<{ id: string; category: string; description: string; gross: string; net: string }>>([]);
+  // Real cost_base transactions for this property, loaded separately from the
+  // page's `transactions` array: that one is a single unfiltered page capped by
+  // the API, so cost base rows past the cap would silently disappear.
+  const [costBaseTransactions, setCostBaseTransactions] = useState<CorePropertyTransactionRow[]>([]);
+  const [isCostBaseLoading, setIsCostBaseLoading] = useState(true);
+  const [costBaseError, setCostBaseError] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
   const [enabledError, setEnabledError] = useState<string | null>(null);
@@ -171,14 +233,19 @@ export default function PropertyDetailView({
   const [isFyDropdownOpen, setIsFyDropdownOpen] = useState(false);
   const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
   const [isPnlFyDropdownOpen, setIsPnlFyDropdownOpen] = useState(false);
-  const [fundingSources, setFundingSources] = useState<Array<{ id: string; name: string; amount: string; isCustom?: boolean }>>([
-    { id: "deposit", name: "Deposit", amount: "0.00" },
-    { id: "loan", name: "Loan", amount: "0.00" },
-    { id: "bank_trust", name: "Bank / Trust Account", amount: "0.00" },
-    { id: "surplus_fund", name: "Surplus Fund Refund", amount: "0.00" },
-    { id: "personal_capital", name: "Personal Fund for Capital Expense", amount: "0.00" },
-    { id: "personal_revenue", name: "Personal Fund for Revenue Expense", amount: "0.00" },
-  ]);
+  // Settlement funding lines, backed by property_settlement_entry (0040).
+  //
+  // `entryId` is empty on a row added but not yet saved — that is what tells
+  // the save which rows to POST and which to PATCH, the same diffing the
+  // borrowing cost grid uses. The amount stays a string so an input can hold a
+  // half-typed value without the difference recalculating against NaN.
+  const [fundingSources, setFundingSources] = useState<FundingRow[]>([]);
+  const [isSettlementLoading, setIsSettlementLoading] = useState(true);
+  const [isSavingSettlement, setIsSavingSettlement] = useState(false);
+  const [settlementError, setSettlementError] = useState("");
+  const [settlementSaved, setSettlementSaved] = useState(false);
+  // Entry ids present at load, diffed against the grid on save to find deletes.
+  const loadedSettlementIdsRef = useRef<string[]>([]);
   const borrowingCostHref = editPropertyHref.replace(/\/edit$/, "/borrowing-cost");
   // GST comes from the server aggregate, not from the `transactions` array on
   // this page: that list is capped at 100 rows by the API and carries no period
@@ -355,6 +422,17 @@ export default function PropertyDetailView({
 
         const loadedProperty = (await propertyRes.json()) as CoreProperty;
         setProperty(loadedProperty);
+        // property.settlement_date is real (migration 0019); the Cost Base
+        // panel had it hardcoded, so every property exported the same date.
+        // Contract date has no backing column and stays a local field.
+        if (loadedProperty.settlementDate) {
+          const settled = loadedProperty.settlementDate.slice(0, 10);
+          setSettlementDate(settled);
+          // The contract date has no backing column, so it keeps a placeholder.
+          // Clear it when the real settlement date lands before it, rather than
+          // leaving the pair in a state the min/max inputs reject.
+          setContractDate((current) => (current && current > settled ? "" : current));
+        }
         if (transactionsRes.ok) {
           const data = (await transactionsRes.json()) as {
             items?: CorePropertyTransactionRow[];
@@ -585,49 +663,136 @@ export default function PropertyDetailView({
     }
   };
 
-  const costBaseAutoRows = useMemo(() => {
-    // Baseline mock values
-    const rows = [
-      { category: "Property Purchase", source: "Property Transaction", gross: 500000.00, gst: 0.00, net: 500000.00 },
-      { category: "Legal Fees", source: "Reconciliation", gross: 5500.00, gst: 500.00, net: 5000.00 },
-      { category: "Stamp Duty", source: "Property Transaction", gross: 10000.00, gst: 0.00, net: 10000.00 }
-    ];
+  // Cost base transactions and settlement entries, both scoped to this
+  // property. Kept out of the page's main load so a slow cost base read never
+  // blocks the header, and re-run on refreshTrigger so an Add Balance write
+  // shows up without a reload.
+  useEffect(() => {
+    if (!sessionToken || !propertyId) return;
+    let cancelled = false;
 
-    // Merge actual transactions if any match
-    for (const t of transactions) {
-      if (t.transactionType === "personal" || t.reviewStatus === "rejected") continue;
-
-      const grossVal = t.splitGrossAmount !== undefined && t.splitGrossAmount !== null ? t.splitGrossAmount : t.transactionGrossAmount;
-      const gstVal = t.splitGstAmount !== undefined && t.splitGstAmount !== null ? t.splitGstAmount : t.transactionGstAmount;
-      const netVal = t.splitNetAmount !== undefined && t.splitNetAmount !== null ? t.splitNetAmount : t.transactionNetAmount;
-      const name = (t.subcategoryName || t.categoryName || "").toLowerCase();
-
-      if (name.includes("property purchase") || name.includes("purchase")) {
-        const row = rows.find(r => r.category === "Property Purchase");
-        if (row) {
-          row.gross = Math.abs(grossVal);
-          row.gst = Math.abs(gstVal);
-          row.net = Math.abs(netVal);
+    async function loadCostBase() {
+      setIsCostBaseLoading(true);
+      setCostBaseError("");
+      try {
+        const res = await fetch(
+          `/api/properties/${encodeURIComponent(propertyId)}/transactions` +
+            `?type=cost_base&grain=top&limit=200`,
+          { headers: { Authorization: `Bearer ${sessionToken}` } },
+        );
+        if (cancelled) return;
+        if (!res.ok) {
+          setCostBaseError("Failed to load cost base transactions.");
+          return;
         }
-      } else if (name.includes("stamp duty") || name.includes("stamp")) {
-        const row = rows.find(r => r.category === "Stamp Duty");
-        if (row) {
-          row.gross = Math.abs(grossVal);
-          row.gst = Math.abs(gstVal);
-          row.net = Math.abs(netVal);
+        const data = (await res.json()) as { items?: CorePropertyTransactionRow[] };
+        if (!cancelled) {
+          // Rejected rows are not cost base — they are entries the reviewer
+          // threw out — and they are excluded everywhere else on this page.
+          setCostBaseTransactions(
+            (data.items || []).filter((row) => row.reviewStatus !== "rejected"),
+          );
         }
-      } else if (name.includes("legal") || name.includes("conveyancing")) {
-        const row = rows.find(r => r.category === "Legal Fees");
-        if (row) {
-          row.gross = Math.abs(grossVal);
-          row.gst = Math.abs(gstVal);
-          row.net = Math.abs(netVal);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load cost base transactions:", error);
+          setCostBaseError("Failed to load cost base transactions.");
         }
+      } finally {
+        if (!cancelled) setIsCostBaseLoading(false);
       }
     }
 
-    return rows;
-  }, [transactions]);
+    loadCostBase();
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, sessionToken, refreshTrigger]);
+
+  useEffect(() => {
+    if (!sessionToken || !propertyId) return;
+    let cancelled = false;
+
+    async function loadSettlement() {
+      setIsSettlementLoading(true);
+      try {
+        const res = await fetch(
+          `/api/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+          { headers: { Authorization: `Bearer ${sessionToken}` } },
+        );
+        if (cancelled) return;
+        if (!res.ok) {
+          // A property that has never been settled has no rows rather than an
+          // error, so a failure here is a real one — surface it instead of
+          // silently showing the six defaults as if they were saved.
+          setSettlementError("Failed to load settlement entries.");
+          setFundingSources(defaultFundingRows());
+          loadedSettlementIdsRef.current = [];
+          return;
+        }
+        const data = (await res.json()) as { items?: CoreSettlementEntry[] };
+        if (cancelled) return;
+        const items = data.items || [];
+        setFundingSources(
+          items.length > 0 ? items.map(settlementEntryToRow) : defaultFundingRows(),
+        );
+        loadedSettlementIdsRef.current = items.map((item) => item.id);
+        setSettlementError("");
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load settlement entries:", error);
+          setSettlementError("Failed to load settlement entries.");
+          setFundingSources(defaultFundingRows());
+          loadedSettlementIdsRef.current = [];
+        }
+      } finally {
+        if (!cancelled) setIsSettlementLoading(false);
+      }
+    }
+
+    loadSettlement();
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, sessionToken]);
+
+  /**
+   * The property's real cost base transactions.
+   *
+   * Migration 0032 made `cost_base` a first-class transaction type with five
+   * seeded categories, so this is a plain filtered read. What it replaces was a
+   * literal array — Property Purchase $500,000, Legal Fees $5,500, Stamp Duty
+   * $10,000 — that a loop then overwrote in place if a loaded transaction's
+   * category name happened to contain "purchase" / "stamp" / "legal". With no
+   * match the invented figures rendered as if they were real, and a cost base
+   * category outside those three words never got a row at all.
+   */
+  const costBaseAutoRows = useMemo(() => {
+    return costBaseTransactions.map((t) => {
+      // Prefer the split figures: they are this property's slice of a bill that
+      // may be shared with another property. transaction* is the whole bill.
+      const grossVal = t.splitGrossAmount ?? t.transactionGrossAmount;
+      const gstVal = t.splitGstAmount ?? t.transactionGstAmount;
+      const netVal = t.splitNetAmount ?? t.transactionNetAmount;
+
+      return {
+        id: t.transactionId,
+        category: t.subcategoryName && t.subcategoryName !== "General"
+          ? `${t.categoryName} — ${t.subcategoryName}`
+          : t.categoryName,
+        description: t.description || "",
+        date: t.invoiceDate,
+        // ruleId is the only provenance the list response carries: a rule fires
+        // during reconciliation, so a row with one came in off a bank line
+        // rather than being typed in. There is no reconciliation_id on this
+        // endpoint to be more precise than that.
+        source: t.ruleId != null ? "Reconciliation" : "Manual Entry",
+        gross: Math.abs(grossVal),
+        gst: Math.abs(gstVal),
+        net: Math.abs(netVal),
+      };
+    });
+  }, [costBaseTransactions]);
 
   const handleExportCostBaseCsv = () => {
     if (!property) return;
@@ -644,14 +809,20 @@ export default function PropertyDetailView({
     lines.push("");
 
     lines.push("--- AUTO-FILLED COST BASE TRANSACTIONS ---");
-    lines.push(["Category", "Source", "Gross", "GST", "Net"].map(esc).join(","));
+    lines.push(["Date", "Category", "Description", "Source", "Gross", "GST", "Net"].map(esc).join(","));
     for (const r of costBaseAutoRows) {
-      lines.push([r.category, `Source: ${r.source}`, money(r.gross), money(r.gst), money(r.net)].map(esc).join(","));
+      lines.push([
+        formatDisplayDate((r.date || "").slice(0, 10)),
+        r.category,
+        r.description,
+        `Source: ${r.source}`,
+        money(r.gross), money(r.gst), money(r.net),
+      ].map(esc).join(","));
     }
     const autoGrossTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gross, 0);
     const autoGstTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gst, 0);
     const autoNetTotal = costBaseAutoRows.reduce((sum, r) => sum + r.net, 0);
-    lines.push(["Total Auto-filled", "", money(autoGrossTotal), money(autoGstTotal), money(autoNetTotal)].map(esc).join(","));
+    lines.push(["Total Auto-filled", "", "", "", money(autoGrossTotal), money(autoGstTotal), money(autoNetTotal)].map(esc).join(","));
     lines.push("");
 
     lines.push("--- MANUAL COST BASE BALANCE ---");
@@ -664,7 +835,23 @@ export default function PropertyDetailView({
     lines.push(["Total Manual", "", money(manualGrossTotal), money(manualNetTotal)].map(esc).join(","));
     lines.push("");
 
-    lines.push(`Grand Total,,${money(autoNetTotal + manualGrossTotal)}`);
+    const grandTotal = autoNetTotal + manualGrossTotal;
+    lines.push(`Grand Total,,${money(grandTotal)}`);
+    lines.push("");
+
+    // Settlement funding is exported here and nowhere else: it is not a
+    // transaction, so it appears in no other report.
+    lines.push("--- SETTLEMENT FUNDING (AMOUNT SETTLED BY) ---");
+    lines.push(["Funding Source", "Description", "Amount"].map(esc).join(","));
+    let settlementTotal = 0;
+    for (const r of fundingSources) {
+      const amount = parseFloat(r.amount) || 0;
+      settlementTotal += amount;
+      lines.push([r.name, r.description || "", money(amount)].map(esc).join(","));
+    }
+    lines.push(["Total Funding Entered", "", money(settlementTotal)].map(esc).join(","));
+    lines.push(["Property Cost Base Grand Total", "", money(grandTotal)].map(esc).join(","));
+    lines.push(["Settlement Difference", "", money(grandTotal - settlementTotal)].map(esc).join(","));
 
     const safeName = (property.name || propertyId).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "Property";
     const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }));
@@ -709,18 +896,127 @@ export default function PropertyDetailView({
   };
 
   const handleAddFundingSource = () => {
+    setSettlementSaved(false);
     setFundingSources(prev => [
       ...prev,
-      { id: String(Date.now()), name: "", amount: "0.00", isCustom: true }
+      { key: nextFundingDraftKey(), entryId: "", name: "", amount: "0.00", description: "" }
     ]);
   };
 
-  const handleDeleteFundingSource = (id: string) => {
-    setFundingSources(prev => prev.filter(r => r.id !== id));
+  // Removes the row from the grid only. The entry itself is deleted on save, so
+  // a mis-click is recoverable by leaving the page without saving.
+  const handleDeleteFundingSource = (key: string) => {
+    setSettlementSaved(false);
+    setFundingSources(prev => prev.filter(r => r.key !== key));
   };
 
-  const handleUpdateFundingSource = (id: string, field: "name" | "amount", val: string) => {
-    setFundingSources(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  const handleUpdateFundingSource = (key: string, field: "name" | "amount" | "description", val: string) => {
+    setSettlementSaved(false);
+    setFundingSources(prev => prev.map(r => r.key === key ? { ...r, [field]: val } : r));
+  };
+
+  /**
+   * Reconciles the settlement grid against the entries behind it: POST the
+   * rows with no id, PATCH the rest, DELETE the ids that were loaded but are no
+   * longer on screen, then re-read so new rows pick up their ids.
+   *
+   * Without that re-read a second save would create a duplicate of everything
+   * just added — the same failure mode the borrowing cost grid guards against.
+   */
+  const handleSaveSettlement = async () => {
+    if (!sessionToken || isSavingSettlement) return;
+
+    for (const row of fundingSources) {
+      if (!row.name.trim()) {
+        setSettlementError("Every funding source needs a name.");
+        return;
+      }
+      const amount = Number.parseFloat(row.amount);
+      if (row.amount.trim() !== "" && !Number.isFinite(amount)) {
+        setSettlementError(`"${row.name.trim()}" has an amount that is not a number.`);
+        return;
+      }
+    }
+
+    setIsSavingSettlement(true);
+    setSettlementError("");
+    setSettlementSaved(false);
+
+    try {
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      };
+      const base = `/api/properties/${encodeURIComponent(propertyId)}/settlement-entries`;
+
+      const remainingIds = new Set(
+        fundingSources.map((row) => row.entryId).filter(Boolean),
+      );
+      const deletedIds = loadedSettlementIdsRef.current.filter(
+        (id) => !remainingIds.has(id),
+      );
+
+      const body = (row: FundingRow, index: number) => ({
+        entry_type: row.name.trim(),
+        amount: Number.parseFloat(row.amount) || 0,
+        description: row.description.trim() || null,
+        // Position is the grid order, so a reordered or newly inserted row
+        // comes back where the accountant left it.
+        position: index,
+      });
+
+      const responses = await Promise.all([
+        ...fundingSources.map((row, index) =>
+          row.entryId
+            ? fetch(`${base}/${encodeURIComponent(row.entryId)}`, {
+                method: "PATCH",
+                headers: authHeaders,
+                body: JSON.stringify(body(row, index)),
+              })
+            : fetch(base, {
+                method: "POST",
+                headers: authHeaders,
+                body: JSON.stringify(body(row, index)),
+              }),
+        ),
+        ...deletedIds.map((id) =>
+          fetch(`${base}/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          }),
+        ),
+      ]);
+
+      const failed = responses.filter((res) => !res.ok);
+      if (failed.length > 0) {
+        const detail = (await failed[0].json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setSettlementError(
+          detail?.message || detail?.error || "Failed to save settlement entries.",
+        );
+        return;
+      }
+
+      const reread = await fetch(base, {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      if (reread.ok) {
+        const data = (await reread.json()) as { items?: CoreSettlementEntry[] };
+        const items = data.items || [];
+        setFundingSources(items.map(settlementEntryToRow));
+        loadedSettlementIdsRef.current = items.map((item) => item.id);
+      }
+
+      setSettlementSaved(true);
+      setTimeout(() => setSettlementSaved(false), 3000);
+    } catch (error) {
+      console.error("Failed to save settlement entries:", error);
+      setSettlementError("Failed to save settlement entries.");
+    } finally {
+      setIsSavingSettlement(false);
+    }
   };
 
   const handleAddBalanceSubmit = async (e: React.FormEvent) => {
@@ -1985,6 +2281,7 @@ export default function PropertyDetailView({
                       <thead>
                         <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
                           <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Description</th>
                           <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Source</th>
                           <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Gross</th>
                           <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>GST</th>
@@ -1992,9 +2289,12 @@ export default function PropertyDetailView({
                         </tr>
                       </thead>
                       <tbody>
-                        {costBaseAutoRows.map((row, idx) => (
-                          <tr key={`cost-base-auto-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        {costBaseAutoRows.map((row) => (
+                          <tr key={`cost-base-auto-${row.id}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
                             <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>{row.category}</td>
+                            <td style={{ padding: "12px 8px", fontSize: "13px", color: row.description ? "#475569" : "#94a3b8" }}>
+                              {row.description || "—"}
+                            </td>
                             <td style={{ padding: "12px 8px", fontSize: "12px" }}>
                               <span style={{
                                 backgroundColor: row.source === "Reconciliation" ? "#dbeafe" : "#fef3c7",
@@ -2017,6 +2317,17 @@ export default function PropertyDetailView({
                             </td>
                           </tr>
                         ))}
+                        {costBaseAutoRows.length === 0 && (
+                          <tr>
+                            <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                              {isCostBaseLoading
+                                ? "Loading cost base transactions…"
+                                : costBaseError
+                                  ? costBaseError
+                                  : "No cost base transactions recorded for this property yet. Add one with type “Property Cost Base” and it appears here."}
+                            </td>
+                          </tr>
+                        )}
                         {(() => {
                           const autoGrossTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gross, 0);
                           const autoGstTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gst, 0);
@@ -2024,7 +2335,7 @@ export default function PropertyDetailView({
 
                           return (
                             <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                              <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
+                              <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
                               <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
                                 A$ {autoGrossTotal.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                               </td>
@@ -2190,6 +2501,13 @@ export default function PropertyDetailView({
                             </td>
                           </tr>
                         ))}
+                        {manualCostBaseRows.length === 0 && (
+                          <tr>
+                            <td colSpan={5} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                              No manual balance rows. Use “Add Category” for costs you have an estimate for but no transaction yet.
+                            </td>
+                          </tr>
+                        )}
                         {(() => {
                           const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
                           const manualNetTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.net) || 0), 0);
@@ -2341,70 +2659,76 @@ export default function PropertyDetailView({
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} >
                       FUNDING SOURCE
                     </th>
-                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} >
+                      DESCRIPTION
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} >
                       AMOUNT (AUD)
                     </th>
+                    <th style={{ width: "40px" }}></th>
                   </tr>
                 </thead>
                 <tbody>
+                  {fundingSources.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                        {isSettlementLoading ? "Loading settlement entries…" : "No funding sources yet. Use “Add Category” to record how this settlement was funded."}
+                      </td>
+                    </tr>
+                  )}
                   {fundingSources.map((row) => (
-                    <tr key={row.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                    <tr key={row.key} style={{ borderBottom: "1px solid #f8fafc" }}>
                       <td style={{ padding: "12px 8px", verticalAlign: "middle" }}>
-                        {row.isCustom ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <input
-                              type="text"
-                              value={row.name}
-                              placeholder="Funding Category Name"
-                              onChange={(e) => handleUpdateFundingSource(row.id, "name", e.target.value)}
-                              style={{
-                                width: "300px",
-                                padding: "8px 12px",
-                                borderRadius: "8px",
-                                border: "1px solid #cbd5e1",
-                                fontSize: "13.5px",
-                                fontWeight: 600,
-                                color: "#334155",
-                                outline: "none"
-                              }}
-                              autoFocus
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteFundingSource(row.id)}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#ef4444",
-                                cursor: "pointer",
-                                padding: "4px"
-                              }}
-                              title="Remove category"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#334155" }}>
-                            {row.name}
-                          </span>
-                        )}
+                        <input
+                          type="text"
+                          value={row.name}
+                          placeholder="Funding Category Name"
+                          onChange={(e) => handleUpdateFundingSource(row.key, "name", e.target.value)}
+                          style={{
+                            width: "100%",
+                            boxSizing: "border-box",
+                            padding: "8px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13.5px",
+                            fontWeight: 600,
+                            color: "#334155",
+                            outline: "none"
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "12px 8px", verticalAlign: "middle" }}>
+                        <input
+                          type="text"
+                          value={row.description}
+                          placeholder="Optional note"
+                          onChange={(e) => handleUpdateFundingSource(row.key, "description", e.target.value)}
+                          style={{
+                            width: "100%",
+                            boxSizing: "border-box",
+                            padding: "8px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13.5px",
+                            fontWeight: 500,
+                            color: "#334155",
+                            outline: "none"
+                          }}
+                        />
                       </td>
                       <td style={{ padding: "12px 8px", textAlign: "right", verticalAlign: "middle" }}>
                         <input
                           type="number"
                           step="0.01"
                           value={row.amount}
-                          onChange={(e) => handleUpdateFundingSource(row.id, "amount", e.target.value)}
+                          onChange={(e) => handleUpdateFundingSource(row.key, "amount", e.target.value)}
                           placeholder="0.00"
                           style={{
-                            width: "360px",
-                            maxWidth: "100%",
+                            width: "100%",
+                            boxSizing: "border-box",
                             padding: "8px 14px",
                             borderRadius: "8px",
                             border: "1px solid #e2e8f0",
@@ -2426,10 +2750,61 @@ export default function PropertyDetailView({
                           }}
                         />
                       </td>
+                      <td style={{ padding: "12px 8px", textAlign: "center", verticalAlign: "middle" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFundingSource(row.key)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#ef4444",
+                            cursor: "pointer",
+                            padding: "4px"
+                          }}
+                          title="Remove funding source"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              {/* Save — nothing is written until this is pressed, so opening the
+                  page never persists the six seeded funding sources. */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
+                {settlementError && (
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#d92d20", marginRight: "auto" }}>
+                    {settlementError}
+                  </span>
+                )}
+                {settlementSaved && !settlementError && (
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#059669", marginRight: "auto" }}>
+                    Settlement entries saved.
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSaveSettlement}
+                  disabled={isSavingSettlement || isSettlementLoading}
+                  style={{
+                    padding: "9px 20px",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#28336e",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: isSavingSettlement || isSettlementLoading ? "not-allowed" : "pointer",
+                    opacity: isSavingSettlement || isSettlementLoading ? 0.6 : 1
+                  }}
+                >
+                  {isSavingSettlement ? "Saving…" : "Save Settlement Entries"}
+                </button>
+              </div>
 
               {/* Summary Box */}
               {(() => {

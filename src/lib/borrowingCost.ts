@@ -19,6 +19,55 @@ import type { CoreTransactionCategory } from "@/src/lib/coreApi";
  */
 export const BORROWING_EXPENSE_CATEGORY_NAME = "Borrowing expenses";
 
+/**
+ * The borrowing expense subcategories in the order the supplied xlsx template
+ * lists them — which is exactly migration 0038's seed order.
+ *
+ * The export matches subcategories to these by name rather than trusting the
+ * order the API returns them in: ids are BIGSERIALs that differ per
+ * environment, and 0038 deactivated four 0009 rows with lower ids, so id order
+ * is not the template's order. Anything an org has added beyond this list is
+ * appended after it rather than dropped.
+ */
+export const BORROWING_EXPENSE_TEMPLATE_ORDER = [
+  "Bill Of Sale Search Fee",
+  "Processing Fees",
+  "Government Title Search Fee",
+  "Registration Fee-Mortgage",
+  "Discharge Of Mortgage Fee",
+  "Lenders Mortgage Insurance",
+  "Registration Fee - Transfer Of Land",
+];
+
+/**
+ * Orders a loaded subcategory list to match the template, appending any
+ * org-specific extras in the order the API returned them.
+ */
+export function orderBorrowingSubcategories<T extends { name: string }>(
+  subcategories: T[],
+): T[] {
+  const rank = new Map(
+    BORROWING_EXPENSE_TEMPLATE_ORDER.map((name, index) => [
+      name.trim().toLowerCase(),
+      index,
+    ]),
+  );
+  const known: Array<{ item: T; index: number }> = [];
+  const extra: T[] = [];
+
+  for (const item of subcategories) {
+    const index = rank.get(item.name.trim().toLowerCase());
+    if (index === undefined) {
+      extra.push(item);
+    } else {
+      known.push({ item, index });
+    }
+  }
+
+  known.sort((a, b) => a.index - b.index);
+  return [...known.map((entry) => entry.item), ...extra];
+}
+
 const DEDICATED_FLOW_CATEGORY_NAMES = new Set([
   BORROWING_EXPENSE_CATEGORY_NAME.toLowerCase(),
 ]);
