@@ -7,6 +7,7 @@ import ToggleSwitch from "@/app/components/ToggleSwitch";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
 import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { useGstSummary } from "@/app/components/useGstSummary";
+import { useFirstYearDepreciation } from "@/app/components/useDepreciation";
 import {
   assetItemName,
   personalCategoryLabel,
@@ -635,6 +636,9 @@ export default function EntityDetailView({
   // Neither hook invents a fallback: empty renders as empty.
   const personal = usePersonalSummary("entity", entityId);
   const assets = useAssetTransactions("entity", entityId);
+  // The panel lists asset purchases but quotes the year-one DEDUCTION, which
+  // lives on the schedule rather than the transaction.
+  const assetFirstYear = useFirstYearDepreciation("entity", entityId);
 
   const personalBreakdown = useMemo(() => {
     const categories = personal.summary?.categories ?? [];
@@ -651,17 +655,24 @@ export default function EntityDetailView({
 
   const assetTransactionsList = useMemo(
     () =>
-      assets.rows.map((t) => ({
-        id: t.id,
-        description: assetItemName(t),
-        category: t.categoryName || "—",
-        property: t.propertyNames?.[0] || "—",
-        date: formatDate(t.invoiceDate),
-        // gross_amount is a non-negative column; an asset purchase is an
-        // expense, so it renders negative.
-        amount: -(t.grossAmount ?? 0),
-      })),
-    [assets.rows],
+      assets.rows.map((t) => {
+        const deduction = assetFirstYear.byTransactionId.get(t.id);
+        return {
+          id: t.id,
+          description: assetItemName(t),
+          category: t.categoryName || "—",
+          property: t.propertyNames?.[0] || "—",
+          date: formatDate(t.invoiceDate),
+          // Year-one depreciation, not the purchase price: gross_amount is the
+          // depreciable cost base, so it showed the amount PAID in a column
+          // that reads as the amount CLAIMED. null when no schedule has been
+          // generated, which renders "—" rather than a $0 deduction.
+          amount: deduction ? -deduction.amount : null,
+          fyLabel: deduction?.fyLabel ?? "",
+          purchaseAmount: -(t.grossAmount ?? 0),
+        };
+      }),
+    [assets.rows, assetFirstYear.byTransactionId],
   );
 
   const formatAmount = (num: number) => {
@@ -1085,7 +1096,7 @@ export default function EntityDetailView({
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }} title="First-year depreciation from the asset's schedule, not the purchase price">Year 1 Depreciation</th>
                     <th style={{ padding: '12px 8px', width: '24px' }}></th>
                   </tr>
                 </thead>
@@ -1101,7 +1112,14 @@ export default function EntityDetailView({
                       <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{item.property}</td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{item.description}</td>
                       <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{item.date}</td>
-                      <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>{formatAmount(item.amount)}</td>
+                      <td
+                        style={{ padding: '16px 8px', fontSize: '14px', color: item.amount == null ? '#94a3b8' : '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}
+                        title={item.amount == null
+                          ? 'No depreciation schedule generated for this asset yet'
+                          : `${item.fyLabel} · purchased for ${formatAmount(item.purchaseAmount)}`}
+                      >
+                        {item.amount == null ? '—' : formatAmount(item.amount)}
+                      </td>
                       <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
                           <polyline points="9 18 15 12 9 6" />

@@ -682,6 +682,20 @@ export default function AccountantReconciliationSessionPage() {
     [combinedRows, selectedRowKeys, optimisticMatches],
   );
 
+  const selectedReviewedRows = useMemo(
+    () =>
+      combinedRows.filter(({ reconId, bankTxIndex }) => {
+        const key = mkey(reconId, bankTxIndex);
+        if (!selectedRowKeys.has(key)) return false;
+        return optimisticMatches.get(key)?.status === "confirmed";
+      }),
+    [combinedRows, selectedRowKeys, optimisticMatches],
+  );
+
+  // The income/expense lock for bulk CATEGORIZE only. It is derived from
+  // selectedEligibleRows, which excludes confirmed and excluded rows, so
+  // selecting on the Reviewed or Excluded tab never sets it — undo is
+  // sign-agnostic and gating it would block undoing a mixed batch.
   const selectedType = useMemo(() => {
     if (selectedEligibleRows.length === 0) return null;
     const firstRow = selectedEligibleRows[0].row;
@@ -1693,6 +1707,51 @@ export default function AccountantReconciliationSessionPage() {
     });
   }
 
+  /**
+   * Bulk Undo on the Categorized (Reviewed) tab.
+   *
+   * Same single-row DELETE the per-row Undo button already calls, run over the
+   * selection. There is no bulk endpoint in the Go reconciliation handler and
+   * every other bulk action here is likewise a client-side loop.
+   *
+   * `deleteMatch` is idempotent — both branches are WHERE-scoped with no
+   * existence check and return 200 {"ok":true} — so a partially failed run is
+   * safe to re-run.
+   *
+   * Note it UNLINKS: the transaction that Categorize created stays in the
+   * entity ledger and P&L. That is how the per-row Undo has always behaved;
+   * bulk inherits it rather than introducing it, but at 50 rows it is visible,
+   * hence the warning in the toolbar.
+   */
+  function doBulkUndoReviewed() {
+    const rows = selectedReviewedRows;
+    if (rows.length === 0) return;
+    startTransition(async () => {
+      rows.forEach(({ reconId, bankTxIndex }) => {
+        addOptimisticMatch({ remove: mkey(reconId, bankTxIndex) });
+      });
+      try {
+        const token = getToken();
+        await Promise.all(
+          rows.map(({ reconId, bankTxIndex }) =>
+            fetch(
+              `/api/entities/${entityId}/reconciliations/${reconId}/matches?bankTxIndex=${bankTxIndex}`,
+              { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+            ).catch(() => {})
+          )
+        );
+        await reloadMatches();
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          rows.forEach(({ reconId, bankTxIndex }) => {
+            next.delete(mkey(reconId, bankTxIndex));
+          });
+          return next;
+        });
+      } catch { /* optimistic rolls back */ }
+    });
+  }
+
   function doBulkUndoExcluded() {
     const rows = selectedExcludedRows;
     if (rows.length === 0) return;
@@ -1983,6 +2042,11 @@ export default function AccountantReconciliationSessionPage() {
       const isExcluded = optimisticMatches.get(key)?.status === "excluded";
       if (activeTab === "excluded") {
         return isExcluded && !isSessionCompleted;
+      }
+      // Confirmed rows are selectable on the Reviewed tab so they can be bulk
+      // undone. No selectedType filter: undo does not care about the sign.
+      if (activeTab === "reviewed") {
+        return isConfirmed && !isSessionCompleted;
       }
       const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
       if (!isEligible) return false;
@@ -2447,7 +2511,10 @@ export default function AccountantReconciliationSessionPage() {
         </section>
 
         {/* ── Bulk action bar ────────────────────────────────────────────── */}
-        {selectedEligibleRows.length > 0 && !isSessionCompleted && (
+        {/* Scoped to the Unreviewed tab: selectedEligibleRows spans every row,
+            not just the visible ones, so a selection carried over from another
+            tab used to surface a Categorize button for rows you cannot see. */}
+        {activeTab === "unreviewed" && selectedEligibleRows.length > 0 && !isSessionCompleted && (
           <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
             <span className="recon-bulk-bar-count">
               {selectedEligibleRows.length} transaction{selectedEligibleRows.length > 1 ? "s" : ""} selected
@@ -2466,6 +2533,35 @@ export default function AccountantReconciliationSessionPage() {
                 onClick={openBulkCategorize}
               >
                 Categorize
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Bulk action bar for Categorized (Reviewed) ── */}
+        {activeTab === "reviewed" && selectedReviewedRows.length > 0 && !isSessionCompleted && (
+          <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
+            <span className="recon-bulk-bar-count">
+              {selectedReviewedRows.length} transaction{selectedReviewedRows.length > 1 ? "s" : ""} selected
+            </span>
+            <div className="recon-bulk-bar-actions">
+              <span className="recon-bulk-bar-note">
+                Undo unlinks the bank line. The transaction it created stays in the ledger.
+              </span>
+              <button
+                type="button"
+                className="recon-bulk-clear-btn"
+                onClick={() => setSelectedRowKeys(new Set())}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="recon-bulk-categorize-btn"
+                disabled={isPending}
+                onClick={doBulkUndoReviewed}
+              >
+                Bulk Undo
               </button>
             </div>
           </div>
@@ -2511,7 +2607,8 @@ export default function AccountantReconciliationSessionPage() {
                     setSelectedRowKeys((prev) => {
                       const next = new Set(prev);
                       if (checked) {
-                        if (activeTab === "excluded") {
+                        if (activeTab === "excluded" || activeTab === "reviewed") {
+                          // No sign lock on the undo tabs — take the lot.
                           selectableRowsOnPage.forEach((row) => {
                             next.add(mkey(row.reconId, row.bankTxIndex));
                           });
@@ -2931,9 +3028,13 @@ export default function AccountantReconciliationSessionPage() {
 
               const isSelectable = activeTab === "excluded"
                 ? (isExcluded && !isSessionCompleted)
-                : (!isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted);
+                : activeTab === "reviewed"
+                  ? (isConfirmed && !isSessionCompleted)
+                  : (!isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted);
               const rowType = row.credit != null ? "revenue" : "expense";
-              const isRowDisabled = activeTab === "excluded"
+              // The sign lock belongs to bulk categorize. Undo (Reviewed and
+              // Excluded) is sign-agnostic, so nothing is dimmed on those tabs.
+              const isRowDisabled = activeTab === "excluded" || activeTab === "reviewed"
                 ? false
                 : (isSelectable && selectedType !== null && rowType !== selectedType);
 

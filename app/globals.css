@@ -12743,6 +12743,54 @@ html.dark .transaction-document-drop__bottom-bar {
   cursor: default;
 }
 
+/* All Transactions row selection */
+.transactions-select-col {
+  width: 40px;
+  text-align: center;
+  padding-left: 12px;
+  padding-right: 4px;
+}
+
+.transactions-select-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #3538cd;
+}
+
+.transactions-select-col input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+.transactions-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin: 0 0 12px;
+}
+
+.transactions-selection-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3538cd;
+}
+
+.transactions-selection-sep {
+  margin: 0 8px;
+  opacity: 0.5;
+}
+
+.transactions-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Reconciliation bulk categorize */
 .recon-bulk-bar {
   display: flex;
@@ -12766,6 +12814,22 @@ html.dark .transaction-document-drop__bottom-bar {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Bulk Undo unlinks the bank line but leaves the transaction Categorize
+   created, so the toolbar says so before you undo fifty of them. */
+.recon-bulk-bar-note {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1e40af;
+  opacity: 0.85;
+  margin-right: 4px;
+}
+
+@media (max-width: 900px) {
+  .recon-bulk-bar-note {
+    display: none;
+  }
 }
 
 .recon-bulk-clear-btn {

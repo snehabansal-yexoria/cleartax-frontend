@@ -2573,12 +2573,12 @@ export default function ClientAddTransactionViewNew({
         if (isAsset) {
           const rawClass = row.asset_class || "";
           body.asset_class = rawClass === "capital_works" ? "capital_works" : "capital_allowance";
-          if (row.asset_item_name) {
-            body.metadata = {
-              ...(body.metadata as Record<string, unknown> | undefined),
-              asset_item_name: row.asset_item_name.trim(),
-            };
+          // Same column-not-metadata rule as the single-transaction path above.
+          const csvAssetName = (row.asset_item_name || row.asset_name || "").trim();
+          if (!csvAssetName) {
+            throw new Error(`Row ${rowNumber}: asset purchases require an asset name.`);
           }
+          body.asset_name = csvAssetName;
           if (body.asset_class === "capital_allowance") {
             const lifeYears = Number.parseFloat(row.effective_life_years || row.life_years || "");
             if (Number.isNaN(lifeYears) || lifeYears <= 0) {
@@ -2782,12 +2782,17 @@ export default function ClientAddTransactionViewNew({
       };
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
-        if (assetItemName.trim()) {
-          body.metadata = {
-            ...(body.metadata as Record<string, unknown> | undefined),
-            asset_item_name: assetItemName.trim(),
-          };
+        // asset_name is a COLUMN (migration 0037) and the API rejects an asset
+        // purchase without it — "asset_name is required when
+        // is_asset_purchase=true" (validate.go). Writing it only into
+        // metadata.asset_item_name, as this form used to, made every asset the
+        // client portal created fail with a 400, and 0037 strips that key
+        // anyway.
+        if (!assetItemName.trim()) {
+          setSubmitError("Asset purchases need an asset name.");
+          return;
         }
+        body.asset_name = assetItemName.trim();
         if (assetClass === "capital_allowance") {
           const yearsNum = Number.parseFloat(effectiveLifeYears);
           if (Number.isNaN(yearsNum) || yearsNum <= 0) {

@@ -3426,6 +3426,23 @@ export type CoreDepreciationSchedule = {
   /** The selected year's claim, or null when no `fy` was requested. */
   fyDepreciation: number | null;
 
+  /**
+   * Year ONE of the schedule, independent of any `fy` filter.
+   *
+   * This is the deduction the asset panels quote. They used to render the
+   * transaction's gross amount, which is the depreciable cost base — the price
+   * paid, not the amount claimable. `fyDepreciation` cannot stand in for it: a
+   * list of assets bought in different years has no single `fy` that means
+   * "year one" for all of them.
+   *
+   * Null when the schedule has no year rows yet, which is distinct from a
+   * genuine $0 claim.
+   */
+  firstYearDepreciation: number | null;
+  firstYearFyStartYear: number | null;
+  /** e.g. "FY 2026-27", for labelling the column. */
+  firstYearFyLabel: string;
+
   documentId: string | null;
   documentName: string;
   generatedAt: string;
@@ -3474,6 +3491,8 @@ function normalizeDepreciationYear(raw: RawRecord): CoreDepreciationYear {
 
 function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule {
   const fyDep = toFloatValue(raw.fy_depreciation ?? raw.fyDepreciation);
+  const rawFirstYearDep =
+    raw.first_year_depreciation ?? raw.firstYearDepreciation;
   return {
     id: toStringValue(raw.id),
     transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
@@ -3505,6 +3524,18 @@ function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule
       toFloatValue(raw.total_depreciation ?? raw.totalDepreciation) ?? 0,
     residualValue: toFloatValue(raw.residual_value ?? raw.residualValue) ?? 0,
     fyDepreciation: fyDep,
+
+    // Read through a null check rather than toFloatValue alone: that helper
+    // folds a missing value to 0, which would report "no schedule generated"
+    // as a $0 deduction.
+    firstYearDepreciation:
+      rawFirstYearDep == null ? null : toFloatValue(rawFirstYearDep),
+    firstYearFyStartYear: toNumberValue(
+      raw.first_year_fy_start_year ?? raw.firstYearFyStartYear,
+    ),
+    firstYearFyLabel: toStringValue(
+      raw.first_year_fy_label ?? raw.firstYearFyLabel,
+    ),
 
     documentId: toStringValue(raw.document_id ?? raw.documentId) || null,
     documentName: toStringValue(raw.document_name ?? raw.documentName),

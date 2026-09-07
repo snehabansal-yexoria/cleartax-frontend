@@ -216,13 +216,24 @@ export function useAssetTransactions(
 /**
  * The asset's name for the panel's "Asset Name" column.
  *
- * Recorded by the Add Transaction form as metadata.asset_item_name; falls back
- * to the transaction description, then to a dash, so a row written before that
- * field existed still reads sensibly instead of rendering blank.
+ * Reads the `asset_name` COLUMN first. Migration 0037 promoted the name out of
+ * metadata into a real column and then stripped `metadata.asset_item_name` from
+ * every row, so a helper that only looked at metadata has returned nothing
+ * since — every asset panel silently fell through to the description, or to a
+ * dash when there was none.
+ *
+ * The metadata key is still checked second, because 0037 was a one-off UPDATE
+ * rather than a trigger: any row written by a client that still posts the old
+ * shape carries it again. Description stays as the last resort so a row with no
+ * name at all reads sensibly instead of rendering blank.
  */
 export function assetItemName(row: CoreTransactionListItem): string {
-  const named = row.metadata?.asset_item_name;
-  if (typeof named === "string" && named.trim()) return named.trim();
+  const column = row.assetName;
+  if (typeof column === "string" && column.trim()) return column.trim();
+
+  const legacy = row.metadata?.asset_item_name;
+  if (typeof legacy === "string" && legacy.trim()) return legacy.trim();
+
   return row.description?.trim() || "—";
 }
 
