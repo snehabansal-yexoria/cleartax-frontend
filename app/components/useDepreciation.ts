@@ -140,6 +140,13 @@ export type UseFirstYearDepreciationResult = {
  *
  * Schedules with no generated years are skipped rather than counted as zero, so
  * a missing schedule shows as "—" and not as a $0 claim.
+ *
+ * Keyed on `displayTransactionId`, not `transactionId`. The panels list
+ * transactions at display grain; a schedule hangs off the asset at money grain,
+ * which on a part-private purchase is the business CHILD. Keying on the
+ * schedule's own transaction id meant those rows never matched a panel row and
+ * always rendered "—", which reads as "no schedule" rather than "looked up
+ * under the wrong id".
  */
 export function useFirstYearDepreciation(
   level: CoreDepreciationScopeLevel,
@@ -154,8 +161,9 @@ export function useFirstYearDepreciation(
     const out = new Map<string, FirstYearDeduction>();
     for (const item of data?.items ?? []) {
       if (item.firstYearDepreciation == null) continue;
-      const existing = out.get(item.transactionId);
-      out.set(item.transactionId, {
+      const key = item.displayTransactionId || item.transactionId;
+      const existing = out.get(key);
+      out.set(key, {
         amount: (existing?.amount ?? 0) + item.firstYearDepreciation,
         fyLabel: existing?.fyLabel || item.firstYearFyLabel,
       });

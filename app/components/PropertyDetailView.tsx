@@ -3836,7 +3836,9 @@ export default function PropertyDetailView({
                             <td
                               style={{ padding: '16px 8px', fontSize: '14px', color: item.amount == null ? '#94a3b8' : '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}
                               title={item.amount == null
-                                ? 'No depreciation schedule generated for this asset yet'
+                                ? (assetFirstYear.error
+                                    ? `Year 1 depreciation could not be loaded: ${assetFirstYear.error}`
+                                    : 'No depreciation schedule generated for this asset yet')
                                 : `${item.fyLabel} · purchased for ${formatAmount(item.purchaseAmount)}`}
                             >
                               {item.amount == null ? '—' : formatAmount(item.amount)}

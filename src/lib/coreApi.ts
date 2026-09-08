@@ -3414,6 +3414,21 @@ export type CoreDepreciationYear = {
 export type CoreDepreciationSchedule = {
   id: string;
   transactionId: string;
+
+  /**
+   * The id the asset panels hold for this asset.
+   *
+   * A schedule hangs off the asset at MONEY grain, so on a part-private
+   * purchase it belongs to the business CHILD. The panels list transactions at
+   * display grain, which is the PARENT — so looking a panel row up by
+   * `transactionId` never matched and every part-private asset rendered "—"
+   * where its deduction belongs. Key by this instead.
+   *
+   * `transactionId` stays the money-grain id: it is what the per-transaction
+   * and rebuild endpoints address.
+   */
+  displayTransactionId: string;
+
   propertyId: string;
   propertyName: string;
   entityId: string;
@@ -3509,6 +3524,12 @@ function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule
   return {
     id: toStringValue(raw.id),
     transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
+    // Falls back to the money-grain id so a response from a backend that
+    // predates the field still keys correctly for every asset that is not
+    // part-private — which is all of them until a split is entered.
+    displayTransactionId:
+      toStringValue(raw.display_transaction_id ?? raw.displayTransactionId) ||
+      toStringValue(raw.transaction_id ?? raw.transactionId),
     propertyId: toStringValue(raw.property_id ?? raw.propertyId),
     propertyName: toStringValue(raw.property_name ?? raw.propertyName),
     entityId: toStringValue(raw.entity_id ?? raw.entityId),

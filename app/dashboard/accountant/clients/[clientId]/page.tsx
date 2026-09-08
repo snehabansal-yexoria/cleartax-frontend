@@ -1069,7 +1069,9 @@ function ClientDetailPageContent() {
                         <td
                           style={{ padding: '16px 8px', fontSize: '14px', color: row.amount == null ? '#94a3b8' : '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}
                           title={row.amount == null
-                            ? 'No depreciation schedule generated for this asset yet'
+                            ? (assetFirstYear.error
+                                ? `Year 1 depreciation could not be loaded: ${assetFirstYear.error}`
+                                : 'No depreciation schedule generated for this asset yet')
                             : `${row.fyLabel} · purchased for ${formatPanelAmount(row.purchaseAmount)}`}
                         >
                           {row.amount == null ? '—' : formatPanelAmount(row.amount)}
