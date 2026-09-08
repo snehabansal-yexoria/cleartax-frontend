@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   CoreApiError,
   toCoreReviewStatusParam,
+  type CoreJournalEntryListQuery,
   type CoreLedgerQuery,
   type CoreTransactionListQuery,
   type CoreTransactionType,
@@ -208,4 +209,88 @@ export function parseLedgerQuery(req: Request): CoreLedgerQuery {
     limit: int("limit"),
     offset: int("offset"),
   };
+}
+
+/**
+ * Whitelist-parse the journal entry list query. Same discipline as
+ * parseTransactionListQuery: read each parameter by name, validate it, and drop
+ * anything unrecognised rather than forwarding it upstream.
+ */
+export function parseJournalEntryListQuery(
+  req: Request,
+): CoreJournalEntryListQuery {
+  const url = new URL(req.url);
+  const q = url.searchParams;
+  const out: CoreJournalEntryListQuery = {};
+
+  const isDate = (v: string | null): v is string =>
+    !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+  const from = q.get("from");
+  const to = q.get("to");
+  if (isDate(from)) out.from = from;
+  if (isDate(to)) out.to = to;
+
+  const search = q.get("search")?.trim();
+  if (search) out.search = search;
+
+  const source = q.get("source");
+  if (source === "manual" || source === "csv") out.source = source;
+
+  const sort = q.get("sort");
+  if (sort && ["date", "created", "debit", "reference", "entry_no"].includes(sort)) {
+    out.sort = sort;
+  }
+
+  const dir = q.get("dir");
+  if (dir === "asc" || dir === "desc") out.dir = dir;
+
+  const limit = Number.parseInt(q.get("limit") ?? "", 10);
+  if (Number.isFinite(limit) && limit > 0) out.limit = Math.min(limit, 200);
+
+  const offset = Number.parseInt(q.get("offset") ?? "", 10);
+  if (Number.isFinite(offset) && offset >= 0) out.offset = offset;
+
+  return out;
+}
+
+/** Whitelist-parse the General Ledger query. */
+export function parseGeneralLedgerQuery(req: Request): Record<string, string> {
+  const url = new URL(req.url);
+  const q = url.searchParams;
+  const out: Record<string, string> = {};
+
+  const isDate = (v: string | null): v is string =>
+    !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+  const from = q.get("from");
+  const to = q.get("to");
+  if (isDate(from) && isDate(to)) {
+    out.from = from;
+    out.to = to;
+  }
+
+  const fy = q.get("financial_year");
+  if (fy && /^\d{4}$/.test(fy)) out.financial_year = fy;
+
+  const code = q.get("account_code")?.trim();
+  if (code) out.account_code = code;
+
+  const source = q.get("source");
+  if (source && ["all", "journal", "transaction"].includes(source)) {
+    out.source = source;
+  }
+
+  const limit = Number.parseInt(q.get("limit") ?? "", 10);
+  if (Number.isFinite(limit) && limit > 0) {
+    out.limit = String(Math.min(limit, 1000));
+  }
+
+  const offset = Number.parseInt(q.get("offset") ?? "", 10);
+  if (Number.isFinite(offset) && offset >= 0) out.offset = String(offset);
+
+  const format = q.get("format");
+  if (format && ["csv", "xlsx", "pdf"].includes(format)) out.format = format;
+
+  return out;
 }

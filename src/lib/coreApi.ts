@@ -1187,6 +1187,10 @@ export type CoreTransactionCategory = {
   id: number;
   name: string;
   type: CoreTransactionType;
+  // Chart-of-accounts code the category posts to ("5020" for council rates).
+  // Null for the personal and cost-base categories, which sit outside the
+  // chart, and for org categories that have not been given one.
+  accountCode: string | null;
   isSystem: boolean;
   metadata: Record<string, unknown>;
 };
@@ -1510,6 +1514,7 @@ export function normalizeCoreTransactionCategory(
     id: toNumberValue(raw.id) ?? 0,
     name: toStringValue(raw.name),
     type: toTxnType(raw.type),
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
     isSystem: Boolean(raw.is_system ?? raw.isSystem),
     metadata: toRecord(raw.metadata),
   };
@@ -3643,6 +3648,540 @@ export async function fetchCoreDepreciationDocument(
 ): Promise<Response> {
   return fetch(
     `${getCoreApiBaseUrl()}/depreciation/${encodeURIComponent(scheduleId)}/document`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+// =============================================================================
+// Journal entries and the Chart of Accounts
+// =============================================================================
+
+/** One row of the Chart of Accounts master (backend migration 0042). */
+export interface CoreChartAccount {
+  id: number;
+  accountCode: string;
+  accountName: string;
+  /** income | expense | asset | liability | equity */
+  category: string;
+  subcategory: string;
+  /** "debit" or "credit" — which direction increases this account. */
+  normalBalance: string;
+  isActive: boolean;
+  isSystem: boolean;
+  /**
+   * True for income/expense accounts, whose journal lines are projected into
+   * `transaction` and therefore reach P&L, All Transactions and the GST
+   * report. Balance-sheet accounts stay in the journal only — that is correct,
+   * not a gap.
+   */
+  postable: boolean;
+}
+
+/** One of the six approved GST codes. */
+export interface CoreGstCode {
+  code: string;
+  rate: number;
+  /** "sales" or "purchases" — must agree with the account's category. */
+  direction: string;
+  basReportable: boolean;
+  position: number;
+}
+
+export interface CoreJournalLine {
+  id: number;
+  lineNo: number;
+  chartOfAccountId: number;
+  accountCode: string;
+  accountName: string;
+  accountCategory: string;
+  propertyId: string | null;
+  propertyName: string | null;
+  debit: number;
+  credit: number;
+  gstCode: string | null;
+  gstAmount: number;
+  description: string | null;
+  name: string | null;
+  posted: boolean;
+  postedTransactionId: string | null;
+  postedType: string | null;
+  postedGross: number | null;
+  postedNet: number | null;
+}
+
+export interface CoreJournalEntry {
+  id: string;
+  entryNo: string;
+  orgId: string;
+  entityId: string;
+  entryDate: string;
+  reference: string | null;
+  memo: string | null;
+  status: string;
+  source: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  isBalanced: boolean;
+  lines: CoreJournalLine[];
+  createdBy: string | null;
+  createdAt: string;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface CoreJournalEntrySummary {
+  id: string;
+  entryNo: string;
+  entityId: string;
+  entryDate: string;
+  reference: string | null;
+  memo: string | null;
+  status: string;
+  source: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  isBalanced: boolean;
+  propertyNames: string[];
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoreJournalEntryListQuery {
+  from?: string;
+  to?: string;
+  search?: string;
+  source?: string;
+  sort?: string;
+  dir?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CoreJournalImportIssue {
+  line: number;
+  field?: string;
+  reason: string;
+}
+
+export interface CoreImportedEntry {
+  index: number;
+  lines: number[];
+  status: string;
+  entryId?: string;
+  entryNo?: string;
+  entryDate: string;
+  reference?: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  errors?: CoreJournalImportIssue[];
+}
+
+export interface CoreJournalImportResult {
+  dryRun: boolean;
+  imported: number;
+  failed: number;
+  entries: CoreImportedEntry[];
+  issues: CoreJournalImportIssue[];
+}
+
+export function normalizeCoreChartAccount(raw: RawRecord): CoreChartAccount {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    accountCode: toStringValue(raw.account_code ?? raw.accountCode),
+    accountName: toStringValue(raw.account_name ?? raw.accountName),
+    category: toStringValue(raw.category),
+    subcategory: toStringValue(raw.subcategory),
+    normalBalance: toStringValue(raw.normal_balance ?? raw.normalBalance),
+    isActive: raw.is_active !== false && raw.isActive !== false,
+    isSystem: raw.is_system === true || raw.isSystem === true,
+    postable: raw.postable === true,
+  };
+}
+
+export function normalizeCoreGstCode(raw: RawRecord): CoreGstCode {
+  return {
+    code: toStringValue(raw.code),
+    rate: toFloatValue(raw.rate),
+    direction: toStringValue(raw.direction),
+    basReportable: raw.bas_reportable !== false && raw.basReportable !== false,
+    position: toNumberValue(raw.position) ?? 0,
+  };
+}
+
+export function normalizeCoreJournalLine(raw: RawRecord): CoreJournalLine {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    lineNo: toNumberValue(raw.line_no ?? raw.lineNo) ?? 0,
+    chartOfAccountId:
+      toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? 0,
+    accountCode: toStringValue(raw.account_code ?? raw.accountCode),
+    accountName: toStringValue(raw.account_name ?? raw.accountName),
+    accountCategory: toStringValue(raw.account_category ?? raw.accountCategory),
+    propertyId: toNullableString(raw.property_id ?? raw.propertyId),
+    propertyName: toNullableString(raw.property_name ?? raw.propertyName),
+    debit: toFloatValue(raw.debit),
+    credit: toFloatValue(raw.credit),
+    gstCode: toNullableString(raw.gst_code ?? raw.gstCode),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    description: toNullableString(raw.description),
+    name: toNullableString(raw.name),
+    posted: raw.posted === true,
+    postedTransactionId: toNullableString(
+      raw.posted_transaction_id ?? raw.postedTransactionId,
+    ),
+    postedType: toNullableString(raw.posted_type ?? raw.postedType),
+    postedGross: toNullableNumber(raw.posted_gross ?? raw.postedGross),
+    postedNet: toNullableNumber(raw.posted_net ?? raw.postedNet),
+  };
+}
+
+export function normalizeCoreJournalEntry(raw: RawRecord): CoreJournalEntry {
+  const lines = Array.isArray(raw.lines) ? raw.lines : [];
+  return {
+    id: toStringValue(raw.id),
+    entryNo: toStringValue(raw.entry_no ?? raw.entryNo),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entryDate: toStringValue(raw.entry_date ?? raw.entryDate),
+    reference: toNullableString(raw.reference),
+    memo: toNullableString(raw.memo),
+    status: toStringValue(raw.status),
+    source: toStringValue(raw.source),
+    totalDebit: toFloatValue(raw.total_debit ?? raw.totalDebit),
+    totalCredit: toFloatValue(raw.total_credit ?? raw.totalCredit),
+    lineCount: toNumberValue(raw.line_count ?? raw.lineCount) ?? 0,
+    isBalanced: raw.is_balanced === true || raw.isBalanced === true,
+    lines: lines.map((l) => normalizeCoreJournalLine(toRecord(l))),
+    createdBy: toNullableString(raw.created_by ?? raw.createdBy),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export function normalizeCoreJournalEntrySummary(
+  raw: RawRecord,
+): CoreJournalEntrySummary {
+  return {
+    id: toStringValue(raw.id),
+    entryNo: toStringValue(raw.entry_no ?? raw.entryNo),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entryDate: toStringValue(raw.entry_date ?? raw.entryDate),
+    reference: toNullableString(raw.reference),
+    memo: toNullableString(raw.memo),
+    status: toStringValue(raw.status),
+    source: toStringValue(raw.source),
+    totalDebit: toFloatValue(raw.total_debit ?? raw.totalDebit),
+    totalCredit: toFloatValue(raw.total_credit ?? raw.totalCredit),
+    lineCount: toNumberValue(raw.line_count ?? raw.lineCount) ?? 0,
+    isBalanced: raw.is_balanced === true || raw.isBalanced === true,
+    propertyNames: toStringArray(raw.property_names ?? raw.propertyNames),
+    createdBy: toNullableString(raw.created_by ?? raw.createdBy),
+    createdByName: toNullableString(raw.created_by_name ?? raw.createdByName),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+function normalizeCoreJournalIssue(raw: RawRecord): CoreJournalImportIssue {
+  return {
+    line: toNumberValue(raw.line) ?? 0,
+    field: toStringValue(raw.field) || undefined,
+    reason: toStringValue(raw.reason),
+  };
+}
+
+export function normalizeCoreJournalImportResult(
+  payload: unknown,
+): CoreJournalImportResult {
+  const raw = toRecord(payload);
+  const entries = Array.isArray(raw.entries) ? raw.entries : [];
+  const issues = Array.isArray(raw.issues) ? raw.issues : [];
+  return {
+    dryRun: raw.dry_run === true || raw.dryRun === true,
+    imported: toNumberValue(raw.imported) ?? 0,
+    failed: toNumberValue(raw.failed) ?? 0,
+    entries: entries.map((e) => {
+      const r = toRecord(e);
+      const errs = Array.isArray(r.errors) ? r.errors : [];
+      return {
+        index: toNumberValue(r.index) ?? 0,
+        lines: Array.isArray(r.lines)
+          ? r.lines.map((l) => toNumberValue(l) ?? 0)
+          : [],
+        status: toStringValue(r.status),
+        entryId: toStringValue(r.entry_id ?? r.entryId) || undefined,
+        entryNo: toStringValue(r.entry_no ?? r.entryNo) || undefined,
+        entryDate: toStringValue(r.entry_date ?? r.entryDate),
+        reference: toStringValue(r.reference) || undefined,
+        totalDebit: toFloatValue(r.total_debit ?? r.totalDebit),
+        totalCredit: toFloatValue(r.total_credit ?? r.totalCredit),
+        lineCount: toNumberValue(r.line_count ?? r.lineCount) ?? 0,
+        errors: errs.map((x) => normalizeCoreJournalIssue(toRecord(x))),
+      };
+    }),
+    issues: issues.map((x) => normalizeCoreJournalIssue(toRecord(x))),
+  };
+}
+
+export async function listCoreChartOfAccounts(
+  token: string,
+  query: { category?: string; search?: string; postable?: boolean } = {},
+): Promise<CoreChartAccount[]> {
+  const sp = new URLSearchParams();
+  if (query.category) sp.set("category", query.category);
+  if (query.search) sp.set("search", query.search);
+  if (query.postable) sp.set("postable", "true");
+  const qs = sp.toString();
+  const payload = await coreApiRequest(
+    `/chart-of-accounts${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreChartAccount);
+}
+
+export async function listCoreGstCodes(token: string): Promise<CoreGstCode[]> {
+  const payload = await coreApiRequest("/gst-codes", { token });
+  return getJsonArray(payload).map(normalizeCoreGstCode);
+}
+
+export async function listCoreJournalEntriesByEntity(
+  token: string,
+  entityId: string,
+  query: CoreJournalEntryListQuery = {},
+): Promise<CorePaginated<CoreJournalEntrySummary>> {
+  const sp = new URLSearchParams();
+  const put = (k: string, v: unknown) => {
+    if (v !== undefined && v !== null && v !== "") sp.set(k, String(v));
+  };
+  put("from", query.from);
+  put("to", query.to);
+  put("search", query.search);
+  put("source", query.source);
+  put("sort", query.sort);
+  put("dir", query.dir);
+  put("limit", query.limit);
+  put("offset", query.offset);
+  const qs = sp.toString();
+
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/journal-entries${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  const items = getJsonArray(payload).map(normalizeCoreJournalEntrySummary);
+  return toPaginated(payload, items, query.limit);
+}
+
+export async function createCoreJournalEntry(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/journal-entries`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function getCoreJournalEntry(
+  token: string,
+  entryId: string,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/journal-entries/${encodeURIComponent(entryId)}`,
+    { token },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function updateCoreJournalEntry(
+  token: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/journal-entries/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreJournalEntry(
+  token: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(`/journal-entries/${encodeURIComponent(entryId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function importCoreJournalEntries(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+  dryRun: boolean,
+): Promise<CoreJournalImportResult> {
+  const path = `/entities/${encodeURIComponent(entityId)}/journal-entries/import${
+    dryRun ? "/validate" : ""
+  }`;
+  const payload = await coreApiRequest(path, { method: "POST", token, body });
+  return normalizeCoreJournalImportResult(payload);
+}
+
+/** Raw General Ledger response, passed through with light normalisation. */
+export interface CoreGeneralLedgerRow {
+  date: string;
+  sourceKind: string;
+  sourceId: string;
+  reference: string;
+  description: string;
+  name: string;
+  contraAccounts: string[];
+  gstCode: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+  reviewStatus: string | null;
+  isAssetPurchase: boolean;
+}
+
+export interface CoreGeneralLedgerAccount {
+  accountCode: string;
+  accountName: string;
+  category: string;
+  subcategory: string;
+  normalBalance: string;
+  openingBalance: number;
+  closingBalance: number;
+  openingBalanceBasis: string;
+  debits: number;
+  credits: number;
+  rows: CoreGeneralLedgerRow[];
+}
+
+export interface CoreGeneralLedger {
+  scope: { level: string; id: string; name: string };
+  period: { financialYear: number; label: string; from: string; to: string };
+  account: CoreChartAccount | null;
+  dateBasis: string;
+  accounts: CoreGeneralLedgerAccount[];
+  totals: { debits: number; credits: number };
+  /**
+   * Debits minus credits across every account. Non-zero by design: ordinary
+   * transactions post only their P&L leg, with no cash or GST contra, so this
+   * report is account activity and not a trial balance. The gap is the value of
+   * all non-journalised activity, and it is shown rather than hidden.
+   */
+  unbalancedBy: number;
+  unmappedRowCount: number;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+function normalizeGeneralLedgerRow(raw: RawRecord): CoreGeneralLedgerRow {
+  return {
+    date: toStringValue(raw.date),
+    sourceKind: toStringValue(raw.source_kind ?? raw.sourceKind),
+    sourceId: toStringValue(raw.source_id ?? raw.sourceId),
+    reference: toStringValue(raw.reference),
+    description: toStringValue(raw.description),
+    name: toStringValue(raw.name),
+    contraAccounts: toStringArray(raw.contra_accounts ?? raw.contraAccounts),
+    gstCode: toNullableString(raw.gst_code ?? raw.gstCode),
+    debit: toFloatValue(raw.debit),
+    credit: toFloatValue(raw.credit),
+    balance: toFloatValue(raw.balance),
+    reviewStatus: toNullableString(raw.review_status ?? raw.reviewStatus),
+    isAssetPurchase:
+      raw.is_asset_purchase === true || raw.isAssetPurchase === true,
+  };
+}
+
+export function normalizeCoreGeneralLedger(payload: unknown): CoreGeneralLedger {
+  const raw = toRecord(payload);
+  const scope = toRecord(raw.scope);
+  const period = toRecord(raw.period);
+  const totals = toRecord(raw.totals);
+  const accounts = Array.isArray(raw.accounts) ? raw.accounts : [];
+
+  return {
+    scope: {
+      level: toStringValue(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: {
+      financialYear: toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+      label: toStringValue(period.label),
+      from: toStringValue(period.from),
+      to: toStringValue(period.to),
+    },
+    account: raw.account ? normalizeCoreChartAccount(toRecord(raw.account)) : null,
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    accounts: accounts.map((a) => {
+      const r = toRecord(a);
+      const rows = Array.isArray(r.rows) ? r.rows : [];
+      return {
+        accountCode: toStringValue(r.account_code ?? r.accountCode),
+        accountName: toStringValue(r.account_name ?? r.accountName),
+        category: toStringValue(r.category),
+        subcategory: toStringValue(r.subcategory),
+        normalBalance: toStringValue(r.normal_balance ?? r.normalBalance),
+        openingBalance: toFloatValue(r.opening_balance ?? r.openingBalance),
+        closingBalance: toFloatValue(r.closing_balance ?? r.closingBalance),
+        openingBalanceBasis: toStringValue(
+          r.opening_balance_basis ?? r.openingBalanceBasis,
+        ),
+        debits: toFloatValue(r.debits),
+        credits: toFloatValue(r.credits),
+        rows: rows.map((x) => normalizeGeneralLedgerRow(toRecord(x))),
+      };
+    }),
+    totals: {
+      debits: toFloatValue(totals.debits),
+      credits: toFloatValue(totals.credits),
+    },
+    unbalancedBy: toFloatValue(raw.unbalanced_by ?? raw.unbalancedBy),
+    unmappedRowCount: toNumberValue(raw.unmapped_row_count ?? raw.unmappedRowCount) ?? 0,
+    total: toNumberValue(raw.total) ?? 0,
+    limit: toNumberValue(raw.limit) ?? 0,
+    offset: toNumberValue(raw.offset) ?? 0,
+  };
+}
+
+export async function fetchCoreGeneralLedger(
+  token: string,
+  entityId: string,
+  query: Record<string, string> = {},
+): Promise<CoreGeneralLedger> {
+  const qs = new URLSearchParams(query).toString();
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/general-ledger${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return normalizeCoreGeneralLedger(payload);
+}
+
+/**
+ * Returns the raw upstream Response so the BFF can stream the body straight
+ * through instead of buffering a whole export in memory.
+ */
+export async function fetchCoreGeneralLedgerExport(
+  token: string,
+  entityId: string,
+  query: Record<string, string> = {},
+): Promise<Response> {
+  const qs = new URLSearchParams(query).toString();
+  return fetch(
+    `${getCoreApiBaseUrl()}/entities/${encodeURIComponent(entityId)}/general-ledger/export${qs ? `?${qs}` : ""}`,
     { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
   );
 }

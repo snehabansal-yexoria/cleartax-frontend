@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState, useId, useRef } from "react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
+import JournalEntriesList from "@/app/components/journal/JournalEntriesList";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
 import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { useGstSummary } from "@/app/components/useGstSummary";
@@ -56,14 +57,33 @@ export type EntityDetailViewProps = {
   reconciliationHref?: string;
 };
 
-type EntityTab = "properties" | "transactions" | "documents" | "reconciliation";
+type EntityTab =
+  | "properties"
+  | "transactions"
+  | "journal"
+  | "documents"
+  | "reconciliation";
 
 const entityTabs: { id: EntityTab; label: string }[] = [
   { id: "properties", label: "Properties" },
   { id: "transactions", label: "Transactions" },
+  { id: "journal", label: "Journal Entries" },
   { id: "documents", label: "Documents" },
   { id: "reconciliation", label: "Reconciliations" },
 ];
+
+const entityTabIds = new Set<string>(entityTabs.map((tab) => tab.id));
+
+// Tabs that actually render a body. Anything in entityTabs but not here falls
+// through to the "Coming soon" panel — a set rather than a chain of !==, which
+// is what previously had to be edited in two unrelated places per new tab.
+const IMPLEMENTED_TABS = new Set<EntityTab>([
+  "properties",
+  "transactions",
+  "journal",
+  "documents",
+  "reconciliation",
+]);
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -471,8 +491,10 @@ export default function EntityDetailView({
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "properties" || tab === "transactions" || tab === "documents" || tab === "reconciliation") {
-      setCurrentTab(tab);
+    // Checked against the tab list rather than a hardcoded chain, so adding a
+    // tab is one line instead of three places that silently drift.
+    if (tab && entityTabIds.has(tab)) {
+      setCurrentTab(tab as EntityTab);
     }
   }, []);
 
@@ -1484,6 +1506,53 @@ export default function EntityDetailView({
             </div>
           )}
 
+          {currentTab === "journal" && (
+            <div className="entity-resource-body">
+              <div
+                className="entity-resource-head"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <h2>Journal Entries</h2>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="entity-wizard-secondary"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/accountant/clients/${clientId}/entities/${entityId}/general-ledger`
+                    )
+                  }
+                >
+                  General Ledger
+                </button>
+                <button
+                  type="button"
+                  className="entity-wizard-primary is-orange"
+                  disabled={entityDisabled}
+                  title={entityDisabled ? "Entity is inactive" : undefined}
+                  onClick={() => {
+                    if (entityDisabled) return;
+                    router.push(
+                      `/dashboard/accountant/clients/${clientId}/entities/${entityId}/journal-entry/new?from=journal&fromName=${encodeURIComponent(
+                        entity?.name || ""
+                      )}`
+                    );
+                  }}
+                >
+                  + Add Journal Entry
+                </button>
+                </div>
+              </div>
+              <JournalEntriesList
+                entityId={entityId}
+                clientId={clientId}
+                token={sessionToken}
+                disabled={entityDisabled}
+                disabledReason="Entity is inactive"
+              />
+            </div>
+          )}
+
           {currentTab === "reconciliation" && (
             <div className="entity-resource-body">
               <div className="entity-resource-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1746,7 +1815,7 @@ export default function EntityDetailView({
             </div>
           )}
 
-          {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "reconciliation" && currentTab !== "documents" && (
+          {!IMPLEMENTED_TABS.has(currentTab) && (
             <div className="entity-coming-soon">
               <strong>{entityTabs.find((tab) => tab.id === currentTab)?.label}</strong>
               <p>Coming soon</p>
