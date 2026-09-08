@@ -152,6 +152,11 @@ const categories = {
     { id: 34, name: "Capital improvements", isSystem: true },
     { id: 35, name: "Selling costs", isSystem: true },
   ],
+  // Migration 0045: a transfer between the entity's own accounts, with the same
+  // single-"General"-subcategory shape as Personal.
+  contra: [
+    { id: 41, name: "Contra", isSystem: true },
+  ],
 };
 
 const allCategories = [

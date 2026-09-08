@@ -10,12 +10,14 @@ import { getSession } from "@/src/lib/session";
 import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import {
   TRANSACTION_TYPE_OPTIONS,
+  TRANSACTION_TYPE_ENTRY_OPTIONS,
   allowsAssetPurchase,
   allowsBusinessExtras,
   allowsPersonalPortion,
   hidesCategoryPicker,
   hidesSubcategoryPicker,
-  isRevenueType,
+  transactionSign,
+  allowsContraFlag,
   parseTransactionType,
   transactionTypeColor,
   transactionTypeLabel,
@@ -278,6 +280,19 @@ const INITIAL_SORT_DIR: Record<TransactionSortKey, SortDirection> = {
   net: "desc",
   share: "desc",
 };
+
+/**
+ * Amount colouring, keyed on the three signs rather than a revenue boolean.
+ *
+ * A contra entry gets the neutral class: it is a transfer between the entity's
+ * own accounts, so painting it red beside real expenses reads as spending that
+ * never happened.
+ */
+function amountClass(sign: ReturnType<typeof transactionSign>): string {
+  if (sign === "positive") return "amount-positive";
+  if (sign === "neutral") return "amount-neutral";
+  return "amount-negative";
+}
 
 function encodeSort(sort: TransactionSort) {
   return `${sort.key}-${sort.dir}`;
@@ -1076,7 +1091,7 @@ function TransactionDetailPopup({
   }
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
-  const isRevenue = isRevenueType(display.type);
+  const amountSign = transactionSign(display.type);
   const splitRows =
     detail?.splits.map((split) => ({
       id: String(split.id),
@@ -1493,12 +1508,15 @@ function TransactionDetailPopup({
               <div className="transaction-type-control">
                 <span className="transaction-field-label">Transaction Type<em>*</em></span>
                 <div>
-                  {TRANSACTION_TYPE_OPTIONS.map((option) => (
+                  {/* Entry options, not every type: contra is reached by the
+                  toggle below, so it is not offered as a sixth button. */}
+                  {TRANSACTION_TYPE_ENTRY_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       className={
-                        type === option.value
+                        type === option.value ||
+                        (option.value === "expense" && type === "contra")
                           ? `is-selected ${transactionTypeModifier(option.value)}`
                           : ""
                       }
@@ -1513,6 +1531,33 @@ function TransactionDetailPopup({
                   ))}
                 </div>
               </div>
+
+              {/* Lets a mis-marked transfer be turned back into a real expense,
+              and an expense that turns out to be a transfer be corrected
+              without deleting and re-entering it. */}
+              {allowsContraFlag(type) && (
+                <label className="transaction-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={type === "contra"}
+                    onChange={(event) => {
+                      setType(event.target.checked ? "contra" : "expense");
+                      setCategoryId(null);
+                      setSubcategoryId(null);
+                      if (event.target.checked) {
+                        setShowGstBreakdown(false);
+                        setGstAmount("");
+                      }
+                    }}
+                  />
+                  <span>
+                    <strong>Is this a contra entry?</strong>
+                    <br />
+                    A transfer between your own accounts. Excluded from the
+                    profit and loss statement and your BAS.
+                  </span>
+                </label>
+              )}
               {type === "expense" ? (
                 <div className="transaction-asset-card">
                   <label className="transaction-checkbox-row">
@@ -1865,14 +1910,14 @@ function TransactionDetailPopup({
 
               <div className="transaction-detail-grid is-three">
                 <DetailField label="Gross Amount">
-                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(display.grossAmount, isRevenue)}
+                  <span className={amountClass(amountSign)}>
+                    {formatTransactionCurrency(display.grossAmount, amountSign)}
                   </span>
                 </DetailField>
                 <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
                 <DetailField label="Net Amount">
-                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(display.netAmount, isRevenue)}
+                  <span className={amountClass(amountSign)}>
+                    {formatTransactionCurrency(display.netAmount, amountSign)}
                   </span>
                 </DetailField>
               </div>
@@ -2370,7 +2415,7 @@ function TransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = isRevenueType(row.type);
+              const amountSign = transactionSign(row.type);
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
@@ -2483,12 +2528,12 @@ function TransactionTable({
                     <td>{row.categoryName}</td>
                     <td>{row.subcategoryName}</td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.grossAmount, isRevenue)}
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
+                      {formatTransactionCurrency(row.grossAmount, amountSign)}
                     </td>
                     <td style={{ textAlign: "right" }}>{formatCurrency(row.gstAmount)}</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.netAmount, isRevenue)}
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
+                      {formatTransactionCurrency(row.netAmount, amountSign)}
                     </td>
                     {showClientShare ? (
                       <td style={{ textAlign: "right" }}>
@@ -2722,7 +2767,7 @@ function PropertyTransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = isRevenueType(row.transactionType);
+              const amountSign = transactionSign(row.transactionType);
               const displayRow = propertyRowToDisplayRow(row);
               const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
               const children = rowChildren?.[row.transactionId];
@@ -2788,12 +2833,12 @@ function PropertyTransactionTable({
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
                     <td>{formatCurrency(row.transactionGrossAmount)}</td>
                     <td>{row.splitPercentage.toFixed(2)}%</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                      {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
+                    <td className={amountClass(amountSign)}>
+                      {formatTransactionCurrency(row.splitGrossAmount, amountSign)}
                     </td>
                     <td>{formatCurrency(row.splitGstAmount)}</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                      {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
+                    <td className={amountClass(amountSign)}>
+                      {formatTransactionCurrency(row.splitNetAmount, amountSign)}
                     </td>
                     <td>
                       <span
@@ -4332,20 +4377,24 @@ export function AllTransactionsView({
   const selectionEnabled = enableSelection && contextKind === "none";
 
   /**
-   * The sign lock. There are four types, not two: only `revenue` is money in —
-   * `expense`, `personal` and `cost_base` all render negative. So the lock is
-   * on `isRevenueType`, not on the type itself, and once the first row is
-   * picked every row of the opposite sign is disabled and dimmed. Summing a
-   * mixed selection would produce a number that means nothing.
+   * The sign lock. There are five types, not two, and they fall into three
+   * signs rather than two: only `revenue` is money in; `expense`, `personal`
+   * and `cost_base` render negative; and `contra` is neutral, because a
+   * transfer between the entity's own accounts is a movement rather than a
+   * flow. So the lock is on `transactionSign`, and once the first row is picked
+   * every row of a different sign is disabled and dimmed. Summing a mixed
+   * selection would produce a number that means nothing — and a contra mixed
+   * into a run of expenses would make the total read as spending that never
+   * happened.
    */
-  const selectedSign = useMemo<boolean | null>(() => {
+  const selectedSign = useMemo<ReturnType<typeof transactionSign> | null>(() => {
     const first = selectedRows.values().next();
-    return first.done ? null : isRevenueType(first.value.type);
+    return first.done ? null : transactionSign(first.value.type);
   }, [selectedRows]);
 
   const isSelectionDisabled = useCallback(
     (row: DisplayTransactionRow) =>
-      selectedSign !== null && isRevenueType(row.type) !== selectedSign,
+      selectedSign !== null && transactionSign(row.type) !== selectedSign,
     [selectedSign],
   );
 
@@ -4386,11 +4435,11 @@ export function AllTransactionsView({
       // eligible row sets the lock and the rest of the page follows it.
       const sign =
         selectedSign ??
-        (displayedRows.length > 0 ? isRevenueType(displayedRows[0].type) : null);
+        (displayedRows.length > 0 ? transactionSign(displayedRows[0].type) : null);
       const eligible =
         sign === null
           ? displayedRows
-          : displayedRows.filter((row) => isRevenueType(row.type) === sign);
+          : displayedRows.filter((row) => transactionSign(row.type) === sign);
 
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -5973,6 +6022,14 @@ export function AddTransactionView({
     if (!allowsPersonalPortion(newType)) {
       setIsPersonal(false);
     }
+    // A contra entry carries no GST — it is a transfer between the entity's own
+    // accounts, not a purchase or a sale, and transaction_contra_no_gst_check
+    // rejects a non-zero amount. Cleared here rather than validated on submit,
+    // so the accountant never types a figure that is going to be refused.
+    if (newType === "contra") {
+      setShowGstBreakdown(false);
+      setGstAmount("");
+    }
   }
 
   useEffect(() => {
@@ -7532,7 +7589,12 @@ export function AddTransactionView({
 
                   <button
                     type="button"
-                    className={`figma-type-btn is-expense${type === "expense" ? " active" : ""}`}
+                    // Stays selected while the contra toggle is on: a contra
+                    // entry IS an expense-shaped payment, reached from this
+                    // branch. Clicking it again is how you untick.
+                    className={`figma-type-btn is-expense${
+                      type === "expense" || type === "contra" ? " active" : ""
+                    }`}
                     onClick={() => handleTransactionTypeChange("expense")}
                   >
                     <span className="figma-type-circle is-expense">
@@ -7574,6 +7636,39 @@ export function AddTransactionView({
                   </button>
                 </div>
               </div>
+
+              {/* A transfer between the entity's own accounts — cash banked, a
+              bank-to-bank transfer, cash drawn for petty cash. It looks like a
+              payment on the statement, which is why the toggle lives on the
+              expense branch, but no expense was incurred: it is excluded from
+              the P&L and the BAS, and it posts to the seeded Contra / General
+              category rather than a real expense account.
+
+              Deliberately outside the allowsBusinessExtras block below, which
+              is false for contra — placing it inside would make the toggle
+              vanish the moment it was switched on. */}
+              {allowsContraFlag(type) && (
+                <div className="figma-toggle-container">
+                  <div className="figma-toggle-info">
+                    <span className="figma-toggle-title">Is this a contra entry?</span>
+                    <span className="figma-toggle-desc">
+                      A transfer between your own accounts — money banked, moved
+                      between accounts, or drawn as cash. It has no effect on the
+                      profit and loss statement or your BAS.
+                    </span>
+                  </div>
+                  <label className="figma-switch">
+                    <input
+                      type="checkbox"
+                      checked={type === "contra"}
+                      onChange={(e) =>
+                        handleTransactionTypeChange(e.target.checked ? "contra" : "expense")
+                      }
+                    />
+                    <span className="figma-switch-slider" />
+                  </label>
+                </div>
+              )}
 
               {/* Category / Sub-Category dropdowns */}
               {type === "cost_base" ? (

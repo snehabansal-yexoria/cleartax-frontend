@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
-import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { affectsPnl, transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
 import {
   ReviewQueueCount,
@@ -281,6 +281,10 @@ export default function ClientEntityDetailView({
         income: 0,
       };
       const amount = Math.abs(row.grossAmount || 0);
+      // Skip non-P&L types. The else branch used to count personal spending,
+      // capitalised cost base and contra transfers as expenses, so this chart
+      // disagreed with the server-side P&L on the same data.
+      if (!affectsPnl(row.type)) continue;
       if (row.type === "revenue") current.income += amount;
       else current.expenses += amount;
       byMonth.set(key, current);

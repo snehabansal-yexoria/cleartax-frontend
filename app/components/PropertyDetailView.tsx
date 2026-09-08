@@ -27,6 +27,7 @@ import {
 } from "@/app/components/usePnlSummary";
 import { useFirstYearDepreciation } from "@/app/components/useDepreciation";
 import { getSession } from "@/src/lib/session";
+import { affectsPnl } from "@/src/lib/transactionTypes";
 import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import type {
   CoreEntity,
@@ -1077,6 +1078,11 @@ export default function PropertyDetailView({
     const totals = transactions.reduce(
       (acc, row) => {
         const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount);
+        // Only revenue and expense belong in an income/expense total. Personal
+        // spending, capitalised cost base and contra transfers are all money
+        // movements that the P&L deliberately excludes, so they must be
+        // skipped rather than falling into the expense branch.
+        if (!affectsPnl(row.transactionType)) return acc;
         if (row.transactionType === "revenue") acc.income += amount;
         else acc.expenses += amount;
         return acc;

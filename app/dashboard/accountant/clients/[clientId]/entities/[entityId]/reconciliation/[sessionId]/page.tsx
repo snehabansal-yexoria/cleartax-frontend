@@ -26,7 +26,8 @@ import type {
   CoreTransactionType,
 } from "@/src/lib/coreApi";
 import {
-  TRANSACTION_TYPE_OPTIONS,
+  TRANSACTION_TYPE_ENTRY_OPTIONS,
+  allowsContraFlag,
   allowsAssetPurchase,
   allowsBusinessExtras,
   allowsPersonalPortion,
@@ -3356,8 +3357,10 @@ export default function AccountantReconciliationSessionPage() {
                               Transaction Type <span className="is-required">*</span>
                             </label>
                             <StaticSelect
-                              value={categorizeType}
-                              options={TRANSACTION_TYPE_OPTIONS}
+                              value={
+                                categorizeType === "contra" ? "expense" : categorizeType
+                              }
+                              options={TRANSACTION_TYPE_ENTRY_OPTIONS}
                               onChange={(val) => {
                                 const nextType = parseTransactionType(val);
                                 setCategorizeType(nextType);
@@ -3376,6 +3379,40 @@ export default function AccountantReconciliationSessionPage() {
                               }}
                             />
                           </div>
+
+                          {/* This is where a transfer is most often spotted: a
+                          statement debit that looks like a payment but is money
+                          moving to another of the entity's own accounts. */}
+                          {allowsContraFlag(categorizeType) && (
+                            <div className="figma-toggle-container">
+                              <div className="figma-toggle-info">
+                                <span className="figma-toggle-title">
+                                  Is this a contra entry?
+                                </span>
+                                <span className="figma-toggle-desc">
+                                  A transfer between your own accounts. It has no
+                                  effect on the profit and loss statement or the BAS.
+                                </span>
+                              </div>
+                              <label className="figma-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={categorizeType === "contra"}
+                                  onChange={(e) => {
+                                    setCategorizeType(e.target.checked ? "contra" : "expense");
+                                    setCategorizeCategoryId(null);
+                                    setCategorizeSubcategoryId(null);
+                                    if (e.target.checked) {
+                                      setCategorizeIsPersonal(false);
+                                      setCategorizeAssetDraft(null);
+                                      setCategorizeGst(false);
+                                    }
+                                  }}
+                                />
+                                <span className="figma-switch-slider" />
+                              </label>
+                            </div>
+                          )}
 
                           {!hidesCategoryPicker(categorizeType) && (
                             <div className="recon-categorize-field">
@@ -4021,8 +4058,8 @@ export default function AccountantReconciliationSessionPage() {
                     Transaction Type <span className="is-required">*</span>
                   </label>
                   <StaticSelect
-                    value={bulkType}
-                    options={TRANSACTION_TYPE_OPTIONS}
+                    value={bulkType === "contra" ? "expense" : bulkType}
+                    options={TRANSACTION_TYPE_ENTRY_OPTIONS}
                     onChange={(val) => {
                       setBulkType(parseTransactionType(val));
                       setBulkCategoryId(null);
@@ -4030,6 +4067,36 @@ export default function AccountantReconciliationSessionPage() {
                     }}
                   />
                 </div>
+
+                {/* Marking a run of statement lines as transfers at once — the
+                usual case being a recurring sweep between two accounts. */}
+                {allowsContraFlag(bulkType) && (
+                  <div className="figma-toggle-container">
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Are these contra entries?</span>
+                      <span className="figma-toggle-desc">
+                        Transfers between your own accounts. They have no effect on
+                        the profit and loss statement or the BAS.
+                      </span>
+                    </div>
+                    <label className="figma-switch">
+                      <input
+                        type="checkbox"
+                        checked={bulkType === "contra"}
+                        onChange={(e) => {
+                          setBulkType(e.target.checked ? "contra" : "expense");
+                          setBulkCategoryId(null);
+                          setBulkSubcategoryId(null);
+                          if (e.target.checked) {
+                            setBulkIsPersonal(false);
+                            setBulkGst(false);
+                          }
+                        }}
+                      />
+                      <span className="figma-switch-slider" />
+                    </label>
+                  </div>
+                )}
 
                 <div className="recon-categorize-field">
                   <label className="recon-categorize-label">

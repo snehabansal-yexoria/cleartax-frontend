@@ -8125,6 +8125,13 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
   color: #c2410c;
 }
 
+/* Contra — a transfer between the entity's own accounts. Teal, deliberately
+   outside the income/expense red-green pair, because it is neither. */
+.transaction-type-badge.is-contra {
+  background: #ecfeff;
+  color: #0e7490;
+}
+
 /* Beautiful empty state for Awaiting Review */
 .awaiting-review-empty-state {
   display: flex;
@@ -8302,6 +8309,11 @@ html.dark .transactions-table tbody tr:hover {
 .transaction-type-pill.is-cost-base {
   color: #c2410c;
   background: #ffedd5;
+}
+
+.transaction-type-pill.is-contra {
+  color: #0e7490;
+  background: #cffafe;
 }
 
 /* A part-private bill appears in the grid as its parent row — an expense whose
@@ -8507,6 +8519,15 @@ html.dark .transaction-child-row:hover > td {
 
 .amount-positive {
   color: #12a150;
+  font-weight: 800;
+}
+
+/* A contra entry is a movement between the entity's own accounts, not a flow in
+   or out of the business, so it is printed without a sign and in a neutral
+   colour. Rendering it red beside real expenses is what made an accountant read
+   a transfer as spending. */
+.amount-neutral {
+  color: #334155;
   font-weight: 800;
 }
 

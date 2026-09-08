@@ -983,14 +983,16 @@ export async function deleteCoreSettlementEntry(
 // Transactions
 // =============================================================================
 
-// "personal" (wholly private spending) and "cost_base" (capitalised against a
-// property's CGT cost base) are money out but are not deductible expenses, so
-// they are distinct types rather than flags on an expense.
+// "personal" (wholly private spending), "cost_base" (capitalised against a
+// property's CGT cost base) and "contra" (a transfer between the entity's own
+// accounts) are all money out but none is a deductible expense, so they are
+// distinct types rather than flags on an expense.
 export type CoreTransactionType =
   | "revenue"
   | "expense"
   | "personal"
-  | "cost_base";
+  | "cost_base"
+  | "contra";
 // "active" is the default for every new transaction — live in the ledger, in
 // nobody's queue. "unreviewed" means a client pressed "Submit to accountant"
 // and it is waiting for sign-off, so it is the accountant's review queue.
@@ -1242,9 +1244,15 @@ function toAssetClass(value: unknown): CoreAssetClass | null {
   return null;
 }
 
+// Every non-expense type must be listed. The fallthrough is "expense", so a
+// value missing from this check does not fail loudly — it silently renders as an
+// expense, which for a contra transfer would put it back in the very place the
+// type exists to keep it out of.
 function toTxnType(value: unknown): CoreTransactionType {
   const s = toStringValue(value).toLowerCase();
-  if (s === "revenue" || s === "personal" || s === "cost_base") return s;
+  if (s === "revenue" || s === "personal" || s === "cost_base" || s === "contra") {
+    return s;
+  }
   return "expense";
 }
 

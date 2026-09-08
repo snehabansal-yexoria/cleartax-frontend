@@ -25,10 +25,13 @@ interface SelectOption {
 /**
  * Ledger transaction-type tabs.
  *
- * The spec also lists Transfer and Journal Entry. `transaction.type` has no such
- * values, and adding them would reach into the P&L row filter, the GST
- * sales/purchases split and the migration-0036 grain rules — so they are absent
- * rather than shown as tabs that can never match anything.
+ * This used to say the spec's Transfer and Journal Entry were absent because
+ * adding them would reach into the P&L row filter, the GST sales/purchases
+ * split and the migration-0036 grain rules. That still holds for Journal Entry,
+ * which is a balanced two-legged record with its own tables — but migration
+ * 0045 added `contra` for the transfer case, because a contra bank line is
+ * single-sided (one statement line, one amount) and all three of those filters
+ * are allow-lists it is simply not named in.
  */
 const TYPE_TABS: { label: string; value: string }[] = [
   { label: "All", value: "" },
@@ -36,6 +39,7 @@ const TYPE_TABS: { label: string; value: string }[] = [
   { label: "Expense", value: "expense" },
   { label: "Personal", value: "personal" },
   { label: "Capital", value: "cost_base" },
+  { label: "Contra", value: "contra" },
 ];
 
 const PAGE_SIZES = [50, 100, 200];
@@ -119,6 +123,9 @@ const formatMoneyAbs = (n: number) => {
 const formatMoney = (n: number) => (n < 0 ? "−" : "") + formatMoneyAbs(n);
 const formatAmount = (n: number) => (n < 0 ? "−" : "+") + formatMoneyAbs(n);
 
+// The class names are colour slots left over from the spec's original
+// vocabulary, not semantics: `badge-journal` is simply the purple pill, and it
+// is used for `personal`.
 function badgeClassFor(row: CoreLedgerRow) {
   switch (row.transactionType) {
     case "revenue":
@@ -129,6 +136,8 @@ function badgeClassFor(row: CoreLedgerRow) {
       return "badge-journal";
     case "cost_base":
       return "badge-transfer";
+    case "contra":
+      return "badge-contra";
     default:
       return "badge-unreconciled";
   }
@@ -212,7 +221,10 @@ export default function GeneralLedgerPage() {
   const categoryOptions: SelectOption[] = useMemo(() => {
     const options: SelectOption[] = [{ label: "All Categories", value: "All" }];
     const income = (ledger?.categories ?? []).filter((c) => c.type === "revenue");
-    const expense = (ledger?.categories ?? []).filter((c) => c.type !== "revenue");
+    const expense = (ledger?.categories ?? []).filter((c) => c.type === "expense");
+    // Contra gets its own group rather than falling into "Expense Categories"
+    // via a `!== "revenue"` catch-all, which is where it landed before.
+    const contra = (ledger?.categories ?? []).filter((c) => c.type === "contra");
     if (income.length) {
       options.push({ label: "Income Categories", value: "header-income", isHeader: true });
       income.forEach((c) =>
@@ -222,6 +234,12 @@ export default function GeneralLedgerPage() {
     if (expense.length) {
       options.push({ label: "Expense Categories", value: "header-expense", isHeader: true });
       expense.forEach((c) =>
+        options.push({ label: c.categoryName, value: String(c.categoryId) }),
+      );
+    }
+    if (contra.length) {
+      options.push({ label: "Contra", value: "header-contra", isHeader: true });
+      contra.forEach((c) =>
         options.push({ label: c.categoryName, value: String(c.categoryId) }),
       );
     }
@@ -787,6 +805,12 @@ export default function GeneralLedgerPage() {
         .ledger-page .badge-journal {
           background: #f3eefc;
           color: #6d4aad;
+        }
+        /* Contra — teal, deliberately outside the income/expense pair because a
+           transfer between the entity's own accounts is neither. */
+        .ledger-page .badge-contra {
+          background: #cffafe;
+          color: #0e7490;
         }
         .ledger-page .col-desc {
           color: #586682;
