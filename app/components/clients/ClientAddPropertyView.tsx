@@ -1055,13 +1055,13 @@ export default function ClientAddPropertyView({
   if (isLoading) {
     const skeletonBg = isDark ? "rgba(255, 255, 255, 0.08)" : "#eaeef4";
     return (
-      <div 
-        style={{ 
-          background: isDark ? "var(--surface-0)" : "#f7f9fc", 
-          color: isDark ? "var(--text-primary)" : "inherit", 
-          minHeight: "100vh", 
-          padding: isMobile ? "20px" : "40px", 
-          fontFamily: '"Inter", sans-serif' 
+      <div
+        style={{
+          background: isDark ? "var(--surface-0)" : "#f7f9fc",
+          color: isDark ? "var(--text-primary)" : "inherit",
+          minHeight: "100vh",
+          padding: isMobile ? "20px" : "40px",
+          fontFamily: '"Inter", sans-serif'
         }}
       >
         <style>{`
@@ -1086,13 +1086,13 @@ export default function ClientAddPropertyView({
         </div>
 
         {/* Main Card */}
-        <div 
-          style={{ 
-            background: isDark ? "var(--surface-1)" : "#ffffff", 
-            borderRadius: "16px", 
-            border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, 
-            padding: isMobile ? "20px" : "32px", 
-            boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.02)" 
+        <div
+          style={{
+            background: isDark ? "var(--surface-1)" : "#ffffff",
+            borderRadius: "16px",
+            border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
+            padding: isMobile ? "20px" : "32px",
+            boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.02)"
           }}
         >
           {/* Step Indicator */}
@@ -1151,7 +1151,7 @@ export default function ClientAddPropertyView({
     const isCurrentStepValid = step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : (isStep2Valid && isLoanDetailsValid);
 
     return (
-      <div 
+      <div
         onKeyDown={handleKeyDown}
         style={{ background: isDark ? "var(--surface-0)" : "#ffffff", color: isDark ? "var(--text-primary)" : "inherit", minHeight: "100vh", paddingBottom: "90px", display: "flex", flexDirection: "column", fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
       >
@@ -1689,7 +1689,7 @@ export default function ClientAddPropertyView({
                   />
                   {touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid && (
                     <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
-                      Market Value must be greater than 0 and in currency format ({CURRENCY_PREFIX}).
+                      Market Value must be greater than 0.
                     </div>
                   )}
                 </div>
@@ -1717,7 +1717,7 @@ export default function ClientAddPropertyView({
                   />
                   {touchedFields.purchaseAmount && !isPurchaseAmountValid && (
                     <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
-                      Purchase Value must be greater than 0 and in currency format ({CURRENCY_PREFIX}).
+                      Purchase Value must be greater than 0.
                     </div>
                   )}
                 </div>
@@ -1977,25 +1977,24 @@ export default function ClientAddPropertyView({
                     justifyContent: "space-between",
                     alignItems: "center",
                     padding: "14px 16px",
-                    background: totalOwnership > 100 
-                      ? (isDark ? "rgba(239, 68, 68, 0.12)" : "#fef2f2") 
-                      : totalOwnership === 100 
-                        ? (isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4") 
+                    background: totalOwnership > 100
+                      ? (isDark ? "rgba(239, 68, 68, 0.12)" : "#fef2f2")
+                      : totalOwnership === 100
+                        ? (isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4")
                         : (isDark ? "rgba(244, 161, 23, 0.08)" : "#fffdf0"),
-                    border: `1px solid ${
-                      totalOwnership > 100 
-                        ? (isDark ? "rgba(239, 68, 68, 0.3)" : "#fecaca") 
-                        : totalOwnership === 100 
-                          ? (isDark ? "var(--border)" : "#bbf7d0") 
-                          : (isDark ? "var(--border)" : "#fef08a")
-                    }`,
+                    border: `1px solid ${totalOwnership > 100
+                      ? (isDark ? "rgba(239, 68, 68, 0.3)" : "#fecaca")
+                      : totalOwnership === 100
+                        ? (isDark ? "var(--border)" : "#bbf7d0")
+                        : (isDark ? "var(--border)" : "#fef08a")
+                      }`,
                     borderRadius: "12px",
                     fontSize: "14px",
                     fontWeight: 600,
-                    color: totalOwnership > 100 
-                      ? (isDark ? "#ef4444" : "#b91c1c") 
-                      : totalOwnership === 100 
-                        ? (isDark ? "var(--success)" : "#15803d") 
+                    color: totalOwnership > 100
+                      ? (isDark ? "#ef4444" : "#b91c1c")
+                      : totalOwnership === 100
+                        ? (isDark ? "var(--success)" : "#15803d")
                         : (isDark ? "var(--accent)" : "#b45309")
                   }}>
                     <span>Total Ownership:</span>
@@ -2227,10 +2226,10 @@ export default function ClientAddPropertyView({
                   />
                   {touchedFields.loanAmount && !isLoanAmountValid && (
                     <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
-                      {!loanAmount.trim() 
-                        ? "Loan Amount is required." 
+                      {!loanAmount.trim()
+                        ? "Loan Amount is required."
                         : (Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, "")) <= 0 || isNaN(Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, ""))))
-                          ? "Loan Amount must be greater than 0." 
+                          ? "Loan Amount must be greater than 0."
                           : `Loan Amount must accept only currency format (${CURRENCY_PREFIX}).`}
                     </div>
                   )}
@@ -2323,7 +2322,7 @@ export default function ClientAddPropertyView({
   // --- DESKTOP RENDER FUNCTION (already built & verified) ---
   const renderDesktopView = () => {
     return (
-      <div 
+      <div
         onKeyDown={handleKeyDown}
         style={{ background: isDark ? "var(--surface-0)" : "#f7f9fc", color: isDark ? "var(--text-primary)" : "inherit", minHeight: "100vh", padding: "40px", fontFamily: '"Inter", sans-serif' }}
       >
@@ -2916,7 +2915,7 @@ export default function ClientAddPropertyView({
                     />
                     {touchedFields.purchaseAmount && !isPurchaseAmountValid && (
                       <span style={{ fontSize: "12px", color: "#EF4444", marginTop: "4px", display: "block" }}>
-                        Purchase Value must be greater than 0 and in currency format ({CURRENCY_PREFIX}).
+                        Purchase Value must be greater than 0.
                       </span>
                     )}
                   </div>
@@ -3126,25 +3125,24 @@ export default function ClientAddPropertyView({
                       justifyContent: "space-between",
                       alignItems: "center",
                       padding: "16px 20px",
-                      background: totalOwnership > 100 
-                        ? (isDark ? "rgba(239, 68, 68, 0.12)" : "#fef2f2") 
-                        : totalOwnership === 100 
-                          ? (isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4") 
+                      background: totalOwnership > 100
+                        ? (isDark ? "rgba(239, 68, 68, 0.12)" : "#fef2f2")
+                        : totalOwnership === 100
+                          ? (isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4")
                           : (isDark ? "rgba(244, 161, 23, 0.12)" : "#fffbeb"),
-                      border: `1px solid ${
-                        totalOwnership > 100 
-                          ? (isDark ? "rgba(239, 68, 68, 0.3)" : "#fecaca") 
-                          : totalOwnership === 100 
-                            ? (isDark ? "var(--border)" : "#bbf7d0") 
-                            : (isDark ? "var(--border)" : "#fef3c7")
-                      }`,
+                      border: `1px solid ${totalOwnership > 100
+                        ? (isDark ? "rgba(239, 68, 68, 0.3)" : "#fecaca")
+                        : totalOwnership === 100
+                          ? (isDark ? "var(--border)" : "#bbf7d0")
+                          : (isDark ? "var(--border)" : "#fef3c7")
+                        }`,
                       borderRadius: "8px",
                       fontSize: "14px",
                       fontWeight: 600,
-                      color: totalOwnership > 100 
-                        ? (isDark ? "#ef4444" : "#b91c1c") 
-                        : totalOwnership === 100 
-                          ? (isDark ? "var(--success)" : "#15803d") 
+                      color: totalOwnership > 100
+                        ? (isDark ? "#ef4444" : "#b91c1c")
+                        : totalOwnership === 100
+                          ? (isDark ? "var(--success)" : "#15803d")
                           : (isDark ? "var(--accent)" : "#b45309")
                     }}>
                       <span>Total ownership</span>
@@ -3369,10 +3367,10 @@ export default function ClientAddPropertyView({
                     />
                     {touchedFields.loanAmount && !isLoanAmountValid && (
                       <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
-                        {!loanAmount.trim() 
-                          ? "Loan Amount is required." 
+                        {!loanAmount.trim()
+                          ? "Loan Amount is required."
                           : (Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, "")) <= 0 || isNaN(Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, ""))))
-                            ? "Loan Amount must be greater than 0." 
+                            ? "Loan Amount must be greater than 0."
                             : `Loan Amount must accept only currency format (${CURRENCY_PREFIX}).`}
                       </div>
                     )}

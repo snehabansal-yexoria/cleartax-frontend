@@ -1717,92 +1717,103 @@ export default function EntityDetailView({
                   <p>No reconciliations yet. Create one to start uploading bank statements.</p>
                 </div>
               ) : (
-                <ul className="entity-property-list">
-                  {sessionList.map((s) => {
-                    const created = s.createdAt
-                      ? new Date(s.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
-                      : "—";
-                    const period = s.periodFrom && s.periodTo
-                      ? `${s.periodFrom} → ${s.periodTo}`
-                      : s.periodFrom || s.periodTo || "—";
-                    const statusColor = s.status === "completed"
-                      ? "var(--color-success, #16a34a)"
-                      : "var(--color-warning, #ca8a04)";
-                    return (
-                      <li key={s.id} className="entity-property-row">
-                        <div className="entity-property-main">
-                          <strong>{s.label}</strong>
-                          <span style={{ color: statusColor, fontWeight: 600, textTransform: "capitalize", fontSize: 13 }}>
-                            {s.status}
-                          </span>
-                        </div>
-                        <dl>
-                          <div>
-                            <dt>Statements</dt>
-                            <dd>{s.statementCount}</dd>
-                          </div>
-                          <div>
-                            <dt>Period</dt>
-                            <dd>{period}</dd>
-                          </div>
-                          <div>
-                            <dt>Created</dt>
-                            <dd>{created}</dd>
-                          </div>
-                        </dl>
-                        {s.status === "completed" ? (
-                          <button
-                            type="button"
-                            className="entity-wizard-primary is-orange"
-                            style={{
-                              minHeight: "36px",
-                              height: "36px",
-                              padding: "0 12px",
-                              fontSize: "13px",
-                              borderRadius: "6px",
-                              boxShadow: "none",
-                            }}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation/${s.id}/ledger`);
-                            }}
+                (() => {
+                  const hasAnyLedgerButton = sessionList.some((s) => s.status === "completed");
+                  return (
+                    <ul className="entity-property-list">
+                      {sessionList.map((s) => {
+                        const created = s.createdAt
+                          ? new Date(s.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                          : "—";
+                        const period = s.periodFrom && s.periodTo
+                          ? `${s.periodFrom} → ${s.periodTo}`
+                          : s.periodFrom || s.periodTo || "—";
+                        const statusColor = s.status === "completed"
+                          ? "var(--color-success, #16a34a)"
+                          : "var(--color-warning, #ca8a04)";
+                        return (
+                          <li
+                            key={s.id}
+                            className={`entity-property-row reconciliation-row${!hasAnyLedgerButton ? " has-no-action" : ""}`}
                           >
-                            <svg
-                              viewBox="0 0 24 24"
-                              aria-hidden="true"
-                              style={{
-                                width: "14px",
-                                height: "14px",
-                                stroke: "currentColor",
-                                strokeWidth: 2,
-                                fill: "none",
-                                marginRight: "6px",
-                              }}
-                            >
-                              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                            </svg>
-                            View Ledger
-                          </button>
-                        ) : (
-                          <div />
-                        )}
-                        {reconciliationHref && (
-                          <Link
-                            href={`${reconciliationHref}/${encodeURIComponent(s.id)}`}
-                            className="entity-property-chevron-link"
-                            aria-label="Open reconciliation"
-                          >
-                            <svg className="entity-property-chevron" viewBox="0 0 24 24" aria-hidden="true">
-                              <path d="m9 6 6 6-6 6" />
-                            </svg>
-                          </Link>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                            <div className="entity-property-main">
+                              <strong>{s.label}</strong>
+                              <span style={{ color: statusColor, fontWeight: 600, textTransform: "capitalize", fontSize: 13 }}>
+                                {s.status}
+                              </span>
+                            </div>
+                            <dl>
+                              <div>
+                                <dt>Statements</dt>
+                                <dd>{s.statementCount}</dd>
+                              </div>
+                              <div>
+                                <dt>Period</dt>
+                                <dd>{period}</dd>
+                              </div>
+                              <div>
+                                <dt>Created</dt>
+                                <dd>{created}</dd>
+                              </div>
+                            </dl>
+                            {hasAnyLedgerButton && (
+                              <div className="reconciliation-action-slot">
+                                {s.status === "completed" && (
+                                  <button
+                                    type="button"
+                                    className="entity-wizard-primary is-orange"
+                                    style={{
+                                      minHeight: "36px",
+                                      height: "36px",
+                                      padding: "0 12px",
+                                      fontSize: "13px",
+                                      borderRadius: "6px",
+                                      boxShadow: "none",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation/${s.id}/ledger`);
+                                    }}
+                                  >
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      aria-hidden="true"
+                                      style={{
+                                        width: "14px",
+                                        height: "14px",
+                                        stroke: "currentColor",
+                                        strokeWidth: 2,
+                                        fill: "none",
+                                        marginRight: "6px",
+                                      }}
+                                    >
+                                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                                    </svg>
+                                    View Ledger
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {reconciliationHref && (
+                              <Link
+                                href={`${reconciliationHref}/${encodeURIComponent(s.id)}`}
+                                className="entity-property-chevron-link"
+                                aria-label="Open reconciliation"
+                              >
+                                <svg className="entity-property-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                  <path d="m9 6 6 6-6 6" />
+                                </svg>
+                              </Link>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  );
+                })()
               )}
             </div>
           )}

@@ -156,7 +156,7 @@ export default function JournalEntryEditor({
     if (!validation.canSave) {
       setSaveError(
         validation.entryErrors[0] ??
-          "Some lines need attention — the highlighted cells show what.",
+        "Some lines need attention — the highlighted cells show what.",
       );
       return;
     }
@@ -198,7 +198,10 @@ export default function JournalEntryEditor({
     <div className="journal-page">
       <header className="journal-page-head">
         <Link href={backHref} className="entity-wizard-back">
-          ← {backLabel}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          {backLabel}
         </Link>
         <h1>{isEdit ? `Edit ${initialEntry.entryNo}` : "Add journal entry"}</h1>
         <p className="journal-page-sub">
