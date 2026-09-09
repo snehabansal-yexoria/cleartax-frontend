@@ -125,7 +125,18 @@ export default function JournalEntriesList({
           `/api/journal-entries/${encodeURIComponent(entry.id)}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        if (!res.ok) throw new Error("load failed");
+        if (!res.ok) {
+          // The server's reason was thrown away and replaced with "load
+          // failed", so an expired session and a deleted entry looked the same.
+          const body = await res.json().catch(() => ({}));
+          setError(
+            body?.message ||
+              body?.error ||
+              `Could not load the lines for this entry (${res.status}).`,
+          );
+          setDetails((d) => ({ ...d, [entry.id]: "error" }));
+          return;
+        }
         const detail = await res.json();
         setDetails((d) => ({ ...d, [entry.id]: detail }));
       } catch {
@@ -145,7 +156,15 @@ export default function JournalEntriesList({
       );
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
-        setError(body?.message || body?.error || "Could not delete that entry.");
+        setError(
+          body?.message ||
+            body?.error ||
+            `Could not delete that entry (${res.status}).`,
+        );
+        // Close the confirm dialog. The error banner renders above the table,
+        // behind the modal layer, so leaving it open showed the user a dialog
+        // that appeared to do nothing when they pressed Delete.
+        setPendingDelete(null);
         return;
       }
       setPendingDelete(null);

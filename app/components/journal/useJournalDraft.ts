@@ -84,6 +84,45 @@ export interface DraftValidation {
 }
 
 /**
+ * One rejection from the server, located to a row and column.
+ *
+ * Mirrors the API's `issues[]` (internal/errors.Issue), which the journal save
+ * endpoints return alongside `message`. `line` is the 1-based line_no as sent,
+ * NOT the draft's array index — `toRequestBody` filters out empty rows, so the
+ * two diverge as soon as the grid has a blank line above a used one.
+ */
+export type ServerIssue = {
+  line?: number;
+  field?: string;
+  reason: string;
+};
+
+/**
+ * Server field names -> grid columns.
+ *
+ * A field the grid has no cell for (or none at all) falls back to the entry
+ * banner, so nothing is ever silently dropped.
+ */
+/**
+ * One past the largest amount a line can hold.
+ *
+ * `journal_entry_line.debit_ex_gst` and `.credit_ex_gst` are NUMERIC(14,2), so
+ * twelve digits sit before the decimal point.
+ */
+const MAX_LINE_AMOUNT = 1e12;
+
+const SERVER_FIELD_TO_CELL: Record<string, JournalLineField> = {
+  chart_of_account_id: "accountCode",
+  account_code: "accountCode",
+  debit: "debit",
+  credit: "credit",
+  gst_code: "gstCode",
+  property_id: "propertyId",
+  description: "description",
+  name: "name",
+};
+
+/**
  * Draft state for the manual entry grid.
  *
  * Two invariants are enforced by the shape rather than validated afterwards:
@@ -130,15 +169,34 @@ export function useJournalDraft(defaultPropertyId: string, initial?: CoreJournal
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [attemptedSave, setAttemptedSave] = useState(false);
 
-  const markTouched = useCallback((lineId: string, field: JournalLineField) => {
-    setTouched((prev) => new Set(prev).add(`${lineId}:${field}`));
+  // Rejections from the last save attempt. Kept outside the validation memo
+  // (which is a pure function of `draft`) because nothing derived from the
+  // draft can know what the server said — that missing channel is why a server
+  // message could only ever be printed as one sentence in a banner.
+  const [serverIssues, setServerIssues] = useState<ServerIssue[]>([]);
+
+  // Any edit drops the whole set of server rejections. They describe the body
+  // that was sent, so the moment the grid changes they are about a request that
+  // no longer exists — and unlike the client's own errors they cannot
+  // recompute. The next save produces a fresh set.
+  const clearServerIssues = useCallback(() => {
+    setServerIssues((prev) => (prev.length === 0 ? prev : []));
   }, []);
+
+  const markTouched = useCallback(
+    (lineId: string, field: JournalLineField) => {
+      setTouched((prev) => new Set(prev).add(`${lineId}:${field}`));
+      clearServerIssues();
+    },
+    [clearServerIssues],
+  );
 
   const setHeader = useCallback(
     (patch: Partial<Pick<JournalDraft, "entryDate" | "reference" | "memo">>) => {
       setDraft((d) => ({ ...d, ...patch }));
+      clearServerIssues();
     },
-    [],
+    [clearServerIssues],
   );
 
   const setCell = useCallback(
@@ -287,6 +345,14 @@ export function useJournalDraft(defaultPropertyId: string, initial?: CoreJournal
     };
   }, [draft.lines]);
 
+  // The line ids in the order toRequestBody sends them, so a server `line`
+  // number resolves back to the row the user is looking at. Empty rows are
+  // filtered out of the request, so this is NOT draft.lines.
+  const requestLineIds = useMemo(
+    () => draft.lines.filter((l) => l.accountId && (l.debit || l.credit)).map((l) => l.id),
+    [draft.lines],
+  );
+
   const validation: DraftValidation = useMemo(() => {
     const cellErrors = new Map<string, string>();
     const entryErrors: string[] = [];
@@ -342,6 +408,15 @@ export function useJournalDraft(defaultPropertyId: string, initial?: CoreJournal
         err("debit", "Enter either a debit or a credit.");
       } else if (d > 0 && c > 0) {
         err("debit", "A line cannot have both a debit and a credit.");
+      } else if (d >= MAX_LINE_AMOUNT || c >= MAX_LINE_AMOUNT) {
+        // debit_ex_gst and credit_ex_gst are NUMERIC(14,2) — twelve digits
+        // before the point. Past that Postgres raises SQLSTATE 22003, which
+        // surfaced as a 500 "internal server error" rather than a word about
+        // the amount.
+        err(
+          d >= MAX_LINE_AMOUNT ? "debit" : "credit",
+          "That amount is too large to record.",
+        );
       }
 
       if (line.accountCategory) {
@@ -362,12 +437,31 @@ export function useJournalDraft(defaultPropertyId: string, initial?: CoreJournal
       );
     }
 
-    return {
-      cellErrors,
-      entryErrors,
-      canSave: cellErrors.size === 0 && entryErrors.length === 0,
-    };
-  }, [draft, totals]);
+    // canSave is decided by the CLIENT's own checks only. Server issues are
+    // merged in below purely to be displayed: leaving them in the gate would
+    // wedge the form, because editing the offending cell does not clear an
+    // error the client never derived.
+    const canSave = cellErrors.size === 0 && entryErrors.length === 0;
+
+    for (const issue of serverIssues) {
+      const lineId = issue.line ? requestLineIds[issue.line - 1] : undefined;
+      const field = issue.field ? SERVER_FIELD_TO_CELL[issue.field] : undefined;
+      if (lineId && field) {
+        // Never overwrite a client error: it is the more specific of the two
+        // and it updates live as the user types.
+        const key = `${lineId}:${field}`;
+        if (!cellErrors.has(key)) cellErrors.set(key, issue.reason);
+      } else {
+        // No cell to blame — an entry-level rule, or a field the grid does not
+        // render. Shown in the banner rather than dropped.
+        entryErrors.push(
+          issue.line ? `Line ${issue.line}: ${issue.reason}` : issue.reason,
+        );
+      }
+    }
+
+    return { cellErrors, entryErrors, canSave };
+  }, [draft, totals, serverIssues, requestLineIds]);
 
   /** Show an error only once the cell has been touched or Save was pressed. */
   const errorFor = useCallback(
@@ -422,5 +516,7 @@ export function useJournalDraft(defaultPropertyId: string, initial?: CoreJournal
     addBalancingLine,
     replaceLines,
     toRequestBody,
+    setServerIssues,
+    clearServerIssues,
   };
 }

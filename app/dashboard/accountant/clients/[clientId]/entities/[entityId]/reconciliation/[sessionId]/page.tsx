@@ -35,6 +35,7 @@ import {
   hidesSubcategoryPicker,
   parseTransactionType,
 } from "@/src/lib/transactionTypes";
+import { firstCategoryOfType } from "@/src/lib/assetCategory";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
@@ -438,6 +439,12 @@ export default function AccountantReconciliationSessionPage() {
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
   const [categorizeGst, setCategorizeGst] = useState<boolean>(false);
   const [categorizeGstAmount, setCategorizeGstAmount] = useState<string>("");
+  // Only surfaced for contra, where a description is mandatory: it is the sole
+  // record of which two accounts the money moved between. Every other type
+  // keeps taking the bank line's payee, so no new field appears for them.
+  // Empty means "fall back to the payee", which is what the field is prefilled
+  // with when the toggle is switched on.
+  const [categorizeDescription, setCategorizeDescription] = useState<string>("");
   const [categorizeCategories, setCategorizeCategories] = useState<CoreTransactionCategory[]>([]);
   const [categorizeSubcategories, setCategorizeSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categorizeSaving, setCategorizeSaving] = useState(false);
@@ -474,6 +481,10 @@ export default function AccountantReconciliationSessionPage() {
   const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
   const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
   const [bulkGst, setBulkGst] = useState(false);
+  // Contra only, and required there. One description applied to every selected
+  // line, which suits the case the bulk toggle exists for: a recurring sweep
+  // between the same two accounts.
+  const [bulkDescription, setBulkDescription] = useState<string>("");
   const [bulkCategories, setBulkCategories] = useState<CoreTransactionCategory[]>([]);
   const [bulkSubcategories, setBulkSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   // Bulk private-use split. Percentage ONLY, deliberately — the single-line
@@ -889,6 +900,9 @@ export default function AccountantReconciliationSessionPage() {
     setCategorizeSubcategories([]);
     setCategorizeGst(false);
     setCategorizeGstAmount("");
+    // Cleared with the rest of the drawer, so one line's transfer description
+    // cannot carry over onto the next line the accountant opens.
+    setCategorizeDescription("");
     setCategorizeIsSplit(false);
     setCategorizeSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
   }, [categorizeKey, reconCache]);
@@ -951,10 +965,14 @@ export default function AccountantReconciliationSessionPage() {
   // picker, so auto-select from the typed category fetch. Since migration 0032
   // seeds a taxonomy per type, this is a plain first-option pick rather than
   // matching category names against "personal"/"private".
+  // Filtered by type, never `categorizeCategories[0]`: the list is refetched
+  // asynchronously on a type change, so index 0 can still be the previous
+  // type's row — posting an expense category on a contra transaction, which the
+  // backend rejects with "category type does not match transaction type".
   useEffect(() => {
-    if (hidesCategoryPicker(categorizeType) && !categorizeCategoryId && categorizeCategories[0]) {
-      setCategorizeCategoryId(categorizeCategories[0].id);
-    }
+    if (!hidesCategoryPicker(categorizeType) || categorizeCategoryId) return;
+    const match = firstCategoryOfType(categorizeCategories, categorizeType);
+    if (match) setCategorizeCategoryId(match.id);
   }, [categorizeType, categorizeCategories, categorizeCategoryId]);
 
   useEffect(() => {
@@ -1330,6 +1348,16 @@ export default function AccountantReconciliationSessionPage() {
       setCategorizeError("Please select sub category to continue.");
       return;
     }
+    // Matches the backend's validateContraDescription. The bank line's payee is
+    // not an acceptable fallback here: "TRANSFER 1234" says the money moved but
+    // not where it went, which is the whole point of marking it contra.
+    if (categorizeType === "contra" && !categorizeDescription.trim()) {
+      setCategorizeError(
+        "A description is required on a contra entry: it is the only record " +
+          "of which accounts the money moved between.",
+      );
+      return;
+    }
     if (categorizeIsRegularPayment) {
       if (!categorizeDueDate) {
         setCategorizeError("Due date is required.");
@@ -1431,7 +1459,11 @@ export default function AccountantReconciliationSessionPage() {
         invoice_date: bankTx.date,
         gross_amount: grossAmount,
         gst_amount: gstAmount,
-        description: bankTx.payee ?? bankTx.description ?? null,
+        description:
+          categorizeDescription.trim() ||
+          bankTx.payee ||
+          bankTx.description ||
+          null,
         internal_remarks: null,
         // No review_status: creates default to 'active'. The review queue is
         // only for transactions a client submits for sign-off.
@@ -1561,6 +1593,16 @@ export default function AccountantReconciliationSessionPage() {
       setBulkError(bulkPersonalError);
       return;
     }
+    // Checked before the loop, not per row: the backend requires a description
+    // on every contra, and discovering that on row 1 of 40 would leave the run
+    // half-applied.
+    if (bulkType === "contra" && !bulkDescription.trim()) {
+      setBulkError(
+        "A description is required on a contra entry: it is the only record " +
+          "of which accounts the money moved between.",
+      );
+      return;
+    }
     const bulkPersonalPercentageValue = Number(
       (Number.parseFloat(bulkPersonalPercentage) || 0).toFixed(2),
     );
@@ -1588,7 +1630,8 @@ export default function AccountantReconciliationSessionPage() {
               invoice_date: row.date,
               gross_amount: gross,
               gst_amount: gst,
-              description: row.payee ?? row.description ?? null,
+              description:
+                bulkDescription.trim() || row.payee || row.description || null,
               internal_remarks: null,
               is_asset_purchase: false,
               metadata: { source: "reconciliation_categorized" },
@@ -3406,12 +3449,39 @@ export default function AccountantReconciliationSessionPage() {
                                       setCategorizeIsPersonal(false);
                                       setCategorizeAssetDraft(null);
                                       setCategorizeGst(false);
+                                      // Prefilled from the statement so the
+                                      // common case is one edit, not one entry.
+                                      setCategorizeDescription(
+                                        row.payee || row.description || "",
+                                      );
+                                    } else {
+                                      setCategorizeDescription("");
                                     }
                                   }}
                                 />
                                 <span className="figma-switch-slider" />
                               </span>
                             </label>
+                          )}
+
+                          {/* Mandatory on a contra and shown nowhere else: the
+                          drawer otherwise takes the payee silently, and a payee
+                          like "TRANSFER 1234" records that money moved but not
+                          where it went — which is the one thing a transfer
+                          needs to say. */}
+                          {categorizeType === "contra" && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Description <span className="is-required">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                className="recon-categorize-input"
+                                placeholder="e.g. Transfer to savings account"
+                                value={categorizeDescription}
+                                onChange={(e) => setCategorizeDescription(e.target.value)}
+                              />
+                            </div>
                           )}
 
                           {!hidesCategoryPicker(categorizeType) && (
@@ -3733,6 +3803,12 @@ export default function AccountantReconciliationSessionPage() {
                           </div>
                         )}
 
+                        {/* Personal, cost base and contra carry no GST claim.
+                        Contra especially: transaction_contra_no_gst_check
+                        rejects a contra with GST, so leaving these radios
+                        visible let the user build a row the database refuses.
+                        Matches the other allowsBusinessExtras gates above. */}
+                        {allowsBusinessExtras(categorizeType) && (
                         <div className="recon-categorize-gst">
                           <span className="recon-categorize-gst-label">GST Applicable</span>
                           <div className="recon-categorize-gst-options">
@@ -3777,6 +3853,7 @@ export default function AccountantReconciliationSessionPage() {
                             </div>
                           )}
                         </div>
+                        )}
                         <hr className="recon-categorize-divider" />
                         {categorizeError && (
                           <div className="recon-match-error" role="alert" style={{ marginBottom: 12 }}>
@@ -4090,12 +4167,33 @@ export default function AccountantReconciliationSessionPage() {
                           if (e.target.checked) {
                             setBulkIsPersonal(false);
                             setBulkGst(false);
+                          } else {
+                            setBulkDescription("");
                           }
                         }}
                       />
                       <span className="figma-switch-slider" />
                     </span>
                   </label>
+                )}
+
+                {/* One description for the whole run. Not prefilled from a bank
+                line, because the lines selected here are different rows — the
+                shared fact is where the money went, which only the accountant
+                knows. */}
+                {bulkType === "contra" && (
+                  <div className="recon-categorize-field">
+                    <label className="recon-categorize-label">
+                      Description <span className="is-required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="recon-categorize-input"
+                      placeholder="e.g. Weekly sweep to savings account"
+                      value={bulkDescription}
+                      onChange={(e) => setBulkDescription(e.target.value)}
+                    />
+                  </div>
                 )}
 
                 <div className="recon-categorize-field">
@@ -4129,34 +4227,38 @@ export default function AccountantReconciliationSessionPage() {
                 )}
               </div>
 
-              <div className="recon-categorize-gst">
-                <span className="recon-categorize-gst-label">GST Applicable</span>
-                <div className="recon-categorize-gst-options">
-                  <label className="recon-categorize-gst-option">
-                    <input
-                      type="radio"
-                      name="bulk-gst"
-                      checked={bulkGst === true}
-                      onChange={() => setBulkGst(true)}
-                    />
-                    Yes
-                  </label>
-                  <label className="recon-categorize-gst-option">
-                    <input
-                      type="radio"
-                      name="bulk-gst"
-                      checked={bulkGst === false}
-                      onChange={() => setBulkGst(false)}
-                    />
-                    No
-                  </label>
+              {/* Same gate as the single drawer: contra carries no GST and the
+              database rejects one that does. */}
+              {allowsBusinessExtras(bulkType) && (
+                <div className="recon-categorize-gst">
+                  <span className="recon-categorize-gst-label">GST Applicable</span>
+                  <div className="recon-categorize-gst-options">
+                    <label className="recon-categorize-gst-option">
+                      <input
+                        type="radio"
+                        name="bulk-gst"
+                        checked={bulkGst === true}
+                        onChange={() => setBulkGst(true)}
+                      />
+                      Yes
+                    </label>
+                    <label className="recon-categorize-gst-option">
+                      <input
+                        type="radio"
+                        name="bulk-gst"
+                        checked={bulkGst === false}
+                        onChange={() => setBulkGst(false)}
+                      />
+                      No
+                    </label>
+                  </div>
+                  {bulkGst && (
+                    <p className="recon-bulk-gst-hint">
+                      GST will be recorded as 1/11th of each transaction&apos;s amount.
+                    </p>
+                  )}
                 </div>
-                {bulkGst && (
-                  <p className="recon-bulk-gst-hint">
-                    GST will be recorded as 1/11th of each transaction&apos;s amount.
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Private-use split applied to every selected line. Percentage
                   only: each line's own amounts are then derived from its own

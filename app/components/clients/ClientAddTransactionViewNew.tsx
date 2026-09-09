@@ -23,6 +23,7 @@ import {
   parseTransactionType,
 } from "@/src/lib/transactionTypes";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
+import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
 import {
   DocumentDropZone,
   type ExtractedDocumentData,
@@ -1783,10 +1784,13 @@ export default function ClientAddTransactionViewNew({
   // hidden and the category auto-selected. (Cost base keeps a visible category
   // picker; its lone "General" subcategory is auto-selected by the subcategory
   // loader above.)
+  // Filtered by type, never `categories[0]`: the list is refetched
+  // asynchronously on a type change, so index 0 can still hold the previous
+  // type's rows.
   useEffect(() => {
-    if (hidesCategoryPicker(type) && !categoryId && categories[0]) {
-      setCategoryId(categories[0].id);
-    }
+    if (!hidesCategoryPicker(type) || categoryId) return;
+    const match = firstCategoryOfType(categories, type);
+    if (match) setCategoryId(match.id);
   }, [type, categories, categoryId]);
 
   useEffect(() => {
@@ -2621,7 +2625,11 @@ export default function ClientAddTransactionViewNew({
 
   async function resolveLockedCategorySelection() {
     if (!token || !lockAssetPurchaseCategory || categories.length === 0) return null;
-    const cat = categories[0];
+    // Resolved from the asset class, not `categories[0]`. The list endpoint
+    // sorts alphabetically, so index 0 was always "Advertising for Tenants" and
+    // every asset purchase was filed under it and posted to account 5070.
+    const cat = findAssetCategory(categories, assetClass);
+    if (!cat) return null;
     const catRes = await fetch(
       `/api/transactions/categories/${cat.id}/sub-categories`,
       { headers: { Authorization: `Bearer ${token}` } },
