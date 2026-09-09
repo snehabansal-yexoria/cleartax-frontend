@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
+import { affectsPnl } from "@/src/lib/transactionTypes";
 import type { CoreTransactionListItem, CorePropertyTransactionRow } from "@/src/lib/coreApi";
 import { TrendSkeleton } from "@/app/components/PortalSkeletons";
 
@@ -210,6 +211,12 @@ export default function ProfitLossTrendCard({
       );
       const type = "transactionType" in row ? row.transactionType : "type" in row ? row.type : "";
 
+      // Skip anything that is not revenue or expense rather than bucketing it
+      // into the else branch. That branch used to absorb personal spending,
+      // capitalised cost base and contra transfers alike, so all three reduced
+      // the profit this card reports while the server-side P&L excluded them —
+      // two different answers to the same question on the same screen.
+      if (!affectsPnl(type)) continue;
       if (type === "revenue") current.income += amount;
       else current.expenses += amount;
       byMonth.set(key, current);

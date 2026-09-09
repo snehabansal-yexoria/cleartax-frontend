@@ -890,17 +890,109 @@ export async function updateCorePropertyLogit(
 }
 
 // =============================================================================
+// Property settlement entries — "Amount Settled By"
+// =============================================================================
+
+/**
+ * One funding line on the property's settlement statement: how the purchase was
+ * paid for (deposit, loan drawdown, trust account, ...).
+ *
+ * Deliberately NOT a transaction. A deposit is neither income, an expense nor a
+ * cost base item — it is how the cost base was funded — so it lives in its own
+ * table (migration 0040) and is invisible to P&L, GST, the ledger and All
+ * Transactions. The only consumer is the Property Cost Base panel.
+ */
+export type CoreSettlementEntry = {
+  id: string;
+  orgId: string;
+  propertyId: string;
+  entryType: string;
+  /** Signed: a refund line reduces the amount settled. */
+  amount: number;
+  description: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function normalizeCoreSettlementEntry(
+  raw: RawRecord,
+): CoreSettlementEntry {
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    entryType: toStringValue(raw.entry_type ?? raw.entryType),
+    amount: toFloatValue(raw.amount),
+    description:
+      raw.description == null ? null : toStringValue(raw.description) || null,
+    position: toNumberValue(raw.position) ?? 0,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export async function listCoreSettlementEntries(
+  token: string,
+  propertyId: string,
+): Promise<CoreSettlementEntry[]> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreSettlementEntry);
+}
+
+export async function createCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<CoreSettlementEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreSettlementEntry(getJsonObject(payload));
+}
+
+export async function updateCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreSettlementEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreSettlementEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries/${encodeURIComponent(entryId)}`,
+    { method: "DELETE", token },
+  );
+}
+
+// =============================================================================
 // Transactions
 // =============================================================================
 
-// "personal" (wholly private spending) and "cost_base" (capitalised against a
-// property's CGT cost base) are money out but are not deductible expenses, so
-// they are distinct types rather than flags on an expense.
+// "personal" (wholly private spending), "cost_base" (capitalised against a
+// property's CGT cost base) and "contra" (a transfer between the entity's own
+// accounts) are all money out but none is a deductible expense, so they are
+// distinct types rather than flags on an expense.
 export type CoreTransactionType =
   | "revenue"
   | "expense"
   | "personal"
-  | "cost_base";
+  | "cost_base"
+  | "contra";
 // "active" is the default for every new transaction — live in the ledger, in
 // nobody's queue. "unreviewed" means a client pressed "Submit to accountant"
 // and it is waiting for sign-off, so it is the accountant's review queue.
@@ -1097,6 +1189,10 @@ export type CoreTransactionCategory = {
   id: number;
   name: string;
   type: CoreTransactionType;
+  // Chart-of-accounts code the category posts to ("5020" for council rates).
+  // Null for the personal and cost-base categories, which sit outside the
+  // chart, and for org categories that have not been given one.
+  accountCode: string | null;
   isSystem: boolean;
   metadata: Record<string, unknown>;
 };
@@ -1148,9 +1244,15 @@ function toAssetClass(value: unknown): CoreAssetClass | null {
   return null;
 }
 
+// Every non-expense type must be listed. The fallthrough is "expense", so a
+// value missing from this check does not fail loudly — it silently renders as an
+// expense, which for a contra transfer would put it back in the very place the
+// type exists to keep it out of.
 function toTxnType(value: unknown): CoreTransactionType {
   const s = toStringValue(value).toLowerCase();
-  if (s === "revenue" || s === "personal" || s === "cost_base") return s;
+  if (s === "revenue" || s === "personal" || s === "cost_base" || s === "contra") {
+    return s;
+  }
   return "expense";
 }
 
@@ -1420,6 +1522,7 @@ export function normalizeCoreTransactionCategory(
     id: toNumberValue(raw.id) ?? 0,
     name: toStringValue(raw.name),
     type: toTxnType(raw.type),
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
     isSystem: Boolean(raw.is_system ?? raw.isSystem),
     metadata: toRecord(raw.metadata),
   };
@@ -2692,6 +2795,280 @@ export async function updateReconciliationSession(
   return normalizeReconciliationSession(getJsonObject(payload) as RawRecord);
 }
 
+// ── Account ledger ───────────────────────────────────────────────────────────
+//
+// The ledger is a statement-shaped view of a completed reconciliation: one row
+// per bank statement line, with a running balance anchored to the statement's
+// opening balance. Note these paths carry the `/api` prefix, matching the other
+// reconciliation endpoints upstream (the transaction endpoints do not).
+
+export type CoreLedgerMatchStatus = "confirmed" | "excluded" | "unmatched";
+
+export type CoreLedgerAccount = {
+  reconciliationId: string;
+  label: string;
+  bank: string;
+  accountNumber: string;
+  accountType: string;
+  holder: string;
+  openingBalance: number;
+  closingBalance: number;
+  /** False for every CSV-sourced statement — the parser stores no account
+   *  metadata, so the ledger has nothing to anchor its balance to until an
+   *  accountant sets one. The page prompts rather than showing a fake zero. */
+  hasOpeningBalance: boolean;
+  statementFrom: string;
+  statementTo: string;
+  lineCount: number;
+};
+
+export type CoreLedgerRow = {
+  bankTxIndex: number;
+  distributionAccount: string;
+  date: string;
+  transactionType: string | null;
+  transactionTypeLabel: string;
+  name: string;
+  description: string;
+  categoryId: number | null;
+  split: string;
+  subcategoryId: number | null;
+  subcategory: string;
+  amount: number;
+  balance: number;
+  transactionId: string | null;
+  matchStatus: CoreLedgerMatchStatus;
+  /** "active", "reviewed" or "approved" — the ledger excludes anything awaiting
+   *  review or rejected, so those three are all that can appear. */
+  reviewStatus: string;
+};
+
+export type CoreLedgerCategory = {
+  categoryId: number;
+  categoryName: string;
+  type: string;
+};
+
+export type CoreLedgerUnusedCategory = CoreLedgerCategory & { amount: number };
+
+export type CoreLedgerResponse = {
+  session: {
+    id: string;
+    label: string;
+    status: ReconciliationSessionStatus;
+    periodFrom: string | null;
+    periodTo: string | null;
+  };
+  accounts: CoreLedgerAccount[];
+  account: CoreLedgerAccount;
+  period: { from: string | null; to: string | null };
+  openingBalance: number;
+  statementOpeningBalance: number;
+  closingBalance: number;
+  rows: CoreLedgerRow[];
+  totals: { debits: number; credits: number; net: number };
+  categories: CoreLedgerCategory[];
+  unusedCategories: CoreLedgerUnusedCategory[];
+  total: number;
+  limit: number;
+  offset: number;
+  dateBasis: string;
+};
+
+export type CoreLedgerQuery = {
+  reconciliationId?: string;
+  from?: string;
+  to?: string;
+  categoryId?: number;
+  type?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export function ledgerQueryString(query: CoreLedgerQuery): string {
+  const sp = new URLSearchParams();
+  if (query.reconciliationId) sp.set("reconciliation_id", query.reconciliationId);
+  if (query.from) sp.set("from", query.from);
+  if (query.to) sp.set("to", query.to);
+  if (query.categoryId != null) sp.set("category_id", String(query.categoryId));
+  if (query.type) sp.set("type", query.type);
+  if (query.limit != null) sp.set("limit", String(query.limit));
+  if (query.offset != null) sp.set("offset", String(query.offset));
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
+
+function normalizeLedgerAccount(raw: RawRecord): CoreLedgerAccount {
+  return {
+    reconciliationId: String(raw.reconciliation_id ?? ""),
+    label: String(raw.label ?? ""),
+    bank: String(raw.bank ?? ""),
+    accountNumber: String(raw.account_number ?? ""),
+    accountType: String(raw.account_type ?? ""),
+    holder: String(raw.holder ?? ""),
+    openingBalance: Number(raw.opening_balance ?? 0),
+    closingBalance: Number(raw.closing_balance ?? 0),
+    hasOpeningBalance: Boolean(raw.has_opening_balance),
+    statementFrom: String(raw.statement_from ?? ""),
+    statementTo: String(raw.statement_to ?? ""),
+    lineCount: Number(raw.line_count ?? 0),
+  };
+}
+
+function normalizeLedgerRow(raw: RawRecord): CoreLedgerRow {
+  const status = String(raw.match_status ?? "unmatched");
+  return {
+    bankTxIndex: Number(raw.bank_tx_index ?? 0),
+    distributionAccount: String(raw.distribution_account ?? ""),
+    date: String(raw.date ?? ""),
+    transactionType: raw.transaction_type != null ? String(raw.transaction_type) : null,
+    transactionTypeLabel: String(raw.transaction_type_label ?? ""),
+    name: String(raw.name ?? ""),
+    description: String(raw.description ?? ""),
+    categoryId: raw.category_id != null ? Number(raw.category_id) : null,
+    split: String(raw.split ?? ""),
+    subcategoryId: raw.subcategory_id != null ? Number(raw.subcategory_id) : null,
+    subcategory: String(raw.subcategory ?? ""),
+    amount: Number(raw.amount ?? 0),
+    balance: Number(raw.balance ?? 0),
+    transactionId: raw.transaction_id != null ? String(raw.transaction_id) : null,
+    matchStatus:
+      status === "confirmed" || status === "excluded"
+        ? (status as CoreLedgerMatchStatus)
+        : "unmatched",
+    reviewStatus: String(raw.review_status ?? ""),
+  };
+}
+
+function normalizeLedgerCategory(raw: RawRecord): CoreLedgerCategory {
+  return {
+    categoryId: Number(raw.category_id ?? 0),
+    categoryName: String(raw.category_name ?? ""),
+    type: String(raw.type ?? ""),
+  };
+}
+
+export function normalizeCoreLedger(payload: RawRecord): CoreLedgerResponse {
+  const session = (payload.session ?? {}) as RawRecord;
+  const period = (payload.period ?? {}) as RawRecord;
+  const totals = (payload.totals ?? {}) as RawRecord;
+  const accounts = Array.isArray(payload.accounts)
+    ? (payload.accounts as RawRecord[]).map(normalizeLedgerAccount)
+    : [];
+
+  return {
+    session: {
+      id: String(session.id ?? ""),
+      label: String(session.label ?? ""),
+      status: session.status === "completed" ? "completed" : "open",
+      periodFrom: session.period_from != null ? String(session.period_from) : null,
+      periodTo: session.period_to != null ? String(session.period_to) : null,
+    },
+    accounts,
+    account: normalizeLedgerAccount((payload.account ?? {}) as RawRecord),
+    period: {
+      from: period.from != null ? String(period.from) : null,
+      to: period.to != null ? String(period.to) : null,
+    },
+    openingBalance: Number(payload.opening_balance ?? 0),
+    statementOpeningBalance: Number(payload.statement_opening_balance ?? 0),
+    closingBalance: Number(payload.closing_balance ?? 0),
+    rows: Array.isArray(payload.rows)
+      ? (payload.rows as RawRecord[]).map(normalizeLedgerRow)
+      : [],
+    totals: {
+      debits: Number(totals.debits ?? 0),
+      credits: Number(totals.credits ?? 0),
+      net: Number(totals.net ?? 0),
+    },
+    categories: Array.isArray(payload.categories)
+      ? (payload.categories as RawRecord[]).map(normalizeLedgerCategory)
+      : [],
+    unusedCategories: Array.isArray(payload.unused_categories)
+      ? (payload.unused_categories as RawRecord[]).map((r) => ({
+          ...normalizeLedgerCategory(r),
+          amount: Number(r.amount ?? 0),
+        }))
+      : [],
+    total: Number(payload.total ?? 0),
+    limit: Number(payload.limit ?? 0),
+    offset: Number(payload.offset ?? 0),
+    dateBasis: String(payload.date_basis ?? ""),
+  };
+}
+
+export async function fetchCoreLedger(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  query: CoreLedgerQuery = {},
+): Promise<CoreLedgerResponse> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger${ledgerQueryString(query)}`,
+    { token },
+  )) as RawRecord;
+  return normalizeCoreLedger(payload);
+}
+
+/**
+ * Returns the upstream Response untouched so the BFF can stream the body
+ * through instead of buffering an export in Node memory — same contract as
+ * fetchCoreTransactionExport.
+ */
+export async function fetchCoreLedgerExport(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  format: CoreTransactionExportFormat,
+  query: CoreLedgerQuery = {},
+): Promise<Response> {
+  const qs = ledgerQueryString({ ...query, limit: undefined, offset: undefined });
+  const separator = qs ? "&" : "?";
+  return fetch(
+    `${getCoreApiBaseUrl()}/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/export${qs}${separator}format=${encodeURIComponent(format)}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+export async function patchCoreLedgerEntryName(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  bankTxIndex: number,
+  body: { reconciliationId: string; name: string },
+): Promise<{ bankTxIndex: number; name: string }> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/entries/${bankTxIndex}`,
+    {
+      method: "PATCH",
+      token,
+      body: { reconciliation_id: body.reconciliationId, name: body.name },
+    },
+  )) as RawRecord;
+  return {
+    bankTxIndex: Number(payload.bank_tx_index ?? bankTxIndex),
+    name: String(payload.name ?? ""),
+  };
+}
+
+export async function patchCoreReconciliationAccount(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+  body: { bank?: string; accountNumber?: string; openingBalance?: number },
+): Promise<RawRecord> {
+  const reqBody: Record<string, unknown> = {};
+  if (body.bank !== undefined) reqBody.bank = body.bank;
+  if (body.accountNumber !== undefined) reqBody.account_number = body.accountNumber;
+  if (body.openingBalance !== undefined) reqBody.opening_balance = body.openingBalance;
+
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/account`,
+    { method: "PATCH", token, body: reqBody },
+  )) as RawRecord;
+  return payload;
+}
+
 export async function listCoreTransactionCategories(
   token: string,
   type?: CoreTransactionType,
@@ -3037,6 +3414,21 @@ export type CoreDepreciationYear = {
 export type CoreDepreciationSchedule = {
   id: string;
   transactionId: string;
+
+  /**
+   * The id the asset panels hold for this asset.
+   *
+   * A schedule hangs off the asset at MONEY grain, so on a part-private
+   * purchase it belongs to the business CHILD. The panels list transactions at
+   * display grain, which is the PARENT — so looking a panel row up by
+   * `transactionId` never matched and every part-private asset rendered "—"
+   * where its deduction belongs. Key by this instead.
+   *
+   * `transactionId` stays the money-grain id: it is what the per-transaction
+   * and rebuild endpoints address.
+   */
+  displayTransactionId: string;
+
   propertyId: string;
   propertyName: string;
   entityId: string;
@@ -3061,6 +3453,23 @@ export type CoreDepreciationSchedule = {
   residualValue: number;
   /** The selected year's claim, or null when no `fy` was requested. */
   fyDepreciation: number | null;
+
+  /**
+   * Year ONE of the schedule, independent of any `fy` filter.
+   *
+   * This is the deduction the asset panels quote. They used to render the
+   * transaction's gross amount, which is the depreciable cost base — the price
+   * paid, not the amount claimable. `fyDepreciation` cannot stand in for it: a
+   * list of assets bought in different years has no single `fy` that means
+   * "year one" for all of them.
+   *
+   * Null when the schedule has no year rows yet, which is distinct from a
+   * genuine $0 claim.
+   */
+  firstYearDepreciation: number | null;
+  firstYearFyStartYear: number | null;
+  /** e.g. "FY 2026-27", for labelling the column. */
+  firstYearFyLabel: string;
 
   documentId: string | null;
   documentName: string;
@@ -3110,9 +3519,17 @@ function normalizeDepreciationYear(raw: RawRecord): CoreDepreciationYear {
 
 function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule {
   const fyDep = toFloatValue(raw.fy_depreciation ?? raw.fyDepreciation);
+  const rawFirstYearDep =
+    raw.first_year_depreciation ?? raw.firstYearDepreciation;
   return {
     id: toStringValue(raw.id),
     transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
+    // Falls back to the money-grain id so a response from a backend that
+    // predates the field still keys correctly for every asset that is not
+    // part-private — which is all of them until a split is entered.
+    displayTransactionId:
+      toStringValue(raw.display_transaction_id ?? raw.displayTransactionId) ||
+      toStringValue(raw.transaction_id ?? raw.transactionId),
     propertyId: toStringValue(raw.property_id ?? raw.propertyId),
     propertyName: toStringValue(raw.property_name ?? raw.propertyName),
     entityId: toStringValue(raw.entity_id ?? raw.entityId),
@@ -3141,6 +3558,18 @@ function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule
       toFloatValue(raw.total_depreciation ?? raw.totalDepreciation) ?? 0,
     residualValue: toFloatValue(raw.residual_value ?? raw.residualValue) ?? 0,
     fyDepreciation: fyDep,
+
+    // Read through a null check rather than toFloatValue alone: that helper
+    // folds a missing value to 0, which would report "no schedule generated"
+    // as a $0 deduction.
+    firstYearDepreciation:
+      rawFirstYearDep == null ? null : toFloatValue(rawFirstYearDep),
+    firstYearFyStartYear: toNumberValue(
+      raw.first_year_fy_start_year ?? raw.firstYearFyStartYear,
+    ),
+    firstYearFyLabel: toStringValue(
+      raw.first_year_fy_label ?? raw.firstYearFyLabel,
+    ),
 
     documentId: toStringValue(raw.document_id ?? raw.documentId) || null,
     documentName: toStringValue(raw.document_name ?? raw.documentName),
@@ -3248,6 +3677,540 @@ export async function fetchCoreDepreciationDocument(
 ): Promise<Response> {
   return fetch(
     `${getCoreApiBaseUrl()}/depreciation/${encodeURIComponent(scheduleId)}/document`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+// =============================================================================
+// Journal entries and the Chart of Accounts
+// =============================================================================
+
+/** One row of the Chart of Accounts master (backend migration 0042). */
+export interface CoreChartAccount {
+  id: number;
+  accountCode: string;
+  accountName: string;
+  /** income | expense | asset | liability | equity */
+  category: string;
+  subcategory: string;
+  /** "debit" or "credit" — which direction increases this account. */
+  normalBalance: string;
+  isActive: boolean;
+  isSystem: boolean;
+  /**
+   * True for income/expense accounts, whose journal lines are projected into
+   * `transaction` and therefore reach P&L, All Transactions and the GST
+   * report. Balance-sheet accounts stay in the journal only — that is correct,
+   * not a gap.
+   */
+  postable: boolean;
+}
+
+/** One of the six approved GST codes. */
+export interface CoreGstCode {
+  code: string;
+  rate: number;
+  /** "sales" or "purchases" — must agree with the account's category. */
+  direction: string;
+  basReportable: boolean;
+  position: number;
+}
+
+export interface CoreJournalLine {
+  id: number;
+  lineNo: number;
+  chartOfAccountId: number;
+  accountCode: string;
+  accountName: string;
+  accountCategory: string;
+  propertyId: string | null;
+  propertyName: string | null;
+  debit: number;
+  credit: number;
+  gstCode: string | null;
+  gstAmount: number;
+  description: string | null;
+  name: string | null;
+  posted: boolean;
+  postedTransactionId: string | null;
+  postedType: string | null;
+  postedGross: number | null;
+  postedNet: number | null;
+}
+
+export interface CoreJournalEntry {
+  id: string;
+  entryNo: string;
+  orgId: string;
+  entityId: string;
+  entryDate: string;
+  reference: string | null;
+  memo: string | null;
+  status: string;
+  source: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  isBalanced: boolean;
+  lines: CoreJournalLine[];
+  createdBy: string | null;
+  createdAt: string;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface CoreJournalEntrySummary {
+  id: string;
+  entryNo: string;
+  entityId: string;
+  entryDate: string;
+  reference: string | null;
+  memo: string | null;
+  status: string;
+  source: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  isBalanced: boolean;
+  propertyNames: string[];
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoreJournalEntryListQuery {
+  from?: string;
+  to?: string;
+  search?: string;
+  source?: string;
+  sort?: string;
+  dir?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CoreJournalImportIssue {
+  line: number;
+  field?: string;
+  reason: string;
+}
+
+export interface CoreImportedEntry {
+  index: number;
+  lines: number[];
+  status: string;
+  entryId?: string;
+  entryNo?: string;
+  entryDate: string;
+  reference?: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  errors?: CoreJournalImportIssue[];
+}
+
+export interface CoreJournalImportResult {
+  dryRun: boolean;
+  imported: number;
+  failed: number;
+  entries: CoreImportedEntry[];
+  issues: CoreJournalImportIssue[];
+}
+
+export function normalizeCoreChartAccount(raw: RawRecord): CoreChartAccount {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    accountCode: toStringValue(raw.account_code ?? raw.accountCode),
+    accountName: toStringValue(raw.account_name ?? raw.accountName),
+    category: toStringValue(raw.category),
+    subcategory: toStringValue(raw.subcategory),
+    normalBalance: toStringValue(raw.normal_balance ?? raw.normalBalance),
+    isActive: raw.is_active !== false && raw.isActive !== false,
+    isSystem: raw.is_system === true || raw.isSystem === true,
+    postable: raw.postable === true,
+  };
+}
+
+export function normalizeCoreGstCode(raw: RawRecord): CoreGstCode {
+  return {
+    code: toStringValue(raw.code),
+    rate: toFloatValue(raw.rate),
+    direction: toStringValue(raw.direction),
+    basReportable: raw.bas_reportable !== false && raw.basReportable !== false,
+    position: toNumberValue(raw.position) ?? 0,
+  };
+}
+
+export function normalizeCoreJournalLine(raw: RawRecord): CoreJournalLine {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    lineNo: toNumberValue(raw.line_no ?? raw.lineNo) ?? 0,
+    chartOfAccountId:
+      toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? 0,
+    accountCode: toStringValue(raw.account_code ?? raw.accountCode),
+    accountName: toStringValue(raw.account_name ?? raw.accountName),
+    accountCategory: toStringValue(raw.account_category ?? raw.accountCategory),
+    propertyId: toNullableString(raw.property_id ?? raw.propertyId),
+    propertyName: toNullableString(raw.property_name ?? raw.propertyName),
+    debit: toFloatValue(raw.debit),
+    credit: toFloatValue(raw.credit),
+    gstCode: toNullableString(raw.gst_code ?? raw.gstCode),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    description: toNullableString(raw.description),
+    name: toNullableString(raw.name),
+    posted: raw.posted === true,
+    postedTransactionId: toNullableString(
+      raw.posted_transaction_id ?? raw.postedTransactionId,
+    ),
+    postedType: toNullableString(raw.posted_type ?? raw.postedType),
+    postedGross: toNullableNumber(raw.posted_gross ?? raw.postedGross),
+    postedNet: toNullableNumber(raw.posted_net ?? raw.postedNet),
+  };
+}
+
+export function normalizeCoreJournalEntry(raw: RawRecord): CoreJournalEntry {
+  const lines = Array.isArray(raw.lines) ? raw.lines : [];
+  return {
+    id: toStringValue(raw.id),
+    entryNo: toStringValue(raw.entry_no ?? raw.entryNo),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entryDate: toStringValue(raw.entry_date ?? raw.entryDate),
+    reference: toNullableString(raw.reference),
+    memo: toNullableString(raw.memo),
+    status: toStringValue(raw.status),
+    source: toStringValue(raw.source),
+    totalDebit: toFloatValue(raw.total_debit ?? raw.totalDebit),
+    totalCredit: toFloatValue(raw.total_credit ?? raw.totalCredit),
+    lineCount: toNumberValue(raw.line_count ?? raw.lineCount) ?? 0,
+    isBalanced: raw.is_balanced === true || raw.isBalanced === true,
+    lines: lines.map((l) => normalizeCoreJournalLine(toRecord(l))),
+    createdBy: toNullableString(raw.created_by ?? raw.createdBy),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export function normalizeCoreJournalEntrySummary(
+  raw: RawRecord,
+): CoreJournalEntrySummary {
+  return {
+    id: toStringValue(raw.id),
+    entryNo: toStringValue(raw.entry_no ?? raw.entryNo),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entryDate: toStringValue(raw.entry_date ?? raw.entryDate),
+    reference: toNullableString(raw.reference),
+    memo: toNullableString(raw.memo),
+    status: toStringValue(raw.status),
+    source: toStringValue(raw.source),
+    totalDebit: toFloatValue(raw.total_debit ?? raw.totalDebit),
+    totalCredit: toFloatValue(raw.total_credit ?? raw.totalCredit),
+    lineCount: toNumberValue(raw.line_count ?? raw.lineCount) ?? 0,
+    isBalanced: raw.is_balanced === true || raw.isBalanced === true,
+    propertyNames: toStringArray(raw.property_names ?? raw.propertyNames),
+    createdBy: toNullableString(raw.created_by ?? raw.createdBy),
+    createdByName: toNullableString(raw.created_by_name ?? raw.createdByName),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+function normalizeCoreJournalIssue(raw: RawRecord): CoreJournalImportIssue {
+  return {
+    line: toNumberValue(raw.line) ?? 0,
+    field: toStringValue(raw.field) || undefined,
+    reason: toStringValue(raw.reason),
+  };
+}
+
+export function normalizeCoreJournalImportResult(
+  payload: unknown,
+): CoreJournalImportResult {
+  const raw = toRecord(payload);
+  const entries = Array.isArray(raw.entries) ? raw.entries : [];
+  const issues = Array.isArray(raw.issues) ? raw.issues : [];
+  return {
+    dryRun: raw.dry_run === true || raw.dryRun === true,
+    imported: toNumberValue(raw.imported) ?? 0,
+    failed: toNumberValue(raw.failed) ?? 0,
+    entries: entries.map((e) => {
+      const r = toRecord(e);
+      const errs = Array.isArray(r.errors) ? r.errors : [];
+      return {
+        index: toNumberValue(r.index) ?? 0,
+        lines: Array.isArray(r.lines)
+          ? r.lines.map((l) => toNumberValue(l) ?? 0)
+          : [],
+        status: toStringValue(r.status),
+        entryId: toStringValue(r.entry_id ?? r.entryId) || undefined,
+        entryNo: toStringValue(r.entry_no ?? r.entryNo) || undefined,
+        entryDate: toStringValue(r.entry_date ?? r.entryDate),
+        reference: toStringValue(r.reference) || undefined,
+        totalDebit: toFloatValue(r.total_debit ?? r.totalDebit),
+        totalCredit: toFloatValue(r.total_credit ?? r.totalCredit),
+        lineCount: toNumberValue(r.line_count ?? r.lineCount) ?? 0,
+        errors: errs.map((x) => normalizeCoreJournalIssue(toRecord(x))),
+      };
+    }),
+    issues: issues.map((x) => normalizeCoreJournalIssue(toRecord(x))),
+  };
+}
+
+export async function listCoreChartOfAccounts(
+  token: string,
+  query: { category?: string; search?: string; postable?: boolean } = {},
+): Promise<CoreChartAccount[]> {
+  const sp = new URLSearchParams();
+  if (query.category) sp.set("category", query.category);
+  if (query.search) sp.set("search", query.search);
+  if (query.postable) sp.set("postable", "true");
+  const qs = sp.toString();
+  const payload = await coreApiRequest(
+    `/chart-of-accounts${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreChartAccount);
+}
+
+export async function listCoreGstCodes(token: string): Promise<CoreGstCode[]> {
+  const payload = await coreApiRequest("/gst-codes", { token });
+  return getJsonArray(payload).map(normalizeCoreGstCode);
+}
+
+export async function listCoreJournalEntriesByEntity(
+  token: string,
+  entityId: string,
+  query: CoreJournalEntryListQuery = {},
+): Promise<CorePaginated<CoreJournalEntrySummary>> {
+  const sp = new URLSearchParams();
+  const put = (k: string, v: unknown) => {
+    if (v !== undefined && v !== null && v !== "") sp.set(k, String(v));
+  };
+  put("from", query.from);
+  put("to", query.to);
+  put("search", query.search);
+  put("source", query.source);
+  put("sort", query.sort);
+  put("dir", query.dir);
+  put("limit", query.limit);
+  put("offset", query.offset);
+  const qs = sp.toString();
+
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/journal-entries${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  const items = getJsonArray(payload).map(normalizeCoreJournalEntrySummary);
+  return toPaginated(payload, items, query.limit);
+}
+
+export async function createCoreJournalEntry(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/journal-entries`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function getCoreJournalEntry(
+  token: string,
+  entryId: string,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/journal-entries/${encodeURIComponent(entryId)}`,
+    { token },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function updateCoreJournalEntry(
+  token: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/journal-entries/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreJournalEntry(
+  token: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(`/journal-entries/${encodeURIComponent(entryId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function importCoreJournalEntries(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+  dryRun: boolean,
+): Promise<CoreJournalImportResult> {
+  const path = `/entities/${encodeURIComponent(entityId)}/journal-entries/import${
+    dryRun ? "/validate" : ""
+  }`;
+  const payload = await coreApiRequest(path, { method: "POST", token, body });
+  return normalizeCoreJournalImportResult(payload);
+}
+
+/** Raw General Ledger response, passed through with light normalisation. */
+export interface CoreGeneralLedgerRow {
+  date: string;
+  sourceKind: string;
+  sourceId: string;
+  reference: string;
+  description: string;
+  name: string;
+  contraAccounts: string[];
+  gstCode: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+  reviewStatus: string | null;
+  isAssetPurchase: boolean;
+}
+
+export interface CoreGeneralLedgerAccount {
+  accountCode: string;
+  accountName: string;
+  category: string;
+  subcategory: string;
+  normalBalance: string;
+  openingBalance: number;
+  closingBalance: number;
+  openingBalanceBasis: string;
+  debits: number;
+  credits: number;
+  rows: CoreGeneralLedgerRow[];
+}
+
+export interface CoreGeneralLedger {
+  scope: { level: string; id: string; name: string };
+  period: { financialYear: number; label: string; from: string; to: string };
+  account: CoreChartAccount | null;
+  dateBasis: string;
+  accounts: CoreGeneralLedgerAccount[];
+  totals: { debits: number; credits: number };
+  /**
+   * Debits minus credits across every account. Non-zero by design: ordinary
+   * transactions post only their P&L leg, with no cash or GST contra, so this
+   * report is account activity and not a trial balance. The gap is the value of
+   * all non-journalised activity, and it is shown rather than hidden.
+   */
+  unbalancedBy: number;
+  unmappedRowCount: number;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+function normalizeGeneralLedgerRow(raw: RawRecord): CoreGeneralLedgerRow {
+  return {
+    date: toStringValue(raw.date),
+    sourceKind: toStringValue(raw.source_kind ?? raw.sourceKind),
+    sourceId: toStringValue(raw.source_id ?? raw.sourceId),
+    reference: toStringValue(raw.reference),
+    description: toStringValue(raw.description),
+    name: toStringValue(raw.name),
+    contraAccounts: toStringArray(raw.contra_accounts ?? raw.contraAccounts),
+    gstCode: toNullableString(raw.gst_code ?? raw.gstCode),
+    debit: toFloatValue(raw.debit),
+    credit: toFloatValue(raw.credit),
+    balance: toFloatValue(raw.balance),
+    reviewStatus: toNullableString(raw.review_status ?? raw.reviewStatus),
+    isAssetPurchase:
+      raw.is_asset_purchase === true || raw.isAssetPurchase === true,
+  };
+}
+
+export function normalizeCoreGeneralLedger(payload: unknown): CoreGeneralLedger {
+  const raw = toRecord(payload);
+  const scope = toRecord(raw.scope);
+  const period = toRecord(raw.period);
+  const totals = toRecord(raw.totals);
+  const accounts = Array.isArray(raw.accounts) ? raw.accounts : [];
+
+  return {
+    scope: {
+      level: toStringValue(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: {
+      financialYear: toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+      label: toStringValue(period.label),
+      from: toStringValue(period.from),
+      to: toStringValue(period.to),
+    },
+    account: raw.account ? normalizeCoreChartAccount(toRecord(raw.account)) : null,
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    accounts: accounts.map((a) => {
+      const r = toRecord(a);
+      const rows = Array.isArray(r.rows) ? r.rows : [];
+      return {
+        accountCode: toStringValue(r.account_code ?? r.accountCode),
+        accountName: toStringValue(r.account_name ?? r.accountName),
+        category: toStringValue(r.category),
+        subcategory: toStringValue(r.subcategory),
+        normalBalance: toStringValue(r.normal_balance ?? r.normalBalance),
+        openingBalance: toFloatValue(r.opening_balance ?? r.openingBalance),
+        closingBalance: toFloatValue(r.closing_balance ?? r.closingBalance),
+        openingBalanceBasis: toStringValue(
+          r.opening_balance_basis ?? r.openingBalanceBasis,
+        ),
+        debits: toFloatValue(r.debits),
+        credits: toFloatValue(r.credits),
+        rows: rows.map((x) => normalizeGeneralLedgerRow(toRecord(x))),
+      };
+    }),
+    totals: {
+      debits: toFloatValue(totals.debits),
+      credits: toFloatValue(totals.credits),
+    },
+    unbalancedBy: toFloatValue(raw.unbalanced_by ?? raw.unbalancedBy),
+    unmappedRowCount: toNumberValue(raw.unmapped_row_count ?? raw.unmappedRowCount) ?? 0,
+    total: toNumberValue(raw.total) ?? 0,
+    limit: toNumberValue(raw.limit) ?? 0,
+    offset: toNumberValue(raw.offset) ?? 0,
+  };
+}
+
+export async function fetchCoreGeneralLedger(
+  token: string,
+  entityId: string,
+  query: Record<string, string> = {},
+): Promise<CoreGeneralLedger> {
+  const qs = new URLSearchParams(query).toString();
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/general-ledger${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return normalizeCoreGeneralLedger(payload);
+}
+
+/**
+ * Returns the raw upstream Response so the BFF can stream the body straight
+ * through instead of buffering a whole export in memory.
+ */
+export async function fetchCoreGeneralLedgerExport(
+  token: string,
+  entityId: string,
+  query: Record<string, string> = {},
+): Promise<Response> {
+  const qs = new URLSearchParams(query).toString();
+  return fetch(
+    `${getCoreApiBaseUrl()}/entities/${encodeURIComponent(entityId)}/general-ledger/export${qs ? `?${qs}` : ""}`,
     { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
   );
 }

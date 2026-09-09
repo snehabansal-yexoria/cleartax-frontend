@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import AddJournalEntryView from "@/app/components/AddJournalEntryView";
+import JournalEntryEditor from "@/app/components/journal/JournalEntryEditor";
 import { JournalEntrySkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
@@ -28,7 +28,7 @@ export default function AccountantAddJournalEntryPage() {
   const clientId = params?.clientId ?? "";
   const entityId = params?.entityId ?? "";
   
-  const fromTab = searchParams?.get("from") || "reconciliation";
+  const fromTab = searchParams?.get("from") || "journal";
   const fromName = searchParams?.get("fromName") || "";
 
   const [entity, setEntity] = useState<CoreEntity | null>(null);
@@ -36,6 +36,7 @@ export default function AccountantAddJournalEntryPage() {
   const [properties, setProperties] = useState<CoreProperty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [token, setToken] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -47,8 +48,9 @@ export default function AccountantAddJournalEntryPage() {
           router.replace("/login/user");
           return;
         }
-        const token = session.getIdToken().getJwtToken();
-        const headers = { Authorization: `Bearer ${token}` };
+        const idToken = session.getIdToken().getJwtToken();
+        const headers = { Authorization: `Bearer ${idToken}` };
+        if (!cancelled) setToken(idToken);
 
         // Fetch Entity, Client, and Properties in parallel
         const [entityRes, clientRes, propertiesRes] = await Promise.all([
@@ -130,12 +132,13 @@ export default function AccountantAddJournalEntryPage() {
   const backHref = `/dashboard/accountant/clients/${clientId}/entities/${entityId}?tab=${fromTab}`;
 
   return (
-    <AddJournalEntryView
+    <JournalEntryEditor
       clientId={clientId}
       entityId={entityId}
       client={client}
       entity={entity}
       properties={properties}
+      token={token}
       backHref={backHref}
       backLabel={backLabel}
     />

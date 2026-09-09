@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState, useId, useRef } from "react";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
+import JournalEntriesList from "@/app/components/journal/JournalEntriesList";
 import InactiveReasonModal from "@/app/components/InactiveReasonModal";
 import GstSummaryModal from "@/app/components/GstSummaryModal";
 import { useGstSummary } from "@/app/components/useGstSummary";
+import { useFirstYearDepreciation } from "@/app/components/useDepreciation";
 import {
   assetItemName,
   personalCategoryLabel,
@@ -55,14 +57,33 @@ export type EntityDetailViewProps = {
   reconciliationHref?: string;
 };
 
-type EntityTab = "properties" | "transactions" | "documents" | "reconciliation";
+type EntityTab =
+  | "properties"
+  | "transactions"
+  | "journal"
+  | "documents"
+  | "reconciliation";
 
 const entityTabs: { id: EntityTab; label: string }[] = [
   { id: "properties", label: "Properties" },
   { id: "transactions", label: "Transactions" },
+  { id: "journal", label: "Journal Entries" },
   { id: "documents", label: "Documents" },
   { id: "reconciliation", label: "Reconciliations" },
 ];
+
+const entityTabIds = new Set<string>(entityTabs.map((tab) => tab.id));
+
+// Tabs that actually render a body. Anything in entityTabs but not here falls
+// through to the "Coming soon" panel — a set rather than a chain of !==, which
+// is what previously had to be edited in two unrelated places per new tab.
+const IMPLEMENTED_TABS = new Set<EntityTab>([
+  "properties",
+  "transactions",
+  "journal",
+  "documents",
+  "reconciliation",
+]);
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -470,8 +491,10 @@ export default function EntityDetailView({
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "properties" || tab === "transactions" || tab === "documents" || tab === "reconciliation") {
-      setCurrentTab(tab);
+    // Checked against the tab list rather than a hardcoded chain, so adding a
+    // tab is one line instead of three places that silently drift.
+    if (tab && entityTabIds.has(tab)) {
+      setCurrentTab(tab as EntityTab);
     }
   }, []);
 
@@ -635,6 +658,9 @@ export default function EntityDetailView({
   // Neither hook invents a fallback: empty renders as empty.
   const personal = usePersonalSummary("entity", entityId);
   const assets = useAssetTransactions("entity", entityId);
+  // The panel lists asset purchases but quotes the year-one DEDUCTION, which
+  // lives on the schedule rather than the transaction.
+  const assetFirstYear = useFirstYearDepreciation("entity", entityId);
 
   const personalBreakdown = useMemo(() => {
     const categories = personal.summary?.categories ?? [];
@@ -651,17 +677,24 @@ export default function EntityDetailView({
 
   const assetTransactionsList = useMemo(
     () =>
-      assets.rows.map((t) => ({
-        id: t.id,
-        description: assetItemName(t),
-        category: t.categoryName || "—",
-        property: t.propertyNames?.[0] || "—",
-        date: formatDate(t.invoiceDate),
-        // gross_amount is a non-negative column; an asset purchase is an
-        // expense, so it renders negative.
-        amount: -(t.grossAmount ?? 0),
-      })),
-    [assets.rows],
+      assets.rows.map((t) => {
+        const deduction = assetFirstYear.byTransactionId.get(t.id);
+        return {
+          id: t.id,
+          description: assetItemName(t),
+          category: t.categoryName || "—",
+          property: t.propertyNames?.[0] || "—",
+          date: formatDate(t.invoiceDate),
+          // Year-one depreciation, not the purchase price: gross_amount is the
+          // depreciable cost base, so it showed the amount PAID in a column
+          // that reads as the amount CLAIMED. null when no schedule has been
+          // generated, which renders "—" rather than a $0 deduction.
+          amount: deduction ? -deduction.amount : null,
+          fyLabel: deduction?.fyLabel ?? "",
+          purchaseAmount: -(t.grossAmount ?? 0),
+        };
+      }),
+    [assets.rows, assetFirstYear.byTransactionId],
   );
 
   const formatAmount = (num: number) => {
@@ -1085,7 +1118,7 @@ export default function EntityDetailView({
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }} title="First-year depreciation from the asset's schedule, not the purchase price">Year 1 Depreciation</th>
                     <th style={{ padding: '12px 8px', width: '24px' }}></th>
                   </tr>
                 </thead>
@@ -1101,7 +1134,16 @@ export default function EntityDetailView({
                       <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{item.property}</td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{item.description}</td>
                       <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{item.date}</td>
-                      <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>{formatAmount(item.amount)}</td>
+                      <td
+                        style={{ padding: '16px 8px', fontSize: '14px', color: item.amount == null ? '#94a3b8' : '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}
+                        title={item.amount == null
+                          ? (assetFirstYear.error
+                              ? `Year 1 depreciation could not be loaded: ${assetFirstYear.error}`
+                              : 'No depreciation schedule generated for this asset yet')
+                          : `${item.fyLabel} · purchased for ${formatAmount(item.purchaseAmount)}`}
+                      >
+                        {item.amount == null ? '—' : formatAmount(item.amount)}
+                      </td>
                       <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
                           <polyline points="9 18 15 12 9 6" />
@@ -1466,6 +1508,53 @@ export default function EntityDetailView({
             </div>
           )}
 
+          {currentTab === "journal" && (
+            <div className="entity-resource-body">
+              <div
+                className="entity-resource-head"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <h2>Journal Entries</h2>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="entity-wizard-secondary"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/accountant/clients/${clientId}/entities/${entityId}/general-ledger`
+                    )
+                  }
+                >
+                  General Ledger
+                </button>
+                <button
+                  type="button"
+                  className="entity-wizard-primary is-orange"
+                  disabled={entityDisabled}
+                  title={entityDisabled ? "Entity is inactive" : undefined}
+                  onClick={() => {
+                    if (entityDisabled) return;
+                    router.push(
+                      `/dashboard/accountant/clients/${clientId}/entities/${entityId}/journal-entry/new?from=journal&fromName=${encodeURIComponent(
+                        entity?.name || ""
+                      )}`
+                    );
+                  }}
+                >
+                  + Add Journal Entry
+                </button>
+                </div>
+              </div>
+              <JournalEntriesList
+                entityId={entityId}
+                clientId={clientId}
+                token={sessionToken}
+                disabled={entityDisabled}
+                disabledReason="Entity is inactive"
+              />
+            </div>
+          )}
+
           {currentTab === "reconciliation" && (
             <div className="entity-resource-body">
               <div className="entity-resource-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1728,7 +1817,7 @@ export default function EntityDetailView({
             </div>
           )}
 
-          {currentTab !== "properties" && currentTab !== "transactions" && currentTab !== "reconciliation" && currentTab !== "documents" && (
+          {!IMPLEMENTED_TABS.has(currentTab) && (
             <div className="entity-coming-soon">
               <strong>{entityTabs.find((tab) => tab.id === currentTab)?.label}</strong>
               <p>Coming soon</p>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, useEffect, useId, useMemo, useState, useRef } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useState, useRef } from "react";
 import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
@@ -10,12 +10,14 @@ import { getSession } from "@/src/lib/session";
 import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import {
   TRANSACTION_TYPE_OPTIONS,
+  TRANSACTION_TYPE_ENTRY_OPTIONS,
   allowsAssetPurchase,
   allowsBusinessExtras,
   allowsPersonalPortion,
   hidesCategoryPicker,
   hidesSubcategoryPicker,
-  isRevenueType,
+  transactionSign,
+  allowsContraFlag,
   parseTransactionType,
   transactionTypeColor,
   transactionTypeLabel,
@@ -278,6 +280,19 @@ const INITIAL_SORT_DIR: Record<TransactionSortKey, SortDirection> = {
   net: "desc",
   share: "desc",
 };
+
+/**
+ * Amount colouring, keyed on the three signs rather than a revenue boolean.
+ *
+ * A contra entry gets the neutral class: it is a transfer between the entity's
+ * own accounts, so painting it red beside real expenses reads as spending that
+ * never happened.
+ */
+function amountClass(sign: ReturnType<typeof transactionSign>): string {
+  if (sign === "positive") return "amount-positive";
+  if (sign === "neutral") return "amount-neutral";
+  return "amount-negative";
+}
 
 function encodeSort(sort: TransactionSort) {
   return `${sort.key}-${sort.dir}`;
@@ -1076,7 +1091,7 @@ function TransactionDetailPopup({
   }
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
-  const isRevenue = isRevenueType(display.type);
+  const amountSign = transactionSign(display.type);
   const splitRows =
     detail?.splits.map((split) => ({
       id: String(split.id),
@@ -1493,12 +1508,15 @@ function TransactionDetailPopup({
               <div className="transaction-type-control">
                 <span className="transaction-field-label">Transaction Type<em>*</em></span>
                 <div>
-                  {TRANSACTION_TYPE_OPTIONS.map((option) => (
+                  {/* Entry options, not every type: contra is reached by the
+                  toggle below, so it is not offered as a sixth button. */}
+                  {TRANSACTION_TYPE_ENTRY_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       className={
-                        type === option.value
+                        type === option.value ||
+                        (option.value === "expense" && type === "contra")
                           ? `is-selected ${transactionTypeModifier(option.value)}`
                           : ""
                       }
@@ -1513,6 +1531,33 @@ function TransactionDetailPopup({
                   ))}
                 </div>
               </div>
+
+              {/* Lets a mis-marked transfer be turned back into a real expense,
+              and an expense that turns out to be a transfer be corrected
+              without deleting and re-entering it. */}
+              {allowsContraFlag(type) && (
+                <label className="transaction-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={type === "contra"}
+                    onChange={(event) => {
+                      setType(event.target.checked ? "contra" : "expense");
+                      setCategoryId(null);
+                      setSubcategoryId(null);
+                      if (event.target.checked) {
+                        setShowGstBreakdown(false);
+                        setGstAmount("");
+                      }
+                    }}
+                  />
+                  <span>
+                    <strong>Is this a contra entry?</strong>
+                    <br />
+                    A transfer between your own accounts. Excluded from the
+                    profit and loss statement and your BAS.
+                  </span>
+                </label>
+              )}
               {type === "expense" ? (
                 <div className="transaction-asset-card">
                   <label className="transaction-checkbox-row">
@@ -1865,14 +1910,14 @@ function TransactionDetailPopup({
 
               <div className="transaction-detail-grid is-three">
                 <DetailField label="Gross Amount">
-                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(display.grossAmount, isRevenue)}
+                  <span className={amountClass(amountSign)}>
+                    {formatTransactionCurrency(display.grossAmount, amountSign)}
                   </span>
                 </DetailField>
                 <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
                 <DetailField label="Net Amount">
-                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(display.netAmount, isRevenue)}
+                  <span className={amountClass(amountSign)}>
+                    {formatTransactionCurrency(display.netAmount, amountSign)}
                   </span>
                 </DetailField>
               </div>
@@ -2236,6 +2281,58 @@ function SortableTh({
   );
 }
 
+/**
+ * Row selection for the grids that opt into it.
+ *
+ * Passed as one object rather than five props so a table that is not selectable
+ * simply receives nothing and renders no checkbox column at all — selection is
+ * opt-in per surface, and `AllTransactionsView` is shared by four of them.
+ */
+type TableSelection = {
+  selectedIds: Set<string>;
+  /** True for a row of the opposite sign to the current selection. */
+  isDisabled: (row: DisplayTransactionRow) => boolean;
+  onToggle: (row: DisplayTransactionRow) => void;
+  allOnPageSelected: boolean;
+  onToggleAll: (checked: boolean) => void;
+};
+
+function SelectionHeaderCell({ selection }: { selection: TableSelection }) {
+  return (
+    <th className="transactions-select-col">
+      <input
+        type="checkbox"
+        aria-label="Select every transaction on this page"
+        checked={selection.allOnPageSelected}
+        onChange={(e) => selection.onToggleAll(e.target.checked)}
+      />
+    </th>
+  );
+}
+
+function SelectionCell({
+  selection,
+  row,
+}: {
+  selection: TableSelection;
+  row: DisplayTransactionRow;
+}) {
+  const disabled = selection.isDisabled(row);
+  return (
+    <td className="transactions-select-col">
+      <input
+        type="checkbox"
+        aria-label={`Select transaction ${row.id}`}
+        checked={selection.selectedIds.has(row.id)}
+        disabled={disabled}
+        title={disabled ? "Income and expense cannot be selected together" : undefined}
+        onChange={() => selection.onToggle(row)}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </td>
+  );
+}
+
 function TransactionTable({
   rows,
   scope,
@@ -2249,6 +2346,7 @@ function TransactionTable({
   expandedRowIds,
   rowChildren,
   onToggleExpand,
+  selection,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -2267,6 +2365,8 @@ function TransactionTable({
   expandedRowIds?: Set<string>;
   rowChildren?: Record<string, CoreTransactionChild[] | "loading" | "error">;
   onToggleExpand?: (row: DisplayTransactionRow) => void;
+  /** Omitted on every surface except the global All Transactions page. */
+  selection?: TableSelection;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
@@ -2275,7 +2375,7 @@ function TransactionTable({
   // columns or the indented row stops short of the right edge.
   const columnCount =
     9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
-    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0);
+    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -2288,6 +2388,7 @@ function TransactionTable({
         <table className="transactions-table">
           <thead>
             <tr>
+              {selection ? <SelectionHeaderCell selection={selection} /> : null}
               {canExpand ? <th className="transactions-expand-col" aria-label="Expand" /> : null}
               <th>Transaction ID</th>
               {showClientName ? (
@@ -2314,7 +2415,7 @@ function TransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = isRevenueType(row.type);
+              const amountSign = transactionSign(row.type);
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
@@ -2323,9 +2424,17 @@ function TransactionTable({
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
               const isExpanded = expandedRowIds?.has(row.id) ?? false;
               const children = rowChildren?.[row.id];
+              const isDimmed = selection?.isDisabled(row) ?? false;
               return (
                 <Fragment key={row.id}>
-                  <tr>
+                  <tr
+                    style={
+                      isDimmed
+                        ? { opacity: 0.45, transition: "opacity 0.2s ease" }
+                        : undefined
+                    }
+                  >
+                    {selection ? <SelectionCell selection={selection} row={row} /> : null}
                     {canExpand ? (
                       <td className="transactions-expand-col">
                         {/* Only a container has anything to reveal. Ordinary rows
@@ -2419,12 +2528,12 @@ function TransactionTable({
                     <td>{row.categoryName}</td>
                     <td>{row.subcategoryName}</td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.grossAmount, isRevenue)}
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
+                      {formatTransactionCurrency(row.grossAmount, amountSign)}
                     </td>
                     <td style={{ textAlign: "right" }}>{formatCurrency(row.gstAmount)}</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.netAmount, isRevenue)}
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
+                      {formatTransactionCurrency(row.netAmount, amountSign)}
                     </td>
                     {showClientShare ? (
                       <td style={{ textAlign: "right" }}>
@@ -2658,7 +2767,7 @@ function PropertyTransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = isRevenueType(row.transactionType);
+              const amountSign = transactionSign(row.transactionType);
               const displayRow = propertyRowToDisplayRow(row);
               const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
               const children = rowChildren?.[row.transactionId];
@@ -2724,12 +2833,12 @@ function PropertyTransactionTable({
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
                     <td>{formatCurrency(row.transactionGrossAmount)}</td>
                     <td>{row.splitPercentage.toFixed(2)}%</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                      {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
+                    <td className={amountClass(amountSign)}>
+                      {formatTransactionCurrency(row.splitGrossAmount, amountSign)}
                     </td>
                     <td>{formatCurrency(row.splitGstAmount)}</td>
-                    <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                      {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
+                    <td className={amountClass(amountSign)}>
+                      {formatTransactionCurrency(row.splitNetAmount, amountSign)}
                     </td>
                     <td>
                       <span
@@ -2873,6 +2982,7 @@ function AwaitingReviewTable({
   onView,
   disabled = false,
   disabledReason,
+  selection,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -2880,11 +2990,15 @@ function AwaitingReviewTable({
   onView: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
+  /** Omitted on every surface except the global All Transactions page. */
+  selection?: TableSelection;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
   const showPropertyName = contextKind !== "property";
 
+  // The checkbox column is fixed-width, so it is excluded from the equal-share
+  // arithmetic that sizes the rest.
   const totalColumns = 4 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) + (showPropertyName ? 1 : 0);
   const colWidth = `${(100 / totalColumns).toFixed(2)}%`;
   const tableMinWidth = `${totalColumns * 160}px`;
@@ -2898,6 +3012,7 @@ function AwaitingReviewTable({
         >
           <thead>
             <tr>
+              {selection ? <SelectionHeaderCell selection={selection} /> : null}
               <th style={{ width: colWidth, textAlign: "left" }}>TRANSACTION ID</th>
               {showClientName && <th style={{ width: colWidth, textAlign: "left" }}>CLIENT NAME</th>}
               {showEntityName && <th style={{ width: colWidth, textAlign: "left" }}>ENTITY NAME</th>}
@@ -2915,8 +3030,17 @@ function AwaitingReviewTable({
                   : row.propertyNames.length === 1
                     ? row.propertyNames[0]
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
+              const isDimmed = selection?.isDisabled(row) ?? false;
               return (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  style={
+                    isDimmed
+                      ? { opacity: 0.45, transition: "opacity 0.2s ease" }
+                      : undefined
+                  }
+                >
+                  {selection ? <SelectionCell selection={selection} row={row} /> : null}
                   <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
@@ -3488,6 +3612,7 @@ export function AllTransactionsView({
   rulesButtonIcon = "rules",
   compact = false,
   showRulesButton = true,
+  enableSelection = false,
 }: {
   context?: TransactionsContext;
   addTransactionHref?: string;
@@ -3499,6 +3624,16 @@ export function AllTransactionsView({
   rulesButtonIcon?: "rules" | "reconcile";
   compact?: boolean;
   showRulesButton?: boolean;
+  /**
+   * Row selection with a running total and "Export Selected".
+   *
+   * Opt-in because this component backs four surfaces — the global All
+   * Transactions page, the accountant's per-client Transactions tab, the entity
+   * page and the property page — and selection was asked for on the first only.
+   * It is additionally gated on `context.kind === "none"` below, so passing it
+   * from a scoped surface cannot switch it on by accident.
+   */
+  enableSelection?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -3526,6 +3661,15 @@ export function AllTransactionsView({
   const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [activeTab, setActiveTab] = useState<"reviewed" | "unreviewed">("reviewed");
   const [exportError, setExportError] = useState("");
+  // Selection is two structures on purpose. `rows` holds exactly one page and
+  // is wholly replaced on every fetch, so an id set alone would lose the data
+  // behind a selection the moment you page — and the running total and the
+  // client-side export both need that data. The Map is the side-cache that
+  // survives paging; the Set is what the checkboxes read.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Map<string, DisplayTransactionRow>>(
+    new Map(),
+  );
   // Approve/reject is reviewer-only (accountant/admin/super_admin) — the
   // backend 403s clients, so the modal hides those controls for them.
   const [viewerRole, setViewerRole] = useState<string | null>(null);
@@ -4225,6 +4369,136 @@ export function AllTransactionsView({
   const displayedPropertyRows = propertyRows;
   const totalCount = totalItems;
 
+  // ── Row selection (global All Transactions only) ────────────────────────
+  //
+  // Gated on contextKind as well as the prop: the property surface renders
+  // PropertyTransactionTable, whose rows are a different shape entirely, and
+  // the scoped grids were never asked for selection.
+  const selectionEnabled = enableSelection && contextKind === "none";
+
+  /**
+   * The sign lock. There are five types, not two, and they fall into three
+   * signs rather than two: only `revenue` is money in; `expense`, `personal`
+   * and `cost_base` render negative; and `contra` is neutral, because a
+   * transfer between the entity's own accounts is a movement rather than a
+   * flow. So the lock is on `transactionSign`, and once the first row is picked
+   * every row of a different sign is disabled and dimmed. Summing a mixed
+   * selection would produce a number that means nothing — and a contra mixed
+   * into a run of expenses would make the total read as spending that never
+   * happened.
+   */
+  const selectedSign = useMemo<ReturnType<typeof transactionSign> | null>(() => {
+    const first = selectedRows.values().next();
+    return first.done ? null : transactionSign(first.value.type);
+  }, [selectedRows]);
+
+  const isSelectionDisabled = useCallback(
+    (row: DisplayTransactionRow) =>
+      selectedSign !== null && transactionSign(row.type) !== selectedSign,
+    [selectedSign],
+  );
+
+  const toggleSelectedRow = useCallback((row: DisplayTransactionRow) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.add(row.id);
+      return next;
+    });
+    setSelectedRows((prev) => {
+      const next = new Map(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.set(row.id, row);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectedRows(new Map());
+  }, []);
+
+  // Rows on this page that the sign lock allows. Select-all only ever acts on
+  // these, so it can never create a mixed selection.
+  const selectableRowsOnPage = useMemo(
+    () => (selectionEnabled ? displayedRows.filter((row) => !isSelectionDisabled(row)) : []),
+    [selectionEnabled, displayedRows, isSelectionDisabled],
+  );
+
+  const allOnPageSelected =
+    selectableRowsOnPage.length > 0 &&
+    selectableRowsOnPage.every((row) => selectedIds.has(row.id));
+
+  const toggleSelectAllOnPage = useCallback(
+    (checked: boolean) => {
+      // With nothing selected yet the page can hold both signs, so the first
+      // eligible row sets the lock and the rest of the page follows it.
+      const sign =
+        selectedSign ??
+        (displayedRows.length > 0 ? transactionSign(displayedRows[0].type) : null);
+      const eligible =
+        sign === null
+          ? displayedRows
+          : displayedRows.filter((row) => transactionSign(row.type) === sign);
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const row of eligible) {
+          if (checked) next.add(row.id);
+          else next.delete(row.id);
+        }
+        return next;
+      });
+      setSelectedRows((prev) => {
+        const next = new Map(prev);
+        for (const row of eligible) {
+          if (checked) next.set(row.id, row);
+          else next.delete(row.id);
+        }
+        return next;
+      });
+    },
+    [displayedRows, selectedSign],
+  );
+
+  // Paging keeps the selection — that is what the side-cache is for. Changing
+  // the filters or the tab does not: the rows would no longer be on screen, and
+  // a running total over rows the reader cannot see is worse than no total.
+  // Keyed on listQuery, which carries the filters but not limit/offset.
+  const listQueryKey = listQuery.toString();
+  useEffect(() => {
+    clearSelection();
+  }, [listQueryKey, activeTab, clearSelection]);
+
+  const selection = useMemo<TableSelection | undefined>(() => {
+    if (!selectionEnabled) return undefined;
+    return {
+      selectedIds,
+      isDisabled: isSelectionDisabled,
+      onToggle: toggleSelectedRow,
+      allOnPageSelected,
+      onToggleAll: toggleSelectAllOnPage,
+    };
+  }, [
+    selectionEnabled,
+    selectedIds,
+    isSelectionDisabled,
+    toggleSelectedRow,
+    allOnPageSelected,
+    toggleSelectAllOnPage,
+  ]);
+
+  /**
+   * Running total over the side-cache, not the page — that is the whole point
+   * of keeping one. Gross is used because it is the figure the grid's Gross
+   * column shows; the sign lock guarantees every row pulls the same way.
+   */
+  const selectedTotal = useMemo(() => {
+    let sum = 0;
+    for (const row of selectedRows.values()) sum += row.grossAmount;
+    return sum;
+  }, [selectedRows]);
+
   const totalPages = Math.max(Math.ceil(totalItems / numericPageSize), 1);
   const activePage = Math.min(currentPage, totalPages);
 
@@ -4250,6 +4524,71 @@ export function AllTransactionsView({
     }),
     [contextKind, sort],
   );
+
+  /**
+   * CSV for the selected rows, built in the browser.
+   *
+   * The server export cannot do this: `parseListParams` has no id-list
+   * parameter, and `export_list.go` deliberately re-runs the whole filter set
+   * with Offset = 0 — asking it for "these 3 rows" would return every row the
+   * filters match. The side-cache already holds each selected row's data, so
+   * the file is written here using the same column set and order as
+   * `listExportRecord`, and a selected export lines up with a full one.
+   */
+  function exportSelectedTransactions() {
+    setExportError("");
+    if (selectedRows.size === 0) return;
+
+    const esc = (value: string | number | null | undefined) => {
+      const text = value == null ? "" : String(value);
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const money = (value: number | null | undefined) =>
+      value == null ? "" : value.toFixed(2);
+
+    const header = [
+      "Transaction ID", "Client", "Entity", "Properties", "Description",
+      "Type", "Category", "Subcategory", "Invoice Date",
+      "Gross", "GST", "Net",
+      "Client Share Gross", "Client Share GST", "Client Share Net",
+      "Review Status", "Rule Applied", "Created At",
+    ];
+
+    const lines = [header.map(esc).join(",")];
+    for (const row of selectedRows.values()) {
+      lines.push([
+        row.id,
+        row.clientName,
+        row.entityName,
+        row.propertyNames.join("; "),
+        row.description || "",
+        row.type,
+        row.categoryName,
+        row.subcategoryName,
+        row.invoiceDate,
+        money(row.grossAmount),
+        money(row.gstAmount),
+        money(row.netAmount),
+        money(row.clientShareGross),
+        money(row.clientShareGst),
+        money(row.clientShareNet),
+        row.reviewStatus,
+        row.ruleId != null ? "Yes" : "No",
+        row.createdAt,
+      ].map(esc).join(","));
+    }
+
+    const url = URL.createObjectURL(
+      new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `transactions_selected_${selectedRows.size}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
 
   async function exportTransactions(format: "csv" | "xlsx" | "pdf") {
     setExportError("");
@@ -4533,6 +4872,42 @@ export function AllTransactionsView({
               {exportError}
             </div>
           ) : null}
+          {selectionEnabled && selectedRows.size > 0 ? (
+            <div
+              className="transactions-selection-bar"
+              role="toolbar"
+              aria-label="Selected transactions"
+            >
+              <span className="transactions-selection-count">
+                {selectedRows.size} selected
+                <span className="transactions-selection-sep">·</span>
+                Total{" "}
+                <strong
+                  className={
+                    selectedSign ? "amount-positive" : "amount-negative"
+                  }
+                >
+                  {formatTransactionCurrency(selectedTotal, selectedSign ?? true)}
+                </strong>
+              </span>
+              <div className="transactions-selection-actions">
+                <button
+                  type="button"
+                  className="transaction-outline-button"
+                  onClick={clearSelection}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="transaction-primary-button"
+                  onClick={exportSelectedTransactions}
+                >
+                  Export Selected
+                </button>
+              </div>
+            </div>
+          ) : null}
           {activeTab === "unreviewed" ? (
             <AwaitingReviewTable
               rows={
@@ -4552,6 +4927,7 @@ export function AllTransactionsView({
               }}
               disabled={addTransactionDisabled}
               disabledReason={addTransactionDisabledReason}
+              selection={selection}
             />
           ) : contextKind === "property" ? (
             <PropertyTransactionTable
@@ -4583,6 +4959,7 @@ export function AllTransactionsView({
               expandedRowIds={grain === "top" ? expandedRowIds : undefined}
               rowChildren={grain === "top" ? rowChildren : undefined}
               onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
+              selection={selection}
             />
           )}
           {totalItems > 0 && (
@@ -5644,6 +6021,14 @@ export function AddTransactionView({
     // it rather than leaving a hidden split that the API would 400 on.
     if (!allowsPersonalPortion(newType)) {
       setIsPersonal(false);
+    }
+    // A contra entry carries no GST — it is a transfer between the entity's own
+    // accounts, not a purchase or a sale, and transaction_contra_no_gst_check
+    // rejects a non-zero amount. Cleared here rather than validated on submit,
+    // so the accountant never types a figure that is going to be refused.
+    if (newType === "contra") {
+      setShowGstBreakdown(false);
+      setGstAmount("");
     }
   }
 
@@ -7204,7 +7589,12 @@ export function AddTransactionView({
 
                   <button
                     type="button"
-                    className={`figma-type-btn is-expense${type === "expense" ? " active" : ""}`}
+                    // Stays selected while the contra toggle is on: a contra
+                    // entry IS an expense-shaped payment, reached from this
+                    // branch. Clicking it again is how you untick.
+                    className={`figma-type-btn is-expense${
+                      type === "expense" || type === "contra" ? " active" : ""
+                    }`}
                     onClick={() => handleTransactionTypeChange("expense")}
                   >
                     <span className="figma-type-circle is-expense">
@@ -7246,6 +7636,39 @@ export function AddTransactionView({
                   </button>
                 </div>
               </div>
+
+              {/* A transfer between the entity's own accounts — cash banked, a
+              bank-to-bank transfer, cash drawn for petty cash. It looks like a
+              payment on the statement, which is why the toggle lives on the
+              expense branch, but no expense was incurred: it is excluded from
+              the P&L and the BAS, and it posts to the seeded Contra / General
+              category rather than a real expense account.
+
+              Deliberately outside the allowsBusinessExtras block below, which
+              is false for contra — placing it inside would make the toggle
+              vanish the moment it was switched on. */}
+              {allowsContraFlag(type) && (
+                <div className="figma-toggle-container">
+                  <div className="figma-toggle-info">
+                    <span className="figma-toggle-title">Is this a contra entry?</span>
+                    <span className="figma-toggle-desc">
+                      A transfer between your own accounts — money banked, moved
+                      between accounts, or drawn as cash. It has no effect on the
+                      profit and loss statement or your BAS.
+                    </span>
+                  </div>
+                  <label className="figma-switch">
+                    <input
+                      type="checkbox"
+                      checked={type === "contra"}
+                      onChange={(e) =>
+                        handleTransactionTypeChange(e.target.checked ? "contra" : "expense")
+                      }
+                    />
+                    <span className="figma-switch-slider" />
+                  </label>
+                </div>
+              )}
 
               {/* Category / Sub-Category dropdowns */}
               {type === "cost_base" ? (

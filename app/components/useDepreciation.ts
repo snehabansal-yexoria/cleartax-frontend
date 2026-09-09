@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSession } from "@/src/lib/session";
 import type {
   CoreDepreciationList,
@@ -107,6 +107,71 @@ export function useDepreciation(
   }, [load]);
 
   return { data, isLoading, error, reload: load };
+}
+
+export type FirstYearDeduction = {
+  /** Year-one depreciation. Positive; the caller applies the sign. */
+  amount: number;
+  /** e.g. "FY 2026-27" — which year the figure belongs to. */
+  fyLabel: string;
+};
+
+export type UseFirstYearDepreciationResult = {
+  /** Keyed by the asset purchase's transaction id. */
+  byTransactionId: Map<string, FirstYearDeduction>;
+  isLoading: boolean;
+  error: string | null;
+};
+
+/**
+ * Year-one depreciation for every asset in a scope, keyed by transaction id.
+ *
+ * The asset panels list asset PURCHASES (transactions) but need to show the
+ * DEDUCTION, which lives on the schedule. One scope-level call resolves the
+ * whole panel — the alternative, GET /transactions/{id}/depreciation per row,
+ * would be one request per asset.
+ *
+ * An asset split across two properties has one schedule per property (each
+ * property's return needs its own figures), so at entity and client level a
+ * transaction id can appear more than once. The amounts are summed: the panel
+ * quotes the deduction for the whole asset at those levels, and the property
+ * panel is already filtered to a single property so nothing is double-counted
+ * there.
+ *
+ * Schedules with no generated years are skipped rather than counted as zero, so
+ * a missing schedule shows as "—" and not as a $0 claim.
+ *
+ * Keyed on `displayTransactionId`, not `transactionId`. The panels list
+ * transactions at display grain; a schedule hangs off the asset at money grain,
+ * which on a part-private purchase is the business CHILD. Keying on the
+ * schedule's own transaction id meant those rows never matched a panel row and
+ * always rendered "—", which reads as "no schedule" rather than "looked up
+ * under the wrong id".
+ */
+export function useFirstYearDepreciation(
+  level: CoreDepreciationScopeLevel,
+  id: string,
+  options: { enabled?: boolean } = {},
+): UseFirstYearDepreciationResult {
+  const { data, isLoading, error } = useDepreciation(level, id, {
+    enabled: options.enabled ?? true,
+  });
+
+  const byTransactionId = useMemo(() => {
+    const out = new Map<string, FirstYearDeduction>();
+    for (const item of data?.items ?? []) {
+      if (item.firstYearDepreciation == null) continue;
+      const key = item.displayTransactionId || item.transactionId;
+      const existing = out.get(key);
+      out.set(key, {
+        amount: (existing?.amount ?? 0) + item.firstYearDepreciation,
+        fyLabel: existing?.fyLabel || item.firstYearFyLabel,
+      });
+    }
+    return out;
+  }, [data]);
+
+  return { byTransactionId, isLoading, error };
 }
 
 export type UseDepreciationScheduleResult = {
