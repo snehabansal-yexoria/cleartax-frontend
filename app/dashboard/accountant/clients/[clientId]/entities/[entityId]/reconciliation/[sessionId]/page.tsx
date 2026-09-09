@@ -3384,7 +3384,7 @@ export default function AccountantReconciliationSessionPage() {
                           statement debit that looks like a payment but is money
                           moving to another of the entity's own accounts. */}
                           {allowsContraFlag(categorizeType) && (
-                            <div className="figma-toggle-container">
+                            <label className="figma-toggle-container">
                               <div className="figma-toggle-info">
                                 <span className="figma-toggle-title">
                                   Is this a contra entry?
@@ -3394,7 +3394,7 @@ export default function AccountantReconciliationSessionPage() {
                                   effect on the profit and loss statement or the BAS.
                                 </span>
                               </div>
-                              <label className="figma-switch">
+                              <span className="figma-switch">
                                 <input
                                   type="checkbox"
                                   checked={categorizeType === "contra"}
@@ -3410,8 +3410,8 @@ export default function AccountantReconciliationSessionPage() {
                                   }}
                                 />
                                 <span className="figma-switch-slider" />
-                              </label>
-                            </div>
+                              </span>
+                            </label>
                           )}
 
                           {!hidesCategoryPicker(categorizeType) && (
@@ -3507,12 +3507,12 @@ export default function AccountantReconciliationSessionPage() {
                             line is the Personal Transaction type instead. */}
                         {allowsPersonalPortion(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
-                            <div className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
+                            <label className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
                               <div className="figma-toggle-info">
                                 <span className="figma-toggle-title">Was part of this personal?</span>
                                 <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
                               </div>
-                              <label className="figma-switch">
+                              <span className="figma-switch">
                                 <input
                                   type="checkbox"
                                   checked={categorizeIsPersonal}
@@ -3521,8 +3521,8 @@ export default function AccountantReconciliationSessionPage() {
                                   }}
                                 />
                                 <span className="figma-switch-slider" />
-                              </label>
-                            </div>
+                              </span>
+                            </label>
 
                             {categorizeIsPersonal && (
                               <div className="figma-personal-alloc-section">
@@ -3576,12 +3576,12 @@ export default function AccountantReconciliationSessionPage() {
                         {/* Is it a regular payment? */}
                         {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
-                            <div className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
+                            <label className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
                               <div className="figma-toggle-info">
                                 <span className="figma-toggle-title">Is it a regular payment?</span>
                                 <span className="figma-toggle-desc">Set a due date and reminder alert</span>
                               </div>
-                              <label className="figma-switch">
+                              <span className="figma-switch">
                                 <input
                                   type="checkbox"
                                   checked={categorizeIsRegularPayment}
@@ -3597,8 +3597,8 @@ export default function AccountantReconciliationSessionPage() {
                                   }}
                                 />
                                 <span className="figma-switch-slider" />
-                              </label>
-                            </div>
+                              </span>
+                            </label>
 
                             {categorizeIsRegularPayment && (
                               <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
@@ -4071,7 +4071,7 @@ export default function AccountantReconciliationSessionPage() {
                 {/* Marking a run of statement lines as transfers at once — the
                 usual case being a recurring sweep between two accounts. */}
                 {allowsContraFlag(bulkType) && (
-                  <div className="figma-toggle-container">
+                  <label className="figma-toggle-container">
                     <div className="figma-toggle-info">
                       <span className="figma-toggle-title">Are these contra entries?</span>
                       <span className="figma-toggle-desc">
@@ -4079,7 +4079,7 @@ export default function AccountantReconciliationSessionPage() {
                         the profit and loss statement or the BAS.
                       </span>
                     </div>
-                    <label className="figma-switch">
+                    <span className="figma-switch">
                       <input
                         type="checkbox"
                         checked={bulkType === "contra"}
@@ -4094,8 +4094,8 @@ export default function AccountantReconciliationSessionPage() {
                         }}
                       />
                       <span className="figma-switch-slider" />
-                    </label>
-                  </div>
+                    </span>
+                  </label>
                 )}
 
                 <div className="recon-categorize-field">
@@ -4171,14 +4171,14 @@ export default function AccountantReconciliationSessionPage() {
                         {selectedEligibleRows.length === 1 ? " transaction" : " transactions"}. Only the business share is deductible.
                       </span>
                     </div>
-                    <label className="figma-switch">
+                    <span className="figma-switch">
                       <input
                         type="checkbox"
                         checked={bulkIsPersonal}
                         onChange={(e) => setBulkIsPersonal(e.target.checked)}
                       />
                       <span className="figma-switch-slider" />
-                    </label>
+                    </span>
                   </div>
 
                   {bulkIsPersonal && (

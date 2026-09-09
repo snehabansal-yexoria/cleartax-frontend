@@ -48,6 +48,9 @@ import AssetBuilder, {
   AssetSummaryChip,
   assetRequestFields,
   CAPITAL_WORKS_EFFECTIVE_LIFE,
+  isCapitalWorksCategory,
+  isCapitalAllowanceCategory,
+  isAssetEligibleCategory,
   type AssetDraft,
 } from "@/app/components/AssetBuilder";
 import {
@@ -1516,7 +1519,7 @@ function TransactionDetailPopup({
                       type="button"
                       className={
                         type === option.value ||
-                        (option.value === "expense" && type === "contra")
+                          (option.value === "expense" && type === "contra")
                           ? `is-selected ${transactionTypeModifier(option.value)}`
                           : ""
                       }
@@ -1564,7 +1567,36 @@ function TransactionDetailPopup({
                     <input
                       type="checkbox"
                       checked={isAssetPurchase}
-                      onChange={(event) => setIsAssetPurchase(event.target.checked)}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        if (checked) {
+                          const selectedCategory = categories.find((c) => c.id === categoryId);
+                          if (!selectedCategory || !isAssetEligibleCategory(selectedCategory.name)) {
+                            const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                            const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                            const targetCat = worksCat || allowanceCat;
+                            if (targetCat) {
+                              setCategoryId(targetCat.id);
+                              setSubcategoryId(null);
+                              setIsAssetPurchase(true);
+                              const isWorks = isCapitalWorksCategory(targetCat.name);
+                              setAssetClass(isWorks ? "capital_works" : "capital_allowance");
+                              if (isWorks) {
+                                setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                                setDepreciationMethod("prime_cost");
+                                if (!assetItemName) setAssetItemName("Capital Works");
+                              }
+                              setEditError("");
+                            } else {
+                              setEditError("To add an asset, please select Capital Works Deductions or Capital Allowances as the category.");
+                            }
+                          } else {
+                            setIsAssetPurchase(true);
+                          }
+                        } else {
+                          setIsAssetPurchase(false);
+                        }
+                      }}
                     />
                     <span>Asset Purchase</span>
                   </label>
@@ -1582,7 +1614,15 @@ function TransactionDetailPopup({
                         <input
                           type="radio"
                           checked={assetClass === "capital_allowance"}
-                          onChange={() => setAssetClass("capital_allowance")}
+                          onChange={() => {
+                            setAssetClass("capital_allowance");
+                            if (assetItemName === "Capital Works") setAssetItemName("");
+                            const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                            if (allowanceCat) {
+                              setCategoryId(allowanceCat.id);
+                              setSubcategoryId(null);
+                            }
+                          }}
                         />
                         <span>
                           <b>Capital Allowance</b>
@@ -1615,6 +1655,12 @@ function TransactionDetailPopup({
                             setAssetClass("capital_works");
                             setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
                             setDepreciationMethod("prime_cost");
+                            if (!assetItemName) setAssetItemName("Capital Works");
+                            const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                            if (worksCat) {
+                              setCategoryId(worksCat.id);
+                              setSubcategoryId(null);
+                            }
                           }}
                         />
                         <span>
@@ -1675,8 +1721,23 @@ function TransactionDetailPopup({
                   value={categoryId == null ? "" : String(categoryId)}
                   options={categorySelectOptions}
                   onChange={(value) => {
-                    setCategoryId(value ? Number(value) : null);
+                    const newCatId = value ? Number(value) : null;
+                    setCategoryId(newCatId);
                     setSubcategoryId(null);
+                    const selectedCat = categories.find((c) => c.id === newCatId);
+                    if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
+                      setIsAssetPurchase(true);
+                      setAssetClass("capital_works");
+                      setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                      setDepreciationMethod("prime_cost");
+                      if (!assetItemName) setAssetItemName("Capital Works");
+                      setEditError("");
+                    } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
+                      setIsAssetPurchase(true);
+                      setAssetClass("capital_allowance");
+                      if (assetItemName === "Capital Works") setAssetItemName("");
+                      setEditError("");
+                    }
                   }}
                 />
                 {showSubcategorySelect && (
@@ -4666,7 +4727,7 @@ export function AllTransactionsView({
   );
 
   return (
-    <section className={`transactions-page${compact ? " is-compact" : ""}`}>
+    <section className={`transactions-page overflow-hidden ${compact ? " is-compact" : ""}`}>
       <div className="transactions-page-head">
         <div>
           <h1>All Transactions</h1>
@@ -5727,6 +5788,8 @@ export function AddTransactionView({
   const [personalValue, setPersonalValue] = useState("20");
 
   const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+  const [assetInitialClass, setAssetInitialClass] = useState<CoreAssetClass | null>(null);
+  const [assetCategoryError, setAssetCategoryError] = useState("");
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -6011,6 +6074,8 @@ export function AddTransactionView({
     setType(newType);
     setCategoryId(null);
     setSubcategoryId(null);
+    setAssetCategoryError("");
+    setAssetInitialClass(null);
     if (!allowsAssetPurchase(newType)) {
       setAssetDraft(null);
     }
@@ -6408,10 +6473,16 @@ export function AddTransactionView({
   const canSplitTransaction = properties.length > 1;
 
   useEffect(() => {
-    if (lockAssetPurchaseCategory && !categoryId && categories[0]) {
-      setCategoryId(categories[0].id);
+    if (lockAssetPurchaseCategory && !categoryId && categories.length > 0) {
+      const targetCat =
+        assetDraft?.assetClass === "capital_works"
+          ? categories.find((c) => isCapitalWorksCategory(c.name))
+          : categories.find((c) => isCapitalAllowanceCategory(c.name));
+      if (targetCat) {
+        setCategoryId(targetCat.id);
+      }
     }
-  }, [categories, categoryId, lockAssetPurchaseCategory]);
+  }, [categories, categoryId, lockAssetPurchaseCategory, assetDraft]);
 
   useEffect(() => {
     if (lockAssetPurchaseCategory && !subcategoryId && subcategories[0]) {
@@ -7052,7 +7123,14 @@ export function AddTransactionView({
         categoryOptions = data.items || [];
         setCategories(categoryOptions);
       }
-      resolvedCategoryId = categoryOptions[0]?.id ?? null;
+      if (assetDraft?.assetClass === "capital_works") {
+        resolvedCategoryId = categoryOptions.find((c) => isCapitalWorksCategory(c.name))?.id ?? null;
+      } else if (assetDraft?.assetClass === "capital_allowance") {
+        resolvedCategoryId = categoryOptions.find((c) => isCapitalAllowanceCategory(c.name))?.id ?? null;
+      }
+      if (!resolvedCategoryId) {
+        resolvedCategoryId = categoryOptions[0]?.id ?? null;
+      }
     }
 
     if (!resolvedCategoryId) return null;
@@ -7592,9 +7670,8 @@ export function AddTransactionView({
                     // Stays selected while the contra toggle is on: a contra
                     // entry IS an expense-shaped payment, reached from this
                     // branch. Clicking it again is how you untick.
-                    className={`figma-type-btn is-expense${
-                      type === "expense" || type === "contra" ? " active" : ""
-                    }`}
+                    className={`figma-type-btn is-expense${type === "expense" || type === "contra" ? " active" : ""
+                      }`}
                     onClick={() => handleTransactionTypeChange("expense")}
                   >
                     <span className="figma-type-circle is-expense">
@@ -7648,7 +7725,7 @@ export function AddTransactionView({
               is false for contra — placing it inside would make the toggle
               vanish the moment it was switched on. */}
               {allowsContraFlag(type) && (
-                <div className="figma-toggle-container">
+                <label className="figma-toggle-container">
                   <div className="figma-toggle-info">
                     <span className="figma-toggle-title">Is this a contra entry?</span>
                     <span className="figma-toggle-desc">
@@ -7657,7 +7734,7 @@ export function AddTransactionView({
                       profit and loss statement or your BAS.
                     </span>
                   </div>
-                  <label className="figma-switch">
+                  <span className="figma-switch">
                     <input
                       type="checkbox"
                       checked={type === "contra"}
@@ -7666,8 +7743,8 @@ export function AddTransactionView({
                       }
                     />
                     <span className="figma-switch-slider" />
-                  </label>
-                </div>
+                  </span>
+                </label>
               )}
 
               {/* Category / Sub-Category dropdowns */}
@@ -7706,8 +7783,27 @@ export function AddTransactionView({
                       required
                       value={categoryId == null ? "" : String(categoryId)}
                       options={categorySelectOptions}
-                      onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                      disabled={lockAssetPurchaseCategory}
+                      onChange={(value) => {
+                        const nextCatId = value ? Number(value) : null;
+                        setCategoryId(nextCatId);
+                        setSubcategoryId(null);
+                        setAssetCategoryError("");
+
+                        const selectedCat = categories.find((c) => c.id === nextCatId);
+                        if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
+                          setAssetInitialClass("capital_works");
+                          setAssetBuilderOpen(true);
+                        } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
+                          setAssetInitialClass("capital_allowance");
+                          setAssetBuilderOpen(true);
+                        } else {
+                          if (assetDraft) {
+                            setAssetDraft(null);
+                          }
+                          setAssetBuilderOpen(false);
+                          setAssetInitialClass(null);
+                        }
+                      }}
                     />
                   </div>
 
@@ -7719,7 +7815,6 @@ export function AddTransactionView({
                         value={subcategoryId == null ? "" : String(subcategoryId)}
                         options={subcategorySelectOptions}
                         onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
-                        disabled={lockAssetPurchaseCategory}
                       />
                     </div>
                   )}
@@ -7866,27 +7961,107 @@ export function AddTransactionView({
                   {assetDraft && (
                     <AssetSummaryChip
                       draft={assetDraft}
-                      onRemove={() => setAssetDraft(null)}
+                      onRemove={() => {
+                        setAssetDraft(null);
+                        setAssetInitialClass(null);
+                        setAssetCategoryError("");
+                      }}
                     />
                   )}
 
                   {!assetDraft && !assetBuilderOpen && type === "expense" && (
-                    <button
-                      type="button"
-                      className="figma-add-asset-trigger"
-                      onClick={() => setAssetBuilderOpen(true)}
-                    >
-                      + Add Asset
-                    </button>
+                    <div>
+                      <button
+                        type="button"
+                        className="figma-add-asset-trigger"
+                        onClick={() => {
+                          const currentCat = categories.find((c) => c.id === categoryId);
+                          if (!currentCat || !isAssetEligibleCategory(currentCat.name)) {
+                            if (!currentCat) {
+                              setAssetCategoryError(
+                                "Please select a category (Capital Works Deductions or Capital Allowances) to add an asset."
+                              );
+                            } else {
+                              setAssetCategoryError(
+                                `"${currentCat.name}" is not an asset category. To add an asset, please select Capital Works Deductions or Capital Allowances as the category.`
+                              );
+                            }
+                            return;
+                          }
+                          setAssetCategoryError("");
+                          const isWorks = isCapitalWorksCategory(currentCat.name);
+                          setAssetInitialClass(isWorks ? "capital_works" : "capital_allowance");
+                          setAssetBuilderOpen(true);
+                        }}
+                      >
+                        + Add Asset
+                      </button>
+                      {assetCategoryError && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "10px 14px",
+                            borderRadius: "10px",
+                            background: "rgba(218, 56, 56, 0.08)",
+                            border: "1px solid rgba(218, 56, 56, 0.24)",
+                            color: "#da3838",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            marginTop: "10px",
+                          }}
+                        >
+                          <svg style={{ width: "16px", height: "16px", flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          </svg>
+                          <span>{assetCategoryError}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {assetBuilderOpen && (
                     <AssetBuilder
-                      initial={assetDraft}
-                      onCancel={() => setAssetBuilderOpen(false)}
+                      initial={
+                        assetDraft ||
+                        (assetInitialClass ? { assetClass: assetInitialClass } : null)
+                      }
+                      onAssetClassChange={(newClass) => {
+                        setAssetInitialClass(newClass);
+                        if (newClass === "capital_works") {
+                          const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                          if (worksCat) {
+                            setCategoryId(worksCat.id);
+                            setSubcategoryId(null);
+                            setAssetCategoryError("");
+                          }
+                        } else if (newClass === "capital_allowance") {
+                          const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                          if (allowanceCat) {
+                            setCategoryId(allowanceCat.id);
+                            setSubcategoryId(null);
+                            setAssetCategoryError("");
+                          }
+                        }
+                      }}
+                      onCancel={() => {
+                        setAssetBuilderOpen(false);
+                        setAssetInitialClass(null);
+                        setAssetCategoryError("");
+                      }}
                       onSubmit={(draft) => {
                         setAssetDraft(draft);
                         setAssetBuilderOpen(false);
+                        setAssetInitialClass(null);
+                        setAssetCategoryError("");
+                        if (draft.assetClass === "capital_works") {
+                          const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                          if (worksCat) setCategoryId(worksCat.id);
+                        } else if (draft.assetClass === "capital_allowance") {
+                          const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                          if (allowanceCat) setCategoryId(allowanceCat.id);
+                        }
                       }}
                     />
                   )}
@@ -7895,20 +8070,20 @@ export function AddTransactionView({
                 rejects a personal split on any other type, and the wholly
                 private case is the "Personal Transaction" type instead. */}
                   {allowsPersonalPortion(type) && (
-                    <div className="figma-toggle-container">
+                    <label className="figma-toggle-container">
                       <div className="figma-toggle-info">
                         <span className="figma-toggle-title">Was part of this personal?</span>
                         <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
                       </div>
-                      <label className="figma-switch">
+                      <span className="figma-switch">
                         <input
                           type="checkbox"
                           checked={isPersonal}
                           onChange={(e) => setIsPersonal(e.target.checked)}
                         />
                         <span className="figma-switch-slider" />
-                      </label>
-                    </div>
+                      </span>
+                    </label>
                   )}
 
                   {allowsPersonalPortion(type) && isPersonal && (
@@ -7985,12 +8160,12 @@ export function AddTransactionView({
                   {/* Is it a regular payment? */}
                   {type === "expense" && (
                     <>
-                      <div className="figma-toggle-container">
+                      <label className="figma-toggle-container">
                         <div className="figma-toggle-info">
                           <span className="figma-toggle-title">Is it a regular payment?</span>
                           <span className="figma-toggle-desc">Set a due date and reminder alert</span>
                         </div>
-                        <label className="figma-switch">
+                        <span className="figma-switch">
                           <input
                             type="checkbox"
                             checked={isRegularPayment}
@@ -8005,8 +8180,8 @@ export function AddTransactionView({
                             }}
                           />
                           <span className="figma-switch-slider" />
-                        </label>
-                      </div>
+                        </span>
+                      </label>
 
                       {isRegularPayment && (
                         <div className="figma-form-row">
@@ -8047,20 +8222,20 @@ export function AddTransactionView({
                   )}
 
                   {/* Is this a split transaction? */}
-                  <div className="figma-toggle-container">
+                  <label className="figma-toggle-container">
                     <div className="figma-toggle-info">
                       <span className="figma-toggle-title">Is this a split transaction?</span>
                       <span className="figma-toggle-desc">Divide this transaction across multiple categories</span>
                     </div>
-                    <label className="figma-switch">
+                    <span className="figma-switch">
                       <input
                         type="checkbox"
                         checked={isSplit}
                         onChange={(e) => handleSplitToggle(e.target.checked)}
                       />
                       <span className="figma-switch-slider" />
-                    </label>
-                  </div>
+                    </span>
+                  </label>
 
                   {isSplit && (
                     <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#eaecf0"}` }}>

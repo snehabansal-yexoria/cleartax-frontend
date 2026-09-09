@@ -122,12 +122,12 @@ export default function ManualEntryGrid({
 
   return (
     <>
-      <div className="journal-hint is-info">
+      {/* <div className="journal-hint is-info">
         <strong>Enter amounts excluding GST.</strong> The GST code decides the
         tax, which is calculated and shown when the entry is saved. Use{" "}
         <kbd>Tab</kbd> or <kbd>Enter</kbd> to move between cells, or paste rows
         straight from a spreadsheet with <kbd>Ctrl</kbd>+<kbd>V</kbd>.
-      </div>
+      </div> */}
 
       <div className="journal-grid-wrap">
         <table className="journal-grid">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CoreAssetClass, CoreDepreciationMethod } from "@/src/lib/coreApi";
 
 /**
@@ -80,28 +80,86 @@ export function methodLabel(method: CoreDepreciationMethod): string {
   return method === "prime_cost" ? "Prime Cost" : "Diminishing Value";
 }
 
+export function isCapitalWorksCategory(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n.includes("capital work") ||
+    n.includes("capital works") ||
+    n.includes("div 43") ||
+    n.includes("division 43")
+  );
+}
+
+export function isCapitalAllowanceCategory(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n.includes("capital allowance") ||
+    n.includes("div 40") ||
+    n.includes("division 40")
+  );
+}
+
+export function isAssetEligibleCategory(name?: string | null): boolean {
+  return isCapitalWorksCategory(name) || isCapitalAllowanceCategory(name);
+}
+
 type AssetBuilderProps = {
   /** Pre-fills the form when editing an asset that already exists. */
   initial?: Partial<AssetDraft> | null;
   onCancel: () => void;
   onSubmit: (draft: AssetDraft) => void;
+  onAssetClassChange?: (assetClass: CoreAssetClass) => void;
 };
 
 export default function AssetBuilder({
   initial,
   onCancel,
   onSubmit,
+  onAssetClassChange,
 }: AssetBuilderProps) {
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">(
     initial?.assetClass ?? "",
   );
-  const [assetName, setAssetName] = useState(initial?.assetName ?? "");
+  const [assetName, setAssetName] = useState(
+    initial?.assetName ?? (initial?.assetClass === "capital_works" ? "Capital Works" : ""),
+  );
   const [life, setLife] = useState(
-    initial?.effectiveLifeYears ? String(initial.effectiveLifeYears) : "",
+    initial?.assetClass === "capital_works"
+      ? String(CAPITAL_WORKS_EFFECTIVE_LIFE)
+      : initial?.effectiveLifeYears
+        ? String(initial.effectiveLifeYears)
+        : "",
   );
   const [method, setMethod] = useState<CoreDepreciationMethod | "">(
-    initial?.depreciationMethod ?? "",
+    initial?.assetClass === "capital_works"
+      ? "prime_cost"
+      : initial?.depreciationMethod ?? "",
   );
+
+  useEffect(() => {
+    if (initial?.assetClass) {
+      setAssetClass(initial.assetClass);
+      if (initial.assetClass === "capital_works") {
+        setLife(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+        setMethod("prime_cost");
+        if (!assetName || assetName.trim() === "") {
+          setAssetName(initial.assetName || "Capital Works");
+        }
+      } else if (initial.assetClass === "capital_allowance") {
+        if (initial.effectiveLifeYears) {
+          setLife(String(initial.effectiveLifeYears));
+        }
+        if (initial.depreciationMethod) {
+          setMethod(initial.depreciationMethod);
+        }
+        if (initial.assetName) {
+          setAssetName(initial.assetName);
+        }
+      }
+    }
+  }, [initial]);
 
   const lifeYears = Number.parseFloat(life);
   const lifeIsValid = Number.isFinite(lifeYears) && lifeYears > 0 && lifeYears <= 100;
@@ -147,6 +205,7 @@ export default function AssetBuilder({
             setLife(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
             setMethod("prime_cost");
             if (assetName === "") setAssetName("Capital Works");
+            onAssetClassChange?.("capital_works");
           }}
         >
           <div className="figma-asset-class-icon">
@@ -172,6 +231,7 @@ export default function AssetBuilder({
             if (assetName === "Capital Works") setAssetName("");
             setLife("");
             setMethod("");
+            onAssetClassChange?.("capital_allowance");
           }}
         >
           <div className="figma-asset-class-icon">
