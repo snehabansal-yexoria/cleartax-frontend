@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import { CORE_DOCUMENTS_TIMEOUT_MS, coreApiRequest } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type ExtractResponse = {
@@ -33,6 +33,8 @@ export async function POST(req: Request) {
       method: "POST",
       token,
       body,
+      // Bedrock extraction runs inside the documents handler's 60s budget.
+      timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS,
     });
     return NextResponse.json(payload);
   } catch (error) {

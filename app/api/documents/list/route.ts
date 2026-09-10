@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import { CORE_DOCUMENTS_TIMEOUT_MS, coreApiRequest } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 export async function GET(req: Request) {
@@ -14,7 +14,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    const payload = await coreApiRequest(`/api/documents?${qs.toString()}`, { token });
+    const payload = await coreApiRequest(`/api/documents?${qs.toString()}`, {
+      token,
+      timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS,
+    });
     return NextResponse.json(payload);
   } catch (error) {
     return renderUpstreamError("GET /api/documents/list", error);

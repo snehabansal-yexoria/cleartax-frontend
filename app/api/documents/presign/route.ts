@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import { CORE_DOCUMENTS_TIMEOUT_MS, coreApiRequest } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type PresignResponse = {
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   try {
     const payload = await coreApiRequest<PresignResponse>(
       `/api/presign?${qs.toString()}`,
-      { token },
+      { token, timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS },
     );
     return NextResponse.json(payload);
   } catch (error) {

@@ -1,17 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  createCoreProperty,
-  getCoreEntity,
-  listCoreProperties,
-} from "@/src/lib/coreApi";
-
-function getBearerToken(req: Request) {
-  const header = req.headers.get("authorization");
-  if (!header) return null;
-  const [scheme, value] = header.split(" ");
-  if (scheme?.toLowerCase() !== "bearer" || !value) return null;
-  return value;
-}
+import { createCoreProperty, listCoreProperties } from "@/src/lib/coreApi";
+import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -26,10 +15,9 @@ export async function GET(req: Request, context: RouteContext) {
     const items = await listCoreProperties(token, id);
     return NextResponse.json({ items });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to list properties";
-    console.error(`GET /api/entities/${id}/properties error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    // Forward the upstream status rather than flattening everything to 502, so
+    // a 401/403/404 reaches the page as what it is.
+    return renderUpstreamError(`GET /api/entities/${id}/properties`, error);
   }
 }
 
@@ -48,19 +36,15 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   try {
-    const requestBody = body as Record<string, unknown>;
-    const entity = await getCoreEntity(token, id);
-
+    // createCoreProperty already authorises against the entity upstream; the
+    // extra getCoreEntity round trip that used to sit here bought nothing.
     const property = await createCoreProperty(
       token,
       id,
-      requestBody,
+      body as Record<string, unknown>,
     );
     return NextResponse.json(property, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create property";
-    console.error(`POST /api/entities/${id}/properties error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`POST /api/entities/${id}/properties`, error, body);
   }
 }

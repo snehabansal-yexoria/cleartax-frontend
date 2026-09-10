@@ -6,7 +6,22 @@ type CoreApiRequestOptions = {
   method?: CoreApiMethod;
   token?: string;
   body?: unknown;
+  /**
+   * Hard cap on the upstream round trip. Defaults to DEFAULT_CORE_TIMEOUT_MS;
+   * routes that proxy a slower Go handler (documents: 60s) pass a longer one.
+   */
+  timeoutMs?: number;
 };
+
+/**
+ * Longer than the longest common Go handler timeout (30s) so the backend's own
+ * 504 wins whenever it can; this is a backstop for a hung socket, not the
+ * primary deadline.
+ */
+export const DEFAULT_CORE_TIMEOUT_MS = 35_000;
+
+/** For routes proxying the documents handler, whose Go timeout is 60s. */
+export const CORE_DOCUMENTS_TIMEOUT_MS = 65_000;
 
 type RawRecord = Record<string, unknown>;
 
@@ -51,6 +66,18 @@ export type CoreBeneficiary = {
   position?: number;
 };
 
+/**
+ * The regional manager assigned to an entity. Not part of the core API's
+ * entity shape: the BFF (`app/api/entities/[id]/route.ts`) reads it from the
+ * frontend's direct DB connection and grafts it on.
+ */
+export type CoreRegionalManager = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export type CoreEntity = {
   id: string;
   orgId: string;
@@ -68,6 +95,12 @@ export type CoreEntity = {
   trustType?: string;
   propertiesCount: number;
   transactionsCount: number;
+  /**
+   * Present only on responses from the entity BFF (`GET/PATCH
+   * /api/entities/{id}`); `null` there means nobody is assigned. Absent on
+   * everything that comes straight from the core API.
+   */
+  regionalManager?: CoreRegionalManager | null;
 };
 
 export type CorePropertyOwner = {
@@ -330,9 +363,50 @@ function readStringField(payload: unknown, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function errorName(error: unknown): string {
+  return typeof error === "object" && error !== null && "name" in error
+    ? String((error as { name?: unknown }).name)
+    : "";
+}
+
+function errorCauseMessage(error: unknown): string {
+  const cause =
+    typeof error === "object" && error !== null && "cause" in error
+      ? (error as { cause?: unknown }).cause
+      : undefined;
+  return cause instanceof Error ? cause.message : "";
+}
+
+/**
+ * A fetch that never produced a response — the socket timed out or the host
+ * was unreachable — as a CoreApiError, so renderUpstreamError returns
+ * structured JSON instead of a bare 502 with the raw error text.
+ */
+function toUpstreamFailure(
+  error: unknown,
+  method: string,
+  path: string,
+  timeoutMs: number,
+): CoreApiError {
+  const timedOut = errorName(error) === "TimeoutError";
+  const cause = errorCauseMessage(error);
+  return new CoreApiError({
+    status: 504,
+    statusText: "Gateway Timeout",
+    code: timedOut ? "upstream_timeout" : "upstream_unreachable",
+    upstreamMessage: timedOut
+      ? `The core API did not respond within ${Math.round(timeoutMs / 1000)}s.`
+      : `Could not reach the core API${cause ? ` (${cause})` : ""}.`,
+    bodyExcerpt: "",
+    method,
+    path,
+    payload: null,
+  });
+}
+
 export async function coreApiRequest<T = unknown>(
   path: string,
-  { method = "GET", token, body }: CoreApiRequestOptions = {},
+  { method = "GET", token, body, timeoutMs }: CoreApiRequestOptions = {},
 ) {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -346,14 +420,24 @@ export async function coreApiRequest<T = unknown>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${getCoreApiBaseUrl()}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  const timeout = timeoutMs ?? DEFAULT_CORE_TIMEOUT_MS;
+  let response: Response;
+  let text: string;
+  try {
+    response = await fetch(`${getCoreApiBaseUrl()}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeout),
+    });
+    // The signal also covers reading the body: a server that sends headers and
+    // then stalls would otherwise hang here past the deadline.
+    text = await response.text();
+  } catch (error) {
+    throw toUpstreamFailure(error, method, path, timeout);
+  }
 
-  const text = await response.text();
   let payload: unknown = null;
   let parseError: Error | null = null;
   if (text) {
@@ -2096,6 +2180,92 @@ export async function getCorePnlSummaryByProperty(
   return normalizeCorePnlSummary(getJsonObject(payload));
 }
 
+// ---------------------------------------------------------------------------
+// P&L trend (monthly income / expenses across one financial year)
+// ---------------------------------------------------------------------------
+
+/** One calendar month of the trend. `month` is "YYYY-MM". */
+export type CorePnlTrendMonth = {
+  month: string;
+  income: number;
+  expenses: number;
+  /** income - expenses; signed, negative is a loss. */
+  netResult: number;
+};
+
+/**
+ * GET /entities/{id}/pnl-trend. Shares the statement's row eligibility
+ * server-side (money grain, revenue/expense only, rejected rows excluded), so
+ * a month here foots to the P&L statement for the same window. Always twelve
+ * rows, July to June, zero-filled.
+ */
+export type CorePnlTrend = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CorePnlPeriod;
+  /** Always "invoice_date": accruals basis, like the statement. */
+  dateBasis: string;
+  months: CorePnlTrendMonth[];
+  totals: { income: number; expenses: number; netResult: number };
+  /** FY end-years with any eligible row, newest first. */
+  availableFinancialYears: number[];
+  transactionCount: number;
+};
+
+function toPnlTrendMonths(value: unknown): CorePnlTrendMonth[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((raw) => ({
+      month: toStringValue(raw.month),
+      income: toFloatValue(raw.income),
+      expenses: toFloatValue(raw.expenses),
+      netResult: toFloatValue(raw.net_result ?? raw.netResult),
+    }));
+}
+
+export function normalizeCorePnlTrend(raw: RawRecord): CorePnlTrend {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const totals = (raw.totals ?? {}) as RawRecord;
+  const yearsRaw =
+    raw.available_financial_years ?? raw.availableFinancialYears;
+  const availableFinancialYears = Array.isArray(yearsRaw)
+    ? yearsRaw
+        .map((y) => toNumberValue(y))
+        .filter((y): y is number => y !== null)
+    : [];
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: toPnlPeriod(raw.period),
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    months: toPnlTrendMonths(raw.months),
+    totals: {
+      income: toFloatValue(totals.income),
+      expenses: toFloatValue(totals.expenses),
+      netResult: toFloatValue(totals.net_result ?? totals.netResult),
+    },
+    availableFinancialYears,
+    transactionCount:
+      toNumberValue(raw.transaction_count ?? raw.transactionCount) ?? 0,
+  };
+}
+
+export async function getCorePnlTrendByEntity(
+  token: string,
+  entityId: string,
+  financialYear?: number,
+) {
+  const qs = financialYear ? `?financial_year=${financialYear}` : "";
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/pnl-trend${qs}`,
+    { token },
+  );
+  return normalizeCorePnlTrend(getJsonObject(payload));
+}
+
 // -----------------------------------------------------------------------------
 // Personal (private-use) spending summary
 // -----------------------------------------------------------------------------
@@ -2695,6 +2865,11 @@ export type ReconciliationSession = {
   periodTo: string | null;
   status: ReconciliationSessionStatus;
   statementCount: number;
+  /**
+   * Free-text name of the bank account being reconciled (migration 0047).
+   * `null` on a backend that predates the column, so render it as "—".
+   */
+  accountAffected: string | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -2706,6 +2881,7 @@ export type ReconciliationSessionDetail = ReconciliationSession & {
 
 function normalizeReconciliationSession(raw: RawRecord): ReconciliationSession {
   const status = raw.status === "completed" ? "completed" : "open";
+  const accountAffectedRaw = raw.account_affected ?? raw.accountAffected ?? null;
   return {
     id: String(raw.id ?? ""),
     entityId: String(raw.entity_id ?? raw.entityId ?? ""),
@@ -2713,6 +2889,10 @@ function normalizeReconciliationSession(raw: RawRecord): ReconciliationSession {
     periodFrom: raw.period_from != null ? String(raw.period_from) : null,
     periodTo: raw.period_to != null ? String(raw.period_to) : null,
     status,
+    accountAffected:
+      accountAffectedRaw != null && String(accountAffectedRaw) !== ""
+        ? String(accountAffectedRaw)
+        : null,
     statementCount: Number(raw.statement_count ?? raw.statementCount ?? 0),
     createdAt: String(raw.created_at ?? raw.createdAt ?? ""),
     updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ""),
@@ -2736,7 +2916,12 @@ export async function listReconciliationSessions(
 export async function createReconciliationSession(
   token: string,
   entityId: string,
-  body: { label: string; periodFrom?: string | null; periodTo?: string | null },
+  body: {
+    label: string;
+    periodFrom?: string | null;
+    periodTo?: string | null;
+    accountAffected?: string | null;
+  },
 ): Promise<ReconciliationSession> {
   const payload = await coreApiRequest(
     `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`,
@@ -2747,6 +2932,9 @@ export async function createReconciliationSession(
         label: body.label,
         period_from: body.periodFrom ?? null,
         period_to: body.periodTo ?? null,
+        // Ignored by a Go binary that predates migration 0047 (unknown JSON
+        // keys are dropped), so this is safe to ship ahead of the backend.
+        account_affected: body.accountAffected ?? null,
       },
     },
   );
@@ -2781,6 +2969,7 @@ export async function updateReconciliationSession(
     periodFrom?: string | null;
     periodTo?: string | null;
     status?: ReconciliationSessionStatus;
+    accountAffected?: string | null;
   },
 ): Promise<ReconciliationSession> {
   const reqBody: Record<string, unknown> = {};
@@ -2788,6 +2977,9 @@ export async function updateReconciliationSession(
   if (body.periodFrom !== undefined) reqBody.period_from = body.periodFrom;
   if (body.periodTo !== undefined) reqBody.period_to = body.periodTo;
   if (body.status !== undefined) reqBody.status = body.status;
+  if (body.accountAffected !== undefined) {
+    reqBody.account_affected = body.accountAffected;
+  }
   const payload = await coreApiRequest(
     `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}`,
     { method: "PATCH", token, body: reqBody },

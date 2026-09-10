@@ -2741,16 +2741,6 @@ p.darkBg {
   max-width: none;
 }
 
-@keyframes accountantFadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
 @keyframes accountantDrawerSlideIn {
   from {
     opacity: 0;
@@ -6206,82 +6196,6 @@ p.darkBg {
   justify-content: center;
 }
 
-@keyframes entitySuccessPop {
-  0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.82);
-  }
-
-  70% {
-    opacity: 1;
-    transform: translateY(0) scale(1.035);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes entitySuccessBadgePulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  45% {
-    transform: scale(1.025);
-  }
-}
-
-@keyframes entitySuccessAccent {
-  0% {
-    opacity: 0;
-    scale: 0.62;
-  }
-
-  70% {
-    opacity: 1;
-    scale: 1.05;
-  }
-
-  100% {
-    opacity: 0.92;
-    scale: 1;
-  }
-}
-
-@keyframes entitySuccessHalo {
-  0% {
-    opacity: 0;
-    transform: scale(0.74);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes entitySuccessGlow {
-  0% {
-    opacity: 0;
-    transform: scale(0.78);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes entitySuccessDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
 /* ---- responsive ---- */
 
 @media (max-width: 1023px) {
@@ -6565,7 +6479,7 @@ p.darkBg {
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: transform var(--t-base), box-shadow var(--t-base);
 }
 
 .client-stat-card:hover {
@@ -6658,7 +6572,7 @@ p.darkBg {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.18s ease;
+  transition: color var(--t-base);
 }
 
 .client-portfolio-tabs button::after,
@@ -6670,7 +6584,7 @@ p.darkBg {
   bottom: -1px;
   height: 2px;
   background: transparent;
-  transition: background 0.22s ease, width 0.22s ease;
+  transition: background var(--t-base), width var(--t-base);
 }
 
 .client-portfolio-tabs button.is-active,
@@ -6681,6 +6595,13 @@ p.darkBg {
 .client-portfolio-tabs button.is-active::after,
 .entity-resource-tabs button.is-active::after {
   background: #28336e;
+}
+
+/* Inset so the horizontally scrolling tab strip cannot clip the ring. */
+.entity-resource-tabs button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -4px;
+  border-radius: 6px;
 }
 
 .entity-tab-alpha-badge {
@@ -11159,16 +11080,24 @@ html.dark .transaction-document-drop__bottom-bar {
   background: #f3f4f7;
 }
 
-.entity-trend-toggle span {
+.entity-trend-toggle button {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   padding: 12px 18px;
+  border: 0;
   border-radius: 8px;
+  background: transparent;
   color: #475467;
+  font-family: inherit;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.entity-trend-toggle button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .entity-trend-toggle .is-active {
@@ -11436,7 +11365,7 @@ html.dark .transaction-document-drop__bottom-bar {
 
 .entity-resource-body {
   padding: 32px 32px 38px;
-  animation: accountantFadeIn 0.18s ease;
+  animation: accountantFadeIn var(--t-base);
 }
 
 
@@ -14078,7 +14007,7 @@ html.dark .transaction-document-drop__bottom-bar {
   color: #475467;
   flex-shrink: 0;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background var(--t-slow), box-shadow var(--t-slow), color var(--t-slow);
 }
 
 .entity-rm-avatar-wrapper.is-assigned {
@@ -16955,7 +16884,7 @@ input:checked+.slider:before {
   color: #ffffff;
   border: 1px solid var(--primary);
   background: var(--primary);
-  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
 }
 
 .entity-wizard-primary:not(:disabled):hover,
@@ -18018,7 +17947,7 @@ input:checked+.slider:before {
   max-width: 0;
   overflow: hidden;
   white-space: nowrap;
-  transition: opacity 250ms ease, max-width 250ms ease, padding 250ms ease, margin-left 250ms ease;
+  transition: opacity var(--t-slow), max-width var(--t-slow), padding var(--t-slow), margin-left var(--t-slow);
 }
 
 .entity-disabled-badge.is-visible {
@@ -18054,7 +17983,7 @@ input:checked+.slider:before {
   opacity: 0;
   max-height: 0;
   overflow: hidden;
-  transition: opacity 300ms ease, max-height 300ms ease, padding 300ms ease, margin-bottom 300ms ease, border-width 300ms ease;
+  transition: opacity var(--t-slow), max-height var(--t-slow), padding var(--t-slow), margin-bottom var(--t-slow), border-width var(--t-slow);
 }
 
 .entity-disabled-notice.is-visible {
@@ -18098,7 +18027,7 @@ input:checked+.slider:before {
   cursor: pointer;
   font-family: inherit;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: all 150ms ease;
+  transition: border-color var(--t-fast), background var(--t-fast);
 }
 
 .entity-enable-toggle:disabled {
@@ -18120,7 +18049,7 @@ input:checked+.slider:before {
   color: #64748b;
   white-space: nowrap;
   pointer-events: auto;
-  transition: color 150ms ease;
+  transition: color var(--t-fast);
 }
 
 .entity-enable-toggle:hover:not(:disabled) {
@@ -18146,7 +18075,7 @@ input:checked+.slider:before {
   width: 46px;
   height: 26px;
   padding: 3px;
-  transition: background 200ms ease;
+  transition: background var(--t-base);
 }
 
 .entity-enable-toggle .rule-toggle i {
@@ -18232,7 +18161,7 @@ input:checked+.slider:before {
   color: #475467;
   white-space: nowrap;
   pointer-events: auto;
-  transition: color 250ms ease-in-out;
+  transition: color var(--t-slow);
 }
 
 .entity-property-row .entity-enable-toggle[aria-pressed="true"] .entity-enable-toggle-label {
@@ -21235,4 +21164,637 @@ html.dark .transaction-field-hint {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+/* ── Entity detail page: stat cards, GST cards, panels, asset table, RM card, region errors ── */
+
+/* Skeleton additions. These sit after the base .skeleton-line rule so the
+   heights override it; the base rule owns the shimmer background, so it is
+   not redefined here. */
+.skeleton-stat-value {
+  display: block;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.skeleton-text {
+  display: inline-block;
+  vertical-align: middle;
+  height: 0.8em;
+}
+
+.skeleton-panel-rows {
+  gap: 12px;
+}
+
+.skeleton-panel-rows .skeleton-line {
+  display: block;
+  margin: 3px 0;
+}
+
+.skeleton-row-between {
+  justify-content: space-between;
+}
+
+.skeleton-table-row .skeleton-line {
+  display: block;
+}
+
+.entity-header-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.entity-tabpanel[hidden] {
+  display: none;
+}
+
+/* Region error: one request failed, the rest of the page is unaffected. */
+.region-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed #fda29b;
+  border-radius: 10px;
+  background: #fef3f2;
+  color: #b42318;
+  font-size: 14px;
+}
+
+.region-error svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  stroke: #f04438;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.region-error p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.region-error.is-compact {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.region-error-retry {
+  font: inherit;
+  font-weight: 700;
+  color: #b42318;
+  background: transparent;
+  border: 1px solid #fda29b;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.region-error.is-compact .region-error-retry {
+  padding: 1px 6px;
+}
+
+.region-error-retry:hover {
+  background: #fee4e2;
+}
+
+.region-error-retry:focus-visible {
+  outline: 2px solid #d92d20;
+  outline-offset: 2px;
+}
+
+/* Grids. The page's vertical rhythm comes from .client-detail-page's gap. */
+.entity-stat-grid {
+  margin: 0;
+}
+
+.entity-gst-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.entity-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+
+  .entity-gst-grid,
+  .entity-panel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Stat cards (compact variant used by the entity page). */
+.client-stat-card.is-compact {
+  justify-content: space-between;
+}
+
+.client-stat-card.is-compact .client-stat-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.client-stat-card.is-compact .client-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #454a55;
+}
+
+.client-stat-card.is-compact .client-stat-value {
+  display: block;
+  margin-top: 4px;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 800;
+  color: #000000;
+}
+
+.client-stat-card.is-compact .client-stat-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #667085;
+}
+
+.client-stat-card.is-compact .client-stat-period {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.client-stat-card.is-compact .client-stat-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.client-stat-icon.is-value {
+  background: #fef0c7;
+  color: #d97706;
+}
+
+.client-stat-icon.is-gst-purchases {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.client-stat-icon.is-gst-sales {
+  background: #12b76a;
+  color: #ffffff;
+}
+
+.client-stat-info {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #98a2b3;
+  cursor: help;
+}
+
+.client-stat-info svg {
+  width: 14px;
+  height: 14px;
+}
+
+.client-stat-info:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* GST cards: same card, different tint. */
+.client-stat-card.is-gst-purchases {
+  border-color: #fee2e2;
+  background: #fef2f2;
+}
+
+.client-stat-card.is-gst-sales {
+  border-color: #dcfce7;
+  background: #f0fdf4;
+}
+
+.client-stat-card.is-gst-purchases .client-stat-label,
+.client-stat-card.is-gst-purchases .client-stat-period {
+  color: #b91c1c;
+}
+
+.client-stat-card.is-gst-sales .client-stat-label,
+.client-stat-card.is-gst-sales .client-stat-period {
+  color: #15803d;
+}
+
+.client-stat-card.is-gst-purchases .client-stat-label,
+.client-stat-card.is-gst-sales .client-stat-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Collapsible panels (Personal / Asset). */
+.entity-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.entity-panel-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
+}
+
+.entity-panel-toggle.is-skeleton {
+  cursor: default;
+}
+
+.entity-panel-toggle:hover {
+  border-color: #b9c2d4;
+  background: #fbfcfe;
+}
+
+.entity-panel-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.entity-panel-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  flex: 0 0 auto;
+}
+
+.entity-panel-toggle-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.entity-panel-toggle.is-personal .entity-panel-toggle-icon {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.entity-panel-toggle.is-asset .entity-panel-toggle-icon {
+  background: #fdf4e3;
+  color: #c27a00;
+}
+
+.entity-panel-toggle-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.entity-panel-toggle-copy strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.entity-panel-toggle-copy span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: #667085;
+}
+
+.entity-panel-toggle-chevron {
+  width: 16px;
+  height: 16px;
+  color: #667085;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--t-base);
+}
+
+.entity-panel-toggle[aria-expanded="true"] .entity-panel-toggle-chevron {
+  transform: rotate(90deg);
+}
+
+.entity-panel-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--t-base);
+}
+
+.entity-panel-body.is-open {
+  grid-template-rows: 1fr;
+}
+
+.entity-panel-body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.entity-panel-card {
+  margin-top: 12px;
+  padding: 24px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.entity-panel-card.is-table {
+  overflow-x: auto;
+}
+
+.entity-panel-heading {
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f2f4f7;
+  font-size: 14px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.entity-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.entity-panel-list-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #344054;
+}
+
+.entity-panel-list-row strong {
+  font-weight: 600;
+  color: #101828;
+}
+
+.entity-panel-list-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #eaecf0;
+  font-size: 14px;
+  color: #101828;
+}
+
+.entity-panel-list-total strong:last-child {
+  font-weight: 800;
+}
+
+.entity-panel-footer {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #eaecf0;
+  font-size: 13px;
+  color: #667085;
+}
+
+.entity-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: #28336e;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.entity-link-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Asset purchases table. */
+.entity-asset-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  min-width: 450px;
+}
+
+.entity-asset-table th {
+  padding: 12px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #828fa7;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #eef2f6;
+}
+
+.entity-asset-table th.is-numeric,
+.entity-asset-table td.is-numeric {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.entity-asset-table td {
+  padding: 16px 8px;
+  font-size: 13px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.entity-asset-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.entity-asset-table tbody tr.is-clickable {
+  cursor: pointer;
+  transition: background-color var(--t-fast);
+}
+
+.entity-asset-table tbody tr.is-clickable:hover {
+  background-color: #f8fafc;
+}
+
+.entity-asset-table tbody tr:has(.entity-asset-link:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.entity-asset-link {
+  color: #28336e;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.entity-asset-link:hover {
+  text-decoration: underline;
+}
+
+.entity-asset-amount {
+  color: #28336e;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.entity-asset-amount.is-empty {
+  color: #94a3b8;
+}
+
+.entity-asset-table .entity-property-chevron-link {
+  display: inline-flex;
+}
+
+/* Regional manager card. */
+.entity-rm-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.entity-rm-alert-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.entity-rm-alert-dismiss {
+  background: none;
+  border: 0;
+  padding: 4px;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  display: flex;
+  transition: opacity var(--t-fast);
+}
+
+.entity-rm-alert-dismiss:hover,
+.entity-rm-alert-dismiss:focus-visible {
+  opacity: 1;
+}
+
+.entity-rm-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #f2f4f7;
+  border-radius: 8px;
+  background: transparent;
+  color: #667085;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-base), border-color var(--t-base), color var(--t-base);
+}
+
+.entity-rm-remove-btn:hover:not(:disabled) {
+  background: #fef3f2;
+  border-color: #fee4e2;
+  color: #d92d20;
+}
+
+.entity-rm-remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.entity-rm-remove-btn:focus-visible {
+  outline: 2px solid #d92d20;
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion (global). Keep this the LAST rule in the file. ──
+   0.01ms rather than 0 so transitionend/animationend still fire. The
+   toggle spinner is status, not decoration, so it keeps moving; skeletons
+   become a flat tone instead of a shimmer. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  .entity-toggle-spinner,
+  .entity-toggle-spinner circle {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .skeleton-line,
+  .skeleton-circle,
+  .skeleton-pill,
+  .skeleton-input,
+  .skeleton-panel,
+  .skeleton-tab,
+  .skeleton-chart-column span,
+  .skeleton-card-footer {
+    animation: none !important;
+    background: #edf1f8 !important;
+  }
+
+  .m-db-net-card .skeleton-line,
+  .m-db-net-card .skeleton-circle,
+  .m-db-net-card .skeleton-pill,
+  .m-db-net-card .skeleton-input,
+  .m-db-net-card .skeleton-panel {
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
 }

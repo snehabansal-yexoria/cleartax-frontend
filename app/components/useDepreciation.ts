@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSession } from "@/src/lib/session";
+import { getIdToken } from "@/src/lib/authToken";
 import type {
   CoreDepreciationList,
   CoreDepreciationSchedule,
@@ -20,15 +20,9 @@ import type {
  * and stored — the same rows the generated PDF is rendered from.
  */
 
-interface SessionWithIdToken {
-  getIdToken(): { getJwtToken(): string };
-}
-
-async function bearerToken(): Promise<string> {
-  const session = (await getSession()) as SessionWithIdToken | null;
-  const token = session?.getIdToken().getJwtToken();
-  if (!token) throw new Error("Your session has expired. Please sign in again.");
-  return token;
+// One memoised, deduplicated token for every panel on a page — see authToken.ts.
+function bearerToken(): Promise<string> {
+  return getIdToken();
 }
 
 function scopePath(level: CoreDepreciationScopeLevel, id: string): string {
@@ -69,7 +63,8 @@ export function useDepreciation(
   const fy = options.fy ?? null;
 
   const [data, setData] = useState<CoreDepreciationList | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // Loading from the first frame whenever a fetch will happen (see useGstSummary).
+  const [isLoading, setIsLoading] = useState(() => enabled && !!id);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -189,7 +184,7 @@ export function useDepreciationSchedule(
   const enabled = options.enabled ?? true;
 
   const [schedule, setSchedule] = useState<CoreDepreciationSchedule | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => enabled && !!scheduleId);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {

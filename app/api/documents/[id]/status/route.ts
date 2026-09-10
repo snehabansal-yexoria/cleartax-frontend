@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import { CORE_DOCUMENTS_TIMEOUT_MS, coreApiRequest } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type StatusResponse = {
@@ -36,7 +36,7 @@ export async function POST(
   try {
     const payload = await coreApiRequest<StatusResponse>(
       `/api/documents/${encodeURIComponent(id)}/status`,
-      { method: "POST", token, body },
+      { method: "POST", token, body, timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS },
     );
     return NextResponse.json(payload);
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TableRowsSkeleton } from "@/app/components/PortalSkeletons";
 import type {
   CoreJournalEntry,
   CoreJournalEntrySummary,
@@ -230,13 +231,7 @@ export default function JournalEntriesList({
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={11} className="transactions-empty-state">
-                  Loading journal entries…
-                </td>
-              </tr>
-            )}
+            {isLoading && <TableRowsSkeleton rows={4} columns={11} />}
 
             {!isLoading && items.length === 0 && (
               <tr>

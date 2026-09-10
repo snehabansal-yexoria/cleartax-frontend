@@ -35,7 +35,12 @@ export async function POST(
   }
   const { id: entityId } = await params;
 
-  let body: { label?: string; periodFrom?: string | null; periodTo?: string | null };
+  let body: {
+    label?: string;
+    periodFrom?: string | null;
+    periodTo?: string | null;
+    accountAffected?: string | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -44,12 +49,28 @@ export async function POST(
   if (!body.label || typeof body.label !== "string" || !body.label.trim()) {
     return NextResponse.json({ error: "label is required" }, { status: 400 });
   }
+  // Optional. 120 matches the column (migration 0047) and the form's maxLength.
+  if (body.accountAffected != null) {
+    if (typeof body.accountAffected !== "string") {
+      return NextResponse.json(
+        { error: "accountAffected must be a string" },
+        { status: 400 },
+      );
+    }
+    if (body.accountAffected.trim().length > 120) {
+      return NextResponse.json(
+        { error: "accountAffected must be 120 characters or fewer" },
+        { status: 400 },
+      );
+    }
+  }
 
   try {
     const session = await createReconciliationSession(token, entityId, {
       label: body.label.trim(),
       periodFrom: body.periodFrom ?? null,
       periodTo: body.periodTo ?? null,
+      accountAffected: body.accountAffected?.trim() || null,
     });
     return NextResponse.json(session, { status: 201 });
   } catch (error) {

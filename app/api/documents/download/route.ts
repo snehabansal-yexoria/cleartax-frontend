@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import { CORE_DOCUMENTS_TIMEOUT_MS, coreApiRequest } from "@/src/lib/coreApi";
 import { getRequestToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 // Serves document/property images referenced by their raw S3 key, e.g.
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   try {
     const payload = (await coreApiRequest(
       `/api/documents/download?key=${encodeURIComponent(key)}`,
-      { token },
+      { token, timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS },
     )) as { download_url?: string };
 
     if (!payload?.download_url) {
