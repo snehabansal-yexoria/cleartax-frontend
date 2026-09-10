@@ -8012,11 +8012,12 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
   stroke: currentColor;
 }
 
-/* Year 1 Depreciation cell in the All Transactions grid.
+/* Depreciation in the All Transactions grid: the This FY cell, and the
+   "Year 1" marker under a Gross/Net amount that is the year-one deduction
+   rather than the purchase price (gridAmounts).
 
-   Deliberately quieter than the Gross/Net columns: it is a derived deduction,
-   not money that moved, and it must not compete with the amount that has to
-   reconcile against the bank statement. */
+   Deliberately quieter than the amount itself: it is a derived deduction, not
+   money that moved. */
 .transaction-depreciation {
   display: inline-flex;
   flex-direction: column;
@@ -8029,6 +8030,12 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
   font-size: 0.6875rem;
   opacity: 0.62;
   white-space: nowrap;
+}
+
+/* Sits beneath the substituted figure rather than beside it, so the marker
+   never widens the amount column. */
+.transaction-amount-note {
+  display: block;
 }
 
 /* An asset whose schedule has not been generated. Distinct from a blank cell

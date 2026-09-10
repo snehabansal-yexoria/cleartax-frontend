@@ -13,7 +13,6 @@ import {
   type AsyncRegion,
 } from "@/app/components/useAsyncRegion";
 import { useGstSummary } from "@/app/components/useGstSummary";
-import { useFirstYearDepreciation } from "@/app/components/useDepreciation";
 import {
   useAssetTransactions,
   usePersonalSummary,
@@ -259,8 +258,8 @@ export default function EntityDetailView({
     gst.reload,
   );
 
-  // Collapsed panels load on first expansion. The depreciation read can heal
-  // schedules for up to ten seconds on the backend, so it must stay lazy.
+  // Collapsed panels load on first expansion, so an unopened panel costs the
+  // page nothing.
   const personal = usePersonalSummary("entity", entityId, { enabled: personalOpened });
   const personalRegion = personalOpened
     ? toRegion(personal.isLoading, personal.error, personal.summary, personal.reload)
@@ -273,11 +272,6 @@ export default function EntityDetailView({
   const assetsRegion = assetOpened
     ? toRegion(assets.isLoading, assets.error, { rows: assets.rows, total: assets.total }, assets.reload)
     : idleRegion<{ rows: CoreTransactionListItem[]; total: number }>();
-
-  const assetFirstYear = useFirstYearDepreciation("entity", entityId, { enabled: assetOpened });
-  const depreciationRegion = assetOpened
-    ? toRegion(assetFirstYear.isLoading, assetFirstYear.error, assetFirstYear.byTransactionId, () => {})
-    : idleRegion<typeof assetFirstYear.byTransactionId>();
 
   // Wave 2. Until the user picks a year, an empty current year yields to the
   // latest year with data, which is what the card has always defaulted to.
@@ -481,7 +475,6 @@ export default function EntityDetailView({
           />
           <AssetPanel
             assets={assetsRegion}
-            depreciation={depreciationRegion}
             assetHrefBase={assetHrefBase}
             expanded={isAssetExpanded}
             onToggle={() => {

@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { TableRowsSkeleton, TextSkeleton } from "@/app/components/PortalSkeletons";
+import { TableRowsSkeleton } from "@/app/components/PortalSkeletons";
 import { RegionError } from "@/app/components/ui/RegionError";
 import type { AsyncRegion } from "@/app/components/useAsyncRegion";
-import type { FirstYearDeduction } from "@/app/components/useDepreciation";
 import { assetItemName } from "@/app/components/usePersonalAndAssetTransactions";
 import { formatCurrency } from "@/src/lib/currency";
 import { formatDateAU } from "@/src/lib/dates";
@@ -21,8 +20,6 @@ export type AssetPanelData = {
 
 export type AssetPanelProps = {
   assets: AsyncRegion<AssetPanelData>;
-  /** Year-one deductions keyed by transaction id, from the schedules. */
-  depreciation: AsyncRegion<Map<string, FirstYearDeduction>>;
   /** `${assetHrefBase}/${transactionId}` opens the asset. */
   assetHrefBase: string;
   expanded: boolean;
@@ -39,7 +36,6 @@ const icon = (
 
 export default function AssetPanel({
   assets,
-  depreciation,
   assetHrefBase,
   expanded,
   onToggle,
@@ -48,7 +44,6 @@ export default function AssetPanel({
   const router = useRouter();
   const rows = useMemo(() => assets.data?.rows ?? [], [assets.data]);
   const total = assets.data?.total ?? 0;
-  const deductions = depreciation.data;
   const href = (id: string) => `${assetHrefBase}/${encodeURIComponent(id)}`;
 
   let body: React.ReactNode;
@@ -74,12 +69,8 @@ export default function AssetPanel({
               <th scope="col">Property</th>
               <th scope="col">Asset Name</th>
               <th scope="col">Date</th>
-              <th
-                scope="col"
-                className="is-numeric"
-                title="First-year depreciation from the asset's schedule, not the purchase price"
-              >
-                Year 1 Depreciation
+              <th scope="col" className="is-numeric">
+                Amount
               </th>
               <th scope="col" style={{ width: 24 }}>
                 <span className="sr-only">Open</span>
@@ -91,7 +82,9 @@ export default function AssetPanel({
               <TableRowsSkeleton rows={3} columns={5} />
             ) : (
               rows.map((t) => {
-                const deduction = deductions?.get(t.id) ?? null;
+                // The purchase price, signed as money out. The year-one
+                // deduction is quoted on the All Transactions grid and in the
+                // depreciation module, not in this panel.
                 const purchase = formatCurrency(-(t.grossAmount ?? 0));
                 const name = assetItemName(t);
                 const to = href(t.id);
@@ -111,24 +104,7 @@ export default function AssetPanel({
                       </Link>
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>{formatDateAU(t.invoiceDate)}</td>
-                    <td
-                      className={`is-numeric entity-asset-amount${deduction ? "" : " is-empty"}`}
-                      title={
-                        deduction
-                          ? `${deduction.fyLabel} · purchased for ${purchase}`
-                          : depreciation.status === "error"
-                            ? `Year 1 depreciation could not be loaded: ${depreciation.error}`
-                            : "No depreciation schedule generated for this asset yet"
-                      }
-                    >
-                      {isPending(depreciation.status) ? (
-                        <TextSkeleton width={64} />
-                      ) : deduction ? (
-                        formatCurrency(-deduction.amount)
-                      ) : (
-                        "—"
-                      )}
-                    </td>
+                    <td className="is-numeric entity-asset-amount">{purchase}</td>
                     <td className="is-numeric">
                       <Link
                         href={to}

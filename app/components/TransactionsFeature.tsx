@@ -81,14 +81,70 @@ export type TransactionsContext =
 type TransactionTableScope = "global" | "client" | "entity";
 
 /**
- * The Year 1 Depreciation cell.
+ * What the grid prints in Gross, GST and Net for one row.
  *
- * Gross deliberately stays the full purchase price: it is the money that left
- * the bank, it has to reconcile against the statement line, and it IS the
- * depreciable cost base the Go engine reads back (`costBaseFor`). Lowering it
- * to the first-year figure would corrupt the engine's own input and break
- * reconciliation. What was missing is the deduction beside it — without it a
- * $30,000 asset reads as a $30,000 claim.
+ * An asset purchase shows its YEAR ONE DEPRECIATION in Gross and Net, not the
+ * price paid: on a tax screen the purchase price reads as the amount claimed,
+ * and a $30,000 asset is not a $30,000 deduction. This is a rendering choice
+ * only. The stored gross_amount is untouched — it is the money that left the
+ * bank, it has to reconcile against the statement line, and it IS the
+ * depreciable cost base the Go engine reads back (`costBaseFor`), so lowering
+ * it would corrupt the engine's own input. Server-side sorting, the CSV export
+ * and the detail drawer still work from the stored amounts.
+ *
+ * Depreciation carries no GST (any credit was claimed on the purchase), so the
+ * GST cell is blanked rather than left showing the purchase's GST beside a
+ * gross it no longer belongs to. `null` renders as "—".
+ *
+ * An asset with no schedule yet keeps its purchase price, with a tooltip that
+ * says so, rather than going blank: a transaction row with no amount reads as
+ * broken, not as "not calculated yet".
+ */
+type GridAmounts = {
+  gross: number;
+  gst: number | null;
+  net: number;
+  /** Set when the amounts are the year-one deduction rather than the purchase. */
+  deduction?: FirstYearDeduction;
+  /** Tooltip explaining the substitution, or its absence on an asset row. */
+  title?: string;
+};
+
+function gridAmounts(
+  row: DisplayTransactionRow,
+  deduction?: FirstYearDeduction,
+): GridAmounts {
+  if (!row.isAssetPurchase) {
+    return { gross: row.grossAmount, gst: row.gstAmount, net: row.netAmount };
+  }
+  if (!deduction) {
+    return {
+      gross: row.grossAmount,
+      gst: row.gstAmount,
+      net: row.netAmount,
+      title: "No depreciation schedule yet; showing the purchase price",
+    };
+  }
+  return {
+    gross: deduction.amount,
+    gst: null,
+    net: deduction.amount,
+    deduction,
+    title:
+      `Year 1 depreciation, ${deduction.fyLabel}. ` +
+      `Purchased for ${formatCurrency(row.grossAmount)} ` +
+      `(GST ${formatCurrency(row.gstAmount)}, net ${formatCurrency(row.netAmount)})`,
+  };
+}
+
+/**
+ * The This FY Depreciation cell: the deduction claimable in the current
+ * financial year, which is the figure that goes on the return being prepared.
+ *
+ * Year one is printed in Gross and Net instead (see gridAmounts). The two
+ * coincide only for an asset bought this year — under diminishing value they
+ * diverge immediately afterwards, and for an asset bought three years ago year
+ * one is history.
  *
  * Three distinct states, and they must not collapse into one:
  *   - not an asset purchase  -> blank, no column noise on ordinary rows
@@ -98,31 +154,15 @@ type TransactionTableScope = "global" | "client" | "entity";
 function DepreciationCell({
   row,
   deduction,
-  which,
 }: {
   row: DisplayTransactionRow;
   deduction?: FirstYearDeduction;
-  /**
-   * "first" is the deduction in the asset's opening year; "current" is the one
-   * claimable in this financial year. They coincide only for an asset bought
-   * this year — under diminishing value they diverge immediately afterwards,
-   * and "current" is the figure that goes on the return being prepared.
-   */
-  which: "first" | "current";
 }) {
   if (!row.isAssetPurchase) return null;
   if (!deduction) {
     return (
       <span className="transaction-depreciation-empty" title="No depreciation schedule yet">
         —
-      </span>
-    );
-  }
-  if (which === "first") {
-    return (
-      <span className="transaction-depreciation" title={`First-year deduction, ${deduction.fyLabel}`}>
-        {formatCurrency(deduction.amount)}
-        <small className="transaction-depreciation-fy">{deduction.fyLabel}</small>
       </span>
     );
   }
@@ -2558,10 +2598,11 @@ function TransactionTable({
   /** Omitted on every surface except the global All Transactions page. */
   selection?: TableSelection;
   /**
-   * First-year deduction per DISPLAY-grain transaction id, from
-   * `useFirstYearDepreciation`. Omitted where no endpoint can serve it —
-   * depreciation is exposed for property, entity and client scopes only — so
-   * the org-wide grid renders no column rather than a column of dashes.
+   * Deductions per DISPLAY-grain transaction id, from
+   * `useFirstYearDepreciation`. Drives both the This FY column and the
+   * year-one figure printed in Gross and Net on asset rows (gridAmounts).
+   * Omitted where no endpoint can serve it, in which case no column is
+   * rendered and every row shows its stored amounts.
    */
   firstYearDepreciation?: Map<string, FirstYearDeduction>;
 }) {
@@ -2574,8 +2615,8 @@ function TransactionTable({
   const columnCount =
     9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
     (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0) +
-    // Two columns: Year 1 and This FY.
-    (showDepreciation ? 2 : 0);
+    // One column, This FY. Year one is printed inside Gross and Net.
+    (showDepreciation ? 1 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -2607,14 +2648,9 @@ function TransactionTable({
               <th style={{ textAlign: "right" }}>GST</th>
               <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
               {showDepreciation ? (
-                <>
-                  <th style={{ textAlign: "right" }} title="Deduction in the asset's first financial year">
-                    Year 1 Depreciation
-                  </th>
-                  <th style={{ textAlign: "right" }} title="Deduction claimable in the current financial year">
-                    This FY Depreciation
-                  </th>
-                </>
+                <th style={{ textAlign: "right" }} title="Deduction claimable in the current financial year">
+                  This FY Depreciation
+                </th>
               ) : null}
               {showClientShare ? (
                 <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
@@ -2626,6 +2662,7 @@ function TransactionTable({
           <tbody>
             {rows.map((row) => {
               const amountSign = transactionSign(row.type);
+              const amounts = gridAmounts(row, firstYearDepreciation?.get(row.id));
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
@@ -2738,30 +2775,25 @@ function TransactionTable({
                     <td>{row.categoryName}</td>
                     <td>{row.subcategoryName}</td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.grossAmount, amountSign)}
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
                     </td>
-                    <td style={{ textAlign: "right" }}>{formatCurrency(row.gstAmount)}</td>
-                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.netAmount, amountSign)}
+                    <td style={{ textAlign: "right" }} title={amounts.title}>
+                      {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
+                    </td>
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
                     </td>
                     {showDepreciation ? (
-                      <>
-                        <td style={{ textAlign: "right" }}>
-                          <DepreciationCell
-                            row={row}
-                            deduction={firstYearDepreciation?.get(row.id)}
-                            which="first"
-                          />
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <DepreciationCell
-                            row={row}
-                            deduction={firstYearDepreciation?.get(row.id)}
-                            which="current"
-                          />
-                        </td>
-                      </>
+                      <td style={{ textAlign: "right" }}>
+                        <DepreciationCell row={row} deduction={firstYearDepreciation?.get(row.id)} />
+                      </td>
                     ) : null}
                     {showClientShare ? (
                       <td style={{ textAlign: "right" }}>
@@ -4716,16 +4748,39 @@ export function AllTransactionsView({
     toggleSelectAllOnPage,
   ]);
 
+  // Depreciation for the grid: the year-one figure printed in Gross and Net on
+  // asset rows, and the This FY column. Every scope is covered: "none" is the
+  // org-wide grid, which GET /depreciation serves (it takes no id — the backend
+  // reads the org from the caller's claims and scopes by role there).
+  const depreciationScope: CoreDepreciationScopeLevel =
+    contextKind === "property"
+      ? "property"
+      : contextKind === "entity"
+        ? "entity"
+        : contextKind === "client"
+          ? "client"
+          : "org";
+  const { byTransactionId: firstYearDepreciation } = useFirstYearDepreciation(
+    depreciationScope,
+    contextId,
+    // Org scope legitimately has no id; every other level needs one.
+    { enabled: depreciationScope === "org" || !!contextId },
+  );
+
   /**
    * Running total over the side-cache, not the page — that is the whole point
-   * of keeping one. Gross is used because it is the figure the grid's Gross
-   * column shows; the sign lock guarantees every row pulls the same way.
+   * of keeping one. It sums what the Gross column SHOWS (gridAmounts), so an
+   * asset row contributes its year-one deduction rather than its purchase
+   * price and the footer agrees with the column; the sign lock guarantees
+   * every row pulls the same way.
    */
   const selectedTotal = useMemo(() => {
     let sum = 0;
-    for (const row of selectedRows.values()) sum += row.grossAmount;
+    for (const row of selectedRows.values()) {
+      sum += gridAmounts(row, firstYearDepreciation.get(row.id)).gross;
+    }
     return sum;
-  }, [selectedRows]);
+  }, [selectedRows, firstYearDepreciation]);
 
   const totalPages = Math.max(Math.ceil(totalItems / numericPageSize), 1);
   const activePage = Math.min(currentPage, totalPages);
@@ -4880,24 +4935,6 @@ export function AllTransactionsView({
         ? "client"
         : "entity";
 
-  // Depreciation beside Gross, so an asset purchase stops reading as a
-  // deduction of its full price. Every scope is covered: "none" is the org-wide
-  // grid, which GET /depreciation now serves (it takes no id — the backend
-  // reads the org from the caller's claims and scopes by role there).
-  const depreciationScope: CoreDepreciationScopeLevel =
-    contextKind === "property"
-      ? "property"
-      : contextKind === "entity"
-        ? "entity"
-        : contextKind === "client"
-          ? "client"
-          : "org";
-  const { byTransactionId: firstYearDepreciation } = useFirstYearDepreciation(
-    depreciationScope,
-    contextId,
-    // Org scope legitimately has no id; every other level needs one.
-    { enabled: depreciationScope === "org" || !!contextId },
-  );
   const returnToHref = appendUrlParam(pathname || "/dashboard/accountant/transactions", "tab", "transactions");
   const rulesTargetHref = appendUrlParam(
     contextKind === "entity" && contextId

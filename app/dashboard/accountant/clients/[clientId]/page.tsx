@@ -7,7 +7,6 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
-import { useFirstYearDepreciation } from "@/app/components/useDepreciation";
 import {
   assetItemName,
   personalCategoryLabel,
@@ -298,11 +297,6 @@ function ClientDetailPageContent() {
   // private-use split becomes visible, since the grid shows only the bill.
   const personal = usePersonalSummary("client", clientId, { enabled: !!clientId });
   const assets = useAssetTransactions("client", clientId, { enabled: !!clientId });
-  // The panel lists asset purchases but quotes the year-one DEDUCTION, which
-  // lives on the schedule rather than the transaction.
-  const assetFirstYear = useFirstYearDepreciation("client", clientId, {
-    enabled: !!clientId,
-  });
 
   const personalCategories = useMemo(
     () =>
@@ -317,24 +311,18 @@ function ClientDetailPageContent() {
 
   const assetRows = useMemo(
     () =>
-      assets.rows.map((t) => {
-        const deduction = assetFirstYear.byTransactionId.get(t.id);
-        return {
-          id: t.id,
-          entityName: t.entityName || "—",
-          propertyName: t.propertyNames?.[0] || "—",
-          name: assetItemName(t),
-          date: t.invoiceDate,
-          // Year-one depreciation, not the purchase price: gross_amount is the
-          // depreciable cost base, so it showed the amount PAID in a column
-          // that reads as the amount CLAIMED. null when no schedule has been
-          // generated, which renders "—" rather than a $0 deduction.
-          amount: deduction ? -deduction.amount : null,
-          fyLabel: deduction?.fyLabel ?? "",
-          purchaseAmount: -(t.grossAmount ?? 0),
-        };
-      }),
-    [assets.rows, assetFirstYear.byTransactionId],
+      assets.rows.map((t) => ({
+        id: t.id,
+        entityName: t.entityName || "—",
+        propertyName: t.propertyNames?.[0] || "—",
+        name: assetItemName(t),
+        date: t.invoiceDate,
+        // The purchase price, signed as money out. The year-one deduction is
+        // quoted on the All Transactions grid and in the depreciation module,
+        // not in this panel.
+        amount: -(t.grossAmount ?? 0),
+      })),
+    [assets.rows],
   );
 
   const [client, setClient] = useState<ClientRecord | null>(null);
@@ -1030,7 +1018,7 @@ function ClientDetailPageContent() {
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
                     <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }} title="First-year depreciation from the asset's schedule, not the purchase price">Year 1 Depreciation</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
                     <th style={{ padding: '12px 8px', width: '24px' }}></th>
                   </tr>
                 </thead>
@@ -1066,15 +1054,8 @@ function ClientDetailPageContent() {
                         <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{row.propertyName}</td>
                         <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{row.name}</td>
                         <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
-                        <td
-                          style={{ padding: '16px 8px', fontSize: '14px', color: row.amount == null ? '#94a3b8' : '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}
-                          title={row.amount == null
-                            ? (assetFirstYear.error
-                                ? `Year 1 depreciation could not be loaded: ${assetFirstYear.error}`
-                                : 'No depreciation schedule generated for this asset yet')
-                            : `${row.fyLabel} · purchased for ${formatPanelAmount(row.purchaseAmount)}`}
-                        >
-                          {row.amount == null ? '—' : formatPanelAmount(row.amount)}
+                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {formatPanelAmount(row.amount)}
                         </td>
                         <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
