@@ -11404,8 +11404,9 @@ html.dark .transaction-document-drop__bottom-bar {
 
 .entity-property-row.reconciliation-row dl {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  /* Statements · Account · Period · Created */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
   margin: 0;
 }
 

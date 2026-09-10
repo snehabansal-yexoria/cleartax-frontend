@@ -279,8 +279,13 @@ export default function EntityDetailView({
     ? toRegion(assetFirstYear.isLoading, assetFirstYear.error, assetFirstYear.byTransactionId, () => {})
     : idleRegion<typeof assetFirstYear.byTransactionId>();
 
-  // Wave 2.
-  const trend = usePnlTrend(entityId, trendFy, { enabled: entityReady });
+  // Wave 2. Until the user picks a year, an empty current year yields to the
+  // latest year with data, which is what the card has always defaulted to.
+  const trend = usePnlTrend(entityId, trendFy, {
+    enabled: entityReady,
+    autoSelectLatest: pickedFy === null,
+  });
+  const shownFy = trend.data?.financialYear ?? trendFy;
 
   const selectedRm: RegionalManager | null = entity?.regionalManager ?? null;
   const managersRegion = useAsyncRegion<RegionalManager[]>(
@@ -487,7 +492,7 @@ export default function EntityDetailView({
           />
         </div>
 
-        <EntityProfitLossTrendCard trend={trend} selectedFy={trendFy} onFyChange={handleTrendFyChange} />
+        <EntityProfitLossTrendCard trend={trend} selectedFy={shownFy} onFyChange={handleTrendFyChange} />
 
         <RegionalManagerCard
           entityStatus={entityRegion.status}

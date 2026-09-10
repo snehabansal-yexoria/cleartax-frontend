@@ -1839,6 +1839,7 @@ export default function ClientInsightsPage() {
               <ClientDepreciationCard
                 level="client"
                 id={currentUser.id}
+                showProperty
                 className="insights-card area-depreciation"
                 title="Depreciation"
               />

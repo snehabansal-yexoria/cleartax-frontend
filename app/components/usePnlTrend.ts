@@ -35,6 +35,9 @@ import { auFinancialYearOf } from "./useGstSummary";
  */
 
 export type PnlTrendData = {
+  /** The year the rows belong to — may differ from the one asked for when
+   *  `autoSelectLatest` moved an empty current year to the latest with data. */
+  financialYear: number;
   /** Twelve rows, July to June, zero-filled. */
   months: CorePnlTrendMonth[];
   availableFinancialYears: number[];
@@ -90,6 +93,7 @@ async function loadFromServer(
     signal,
   );
   return {
+    financialYear: fy,
     months: trend.months ?? [],
     availableFinancialYears: trend.availableFinancialYears ?? [],
     transactionCount: trend.transactionCount ?? 0,
@@ -160,6 +164,7 @@ async function loadFromTransactions(
   });
 
   return {
+    financialYear: fy,
     months,
     // Only the requested year is known here; the card unions in the current FY.
     availableFinancialYears: [fy],
@@ -173,15 +178,33 @@ async function loadFromTransactions(
 export function usePnlTrend(
   entityId: string,
   financialYear: number,
-  opts: { enabled?: boolean } = {},
+  opts: {
+    enabled?: boolean;
+    /**
+     * When the requested year has no rows, show the latest year that does —
+     * the default the card has always had. Off once the user picks a year.
+     * Server path only: the fallback cannot know which years have data.
+     */
+    autoSelectLatest?: boolean;
+  } = {},
 ): AsyncRegion<PnlTrendData> {
   const enabled = opts.enabled ?? true;
-  const key = enabled && entityId ? `${entityId}:${financialYear}` : null;
+  const autoSelectLatest = opts.autoSelectLatest ?? false;
+  // The flag is part of the key so picking the current year after an
+  // auto-switch still refetches rather than reusing the switched data.
+  const key = enabled && entityId ? `${entityId}:${financialYear}:${autoSelectLatest ? "auto" : "fixed"}` : null;
 
   const load = useCallback(
     async (token: string, signal: AbortSignal) => {
       try {
-        return await loadFromServer(entityId, financialYear, token, signal);
+        const result = await loadFromServer(entityId, financialYear, token, signal);
+        if (autoSelectLatest && result.transactionCount === 0 && result.availableFinancialYears.length > 0) {
+          const latest = Math.max(...result.availableFinancialYears);
+          if (latest !== financialYear) {
+            return loadFromServer(entityId, latest, token, signal);
+          }
+        }
+        return result;
       } catch (err) {
         // 404 = the core API has no /pnl-trend route yet (chi's not-found,
         // forwarded by renderUpstreamError). Anything else is a real failure.
@@ -191,7 +214,7 @@ export function usePnlTrend(
         throw err;
       }
     },
-    [entityId, financialYear],
+    [entityId, financialYear, autoSelectLatest],
   );
 
   return useAsyncRegion(key, load);

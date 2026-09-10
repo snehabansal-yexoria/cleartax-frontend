@@ -14,6 +14,7 @@ import {
 } from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import { formatClientCurrency, formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
+import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -792,7 +793,29 @@ export default function ClientEntityDetailView({
             </div>
           </div>
 
-          {/* 5. ROW 5: DOCUMENTS SECTION (FULL WIDTH) */}
+          {/* 5. ROW 5: DEPRECIATION (FULL WIDTH)
+
+              Across every property this entity owns.
+
+              Above Documents on purpose, the same ordering as the property
+              page: the generated schedules are also filed in the Documents
+              list below as PDFs, so a client who has just read the year's
+              deduction here knows what those files are.
+
+              Entity scope spans properties, hence showProperty — two houses
+              can each have a "Hot water system". Rows link into the
+              entity-scoped asset route rather than the property-scoped one
+              because the card does not know, per row, which property page to
+              send the reader to. */}
+          <ClientDepreciationCard
+            level="entity"
+            id={entityId}
+            showProperty
+            assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
+            className="client-entity-doc-section-card"
+          />
+
+          {/* 6. ROW 6: DOCUMENTS SECTION (FULL WIDTH) */}
           <div className="client-entity-doc-section-card flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Documents</h3>
@@ -1030,6 +1053,18 @@ export default function ClientEntityDetailView({
               )}
             </div>
           </div>
+
+          {/* Depreciation. The mobile twin of ROW 5 above — same props, same
+              placement above Documents. Keep the two in step: this file
+              carries fully separate desktop and mobile trees, so a card added
+              to one is simply absent on the other. */}
+          <ClientDepreciationCard
+            level="entity"
+            id={entityId}
+            showProperty
+            assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
+            className="client-entity-doc-section-card"
+          />
 
           {/* Mobile Documents Section */}
           <div className="client-entity-doc-section-card flex flex-col gap-4">

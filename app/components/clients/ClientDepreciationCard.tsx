@@ -33,6 +33,15 @@ export type ClientDepreciationCardProps = {
   assetHrefBase?: string;
   /** Compact drops the per-asset list, for a summary-only placement. */
   compact?: boolean;
+  /**
+   * Names the property each asset sits on.
+   *
+   * At property scope every row shares one property, so the line would be pure
+   * repetition. At entity, client and org scope the list spans properties and
+   * without it two identically-named assets — "Hot water system" on each of two
+   * houses — are indistinguishable.
+   */
+  showProperty?: boolean;
   title?: string;
   /**
    * Replaces the card's own chrome. Insights supplies its own `.insights-card`
@@ -53,6 +62,7 @@ export default function ClientDepreciationCard({
   id,
   assetHrefBase,
   compact = false,
+  showProperty = false,
   title = "Depreciation",
   className = DEFAULT_CHROME,
 }: ClientDepreciationCardProps) {
@@ -215,6 +225,11 @@ export default function ClientDepreciationCard({
                     <span className="text-xs font-bold text-[var(--text-primary)] truncate">
                       {item.assetName}
                     </span>
+                    {showProperty && item.propertyName && (
+                      <span className="text-[10px] text-[var(--text-muted)] font-semibold truncate">
+                        {item.propertyName}
+                      </span>
+                    )}
                     <span className="text-[10px] text-[var(--text-secondary)] font-semibold truncate">
                       {assetClassLabel(item.assetClass)} · {methodLabel(item.depreciationMethod)} ·{" "}
                       {item.effectiveLifeYears} yrs
