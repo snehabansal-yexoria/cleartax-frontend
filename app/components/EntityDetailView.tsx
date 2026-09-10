@@ -29,6 +29,7 @@ import { getIdToken } from "@/src/lib/authToken";
 import type {
   CoreEntity,
   CorePaginated,
+  CorePersonalSummary,
   CoreProperty,
   CoreTransactionListItem,
   ReconciliationSession,
@@ -263,7 +264,10 @@ export default function EntityDetailView({
   const personal = usePersonalSummary("entity", entityId, { enabled: personalOpened });
   const personalRegion = personalOpened
     ? toRegion(personal.isLoading, personal.error, personal.summary, personal.reload)
-    : idleRegion<typeof personal.summary>();
+    // Not `typeof personal.summary` — that is `CorePersonalSummary | null`, and
+    // AsyncRegion<T> already nulls its own data. Naming the payload keeps both
+    // ternary branches on one instantiation, as the two panels below do.
+    : idleRegion<CorePersonalSummary>();
 
   const assets = useAssetTransactions("entity", entityId, { enabled: assetOpened });
   const assetsRegion = assetOpened

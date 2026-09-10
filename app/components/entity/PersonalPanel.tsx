@@ -10,7 +10,15 @@ import CollapsiblePanel from "./CollapsiblePanel";
 import { isPending } from "./types";
 
 export type PersonalPanelProps = {
-  personal: AsyncRegion<CorePersonalSummary | null>;
+  // The payload type, NOT `CorePersonalSummary | null`: AsyncRegion<T> already
+  // declares `data: T | null` (it is null while idle, loading or errored), so
+  // the extra union member was a second, meaningless null. It also split the
+  // caller's ternary into two different AsyncRegion instantiations — toRegion
+  // infers T from a `T | null` argument and strips the null, while
+  // idleRegion<typeof personal.summary> kept it — and AsyncRegion is invariant
+  // through setData, so the union would not assign. AssetPanel and the
+  // depreciation region already pass the bare payload type.
+  personal: AsyncRegion<CorePersonalSummary>;
   expanded: boolean;
   onToggle: () => void;
 };
