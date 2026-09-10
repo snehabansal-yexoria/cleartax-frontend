@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
@@ -17,6 +17,7 @@ import {
   emptyLine,
   useJournalDraft,
   type JournalLineDraft,
+  type ServerIssue,
 } from "./useJournalDraft";
 
 interface ClientRecord {
@@ -55,6 +56,7 @@ export default function JournalEntryEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const errorRef = useRef<HTMLDivElement | null>(null);
 
   const chart = useChartOfAccounts(token);
   const defaultPropertyId = properties[0]?.id ?? "";
@@ -75,6 +77,7 @@ export default function JournalEntryEditor({
     addBalancingLine,
     replaceLines,
     toRequestBody,
+    setServerIssues,
   } = useJournalDraft(defaultPropertyId, initialEntry);
 
   /**
@@ -152,11 +155,15 @@ export default function JournalEntryEditor({
   const handleSave = async () => {
     setAttemptedSave(true);
     setSaveError("");
+    setServerIssues([]);
 
     if (!validation.canSave) {
+      // Every entry-level problem, not just the first. Three wrong things used
+      // to be reported as one sentence, so fixing it revealed the next.
       setSaveError(
-        validation.entryErrors[0] ??
-        "Some lines need attention — the highlighted cells show what.",
+        validation.entryErrors.length > 0
+          ? validation.entryErrors.join(" ")
+          : "Some lines need attention — the highlighted cells show what.",
       );
       return;
     }
@@ -176,10 +183,25 @@ export default function JournalEntryEditor({
         body: JSON.stringify(toRequestBody()),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        error?: string;
+        issues?: ServerIssue[];
+      };
       if (!res.ok) {
+        // `issues` locates each rejection at a row and column, so the grid can
+        // highlight the offending cell instead of printing one sentence above
+        // twenty lines. It is additive — `message` is always populated, and is
+        // still what the banner shows.
+        if (Array.isArray(data.issues) && data.issues.length > 0) {
+          setServerIssues(data.issues);
+        }
         setSaveError(
-          data?.message || data?.error || "The journal entry could not be saved.",
+          data.message ||
+            data.error ||
+            // Keeping the status makes an unexpected failure reportable, rather
+            // than indistinguishable from every other failure.
+            `The journal entry could not be saved (${res.status}).`,
         );
         return;
       }
@@ -193,6 +215,15 @@ export default function JournalEntryEditor({
       setIsSaving(false);
     }
   };
+
+  // Bring the banner into view and announce it. With a twenty-line grid the
+  // Save button is well below the fold, so the error could land off-screen and
+  // read as "nothing happened".
+  useEffect(() => {
+    if (saveError) {
+      errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [saveError]);
 
   return (
     <div className="journal-page">
@@ -274,6 +305,10 @@ export default function JournalEntryEditor({
                 type="text"
                 value={draft.reference}
                 placeholder="e.g. YE-ADJ-01"
+                /* journal_entry.reference is VARCHAR(64). Without this a longer
+                   value reached Postgres as SQLSTATE 22001 and came back as a
+                   500 "internal server error" on an otherwise valid entry. */
+                maxLength={64}
                 onChange={(e) => setHeader({ reference: e.target.value })}
               />
             </label>
@@ -284,6 +319,8 @@ export default function JournalEntryEditor({
                 type="text"
                 value={draft.memo}
                 placeholder="What this entry is for"
+                /* No maxLength: memo is TEXT, so there is nothing to truncate
+                   to and capping it would only lose the user's words. */
                 onChange={(e) => setHeader({ memo: e.target.value })}
               />
             </label>
@@ -309,7 +346,11 @@ export default function JournalEntryEditor({
             />
           )}
 
-          {saveError && <div className="entity-wizard-error">{saveError}</div>}
+          {saveError && (
+            <div ref={errorRef} className="entity-wizard-error" role="alert">
+              {saveError}
+            </div>
+          )}
 
           <div className="journal-page-actions">
             <button

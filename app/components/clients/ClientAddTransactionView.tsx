@@ -25,6 +25,7 @@ import AssetBuilder, {
   assetRequestFields,
   type AssetDraft,
 } from "@/app/components/AssetBuilder";
+import { findAssetCategory } from "@/src/lib/assetCategory";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -1207,7 +1208,11 @@ export default function ClientAddTransactionView({
 
   async function resolveLockedCategorySelection() {
     if (!token || !lockAssetPurchaseCategory || categories.length === 0) return null;
-    const cat = categories[0];
+    // Resolved from the asset class, not `categories[0]`. The list endpoint
+    // sorts alphabetically, so index 0 was always "Advertising for Tenants" and
+    // every asset purchase was filed under it and posted to account 5070.
+    const cat = findAssetCategory(categories, assetDraft?.assetClass ?? "");
+    if (!cat) return null;
     const catRes = await fetch(
       `/api/transactions/categories/${cat.id}/sub-categories`,
       { headers: { Authorization: `Bearer ${token}` } },

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { coreApiRequest } from "@/src/lib/coreApi";
+import { CORE_DOCUMENTS_TIMEOUT_MS, coreApiRequest } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 export async function GET(
@@ -13,7 +13,7 @@ export async function GET(
   try {
     const payload = await coreApiRequest(
       `/api/documents/${encodeURIComponent(id)}/download`,
-      { token },
+      { token, timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS },
     );
     return NextResponse.json(payload);
   } catch (error) {

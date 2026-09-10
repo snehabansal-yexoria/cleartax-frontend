@@ -592,23 +592,145 @@ export function ClientPortfolioSkeleton({
   );
 }
 
+/* ── In-place skeleton primitives ──────────────────────────────────────────
+   Rendered INSIDE the real frame (a stat card's <strong>, a <tbody>, the
+   header, the RM card) so the box never changes when data arrives.
+   All aria-hidden: the surrounding region carries aria-busy. */
+
+/** 28px block bar for a stat card value; renders inside the real <strong>. */
+export function StatValueSkeleton({ width = "44%" }: { width?: string | number } = {}) {
+  return <span className="skeleton-line skeleton-stat-value" style={{ width }} aria-hidden="true" />;
+}
+
+/** Inline bar that inherits the surrounding line box (sub-labels, <dd> cells). */
+export function TextSkeleton({ width = "40%" }: { width?: string | number } = {}) {
+  return <span className="skeleton-line skeleton-text" style={{ width }} aria-hidden="true" />;
+}
+
+/** Label-left / amount-right rows for the Personal panel list. */
+export function PanelRowsSkeleton({ rows = 4 }: { rows?: number } = {}) {
+  return (
+    <div className="skeleton-stack skeleton-panel-rows" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="skeleton-row skeleton-row-between">
+          <span className="skeleton-line" style={{ width: `${34 + (index % 3) * 12}%` }} />
+          <span className="skeleton-line" style={{ width: "18%" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** <tr>s to drop inside any real <tbody> under its real <thead>. */
+export function TableRowsSkeleton({ rows = 3, columns }: { rows?: number; columns: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <tr key={rowIndex} className="skeleton-table-row" aria-hidden="true">
+          {Array.from({ length: columns }).map((__, columnIndex) => (
+            <td key={columnIndex}>
+              <span className={`skeleton-line ${columnIndex === 0 ? "skeleton-line-lg" : "skeleton-line-md"}`} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
+/** Title + subtitle + action pill, rendered inside the real .entity-page-header. */
+export function EntityHeaderSkeleton() {
+  return (
+    <>
+      <div className="skeleton-stack skeleton-grow entity-header-skeleton" aria-hidden="true">
+        <div className="skeleton-line" style={{ width: "36%", height: 24 }} />
+        <div className="skeleton-line" style={{ width: "48%" }} />
+      </div>
+      <div className="skeleton-pill" aria-hidden="true" />
+    </>
+  );
+}
+
+/** Avatar + copy + select, rendered inside the real .entity-rm-card. */
+export function EntityRmSkeleton() {
+  return (
+    <div className="entity-rm-content" aria-hidden="true">
+      <div className="entity-rm-info-section">
+        <div className="skeleton-circle" style={{ width: 58, height: 58 }} />
+        <div className="skeleton-stack skeleton-grow">
+          <div className="skeleton-line skeleton-line-md" />
+          <div className="skeleton-line skeleton-line-lg" />
+        </div>
+      </div>
+      <div className="entity-rm-action-section">
+        <div className="skeleton-line skeleton-line-sm" />
+        <div className="skeleton-input" style={{ minHeight: 44 }} />
+      </div>
+    </div>
+  );
+}
+
+function StatCardSkeleton({ withSub = false, modifier = "" }: { withSub?: boolean; modifier?: string }) {
+  return (
+    <article className={`client-stat-card is-compact${modifier ? ` ${modifier}` : ""}`}>
+      <div className="client-stat-copy">
+        <div className="skeleton-line skeleton-line-sm" />
+        <StatValueSkeleton />
+        {withSub && <TextSkeleton />}
+      </div>
+      <span className="skeleton-circle skeleton-circle-sm" style={{ width: 46, height: 46, borderRadius: 9 }} />
+    </article>
+  );
+}
+
+/**
+ * Mirrors the live entity page frame in order (back link, header, 3 stat
+ * cards, 2 GST cards, 2 panel toggles, trend, RM card, 5 tabs + property
+ * rows) so loading.tsx -> live frame is visually continuous and CLS ~ 0.
+ */
 export function EntityDetailSkeleton() {
   return (
-    <section className="client-detail-page entity-detail-page boneyard-fallback">
-      <div className="skeleton-pill skeleton-pill-wide" />
+    <section className="client-detail-page entity-detail-page boneyard-fallback" aria-hidden="true">
+      <span className="skeleton-line" style={{ display: "block", width: 120, height: 14 }} />
 
       <header className="entity-page-header">
-        <div className="skeleton-stack skeleton-grow">
-          <div className="skeleton-line skeleton-line-lg" />
-          <div className="skeleton-line skeleton-line-md" />
-        </div>
+        <EntityHeaderSkeleton />
       </header>
+
+      <div className="client-stat-grid entity-stat-grid">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton withSub />
+      </div>
+
+      <div className="entity-gst-grid">
+        <StatCardSkeleton withSub modifier="is-gst-purchases" />
+        <StatCardSkeleton withSub modifier="is-gst-sales" />
+      </div>
+
+      <div className="entity-panel-grid">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div key={index} className="entity-panel-toggle is-skeleton">
+            <span className="skeleton-circle" style={{ width: 40, height: 40, borderRadius: 9 }} />
+            <div className="skeleton-stack skeleton-grow" style={{ gap: 6 }}>
+              <div className="skeleton-line skeleton-line-md" />
+              <div className="skeleton-line skeleton-line-lg" />
+            </div>
+            <span className="skeleton-circle skeleton-circle-xs" />
+          </div>
+        ))}
+      </div>
 
       <TrendSkeleton />
 
+      <section className="entity-trend-card entity-rm-card">
+        <div className="skeleton-line skeleton-line-lg" />
+        <EntityRmSkeleton />
+      </section>
+
       <section className="entity-resource-panel">
         <div className="entity-resource-tabs">
-          {Array.from({ length: 3 }).map((_, index) => (
+          {Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="skeleton-tab" />
           ))}
         </div>
@@ -617,26 +739,7 @@ export function EntityDetailSkeleton() {
             <div className="skeleton-line skeleton-line-lg" />
             <div className="skeleton-pill skeleton-pill-wide" />
           </div>
-          <div className="entity-property-list">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="entity-property-row">
-                <div className="skeleton-stack">
-                  <div className="skeleton-line skeleton-line-lg" />
-                  <div className="skeleton-line skeleton-line-md" />
-                </div>
-                <div className="skeleton-fact-grid">
-                  {Array.from({ length: 3 }).map((__, factIndex) => (
-                    <div key={factIndex} className="skeleton-stack">
-                      <div className="skeleton-line skeleton-line-sm" />
-                      <div className="skeleton-line skeleton-line-md" />
-                    </div>
-                  ))}
-                </div>
-                <div className="skeleton-pill" />
-                <div className="skeleton-circle skeleton-circle-xs" />
-              </div>
-            ))}
-          </div>
+          <EntityPropertyListSkeleton />
         </div>
       </section>
     </section>
@@ -873,11 +976,21 @@ export function PropertyWizardSkeleton() {
   );
 }
 
-export function EntityPropertyListSkeleton() {
+export function EntityPropertyListSkeleton({
+  rows = 3,
+  variant = "property",
+}: {
+  rows?: number;
+  variant?: "property" | "reconciliation";
+} = {}) {
+  const isReconciliation = variant === "reconciliation";
   return (
-    <ul className="entity-property-list boneyard-fallback">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <li key={index} className="entity-property-row">
+    <ul className="entity-property-list boneyard-fallback" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, index) => (
+        <li
+          key={index}
+          className={isReconciliation ? "entity-property-row reconciliation-row has-no-action" : "entity-property-row"}
+        >
           <div className="skeleton-stack skeleton-grow">
             <div className="skeleton-line skeleton-line-lg" />
             <div className="skeleton-line skeleton-line-md" />
@@ -890,8 +1003,8 @@ export function EntityPropertyListSkeleton() {
               </div>
             ))}
           </div>
-          <div className="skeleton-pill" />
-          <div className="skeleton-circle skeleton-circle-xs" />
+          {!isReconciliation && <div className="skeleton-pill" />}
+          {!isReconciliation && <div className="skeleton-circle skeleton-circle-xs" />}
         </li>
       ))}
     </ul>

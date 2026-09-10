@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CoreAssetClass, CoreDepreciationMethod } from "@/src/lib/coreApi";
+import {
+  isCapitalAllowanceCategory,
+  isCapitalWorksCategory,
+} from "@/src/lib/assetCategory";
 
 /**
  * The Add Asset form, in one place.
@@ -80,26 +84,12 @@ export function methodLabel(method: CoreDepreciationMethod): string {
   return method === "prime_cost" ? "Prime Cost" : "Diminishing Value";
 }
 
-export function isCapitalWorksCategory(name?: string | null): boolean {
-  if (!name) return false;
-  const n = name.trim().toLowerCase();
-  return (
-    n.includes("capital work") ||
-    n.includes("capital works") ||
-    n.includes("div 43") ||
-    n.includes("division 43")
-  );
-}
-
-export function isCapitalAllowanceCategory(name?: string | null): boolean {
-  if (!name) return false;
-  const n = name.trim().toLowerCase();
-  return (
-    n.includes("capital allowance") ||
-    n.includes("div 40") ||
-    n.includes("division 40")
-  );
-}
+// Defined in src/lib/assetCategory.ts and re-exported here so the many existing
+// callers keep their import path. They live in the lib because findAssetCategory
+// — which resolves an asset's category from its class — has to agree with them
+// exactly: two independent notions of "is this a depreciation category" is how
+// an asset ends up filed under one category and typed as another.
+export { isCapitalWorksCategory, isCapitalAllowanceCategory };
 
 export function isAssetEligibleCategory(name?: string | null): boolean {
   return isCapitalWorksCategory(name) || isCapitalAllowanceCategory(name);

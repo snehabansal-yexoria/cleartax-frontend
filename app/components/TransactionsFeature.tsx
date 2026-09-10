@@ -24,11 +24,17 @@ import {
   transactionTypeModifier,
 } from "@/src/lib/transactionTypes";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
+import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
+import {
+  useFirstYearDepreciation,
+  type FirstYearDeduction,
+} from "@/app/components/useDepreciation";
 import { isAwaitingExtraction } from "@/src/lib/reviewStatus";
 import { ReviewStatusBadge } from "@/app/components/ReviewStatusBadge";
 import type {
   CoreAssetClass,
   CoreDepreciationMethod,
+  CoreDepreciationScopeLevel,
   CorePropertyTransactionRow,
   CoreTransactionCategory,
   CoreTransactionChild,
@@ -73,6 +79,116 @@ export type TransactionsContext =
   | { kind: "none" };
 
 type TransactionTableScope = "global" | "client" | "entity";
+
+/**
+ * What the grid prints in Gross, GST and Net for one row.
+ *
+ * An asset purchase shows its YEAR ONE DEPRECIATION in Gross and Net, not the
+ * price paid: on a tax screen the purchase price reads as the amount claimed,
+ * and a $30,000 asset is not a $30,000 deduction. This is a rendering choice
+ * only. The stored gross_amount is untouched — it is the money that left the
+ * bank, it has to reconcile against the statement line, and it IS the
+ * depreciable cost base the Go engine reads back (`costBaseFor`), so lowering
+ * it would corrupt the engine's own input. Server-side sorting, the CSV export
+ * and the detail drawer still work from the stored amounts.
+ *
+ * Depreciation carries no GST (any credit was claimed on the purchase), so the
+ * GST cell is blanked rather than left showing the purchase's GST beside a
+ * gross it no longer belongs to. `null` renders as "—".
+ *
+ * An asset with no schedule yet keeps its purchase price, with a tooltip that
+ * says so, rather than going blank: a transaction row with no amount reads as
+ * broken, not as "not calculated yet".
+ */
+type GridAmounts = {
+  gross: number;
+  gst: number | null;
+  net: number;
+  /** Set when the amounts are the year-one deduction rather than the purchase. */
+  deduction?: FirstYearDeduction;
+  /** Tooltip explaining the substitution, or its absence on an asset row. */
+  title?: string;
+};
+
+function gridAmounts(
+  row: DisplayTransactionRow,
+  deduction?: FirstYearDeduction,
+): GridAmounts {
+  if (!row.isAssetPurchase) {
+    return { gross: row.grossAmount, gst: row.gstAmount, net: row.netAmount };
+  }
+  if (!deduction) {
+    return {
+      gross: row.grossAmount,
+      gst: row.gstAmount,
+      net: row.netAmount,
+      title: "No depreciation schedule yet; showing the purchase price",
+    };
+  }
+  return {
+    gross: deduction.amount,
+    gst: null,
+    net: deduction.amount,
+    deduction,
+    title:
+      `Year 1 depreciation, ${deduction.fyLabel}. ` +
+      `Purchased for ${formatCurrency(row.grossAmount)} ` +
+      `(GST ${formatCurrency(row.gstAmount)}, net ${formatCurrency(row.netAmount)})`,
+  };
+}
+
+/**
+ * The This FY Depreciation cell: the deduction claimable in the current
+ * financial year, which is the figure that goes on the return being prepared.
+ *
+ * Year one is printed in Gross and Net instead (see gridAmounts). The two
+ * coincide only for an asset bought this year — under diminishing value they
+ * diverge immediately afterwards, and for an asset bought three years ago year
+ * one is history.
+ *
+ * Three distinct states, and they must not collapse into one:
+ *   - not an asset purchase  -> blank, no column noise on ordinary rows
+ *   - an asset with a schedule -> the amount and its financial year
+ *   - an asset with no schedule -> "—", meaning "not yet generated", not "$0"
+ */
+function DepreciationCell({
+  row,
+  deduction,
+}: {
+  row: DisplayTransactionRow;
+  deduction?: FirstYearDeduction;
+}) {
+  if (!row.isAssetPurchase) return null;
+  if (!deduction) {
+    return (
+      <span className="transaction-depreciation-empty" title="No depreciation schedule yet">
+        —
+      </span>
+    );
+  }
+  // Nothing claimable this year: the schedule either starts later or has run
+  // out of effective life. Rendered as "—", never $0 — on a tax screen those
+  // are different claims.
+  if (deduction.currentFyAmount == null) {
+    return (
+      <span
+        className="transaction-depreciation-empty"
+        title={`No deduction in ${deduction.currentFyLabel}`}
+      >
+        —
+      </span>
+    );
+  }
+  return (
+    <span
+      className="transaction-depreciation"
+      title={`Deduction claimable in ${deduction.currentFyLabel}`}
+    >
+      {formatCurrency(deduction.currentFyAmount)}
+      <small className="transaction-depreciation-fy">{deduction.currentFyLabel}</small>
+    </span>
+  );
+}
 
 type DisplayTransactionRow = CoreTransactionListItem;
 type TransactionModalMode = "view" | "edit";
@@ -1175,7 +1291,14 @@ function TransactionDetailPopup({
         `/api/transactions/categories?type=${encodeURIComponent(type)}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok || cancelled) return;
+      if (cancelled) return;
+      // Clear rather than keeping the previous type's list — see the add form's
+      // equivalent. Re-typing an expense to contra with a stale list left the
+      // drawer offering expense categories for a contra transaction.
+      if (!res.ok) {
+        setCategories([]);
+        return;
+      }
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
         setCategories(withoutDedicatedFlowCategories(data.items || []));
@@ -1186,6 +1309,20 @@ function TransactionDetailPopup({
       cancelled = true;
     };
   }, [type]);
+
+  // Personal and contra hide the picker, so select the single seeded category
+  // for the type. Filtered by type, never `categories[0]`: the list is
+  // refetched asynchronously on a type change, so index 0 can still be the
+  // previous type's row — which is what posted an expense category on a contra
+  // transaction and produced "category type does not match transaction type".
+  useEffect(() => {
+    if (!hidesCategoryPicker(type)) return;
+    const match = firstCategoryOfType(categories, type);
+    if (match && match.id !== categoryId) {
+      setCategoryId(match.id);
+      setSubcategoryId(null);
+    }
+  }, [type, categories, categoryId]);
 
   useEffect(() => {
     setSubcategories([]);
@@ -1264,7 +1401,25 @@ function TransactionDetailPopup({
     const grossNum = Number.parseFloat(grossAmount);
     if (!type || !categoryId || !subcategoryId || !invoiceDate) {
       setInvoiceDateTouched(true);
-      setEditError("Please complete type, category, sub-category, and date.");
+      // When the picker is hidden the user cannot "complete" a category, so say
+      // what actually went wrong: the seeded category for this type is missing.
+      if (hidesCategoryPicker(type) && !categoryId) {
+        setEditError(
+          `The ${transactionTypeLabel(type)} category is unavailable. ` +
+            "The server may need updating before this can be saved.",
+        );
+      } else {
+        setEditError("Please complete type, category, sub-category, and date.");
+      }
+      return;
+    }
+    // Matches the backend's validateContraDescription: on a contra the
+    // description is the only record of which accounts the money moved between.
+    if (type === "contra" && !description.trim()) {
+      setEditError(
+        "A description is required on a contra entry: it is the only record " +
+          "of which accounts the money moved between.",
+      );
       return;
     }
     if (invoiceDateError) {
@@ -1715,31 +1870,44 @@ function TransactionDetailPopup({
                 </div>
               ) : null}
               <div className="transaction-detail-grid is-two">
-                <StaticSelect
-                  label="Category"
-                  required
-                  value={categoryId == null ? "" : String(categoryId)}
-                  options={categorySelectOptions}
-                  onChange={(value) => {
-                    const newCatId = value ? Number(value) : null;
-                    setCategoryId(newCatId);
-                    setSubcategoryId(null);
-                    const selectedCat = categories.find((c) => c.id === newCatId);
-                    if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
-                      setIsAssetPurchase(true);
-                      setAssetClass("capital_works");
-                      setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
-                      setDepreciationMethod("prime_cost");
-                      if (!assetItemName) setAssetItemName("Capital Works");
-                      setEditError("");
-                    } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
-                      setIsAssetPurchase(true);
-                      setAssetClass("capital_allowance");
-                      if (assetItemName === "Capital Works") setAssetItemName("");
-                      setEditError("");
-                    }
-                  }}
-                />
+                {/* Hidden for personal and contra, which post to a single
+                seeded category selected by the effect above — matching the add
+                form. Without this, re-typing an expense to contra left an
+                expense category showing and required a manual re-pick.
+
+                The onChange is the INVERSE direction of the add form's fix:
+                here picking a depreciation category infers the asset class,
+                whereas the add form derives the category from the class the
+                AssetBuilder already captured. Both ends now agree on the same
+                two categories, so an asset can no longer be filed under
+                "Advertising for Tenants" from either direction. */}
+                {!hidesCategoryPicker(type) && (
+                  <StaticSelect
+                    label="Category"
+                    required
+                    value={categoryId == null ? "" : String(categoryId)}
+                    options={categorySelectOptions}
+                    onChange={(value) => {
+                      const newCatId = value ? Number(value) : null;
+                      setCategoryId(newCatId);
+                      setSubcategoryId(null);
+                      const selectedCat = categories.find((c) => c.id === newCatId);
+                      if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
+                        setIsAssetPurchase(true);
+                        setAssetClass("capital_works");
+                        setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                        setDepreciationMethod("prime_cost");
+                        if (!assetItemName) setAssetItemName("Capital Works");
+                        setEditError("");
+                      } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
+                        setIsAssetPurchase(true);
+                        setAssetClass("capital_allowance");
+                        if (assetItemName === "Capital Works") setAssetItemName("");
+                        setEditError("");
+                      }
+                    }}
+                  />
+                )}
                 {showSubcategorySelect && (
                   <div className="transaction-field-animate">
                     <StaticSelect
@@ -2408,6 +2576,7 @@ function TransactionTable({
   rowChildren,
   onToggleExpand,
   selection,
+  firstYearDepreciation,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -2428,15 +2597,26 @@ function TransactionTable({
   onToggleExpand?: (row: DisplayTransactionRow) => void;
   /** Omitted on every surface except the global All Transactions page. */
   selection?: TableSelection;
+  /**
+   * Deductions per DISPLAY-grain transaction id, from
+   * `useFirstYearDepreciation`. Drives both the This FY column and the
+   * year-one figure printed in Gross and Net on asset rows (gridAmounts).
+   * Omitted where no endpoint can serve it, in which case no column is
+   * rendered and every row shows its stored amounts.
+   */
+  firstYearDepreciation?: Map<string, FirstYearDeduction>;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
+  const showDepreciation = firstYearDepreciation !== undefined;
   const canExpand = Boolean(onToggleExpand);
   // Child rows span the full table, so the count has to track the optional
   // columns or the indented row stops short of the right edge.
   const columnCount =
     9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
-    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0);
+    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0) +
+    // One column, This FY. Year one is printed inside Gross and Net.
+    (showDepreciation ? 1 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -2467,6 +2647,11 @@ function TransactionTable({
               <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
               <th style={{ textAlign: "right" }}>GST</th>
               <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
+              {showDepreciation ? (
+                <th style={{ textAlign: "right" }} title="Deduction claimable in the current financial year">
+                  This FY Depreciation
+                </th>
+              ) : null}
               {showClientShare ? (
                 <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
               ) : null}
@@ -2477,6 +2662,7 @@ function TransactionTable({
           <tbody>
             {rows.map((row) => {
               const amountSign = transactionSign(row.type);
+              const amounts = gridAmounts(row, firstYearDepreciation?.get(row.id));
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
@@ -2589,13 +2775,26 @@ function TransactionTable({
                     <td>{row.categoryName}</td>
                     <td>{row.subcategoryName}</td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.grossAmount, amountSign)}
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
                     </td>
-                    <td style={{ textAlign: "right" }}>{formatCurrency(row.gstAmount)}</td>
-                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }}>
-                      {formatTransactionCurrency(row.netAmount, amountSign)}
+                    <td style={{ textAlign: "right" }} title={amounts.title}>
+                      {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
                     </td>
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
+                    </td>
+                    {showDepreciation ? (
+                      <td style={{ textAlign: "right" }}>
+                        <DepreciationCell row={row} deduction={firstYearDepreciation?.get(row.id)} />
+                      </td>
+                    ) : null}
                     {showClientShare ? (
                       <td style={{ textAlign: "right" }}>
                         {row.clientShareNet != null
@@ -4549,16 +4748,39 @@ export function AllTransactionsView({
     toggleSelectAllOnPage,
   ]);
 
+  // Depreciation for the grid: the year-one figure printed in Gross and Net on
+  // asset rows, and the This FY column. Every scope is covered: "none" is the
+  // org-wide grid, which GET /depreciation serves (it takes no id — the backend
+  // reads the org from the caller's claims and scopes by role there).
+  const depreciationScope: CoreDepreciationScopeLevel =
+    contextKind === "property"
+      ? "property"
+      : contextKind === "entity"
+        ? "entity"
+        : contextKind === "client"
+          ? "client"
+          : "org";
+  const { byTransactionId: firstYearDepreciation } = useFirstYearDepreciation(
+    depreciationScope,
+    contextId,
+    // Org scope legitimately has no id; every other level needs one.
+    { enabled: depreciationScope === "org" || !!contextId },
+  );
+
   /**
    * Running total over the side-cache, not the page — that is the whole point
-   * of keeping one. Gross is used because it is the figure the grid's Gross
-   * column shows; the sign lock guarantees every row pulls the same way.
+   * of keeping one. It sums what the Gross column SHOWS (gridAmounts), so an
+   * asset row contributes its year-one deduction rather than its purchase
+   * price and the footer agrees with the column; the sign lock guarantees
+   * every row pulls the same way.
    */
   const selectedTotal = useMemo(() => {
     let sum = 0;
-    for (const row of selectedRows.values()) sum += row.grossAmount;
+    for (const row of selectedRows.values()) {
+      sum += gridAmounts(row, firstYearDepreciation.get(row.id)).gross;
+    }
     return sum;
-  }, [selectedRows]);
+  }, [selectedRows, firstYearDepreciation]);
 
   const totalPages = Math.max(Math.ceil(totalItems / numericPageSize), 1);
   const activePage = Math.min(currentPage, totalPages);
@@ -4712,6 +4934,7 @@ export function AllTransactionsView({
       : contextKind === "client"
         ? "client"
         : "entity";
+
   const returnToHref = appendUrlParam(pathname || "/dashboard/accountant/transactions", "tab", "transactions");
   const rulesTargetHref = appendUrlParam(
     contextKind === "entity" && contextId
@@ -5021,6 +5244,7 @@ export function AllTransactionsView({
               rowChildren={grain === "top" ? rowChildren : undefined}
               onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
               selection={selection}
+              firstYearDepreciation={firstYearDepreciation}
             />
           )}
           {totalItems > 0 && (
@@ -6294,7 +6518,19 @@ export function AddTransactionView({
         `/api/transactions/categories?type=${encodeURIComponent(type)}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok || cancelled) return;
+      if (cancelled) return;
+      // A failed fetch must CLEAR the list, never leave the previous type's
+      // categories in state. The picker is hidden for personal and contra, so
+      // a stale expense list there was silently auto-selected and posted as
+      // `{type: "contra", category_id: <expense>}` — the backend's "category
+      // type does not match transaction type" 400, with nothing on screen to
+      // show why. Matches the reconciliation drawer's `{ items: [] }` fallback.
+      if (!res.ok) {
+        setCategories([]);
+        setCategoryId(null);
+        setSubcategoryId(null);
+        return;
+      }
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
         const items = withoutDedicatedFlowCategories(data.items || []);
@@ -6472,17 +6708,26 @@ export function AddTransactionView({
     !!activeEntityId && propertiesLoaded && properties.length === 0;
   const canSplitTransaction = properties.length > 1;
 
+  // An asset purchase is filed under the depreciation category its class maps
+  // to — capital_allowance -> "Capital allowances" (5160), capital_works ->
+  // "Capital works deductions" (5150). This used to take `categories[0]`,
+  // which the endpoint's `ORDER BY lower(name)` made "Advertising for Tenants"
+  // for every asset ever created here, posted to 5070 and greyed out so it
+  // could not be corrected.
+  //
+  // `assetClass` is in the deps and the guard does NOT test `!categoryId`:
+  // switching Capital Works <-> Capital Allowance has to re-resolve, and the
+  // old guard meant the first pick stuck forever.
+  const lockedAssetCategory = lockAssetPurchaseCategory
+    ? findAssetCategory(categories, assetDraft?.assetClass ?? "")
+    : null;
+
   useEffect(() => {
-    if (lockAssetPurchaseCategory && !categoryId && categories.length > 0) {
-      const targetCat =
-        assetDraft?.assetClass === "capital_works"
-          ? categories.find((c) => isCapitalWorksCategory(c.name))
-          : categories.find((c) => isCapitalAllowanceCategory(c.name));
-      if (targetCat) {
-        setCategoryId(targetCat.id);
-      }
+    if (lockedAssetCategory && categoryId !== lockedAssetCategory.id) {
+      setCategoryId(lockedAssetCategory.id);
+      setSubcategoryId(null);
     }
-  }, [categories, categoryId, lockAssetPurchaseCategory, assetDraft]);
+  }, [lockedAssetCategory, categoryId]);
 
   useEffect(() => {
     if (lockAssetPurchaseCategory && !subcategoryId && subcategories[0]) {
@@ -6490,14 +6735,18 @@ export function AddTransactionView({
     }
   }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
 
-  // Personal hides the category picker and cost base hides the subcategory
-  // picker, so auto-select whatever the typed category fetch returned. The
-  // taxonomy is seeded per type (migration 0032), so this is a straight
-  // first-option pick — no name matching on "personal"/"drawing" any more.
+  // Personal and contra hide the category picker, so the single seeded category
+  // for that type is selected automatically.
+  //
+  // Filtered by TYPE rather than taking `categories[0]`: the list is refetched
+  // asynchronously when the type changes, so on the render where `type` is
+  // already "contra" but the fetch has not landed, `categories` still holds the
+  // previous type's rows. Picking index 0 there posted an expense category on a
+  // contra transaction.
   useEffect(() => {
-    if (hidesCategoryPicker(type) && !categoryId && categories[0]) {
-      setCategoryId(categories[0].id);
-    }
+    if (!hidesCategoryPicker(type) || categoryId) return;
+    const match = firstCategoryOfType(categories, type);
+    if (match) setCategoryId(match.id);
   }, [type, categories, categoryId]);
 
   useEffect(() => {
@@ -6512,7 +6761,18 @@ export function AddTransactionView({
     }
   }, [type, propertyId, properties]);
 
-
+  // A contra carries no other identifying information — the category is always
+  // Contra, the subcategory General, the GST zero — so the description is the
+  // only record of which two accounts the money moved between. Mirrors the
+  // backend's validateContraDescription so the refusal happens before the round
+  // trip. Every other type keeps description optional, which is why the `*` on
+  // the label stayed cosmetic until now.
+  const descriptionError = useMemo(() => {
+    if (type === "contra" && !description.trim()) {
+      return "A description is required on a contra entry: it is the only record of which accounts the money moved between.";
+    }
+    return "";
+  }, [type, description]);
 
   const invoiceDateError = useMemo(() => {
     if (!invoiceDate) {
@@ -6588,8 +6848,15 @@ export function AddTransactionView({
     (!allowsBusinessExtras(type) || !hasNoProperties) &&
     !!activeEntityId &&
     !!type &&
-    (lockAssetPurchaseCategory || !!categoryId) &&
-    (lockAssetPurchaseCategory || !!subcategoryId) &&
+    // Waived wherever the picker is hidden or locked, because there the user
+    // has no control to satisfy it — a disabled Save with no visible reason is
+    // exactly how the contra failure presented. handleSubmit re-checks and
+    // reports which category could not be resolved.
+    (lockAssetPurchaseCategory || hidesCategoryPicker(type) || !!categoryId) &&
+    (lockAssetPurchaseCategory ||
+      hidesSubcategoryPicker(type) ||
+      !!subcategoryId) &&
+    !descriptionError &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
@@ -7112,6 +7379,8 @@ export function AddTransactionView({
 
     if (!resolvedCategoryId) {
       if (categoryOptions.length === 0) {
+        // Asset purchases are expense-only (the backend rejects
+        // is_asset_purchase on any other type), so the hardcoded type is right.
         const categoryRes = await fetch(
           `/api/transactions/categories?type=${encodeURIComponent("expense")}`,
           { headers: { Authorization: `Bearer ${token}` } },
@@ -7123,14 +7392,14 @@ export function AddTransactionView({
         categoryOptions = data.items || [];
         setCategories(categoryOptions);
       }
-      if (assetDraft?.assetClass === "capital_works") {
-        resolvedCategoryId = categoryOptions.find((c) => isCapitalWorksCategory(c.name))?.id ?? null;
-      } else if (assetDraft?.assetClass === "capital_allowance") {
-        resolvedCategoryId = categoryOptions.find((c) => isCapitalAllowanceCategory(c.name))?.id ?? null;
-      }
-      if (!resolvedCategoryId) {
-        resolvedCategoryId = categoryOptions[0]?.id ?? null;
-      }
+      // Resolved from the asset class, and NOT falling back to
+      // `categoryOptions[0]` — index 0 is "Advertising for Tenants" under the
+      // endpoint's alphabetical ordering, which is the bug this replaces.
+      // Null when the depreciation categories are missing, so handleSubmit
+      // reports it rather than filing the asset under whatever came first.
+      resolvedCategoryId =
+        findAssetCategory(categoryOptions, assetDraft?.assetClass ?? "")?.id ??
+        null;
     }
 
     if (!resolvedCategoryId) return null;
@@ -7282,7 +7551,22 @@ export function AddTransactionView({
       }
 
       if (!resolvedCategoryId || !resolvedSubcategoryId) {
-        setSubmitError("Please select a category and sub-category.");
+        // When the picker is hidden or locked the user has nothing to "select",
+        // so the generic message is a dead end. Both cases mean the seeded
+        // category for this type is missing from the server's taxonomy.
+        if (lockAssetPurchaseCategory) {
+          setSubmitError(
+            "The depreciation category for this asset class is unavailable. " +
+              "The server may need updating before asset purchases can be saved.",
+          );
+        } else if (hidesCategoryPicker(type)) {
+          setSubmitError(
+            `The ${transactionTypeLabel(type)} category is unavailable. ` +
+              "The server may need updating before this can be saved.",
+          );
+        } else {
+          setSubmitError("Please select a category and sub-category.");
+        }
         return;
       }
 
@@ -7827,11 +8111,18 @@ export function AddTransactionView({
                   <span className="figma-field-label">Description<em>*</em></span>
                   <input
                     type="text"
-                    className="figma-input"
-                    placeholder="Short description"
+                    className={`figma-input${descriptionError ? " has-error" : ""}`}
+                    placeholder={
+                      type === "contra"
+                        ? "e.g. Transfer from business account to savings"
+                        : "Short description"
+                    }
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
+                  {descriptionError && (
+                    <p className="transaction-field-error">{descriptionError}</p>
+                  )}
                 </div>
 
                 <div className="figma-field-container">

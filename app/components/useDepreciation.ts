@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSession } from "@/src/lib/session";
+import { getIdToken } from "@/src/lib/authToken";
 import type {
   CoreDepreciationList,
   CoreDepreciationSchedule,
@@ -20,15 +20,9 @@ import type {
  * and stored — the same rows the generated PDF is rendered from.
  */
 
-interface SessionWithIdToken {
-  getIdToken(): { getJwtToken(): string };
-}
-
-async function bearerToken(): Promise<string> {
-  const session = (await getSession()) as SessionWithIdToken | null;
-  const token = session?.getIdToken().getJwtToken();
-  if (!token) throw new Error("Your session has expired. Please sign in again.");
-  return token;
+// One memoised, deduplicated token for every panel on a page — see authToken.ts.
+function bearerToken(): Promise<string> {
+  return getIdToken();
 }
 
 function scopePath(level: CoreDepreciationScopeLevel, id: string): string {
@@ -40,9 +34,24 @@ function scopePath(level: CoreDepreciationScopeLevel, id: string): string {
       return `/api/entities/${encoded}/depreciation`;
     case "client":
       return `/api/clients/${encoded}/depreciation`;
+    // Org-wide takes no id — the backend reads the org from the claims.
+    case "org":
+      return `/api/depreciation`;
     default:
       return `/api/properties/${encoded}/depreciation`;
   }
+}
+
+/**
+ * The July side of the current Australian financial year: 2026 means FY2026-27.
+ *
+ * The backend's ?fy= parameter uses the same convention (parseFYParam), and the
+ * financial year turns over on 1 July, so anything from July onwards belongs to
+ * the year that just started.
+ */
+export function currentAuFyStartYear(now: Date = new Date()): number {
+  // getMonth() is 0-based, so 6 is July.
+  return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
 export type UseDepreciationResult = {
@@ -69,11 +78,16 @@ export function useDepreciation(
   const fy = options.fy ?? null;
 
   const [data, setData] = useState<CoreDepreciationList | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // Loading from the first frame whenever a fetch will happen (see useGstSummary).
+  const [isLoading, setIsLoading] = useState(
+    () => enabled && (!!id || level === "org"),
+  );
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!enabled || !id) return;
+    // Org scope carries no id, so an empty one is legitimate there and only
+    // there — every other level would otherwise fetch "/api/entities//…".
+    if (!enabled || (!id && level !== "org")) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -114,6 +128,20 @@ export type FirstYearDeduction = {
   amount: number;
   /** e.g. "FY 2026-27" — which year the figure belongs to. */
   fyLabel: string;
+  /**
+   * Deduction for the CURRENT financial year, and the number that actually goes
+   * on this year's return.
+   *
+   * Year one is only the claimable figure for an asset bought this year. For
+   * one bought three years ago it is history — the schedule has moved on, and
+   * under diminishing value the two differ substantially. Null when the asset's
+   * schedule has no row for this year: either it starts later, or its effective
+   * life has run out and there is nothing left to claim. Null is rendered as
+   * "—", never as $0, because those mean different things on a tax screen.
+   */
+  currentFyAmount: number | null;
+  /** e.g. "FY 2026-27" for the current year. Always present. */
+  currentFyLabel: string;
 };
 
 export type UseFirstYearDepreciationResult = {
@@ -153,23 +181,46 @@ export function useFirstYearDepreciation(
   id: string,
   options: { enabled?: boolean } = {},
 ): UseFirstYearDepreciationResult {
+  // Asking for the current financial year costs nothing extra: `first_yr` is
+  // projected by scheduleSelect regardless, and the ?fy= LATERAL is a LEFT JOIN
+  // with no WHERE clause, so it ADDS this year's figure without dropping any
+  // schedule. One request returns both columns.
+  const currentFy = useMemo(() => currentAuFyStartYear(), []);
+
   const { data, isLoading, error } = useDepreciation(level, id, {
     enabled: options.enabled ?? true,
+    fy: currentFy,
   });
 
   const byTransactionId = useMemo(() => {
+    const currentFyLabel = `FY ${currentFy}-${String((currentFy + 1) % 100).padStart(2, "0")}`;
     const out = new Map<string, FirstYearDeduction>();
     for (const item of data?.items ?? []) {
+      // A schedule with no year-one row has not been generated yet. Skipped
+      // rather than counted as zero, so it renders "—" and not a $0 claim.
       if (item.firstYearDepreciation == null) continue;
       const key = item.displayTransactionId || item.transactionId;
       const existing = out.get(key);
+
+      // Summed across schedules, as year one is: an asset split over two
+      // properties has one schedule each, and the panels quote the whole asset
+      // at entity and client level. Stays null while every contributing
+      // schedule is null, so "no claim this year" never becomes $0.
+      const fyPart = item.fyDepreciation;
+      const currentFyAmount =
+        fyPart == null
+          ? (existing?.currentFyAmount ?? null)
+          : (existing?.currentFyAmount ?? 0) + fyPart;
+
       out.set(key, {
         amount: (existing?.amount ?? 0) + item.firstYearDepreciation,
         fyLabel: existing?.fyLabel || item.firstYearFyLabel,
+        currentFyAmount,
+        currentFyLabel,
       });
     }
     return out;
-  }, [data]);
+  }, [data, currentFy]);
 
   return { byTransactionId, isLoading, error };
 }
@@ -189,7 +240,7 @@ export function useDepreciationSchedule(
   const enabled = options.enabled ?? true;
 
   const [schedule, setSchedule] = useState<CoreDepreciationSchedule | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => enabled && !!scheduleId);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {

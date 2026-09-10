@@ -361,14 +361,14 @@ export default function DocumentsListView({ context, token, disabled = false }: 
       />
 
       {loading && documents.length === 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }} aria-busy="true">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="premium-doc-card" style={{ opacity: 0.6 }}>
+            <div key={n} className="premium-doc-card" aria-hidden="true">
               <div className="premium-doc-left">
-                <div className="premium-doc-icon-wrapper" style={{ animation: "pulse 1.5s infinite" }} />
+                <span className="skeleton-circle skeleton-circle-sm" style={{ borderRadius: 10 }} />
                 <div className="premium-doc-details">
-                  <div style={{ width: 180, height: 16, backgroundColor: "#eaecf0", borderRadius: 4, marginBottom: 8, animation: "pulse 1.5s infinite" }} />
-                  <div style={{ width: 260, height: 12, backgroundColor: "#f2f4f7", borderRadius: 4, animation: "pulse 1.5s infinite" }} />
+                  <span className="skeleton-line" style={{ display: "block", width: 180, height: 16, marginBottom: 8 }} />
+                  <span className="skeleton-line" style={{ display: "block", width: 260, height: 12 }} />
                 </div>
               </div>
             </div>

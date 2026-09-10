@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSession } from "@/src/lib/session";
+import { getIdToken } from "@/src/lib/authToken";
 import type {
   CoreGstScopeLevel,
   CorePersonalSummary,
@@ -31,15 +31,9 @@ import type {
  * blank one.
  */
 
-interface SessionWithIdToken {
-  getIdToken(): { getJwtToken(): string };
-}
-
-async function bearerToken(): Promise<string> {
-  const session = (await getSession()) as SessionWithIdToken | null;
-  const token = session?.getIdToken().getJwtToken();
-  if (!token) throw new Error("Your session has expired. Please sign in again.");
-  return token;
+// One memoised, deduplicated token for every panel on a page — see authToken.ts.
+function bearerToken(): Promise<string> {
+  return getIdToken();
 }
 
 function scopePath(level: CoreGstScopeLevel, id: string): string {
@@ -78,7 +72,8 @@ export function usePersonalSummary(
 ): UsePersonalSummaryResult {
   const enabled = options.enabled ?? true;
   const [summary, setSummary] = useState<CorePersonalSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // Loading from the first frame whenever a fetch will happen (see useGstSummary).
+  const [isLoading, setIsLoading] = useState(() => enabled && !!id);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -152,7 +147,7 @@ export function useAssetTransactions(
 
   const [rows, setRows] = useState<CoreTransactionListItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => enabled && !!id);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {

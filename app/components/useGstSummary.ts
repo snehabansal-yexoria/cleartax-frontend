@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSession } from "@/src/lib/session";
+import { getIdToken } from "@/src/lib/authToken";
 import type { CoreGstScopeLevel, CoreGstSummary } from "@/src/lib/coreApi";
 
 /**
@@ -53,10 +53,6 @@ export function gstAvailableYears(now = new Date()): number[] {
   return Array.from({ length: 6 }, (_, i) => current - i);
 }
 
-interface SessionWithIdToken {
-  getIdToken(): { getJwtToken(): string };
-}
-
 function endpointFor(level: CoreGstScopeLevel, id: string): string {
   switch (level) {
     case "entity":
@@ -100,7 +96,9 @@ export function useGstSummary(
   const enabled = options.enabled ?? true;
 
   const [summary, setSummary] = useState<CoreGstSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // Starts as loading whenever a fetch is going to happen, so the first frame
+  // renders a skeleton rather than "A$ 0.00" for the tick before the effect.
+  const [isLoading, setIsLoading] = useState(() => enabled && !!id);
   const [error, setError] = useState<string | null>(null);
   const [financialYear, setFinancialYear] = useState(() =>
     auFinancialYearOf(new Date()),
@@ -112,11 +110,7 @@ export function useGstSummary(
     setIsLoading(true);
     setError(null);
     try {
-      const session = (await getSession()) as SessionWithIdToken | null;
-      const token = session?.getIdToken().getJwtToken();
-      if (!token) {
-        throw new Error("Your session has expired. Please sign in again.");
-      }
+      const token = await getIdToken();
 
       const params = new URLSearchParams({
         financial_year: String(financialYear),
