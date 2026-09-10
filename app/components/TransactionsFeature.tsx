@@ -98,9 +98,17 @@ type TransactionTableScope = "global" | "client" | "entity";
 function DepreciationCell({
   row,
   deduction,
+  which,
 }: {
   row: DisplayTransactionRow;
   deduction?: FirstYearDeduction;
+  /**
+   * "first" is the deduction in the asset's opening year; "current" is the one
+   * claimable in this financial year. They coincide only for an asset bought
+   * this year — under diminishing value they diverge immediately afterwards,
+   * and "current" is the figure that goes on the return being prepared.
+   */
+  which: "first" | "current";
 }) {
   if (!row.isAssetPurchase) return null;
   if (!deduction) {
@@ -110,10 +118,34 @@ function DepreciationCell({
       </span>
     );
   }
+  if (which === "first") {
+    return (
+      <span className="transaction-depreciation" title={`First-year deduction, ${deduction.fyLabel}`}>
+        {formatCurrency(deduction.amount)}
+        <small className="transaction-depreciation-fy">{deduction.fyLabel}</small>
+      </span>
+    );
+  }
+  // Nothing claimable this year: the schedule either starts later or has run
+  // out of effective life. Rendered as "—", never $0 — on a tax screen those
+  // are different claims.
+  if (deduction.currentFyAmount == null) {
+    return (
+      <span
+        className="transaction-depreciation-empty"
+        title={`No deduction in ${deduction.currentFyLabel}`}
+      >
+        —
+      </span>
+    );
+  }
   return (
-    <span className="transaction-depreciation" title={`First-year deduction, ${deduction.fyLabel}`}>
-      {formatCurrency(deduction.amount)}
-      <small className="transaction-depreciation-fy">{deduction.fyLabel}</small>
+    <span
+      className="transaction-depreciation"
+      title={`Deduction claimable in ${deduction.currentFyLabel}`}
+    >
+      {formatCurrency(deduction.currentFyAmount)}
+      <small className="transaction-depreciation-fy">{deduction.currentFyLabel}</small>
     </span>
   );
 }
@@ -2542,7 +2574,8 @@ function TransactionTable({
   const columnCount =
     9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
     (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0) +
-    (showDepreciation ? 1 : 0);
+    // Two columns: Year 1 and This FY.
+    (showDepreciation ? 2 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -2574,9 +2607,14 @@ function TransactionTable({
               <th style={{ textAlign: "right" }}>GST</th>
               <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
               {showDepreciation ? (
-                <th style={{ textAlign: "right" }} title="Deduction claimable in the asset's first financial year">
-                  Year 1 Depreciation
-                </th>
+                <>
+                  <th style={{ textAlign: "right" }} title="Deduction in the asset's first financial year">
+                    Year 1 Depreciation
+                  </th>
+                  <th style={{ textAlign: "right" }} title="Deduction claimable in the current financial year">
+                    This FY Depreciation
+                  </th>
+                </>
               ) : null}
               {showClientShare ? (
                 <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
@@ -2708,12 +2746,22 @@ function TransactionTable({
                       {formatTransactionCurrency(row.netAmount, amountSign)}
                     </td>
                     {showDepreciation ? (
-                      <td style={{ textAlign: "right" }}>
-                        <DepreciationCell
-                          row={row}
-                          deduction={firstYearDepreciation?.get(row.id)}
-                        />
-                      </td>
+                      <>
+                        <td style={{ textAlign: "right" }}>
+                          <DepreciationCell
+                            row={row}
+                            deduction={firstYearDepreciation?.get(row.id)}
+                            which="first"
+                          />
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <DepreciationCell
+                            row={row}
+                            deduction={firstYearDepreciation?.get(row.id)}
+                            which="current"
+                          />
+                        </td>
+                      </>
                     ) : null}
                     {showClientShare ? (
                       <td style={{ textAlign: "right" }}>
@@ -4832,22 +4880,23 @@ export function AllTransactionsView({
         ? "client"
         : "entity";
 
-  // Year 1 Depreciation beside Gross, so an asset purchase stops reading as a
-  // deduction of its full price. The endpoint is scoped to a property, entity
-  // or client — there is no org-wide one — so the global grid gets no column at
-  // all rather than one that is always blank.
-  const depreciationScope: CoreDepreciationScopeLevel | null =
+  // Depreciation beside Gross, so an asset purchase stops reading as a
+  // deduction of its full price. Every scope is covered: "none" is the org-wide
+  // grid, which GET /depreciation now serves (it takes no id — the backend
+  // reads the org from the caller's claims and scopes by role there).
+  const depreciationScope: CoreDepreciationScopeLevel =
     contextKind === "property"
       ? "property"
       : contextKind === "entity"
         ? "entity"
         : contextKind === "client"
           ? "client"
-          : null;
+          : "org";
   const { byTransactionId: firstYearDepreciation } = useFirstYearDepreciation(
-    depreciationScope ?? "entity",
+    depreciationScope,
     contextId,
-    { enabled: depreciationScope !== null && !!contextId },
+    // Org scope legitimately has no id; every other level needs one.
+    { enabled: depreciationScope === "org" || !!contextId },
   );
   const returnToHref = appendUrlParam(pathname || "/dashboard/accountant/transactions", "tab", "transactions");
   const rulesTargetHref = appendUrlParam(
@@ -5158,11 +5207,7 @@ export function AllTransactionsView({
               rowChildren={grain === "top" ? rowChildren : undefined}
               onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
               selection={selection}
-              // Undefined in the org-wide grid, which drops the column: there
-              // is no org-scoped depreciation endpoint to populate it from.
-              firstYearDepreciation={
-                depreciationScope ? firstYearDepreciation : undefined
-              }
+              firstYearDepreciation={firstYearDepreciation}
             />
           )}
           {totalItems > 0 && (

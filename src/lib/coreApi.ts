@@ -3810,7 +3810,8 @@ export type CoreDepreciationScopeLevel =
   | "transaction"
   | "property"
   | "entity"
-  | "client";
+  | "client"
+  | "org";
 
 function depreciationScopePath(level: CoreDepreciationScopeLevel, id: string) {
   const encoded = encodeURIComponent(id);
@@ -3821,6 +3822,10 @@ function depreciationScopePath(level: CoreDepreciationScopeLevel, id: string) {
       return `/properties/${encoded}/depreciation`;
     case "entity":
       return `/entities/${encoded}/depreciation`;
+    // Org-wide takes no id: the backend reads the org from the caller's Cognito
+    // claims, so there is nothing to put in the path and `id` is ignored.
+    case "org":
+      return `/depreciation`;
     default:
       return `/clients/${encoded}/depreciation`;
   }
