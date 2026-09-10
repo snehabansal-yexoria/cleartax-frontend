@@ -807,10 +807,10 @@ function AccountantClientsContent() {
           <div />
           <div>Client Name</div>
           <div>Email Address</div>
-          <div>Status</div>
-          <div>Accountant</div>
-          <div>Properties</div>
-          <div>Joined Date</div>
+          <div className="text-center">Status</div>
+          <div className="text-center">Accountant</div>
+          <div className="text-center">Properties</div>
+          <div className="text-center">Joined Date</div>
         </div>
 
         {(currentTab === "all" ? allClients : myClients) === null ? (
@@ -1047,13 +1047,13 @@ function AccountantClientsContent() {
                   <span>{client.email}</span>
                 </div>
 
-                <div className="accountant-client-cell">
+                <div className="accountant-client-cell flex justify-center text-center">
                   <span style={statusStyle(client.status)}>
                     {formatStatus(client.status)}
                   </span>
                 </div>
 
-                <div className="accountant-client-cell">
+                <div className="accountant-client-cell flex justify-center text-center">
                   {client.isAssignedToCurrentAccountant ? (
                     <span style={{ color: "#2f3c82", fontWeight: 600, fontSize: "13px" }}>
                       You
@@ -1067,13 +1067,13 @@ function AccountantClientsContent() {
                   )}
                 </div>
 
-                <div className="accountant-client-cell flex justify-center">
+                <div className="accountant-client-cell flex justify-center text-center">
                   <span className="inline-flex items-center justify-center px-[10px] py-[3px] rounded-lg bg-[#f0f3fa] text-[#2f3c82] font-bold text-[13px] min-w-[32px] border border-[#e1e7f3] transition-all duration-150 ease-in-out group-hover:bg-[#e5ecfb] group-hover:border-[#cbd5e1] group-hover:text-[#2f3c82]">
                     {client.propertiesCount ?? 0}
                   </span>
                 </div>
 
-                <div className="accountant-client-cell" style={{ flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
+                <div className="accountant-client-cell flex flex-col items-center justify-center text-center" style={{ gap: "6px" }}>
                   <span>{formatJoinedDate(client.joinedAt)}</span>
                   {currentTab === "mine" && (
                     <button
