@@ -1406,7 +1406,7 @@ function TransactionDetailPopup({
       if (hidesCategoryPicker(type) && !categoryId) {
         setEditError(
           `The ${transactionTypeLabel(type)} category is unavailable. ` +
-            "The server may need updating before this can be saved.",
+          "The server may need updating before this can be saved.",
         );
       } else {
         setEditError("Please complete type, category, sub-category, and date.");
@@ -1418,7 +1418,7 @@ function TransactionDetailPopup({
     if (type === "contra" && !description.trim()) {
       setEditError(
         "A description is required on a contra entry: it is the only record " +
-          "of which accounts the money moved between.",
+        "of which accounts the money moved between.",
       );
       return;
     }
@@ -7557,12 +7557,12 @@ export function AddTransactionView({
         if (lockAssetPurchaseCategory) {
           setSubmitError(
             "The depreciation category for this asset class is unavailable. " +
-              "The server may need updating before asset purchases can be saved.",
+            "The server may need updating before asset purchases can be saved.",
           );
         } else if (hidesCategoryPicker(type)) {
           setSubmitError(
             `The ${transactionTypeLabel(type)} category is unavailable. ` +
-              "The server may need updating before this can be saved.",
+            "The server may need updating before this can be saved.",
           );
         } else {
           setSubmitError("Please select a category and sub-category.");
@@ -8008,7 +8008,7 @@ export function AddTransactionView({
               Deliberately outside the allowsBusinessExtras block below, which
               is false for contra — placing it inside would make the toggle
               vanish the moment it was switched on. */}
-              {allowsContraFlag(type) && (
+              {/* {allowsContraFlag(type) && (
                 <label className="figma-toggle-container">
                   <div className="figma-toggle-info">
                     <span className="figma-toggle-title">Is this a contra entry?</span>
@@ -8029,7 +8029,7 @@ export function AddTransactionView({
                     <span className="figma-switch-slider" />
                   </span>
                 </label>
-              )}
+              )} */}
 
               {/* Category / Sub-Category dropdowns */}
               {type === "cost_base" ? (
