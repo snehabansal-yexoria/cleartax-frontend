@@ -38,6 +38,9 @@ export async function PATCH(req: Request, context: RouteContext) {
   if (typeof body.amount === "number" && Number.isFinite(body.amount)) {
     payload.amount = body.amount;
   }
+  if (typeof body.gst_amount === "number" && Number.isFinite(body.gst_amount)) {
+    payload.gst_amount = body.gst_amount;
+  }
   // Description is the one clearable field, so an explicit null is forwarded
   // rather than dropped — that is how the accountant empties the cell.
   if (typeof body.description === "string" || body.description === null) {

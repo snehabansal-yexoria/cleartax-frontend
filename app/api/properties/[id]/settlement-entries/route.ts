@@ -64,6 +64,9 @@ export async function POST(req: Request, context: RouteContext) {
   if (typeof body.amount === "number" && Number.isFinite(body.amount)) {
     payload.amount = body.amount;
   }
+  if (typeof body.gst_amount === "number" && Number.isFinite(body.gst_amount)) {
+    payload.gst_amount = body.gst_amount;
+  }
   if (typeof body.description === "string") {
     payload.description = body.description;
   }
