@@ -2,16 +2,42 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState, useRef } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useState, useRef } from "react";
 import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import {
+  TRANSACTION_TYPE_OPTIONS,
+  TRANSACTION_TYPE_ENTRY_OPTIONS,
+  allowsAssetPurchase,
+  allowsBusinessExtras,
+  allowsPersonalPortion,
+  hidesCategoryPicker,
+  hidesSubcategoryPicker,
+  transactionSign,
+  allowsContraFlag,
+  parseTransactionType,
+  transactionTypeColor,
+  transactionTypeLabel,
+  transactionTypeModifier,
+} from "@/src/lib/transactionTypes";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
+import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
+import {
+  useFirstYearDepreciation,
+  type FirstYearDeduction,
+} from "@/app/components/useDepreciation";
+import { isAwaitingExtraction } from "@/src/lib/reviewStatus";
+import { ReviewStatusBadge } from "@/app/components/ReviewStatusBadge";
 import type {
   CoreAssetClass,
+  CoreDepreciationMethod,
+  CoreDepreciationScopeLevel,
   CorePropertyTransactionRow,
   CoreTransactionCategory,
+  CoreTransactionChild,
   CoreTransactionDetail,
   CoreTransactionListItem,
   CoreTransactionSubcategory,
@@ -21,8 +47,18 @@ import {
   DocumentDropZone,
   type ExtractedDocumentData,
   type ExtractedMeta,
+  type MatchedRule,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
+import AssetBuilder, {
+  AssetSummaryChip,
+  assetRequestFields,
+  CAPITAL_WORKS_EFFECTIVE_LIFE,
+  isCapitalWorksCategory,
+  isCapitalAllowanceCategory,
+  isAssetEligibleCategory,
+  type AssetDraft,
+} from "@/app/components/AssetBuilder";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -44,6 +80,63 @@ export type TransactionsContext =
 
 type TransactionTableScope = "global" | "client" | "entity";
 
+/**
+ * What the grid prints in Gross, GST and Net for one row.
+ *
+ * An asset purchase shows its YEAR ONE DEPRECIATION in Gross and Net, not the
+ * price paid: on a tax screen the purchase price reads as the amount claimed,
+ * and a $30,000 asset is not a $30,000 deduction. This is a rendering choice
+ * only. The stored gross_amount is untouched — it is the money that left the
+ * bank, it has to reconcile against the statement line, and it IS the
+ * depreciable cost base the Go engine reads back (`costBaseFor`), so lowering
+ * it would corrupt the engine's own input. Server-side sorting, the CSV export
+ * and the detail drawer still work from the stored amounts.
+ *
+ * Depreciation carries no GST (any credit was claimed on the purchase), so the
+ * GST cell is blanked rather than left showing the purchase's GST beside a
+ * gross it no longer belongs to. `null` renders as "—".
+ *
+ * An asset with no schedule yet keeps its purchase price, with a tooltip that
+ * says so, rather than going blank: a transaction row with no amount reads as
+ * broken, not as "not calculated yet".
+ */
+type GridAmounts = {
+  gross: number;
+  gst: number | null;
+  net: number;
+  /** Set when the amounts are the year-one deduction rather than the purchase. */
+  deduction?: FirstYearDeduction;
+  /** Tooltip explaining the substitution, or its absence on an asset row. */
+  title?: string;
+};
+
+function gridAmounts(
+  row: DisplayTransactionRow,
+  deduction?: FirstYearDeduction,
+): GridAmounts {
+  if (!row.isAssetPurchase) {
+    return { gross: row.grossAmount, gst: row.gstAmount, net: row.netAmount };
+  }
+  if (!deduction) {
+    return {
+      gross: row.grossAmount,
+      gst: row.gstAmount,
+      net: row.netAmount,
+      title: "No depreciation schedule yet; showing the purchase price",
+    };
+  }
+  return {
+    gross: deduction.amount,
+    gst: null,
+    net: deduction.amount,
+    deduction,
+    title:
+      `Year 1 depreciation, ${deduction.fyLabel}. ` +
+      `Purchased for ${formatCurrency(row.grossAmount)} ` +
+      `(GST ${formatCurrency(row.gstAmount)}, net ${formatCurrency(row.netAmount)})`,
+  };
+}
+
 type DisplayTransactionRow = CoreTransactionListItem;
 type TransactionModalMode = "view" | "edit";
 type TransactionReviewAction = "approve" | "reject" | "reset";
@@ -54,7 +147,13 @@ type TransactionFilters = {
   entity: string;
   property: string;
   type: string;
+  /** Category id, not name — the API filters on category_id. */
   category: string;
+  /** Substring match on the transaction description. */
+  search: string;
+  /** Inclusive invoice-date bounds, YYYY-MM-DD. */
+  from: string;
+  to: string;
 };
 
 type TransactionFilterOptions = {
@@ -71,7 +170,208 @@ const defaultTransactionFilters: TransactionFilters = {
   property: "all",
   type: "all",
   category: "all",
+  search: "",
+  from: "",
+  to: "",
 };
+
+/** Shape of GET /api/transactions/facets. */
+type TransactionFacets = {
+  reviewStatusCounts: Record<string, number>;
+  clients: { id: string; name: string }[];
+  entities: { id: string; name: string }[];
+  properties: { id: string; name: string }[];
+  categories: { id: string; name: string; type?: string }[];
+  types: string[];
+};
+
+const EXPORT_FORMATS: { format: "csv" | "xlsx" | "pdf"; label: string }[] = [
+  { format: "csv", label: "CSV (.csv)" },
+  { format: "xlsx", label: "Excel (.xlsx)" },
+  { format: "pdf", label: "PDF (.pdf)" },
+];
+
+/**
+ * Export dropdown. The file is generated from the same filters, search, tab and
+ * sort the grid is showing — over the whole result set, not the loaded page.
+ */
+function ExportMenu({
+  onExport,
+  disabled,
+}: {
+  onExport: (format: "csv" | "xlsx" | "pdf") => Promise<void>;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busyFormat, setBusyFormat] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocumentClick(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocumentClick);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("mousedown", onDocumentClick);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="transaction-export-menu" ref={containerRef}>
+      <button
+        type="button"
+        className="transaction-outline-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={disabled || busyFormat !== null}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        {busyFormat ? "Exporting…" : "Export"}
+      </button>
+      {open ? (
+        <div className="transaction-export-menu-list" role="menu">
+          {EXPORT_FORMATS.map(({ format, label }) => (
+            <button
+              key={format}
+              type="button"
+              role="menuitem"
+              disabled={busyFormat !== null}
+              onClick={async () => {
+                setBusyFormat(format);
+                setOpen(false);
+                try {
+                  await onExport(format);
+                } finally {
+                  setBusyFormat(null);
+                }
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function countActiveFilters(filters: TransactionFilters) {
+  const dropdowns = [
+    filters.client,
+    filters.entity,
+    filters.property,
+    filters.type,
+    filters.category,
+  ].filter((value) => value !== "all").length;
+  const text = [filters.search, filters.from, filters.to].filter(Boolean).length;
+  return dropdowns + text;
+}
+
+// Sorting, searching and paging all happen in Postgres. These keys mirror the
+// whitelist in internal/handlers/transaction/query.go — sending one a scope
+// does not accept is a 400 upstream, not a silent fallback, so the tables only
+// offer the keys listed in SORTABLE_KEYS_BY_SCOPE below.
+type TransactionSortKey =
+  | "date"
+  | "created"
+  | "client"
+  | "entity"
+  | "property"
+  | "description"
+  | "gross"
+  | "net"
+  | "share";
+
+type SortDirection = "asc" | "desc";
+
+type TransactionSort = { key: TransactionSortKey; dir: SortDirection };
+
+const SORTABLE_KEYS_BY_SCOPE: Record<
+  TransactionsContext["kind"],
+  TransactionSortKey[]
+> = {
+  none: ["date", "created", "client", "entity", "property", "description", "gross", "net"],
+  client: ["date", "created", "entity", "property", "description", "gross", "net", "share"],
+  entity: ["date", "created", "property", "description", "gross", "net"],
+  property: ["date", "created", "description", "gross", "net", "share"],
+};
+
+// Matches defaultSort in the Go handler, so an untouched grid keeps the
+// ordering it had before pagination existed.
+const DEFAULT_SORT_BY_SCOPE: Record<
+  TransactionsContext["kind"],
+  TransactionSort
+> = {
+  none: { key: "date", dir: "desc" },
+  client: { key: "created", dir: "desc" },
+  entity: { key: "created", dir: "desc" },
+  property: { key: "date", dir: "desc" },
+};
+
+// Text sorts read A-Z ascending; dates and amounts read largest-first
+// descending. The labels spell that out so the dropdown is unambiguous.
+const SORT_LABELS: Record<TransactionSortKey, Record<SortDirection, string>> = {
+  date: { desc: "Date (Newest first)", asc: "Date (Oldest first)" },
+  created: { desc: "Date submitted (Newest first)", asc: "Date submitted (Oldest first)" },
+  client: { asc: "Client Name (A-Z)", desc: "Client Name (Z-A)" },
+  entity: { asc: "Entity Name (A-Z)", desc: "Entity Name (Z-A)" },
+  property: { asc: "Property Name (A-Z)", desc: "Property Name (Z-A)" },
+  description: { asc: "Description (A-Z)", desc: "Description (Z-A)" },
+  gross: { desc: "Gross Amount (High to Low)", asc: "Gross Amount (Low to High)" },
+  net: { desc: "Net Amount (High to Low)", asc: "Net Amount (Low to High)" },
+  share: { desc: "Share Amount (High to Low)", asc: "Share Amount (Low to High)" },
+};
+
+// A first click should show the most useful end of the column: Z is rarely
+// what you want from a name, but the largest amount usually is.
+const INITIAL_SORT_DIR: Record<TransactionSortKey, SortDirection> = {
+  date: "desc",
+  created: "desc",
+  client: "asc",
+  entity: "asc",
+  property: "asc",
+  description: "asc",
+  gross: "desc",
+  net: "desc",
+  share: "desc",
+};
+
+/**
+ * Amount colouring, keyed on the three signs rather than a revenue boolean.
+ *
+ * A contra entry gets the neutral class: it is a transfer between the entity's
+ * own accounts, so painting it red beside real expenses reads as spending that
+ * never happened.
+ */
+function amountClass(sign: ReturnType<typeof transactionSign>): string {
+  if (sign === "positive") return "amount-positive";
+  if (sign === "neutral") return "amount-neutral";
+  return "amount-negative";
+}
+
+function encodeSort(sort: TransactionSort) {
+  return `${sort.key}-${sort.dir}`;
+}
+
+function decodeSort(value: string, fallback: TransactionSort): TransactionSort {
+  const index = value.lastIndexOf("-");
+  if (index <= 0) return fallback;
+  const key = value.slice(0, index) as TransactionSortKey;
+  const dir = value.slice(index + 1);
+  if (!SORT_LABELS[key] || (dir !== "asc" && dir !== "desc")) return fallback;
+  return { key, dir };
+}
 
 function appendUrlParam(href: string, key: string, value: string) {
   const separator = href.includes("?") ? "&" : "?";
@@ -119,6 +419,8 @@ type CoreTransactionRule = {
   assignedType: string;
   assignedCategoryId: number;
   assignedSubcategoryId: number;
+  /** Standing private-use share applied to everything this rule matches. */
+  assignedPersonalPercentage: number | null;
   autoConfirm: boolean;
   isEnabled: boolean;
   metadata: Record<string, unknown>;
@@ -132,7 +434,7 @@ type CoreTransactionRule = {
 type SelectOption = {
   label: string;
   value: string;
-  type?: "revenue" | "expense" | string;
+  type?: CoreTransactionType | string;
 };
 
 type StaticSelectProps = {
@@ -164,6 +466,10 @@ function normalizeRule(raw: Record<string, unknown>): CoreTransactionRule {
     assignedType: String(raw.assigned_type ?? ""),
     assignedCategoryId: Number(raw.assigned_category_id ?? 0),
     assignedSubcategoryId: Number(raw.assigned_subcategory_id ?? 0),
+    assignedPersonalPercentage:
+      raw.assigned_personal_percentage != null
+        ? Number(raw.assigned_personal_percentage)
+        : null,
     autoConfirm: Boolean(raw.auto_confirm),
     isEnabled: Boolean(raw.is_enabled),
     metadata: (raw.metadata && typeof raw.metadata === "object" && !Array.isArray(raw.metadata))
@@ -394,7 +700,9 @@ export function StaticSelect({
                     height: "8px",
                     borderRadius: "50%",
                     marginRight: "8px",
-                    backgroundColor: selected.type === "revenue" ? "#12a150" : "#e11d48",
+                    backgroundColor: transactionTypeColor(
+                      selected.type as CoreTransactionType,
+                    ),
                     flexShrink: 0,
                   }}
                 />
@@ -431,7 +739,9 @@ export function StaticSelect({
                           height: "8px",
                           borderRadius: "50%",
                           marginRight: "8px",
-                          backgroundColor: option.type === "revenue" ? "#12a150" : "#e11d48",
+                          backgroundColor: transactionTypeColor(
+                            option.type as CoreTransactionType,
+                          ),
                           flexShrink: 0,
                         }}
                       />
@@ -541,6 +851,8 @@ function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransa
     metadata: {},
     createdAt: row.createdAt,
     updatedAt: "",
+    hasChildren: row.hasChildren,
+    personalPercentage: row.personalPercentage,
   };
 }
 
@@ -567,6 +879,7 @@ function TransactionDetailPopup({
   mode,
   isLoading,
   error,
+  notice = "",
   isSaving,
   isDeleting,
   relatedRules,
@@ -584,6 +897,8 @@ function TransactionDetailPopup({
   mode: TransactionModalMode;
   isLoading: boolean;
   error: string;
+  /** Informational, not a failure — e.g. "we just read this from the PDF". */
+  notice?: string;
   isSaving: boolean;
   isDeleting: boolean;
   relatedRules: CoreTransactionRule[];
@@ -619,10 +934,14 @@ function TransactionDetailPopup({
       ? row.metadata.mode_of_transaction
       : "",
   );
+  // asset_name and depreciation_method became real columns in migration 0037.
+  // The metadata fallback is only for rows written before it ran; the column is
+  // authoritative once it is populated.
   const [assetItemName, setAssetItemName] = useState(
-    typeof row.metadata.asset_item_name === "string"
+    row.assetName ??
+    (typeof row.metadata.asset_item_name === "string"
       ? row.metadata.asset_item_name
-      : "",
+      : ""),
   );
   const [assetClass, setAssetClass] = useState<CoreAssetClass | "">(
     row.assetClass || "",
@@ -630,6 +949,9 @@ function TransactionDetailPopup({
   const [effectiveLifeYears, setEffectiveLifeYears] = useState(
     row.effectiveLifeYears == null ? "" : String(row.effectiveLifeYears),
   );
+  const [depreciationMethod, setDepreciationMethod] = useState<
+    CoreDepreciationMethod | ""
+  >(row.depreciationMethod ?? "");
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [isSplit, setIsSplit] = useState(row.propertyIds.length > 1);
   const [editSplitRows, setEditSplitRows] = useState<SplitRowState[]>(() =>
@@ -835,7 +1157,7 @@ function TransactionDetailPopup({
   }
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
-  const isRevenue = display.type === "revenue";
+  const amountSign = transactionSign(display.type);
   const splitRows =
     detail?.splits.map((split) => ({
       id: String(split.id),
@@ -848,6 +1170,9 @@ function TransactionDetailPopup({
     })) || [];
   const hasPropertySplit =
     new Set(splitRows.map((split) => split.propertyId).filter(Boolean)).size > 1;
+  // The two sides of a private-use split, business first (the API orders them
+  // that way). Empty on every transaction without a private portion.
+  const personalChildren = detail?.children ?? [];
   const purchasedAssetName =
     typeof display.metadata.asset_item_name === "string"
       ? display.metadata.asset_item_name
@@ -913,15 +1238,38 @@ function TransactionDetailPopup({
         `/api/transactions/categories?type=${encodeURIComponent(type)}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok || cancelled) return;
+      if (cancelled) return;
+      // Clear rather than keeping the previous type's list — see the add form's
+      // equivalent. Re-typing an expense to contra with a stale list left the
+      // drawer offering expense categories for a contra transaction.
+      if (!res.ok) {
+        setCategories([]);
+        return;
+      }
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
-      if (!cancelled) setCategories(data.items || []);
+      if (!cancelled) {
+        setCategories(withoutDedicatedFlowCategories(data.items || []));
+      }
     }
     loadCategories();
     return () => {
       cancelled = true;
     };
   }, [type]);
+
+  // Personal and contra hide the picker, so select the single seeded category
+  // for the type. Filtered by type, never `categories[0]`: the list is
+  // refetched asynchronously on a type change, so index 0 can still be the
+  // previous type's row — which is what posted an expense category on a contra
+  // transaction and produced "category type does not match transaction type".
+  useEffect(() => {
+    if (!hidesCategoryPicker(type)) return;
+    const match = firstCategoryOfType(categories, type);
+    if (match && match.id !== categoryId) {
+      setCategoryId(match.id);
+      setSubcategoryId(null);
+    }
+  }, [type, categories, categoryId]);
 
   useEffect(() => {
     setSubcategories([]);
@@ -1000,7 +1348,25 @@ function TransactionDetailPopup({
     const grossNum = Number.parseFloat(grossAmount);
     if (!type || !categoryId || !subcategoryId || !invoiceDate) {
       setInvoiceDateTouched(true);
-      setEditError("Please complete type, category, sub-category, and date.");
+      // When the picker is hidden the user cannot "complete" a category, so say
+      // what actually went wrong: the seeded category for this type is missing.
+      if (hidesCategoryPicker(type) && !categoryId) {
+        setEditError(
+          `The ${transactionTypeLabel(type)} category is unavailable. ` +
+          "The server may need updating before this can be saved.",
+        );
+      } else {
+        setEditError("Please complete type, category, sub-category, and date.");
+      }
+      return;
+    }
+    // Matches the backend's validateContraDescription: on a contra the
+    // description is the only record of which accounts the money moved between.
+    if (type === "contra" && !description.trim()) {
+      setEditError(
+        "A description is required on a contra entry: it is the only record " +
+        "of which accounts the money moved between.",
+      );
       return;
     }
     if (invoiceDateError) {
@@ -1100,9 +1466,11 @@ function TransactionDetailPopup({
     }
     const patchReviewStatus =
       canReview &&
-      reviewAction === null &&
-      (reviewStatus === "unreviewed" || reviewStatus === "reviewed") &&
-      reviewStatus !== initialReview
+        reviewAction === null &&
+        (reviewStatus === "active" ||
+          reviewStatus === "unreviewed" ||
+          reviewStatus === "reviewed") &&
+        reviewStatus !== initialReview
         ? reviewStatus
         : undefined;
 
@@ -1118,6 +1486,10 @@ function TransactionDetailPopup({
       metadata: {
         ...display.metadata,
         mode_of_transaction: modeOfTransaction || null,
+        // Saving is the moment the placeholder becomes real values, so the
+        // "Awaiting extraction" marker goes. PATCH replaces metadata wholesale
+        // and undefined keys drop out of JSON, which removes it.
+        extraction_pending: undefined,
       },
       splits,
     };
@@ -1126,16 +1498,35 @@ function TransactionDetailPopup({
     }
     body.gst_amount = gstNum ?? 0;
     if (isAssetPurchase) {
-      body.asset_class = assetClass || null;
-      if (assetItemName.trim()) {
-        body.metadata = {
-          ...(body.metadata as Record<string, unknown>),
-          asset_item_name: assetItemName.trim(),
-        };
+      // First-class fields since migration 0037. The name and the method used
+      // to be written into metadata, where nothing validated them and the
+      // backend never read them — an asset could be saved with no method and
+      // therefore no depreciation schedule at all.
+      if (!assetClass) {
+        setEditError("Choose a depreciation category for this asset.");
+        return;
       }
-      if (assetClass === "capital_allowance") {
-        body.effective_life_years = Number.parseFloat(effectiveLifeYears);
+      if (!assetItemName.trim()) {
+        setEditError("Give the asset a name — it names its depreciation schedule.");
+        return;
       }
+      const isCapitalWorks = assetClass === "capital_works";
+      const method = isCapitalWorks ? "prime_cost" : depreciationMethod;
+      if (!method) {
+        setEditError("Choose a depreciation method for this asset.");
+        return;
+      }
+      const life = isCapitalWorks
+        ? CAPITAL_WORKS_EFFECTIVE_LIFE
+        : Number.parseFloat(effectiveLifeYears);
+      if (!Number.isFinite(life) || life <= 0) {
+        setEditError("Effective life must be a positive number of years.");
+        return;
+      }
+      body.asset_class = assetClass;
+      body.asset_name = assetItemName.trim();
+      body.depreciation_method = method;
+      body.effective_life_years = life;
     }
     setEditError("");
     await onSave(body, reviewAction);
@@ -1173,6 +1564,27 @@ function TransactionDetailPopup({
               <span>{error}</span>
             </div>
           ) : null}
+          {notice ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                background: "rgba(53, 56, 205, 0.08)",
+                border: "1px solid rgba(53, 56, 205, 0.24)",
+                color: "var(--text-primary)",
+                fontSize: "13px",
+                fontWeight: 500,
+              }}
+            >
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.25v2.25H9a.75.75 0 000 1.5h2a.75.75 0 000-1.5h-.25V9.75A.75.75 0 0010 9H9z" clipRule="evenodd" />
+              </svg>
+              <span>{notice}</span>
+            </div>
+          ) : null}
 
           <DetailField label="Transaction ID">
             <a>{display.id.slice(0, 8).toUpperCase()}</a>
@@ -1201,37 +1613,92 @@ function TransactionDetailPopup({
               <div className="transaction-type-control">
                 <span className="transaction-field-label">Transaction Type<em>*</em></span>
                 <div>
-                  <button
-                    type="button"
-                    className={type === "expense" ? "is-selected" : ""}
-                    onClick={() => {
-                      setType("expense");
-                      setCategoryId(null);
-                      setSubcategoryId(null);
-                    }}
-                  >
-                    Expense
-                  </button>
-                  <button
-                    type="button"
-                    className={type === "revenue" ? "is-selected is-revenue" : ""}
-                    onClick={() => {
-                      setType("revenue");
-                      setCategoryId(null);
-                      setSubcategoryId(null);
-                    }}
-                  >
-                    Revenue
-                  </button>
+                  {/* Entry options, not every type: contra is reached by the
+                  toggle below, so it is not offered as a sixth button. */}
+                  {TRANSACTION_TYPE_ENTRY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={
+                        type === option.value ||
+                          (option.value === "expense" && type === "contra")
+                          ? `is-selected ${transactionTypeModifier(option.value)}`
+                          : ""
+                      }
+                      onClick={() => {
+                        setType(option.value);
+                        setCategoryId(null);
+                        setSubcategoryId(null);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* Lets a mis-marked transfer be turned back into a real expense,
+              and an expense that turns out to be a transfer be corrected
+              without deleting and re-entering it. */}
+              {allowsContraFlag(type) && (
+                <label className="transaction-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={type === "contra"}
+                    onChange={(event) => {
+                      setType(event.target.checked ? "contra" : "expense");
+                      setCategoryId(null);
+                      setSubcategoryId(null);
+                      if (event.target.checked) {
+                        setShowGstBreakdown(false);
+                        setGstAmount("");
+                      }
+                    }}
+                  />
+                  <span>
+                    <strong>Is this a contra entry?</strong>
+                    <br />
+                    A transfer between your own accounts. Excluded from the
+                    profit and loss statement and your BAS.
+                  </span>
+                </label>
+              )}
               {type === "expense" ? (
                 <div className="transaction-asset-card">
                   <label className="transaction-checkbox-row">
                     <input
                       type="checkbox"
                       checked={isAssetPurchase}
-                      onChange={(event) => setIsAssetPurchase(event.target.checked)}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        if (checked) {
+                          const selectedCategory = categories.find((c) => c.id === categoryId);
+                          if (!selectedCategory || !isAssetEligibleCategory(selectedCategory.name)) {
+                            const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                            const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                            const targetCat = worksCat || allowanceCat;
+                            if (targetCat) {
+                              setCategoryId(targetCat.id);
+                              setSubcategoryId(null);
+                              setIsAssetPurchase(true);
+                              const isWorks = isCapitalWorksCategory(targetCat.name);
+                              setAssetClass(isWorks ? "capital_works" : "capital_allowance");
+                              if (isWorks) {
+                                setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                                setDepreciationMethod("prime_cost");
+                                if (!assetItemName) setAssetItemName("Capital Works");
+                              }
+                              setEditError("");
+                            } else {
+                              setEditError("To add an asset, please select Capital Works Deductions or Capital Allowances as the category.");
+                            }
+                          } else {
+                            setIsAssetPurchase(true);
+                          }
+                        } else {
+                          setIsAssetPurchase(false);
+                        }
+                      }}
                     />
                     <span>Asset Purchase</span>
                   </label>
@@ -1249,7 +1716,15 @@ function TransactionDetailPopup({
                         <input
                           type="radio"
                           checked={assetClass === "capital_allowance"}
-                          onChange={() => setAssetClass("capital_allowance")}
+                          onChange={() => {
+                            setAssetClass("capital_allowance");
+                            if (assetItemName === "Capital Works") setAssetItemName("");
+                            const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                            if (allowanceCat) {
+                              setCategoryId(allowanceCat.id);
+                              setSubcategoryId(null);
+                            }
+                          }}
                         />
                         <span>
                           <b>Capital Allowance</b>
@@ -1277,28 +1752,109 @@ function TransactionDetailPopup({
                         <input
                           type="radio"
                           checked={assetClass === "capital_works"}
-                          onChange={() => setAssetClass("capital_works")}
+                          onChange={() => {
+                            // Division 43 fixes both: 40 years at prime cost.
+                            setAssetClass("capital_works");
+                            setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                            setDepreciationMethod("prime_cost");
+                            if (!assetItemName) setAssetItemName("Capital Works");
+                            const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                            if (worksCat) {
+                              setCategoryId(worksCat.id);
+                              setSubcategoryId(null);
+                            }
+                          }}
                         />
                         <span>
                           <b>Capital Works</b>
-                          <small>Fixed depreciation period for capital improvements</small>
+                          <small>Fixed 40-year life at 2.5% prime cost (Div 43)</small>
                         </span>
                       </label>
+
+                      {/* The method drives the whole schedule and was never
+                          captured here before, so an asset edited in this
+                          drawer had no method to depreciate on. */}
+                      {assetClass ? (
+                        <div className="transaction-asset-method">
+                          <span className="transaction-field-label">
+                            Method of depreciation<em>*</em>
+                          </span>
+                          {assetClass === "capital_works" ? (
+                            <p className="transaction-field-hint">
+                              Capital works is prime cost only — diminishing value is not
+                              available for Division 43.
+                            </p>
+                          ) : (
+                            <div className="transaction-asset-method-options">
+                              <label className="transaction-radio-card">
+                                <input
+                                  type="radio"
+                                  checked={depreciationMethod === "diminishing_value"}
+                                  onChange={() => setDepreciationMethod("diminishing_value")}
+                                />
+                                <span>
+                                  <b>Diminishing Value</b>
+                                  <small>Higher deductions in early years</small>
+                                </span>
+                              </label>
+                              <label className="transaction-radio-card">
+                                <input
+                                  type="radio"
+                                  checked={depreciationMethod === "prime_cost"}
+                                  onChange={() => setDepreciationMethod("prime_cost")}
+                                />
+                                <span>
+                                  <b>Prime Cost</b>
+                                  <small>Equal deductions each year</small>
+                                </span>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
               ) : null}
               <div className="transaction-detail-grid is-two">
-                <StaticSelect
-                  label="Category"
-                  required
-                  value={categoryId == null ? "" : String(categoryId)}
-                  options={categorySelectOptions}
-                  onChange={(value) => {
-                    setCategoryId(value ? Number(value) : null);
-                    setSubcategoryId(null);
-                  }}
-                />
+                {/* Hidden for personal and contra, which post to a single
+                seeded category selected by the effect above — matching the add
+                form. Without this, re-typing an expense to contra left an
+                expense category showing and required a manual re-pick.
+
+                The onChange is the INVERSE direction of the add form's fix:
+                here picking a depreciation category infers the asset class,
+                whereas the add form derives the category from the class the
+                AssetBuilder already captured. Both ends now agree on the same
+                two categories, so an asset can no longer be filed under
+                "Advertising for Tenants" from either direction. */}
+                {!hidesCategoryPicker(type) && (
+                  <StaticSelect
+                    label="Category"
+                    required
+                    value={categoryId == null ? "" : String(categoryId)}
+                    options={categorySelectOptions}
+                    onChange={(value) => {
+                      const newCatId = value ? Number(value) : null;
+                      setCategoryId(newCatId);
+                      setSubcategoryId(null);
+                      const selectedCat = categories.find((c) => c.id === newCatId);
+                      if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
+                        setIsAssetPurchase(true);
+                        setAssetClass("capital_works");
+                        setEffectiveLifeYears(String(CAPITAL_WORKS_EFFECTIVE_LIFE));
+                        setDepreciationMethod("prime_cost");
+                        if (!assetItemName) setAssetItemName("Capital Works");
+                        setEditError("");
+                      } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
+                        setIsAssetPurchase(true);
+                        setAssetClass("capital_allowance");
+                        if (assetItemName === "Capital Works") setAssetItemName("");
+                        setEditError("");
+                      }
+                    }}
+                  />
+                )}
                 {showSubcategorySelect && (
                   <div className="transaction-field-animate">
                     <StaticSelect
@@ -1513,10 +2069,9 @@ function TransactionDetailPopup({
               <div className={`transaction-detail-grid ${display.subcategoryName && display.subcategoryName.toLowerCase() !== "general" ? "is-three" : "is-two"}`}>
                 <DetailField label="Type">
                   <span
-                    className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                      }`}
+                    className={`transaction-type-pill ${transactionTypeModifier(display.type)}`}
                   >
-                    {isRevenue ? "Income" : "Expense"}
+                    {transactionTypeLabel(display.type)}
                   </span>
                 </DetailField>
                 <DetailField label="Category" value={display.categoryName} />
@@ -1531,14 +2086,14 @@ function TransactionDetailPopup({
 
               <div className="transaction-detail-grid is-three">
                 <DetailField label="Gross Amount">
-                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(display.grossAmount, isRevenue)}
+                  <span className={amountClass(amountSign)}>
+                    {formatTransactionCurrency(display.grossAmount, amountSign)}
                   </span>
                 </DetailField>
                 <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
                 <DetailField label="Net Amount">
-                  <span className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(display.netAmount, isRevenue)}
+                  <span className={amountClass(amountSign)}>
+                    {formatTransactionCurrency(display.netAmount, amountSign)}
                   </span>
                 </DetailField>
               </div>
@@ -1572,18 +2127,20 @@ function TransactionDetailPopup({
                   label="Review Status"
                   value={reviewStatus}
                   options={[
-                    { label: "Unreviewed", value: "unreviewed" },
+                    { label: "Active", value: "active" },
+                    { label: "To Be Reviewed", value: "unreviewed" },
                     { label: "Reviewed", value: "reviewed" },
                     { label: "Approved", value: "approved" },
                     { label: "Rejected", value: "rejected" },
                   ]}
                   onChange={(value) =>
                     setReviewStatus(
-                      value === "reviewed" ||
+                      value === "unreviewed" ||
+                        value === "reviewed" ||
                         value === "approved" ||
                         value === "rejected"
                         ? value
-                        : "unreviewed",
+                        : "active",
                     )
                   }
                 />
@@ -1610,6 +2167,51 @@ function TransactionDetailPopup({
               ) : null}
             </>
           )}
+
+          {/* Private-use breakdown. The grid shows one row per bill, so this
+              is where the two halves of a part-personal expense become
+              visible: what was claimed and what was not. Amounts come from the
+              child rows themselves rather than being recomputed here, so the
+              screen shows what is actually stored. */}
+          {mode !== "edit" && personalChildren.length > 0 ? (
+            <section className="transaction-detail-splits">
+              <h3>
+                Business / Personal Split
+                {typeof detail?.personalPercentage === "number"
+                  ? ` — ${detail.personalPercentage}% personal`
+                  : ""}
+              </h3>
+              {personalChildren.map((child) => {
+                const isPersonalSide = child.type === "personal";
+                return (
+                  <div
+                    key={child.id}
+                    className="transaction-detail-split-card"
+                    style={{
+                      borderLeft: `3px solid ${transactionTypeColor(child.type)}`,
+                      paddingLeft: 12,
+                    }}
+                  >
+                    <DetailField
+                      label={isPersonalSide ? "Personal portion" : "Business portion"}
+                      value={formatCurrency(child.grossAmount)}
+                    />
+                    <DetailField label="Category" value={child.categoryName || "—"} />
+                    {child.gstAmount > 0 && (
+                      <DetailField
+                        label={isPersonalSide ? "GST (not claimable)" : "GST (claimable)"}
+                        value={formatCurrency(child.gstAmount)}
+                      />
+                    )}
+                    <DetailField
+                      label={isPersonalSide ? "Deductible" : "Deductible (net)"}
+                      value={isPersonalSide ? "No — private use" : formatCurrency(child.netAmount)}
+                    />
+                  </div>
+                );
+              })}
+            </section>
+          ) : null}
 
           {mode !== "edit" && hasPropertySplit ? (
             <section className="transaction-detail-splits">
@@ -1787,6 +2389,126 @@ function TransactionDetailPopup({
   );
 }
 
+type SortHandlers = {
+  sort: TransactionSort;
+  onSort: (key: TransactionSortKey) => void;
+  sortableKeys: TransactionSortKey[];
+};
+
+/**
+ * A column header that doubles as a sort control.
+ *
+ * Sorting is resolved by the database, so a header is only interactive when
+ * the current scope's endpoint accepts that key; otherwise it renders as plain
+ * text rather than as a button that would 400.
+ */
+function SortableTh({
+  label,
+  sortKey,
+  handlers,
+  align = "left",
+}: {
+  label: string;
+  sortKey: TransactionSortKey;
+  handlers?: SortHandlers;
+  align?: "left" | "right";
+}) {
+  const sortable = handlers?.sortableKeys.includes(sortKey) ?? false;
+  if (!sortable || !handlers) {
+    return <th>{label}</th>;
+  }
+
+  const isActive = handlers.sort.key === sortKey;
+  const direction = isActive ? handlers.sort.dir : null;
+  return (
+    <th
+      className={`is-sortable${isActive ? " is-sorted" : ""}${align === "right" ? " is-numeric" : ""}`}
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button type="button" onClick={() => handlers.onSort(sortKey)}>
+        <span>{label}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="sort-indicator">
+          {direction === "asc" ? (
+            <polyline points="6 14 12 8 18 14" />
+          ) : direction === "desc" ? (
+            <polyline points="6 10 12 16 18 10" />
+          ) : (
+            <>
+              <polyline points="7 10 12 5 17 10" />
+              <polyline points="7 14 12 19 17 14" />
+            </>
+          )}
+        </svg>
+        <span className="sr-only">
+          {direction === "asc"
+            ? " (sorted ascending)"
+            : direction === "desc"
+              ? " (sorted descending)"
+              : " (activate to sort)"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+/**
+ * Row selection for the grids that opt into it.
+ *
+ * Passed as one object rather than five props so a table that is not selectable
+ * simply receives nothing and renders no checkbox column at all — selection is
+ * opt-in per surface, and `AllTransactionsView` is shared by four of them.
+ */
+type TableSelection = {
+  selectedIds: Set<string>;
+  /** True for a row of the opposite sign to the current selection. */
+  isDisabled: (row: DisplayTransactionRow) => boolean;
+  onToggle: (row: DisplayTransactionRow) => void;
+  allOnPageSelected: boolean;
+  onToggleAll: (checked: boolean) => void;
+};
+
+function SelectionHeaderCell({ selection }: { selection: TableSelection }) {
+  return (
+    <th className="transactions-select-col">
+      <input
+        type="checkbox"
+        aria-label="Select every transaction on this page"
+        checked={selection.allOnPageSelected}
+        onChange={(e) => selection.onToggleAll(e.target.checked)}
+      />
+    </th>
+  );
+}
+
+function SelectionCell({
+  selection,
+  row,
+}: {
+  selection: TableSelection;
+  row: DisplayTransactionRow;
+}) {
+  const disabled = selection.isDisabled(row);
+  return (
+    <td className="transactions-select-col">
+      <input
+        type="checkbox"
+        aria-label={`Select transaction ${row.id}`}
+        checked={selection.selectedIds.has(row.id)}
+        disabled={disabled}
+        title={disabled ? "Income and expense cannot be selected together" : undefined}
+        onChange={() => selection.onToggle(row)}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </td>
+  );
+}
+
 function TransactionTable({
   rows,
   scope,
@@ -1796,6 +2518,12 @@ function TransactionTable({
   onDelete,
   disabled = false,
   disabledReason,
+  sortHandlers,
+  expandedRowIds,
+  rowChildren,
+  onToggleExpand,
+  selection,
+  firstYearDepreciation,
 }: {
   rows: DisplayTransactionRow[];
   scope: TransactionTableScope;
@@ -1805,9 +2533,34 @@ function TransactionTable({
   onDelete: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
+  sortHandlers?: SortHandlers;
+  /**
+   * Expansion of part-private bills. Omitted on the grids that do not offer it
+   * (nothing expands, and no disclosure column is rendered), so this stays an
+   * opt-in rather than something every caller has to thread through.
+   */
+  expandedRowIds?: Set<string>;
+  rowChildren?: Record<string, CoreTransactionChild[] | "loading" | "error">;
+  onToggleExpand?: (row: DisplayTransactionRow) => void;
+  /** Omitted on every surface except the global All Transactions page. */
+  selection?: TableSelection;
+  /**
+   * Deductions per DISPLAY-grain transaction id, from
+   * `useFirstYearDepreciation`. Drives the year-one figure printed in Gross
+   * and Net on asset rows (gridAmounts); there is no depreciation column of
+   * its own. Omitted where no endpoint can serve it, in which case every row
+   * shows its stored amounts.
+   */
+  firstYearDepreciation?: Map<string, FirstYearDeduction>;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
+  const canExpand = Boolean(onToggleExpand);
+  // Child rows span the full table, so the count has to track the optional
+  // columns or the indented row stops short of the right edge.
+  const columnCount =
+    9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
+    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -1820,136 +2573,279 @@ function TransactionTable({
         <table className="transactions-table">
           <thead>
             <tr>
+              {selection ? <SelectionHeaderCell selection={selection} /> : null}
+              {canExpand ? <th className="transactions-expand-col" aria-label="Expand" /> : null}
               <th>Transaction ID</th>
-              {showClientName ? <th>Client Name</th> : null}
-              {showEntityName ? <th>Entity</th> : null}
-              <th>Property</th>
-              <th>Description</th>
+              {showClientName ? (
+                <SortableTh label="Client Name" sortKey="client" handlers={sortHandlers} />
+              ) : null}
+              {showEntityName ? (
+                <SortableTh label="Entity" sortKey="entity" handlers={sortHandlers} />
+              ) : null}
+              <SortableTh label="Property" sortKey="property" handlers={sortHandlers} />
+              <SortableTh label="Description" sortKey="description" handlers={sortHandlers} />
               <th>Type</th>
               <th>Category</th>
               <th>Subcategory</th>
-              <th>Date</th>
-              <th>Gross</th>
-              <th>GST</th>
-              <th>Net</th>
-              {showClientShare ? <th>Client Share</th> : null}
+              <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
+              <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
+              <th style={{ textAlign: "right" }}>GST</th>
+              <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
+              {showClientShare ? (
+                <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
+              ) : null}
               <th>Rule</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = row.type === "revenue";
+              const amountSign = transactionSign(row.type);
+              const amounts = gridAmounts(row, firstYearDepreciation?.get(row.id));
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
                   : row.propertyNames.length === 1
                     ? row.propertyNames[0]
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
+              const isExpanded = expandedRowIds?.has(row.id) ?? false;
+              const children = rowChildren?.[row.id];
+              const isDimmed = selection?.isDisabled(row) ?? false;
               return (
-                <tr key={row.id}>
-                  <td>
-                    <button
-                      type="button"
-                      className="transaction-id-button"
-                      onClick={() => onView(row)}
-                    >
-                      {row.id.slice(0, 8)}…
-                    </button>
-                  </td>
-                  {showClientName ? <td>{row.clientName || "—"}</td> : null}
-                  {showEntityName ? <td>{row.entityName || "—"}</td> : null}
-                  <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
-                  <td
-                    style={{
-                      maxWidth: '180px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (row.description) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredDescription({
-                          text: row.description,
-                          x: rect.left + rect.width / 2,
-                          y: rect.top,
-                        });
-                      }
-                    }}
-                    onMouseLeave={() => setHoveredDescription(null)}
+                <Fragment key={row.id}>
+                  <tr
+                    style={
+                      isDimmed
+                        ? { opacity: 0.45, transition: "opacity 0.2s ease" }
+                        : undefined
+                    }
                   >
-                    {row.description || "—"}
-                  </td>
-                  <td>
-                    <span
-                      className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                        }`}
-                    >
-                      {isRevenue ? "Revenue" : "Expense"}
-                    </span>
-                  </td>
-                  <td>{row.categoryName}</td>
-                  <td>{row.subcategoryName}</td>
-                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.grossAmount, isRevenue)}
-                  </td>
-                  <td>{formatCurrency(row.gstAmount)}</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.netAmount, isRevenue)}
-                  </td>
-                  {showClientShare ? (
+                    {selection ? <SelectionCell selection={selection} row={row} /> : null}
+                    {canExpand ? (
+                      <td className="transactions-expand-col">
+                        {/* Only a container has anything to reveal. Ordinary rows
+                          keep an empty cell so the columns stay aligned. */}
+                        {row.hasChildren ? (
+                          <button
+                            type="button"
+                            className={`transaction-expand-btn${isExpanded ? " is-open" : ""}`}
+                            aria-expanded={isExpanded}
+                            aria-label={
+                              isExpanded
+                                ? "Hide the business and personal split"
+                                : "Show the business and personal split"
+                            }
+                            onClick={() => onToggleExpand?.(row)}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </td>
+                    ) : null}
                     <td>
-                      {row.clientShareNet != null
-                        ? formatCurrency(row.clientShareNet)
-                        : "—"}
+                      <button
+                        type="button"
+                        className="transaction-id-button"
+                        onClick={() => onView(row)}
+                      >
+                        {row.id.slice(0, 8)}…
+                      </button>
                     </td>
-                  ) : null}
-                  <td>
-                    <span
-                      className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
-                        }`}
+                    {showClientName ? <td>{row.clientName || "—"}</td> : null}
+                    {showEntityName ? <td>{row.entityName || "—"}</td> : null}
+                    <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
+                    <td
+                      style={{
+                        maxWidth: '180px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (row.description) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredDescription({
+                            text: row.description,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                          });
+                        }
+                      }}
+                      onMouseLeave={() => setHoveredDescription(null)}
                     >
-                      {row.ruleId != null ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="transaction-action-set">
-                      <button
-                        type="button"
-                        aria-label={`Edit ${row.id}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onEdit(row)}
+                      {row.description || "—"}
+                      {/* The amount on this row is a $0 placeholder until the
+                        document is read, so say so rather than let it pass for
+                        a real zero. */}
+                      <ReviewStatusBadge
+                        awaitingReview={false}
+                        awaitingExtraction={isAwaitingExtraction(row.metadata)}
+                        style={{ marginTop: 0, marginLeft: "8px" }}
+                      />
+                    </td>
+                    <td>
+                      <span
+                        className={`transaction-type-pill ${transactionTypeModifier(row.type)}`}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="is-danger"
-                        aria-label={`Delete ${row.id}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onDelete(row)}
+                        {transactionTypeLabel(row.type)}
+                      </span>
+                      {/* A container is an expense whose private slice sits on a
+                        child this grain hides, so the amounts on this row are
+                        the whole bill. Say so, or it reads as fully
+                        deductible. */}
+                      {row.hasChildren ? (
+                        <span
+                          className="transaction-personal-portion-pill"
+                          title={
+                            row.personalPercentage != null
+                              ? `${row.personalPercentage}% of this bill is private use`
+                              : "Part of this bill is private use"
+                          }
+                        >
+                          {row.personalPercentage != null
+                            ? `${row.personalPercentage}% personal`
+                            : "Part personal"}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td>{row.categoryName}</td>
+                    <td>{row.subcategoryName}</td>
+                    <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
+                    </td>
+                    <td style={{ textAlign: "right" }} title={amounts.title}>
+                      {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
+                    </td>
+                    <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
+                    </td>
+                    {showClientShare ? (
+                      <td style={{ textAlign: "right" }}>
+                        {row.clientShareNet != null
+                          ? formatCurrency(row.clientShareNet)
+                          : "—"}
+                      </td>
+                    ) : null}
+                    <td>
+                      <span
+                        className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                          }`}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4h8v2" />
-                          <path d="M19 6l-1 14H6L5 6" />
-                          <path d="M10 11v5" />
-                          <path d="M14 11v5" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        {row.ruleId != null ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="transaction-action-set">
+                        <button
+                          type="button"
+                          aria-label={`Edit ${row.id}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onEdit(row)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="is-danger"
+                          aria-label={`Delete ${row.id}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onDelete(row)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* The two slices of a part-private bill, shown under their
+                    parent. These are a detail of the row above, not rows of
+                    the page: they are outside the result count, the paging and
+                    every column total, which all stay per-bill. */}
+                  {isExpanded ? (
+                    children === "loading" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">Loading the split…</span>
+                        </td>
+                      </tr>
+                    ) : children === "error" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note is-error">
+                            Couldn&apos;t load the split. Close and reopen the row to retry.
+                          </span>
+                        </td>
+                      </tr>
+                    ) : !children || children.length === 0 ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">No split recorded.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      children.map((child) => {
+                        const isPersonalSide = child.type === "personal";
+                        return (
+                          <tr key={child.id} className="transaction-child-row">
+                            {canExpand ? <td className="transactions-expand-col" /> : null}
+                            <td></td>
+                            {showClientName ? <td></td> : null}
+                            {showEntityName ? <td></td> : null}
+                            <td></td>
+                            <td></td>
+                            <td>
+                              <span
+                                className={`transaction-type-pill ${transactionTypeModifier(child.type)}`}
+                              >
+                                {isPersonalSide ? "Personal" : "Business"}
+                              </span>
+                            </td>
+                            <td>{child.categoryName || "—"}</td>
+                            <td></td>
+                            <td></td>
+                            <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
+                              {formatTransactionCurrency(child.grossAmount, false)}
+                            </td>
+                            <td className="transaction-child-gst" style={{ textAlign: "right" }}>
+                              GST {formatCurrency(child.gstAmount)}
+                            </td>
+                            <td className="transaction-child-deductible" style={{ textAlign: "right" }}>
+                              {isPersonalSide
+                                ? "Not deductible"
+                                : `Deductible ${formatCurrency(child.netAmount)}`}
+                            </td>
+                            {showClientShare ? <td></td> : null}
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        );
+                      })
+                    )
+                  ) : null}
+                </Fragment>
               );
             })}
           </tbody>
@@ -2023,6 +2919,10 @@ function PropertyTransactionTable({
   onDelete,
   disabled = false,
   disabledReason,
+  sortHandlers,
+  expandedRowIds,
+  rowChildren,
+  onToggleExpand,
 }: {
   rows: CorePropertyTransactionRow[];
   onView: (row: DisplayTransactionRow) => void;
@@ -2030,105 +2930,217 @@ function PropertyTransactionTable({
   onDelete: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
+  sortHandlers?: SortHandlers;
+  expandedRowIds?: Set<string>;
+  rowChildren?: Record<string, CoreTransactionChild[] | "loading" | "error">;
+  onToggleExpand?: (row: DisplayTransactionRow) => void;
 }) {
+  const canExpand = Boolean(onToggleExpand);
+  const columnCount = 12 + (canExpand ? 1 : 0);
+
   return (
     <div className="transactions-table-container">
       <div className="transactions-table-wrap">
         <table className="transactions-table">
           <thead>
             <tr>
+              {canExpand ? <th className="transactions-expand-col" aria-label="Expand" /> : null}
               <th>Transaction ID</th>
               <th>Type</th>
               <th>Category</th>
               <th>Subcategory</th>
-              <th>Date</th>
-              <th>Bill total</th>
+              <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
+              <SortableTh label="Bill total" sortKey="gross" handlers={sortHandlers} align="right" />
               <th>Split %</th>
-              <th>Property share</th>
+              <SortableTh label="Property share" sortKey="share" handlers={sortHandlers} align="right" />
               <th>GST</th>
-              <th>Net</th>
+              <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
               <th>Rule</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = row.transactionType === "revenue";
+              const amountSign = transactionSign(row.transactionType);
               const displayRow = propertyRowToDisplayRow(row);
+              const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
+              const children = rowChildren?.[row.transactionId];
               return (
-                <tr key={`${row.transactionId}-${row.splitId}`}>
-                  <td>
-                    <button
-                      type="button"
-                      className="transaction-id-button"
-                      onClick={() => onView(displayRow)}
-                    >
-                      {row.transactionId.slice(0, 8)}…
-                    </button>
-                  </td>
-                  <td>
-                    <span
-                      className={`transaction-type-pill ${isRevenue ? "is-income" : "is-expense"
-                        }`}
-                    >
-                      {isRevenue ? "Revenue" : "Expense"}
-                    </span>
-                  </td>
-                  <td>{row.categoryName}</td>
-                  <td>{row.subcategoryName}</td>
-                  <td>{formatInvoiceDate(row.invoiceDate)}</td>
-                  <td>{formatCurrency(row.transactionGrossAmount)}</td>
-                  <td>{row.splitPercentage.toFixed(2)}%</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.splitGrossAmount, isRevenue)}
-                  </td>
-                  <td>{formatCurrency(row.splitGstAmount)}</td>
-                  <td className={isRevenue ? "amount-positive" : "amount-negative"}>
-                    {formatTransactionCurrency(row.splitNetAmount, isRevenue)}
-                  </td>
-                  <td>
-                    <span
-                      className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
-                        }`}
-                    >
-                      {row.ruleId != null ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="transaction-action-set">
+                <Fragment key={`${row.transactionId}-${row.splitId}`}>
+                  <tr>
+                    {canExpand ? (
+                      <td className="transactions-expand-col">
+                        {row.hasChildren ? (
+                          <button
+                            type="button"
+                            className={`transaction-expand-btn${isExpanded ? " is-open" : ""}`}
+                            aria-expanded={isExpanded}
+                            aria-label={
+                              isExpanded
+                                ? "Hide the business and personal split"
+                                : "Show the business and personal split"
+                            }
+                            onClick={() => onToggleExpand?.(displayRow)}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </td>
+                    ) : null}
+                    <td>
                       <button
                         type="button"
-                        aria-label={`Edit ${row.transactionId}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onEdit(displayRow)}
+                        className="transaction-id-button"
+                        onClick={() => onView(displayRow)}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </svg>
+                        {row.transactionId.slice(0, 8)}…
                       </button>
-                      <button
-                        type="button"
-                        className="is-danger"
-                        aria-label={`Delete ${row.transactionId}`}
-                        disabled={disabled}
-                        title={disabled ? disabledReason : undefined}
-                        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                        onClick={() => onDelete(displayRow)}
+                    </td>
+                    <td>
+                      <span
+                        className={`transaction-type-pill ${transactionTypeModifier(row.transactionType)}`}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4h8v2" />
-                          <path d="M19 6l-1 14H6L5 6" />
-                          <path d="M10 11v5" />
-                          <path d="M14 11v5" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        {transactionTypeLabel(row.transactionType)}
+                      </span>
+                      {/* The property grid runs at display grain too, so a
+                          part-private bill shows here as its container and the
+                          amounts are the whole bill. */}
+                      {row.hasChildren ? (
+                        <span
+                          className="transaction-personal-portion-pill"
+                          title={
+                            row.personalPercentage != null
+                              ? `${row.personalPercentage}% of this bill is private use`
+                              : "Part of this bill is private use"
+                          }
+                        >
+                          {row.personalPercentage != null
+                            ? `${row.personalPercentage}% personal`
+                            : "Part personal"}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td>{row.categoryName}</td>
+                    <td>{row.subcategoryName}</td>
+                    <td>{formatInvoiceDate(row.invoiceDate)}</td>
+                    <td>{formatCurrency(row.transactionGrossAmount)}</td>
+                    <td>{row.splitPercentage.toFixed(2)}%</td>
+                    <td className={amountClass(amountSign)}>
+                      {formatTransactionCurrency(row.splitGrossAmount, amountSign)}
+                    </td>
+                    <td>{formatCurrency(row.splitGstAmount)}</td>
+                    <td className={amountClass(amountSign)}>
+                      {formatTransactionCurrency(row.splitNetAmount, amountSign)}
+                    </td>
+                    <td>
+                      <span
+                        className={`transaction-rule-pill ${row.ruleId != null ? "is-yes" : "is-no"
+                          }`}
+                      >
+                        {row.ruleId != null ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="transaction-action-set">
+                        <button
+                          type="button"
+                          aria-label={`Edit ${row.transactionId}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onEdit(displayRow)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="is-danger"
+                          aria-label={`Delete ${row.transactionId}`}
+                          disabled={disabled}
+                          title={disabled ? disabledReason : undefined}
+                          style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                          onClick={() => onDelete(displayRow)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* The two slices of a part-private bill, shown under their
+                    parent. These are a detail of the row above, not rows of
+                    the page: they are outside the result count, the paging and
+                    every column total, which all stay per-bill. */}
+                  {isExpanded ? (
+                    children === "loading" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">Loading the split…</span>
+                        </td>
+                      </tr>
+                    ) : children === "error" ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note is-error">
+                            Couldn&apos;t load the split. Close and reopen the row to retry.
+                          </span>
+                        </td>
+                      </tr>
+                    ) : !children || children.length === 0 ? (
+                      <tr className="transaction-child-row">
+                        <td colSpan={columnCount}>
+                          <span className="transaction-child-note">No split recorded.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      children.map((child) => {
+                        const isPersonalSide = child.type === "personal";
+                        return (
+                          <tr key={child.id} className="transaction-child-row">
+                            {canExpand ? <td className="transactions-expand-col" /> : null}
+                            <td></td>
+                            <td>
+                              <span
+                                className={`transaction-type-pill ${transactionTypeModifier(child.type)}`}
+                              >
+                                {isPersonalSide ? "Personal" : "Business"}
+                              </span>
+                            </td>
+                            <td>{child.categoryName || "—"}</td>
+                            <td></td>
+                            <td></td>
+                            <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
+                              {formatTransactionCurrency(child.grossAmount, false)}
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td className="transaction-child-gst" style={{ textAlign: "right" }}>
+                              GST {formatCurrency(child.gstAmount)}
+                            </td>
+                            <td className="transaction-child-deductible" style={{ textAlign: "right" }}>
+                              {isPersonalSide
+                                ? "Not deductible"
+                                : `Deductible ${formatCurrency(child.netAmount)}`}
+                            </td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        );
+                      })
+                    )
+                  ) : null}
+                </Fragment>
               );
             })}
           </tbody>
@@ -2159,65 +3171,121 @@ function Pagination({ copy }: { copy: string }) {
 
 function AwaitingReviewTable({
   rows,
+  scope,
+  contextKind,
   onView,
   disabled = false,
   disabledReason,
+  selection,
 }: {
   rows: DisplayTransactionRow[];
+  scope: TransactionTableScope;
+  contextKind: string;
   onView: (row: DisplayTransactionRow) => void;
   disabled?: boolean;
   disabledReason?: string;
+  /** Omitted on every surface except the global All Transactions page. */
+  selection?: TableSelection;
 }) {
+  const showClientName = scope === "global";
+  const showEntityName = scope !== "entity";
+  const showPropertyName = contextKind !== "property";
+
+  // The checkbox column is fixed-width, so it is excluded from the equal-share
+  // arithmetic that sizes the rest.
+  const totalColumns = 4 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) + (showPropertyName ? 1 : 0);
+  const colWidth = `${(100 / totalColumns).toFixed(2)}%`;
+  const tableMinWidth = `${totalColumns * 160}px`;
+
   return (
     <div className="transactions-table-container">
       <div className="transactions-table-wrap">
-        <table className="transactions-table awaiting-review-table">
+        <table
+          className="transactions-table awaiting-review-table"
+          style={{ minWidth: tableMinWidth }}
+        >
           <thead>
             <tr>
-              <th>TRANSACTION ID</th>
-              <th>CLIENT NAME</th>
-              <th>ENTITY NAME</th>
-              <th>PROPERTY NAME</th>
-              <th>TYPE</th>
-              <th>DATE SUBMITTED</th>
-              <th style={{ textAlign: "center" }}>ACTION</th>
+              {selection ? <SelectionHeaderCell selection={selection} /> : null}
+              <th style={{ width: colWidth, textAlign: "left" }}>TRANSACTION ID</th>
+              {showClientName && <th style={{ width: colWidth, textAlign: "left" }}>CLIENT NAME</th>}
+              {showEntityName && <th style={{ width: colWidth, textAlign: "left" }}>ENTITY NAME</th>}
+              {showPropertyName && <th style={{ width: colWidth, textAlign: "left" }}>PROPERTY NAME</th>}
+              <th style={{ width: colWidth, textAlign: "left" }}>TYPE</th>
+              <th style={{ width: colWidth, textAlign: "left" }}>DATE SUBMITTED</th>
+              <th style={{ width: colWidth, textAlign: "center" }}>ACTION</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isRevenue = row.type === "revenue";
               const propertyLabel =
                 row.propertyNames.length === 0
                   ? "—"
                   : row.propertyNames.length === 1
                     ? row.propertyNames[0]
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
+              const isDimmed = selection?.isDisabled(row) ?? false;
               return (
-                <tr key={row.id}>
-                  <td>
+                <tr
+                  key={row.id}
+                  style={
+                    isDimmed
+                      ? { opacity: 0.45, transition: "opacity 0.2s ease" }
+                      : undefined
+                  }
+                >
+                  {selection ? <SelectionCell selection={selection} row={row} /> : null}
+                  <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
                       className="transaction-id-button"
-                      style={{ color: "#2563eb" }}
+                      style={{ color: "#2563eb", whiteSpace: "nowrap" }}
                       onClick={() => onView(row)}
                     >
                       {row.id.slice(0, 8)}…
                     </button>
                   </td>
-                  <td>{row.clientName || "—"}</td>
-                  <td>{row.entityName || "—"}</td>
-                  <td title={row.propertyNames.join(", ")}>{propertyLabel}</td>
-                  <td>
+                  {showClientName && (
+                    <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.clientName || "—"}>
+                      {row.clientName || "—"}
+                    </td>
+                  )}
+                  {showEntityName && (
+                    <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.entityName || "—"}>
+                      {row.entityName || "—"}
+                    </td>
+                  )}
+                  {showPropertyName && (
+                    <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.propertyNames.join(", ")}>
+                      {propertyLabel}
+                    </td>
+                  )}
+                  <td style={{ width: colWidth, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <span
-                      className={`transaction-type-badge ${
-                        isRevenue ? "is-revenue" : "is-expense"
-                      }`}
+                      className={`transaction-type-badge ${transactionTypeModifier(row.type)}`}
                     >
-                      {isRevenue ? "Revenue" : "Expense"}
+                      {transactionTypeLabel(row.type)}
                     </span>
+                    {/* Also flagged in the review queue: an accountant
+                        approving a bill should see that part of it was private
+                        before they sign it off, not after. */}
+                    {row.hasChildren ? (
+                      <span
+                        className="transaction-personal-portion-pill"
+                        title={
+                          row.personalPercentage != null
+                            ? `${row.personalPercentage}% of this bill is private use`
+                            : "Part of this bill is private use"
+                        }
+                      >
+                        {row.personalPercentage != null
+                          ? `${row.personalPercentage}% personal`
+                          : "Part personal"}
+                      </span>
+                    ) : null}
                   </td>
-                  <td>{formatSubmittedDate(row)}</td>
-                  <td style={{ textAlign: "center" }}>
+                  <td style={{ width: colWidth, textAlign: "left", whiteSpace: "nowrap" }}>{formatSubmittedDate(row)}</td>
+                  <td style={{ width: colWidth, textAlign: "center", whiteSpace: "nowrap" }}>
                     <button
                       type="button"
                       className="transaction-review-action-btn"
@@ -2252,19 +3320,22 @@ function AwaitingReviewTable({
   );
 }
 
-type SortOption = {
-  label: string;
-  value: string;
-};
-
-const SORT_OPTIONS: SortOption[] = [
-  { label: "Date (Newest first)", value: "date-desc" },
-  { label: "Date (Oldest first)", value: "date-asc" },
-  { label: "Amount (High to Low)", value: "gross-desc" },
-  { label: "Amount (Low to High)", value: "gross-asc" },
-  { label: "Client Name (A-Z)", value: "client-asc" },
-  { label: "Client Name (Z-A)", value: "client-desc" },
-];
+// Builds the "Sort By" dropdown for a scope, offering both directions of every
+// key that scope's grid can actually sort on.
+function sortOptionsForScope(kind: TransactionsContext["kind"]): SelectOption[] {
+  const options: SelectOption[] = [];
+  for (const key of SORTABLE_KEYS_BY_SCOPE[kind]) {
+    const preferred = INITIAL_SORT_DIR[key];
+    const other: SortDirection = preferred === "asc" ? "desc" : "asc";
+    for (const dir of [preferred, other]) {
+      options.push({
+        label: SORT_LABELS[key][dir],
+        value: encodeSort({ key, dir }),
+      });
+    }
+  }
+  return options;
+}
 
 function Filters({
   context,
@@ -2275,6 +3346,8 @@ function Filters({
   activeCount,
   sortBy,
   onChangeSort,
+  searchDraft,
+  onChangeSearchDraft,
 }: {
   context: TransactionsContext;
   filters: TransactionFilters;
@@ -2287,10 +3360,25 @@ function Filters({
   activeCount: number;
   sortBy: string;
   onChangeSort: (value: string) => void;
+  /**
+   * Held separately from filters.search so the input stays responsive while
+   * the committed value is debounced — every commit is a database query.
+   */
+  searchDraft: string;
+  onChangeSearchDraft: (value: string) => void;
 }) {
   const showClientFilter = context.kind === "none";
   const showEntityFilter = context.kind === "none" || context.kind === "client";
   const showPropertyFilter = context.kind !== "property";
+  const sortOptions = useMemo(
+    () => sortOptionsForScope(context.kind),
+    [context.kind],
+  );
+  // Bounding each input by the other stops an inverted range reaching the API,
+  // which would come back as a 400 rather than an empty result.
+  const dateRangeInvalid = Boolean(
+    filters.from && filters.to && filters.to < filters.from,
+  );
 
   return (
     <section className="transaction-filter-card" aria-label="Transaction filters">
@@ -2306,6 +3394,65 @@ function Filters({
           </button>
         ) : null}
       </div>
+      <div className="transaction-search-row">
+        <div className="transaction-search-field">
+          <SearchIcon />
+          <input
+            type="search"
+            value={searchDraft}
+            onChange={(event) => onChangeSearchDraft(event.target.value)}
+            placeholder="Search descriptions…"
+            aria-label="Search transaction descriptions"
+          />
+          {searchDraft ? (
+            <button
+              type="button"
+              className="transaction-search-clear"
+              aria-label="Clear search"
+              onClick={() => onChangeSearchDraft("")}
+            >
+              <CloseIcon />
+            </button>
+          ) : null}
+        </div>
+        <div className="transaction-date-range">
+          <label>
+            <span>From</span>
+            <input
+              type="date"
+              value={filters.from}
+              max={filters.to || undefined}
+              onChange={(event) => onChange("from", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>To</span>
+            <input
+              type="date"
+              value={filters.to}
+              min={filters.from || undefined}
+              onChange={(event) => onChange("to", event.target.value)}
+            />
+          </label>
+          {filters.from || filters.to ? (
+            <button
+              type="button"
+              className="transaction-filter-reset"
+              onClick={() => {
+                onChange("from", "");
+                onChange("to", "");
+              }}
+            >
+              Clear dates
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {dateRangeInvalid ? (
+        <p className="transaction-filter-error" role="alert">
+          The &ldquo;To&rdquo; date is earlier than the &ldquo;From&rdquo; date.
+        </p>
+      ) : null}
       <div className="transaction-filter-grid">
         {showClientFilter ? (
           <StaticSelect
@@ -2347,7 +3494,7 @@ function Filters({
         <StaticSelect
           label="Sort By"
           value={sortBy}
-          options={SORT_OPTIONS}
+          options={sortOptions}
           onChange={onChangeSort}
         />
       </div>
@@ -2386,92 +3533,6 @@ function TransactionLoadingSkeleton({
       </div>
     </div>
   );
-}
-
-function makeOptions(
-  label: string,
-  values: string[],
-  fallbackPrefix = "Unknown",
-): SelectOption[] {
-  const unique = Array.from(
-    new Set(values.map((value) => value.trim()).filter(Boolean)),
-  ).sort((a, b) => a.localeCompare(b));
-
-  return [
-    { label, value: "all" },
-    ...unique.map((value) => ({
-      label: value || fallbackPrefix,
-      value,
-    })),
-  ];
-}
-
-function makeNamedOptions(
-  label: string,
-  values: Array<{ id: string; name: string }>,
-  fallbackPrefix = "Unknown",
-): SelectOption[] {
-  const byValue = new Map<string, string>();
-  for (const item of values) {
-    const id = item.id.trim();
-    const name = item.name.trim();
-    const value = id || name;
-    if (!value) continue;
-    byValue.set(value, name || id || fallbackPrefix);
-  }
-
-  return [
-    { label, value: "all" },
-    ...Array.from(byValue.entries())
-      .map(([value, optionLabel]) => ({ label: optionLabel, value }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
-  ];
-}
-
-function makeCategoryOptions(
-  label: string,
-  rows: DisplayTransactionRow[],
-  propertyRows: CorePropertyTransactionRow[],
-  contextKind: string,
-  fallbackPrefix = "Unknown",
-): SelectOption[] {
-  const categoryMap = new Map<string, string>();
-  if (contextKind === "property") {
-    for (const row of propertyRows) {
-      const name = (row.categoryName || "").trim();
-      if (name) {
-        categoryMap.set(name, row.transactionType);
-      }
-    }
-  } else {
-    for (const row of rows) {
-      const name = (row.categoryName || "").trim();
-      if (name) {
-        categoryMap.set(name, row.type);
-      }
-    }
-  }
-
-  const unique = Array.from(categoryMap.keys()).sort((a, b) =>
-    a.localeCompare(b),
-  );
-
-  return [
-    { label, value: "all" },
-    ...unique.map((name) => ({
-      label: name || fallbackPrefix,
-      value: name,
-      type: categoryMap.get(name) as "revenue" | "expense" | undefined,
-    })),
-  ];
-}
-
-function getRowClientFilterValue(row: CoreTransactionListItem) {
-  return row.clientId || row.clientName;
-}
-
-function getRowEntityFilterValue(row: CoreTransactionListItem) {
-  return row.entityId || row.entityName;
 }
 
 const DUMMY_TRANSACTIONS: DisplayTransactionRow[] = [
@@ -2745,6 +3806,7 @@ export function AllTransactionsView({
   rulesButtonIcon = "rules",
   compact = false,
   showRulesButton = true,
+  enableSelection = false,
 }: {
   context?: TransactionsContext;
   addTransactionHref?: string;
@@ -2756,21 +3818,52 @@ export function AllTransactionsView({
   rulesButtonIcon?: "rules" | "reconcile";
   compact?: boolean;
   showRulesButton?: boolean;
+  /**
+   * Row selection with a running total and "Export Selected".
+   *
+   * Opt-in because this component backs four surfaces — the global All
+   * Transactions page, the accountant's per-client Transactions tab, the entity
+   * page and the property page — and selection was asked for on the first only.
+   * It is additionally gated on `context.kind === "none"` below, so passing it
+   * from a scoped surface cannot switch it on by accident.
+   */
+  enableSelection?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  // `rows` / `propertyRows` hold exactly one page. Search, filtering, sorting
+  // and paging are all resolved in Postgres — the grid used to download every
+  // row and do this work in JS, which was both slow and wrong (each upstream
+  // list silently capped at 100 rows).
   const [rows, setRows] = useState<DisplayTransactionRow[]>([]);
   const [propertyRows, setPropertyRows] = useState<CorePropertyTransactionRow[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [facets, setFacets] = useState<TransactionFacets | null>(null);
   const [filters, setFilters] = useState<TransactionFilters>(
     defaultTransactionFilters,
   );
-  const [sortBy, setSortBy] = useState<string>("date-desc");
+  // Typing must not fire a query per keystroke; the draft feeds the input and
+  // is debounced into filters.search, which is what the effect depends on.
+  const [searchDraft, setSearchDraft] = useState("");
+  const [sort, setSort] = useState<TransactionSort>(
+    DEFAULT_SORT_BY_SCOPE[context.kind],
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [pageSize, setPageSize] = useState<string>("10");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [activeTab, setActiveTab] = useState<"reviewed" | "unreviewed">("reviewed");
+  const [exportError, setExportError] = useState("");
+  // Selection is two structures on purpose. `rows` holds exactly one page and
+  // is wholly replaced on every fetch, so an id set alone would lose the data
+  // behind a selection the moment you page — and the running total and the
+  // client-side export both need that data. The Map is the side-cache that
+  // survives paging; the Set is what the checkboxes read.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Map<string, DisplayTransactionRow>>(
+    new Map(),
+  );
   // Approve/reject is reviewer-only (accountant/admin/super_admin) — the
   // backend 403s clients, so the modal hides those controls for them.
   const [viewerRole, setViewerRole] = useState<string | null>(null);
@@ -2797,9 +3890,37 @@ export function AllTransactionsView({
     setPageInputValue(String(currentPage));
   }, [currentPage]);
 
+  // Which level of the parent/child tree the grid reads.
+  //
+  //   "top"  — Bills. One row per bill: a part-private expense is its parent
+  //            container, expandable to reveal the two slices.
+  //   "leaf" — Tax lines. The rows money is actually summed from, so that same
+  //            bill is two separate rows. This is the view that reconciles
+  //            against a BAS, because it is exactly what GST and the P&L see.
+  //
+  // Never both at once: a container and its children hold the same money, so a
+  // mixed list would count every split bill twice.
+  const [grain, setGrain] = useState<"top" | "leaf">("top");
+
+  // Which container rows are expanded, and the children fetched for them.
+  // Children are a detail of their parent, never rows of the page — they are
+  // outside the count, the paging and every column total.
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
+  const [rowChildren, setRowChildren] = useState<
+    Record<string, CoreTransactionChild[] | "loading" | "error">
+  >({});
+
+  // Any change to the result set invalidates the page number.
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, sortBy]);
+  }, [filters, sort, pageSize, activeTab, grain]);
+
+  // Expansion is a property of the rows on screen. Once those change — a new
+  // page, a new filter, the other grain — the open state refers to rows that
+  // may no longer be there, so it is dropped rather than left dangling.
+  useEffect(() => {
+    setExpandedRowIds(new Set());
+  }, [filters, sort, pageSize, activeTab, grain, currentPage]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<DisplayTransactionRow | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
@@ -2810,6 +3931,9 @@ export function AllTransactionsView({
   const [detailError, setDetailError] = useState("");
   const [isDetailSaving, setIsDetailSaving] = useState(false);
   const [isDetailDeleting, setIsDetailDeleting] = useState(false);
+  // Set when opening the transaction is what triggered the extraction — the
+  // client deferred it by choosing "Submit to accountant".
+  const [extractionNotice, setExtractionNotice] = useState("");
   const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
   const [transactionToDelete, setTransactionToDelete] = useState<DisplayTransactionRow | null>(null);
   const contextKind = context.kind;
@@ -2822,8 +3946,67 @@ export function AllTransactionsView({
           ? context.propertyId
           : "";
 
+  const numericPageSize = Number(pageSize) || 10;
+
+  // The query string every fetch is keyed on. Kept as a single memo so the
+  // list effect, the facets effect and the export links cannot drift apart.
+  const listQuery = useMemo(() => {
+    const sp = new URLSearchParams();
+    const put = (key: string, value: string) => {
+      if (value && value !== "all") sp.set(key, value);
+    };
+    put("search", filters.search);
+    put("from", filters.from);
+    put("to", filters.to);
+    put("type", filters.type);
+    put("category_id", filters.category);
+    // On a scoped page the path already pins the scope, so only send the
+    // narrowing filters the grid actually offers there.
+    if (contextKind === "none") put("client_id", filters.client);
+    if (contextKind === "none" || contextKind === "client") {
+      put("entity_id", filters.entity);
+    }
+    if (contextKind !== "property") put("property_id", filters.property);
+    // Sent from the shared memo so the list, the facet dropdowns and the export
+    // all describe the same set of rows. Omitted for "top" because that is the
+    // API default — one row per bill.
+    if (grain === "leaf") sp.set("grain", "leaf");
+    return sp;
+  }, [contextKind, filters, grain]);
+
+  // The tabs split the ledger from the accountant's review queue. That is
+  // "review_status <> 'unreviewed'" vs "= 'unreviewed'", which a single-value
+  // filter cannot express, hence review_bucket.
+  const reviewBucket = activeTab === "unreviewed" ? "queue" : "ledger";
+
+  const pageQuery = useMemo(() => {
+    const sp = new URLSearchParams(listQuery);
+    sp.set("review_bucket", reviewBucket);
+    sp.set("sort", sort.key);
+    sp.set("dir", sort.dir);
+    sp.set("limit", String(numericPageSize));
+    sp.set("offset", String((currentPage - 1) * numericPageSize));
+    return sp.toString();
+  }, [listQuery, reviewBucket, sort, numericPageSize, currentPage]);
+
+  const scopedListPath = useMemo(() => {
+    switch (contextKind) {
+      case "client":
+        return `/api/clients/${encodeURIComponent(contextId)}/transactions`;
+      case "entity":
+        return `/api/entities/${encodeURIComponent(contextId)}/transactions`;
+      case "property":
+        return `/api/properties/${encodeURIComponent(contextId)}/transactions`;
+      default:
+        return "/api/transactions";
+    }
+  }, [contextId, contextKind]);
+
   useEffect(() => {
-    let cancelled = false;
+    // Abort the in-flight request whenever the query changes: a fast typist
+    // would otherwise race stale responses into the table and keep database
+    // work running for results nobody will see.
+    const controller = new AbortController();
     setIsLoading(true);
     setErrorMessage("");
 
@@ -2831,233 +4014,135 @@ export function AllTransactionsView({
       try {
         const session = (await getSession()) as SessionWithIdToken | null;
         if (!session) {
-          if (!cancelled) setErrorMessage("You're signed out.");
+          setErrorMessage("You're signed out.");
           return;
         }
         const token = session.getIdToken().getJwtToken();
 
-        if (contextKind === "none") {
-          const res = await fetch("/api/transactions", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) {
-            if (!cancelled) setErrorMessage("Failed to load transactions.");
-            return;
-          }
-          const data = (await res.json()) as {
-            items?: CoreTransactionListItem[];
-          };
-          if (!cancelled) {
-            setRows(data.items || []);
-            setPropertyRows([]);
-          }
-          return;
-        }
-
-        let url = "";
-        switch (contextKind) {
-          case "client":
-            url = `/api/clients/${encodeURIComponent(contextId)}/transactions`;
-            break;
-          case "entity":
-            url = `/api/entities/${encodeURIComponent(contextId)}/transactions`;
-            break;
-          case "property":
-            url = `/api/properties/${encodeURIComponent(contextId)}/transactions`;
-            break;
-        }
-
-        console.log(`[AllTransactionsView] Fetching ${contextKind} transactions from: ${url}`);
-        const res = await fetch(url, {
+        const res = await fetch(`${scopedListPath}?${pageQuery}`, {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
-        console.log(`[AllTransactionsView] Response status: ${res.status}`);
         if (!res.ok) {
-          console.error(`[AllTransactionsView] Failed to load transactions. Status: ${res.status}`);
-          if (!cancelled) setErrorMessage("Failed to load transactions.");
+          const body = await res.json().catch(() => null);
+          setErrorMessage(
+            (body as { message?: string } | null)?.message ||
+            "Failed to load transactions.",
+          );
           return;
         }
-        const data = await res.json();
-        console.log(`[AllTransactionsView] Fetched ${(data.items || []).length} items`);
-        if (cancelled) return;
+
+        const data = (await res.json()) as {
+          items?: unknown[];
+          total?: number;
+        };
+        const items = data.items ?? [];
         if (contextKind === "property") {
-          setPropertyRows((data.items as CorePropertyTransactionRow[]) || []);
+          setPropertyRows(items as CorePropertyTransactionRow[]);
           setRows([]);
         } else {
-          setRows((data.items as DisplayTransactionRow[]) || []);
+          setRows(items as DisplayTransactionRow[]);
           setPropertyRows([]);
         }
+        setTotalItems(data.total ?? items.length);
       } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
         console.error("Failed to load transactions:", error);
-        if (!cancelled) {
-          setErrorMessage("Unexpected error loading transactions.");
-        }
+        setErrorMessage("Unexpected error loading transactions.");
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [contextId, contextKind]);
+    return () => controller.abort();
+  }, [contextKind, pageQuery, scopedListPath]);
+
+  // Facets drive the filter dropdowns and the tab badges. They deliberately
+  // exclude the tab and the page, so both badges stay correct while a tab is
+  // selected and the dropdowns offer every value in the filtered set rather
+  // than only those on the visible page.
+  const facetsQuery = useMemo(() => {
+    const sp = new URLSearchParams(listQuery);
+    if (contextKind === "client") sp.set("client_id", contextId);
+    if (contextKind === "entity") sp.set("entity_id", contextId);
+    if (contextKind === "property") sp.set("property_id", contextId);
+    return sp.toString();
+  }, [contextId, contextKind, listQuery]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const session = (await getSession()) as SessionWithIdToken | null;
+        if (!session) return;
+        const token = session.getIdToken().getJwtToken();
+        const res = await fetch(`/api/transactions/facets?${facetsQuery}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        setFacets((await res.json()) as TransactionFacets);
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
+        console.error("Failed to load transaction facets:", error);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [facetsQuery]);
+
+  // Debounce the search box into the committed filter. 300ms is long enough
+  // that a normal typing burst is one query, short enough to feel live.
+  useEffect(() => {
+    if (searchDraft === filters.search) return;
+    const timer = setTimeout(() => {
+      setFilters((current) => ({ ...current, search: searchDraft }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchDraft, filters.search]);
 
   useEffect(() => {
     setFilters(defaultTransactionFilters);
+    setSearchDraft("");
+    setSort(DEFAULT_SORT_BY_SCOPE[contextKind]);
     setCurrentPage(1);
     setPageSize("10");
   }, [contextId, contextKind]);
 
+  // Options come from the facets endpoint. Deriving them from `rows` would now
+  // only offer values present on the current page.
   const filterOptions = useMemo<TransactionFilterOptions>(() => {
-    const clientValues = rows.map((row) => ({
-      id: row.clientId,
-      name: row.clientName,
-    }));
-    const entityValues = rows.map((row) => ({
-      id: row.entityId,
-      name: row.entityName,
-    }));
-    const propertyValues = rows.flatMap((row) =>
-      row.propertyNames.map((name, index) => ({
-        id: row.propertyIds[index] || name,
-        name,
-      })),
-    );
-    const transactionTypes =
-      contextKind === "property"
-        ? propertyRows.map((row) => row.transactionType)
-        : rows.map((row) => row.type);
-    const categories =
-      contextKind === "property"
-        ? propertyRows.map((row) => row.categoryName)
-        : rows.map((row) => row.categoryName);
+    const toOptions = (
+      label: string,
+      values: { id: string; name: string; type?: string }[] | undefined,
+      fallback: string,
+    ): SelectOption[] => [
+        { label, value: "all" },
+        ...(values ?? [])
+          .filter((option) => option.id)
+          .map((option) => ({
+            label: option.name || fallback,
+            value: option.id,
+            ...(option.type ? { type: option.type } : {}),
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      ];
 
     return {
-      clients: makeNamedOptions("All Clients", clientValues, "Unknown Client"),
-      entities: makeNamedOptions("All Entities", entityValues, "Unknown Entity"),
-      properties: makeNamedOptions(
-        "All Properties",
-        propertyValues,
-        "Unknown Property",
-      ),
-      types: [
-        { label: "All Types", value: "all" },
-        ...(transactionTypes.includes("expense")
-          ? [{ label: "Expense", value: "Expense" }]
-          : []),
-        ...(transactionTypes.includes("revenue")
-          ? [{ label: "Income", value: "Revenue" }]
-          : []),
-      ],
-      categories: makeCategoryOptions(
-        "All Categories",
-        rows,
-        propertyRows,
-        contextKind,
-        "Uncategorized",
-      ),
+      clients: toOptions("All Clients", facets?.clients, "Unknown Client"),
+      entities: toOptions("All Entities", facets?.entities, "Unknown Entity"),
+      properties: toOptions("All Properties", facets?.properties, "Unknown Property"),
+      // Type is the one closed vocabulary here — four fixed values, not an
+      // open-ended list of the org's own records. It used to be intersected
+      // with `facets.types`, which meant Personal and Property Cost Base were
+      // absent from the dropdown until the org already had one, hiding the
+      // filter exactly when you wanted to ask "do I have any of these?".
+      types: [{ label: "All Types", value: "all" }, ...TRANSACTION_TYPE_OPTIONS],
+      categories: toOptions("All Categories", facets?.categories, "Uncategorized"),
     };
-  }, [contextKind, propertyRows, rows]);
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      const rowClient = getRowClientFilterValue(row);
-      const rowEntity = getRowEntityFilterValue(row);
-      const rowType = row.type === "revenue" ? "Revenue" : "Expense";
-
-      return (
-        (filters.client === "all" || rowClient === filters.client) &&
-        (filters.entity === "all" || rowEntity === filters.entity) &&
-        (filters.property === "all" ||
-          row.propertyIds.includes(filters.property) ||
-          row.propertyNames.includes(filters.property)) &&
-        (filters.type === "all" || rowType === filters.type) &&
-        (filters.category === "all" || row.categoryName === filters.category)
-      );
-    });
-  }, [filters, rows]);
-
-  const filteredPropertyRows = useMemo(() => {
-    return propertyRows.filter((row) => {
-      const rowType = row.transactionType === "revenue" ? "Revenue" : "Expense";
-
-      return (
-        (filters.type === "all" || rowType === filters.type) &&
-        (filters.category === "all" || row.categoryName === filters.category)
-      );
-    });
-  }, [filters.category, filters.type, propertyRows]);
-
-  const sortedRows = useMemo(() => {
-    const items = [...filteredRows];
-    switch (sortBy) {
-      case "date-desc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateB - dateA;
-        });
-      case "date-asc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateA - dateB;
-        });
-      case "gross-desc":
-        return items.sort((a, b) => {
-          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
-          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
-          return valB - valA;
-        });
-      case "gross-asc":
-        return items.sort((a, b) => {
-          const valA = (a.type === "revenue" ? 1 : -1) * (a.grossAmount || 0);
-          const valB = (b.type === "revenue" ? 1 : -1) * (b.grossAmount || 0);
-          return valA - valB;
-        });
-      case "client-asc":
-        return items.sort((a, b) => (a.clientName || "").localeCompare(b.clientName || ""));
-      case "client-desc":
-        return items.sort((a, b) => (b.clientName || "").localeCompare(a.clientName || ""));
-      default:
-        return items;
-    }
-  }, [filteredRows, sortBy]);
-
-  const sortedPropertyRows = useMemo(() => {
-    const items = [...filteredPropertyRows];
-    switch (sortBy) {
-      case "date-desc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateB - dateA;
-        });
-      case "date-asc":
-        return items.sort((a, b) => {
-          const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-          const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-          return dateA - dateB;
-        });
-      case "gross-desc":
-        return items.sort((a, b) => {
-          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
-          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
-          return valB - valA;
-        });
-      case "gross-asc":
-        return items.sort((a, b) => {
-          const valA = (a.transactionType === "revenue" ? 1 : -1) * (a.transactionGrossAmount || 0);
-          const valB = (b.transactionType === "revenue" ? 1 : -1) * (b.transactionGrossAmount || 0);
-          return valA - valB;
-        });
-      case "client-asc":
-      case "client-desc":
-      default:
-        return items;
-    }
-  }, [filteredPropertyRows, sortBy]);
+  }, [facets]);
 
   function updateFilter<K extends keyof TransactionFilters>(
     key: K,
@@ -3071,6 +4156,160 @@ export function AllTransactionsView({
     return session?.getIdToken().getJwtToken() || "";
   }
 
+  /**
+   * Resolves the first category + sub-category for a transaction type, matching
+   * the convention the client's quick-submit and the bulk importer use. Needed
+   * when a deferred extraction flips the type: the placeholder was created with
+   * an expense category, which the API would reject against `revenue`.
+   */
+  async function resolveDefaultCategory(
+    type: CoreTransactionType,
+    headers: Record<string, string>,
+  ): Promise<{ categoryId: number; subcategoryId: number } | null> {
+    const catRes = await fetch(
+      `/api/transactions/categories?type=${encodeURIComponent(type)}`,
+      { headers },
+    );
+    if (!catRes.ok) return null;
+    const category = withoutDedicatedFlowCategories(
+      ((await catRes.json()) as { items?: CoreTransactionCategory[] }).items || [],
+    )[0];
+    if (!category) return null;
+
+    const subRes = await fetch(
+      `/api/transactions/categories/${category.id}/sub-categories`,
+      { headers },
+    );
+    if (!subRes.ok) return null;
+    const subcategory = ((await subRes.json()) as {
+      items?: CoreTransactionSubcategory[];
+    }).items?.[0];
+    if (!subcategory) return null;
+
+    return { categoryId: category.id, subcategoryId: subcategory.id };
+  }
+
+  /**
+   * Runs the extraction the client deferred, and folds the result into the
+   * detail so the edit form opens pre-filled.
+   *
+   * A client who picks "Submit to accountant" uploads without extracting, so
+   * the transaction is a placeholder — zero amount, filename as description,
+   * default category. Opening it here is what finally invokes Bedrock. The
+   * accountant then confirms the values through the ordinary save.
+   */
+  async function extractIntoDetail(
+    detail: CoreTransactionDetail,
+    headers: Record<string, string>,
+  ): Promise<CoreTransactionDetail | null> {
+    const res = await fetch("/api/documents/extract", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        s3_key: detail.documentS3Key,
+        ...(detail.entityId ? { entity_id: detail.entityId } : {}),
+      }),
+    });
+    if (!res.ok) return null;
+
+    const result = (await res.json()) as {
+      data?: Record<string, unknown>;
+      matched_rule?: {
+        assigned_type?: string;
+        assigned_category_id?: number;
+        assigned_subcategory_id?: number;
+      } | null;
+    };
+    const data = result.data ?? {};
+    const rule = result.matched_rule ?? null;
+
+    const next: CoreTransactionDetail = { ...detail };
+
+    const extractedType = rule?.assigned_type ?? data.type;
+    if (extractedType) next.type = parseTransactionType(extractedType);
+
+    if (typeof data.amount === "number" && Number.isFinite(data.amount)) {
+      next.grossAmount = data.amount;
+    }
+    if (
+      data.gst_included &&
+      typeof data.gst_amount === "number" &&
+      Number.isFinite(data.gst_amount) &&
+      data.gst_amount > 0
+    ) {
+      next.gstAmount = data.gst_amount;
+    }
+    next.netAmount = Number((next.grossAmount - next.gstAmount).toFixed(2));
+
+    if (typeof data.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+      next.invoiceDate = data.date;
+    }
+    const description = String(data.description ?? data.title ?? "").trim();
+    if (description) next.description = description;
+
+    const remarks = [
+      data.vendor && `Vendor: ${data.vendor}`,
+      data.payer && `Payer: ${data.payer}`,
+      data.reference && `Ref: ${data.reference}`,
+    ].filter(Boolean);
+    if (remarks.length) next.internalRemarks = remarks.join(" · ");
+
+    // Categories: the rule's assignment wins; otherwise only re-resolve when
+    // the type changed, so an accountant's earlier choice is left alone.
+    if (rule?.assigned_category_id && rule?.assigned_subcategory_id) {
+      next.categoryId = rule.assigned_category_id;
+      next.subcategoryId = rule.assigned_subcategory_id;
+    } else if (next.type !== detail.type) {
+      const defaults = await resolveDefaultCategory(next.type, headers);
+      if (defaults) {
+        next.categoryId = defaults.categoryId;
+        next.subcategoryId = defaults.subcategoryId;
+      }
+    }
+
+    // Extraction flipped the document to 'completed', so re-opening this
+    // transaction won't run Bedrock a second time.
+    next.documentProcessingStatus = "completed";
+    return next;
+  }
+
+  /**
+   * Expand or collapse a part-private bill to show its business and personal
+   * slices.
+   *
+   * The children come from the detail endpoint rather than being derived from
+   * the parent's amount and percentage: deriving would re-do the rounding the
+   * backend already did, and could show a cent that differs from what is
+   * actually stored. Fetched once per row and cached, so collapsing and
+   * re-expanding costs nothing.
+   */
+  async function toggleRowExpanded(row: DisplayTransactionRow) {
+    const isOpen = expandedRowIds.has(row.id);
+    setExpandedRowIds((prev) => {
+      const next = new Set(prev);
+      if (isOpen) next.delete(row.id);
+      else next.add(row.id);
+      return next;
+    });
+    if (isOpen) return;
+
+    const cached = rowChildren[row.id];
+    if (Array.isArray(cached)) return;
+
+    setRowChildren((prev) => ({ ...prev, [row.id]: "loading" }));
+    try {
+      const freshToken = await getAuthToken();
+      const res = await fetch(`/api/transactions/${encodeURIComponent(row.id)}`, {
+        headers: { Authorization: `Bearer ${freshToken}` },
+      });
+      if (!res.ok) throw new Error(`detail ${res.status}`);
+      const detail = (await res.json()) as CoreTransactionDetail;
+      setRowChildren((prev) => ({ ...prev, [row.id]: detail.children ?? [] }));
+    } catch {
+      setRowChildren((prev) => ({ ...prev, [row.id]: "error" }));
+    }
+  }
+
   async function openTransactionDetail(
     row: DisplayTransactionRow,
     mode: TransactionModalMode = "view",
@@ -3080,6 +4319,7 @@ export function AllTransactionsView({
     setRelatedRules([]);
     setDetailMode(mode);
     setDetailError("");
+    setExtractionNotice("");
     setIsDetailLoading(true);
     try {
       const token = await getAuthToken();
@@ -3106,6 +4346,35 @@ export function AllTransactionsView({
       }
       const detail = (await detailRes.json()) as CoreTransactionDetail;
       setSelectedDetail(detail);
+
+      // The client deferred extraction on this one — opening it to review is
+      // the trigger. Pre-fill the form from the document and switch to edit so
+      // the accountant confirms the values rather than reading a placeholder.
+      if (
+        detail.documentS3Key &&
+        detail.documentProcessingStatus !== "completed"
+      ) {
+        try {
+          const enriched = await extractIntoDetail(detail, headers);
+          if (enriched) {
+            setSelectedDetail(enriched);
+            setDetailMode("edit");
+            setExtractionNotice(
+              `Read from ${detail.documentFileName || "the uploaded document"} — check the values and save.`,
+            );
+          } else {
+            setExtractionNotice(
+              "We couldn't read the uploaded document. Enter the details manually.",
+            );
+          }
+        } catch (extractError) {
+          console.error("Deferred extraction failed:", extractError);
+          setExtractionNotice(
+            "We couldn't read the uploaded document. Enter the details manually.",
+          );
+        }
+      }
+
       if (detail.entityId) {
         const rulesRes = await fetch(
           `/api/entities/${encodeURIComponent(detail.entityId)}/transaction-rules`,
@@ -3277,69 +4546,320 @@ export function AllTransactionsView({
     }
   }
 
-  // Tabs split the REAL rows by review status: "To Be Reviewed" is the
-  // unreviewed queue; "Reviewed" holds everything the accountant has touched
-  // (reviewed / approved / rejected).
-  const reviewedCount = useMemo(() => {
-    return contextKind === "property"
-      ? propertyRows.filter((row) => row.reviewStatus !== "unreviewed").length
-      : rows.filter((row) => row.reviewStatus !== "unreviewed").length;
-  }, [contextKind, propertyRows, rows]);
+  // Tabs split the rows by review status: "To Be Reviewed" is the queue a
+  // client submits into ("unreviewed"); "Transactions" is the working ledger —
+  // everything else. Both counts come from the facets aggregate, so they cover
+  // the whole filtered set rather than the visible page.
+  const reviewStatusCounts = facets?.reviewStatusCounts ?? {};
+  const unreviewedCount = reviewStatusCounts.unreviewed ?? 0;
+  const reviewedCount = Object.entries(reviewStatusCounts).reduce(
+    (sum, [status, count]) => (status === "unreviewed" ? sum : sum + count),
+    0,
+  );
 
-  const unreviewedCount = useMemo(() => {
-    return contextKind === "property"
-      ? propertyRows.filter((row) => row.reviewStatus === "unreviewed").length
-      : rows.filter((row) => row.reviewStatus === "unreviewed").length;
-  }, [contextKind, propertyRows, rows]);
+  const activeFilterCount = countActiveFilters(filters);
 
-  // Dynamic lists based on active tab
-  const tabFilteredRows = useMemo(() => {
-    return activeTab === "unreviewed"
-      ? sortedRows.filter((row) => row.reviewStatus === "unreviewed")
-      : sortedRows.filter((row) => row.reviewStatus !== "unreviewed");
-  }, [activeTab, sortedRows]);
+  const displayedRows = rows;
+  const displayedPropertyRows = propertyRows;
+  const totalCount = totalItems;
 
-  const tabFilteredPropertyRows = useMemo(() => {
-    return activeTab === "unreviewed"
-      ? sortedPropertyRows.filter((row) => row.reviewStatus === "unreviewed")
-      : sortedPropertyRows.filter((row) => row.reviewStatus !== "unreviewed");
-  }, [activeTab, sortedPropertyRows]);
+  // ── Row selection (global All Transactions only) ────────────────────────
+  //
+  // Gated on contextKind as well as the prop: the property surface renders
+  // PropertyTransactionTable, whose rows are a different shape entirely, and
+  // the scoped grids were never asked for selection.
+  const selectionEnabled = enableSelection && contextKind === "none";
 
-  const activeFilterCount = Object.values(filters).filter(
-    (value) => value !== "all",
-  ).length;
+  /**
+   * The sign lock. There are five types, not two, and they fall into three
+   * signs rather than two: only `revenue` is money in; `expense`, `personal`
+   * and `cost_base` render negative; and `contra` is neutral, because a
+   * transfer between the entity's own accounts is a movement rather than a
+   * flow. So the lock is on `transactionSign`, and once the first row is picked
+   * every row of a different sign is disabled and dimmed. Summing a mixed
+   * selection would produce a number that means nothing — and a contra mixed
+   * into a run of expenses would make the total read as spending that never
+   * happened.
+   */
+  const selectedSign = useMemo<ReturnType<typeof transactionSign> | null>(() => {
+    const first = selectedRows.values().next();
+    return first.done ? null : transactionSign(first.value.type);
+  }, [selectedRows]);
 
-  const totalCount =
-    contextKind === "property" ? tabFilteredPropertyRows.length : tabFilteredRows.length;
+  const isSelectionDisabled = useCallback(
+    (row: DisplayTransactionRow) =>
+      selectedSign !== null && transactionSign(row.type) !== selectedSign,
+    [selectedSign],
+  );
 
-  const unfilteredCount = useMemo(() => {
-    const wantUnreviewed = activeTab === "unreviewed";
-    if (contextKind === "property") {
-      return propertyRows.filter(
-        (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
-      ).length;
+  const toggleSelectedRow = useCallback((row: DisplayTransactionRow) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.add(row.id);
+      return next;
+    });
+    setSelectedRows((prev) => {
+      const next = new Map(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.set(row.id, row);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectedRows(new Map());
+  }, []);
+
+  // Rows on this page that the sign lock allows. Select-all only ever acts on
+  // these, so it can never create a mixed selection.
+  const selectableRowsOnPage = useMemo(
+    () => (selectionEnabled ? displayedRows.filter((row) => !isSelectionDisabled(row)) : []),
+    [selectionEnabled, displayedRows, isSelectionDisabled],
+  );
+
+  const allOnPageSelected =
+    selectableRowsOnPage.length > 0 &&
+    selectableRowsOnPage.every((row) => selectedIds.has(row.id));
+
+  const toggleSelectAllOnPage = useCallback(
+    (checked: boolean) => {
+      // With nothing selected yet the page can hold both signs, so the first
+      // eligible row sets the lock and the rest of the page follows it.
+      const sign =
+        selectedSign ??
+        (displayedRows.length > 0 ? transactionSign(displayedRows[0].type) : null);
+      const eligible =
+        sign === null
+          ? displayedRows
+          : displayedRows.filter((row) => transactionSign(row.type) === sign);
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const row of eligible) {
+          if (checked) next.add(row.id);
+          else next.delete(row.id);
+        }
+        return next;
+      });
+      setSelectedRows((prev) => {
+        const next = new Map(prev);
+        for (const row of eligible) {
+          if (checked) next.set(row.id, row);
+          else next.delete(row.id);
+        }
+        return next;
+      });
+    },
+    [displayedRows, selectedSign],
+  );
+
+  // Paging keeps the selection — that is what the side-cache is for. Changing
+  // the filters or the tab does not: the rows would no longer be on screen, and
+  // a running total over rows the reader cannot see is worse than no total.
+  // Keyed on listQuery, which carries the filters but not limit/offset.
+  const listQueryKey = listQuery.toString();
+  useEffect(() => {
+    clearSelection();
+  }, [listQueryKey, activeTab, clearSelection]);
+
+  const selection = useMemo<TableSelection | undefined>(() => {
+    if (!selectionEnabled) return undefined;
+    return {
+      selectedIds,
+      isDisabled: isSelectionDisabled,
+      onToggle: toggleSelectedRow,
+      allOnPageSelected,
+      onToggleAll: toggleSelectAllOnPage,
+    };
+  }, [
+    selectionEnabled,
+    selectedIds,
+    isSelectionDisabled,
+    toggleSelectedRow,
+    allOnPageSelected,
+    toggleSelectAllOnPage,
+  ]);
+
+  // Depreciation for the grid: the year-one figure printed in Gross and Net on
+  // asset rows, and the This FY column. Every scope is covered: "none" is the
+  // org-wide grid, which GET /depreciation serves (it takes no id — the backend
+  // reads the org from the caller's claims and scopes by role there).
+  const depreciationScope: CoreDepreciationScopeLevel =
+    contextKind === "property"
+      ? "property"
+      : contextKind === "entity"
+        ? "entity"
+        : contextKind === "client"
+          ? "client"
+          : "org";
+  const { byTransactionId: firstYearDepreciation } = useFirstYearDepreciation(
+    depreciationScope,
+    contextId,
+    // Org scope legitimately has no id; every other level needs one.
+    { enabled: depreciationScope === "org" || !!contextId },
+  );
+
+  /**
+   * Running total over the side-cache, not the page — that is the whole point
+   * of keeping one. It sums what the Gross column SHOWS (gridAmounts), so an
+   * asset row contributes its year-one deduction rather than its purchase
+   * price and the footer agrees with the column; the sign lock guarantees
+   * every row pulls the same way.
+   */
+  const selectedTotal = useMemo(() => {
+    let sum = 0;
+    for (const row of selectedRows.values()) {
+      sum += gridAmounts(row, firstYearDepreciation.get(row.id)).gross;
     }
-    return rows.filter(
-      (row) => (row.reviewStatus === "unreviewed") === wantUnreviewed,
-    ).length;
-  }, [activeTab, contextKind, propertyRows, rows]);
+    return sum;
+  }, [selectedRows, firstYearDepreciation]);
 
-  const totalItems = totalCount;
-  const numericPageSize = pageSize === "all" ? totalItems : Number(pageSize);
-  const totalPages = Math.ceil(totalItems / numericPageSize) || 1;
+  const totalPages = Math.max(Math.ceil(totalItems / numericPageSize), 1);
   const activePage = Math.min(currentPage, totalPages);
 
-  const displayedRows = useMemo(() => {
-    const startIndex = (activePage - 1) * numericPageSize;
-    const endIndex = startIndex + numericPageSize;
-    return tabFilteredRows.slice(startIndex, endIndex);
-  }, [tabFilteredRows, activePage, numericPageSize]);
+  // The offset sent to the API comes from currentPage, so if the result set
+  // shrinks under the current page (a delete elsewhere, a narrowed filter that
+  // raced the reset) the request would page past the end and return nothing.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
-  const displayedPropertyRows = useMemo(() => {
-    const startIndex = (activePage - 1) * numericPageSize;
-    const endIndex = startIndex + numericPageSize;
-    return tabFilteredPropertyRows.slice(startIndex, endIndex);
-  }, [tabFilteredPropertyRows, activePage, numericPageSize]);
+  const sortHandlers: SortHandlers = useMemo(
+    () => ({
+      sort,
+      sortableKeys: SORTABLE_KEYS_BY_SCOPE[contextKind],
+      // Clicking the active column flips direction; a new column starts at
+      // whichever end of it is most useful (newest date, largest amount, A-Z).
+      onSort: (key) =>
+        setSort((current) =>
+          current.key === key
+            ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+            : { key, dir: INITIAL_SORT_DIR[key] },
+        ),
+    }),
+    [contextKind, sort],
+  );
+
+  /**
+   * CSV for the selected rows, built in the browser.
+   *
+   * The server export cannot do this: `parseListParams` has no id-list
+   * parameter, and `export_list.go` deliberately re-runs the whole filter set
+   * with Offset = 0 — asking it for "these 3 rows" would return every row the
+   * filters match. The side-cache already holds each selected row's data, so
+   * the file is written here using the same column set and order as
+   * `listExportRecord`, and a selected export lines up with a full one.
+   */
+  function exportSelectedTransactions() {
+    setExportError("");
+    if (selectedRows.size === 0) return;
+
+    const esc = (value: string | number | null | undefined) => {
+      const text = value == null ? "" : String(value);
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const money = (value: number | null | undefined) =>
+      value == null ? "" : value.toFixed(2);
+
+    const header = [
+      "Transaction ID", "Client", "Entity", "Properties", "Description",
+      "Type", "Category", "Subcategory", "Invoice Date",
+      "Gross", "GST", "Net",
+      "Client Share Gross", "Client Share GST", "Client Share Net",
+      "Review Status", "Rule Applied", "Created At",
+    ];
+
+    const lines = [header.map(esc).join(",")];
+    for (const row of selectedRows.values()) {
+      lines.push([
+        row.id,
+        row.clientName,
+        row.entityName,
+        row.propertyNames.join("; "),
+        row.description || "",
+        row.type,
+        row.categoryName,
+        row.subcategoryName,
+        row.invoiceDate,
+        money(row.grossAmount),
+        money(row.gstAmount),
+        money(row.netAmount),
+        money(row.clientShareGross),
+        money(row.clientShareGst),
+        money(row.clientShareNet),
+        row.reviewStatus,
+        row.ruleId != null ? "Yes" : "No",
+        row.createdAt,
+      ].map(esc).join(","));
+    }
+
+    const url = URL.createObjectURL(
+      new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `transactions_selected_${selectedRows.size}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportTransactions(format: "csv" | "xlsx" | "pdf") {
+    setExportError("");
+    try {
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        setExportError("You're signed out.");
+        return;
+      }
+      const token = session.getIdToken().getJwtToken();
+
+      // The export covers the whole filter set, not the loaded page, so it
+      // carries the filters, search, tab and sort but no limit/offset.
+      const sp = new URLSearchParams(listQuery);
+      if (contextKind === "client") sp.set("client_id", contextId);
+      if (contextKind === "entity") sp.set("entity_id", contextId);
+      if (contextKind === "property") sp.set("property_id", contextId);
+      sp.set("review_bucket", reviewBucket);
+      sp.set("sort", sort.key);
+      sp.set("dir", sort.dir);
+      sp.set("format", format);
+
+      const res = await fetch(`/api/transactions/export?${sp.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        // An over-cap export returns a specific "narrow your filters" message.
+        const body = await res.json().catch(() => null);
+        setExportError(
+          (body as { message?: string; error?: string } | null)?.message ||
+          (body as { error?: string } | null)?.error ||
+          "Failed to export transactions.",
+        );
+        return;
+      }
+
+      // The endpoint needs the Cognito bearer token, so a plain <a download>
+      // cannot fetch it — the blob is built here and handed to a click.
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = match?.[1] || `transactions.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export transactions failed:", error);
+      setExportError("Something went wrong while exporting.");
+    }
+  }
 
   const showClientShare = contextKind === "client";
   const tableScope: TransactionTableScope =
@@ -3348,6 +4868,7 @@ export function AllTransactionsView({
       : contextKind === "client"
         ? "client"
         : "entity";
+
   const returnToHref = appendUrlParam(pathname || "/dashboard/accountant/transactions", "tab", "transactions");
   const rulesTargetHref = appendUrlParam(
     contextKind === "entity" && contextId
@@ -3363,13 +4884,14 @@ export function AllTransactionsView({
   );
 
   return (
-    <section className={`transactions-page${compact ? " is-compact" : ""}`}>
+    <section className={`transactions-page overflow-hidden ${compact ? " is-compact" : ""}`}>
       <div className="transactions-page-head">
         <div>
           <h1>All Transactions</h1>
           <p>View and manage all transactions across clients and properties</p>
         </div>
         <div className="transactions-head-actions">
+          <ExportMenu onExport={exportTransactions} />
           {showRulesButton && (
             <Link
               href={rulesTargetHref}
@@ -3422,7 +4944,7 @@ export function AllTransactionsView({
             setCurrentPage(1);
           }}
         >
-          Reviewed <span className="transaction-tab-badge">{reviewedCount}</span>
+          Transactions <span className="transaction-tab-badge">{reviewedCount}</span>
         </button>
         <button
           type="button"
@@ -3434,17 +4956,56 @@ export function AllTransactionsView({
         >
           To Be Reviewed <span className="transaction-tab-badge">{unreviewedCount}</span>
         </button>
+
+        {/* Which level of a part-private bill the grid lists.
+            Bills is what a person reads — one row per bill, expandable.
+            Tax lines is what the tax figures are made of, so it reconciles
+            against a BAS. Every filter works in both; the difference is only
+            which rows the same filters are applied to. */}
+        {/* <div className="transaction-grain-switch" role="group" aria-label="Row detail">
+          <button
+            type="button"
+            className={`transaction-grain-btn ${grain === "top" ? "is-active" : ""}`}
+            aria-pressed={grain === "top"}
+            onClick={() => setGrain("top")}
+            title="One row per bill. Part-private bills can be expanded to show both slices."
+          >
+            Bills
+          </button>
+          <button
+            type="button"
+            className={`transaction-grain-btn ${grain === "leaf" ? "is-active" : ""}`}
+            aria-pressed={grain === "leaf"}
+            onClick={() => setGrain("leaf")}
+            title="The rows GST and the P&L are summed from — a part-private bill appears as its business and personal slices."
+          >
+            Tax lines
+          </button>
+        </div> */}
       </div>
+
+      {grain === "leaf" && (
+        <p className="transaction-grain-note">
+          Showing tax lines: a part-private bill appears as its business and personal slices
+          rather than as one row, so the amounts here are what GST and the P&amp;L are
+          calculated from.
+        </p>
+      )}
 
       <Filters
         context={context}
         filters={filters}
         options={filterOptions}
         onChange={updateFilter}
-        onReset={() => setFilters(defaultTransactionFilters)}
+        onReset={() => {
+          setFilters(defaultTransactionFilters);
+          setSearchDraft("");
+        }}
         activeCount={activeFilterCount}
-        sortBy={sortBy}
-        onChangeSort={setSortBy}
+        sortBy={encodeSort(sort)}
+        onChangeSort={(value) => setSort(decodeSort(value, sort))}
+        searchDraft={searchDraft}
+        onChangeSearchDraft={setSearchDraft}
       />
 
       {isLoading ? (
@@ -3474,16 +5035,19 @@ export function AllTransactionsView({
             </div>
             <h3>All Caught Up!</h3>
             <p>
-              {unfilteredCount === 0
+              {activeFilterCount === 0
                 ? "There are no transactions currently awaiting review."
                 : "No transactions awaiting review match the active filters."}
             </p>
-            {unfilteredCount > 0 ? (
+            {activeFilterCount > 0 ? (
               <button
                 type="button"
                 className="transaction-filter-reset"
                 style={{ marginTop: '16px' }}
-                onClick={() => setFilters(defaultTransactionFilters)}
+                onClick={() => {
+                  setFilters(defaultTransactionFilters);
+                  setSearchDraft("");
+                }}
               >
                 Clear filters
               </button>
@@ -3492,15 +5056,18 @@ export function AllTransactionsView({
         ) : (
           <div className="transactions-empty-state">
             <strong>
-              {unfilteredCount === 0
+              {activeFilterCount === 0
                 ? "No transactions yet."
                 : "No transactions match these filters."}
             </strong>
-            {unfilteredCount > 0 ? (
+            {activeFilterCount > 0 ? (
               <button
                 type="button"
                 className="transaction-filter-reset"
-                onClick={() => setFilters(defaultTransactionFilters)}
+                onClick={() => {
+                  setFilters(defaultTransactionFilters);
+                  setSearchDraft("");
+                }}
               >
                 Clear filters
               </button>
@@ -3510,9 +5077,55 @@ export function AllTransactionsView({
       ) : (
         <>
           <div className="transactions-showing-copy">
-            Showing <strong>{totalCount}</strong> of{" "}
-            <strong>{unfilteredCount}</strong> transactions {activeTab === "unreviewed" ? "awaiting review" : "reviewed"}
+            Showing{" "}
+            <strong>
+              {(activePage - 1) * numericPageSize + 1}&ndash;
+              {Math.min(activePage * numericPageSize, totalItems)}
+            </strong>{" "}
+            of <strong>{totalItems}</strong> transactions{" "}
+            {activeTab === "unreviewed" ? "awaiting review" : ""}
           </div>
+          {exportError ? (
+            <div className="transaction-filter-error" role="alert">
+              {exportError}
+            </div>
+          ) : null}
+          {selectionEnabled && selectedRows.size > 0 ? (
+            <div
+              className="transactions-selection-bar"
+              role="toolbar"
+              aria-label="Selected transactions"
+            >
+              <span className="transactions-selection-count">
+                {selectedRows.size} selected
+                <span className="transactions-selection-sep">·</span>
+                Total{" "}
+                <strong
+                  className={
+                    selectedSign ? "amount-positive" : "amount-negative"
+                  }
+                >
+                  {formatTransactionCurrency(selectedTotal, selectedSign ?? true)}
+                </strong>
+              </span>
+              <div className="transactions-selection-actions">
+                <button
+                  type="button"
+                  className="transaction-outline-button"
+                  onClick={clearSelection}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="transaction-primary-button"
+                  onClick={exportSelectedTransactions}
+                >
+                  Export Selected
+                </button>
+              </div>
+            </div>
+          ) : null}
           {activeTab === "unreviewed" ? (
             <AwaitingReviewTable
               rows={
@@ -3520,6 +5133,8 @@ export function AllTransactionsView({
                   ? (displayedPropertyRows as unknown as CorePropertyTransactionRow[]).map(propertyRowToDisplayRow)
                   : displayedRows
               }
+              scope={tableScope}
+              contextKind={contextKind}
               onView={(row) => {
                 const reviewHref = appendUrlParam(
                   addTransactionTargetHref,
@@ -3530,19 +5145,25 @@ export function AllTransactionsView({
               }}
               disabled={addTransactionDisabled}
               disabledReason={addTransactionDisabledReason}
+              selection={selection}
             />
           ) : contextKind === "property" ? (
             <PropertyTransactionTable
               rows={displayedPropertyRows}
+              sortHandlers={sortHandlers}
               onView={(row) => openTransactionDetail(row, "view")}
               onEdit={(row) => openTransactionDetail(row, "edit")}
               onDelete={(row) => deleteTransaction(row)}
               disabled={addTransactionDisabled}
               disabledReason={addTransactionDisabledReason}
+              expandedRowIds={grain === "top" ? expandedRowIds : undefined}
+              rowChildren={grain === "top" ? rowChildren : undefined}
+              onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
             />
           ) : (
             <TransactionTable
               rows={displayedRows}
+              sortHandlers={sortHandlers}
               scope={tableScope}
               showClientShare={showClientShare}
               onView={(row) => openTransactionDetail(row, "view")}
@@ -3550,6 +5171,14 @@ export function AllTransactionsView({
               onDelete={(row) => deleteTransaction(row)}
               disabled={addTransactionDisabled}
               disabledReason={addTransactionDisabledReason}
+              // Expansion belongs to the Bills view only. In Tax lines the
+              // slices are already the rows, so there is nothing to reveal —
+              // passing no handler also drops the disclosure column entirely.
+              expandedRowIds={grain === "top" ? expandedRowIds : undefined}
+              rowChildren={grain === "top" ? rowChildren : undefined}
+              onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
+              selection={selection}
+              firstYearDepreciation={firstYearDepreciation}
             />
           )}
           {totalItems > 0 && (
@@ -3566,11 +5195,13 @@ export function AllTransactionsView({
                       setCurrentPage(1);
                     }}
                   >
+                    {/* No "All": the page size is a SQL LIMIT now, and the
+                        API caps it at 200. */}
                     <option value="10">10</option>
                     <option value="20">20</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
-                    <option value="all">All</option>
+                    <option value="200">200</option>
                   </select>
                 </div>
                 <span className="premium-pagination-info">
@@ -3700,6 +5331,7 @@ export function AllTransactionsView({
           mode={detailMode}
           isLoading={isDetailLoading}
           error={detailError}
+          notice={extractionNotice}
           isSaving={isDetailSaving}
           isDeleting={isDetailDeleting}
           relatedRules={relatedRules}
@@ -3708,6 +5340,7 @@ export function AllTransactionsView({
             setSelectedDetail(null);
             setRelatedRules([]);
             setDetailError("");
+            setExtractionNotice("");
           }}
           onEdit={() => setDetailMode("edit")}
           onCancelEdit={() => setDetailMode("view")}
@@ -3788,6 +5421,8 @@ function BulkImportModal({
       "expense,Repairs & Maintenance,Plumbing,2026-03-02,850,85,bank_transfer,Emergency plumbing repair,Approved by client,false,,,,,",
       "revenue,Rental Income,Monthly Rent,2026-03-05,3200,0,bank_transfer,March rental payment,,false,,,,,",
       "expense,Utilities,Electricity,2026-03-10,500,50,bank_transfer,Shared electricity bill,,false,,,Sunset Villa|Ocean View,300|200,",
+      "personal,Personal,General,2026-03-12,120,0,bank_transfer,Private groceries,,false,,,,,",
+      "cost_base,Stamp duty,General,2026-03-15,18500,0,bank_transfer,Transfer duty on purchase,,false,,,,,",
     ].join("\n");
     const blob = new Blob([template], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -4297,10 +5932,22 @@ export function AddTransactionView({
   const [description, setDescription] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
 
-  const [isAssetPurchase, setIsAssetPurchase] = useState(false);
-  const [assetItemName, setAssetItemName] = useState("");
-  const [assetClass, setAssetClass] = useState<CoreAssetClass | "">("");
-  const [effectiveLifeYears, setEffectiveLifeYears] = useState("");
+  // One draft rather than five loose fields. The old shape kept the asset's
+  // class, name, life and method in separate `temp*` variables that were copied
+  // into four more on submit, and the copy dropped the method whenever the name
+  // was empty — so an asset could be saved with no method to depreciate on.
+  const [assetDraft, setAssetDraft] = useState<AssetDraft | null>(null);
+  const isAssetPurchase = assetDraft !== null;
+
+  // `isPersonal` is a partial private-use split on a business expense. A wholly
+  // personal transaction is its own type, so it no longer rides on this flag.
+  const [isPersonal, setIsPersonal] = useState(false);
+  const [personalAllocationType, setPersonalAllocationType] = useState<"percentage" | "amount">("percentage");
+  const [personalValue, setPersonalValue] = useState("20");
+
+  const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+  const [assetInitialClass, setAssetInitialClass] = useState<CoreAssetClass | null>(null);
+  const [assetCategoryError, setAssetCategoryError] = useState("");
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -4420,23 +6067,37 @@ export function AddTransactionView({
         setIsEditingEntity(false);
       }
 
-      // Property IDs
-      if (matchedTx.propertyIds && matchedTx.propertyIds.length > 0) {
-        const mainPropertyId = matchedTx.propertyIds[0];
+      // Property linkage. `transaction` has no property_id column — the schema
+      // keeps it in transaction_property_split — so a real transaction fetched
+      // from the API carries it under `splits`, never as propertyIds/propertyId.
+      // Reading only those two left the property silently unselected on review.
+      const prefillSplits: { propertyId: string; splitGrossAmount?: number }[] =
+        Array.isArray(matchedTx.splits) && matchedTx.splits.length > 0
+          ? matchedTx.splits
+          : (matchedTx.propertyIds ?? []).map((pId: string) => ({ propertyId: pId }));
+
+      if (prefillSplits.length > 0) {
+        const mainPropertyId = prefillSplits[0].propertyId;
         setPropertyId(mainPropertyId);
         setDefaultPropertyId(mainPropertyId);
         setIsEditingProperty(false);
 
-        if (matchedTx.propertyIds.length > 1) {
+        if (prefillSplits.length > 1) {
           setIsSplit(true);
-          const count = matchedTx.propertyIds.length;
-          const individualAmount = (Number(matchedTx.grossAmount || 0) / count).toFixed(2);
+          // Use each split's own amount. Re-dividing the gross evenly, as this
+          // did before, silently rewrites uneven splits.
+          const evenShare = (
+            Number(matchedTx.grossAmount || 0) / prefillSplits.length
+          ).toFixed(2);
           setSplitRows(
-            matchedTx.propertyIds.map((pId: string) => ({
+            prefillSplits.map((split) => ({
               id: makeSplitRowId(),
-              propertyId: pId,
-              amount: individualAmount,
-            }))
+              propertyId: split.propertyId,
+              amount:
+                split.splitGrossAmount != null
+                  ? String(split.splitGrossAmount)
+                  : evenShare,
+            })),
           );
         }
       } else if (matchedTx.propertyId) {
@@ -4462,11 +6123,36 @@ export function AddTransactionView({
       if (matchedTx.internalRemarks) {
         setInternalRemarks(matchedTx.internalRemarks);
       }
-      if (matchedTx.isAssetPurchase) {
-        setIsAssetPurchase(true);
-        if (matchedTx.assetItemName) setAssetItemName(matchedTx.assetItemName);
-        if (matchedTx.assetClass) setAssetClass(matchedTx.assetClass);
-        if (matchedTx.effectiveLifeYears) setEffectiveLifeYears(String(matchedTx.effectiveLifeYears));
+      // A matched transaction only restores an asset when it carries a
+      // complete bundle. A partial restore would put the form into a state the
+      // builder cannot produce and the API would reject.
+      if (
+        matchedTx.isAssetPurchase &&
+        matchedTx.assetClass &&
+        matchedTx.assetItemName &&
+        matchedTx.effectiveLifeYears
+      ) {
+        setAssetDraft({
+          assetClass: matchedTx.assetClass,
+          assetName: matchedTx.assetItemName,
+          effectiveLifeYears: matchedTx.effectiveLifeYears,
+          depreciationMethod:
+            matchedTx.assetClass === "capital_works" ? "prime_cost" : "diminishing_value",
+        });
+      }
+
+      // Restore the private-use split. This is the gap that made the old
+      // metadata version quietly lossy: the toggle never came back, so
+      // reopening a 30%-private expense showed it as fully deductible and
+      // re-saving dropped the split without saying so. matchedTx is raw API
+      // JSON on the fetch path, so both casings are read.
+      const prefillPersonalPct = Number(
+        matchedTx.personal_percentage ?? matchedTx.personalPercentage ?? 0,
+      );
+      if (Number.isFinite(prefillPersonalPct) && prefillPersonalPct > 0) {
+        setIsPersonal(true);
+        setPersonalAllocationType("percentage");
+        setPersonalValue(String(prefillPersonalPct));
       }
 
       // 5. Prefill category / subcategory cascade
@@ -4478,6 +6164,47 @@ export function AddTransactionView({
       }
       if (matchedTx.type) {
         setType(matchedTx.type);
+      }
+
+      // 6. Deferred extraction. A "Submit to accountant" placeholder was never
+      // read, and opening it to review is the trigger — this screen, not the
+      // detail modal, is where reviewing actually happens. Runs last so the
+      // extracted values win over the placeholder's zeros. The endpoint is
+      // idempotent: an already-extracted document returns its stored data
+      // without re-invoking the model.
+      if (
+        !cancelled &&
+        matchedTx.documentS3Key &&
+        matchedTx.documentProcessingStatus !== "completed"
+      ) {
+        try {
+          const res = await fetch("/api/documents/extract", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              s3_key: matchedTx.documentS3Key,
+              ...(matchedTx.entityId ? { entity_id: matchedTx.entityId } : {}),
+            }),
+          });
+          if (res.ok && !cancelled) {
+            const result = (await res.json()) as {
+              data?: ExtractedDocumentData;
+              matched_rule?: MatchedRule | null;
+            };
+            handleExtracted(result.data ?? {}, docId, {
+              filename: fname,
+              jobId: "",
+              matchedRule: result.matched_rule ?? null,
+            });
+          }
+        } catch (extractError) {
+          // Non-blocking: the form still opens on the placeholder values and
+          // the accountant can read the document in the preview pane.
+          console.error("Deferred extraction failed on review:", extractError);
+        }
       }
     }
 
@@ -4496,6 +6223,37 @@ export function AddTransactionView({
     setActiveEntityId(entityId ?? "");
     setIsEditingEntity(!entityId);
   }, [entityId]);
+
+  // `type` is now the API type verbatim — there is no separate display union to
+  // sync, and no projection of personal/cost_base back onto expense + flags.
+  // isPersonal stays meaningful only as a *partial* private-use split on a
+  // business expense; a wholly personal transaction is type === "personal".
+  function handleTransactionTypeChange(newType: CoreTransactionType) {
+    setType(newType);
+    setCategoryId(null);
+    setSubcategoryId(null);
+    setAssetCategoryError("");
+    setAssetInitialClass(null);
+    if (!allowsAssetPurchase(newType)) {
+      setAssetDraft(null);
+    }
+    if (newType !== "expense") {
+      setIsRegularPayment(false);
+    }
+    // A private-use portion is expense-only. Retyping away from expense clears
+    // it rather than leaving a hidden split that the API would 400 on.
+    if (!allowsPersonalPortion(newType)) {
+      setIsPersonal(false);
+    }
+    // A contra entry carries no GST — it is a transfer between the entity's own
+    // accounts, not a purchase or a sale, and transaction_contra_no_gst_check
+    // rejects a non-zero amount. Cleared here rather than validated on submit,
+    // so the accountant never types a figure that is going to be refused.
+    if (newType === "contra") {
+      setShowGstBreakdown(false);
+      setGstAmount("");
+    }
+  }
 
   useEffect(() => {
     if (!token || !requireClientSelection) return;
@@ -4633,7 +6391,7 @@ export function AddTransactionView({
 
         const currentPropertyValid =
           (prefillMatchId ? true : !!propertyIdRef.current &&
-          loadedProperties.some((property) => property.id === propertyIdRef.current));
+            loadedProperties.some((property) => property.id === propertyIdRef.current));
         const hasDefaultProperty =
           !!defaultPropertyId &&
           loadedProperties.some((property) => property.id === defaultPropertyId);
@@ -4694,10 +6452,22 @@ export function AddTransactionView({
         `/api/transactions/categories?type=${encodeURIComponent(type)}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok || cancelled) return;
+      if (cancelled) return;
+      // A failed fetch must CLEAR the list, never leave the previous type's
+      // categories in state. The picker is hidden for personal and contra, so
+      // a stale expense list there was silently auto-selected and posted as
+      // `{type: "contra", category_id: <expense>}` — the backend's "category
+      // type does not match transaction type" 400, with nothing on screen to
+      // show why. Matches the reconciliation drawer's `{ items: [] }` fallback.
+      if (!res.ok) {
+        setCategories([]);
+        setCategoryId(null);
+        setSubcategoryId(null);
+        return;
+      }
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
-        const items = data.items || [];
+        const items = withoutDedicatedFlowCategories(data.items || []);
         setCategories(items);
         // If a matched rule is pending and its category exists for this type,
         // select it (the subcategory effect will then apply the rule's subcat).
@@ -4760,22 +6530,13 @@ export function AddTransactionView({
     };
   }, [token, categoryId]);
 
+  // Only an expense can be an asset purchase. The draft is all-or-nothing, so
+  // clearing it is the whole reset — there are no dependent fields left over.
   useEffect(() => {
-    if (type !== "expense" && isAssetPurchase) {
-      setIsAssetPurchase(false);
+    if (type !== "expense" && assetDraft) {
+      setAssetDraft(null);
     }
-  }, [isAssetPurchase, type]);
-
-  // When the user un-checks "asset purchase", reset its dependent fields.
-  useEffect(() => {
-    if (!isAssetPurchase) {
-      setAssetItemName("");
-      setAssetClass("");
-      setEffectiveLifeYears("");
-    } else if (!assetClass) {
-      setAssetClass("capital_allowance");
-    }
-  }, [assetClass, isAssetPurchase]);
+  }, [assetDraft, type]);
 
   // When GST breakdown is unchecked, drop any entered GST so the body omits it.
   useEffect(() => {
@@ -4814,6 +6575,43 @@ export function AddTransactionView({
     grossNumberValue > 0 &&
     Math.abs(splitTotal - grossNumberValue) < 0.01;
 
+  // Private-use split of a business expense. A wholly personal transaction is
+  // type === "personal" and carries no split, so isPersonal is false there.
+  //
+  // Both input modes collapse to a percentage before anything else reads them.
+  // That is the only shape the API accepts: a fixed dollar amount cannot be
+  // re-derived when the bill total later changes, and the two children have to
+  // keep summing back to their parent.
+  const grossNumValue = Number.isNaN(grossNumberValue) ? 0 : grossNumberValue;
+  const personalPercentageValue = (() => {
+    if (!isPersonal) return 0;
+    const raw = Number.parseFloat(personalValue) || 0;
+    if (personalAllocationType === "percentage") return raw;
+    if (grossNumValue <= 0) return 0;
+    return (raw / grossNumValue) * 100;
+  })();
+  const personalPortion = grossNumValue * (personalPercentageValue / 100);
+  const businessPortion = grossNumValue - personalPortion;
+
+  // The split is strictly partial at both ends. Nothing private is just an
+  // expense; wholly private is the "Personal Transaction" type, which is a
+  // different row shape rather than a 100% split.
+  const personalSplitError = (() => {
+    if (!isPersonal) return "";
+    if (grossNumValue <= 0) return "Enter the amount first.";
+    if (personalPercentageValue <= 0) {
+      return personalAllocationType === "percentage"
+        ? "Enter a personal percentage above 0."
+        : "Enter a personal amount above 0.";
+    }
+    if (personalPercentageValue >= 100) {
+      return personalAllocationType === "percentage"
+        ? "Personal use must be under 100%. Choose the Personal Transaction type for a wholly private one."
+        : "The personal amount must be less than the total. Choose the Personal Transaction type for a wholly private one.";
+    }
+    return "";
+  })();
+
   const splitErrors = useMemo(() => {
     const errors: Record<string, string> = {};
     if (!isSplit) return errors;
@@ -4844,11 +6642,26 @@ export function AddTransactionView({
     !!activeEntityId && propertiesLoaded && properties.length === 0;
   const canSplitTransaction = properties.length > 1;
 
+  // An asset purchase is filed under the depreciation category its class maps
+  // to — capital_allowance -> "Capital allowances" (5160), capital_works ->
+  // "Capital works deductions" (5150). This used to take `categories[0]`,
+  // which the endpoint's `ORDER BY lower(name)` made "Advertising for Tenants"
+  // for every asset ever created here, posted to 5070 and greyed out so it
+  // could not be corrected.
+  //
+  // `assetClass` is in the deps and the guard does NOT test `!categoryId`:
+  // switching Capital Works <-> Capital Allowance has to re-resolve, and the
+  // old guard meant the first pick stuck forever.
+  const lockedAssetCategory = lockAssetPurchaseCategory
+    ? findAssetCategory(categories, assetDraft?.assetClass ?? "")
+    : null;
+
   useEffect(() => {
-    if (lockAssetPurchaseCategory && !categoryId && categories[0]) {
-      setCategoryId(categories[0].id);
+    if (lockedAssetCategory && categoryId !== lockedAssetCategory.id) {
+      setCategoryId(lockedAssetCategory.id);
+      setSubcategoryId(null);
     }
-  }, [categories, categoryId, lockAssetPurchaseCategory]);
+  }, [lockedAssetCategory, categoryId]);
 
   useEffect(() => {
     if (lockAssetPurchaseCategory && !subcategoryId && subcategories[0]) {
@@ -4856,7 +6669,44 @@ export function AddTransactionView({
     }
   }, [lockAssetPurchaseCategory, subcategories, subcategoryId]);
 
+  // Personal and contra hide the category picker, so the single seeded category
+  // for that type is selected automatically.
+  //
+  // Filtered by TYPE rather than taking `categories[0]`: the list is refetched
+  // asynchronously when the type changes, so on the render where `type` is
+  // already "contra" but the fetch has not landed, `categories` still holds the
+  // previous type's rows. Picking index 0 there posted an expense category on a
+  // contra transaction.
+  useEffect(() => {
+    if (!hidesCategoryPicker(type) || categoryId) return;
+    const match = firstCategoryOfType(categories, type);
+    if (match) setCategoryId(match.id);
+  }, [type, categories, categoryId]);
 
+  useEffect(() => {
+    if (hidesSubcategoryPicker(type) && !subcategoryId && subcategories[0]) {
+      setSubcategoryId(subcategories[0].id);
+    }
+  }, [type, subcategories, subcategoryId]);
+
+  useEffect(() => {
+    if (!allowsBusinessExtras(type) && !propertyId && properties.length > 0) {
+      setPropertyId(properties[0].id);
+    }
+  }, [type, propertyId, properties]);
+
+  // A contra carries no other identifying information — the category is always
+  // Contra, the subcategory General, the GST zero — so the description is the
+  // only record of which two accounts the money moved between. Mirrors the
+  // backend's validateContraDescription so the refusal happens before the round
+  // trip. Every other type keeps description optional, which is why the `*` on
+  // the label stayed cosmetic until now.
+  const descriptionError = useMemo(() => {
+    if (type === "contra" && !description.trim()) {
+      return "A description is required on a contra entry: it is the only record of which accounts the money moved between.";
+    }
+    return "";
+  }, [type, description]);
 
   const invoiceDateError = useMemo(() => {
     if (!invoiceDate) {
@@ -4923,27 +6773,38 @@ export function AddTransactionView({
     }
   }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
 
+  // Category and subcategory are required for every type now that personal and
+  // cost base have a seeded taxonomy of their own — their pickers are hidden but
+  // auto-selected, so the ids are populated either way. The asset-purchase
+  // clause no longer blocks cost base: it is not an asset purchase.
   const canSubmit =
     !mustChooseClientFirst &&
-    !hasNoProperties &&
+    (!allowsBusinessExtras(type) || !hasNoProperties) &&
     !!activeEntityId &&
     !!type &&
-    (lockAssetPurchaseCategory || !!categoryId) &&
-    (lockAssetPurchaseCategory || !!subcategoryId) &&
+    // Waived wherever the picker is hidden or locked, because there the user
+    // has no control to satisfy it — a disabled Save with no visible reason is
+    // exactly how the contra failure presented. handleSubmit re-checks and
+    // reports which category could not be resolved.
+    (lockAssetPurchaseCategory || hidesCategoryPicker(type) || !!categoryId) &&
+    (lockAssetPurchaseCategory ||
+      hidesSubcategoryPicker(type) ||
+      !!subcategoryId) &&
+    !descriptionError &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
     !grossAmountError &&
     (!isRegularPayment || !dueDateError) &&
     !!modeOfTransaction &&
-    (!isAssetPurchase ||
-      (assetClass === "capital_works" ||
-        (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
+    // No asset clause: AssetBuilder cannot emit an incomplete draft, so
+    // `assetDraft !== null` already means "valid asset".
+
     (isSplit
       ? splitHasMultipleProperties &&
       Object.keys(splitErrors).length === 0 &&
       splitMatches
-      : !!propertyId);
+      : (!allowsBusinessExtras(type) || !!propertyId));
 
   function handleOpenBulkImport() {
     if (mustChooseClientFirst) {
@@ -5063,12 +6924,30 @@ export function AddTransactionView({
       filled.add("subcategoryId");
     }
 
+    // parseTransactionType rather than an equality check on the two literals:
+    // the model answers "income" often enough, and that used to fall through
+    // and leave the type unset entirely.
     const effectiveType =
-      ruleType ??
-      (data.type === "expense" || data.type === "revenue" ? data.type : null);
+      ruleType ?? (data.type ? parseTransactionType(data.type) : null);
     if (effectiveType) {
       setType(effectiveType);
       filled.add("type");
+    }
+
+    // A rule can declare a standing private-use portion — "this vendor is
+    // always 30% personal". It only pre-fills the form; the accountant still
+    // sees the split and can change or clear it before saving.
+    const rulePersonalPct = rule?.assigned_personal_percentage;
+    if (
+      typeof rulePersonalPct === "number" &&
+      rulePersonalPct > 0 &&
+      rulePersonalPct < 100 &&
+      allowsPersonalPortion(effectiveType ?? "")
+    ) {
+      setIsPersonal(true);
+      setPersonalAllocationType("percentage");
+      setPersonalValue(String(rulePersonalPct));
+      filled.add("personalSplit");
     }
     if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
       setInvoiceDate(data.date);
@@ -5312,9 +7191,9 @@ export function AddTransactionView({
       for (let index = 0; index < rows.length; index += 1) {
         const row = rows[index];
         const rowNumber = index + 2;
-        const rawType = normalizeCsvLookup(row.type || row.transaction_type || "");
-        const importType: CoreTransactionType =
-          rawType === "revenue" || rawType === "income" ? "revenue" : "expense";
+        const importType: CoreTransactionType = parseTransactionType(
+          normalizeCsvLookup(row.type || row.transaction_type || ""),
+        );
         const isAsset = parseBooleanValue(row.is_asset_purchase || row.asset_purchase || "");
         const categoryValue = await resolveBulkCategory(
           importType,
@@ -5434,6 +7313,8 @@ export function AddTransactionView({
 
     if (!resolvedCategoryId) {
       if (categoryOptions.length === 0) {
+        // Asset purchases are expense-only (the backend rejects
+        // is_asset_purchase on any other type), so the hardcoded type is right.
         const categoryRes = await fetch(
           `/api/transactions/categories?type=${encodeURIComponent("expense")}`,
           { headers: { Authorization: `Bearer ${token}` } },
@@ -5445,7 +7326,14 @@ export function AddTransactionView({
         categoryOptions = data.items || [];
         setCategories(categoryOptions);
       }
-      resolvedCategoryId = categoryOptions[0]?.id ?? null;
+      // Resolved from the asset class, and NOT falling back to
+      // `categoryOptions[0]` — index 0 is "Advertising for Tenants" under the
+      // endpoint's alphabetical ordering, which is the bug this replaces.
+      // Null when the depreciation categories are missing, so handleSubmit
+      // reports it rather than filing the asset under whatever came first.
+      resolvedCategoryId =
+        findAssetCategory(categoryOptions, assetDraft?.assetClass ?? "")?.id ??
+        null;
     }
 
     if (!resolvedCategoryId) return null;
@@ -5578,11 +7466,14 @@ export function AddTransactionView({
           });
         }
       } else {
-        if (!propertyId) {
+        const resolvedPropertyId = allowsBusinessExtras(type)
+          ? propertyId
+          : propertyId || (properties[0]?.id ?? "");
+        if (!resolvedPropertyId) {
           setSubmitError("A property must be selected to continue.");
           return;
         }
-        splits = [{ property_id: propertyId, split_percentage: 100 }];
+        splits = [{ property_id: resolvedPropertyId, split_percentage: 100 }];
       }
 
       let resolvedCategoryId = categoryId;
@@ -5594,7 +7485,22 @@ export function AddTransactionView({
       }
 
       if (!resolvedCategoryId || !resolvedSubcategoryId) {
-        setSubmitError("Please select a category and sub-category.");
+        // When the picker is hidden or locked the user has nothing to "select",
+        // so the generic message is a dead end. Both cases mean the seeded
+        // category for this type is missing from the server's taxonomy.
+        if (lockAssetPurchaseCategory) {
+          setSubmitError(
+            "The depreciation category for this asset class is unavailable. " +
+            "The server may need updating before asset purchases can be saved.",
+          );
+        } else if (hidesCategoryPicker(type)) {
+          setSubmitError(
+            `The ${transactionTypeLabel(type)} category is unavailable. ` +
+            "The server may need updating before this can be saved.",
+          );
+        } else {
+          setSubmitError("Please select a category and sub-category.");
+        }
         return;
       }
 
@@ -5609,7 +7515,13 @@ export function AddTransactionView({
         is_asset_purchase: isAssetPurchase,
         splits,
       };
-      if (documentId) {
+      // Reviewing an existing transaction updates that row. Its document_id is
+      // already set, and re-sending it on a create is what tripped
+      // transaction_document_id_unique_idx and 409'd the whole save.
+      const reviewingId = new URLSearchParams(window.location.search).get(
+        "prefillTransactionId",
+      );
+      if (documentId && !reviewingId) {
         body.document_id = documentId;
       }
       if (appliedRuleIdRef.current) {
@@ -5618,41 +7530,76 @@ export function AddTransactionView({
       if (gstNum !== null) {
         body.gst_amount = gstNum;
       }
-      body.metadata = {
-        ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
-        is_regular_payment: isRegularPayment,
-        due_date: isRegularPayment ? (dueDate || null) : null,
-        alert_name: isRegularPayment ? (alertName.trim() || null) : null,
-      };
-      if (isAssetPurchase) {
-        body.asset_class = assetClass || null;
-        if (assetItemName.trim()) {
-          body.metadata = {
-            ...(body.metadata as Record<string, unknown> | undefined),
-            asset_item_name: assetItemName.trim(),
-          };
-        }
-        if (assetClass === "capital_allowance") {
-          const yearsNum = Number.parseFloat(effectiveLifeYears);
-          if (Number.isNaN(yearsNum) || yearsNum <= 0) {
-            setSubmitError("Effective life must be a positive number.");
+      // The private-use split is a first-class field, not metadata. It used to
+      // be written as is_personal / personal_portion / business_portion inside
+      // the metadata blob, which nothing ever read back — the private portion
+      // stayed fully deductible. The backend now turns `personal_split` into a
+      // business child and a personal child and derives every amount itself, so
+      // the form sends only the percentage.
+      if (allowsPersonalPortion(type)) {
+        if (isPersonal) {
+          if (personalSplitError) {
+            setSubmitError(personalSplitError);
             return;
           }
-          body.effective_life_years = yearsNum;
+          body.personal_split = {
+            percentage: Number(personalPercentageValue.toFixed(2)),
+          };
+        } else {
+          // Sent explicitly rather than omitted: on an edit this is what
+          // removes a split the transaction already had. Omitting the field
+          // means "leave it alone", which would silently keep a private
+          // portion the user has just switched off. On a create the backend
+          // normalises a zero away.
+          body.personal_split = { percentage: 0 };
         }
       }
 
-      const res = await fetch(
-        `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
-        {
-          method: "POST",
+      // Rent alerts only apply to business transactions; "personal" is already
+      // wholly private and cost base is capitalised.
+      const withBusinessExtras = allowsBusinessExtras(type);
+      body.metadata = {
+        ...(modeOfTransaction ? { mode_of_transaction: modeOfTransaction } : {}),
+        is_regular_payment: withBusinessExtras ? isRegularPayment : false,
+        due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
+        alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
+      };
+      // asset_class / asset_name / depreciation_method / effective_life_years
+      // are first-class body fields since migration 0037 — never metadata. The
+      // builder cannot produce a partial draft, so there is nothing left to
+      // validate here.
+      Object.assign(body, assetRequestFields(assetDraft));
+
+      if (reviewingId) {
+        // Saving a review means the accountant has confirmed the values, so
+        // the transaction leaves the queue and the placeholder marker goes.
+        body.review_status = "reviewed";
+        body.metadata = {
+          ...(body.metadata as Record<string, unknown> | undefined),
+          extraction_pending: undefined,
+        };
+      }
+
+      const res = reviewingId
+        ? await fetch(`/api/transactions/${encodeURIComponent(reviewingId)}`, {
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(body),
-        },
-      );
+        })
+        : await fetch(
+          `/api/entities/${encodeURIComponent(activeEntityId)}/transactions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          },
+        );
 
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -5664,9 +7611,8 @@ export function AddTransactionView({
         );
         return;
       }
-      const prefillId = new URLSearchParams(window.location.search).get("prefillTransactionId");
-      if (prefillId) {
-        PROCESSED_DUMMY_IDS.add(prefillId);
+      if (reviewingId) {
+        PROCESSED_DUMMY_IDS.add(reviewingId);
       }
       setIsMarked(true);
     } catch (error) {
@@ -5778,19 +7724,17 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
-
-
   return (
-    <section className="transactions-page transaction-add-page">
-      <Link href={effectiveBackHref} className="entity-wizard-back transaction-back-link">
+    <div className="figma-add-tx-container">
+      <Link href={effectiveBackHref} className="figma-add-tx-back">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 18l-6-6 6-6" />
+          <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {backLabel}
       </Link>
 
-      <div className="transactions-page-head">
-        <div>
+      <div className="figma-add-tx-header">
+        <div className="figma-add-tx-title-section">
           <h1>{isReviewing ? "Review Transaction" : "Add Transactions"}</h1>
           <p>
             {isReviewing
@@ -5801,8 +7745,8 @@ export function AddTransactionView({
         {!isReviewing && (
           <button
             type="button"
-            className={`transaction-outline-button${mustChooseClientFirst ? " is-disabled" : ""}`}
-            aria-disabled={mustChooseClientFirst}
+            className={`figma-bulk-import-btn${mustChooseClientFirst ? " is-disabled" : ""}`}
+            disabled={mustChooseClientFirst}
             title={mustChooseClientFirst ? "Select a client first" : undefined}
             onClick={handleOpenBulkImport}
           >
@@ -5812,578 +7756,826 @@ export function AddTransactionView({
         )}
       </div>
 
-      <div className="transaction-add-layout">
-        {documentId && uploadedFilename && token ? (
-          <DocumentPreviewPanel
-            documentId={documentId}
-            filename={uploadedFilename}
-            token={token}
-            onReset={() => {
-              setDocumentId(null);
-              setUploadedFilename(null);
-              appliedRuleIdRef.current = null;
-            }}
-          />
-        ) : (
-          <DocumentDropZone
-            token={token}
-            onExtracted={handleExtracted}
-            scope={activeEntityId ? { entityId: activeEntityId } : undefined}
-            isSubmitting={isSubmitting}
-            submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
-          />
-        )}
-
-        <form className="transaction-entry-form" onSubmit={handleSubmit} noValidate>
-          {requireClientSelection ? (
-            <StaticSelect
-              label="Client"
-              required
-              value={activeClientId}
-              options={[
-                { label: "Select Client", value: "" },
-                ...clients.map((client) => ({
-                  label: client.name,
-                  value: client.id,
-                })),
-              ]}
-              onChange={handleClientPicked}
-            />
-          ) : null}
-
-          {requireClientSelection && !activeClientId && (
-            <p className="transaction-field-error" style={{ marginTop: "-12px", marginBottom: "4px" }}>
-              <svg className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              A client must be selected to continue.
-            </p>
-          )}
-
-          <EntityPropertyHeaderCard
-            entities={entities}
-            properties={properties}
-            activeEntityId={activeEntityId}
-            activePropertyId={propertyId}
-            isEditingEntity={isEditingEntity}
-            isEditingProperty={isEditingProperty}
-            isPropertyRequired={!isSplit}
-            isEntityLockable={!!activeEntityId}
-            isPropertyLockable={!!propertyId}
-            onSelectEntity={handleEntityPicked}
-            onSelectProperty={handlePropertyPicked}
-            onEditEntity={() => setIsEditingEntity(true)}
-            onEditProperty={() => setIsEditingProperty(true)}
-            disabled={requireClientSelection && !activeClientId}
-          />
-
-          {showSelectionMessage && selectionMessage && (
-            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              <span>{selectionMessage}</span>
-            </div>
-          )}
-
-          <fieldset className="transaction-detail-fields" disabled={!isSelectionComplete}>
-            <div className={"transaction-type-control" + flashClass("type")}>
-              <span className="transaction-field-label">
-                Transaction Type<em>*</em>
-              </span>
-              <div>
-                <button
-                  type="button"
-                  className={type === "expense" ? "is-selected" : ""}
-                  onClick={() => setType("expense")}
-                >
-                  Expense
-                </button>
-                <button
-                  type="button"
-                  className={
-                    type === "revenue" ? "is-selected is-revenue" : ""
-                  }
-                  onClick={() => setType("revenue")}
-                >
-                  Revenue
-                </button>
-              </div>
-            </div>
-
-            {type === "expense" ? (
-              <div className="transaction-asset-card">
-                <label className="transaction-checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={isAssetPurchase}
-                    onChange={(e) => setIsAssetPurchase(e.target.checked)}
-                  />
-                  <span>Is this an asset purchase?</span>
-                </label>
-                <small>Select if this expense should be depreciated over time</small>
-                {isAssetPurchase ? (
-                  <div className="transaction-asset-options">
-                    <label className="transaction-field">
-                      <span className="transaction-field-label">
-                        Purchased Asset
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="e.g., Fridge, AC, dishwasher"
-                        value={assetItemName}
-                        onChange={(e) => setAssetItemName(e.target.value)}
-                      />
-                    </label>
-                    <label className="transaction-radio-card">
-                      <input
-                        type="radio"
-                        checked={assetClass === "capital_allowance"}
-                        onChange={() => setAssetClass("capital_allowance")}
-                      />
-                      <span>
-                        <b>Capital Allowance</b>
-                        <small>Depreciate assets over their effective life</small>
-                      </span>
-                    </label>
-                    {assetClass === "capital_allowance" ? (
-                      <label className="transaction-field">
-                        <span className="transaction-field-label">
-                          Effective life (years)<em>*</em>
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.1"
-                          min="0"
-                          placeholder="Select years"
-                          value={effectiveLifeYears}
-                          onChange={(e) => setEffectiveLifeYears(e.target.value)}
-                        />
-                      </label>
-                    ) : null}
-                    <label className="transaction-radio-card">
-                      <input
-                        type="radio"
-                        checked={assetClass === "capital_works"}
-                        onChange={() => setAssetClass("capital_works")}
-                      />
-                      <span>
-                        <b>Capital Works</b>
-                        <small>Fixed depreciation period for capital improvements</small>
-                      </span>
-                    </label>
+      <div className="figma-add-tx-card">
+        {/* Two panes: the document on the left, the form on the right, so the
+            invoice stays in view while the fields are filled in instead of the
+            720px preview pushing the whole form below the fold. */}
+        <div className="figma-add-tx-panes">
+          {/* Attach Invoice section */}
+          <div className="figma-uploader-section">
+            <span className="figma-uploader-label">Attach Invoice (optional)</span>
+            {documentId && uploadedFilename && token ? (
+              <DocumentPreviewPanel
+                documentId={documentId}
+                filename={uploadedFilename}
+                token={token}
+                onReset={() => {
+                  setDocumentId(null);
+                  setUploadedFilename(null);
+                  appliedRuleIdRef.current = null;
+                }}
+              />
+            ) : (
+              <DocumentDropZone
+                token={token}
+                onExtracted={handleExtracted}
+                scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+                isSubmitting={isSubmitting}
+                submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
+                primaryLabelText="Upload an invoice or receipt"
+                secondaryLabelText="PDF, JPG or PNG — we'll read it and pre-fill the fields below"
+                customIcon={
+                  <div className="figma-uploader-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="12" y1="18" x2="12" y2="12" />
+                      <line x1="9" y1="15" x2="15" y2="15" />
+                    </svg>
                   </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="transaction-form-grid">
-              <StaticSelect
-                label="Category"
-                required
-                value={categoryId == null ? "" : String(categoryId)}
-                options={categorySelectOptions}
-                onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                disabled={lockAssetPurchaseCategory}
+                }
               />
-              {showSubcategorySelect && (
-                <div className="transaction-field-animate">
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} noValidate>
+            {requireClientSelection && (
+              <div className="figma-form-row">
+                <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
                   <StaticSelect
-                    label="Sub-Category"
+                    label="Client"
                     required
-                    value={subcategoryId == null ? "" : String(subcategoryId)}
-                    options={subcategorySelectOptions}
-                    onChange={(value) =>
-                      setSubcategoryId(value ? Number(value) : null)
-                    }
-                    disabled={lockAssetPurchaseCategory}
+                    value={activeClientId}
+                    options={[
+                      { label: "Select Client", value: "" },
+                      ...clients.map((client) => ({
+                        label: client.name,
+                        value: client.id,
+                      })),
+                    ]}
+                    onChange={handleClientPicked}
                   />
-                </div>
-              )}
-              <label className={`transaction-field${flashClass("invoiceDate")}${showDateError ? " has-error" : ""}`}>
-                <span className="transaction-field-label">
-                  Invoice Date<em>*</em>
-                </span>
-                <input
-                  type="date"
-                  value={invoiceDate}
-                  min="1900-01-01"
-                  max="9999-12-31"
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const yearPart = val.split("-")[0];
-                    if (yearPart && yearPart.length > 4) {
-                      return;
-                    }
-                    setInvoiceDate(val);
-                    setInvoiceDateTouched(true);
-                  }}
-                  onBlur={() => setInvoiceDateTouched(true)}
-                />
-                {showDateError && (
-                  <p className="transaction-field-error">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    {invoiceDateError}
-                  </p>
-                )}
-              </label>
-              <label className={`transaction-field${flashClass("grossAmount")}${showGrossAmountError ? " has-error" : ""}`}>
-                <span className="transaction-field-label">
-                  Amount<em>*</em>
-                </span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={grossAmount}
-                  onKeyDown={(e) => {
-                    if (e.key === "-" || e.key === "Minus") {
-                      e.preventDefault();
-                    }
-                  }}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/-/g, "");
-                    setGrossAmount(val);
-                    setGrossAmountTouched(true);
-                  }}
-                  onBlur={() => setGrossAmountTouched(true)}
-                />
-                {showGrossAmountError && (
-                  <p className="transaction-field-error">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    {grossAmountError}
-                  </p>
-                )}
-              </label>
-            </div>
-
-            <label className="transaction-checkbox-row">
-              <input
-                type="checkbox"
-                checked={showGstBreakdown}
-                onChange={(e) => setShowGstBreakdown(e.target.checked)}
-              />
-              <span>Add GST Breakdown</span>
-            </label>
-
-            {showGstBreakdown ? (
-              <label className={"transaction-field" + flashClass("gstAmount")}>
-                <span className="transaction-field-label">
-                  GST Amount<em>*</em>
-                </span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={gstAmount}
-                  onKeyDown={(e) => {
-                    if (e.key === "-" || e.key === "Minus") {
-                      e.preventDefault();
-                    }
-                  }}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/-/g, "");
-                    setGstAmount(val);
-                  }}
-                />
-              </label>
-            ) : null}
-
-            <label className="transaction-checkbox-row">
-              <input
-                type="checkbox"
-                checked={isSplit}
-                onChange={(e) => handleSplitToggle(e.target.checked)}
-              />
-              <span>Is this a split transaction?</span>
-            </label>
-
-            {!isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-              <p className="transaction-warning-card" role="alert" style={{ marginTop: "-12px", marginBottom: "12px" }}>
-                {submitError}
-              </p>
-            ) : null}
-
-            {isSplit ? (
-              <div className="transaction-split-section">
-                {splitRows.map((row, index) => {
-                  const rowError = splitErrors[row.id];
-                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
-
-                  return (
-                    <div key={row.id} className="transaction-split-row">
-                      <StaticSelect
-                        label={index === 0 ? "Property Name" : undefined}
-                        required
-                        value={row.propertyId}
-                        options={[
-                          { label: "Select Property", value: "" },
-                          ...splitPropertyBaseOptions,
-                        ]}
-                        onChange={(value) =>
-                          updateSplitRow(row.id, { propertyId: value })
-                        }
-                        error={propertyError}
-                      />
-                      <label className="transaction-field">
-                        {index === 0 ? (
-                          <span className="transaction-field-label">
-                            Amount<em>*</em>
-                          </span>
-                        ) : null}
-                        <span className="transaction-money-input">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={row.amount}
-                            onKeyDown={(e) => {
-                              if (e.key === "-" || e.key === "Minus") {
-                                e.preventDefault();
-                              }
-                            }}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/-/g, "");
-                              updateSplitRow(row.id, { amount: val });
-                            }}
-                          />
-                          <b>A$</b>
-                        </span>
-                        {amountError && (
-                          <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px" }}>
-                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                            </svg>
-                            <span>{amountError}</span>
-                          </p>
-                        )}
-                      </label>
-                      <button
-                        type="button"
-                        className="transaction-split-remove"
-                        aria-label="Remove split row"
-                        disabled={splitRows.length <= 1}
-                        onClick={() => removeSplitRow(row.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  );
-                })}
-                {splitErrors.__form ? (
-                  <p className="transaction-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="white">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    <span>{splitErrors.__form}</span>
-                  </p>
-                ) : null}
-                <div className="transaction-split-footer">
-                  <span
-                    className={`transaction-split-total${grossAmount && !splitMatches ? " is-mismatch" : ""
-                      }`}
-                  >
-                    {grossAmount && !Number.isNaN(grossNumberValue)
-                      ? `Split total: ${splitTotal.toFixed(
-                        2,
-                      )} of ${grossNumberValue.toFixed(2)}`
-                      : "Enter the total amount above to validate splits."}
-                  </span>
-                  <button
-                    type="button"
-                    className="transaction-split-add"
-                    onClick={addSplitRow}
-                    disabled={properties.length < 2}
-                  >
-                    + Add Property
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {isSplit && submitError && submitError.toLowerCase().includes("split") ? (
-              <p className="transaction-warning-card" role="alert" style={{ marginTop: "12px", marginBottom: "12px" }}>
-                {submitError}
-              </p>
-            ) : null}
-
-            <StaticSelect
-              label="Mode of Transaction"
-              required
-              value={modeOfTransaction}
-              options={MODE_OF_TRANSACTION_OPTIONS}
-              onChange={setModeOfTransaction}
-            />
-
-            <label className={"transaction-field" + flashClass("description")}>
-              <span className="transaction-field-label">Description</span>
-              <textarea
-                placeholder="Add description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </label>
-
-            <label
-              className={"transaction-field" + flashClass("internalRemarks")}
-            >
-              <span className="transaction-field-label">Add Internal Remarks</span>
-              <input
-                type="text"
-                placeholder="Add Remarks"
-                value={internalRemarks}
-                onChange={(e) => setInternalRemarks(e.target.value)}
-              />
-            </label>
-
-            {/* Is this a regular payment? */}
-            <div className="client-tx-split-toggle-container" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '24px 0 20px 0',
-              marginTop: '24px',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            }}>
-              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a regular payment?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>We'll flag it in your dashboard alerts so nothing gets missed.</span>
-              </div>
-              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={isRegularPayment}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setIsRegularPayment(checked);
-                    if (!checked) {
-                      setDueDate("");
-                      setDueDateTouched(false);
-                    }
-                  }}
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                />
-                <span className="client-tx-slider" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: isRegularPayment ? '#1d2452' : '#eaeef4',
-                  transition: '.2s',
-                  borderRadius: '24px',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: isRegularPayment ? '24px' : '4px',
-                  bottom: '3px',
-                  backgroundColor: 'white',
-                  transition: '.2s',
-                  borderRadius: '50%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                  pointerEvents: 'none',
-                }} />
-              </label>
-            </div>
-
-            {isRegularPayment && (
-              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px', marginBottom: '16px' }}>
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Due date</label>
-                  <input
-                    type="date"
-                    min="1900-01-01"
-                    max="9999-12-31"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    onBlur={() => setDueDateTouched(true)}
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
-                  />
-                  {showDueDateError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
-                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                      </svg>
-                      <span>{dueDateError}</span>
+                  {requireClientSelection && !activeClientId && (
+                    <p className="transaction-field-error" style={{ marginTop: "4px", color: "#da3838", fontSize: "12px" }}>
+                      A client must be selected to continue.
                     </p>
                   )}
-                </div>
-
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Alert name</label>
-                  <input
-                    type="text"
-                    value={alertName}
-                    onChange={(e) => {
-                      setAlertName(e.target.value);
-                      setUserEditedAlertName(true);
-                    }}
-                    placeholder="Enter alert name"
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
-                  />
                 </div>
               </div>
             )}
 
-            {submitError && !submitError.toLowerCase().includes("split") ? (
-              <p className="transaction-warning-card" role="alert">
-                {submitError}
-              </p>
-            ) : null}
+            {showSelectionMessage && selectionMessage && (
+              <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#da3838" }}>
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ width: "20px", height: "20px" }}>
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{selectionMessage}</span>
+              </div>
+            )}
 
-            <div className="transaction-form-actions">
-              <Link href={effectiveBackHref} className="transaction-cancel-button">
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="transaction-save-button"
-                disabled={!canSubmit || isSubmitting}
-              >
-                {isSubmitting
-                  ? (isReviewing ? "Saving Transaction…" : "Adding Transaction…")
-                  : (isReviewing ? "Save Transaction" : "Add Transaction")}
-              </button>
+            {/* Entity Name & Property Name dropdowns */}
+            <div className="figma-form-row">
+              <div className="figma-field-container">
+                <StaticSelect
+                  label="Entity Name"
+                  required
+                  value={activeEntityId}
+                  options={[
+                    { label: "Select Entity", value: "" },
+                    ...entities.map((e) => ({ label: pickerLabel(e), value: e.id })),
+                  ]}
+                  onChange={handleEntityPicked}
+                  disabled={requireClientSelection && !activeClientId}
+                />
+              </div>
+
+              <div className="figma-field-container">
+                <StaticSelect
+                  label="Property Name"
+                  required={!isSplit}
+                  value={propertyId}
+                  options={[
+                    { label: "Select Property", value: "" },
+                    ...properties.map((p) => ({ label: pickerLabel(p), value: p.id })),
+                  ]}
+                  onChange={handlePropertyPicked}
+                  disabled={!activeEntityId || isSplit}
+                />
+              </div>
             </div>
-          </fieldset>
-        </form>
+
+            <fieldset className="transaction-detail-fields" style={{ border: "none", padding: 0, margin: 0 }} disabled={!isSelectionComplete}>
+              {/* Transaction Type control */}
+              <div className="figma-field-container" style={{ marginBottom: "24px" }}>
+                <span className="figma-field-label">Transaction Type<em>*</em></span>
+                <div className="figma-type-row">
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-income${type === "revenue" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("revenue")}
+                  >
+                    <span className="figma-type-circle is-income">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <polyline points="19 12 12 19 5 12" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Income</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    // Stays selected while the contra toggle is on: a contra
+                    // entry IS an expense-shaped payment, reached from this
+                    // branch. Clicking it again is how you untick.
+                    className={`figma-type-btn is-expense${type === "expense" || type === "contra" ? " active" : ""
+                      }`}
+                    onClick={() => handleTransactionTypeChange("expense")}
+                  >
+                    <span className="figma-type-circle is-expense">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="19" x2="12" y2="5" />
+                        <polyline points="5 12 12 5 19 12" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Expense</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-personal${type === "personal" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("personal")}
+                  >
+                    <span className="figma-type-circle is-personal">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Personal Transaction</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-cost-base${type === "cost_base" ? " active" : ""}`}
+                    onClick={() => handleTransactionTypeChange("cost_base")}
+                  >
+                    <span className="figma-type-circle is-cost-base">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="9" y1="9" x2="15" y2="9" />
+                        <line x1="9" y1="13" x2="15" y2="13" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Property Cost Base</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* A transfer between the entity's own accounts — cash banked, a
+              bank-to-bank transfer, cash drawn for petty cash. It looks like a
+              payment on the statement, which is why the toggle lives on the
+              expense branch, but no expense was incurred: it is excluded from
+              the P&L and the BAS, and it posts to the seeded Contra / General
+              category rather than a real expense account.
+
+              Deliberately outside the allowsBusinessExtras block below, which
+              is false for contra — placing it inside would make the toggle
+              vanish the moment it was switched on. */}
+              {/* {allowsContraFlag(type) && (
+                <label className="figma-toggle-container">
+                  <div className="figma-toggle-info">
+                    <span className="figma-toggle-title">Is this a contra entry?</span>
+                    <span className="figma-toggle-desc">
+                      A transfer between your own accounts — money banked, moved
+                      between accounts, or drawn as cash. It has no effect on the
+                      profit and loss statement or your BAS.
+                    </span>
+                  </div>
+                  <span className="figma-switch">
+                    <input
+                      type="checkbox"
+                      checked={type === "contra"}
+                      onChange={(e) =>
+                        handleTransactionTypeChange(e.target.checked ? "contra" : "expense")
+                      }
+                    />
+                    <span className="figma-switch-slider" />
+                  </span>
+                </label>
+              )} */}
+
+              {/* Category / Sub-Category dropdowns */}
+              {type === "cost_base" ? (
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Category"
+                      required
+                      value={categoryId == null ? "" : String(categoryId)}
+                      options={categorySelectOptions}
+                      onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                    />
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#f0f9ff',
+                    border: '1px solid #e0f2fe',
+                    color: '#0284c7',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    height: '48px',
+                    marginTop: '22px',
+                    boxSizing: 'border-box'
+                  }}>
+                    No subcategory for Property Cost Base — one free-text/typeable category only.
+                  </div>
+                </div>
+              ) : !hidesCategoryPicker(type) ? (
+                <div className="figma-form-row">
+                  <div className="figma-field-container" style={!showSubcategorySelect ? { gridColumn: "span 2" } : undefined}>
+                    <StaticSelect
+                      label="Category"
+                      required
+                      value={categoryId == null ? "" : String(categoryId)}
+                      options={categorySelectOptions}
+                      onChange={(value) => {
+                        const nextCatId = value ? Number(value) : null;
+                        setCategoryId(nextCatId);
+                        setSubcategoryId(null);
+                        setAssetCategoryError("");
+
+                        const selectedCat = categories.find((c) => c.id === nextCatId);
+                        if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
+                          setAssetInitialClass("capital_works");
+                          setAssetBuilderOpen(true);
+                        } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
+                          setAssetInitialClass("capital_allowance");
+                          setAssetBuilderOpen(true);
+                        } else {
+                          if (assetDraft) {
+                            setAssetDraft(null);
+                          }
+                          setAssetBuilderOpen(false);
+                          setAssetInitialClass(null);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {showSubcategorySelect && (
+                    <div className="figma-field-container">
+                      <StaticSelect
+                        label="Subcategory"
+                        required
+                        value={subcategoryId == null ? "" : String(subcategoryId)}
+                        options={subcategorySelectOptions}
+                        onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Description & Amount */}
+              <div className="figma-form-row">
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Description<em>*</em></span>
+                  <input
+                    type="text"
+                    className={`figma-input${descriptionError ? " has-error" : ""}`}
+                    placeholder={
+                      type === "contra"
+                        ? "e.g. Transfer from business account to savings"
+                        : "Short description"
+                    }
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                  {descriptionError && (
+                    <p className="transaction-field-error">{descriptionError}</p>
+                  )}
+                </div>
+
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Amount<em>*</em></span>
+                  <input
+                    type="number"
+                    className="figma-input"
+                    inputMode="decimal"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={grossAmount}
+                    onKeyDown={(e) => {
+                      if (e.key === "-" || e.key === "Minus") {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/-/g, "");
+                      setGrossAmount(val);
+                      setGrossAmountTouched(true);
+                    }}
+                    onBlur={() => setGrossAmountTouched(true)}
+                  />
+                  {showGrossAmountError && (
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{grossAmountError}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Invoice Date */}
+              <div className="figma-form-row">
+                <div className="figma-field-container">
+                  <span className="figma-field-label">Date<em>*</em></span>
+                  <input
+                    type="date"
+                    className="figma-input"
+                    value={invoiceDate}
+                    min="1900-01-01"
+                    max="9999-12-31"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const yearPart = val.split("-")[0];
+                      if (yearPart && yearPart.length > 4) {
+                        return;
+                      }
+                      setInvoiceDate(val);
+                      setInvoiceDateTouched(true);
+                    }}
+                    onBlur={() => setInvoiceDateTouched(true)}
+                  />
+                  {showDateError && (
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <span>{invoiceDateError}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="figma-field-container" />
+              </div>
+
+              {/* GST Applicable */}
+              <div className="figma-form-row">
+                <div className="figma-field-container">
+                  <span className="figma-field-label">GST Applicable</span>
+                  <div className="figma-segmented-control">
+                    <button
+                      type="button"
+                      className={`figma-segmented-btn${showGstBreakdown ? " active" : ""}`}
+                      onClick={() => setShowGstBreakdown(true)}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      className={`figma-segmented-btn${!showGstBreakdown ? " active" : ""}`}
+                      onClick={() => {
+                        setShowGstBreakdown(false);
+                        setGstAmount("");
+                      }}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                {showGstBreakdown && (
+                  <div className="figma-field-container">
+                    <span className="figma-field-label">GST Amount<em>*</em></span>
+                    <input
+                      type="number"
+                      className="figma-input"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={gstAmount}
+                      onKeyDown={(e) => {
+                        if (e.key === "-" || e.key === "Minus") {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/-/g, "");
+                        setGstAmount(val);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Add Asset.
+                  The whole builder — category, name, effective life, method —
+                  lives in AssetBuilder now. It used to be ~200 lines inline
+                  here, duplicated again in the reconciliation drawer and a
+                  third time (without the method picker at all) in the client
+                  form. Choosing a non-expense type clears the draft via the
+                  effect above, so nothing invalid can be submitted. */}
+              {allowsBusinessExtras(type) && (
+                <>
+                  {assetDraft && (
+                    <AssetSummaryChip
+                      draft={assetDraft}
+                      onRemove={() => {
+                        setAssetDraft(null);
+                        setAssetInitialClass(null);
+                        setAssetCategoryError("");
+                      }}
+                    />
+                  )}
+
+                  {!assetDraft && !assetBuilderOpen && type === "expense" && (
+                    <div>
+                      <button
+                        type="button"
+                        className="figma-add-asset-trigger"
+                        onClick={() => {
+                          const currentCat = categories.find((c) => c.id === categoryId);
+                          if (!currentCat || !isAssetEligibleCategory(currentCat.name)) {
+                            if (!currentCat) {
+                              setAssetCategoryError(
+                                "Please select a category (Capital Works Deductions or Capital Allowances) to add an asset."
+                              );
+                            } else {
+                              setAssetCategoryError(
+                                `"${currentCat.name}" is not an asset category. To add an asset, please select Capital Works Deductions or Capital Allowances as the category.`
+                              );
+                            }
+                            return;
+                          }
+                          setAssetCategoryError("");
+                          const isWorks = isCapitalWorksCategory(currentCat.name);
+                          setAssetInitialClass(isWorks ? "capital_works" : "capital_allowance");
+                          setAssetBuilderOpen(true);
+                        }}
+                      >
+                        + Add Asset
+                      </button>
+                      {assetCategoryError && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "10px 14px",
+                            borderRadius: "10px",
+                            background: "rgba(218, 56, 56, 0.08)",
+                            border: "1px solid rgba(218, 56, 56, 0.24)",
+                            color: "#da3838",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            marginTop: "10px",
+                          }}
+                        >
+                          <svg style={{ width: "16px", height: "16px", flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          </svg>
+                          <span>{assetCategoryError}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {assetBuilderOpen && (
+                    <AssetBuilder
+                      initial={
+                        assetDraft ||
+                        (assetInitialClass ? { assetClass: assetInitialClass } : null)
+                      }
+                      onAssetClassChange={(newClass) => {
+                        setAssetInitialClass(newClass);
+                        if (newClass === "capital_works") {
+                          const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                          if (worksCat) {
+                            setCategoryId(worksCat.id);
+                            setSubcategoryId(null);
+                            setAssetCategoryError("");
+                          }
+                        } else if (newClass === "capital_allowance") {
+                          const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                          if (allowanceCat) {
+                            setCategoryId(allowanceCat.id);
+                            setSubcategoryId(null);
+                            setAssetCategoryError("");
+                          }
+                        }
+                      }}
+                      onCancel={() => {
+                        setAssetBuilderOpen(false);
+                        setAssetInitialClass(null);
+                        setAssetCategoryError("");
+                      }}
+                      onSubmit={(draft) => {
+                        setAssetDraft(draft);
+                        setAssetBuilderOpen(false);
+                        setAssetInitialClass(null);
+                        setAssetCategoryError("");
+                        if (draft.assetClass === "capital_works") {
+                          const worksCat = categories.find((c) => isCapitalWorksCategory(c.name));
+                          if (worksCat) setCategoryId(worksCat.id);
+                        } else if (draft.assetClass === "capital_allowance") {
+                          const allowanceCat = categories.find((c) => isCapitalAllowanceCategory(c.name));
+                          if (allowanceCat) setCategoryId(allowanceCat.id);
+                        }
+                      }}
+                    />
+                  )}
+
+                  {/* Part of this was private use. Expense only — the backend
+                rejects a personal split on any other type, and the wholly
+                private case is the "Personal Transaction" type instead. */}
+                  {allowsPersonalPortion(type) && (
+                    <label className="figma-toggle-container">
+                      <div className="figma-toggle-info">
+                        <span className="figma-toggle-title">Was part of this personal?</span>
+                        <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
+                      </div>
+                      <span className="figma-switch">
+                        <input
+                          type="checkbox"
+                          checked={isPersonal}
+                          onChange={(e) => setIsPersonal(e.target.checked)}
+                        />
+                        <span className="figma-switch-slider" />
+                      </span>
+                    </label>
+                  )}
+
+                  {allowsPersonalPortion(type) && isPersonal && (
+                    <div className="figma-personal-alloc-section">
+                      <div className="figma-form-row">
+                        <div className="figma-field-container">
+                          <StaticSelect
+                            label="Personal Allocation"
+                            value={personalAllocationType}
+                            options={[
+                              { label: "Percentage", value: "percentage" },
+                              { label: "Amount", value: "amount" },
+                            ]}
+                            onChange={(value) => setPersonalAllocationType(value as "percentage" | "amount")}
+                          />
+                        </div>
+                        <div className="figma-field-container">
+                          <span className="figma-field-label">
+                            {personalAllocationType === "percentage" ? "Personal %" : "Personal Amount"}
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
+                            className="figma-input"
+                            value={personalValue}
+                            onKeyDown={(e) => {
+                              if (e.key === "e" || e.key === "E" || e.key === "-" || e.key === "+" || e.key === "Minus") {
+                                e.preventDefault();
+                              }
+                              if (e.key === ".") {
+                                const input = e.currentTarget;
+                                const value = input.value;
+                                const hasDot = value.includes(".");
+                                if (hasDot) {
+                                  const selectionStart = input.selectionStart ?? 0;
+                                  const selectionEnd = input.selectionEnd ?? 0;
+                                  const selectedText = value.substring(selectionStart, selectionEnd);
+                                  if (!selectedText.includes(".")) {
+                                    e.preventDefault();
+                                  }
+                                }
+                              }
+                            }}
+                            onChange={(e) => {
+                              const cleanVal = e.target.value.replace(/[^0-9.]/g, "");
+                              const parts = cleanVal.split(".");
+                              const finalVal = parts.length > 1 ? parts[0] + "." + parts.slice(1).join("") : parts[0];
+                              setPersonalValue(finalVal);
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="figma-portion-wrapper">
+                        <div className="figma-portion-box">
+                          <span className="figma-portion-label">Business portion (deductible)</span>
+                          <span className="figma-portion-value">A$ {businessPortion.toFixed(2)}</span>
+                        </div>
+                        <div className="figma-portion-box">
+                          <span className="figma-portion-label">Personal portion</span>
+                          <span className="figma-portion-value">A$ {personalPortion.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      {personalSplitError && (
+                        <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "8px 0 0" }}>
+                          {personalSplitError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Is it a regular payment? */}
+                  {type === "expense" && (
+                    <>
+                      <label className="figma-toggle-container">
+                        <div className="figma-toggle-info">
+                          <span className="figma-toggle-title">Is it a regular payment?</span>
+                          <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+                        </div>
+                        <span className="figma-switch">
+                          <input
+                            type="checkbox"
+                            checked={isRegularPayment}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setIsRegularPayment(checked);
+                              if (!checked) {
+                                setDueDate("");
+                                setDueDateTouched(false);
+                                setAlertName("");
+                              }
+                            }}
+                          />
+                          <span className="figma-switch-slider" />
+                        </span>
+                      </label>
+
+                      {isRegularPayment && (
+                        <div className="figma-form-row">
+                          <div className="figma-field-container">
+                            <span className="figma-field-label">Due Date<em>*</em></span>
+                            <input
+                              type="date"
+                              className="figma-input"
+                              value={dueDate}
+                              onChange={(e) => setDueDate(e.target.value)}
+                              onBlur={() => setDueDateTouched(true)}
+                            />
+                            {showDueDateError && (
+                              <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                                <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                </svg>
+                                <span>{dueDateError}</span>
+                              </p>
+                            )}
+                          </div>
+                          <div className="figma-field-container">
+                            <span className="figma-field-label">Alert Name<em>*</em></span>
+                            <input
+                              type="text"
+                              className="figma-input"
+                              placeholder="e.g. Quarterly insurance reminder"
+                              value={alertName}
+                              onChange={(e) => {
+                                setAlertName(e.target.value);
+                                setUserEditedAlertName(true);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Is this a split transaction? */}
+                  <label className="figma-toggle-container">
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Is this a split transaction?</span>
+                      <span className="figma-toggle-desc">Divide this transaction across multiple categories</span>
+                    </div>
+                    <span className="figma-switch">
+                      <input
+                        type="checkbox"
+                        checked={isSplit}
+                        onChange={(e) => handleSplitToggle(e.target.checked)}
+                      />
+                      <span className="figma-switch-slider" />
+                    </span>
+                  </label>
+
+                  {isSplit && (
+                    <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#eaecf0"}` }}>
+                      {splitRows.map((row, index) => {
+                        const rowError = splitErrors[row.id];
+                        const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                        const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                        return (
+                          <div key={row.id} className="transaction-split-row" style={{ display: "flex", gap: "16px", marginBottom: "16px", alignItems: "flex-start" }}>
+                            <div className="figma-field-container" style={{ flex: 2 }}>
+                              <StaticSelect
+                                label="Property Name"
+                                required
+                                value={row.propertyId}
+                                options={[
+                                  { label: "Select Property", value: "" },
+                                  ...splitPropertyBaseOptions,
+                                ]}
+                                onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
+                              />
+                              {propertyError && <span style={{ color: "#da3838", fontSize: "11px" }}>{propertyError}</span>}
+                            </div>
+
+                            <div className="figma-field-container" style={{ flex: 1 }}>
+                              <span className="figma-field-label">Amount<em>*</em></span>
+                              <input
+                                type="number"
+                                className="figma-input"
+                                placeholder="0.00"
+                                value={row.amount}
+                                onChange={(e) => updateSplitRow(row.id, { amount: e.target.value })}
+                              />
+                              {amountError && <span style={{ color: "#da3838", fontSize: "11px" }}>{amountError}</span>}
+                            </div>
+
+                            <button
+                              type="button"
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "#da3838",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                                cursor: "pointer",
+                                padding: "12px 0",
+                                marginTop: "22px",
+                              }}
+                              disabled={splitRows.length <= 1}
+                              onClick={() => removeSplitRow(row.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#da3838" : "#667085" }}>
+                          {grossAmount && !Number.isNaN(grossNumberValue)
+                            ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
+                            : "Enter the total amount above to validate splits."}
+                        </span>
+                        <button
+                          type="button"
+                          className="figma-bulk-import-btn"
+                          onClick={addSplitRow}
+                          disabled={properties.length < 2}
+                        >
+                          + Add Property
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                </>
+              )}
+
+              {/* Internal Remarks */}
+              <div className="figma-form-row">
+                <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                  <span className="figma-field-label">Internal Remarks</span>
+                  <textarea
+                    className="figma-textarea"
+                    placeholder="Notes visible only to your team"
+                    value={internalRemarks}
+                    onChange={(e) => setInternalRemarks(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {submitError && !submitError.toLowerCase().includes("split") && (
+                <p className="transaction-field-error" style={{ color: "#da3838", fontWeight: "600", marginBottom: "16px" }}>
+                  {submitError}
+                </p>
+              )}
+
+              {/* Form actions */}
+              <div className="figma-form-actions">
+                <Link href={effectiveBackHref} className="figma-cancel-btn">
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  className="figma-save-btn"
+                  disabled={!canSubmit || isSubmitting}
+                >
+                  {isSubmitting
+                    ? (isReviewing ? "Saving Transaction…" : "Adding Transaction…")
+                    : (isReviewing ? "Save Transaction" : "Save Transaction")}
+                </button>
+              </div>
+            </fieldset>
+          </form>
+        </div>
       </div>
 
       {isBulkOpen && (
@@ -6414,7 +8606,7 @@ export function AddTransactionView({
           }}
         />
       ) : null}
-    </section>
+    </div>
   );
 }
 
@@ -6486,6 +8678,13 @@ function RuleModal({
   );
   const [autoConfirm, setAutoConfirm] = useState(rule?.autoConfirm ?? false);
   const [enabled, setEnabled] = useState(rule?.isEnabled ?? true);
+  // A standing private-use share for everything this rule matches — "this
+  // vendor is always 30% personal". Expense-only, like the split itself.
+  const [rulePersonalPercentage, setRulePersonalPercentage] = useState<string>(
+    rule?.assignedPersonalPercentage != null
+      ? String(rule.assignedPersonalPercentage)
+      : "",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [entitiesLoaded, setEntitiesLoaded] = useState(false);
@@ -6665,6 +8864,16 @@ function RuleModal({
     setConditions((prev) => prev.map((c) => c.id === id ? { ...c, ...patch } : c));
   }
 
+  // Blank means "no private-use portion" and is the common case, so an empty
+  // field is valid; only a value outside (0,100) is an error.
+  const rulePersonalPercentageValue = Number.parseFloat(rulePersonalPercentage) || 0;
+  const rulePersonalError =
+    assignedType === "expense" &&
+      rulePersonalPercentage.trim() !== "" &&
+      (rulePersonalPercentageValue <= 0 || rulePersonalPercentageValue >= 100)
+      ? "Personal use must be above 0 and under 100%."
+      : "";
+
   const canSave =
     isSelectionComplete &&
     Boolean(ruleName.trim()) &&
@@ -6672,6 +8881,7 @@ function RuleModal({
     conditions.every((c) => c.field && c.operator && c.value.trim()) &&
     Boolean(categoryId) &&
     Boolean(subcategoryId) &&
+    !rulePersonalError &&
     !isSaving;
 
   async function handleSave() {
@@ -6689,6 +8899,11 @@ function RuleModal({
         assigned_subcategory_id: Number(subcategoryId),
         auto_confirm: autoConfirm,
         is_enabled: enabled,
+        // Always sent, so clearing the field on an edit clears the stored
+        // value: the API treats 0 as "no private-use portion" and omitting the
+        // field as "leave whatever is there".
+        assigned_personal_percentage:
+          assignedType === "expense" ? rulePersonalPercentageValue : 0,
       };
 
       let res: Response;
@@ -6938,6 +9153,45 @@ function RuleModal({
                   options={subcategorySelectOptions}
                   onChange={setSubcategoryId}
                 />
+              </div>
+            )}
+
+            {/* Standing private-use share. Expense only, and optional — most
+                rules have none. It pre-fills the Add Transaction form rather
+                than writing anything on its own, so whoever saves the
+                transaction still sees and owns the split. */}
+            {assignedType === "expense" && (
+              <div className="transaction-field-animate">
+                <label className="transaction-field-label" htmlFor="rule-personal-pct">
+                  Personal use % <span style={{ fontWeight: 400, opacity: 0.65 }}>(optional)</span>
+                </label>
+                <input
+                  id="rule-personal-pct"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="any"
+                  className="figma-input"
+                  placeholder="e.g. 30 — leave blank if fully business"
+                  value={rulePersonalPercentage}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^0-9.]/g, "");
+                    const parts = clean.split(".");
+                    setRulePersonalPercentage(
+                      parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : parts[0],
+                    );
+                  }}
+                />
+                <p style={{ fontSize: 12.5, opacity: 0.7, margin: "6px 0 0" }}>
+                  Matching transactions are pre-filled with this private-use share. Only the
+                  business portion is deductible.
+                </p>
+                {rulePersonalError && (
+                  <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "6px 0 0" }}>
+                    {rulePersonalError}
+                  </p>
+                )}
               </div>
             )}
 

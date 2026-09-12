@@ -1,7 +1,12 @@
 import { userPool } from "./cognito";
+import { resetAuthCache } from "./authToken";
 import { clearSessionBootstrap } from "./sessionBootstrap";
 
 export function logout() {
+  // Drop the memoised session first so nothing that runs between here and the
+  // redirect can hand out the departing user's token from memory.
+  resetAuthCache();
+
   const user = userPool.getCurrentUser();
 
   if (user) {

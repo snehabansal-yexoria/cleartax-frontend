@@ -1,6 +1,6 @@
 import "./globals.css";
 import BoneyardProvider from "./components/BoneyardProvider";
-import { ThemeProvider } from "next-themes";
+import ClientThemeProvider from "./components/ClientThemeProvider";
 
 export default function RootLayout({
   children,
@@ -10,9 +10,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ClientThemeProvider>
           <BoneyardProvider>{children}</BoneyardProvider>
-        </ThemeProvider>
+        </ClientThemeProvider>
       </body>
     </html>
   );

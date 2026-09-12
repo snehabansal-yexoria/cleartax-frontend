@@ -30,11 +30,21 @@ export function formatCurrency(value: number, options: FormatCurrencyOptions = {
 
 /**
  * Formats a transaction currency value. For expenses, adds a minus sign.
+ *
+ * The second argument accepts a boolean for backwards compatibility, or one of
+ * three signs. "neutral" exists for contra entries: a transfer between the
+ * entity's own accounts is a movement, not a flow, and printing it with a minus
+ * beside real expenses invites exactly the misreading the type exists to
+ * prevent. Pass `transactionSign(type)` from transactionTypes.ts.
  */
-export function formatTransactionCurrency(value: number, isRevenue: boolean): string {
+export function formatTransactionCurrency(
+  value: number,
+  sign: boolean | "positive" | "negative" | "neutral",
+): string {
   const val = Math.abs(value || 0);
   const formatted = formatCurrency(val);
-  if (isRevenue || val === 0) return formatted;
+  const positive = sign === true || sign === "positive";
+  if (positive || sign === "neutral" || val === 0) return formatted;
   return formatted.replace(getCurrencyPrefix(), `${getCurrencyPrefix()}-`);
 }
 

@@ -22,10 +22,29 @@ import type {
   ReconciliationMatch,
   ReconciliationSessionDetail,
   ReconciliationTransaction,
+  CoreAssetClass,
+  CoreTransactionType,
 } from "@/src/lib/coreApi";
+import {
+  TRANSACTION_TYPE_ENTRY_OPTIONS,
+  allowsContraFlag,
+  allowsAssetPurchase,
+  allowsBusinessExtras,
+  allowsPersonalPortion,
+  hidesCategoryPicker,
+  hidesSubcategoryPicker,
+  parseTransactionType,
+} from "@/src/lib/transactionTypes";
+import { firstCategoryOfType } from "@/src/lib/assetCategory";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
 import { StaticSelect } from "@/app/components/TransactionsFeature";
+import AssetBuilder, {
+  AssetSummaryChip,
+  assetRequestFields,
+  type AssetDraft,
+} from "@/app/components/AssetBuilder";
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -83,6 +102,14 @@ let splitRowCounter = 0;
 function makeSplitRowId() {
   splitRowCounter += 1;
   return `split-${splitRowCounter}`;
+}
+
+function getLocalDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -371,6 +398,7 @@ export default function AccountantReconciliationSessionPage() {
   useEffect(() => {
     setPageInputValue(String(reconPage));
   }, [reconPage]);
+
   const [toastReconId, setToastReconId] = useState<string | null>(null);
 
   // Session completion
@@ -380,6 +408,11 @@ export default function AccountantReconciliationSessionPage() {
 
   // Table filter/sort
   const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed" | "excluded">("unreviewed");
+
+  useEffect(() => {
+    setSelectedRowKeys(new Set());
+  }, [activeTab]);
+
   const [filter, setFilter] = useState<ReconciliationFilter>("all");
   const [query, setQuery] = useState("");
   const [sortField, setSortField] = useState<string>("date");
@@ -397,12 +430,21 @@ export default function AccountantReconciliationSessionPage() {
 
   // Categorize panel
   const [categorizeKey, setCategorizeKey] = useState<MatchKey | null>(null);
-  const [categorizeType, setCategorizeType] = useState<"expense" | "revenue">("expense");
+  // One type, the API's. This used to be two pieces of state — an "expense" |
+  // "revenue" value for the request and a wider display union — which had to be
+  // kept in sync on every change.
+  const [categorizeType, setCategorizeType] = useState<CoreTransactionType>("expense");
   const [categorizeCategoryId, setCategorizeCategoryId] = useState<number | null>(null);
   const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
   const [categorizeGst, setCategorizeGst] = useState<boolean>(false);
   const [categorizeGstAmount, setCategorizeGstAmount] = useState<string>("");
+  // Only surfaced for contra, where a description is mandatory: it is the sole
+  // record of which two accounts the money moved between. Every other type
+  // keeps taking the bank line's payee, so no new field appears for them.
+  // Empty means "fall back to the payee", which is what the field is prefilled
+  // with when the toggle is switched on.
+  const [categorizeDescription, setCategorizeDescription] = useState<string>("");
   const [categorizeCategories, setCategorizeCategories] = useState<CoreTransactionCategory[]>([]);
   const [categorizeSubcategories, setCategorizeSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categorizeSaving, setCategorizeSaving] = useState(false);
@@ -413,14 +455,45 @@ export default function AccountantReconciliationSessionPage() {
     { id: makeSplitRowId(), propertyId: "", amount: "" },
   ]);
 
+  // New states from add transaction form
+  // One draft rather than nine loose fields across a three-step wizard. The old
+  // shape wrote the name and the method into `metadata`, where nothing read
+  // them, and only when the name was non-empty — so a categorized asset could
+  // reach the ledger with no depreciation method at all.
+  const [categorizeAssetDraft, setCategorizeAssetDraft] = useState<AssetDraft | null>(null);
+  const categorizeIsAssetPurchase = categorizeAssetDraft !== null;
+
+  const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+
+  const [categorizeIsPersonal, setCategorizeIsPersonal] = useState(false);
+  const [categorizePersonalAllocationType, setCategorizePersonalAllocationType] = useState<"percentage" | "amount">("percentage");
+  const [categorizePersonalValue, setCategorizePersonalValue] = useState("20");
+
+  const [categorizeIsRegularPayment, setCategorizeIsRegularPayment] = useState(false);
+  const [categorizeDueDate, setCategorizeDueDate] = useState("");
+  const [categorizeDueDateTouched, setCategorizeDueDateTouched] = useState(false);
+  const [categorizeAlertName, setCategorizeAlertName] = useState("");
+  const [categorizeUserEditedAlertName, setCategorizeUserEditedAlertName] = useState(false);
+
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkType, setBulkType] = useState<"expense" | "revenue">("expense");
+  const [bulkType, setBulkType] = useState<CoreTransactionType>("expense");
   const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
   const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
   const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
   const [bulkGst, setBulkGst] = useState(false);
+  // Contra only, and required there. One description applied to every selected
+  // line, which suits the case the bulk toggle exists for: a recurring sweep
+  // between the same two accounts.
+  const [bulkDescription, setBulkDescription] = useState<string>("");
   const [bulkCategories, setBulkCategories] = useState<CoreTransactionCategory[]>([]);
   const [bulkSubcategories, setBulkSubcategories] = useState<CoreTransactionSubcategory[]>([]);
+  // Bulk private-use split. Percentage ONLY, deliberately — the single-line
+  // drawer offers "percentage or amount", but a fixed dollar amount applied
+  // across a set of differently-sized bank lines is meaningless, and on any
+  // line smaller than the amount it would clamp the business side to zero and
+  // break the invariant that the two children sum to their parent.
+  const [bulkIsPersonal, setBulkIsPersonal] = useState(false);
+  const [bulkPersonalPercentage, setBulkPersonalPercentage] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkExcluding, setBulkExcluding] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
@@ -435,6 +508,18 @@ export default function AccountantReconciliationSessionPage() {
   const showBulkSubcategorySelect =
     !!bulkCategoryId &&
     bulkSubcategories.some((s) => s.name.toLowerCase() !== "general");
+
+  // Applied identically to every selected line, so it is validated once here
+  // rather than per row.
+  const bulkPersonalError = useMemo(() => {
+    if (!bulkIsPersonal) return "";
+    const pct = Number.parseFloat(bulkPersonalPercentage);
+    if (!Number.isFinite(pct) || pct <= 0) return "Enter a personal percentage above 0.";
+    if (pct >= 100) {
+      return "Personal use must be under 100%. Categorize these as Personal Transactions instead.";
+    }
+    return "";
+  }, [bulkIsPersonal, bulkPersonalPercentage]);
 
   const activeBankTx = useMemo(() => {
     if (!categorizeKey) return null;
@@ -598,6 +683,31 @@ export default function AccountantReconciliationSessionPage() {
     [combinedRows, selectedRowKeys, optimisticMatches],
   );
 
+  const selectedExcludedRows = useMemo(
+    () =>
+      combinedRows.filter(({ reconId, bankTxIndex }) => {
+        const key = mkey(reconId, bankTxIndex);
+        if (!selectedRowKeys.has(key)) return false;
+        const status = optimisticMatches.get(key)?.status;
+        return status === "excluded";
+      }),
+    [combinedRows, selectedRowKeys, optimisticMatches],
+  );
+
+  const selectedReviewedRows = useMemo(
+    () =>
+      combinedRows.filter(({ reconId, bankTxIndex }) => {
+        const key = mkey(reconId, bankTxIndex);
+        if (!selectedRowKeys.has(key)) return false;
+        return optimisticMatches.get(key)?.status === "confirmed";
+      }),
+    [combinedRows, selectedRowKeys, optimisticMatches],
+  );
+
+  // The income/expense lock for bulk CATEGORIZE only. It is derived from
+  // selectedEligibleRows, which excludes confirmed and excluded rows, so
+  // selecting on the Reviewed or Excluded tab never sets it — undo is
+  // sign-agnostic and gating it would block undoing a mixed batch.
   const selectedType = useMemo(() => {
     if (selectedEligibleRows.length === 0) return null;
     const firstRow = selectedEligibleRows[0].row;
@@ -766,28 +876,56 @@ export default function AccountantReconciliationSessionPage() {
     const idx = Number(idxStr);
     const bankTx = rec.transactions[idx];
     if (!bankTx) return;
-    const txType: "expense" | "revenue" = bankTx.debit != null ? "expense" : "revenue";
-    setCategorizeType(txType);
+    // A bank line only tells us the direction; personal / cost base is a
+    // judgement the accountant makes in the drawer, so default from debit vs
+    // credit and let them change it.
+    setCategorizeType(bankTx.debit != null ? "expense" : "revenue");
+
+    // Reset new states
+    setCategorizeAssetDraft(null);
+    setAssetBuilderOpen(false);
+
+    setCategorizeIsPersonal(false);
+    setCategorizePersonalAllocationType("percentage");
+    setCategorizePersonalValue("");
+
+    setCategorizeIsRegularPayment(false);
+    setCategorizeDueDate("");
+    setCategorizeDueDateTouched(false);
+    setCategorizeAlertName("");
+    setCategorizeUserEditedAlertName(false);
+
     setCategorizeCategoryId(null);
     setCategorizeSubcategoryId(null);
     setCategorizeSubcategories([]);
     setCategorizeGst(false);
     setCategorizeGstAmount("");
+    // Cleared with the rest of the drawer, so one line's transfer description
+    // cannot carry over onto the next line the accountant opens.
+    setCategorizeDescription("");
     setCategorizeIsSplit(false);
     setCategorizeSplitRows([{ id: makeSplitRowId(), propertyId: "", amount: "" }]);
+  }, [categorizeKey, reconCache]);
+
+  useEffect(() => {
+    if (categorizeKey === null) return;
     let cancelled = false;
     void getFreshToken().then((token) => {
-      fetch(`/api/transactions/categories?type=${txType}`, {
+      fetch(`/api/transactions/categories?type=${categorizeType}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
         .then((d: { items?: CoreTransactionCategory[] }) => {
-          if (!cancelled) setCategorizeCategories(d.items ?? []);
+          if (!cancelled) {
+            setCategorizeCategories(
+              withoutDedicatedFlowCategories(d.items ?? []),
+            );
+          }
         })
         .catch(() => { });
     });
     return () => { cancelled = true; };
-  }, [categorizeKey, reconCache]);
+  }, [categorizeKey, categorizeType]);
 
   useEffect(() => {
     if (!categorizeCategoryId) { setCategorizeSubcategories([]); return; }
@@ -814,6 +952,106 @@ export default function AccountantReconciliationSessionPage() {
     return () => { cancelled = true; };
   }, [categorizeCategoryId]);
 
+  // The asset section stays visible for revenue (as it always has), but the
+  // backend only accepts is_asset_purchase on an expense, so clear it rather
+  // than letting the save fail. Mirrors the same guard in AddTransactionView.
+  useEffect(() => {
+    if (!allowsAssetPurchase(categorizeType) && categorizeAssetDraft) {
+      setCategorizeAssetDraft(null);
+    }
+  }, [categorizeType, categorizeAssetDraft]);
+
+  // Personal hides the category picker and cost base hides the subcategory
+  // picker, so auto-select from the typed category fetch. Since migration 0032
+  // seeds a taxonomy per type, this is a plain first-option pick rather than
+  // matching category names against "personal"/"private".
+  // Filtered by type, never `categorizeCategories[0]`: the list is refetched
+  // asynchronously on a type change, so index 0 can still be the previous
+  // type's row — posting an expense category on a contra transaction, which the
+  // backend rejects with "category type does not match transaction type".
+  useEffect(() => {
+    if (!hidesCategoryPicker(categorizeType) || categorizeCategoryId) return;
+    const match = firstCategoryOfType(categorizeCategories, categorizeType);
+    if (match) setCategorizeCategoryId(match.id);
+  }, [categorizeType, categorizeCategories, categorizeCategoryId]);
+
+  useEffect(() => {
+    if (hidesSubcategoryPicker(categorizeType) && !categorizeSubcategoryId && categorizeSubcategories[0]) {
+      setCategorizeSubcategoryId(categorizeSubcategories[0].id);
+    }
+  }, [categorizeType, categorizeSubcategories, categorizeSubcategoryId]);
+
+  useEffect(() => {
+    if (!allowsBusinessExtras(categorizeType) && !categorizePropertyId && properties.length > 0) {
+      setCategorizePropertyId(properties[0].id);
+    }
+  }, [categorizeType, categorizePropertyId, properties]);
+
+  // Auto-populate Alert Name based on subcategory and property
+  useEffect(() => {
+    if (categorizeUserEditedAlertName) return;
+    const subcat = categorizeSubcategories.find((s) => s.id === categorizeSubcategoryId);
+    const subcatName = subcat ? subcat.name : "";
+    const prop = properties.find((p) => p.id === categorizePropertyId);
+    const propName = prop ? prop.name : "";
+    if (subcatName && propName) {
+      setCategorizeAlertName(`${subcatName} - ${propName}`);
+    } else if (subcatName) {
+      setCategorizeAlertName(subcatName);
+    } else if (propName) {
+      setCategorizeAlertName(propName);
+    } else {
+      setCategorizeAlertName("");
+    }
+  }, [categorizeSubcategoryId, categorizePropertyId, categorizeSubcategories, properties, categorizeUserEditedAlertName]);
+
+  // Private-use split of a business expense. A wholly personal transaction is
+  // type === "personal" and carries no split, so categorizeIsPersonal is false.
+  //
+  // Both input modes collapse to a percentage: that is the only shape the API
+  // accepts, because the backend derives the two child rows from it and they
+  // have to keep summing back to the parent bill.
+  const categorizePersonalPercentage = useMemo(() => {
+    if (!categorizeIsPersonal) return 0;
+    const raw = Number.parseFloat(categorizePersonalValue) || 0;
+    if (categorizePersonalAllocationType === "percentage") return raw;
+    if (activeGrossAmount <= 0) return 0;
+    return (raw / activeGrossAmount) * 100;
+  }, [categorizeIsPersonal, categorizePersonalAllocationType, categorizePersonalValue, activeGrossAmount]);
+
+  const categorizePersonalPortion = useMemo(
+    () => activeGrossAmount * (categorizePersonalPercentage / 100),
+    [activeGrossAmount, categorizePersonalPercentage],
+  );
+
+  const categorizeBusinessPortion = useMemo(() => {
+    if (!categorizeIsPersonal) return activeGrossAmount;
+    return activeGrossAmount - categorizePersonalPortion;
+  }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPortion]);
+
+  // Strictly partial at both ends — nothing private is just an expense, and
+  // wholly private is the Personal Transaction type rather than a 100% split.
+  const categorizePersonalError = useMemo(() => {
+    if (!categorizeIsPersonal) return "";
+    if (activeGrossAmount <= 0) return "This line has no amount to split.";
+    if (categorizePersonalPercentage <= 0) return "Enter a personal portion above 0.";
+    if (categorizePersonalPercentage >= 100) {
+      return "The personal portion must be less than the whole amount. Use the Personal Transaction type instead.";
+    }
+    return "";
+  }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPercentage]);
+
+  const categorizeDueDateError = useMemo(() => {
+    if (!categorizeDueDate) {
+      return "Due date is required.";
+    }
+    const todayStr = getLocalDateString();
+    if (categorizeDueDate < todayStr) {
+      return "Due date must be in the future.";
+    }
+    return "";
+  }, [categorizeDueDate]);
+
   // ── Bulk categorize modal: load categories / subcategories ───────────────
 
   useEffect(() => {
@@ -825,7 +1063,9 @@ export default function AccountantReconciliationSessionPage() {
       })
         .then((r) => (r.ok ? r.json() : { items: [] }))
         .then((d: { items?: CoreTransactionCategory[] }) => {
-          if (!cancelled) setBulkCategories(d.items ?? []);
+          if (!cancelled) {
+            setBulkCategories(withoutDedicatedFlowCategories(d.items ?? []));
+          }
         })
         .catch(() => { });
     });
@@ -1098,6 +1338,8 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
+    // Every type has a category and subcategory now (hidden ones are
+    // auto-selected), and the backend requires both on every transaction.
     if (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId)) {
       setCategorizeError("Category and Property are required.");
       return;
@@ -1105,6 +1347,30 @@ export default function AccountantReconciliationSessionPage() {
     if (!categorizeSubcategoryId) {
       setCategorizeError("Please select sub category to continue.");
       return;
+    }
+    // Matches the backend's validateContraDescription. The bank line's payee is
+    // not an acceptable fallback here: "TRANSFER 1234" says the money moved but
+    // not where it went, which is the whole point of marking it contra.
+    if (categorizeType === "contra" && !categorizeDescription.trim()) {
+      setCategorizeError(
+        "A description is required on a contra entry: it is the only record " +
+          "of which accounts the money moved between.",
+      );
+      return;
+    }
+    if (categorizeIsRegularPayment) {
+      if (!categorizeDueDate) {
+        setCategorizeError("Due date is required.");
+        return;
+      }
+      if (categorizeDueDateError) {
+        setCategorizeError(categorizeDueDateError);
+        return;
+      }
+      if (!categorizeAlertName.trim()) {
+        setCategorizeError("Alert name is required.");
+        return;
+      }
     }
     const rec = reconCache.get(reconId);
     const bankTx = rec?.transactions[bankTxIndex];
@@ -1114,7 +1380,7 @@ export default function AccountantReconciliationSessionPage() {
     const grossAmount = bankTx.debit ?? bankTx.credit ?? 0;
 
     let splits: Array<Record<string, unknown>>;
-    if (categorizeIsSplit) {
+    if (categorizeIsSplit && allowsBusinessExtras(categorizeType)) {
       const splitPropertyCount = new Set(
         categorizeSplitRows.map((row) => row.propertyId).filter(Boolean)
       ).size;
@@ -1146,12 +1412,15 @@ export default function AccountantReconciliationSessionPage() {
         };
       });
     } else {
-      if (!categorizePropertyId) {
+      const resolvedPropertyId = allowsBusinessExtras(categorizeType)
+        ? categorizePropertyId
+        : categorizePropertyId || (properties[0]?.id ?? "");
+      if (!resolvedPropertyId) {
         setCategorizeError("Property is required.");
         setCategorizeSaving(false);
         return;
       }
-      splits = [{ property_id: categorizePropertyId, split_percentage: 100, split_gross_amount: grossAmount }];
+      splits = [{ property_id: resolvedPropertyId, split_percentage: 100, split_gross_amount: grossAmount }];
     }
 
     let gstAmount = 0;
@@ -1169,26 +1438,63 @@ export default function AccountantReconciliationSessionPage() {
       }
       gstAmount = parsed;
     }
+
     try {
       const token = await getFreshToken();
+
+      // Rent alerts only apply to business transactions.
+      const withBusinessExtras = allowsBusinessExtras(categorizeType);
+      const metadata: Record<string, unknown> = {
+        source: "reconciliation_categorized",
+        is_regular_payment: withBusinessExtras ? categorizeIsRegularPayment : false,
+        due_date: withBusinessExtras && categorizeIsRegularPayment ? (categorizeDueDate || null) : null,
+        alert_name: withBusinessExtras && categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null,
+      };
+
+
+      const postBody: Record<string, unknown> = {
+        type: categorizeType,
+        category_id: categorizeCategoryId,
+        subcategory_id: categorizeSubcategoryId,
+        invoice_date: bankTx.date,
+        gross_amount: grossAmount,
+        gst_amount: gstAmount,
+        description:
+          categorizeDescription.trim() ||
+          bankTx.payee ||
+          bankTx.description ||
+          null,
+        internal_remarks: null,
+        // No review_status: creates default to 'active'. The review queue is
+        // only for transactions a client submits for sign-off.
+        metadata,
+        splits,
+      };
+
+      // The private-use split is a first-class field. The backend turns it into
+      // a business child and a personal child; this drawer only states the
+      // percentage. It used to write is_personal / personal_portion into
+      // metadata, which nothing read — the private share stayed deductible.
+      if (allowsPersonalPortion(categorizeType) && categorizeIsPersonal) {
+        if (categorizePersonalError) {
+          setCategorizeError(categorizePersonalError);
+          return;
+        }
+        postBody.personal_split = {
+          percentage: Number(categorizePersonalPercentage.toFixed(2)),
+        };
+      }
+
+      // First-class fields since migration 0037 — never metadata. The builder
+      // cannot emit a partial draft, so there is nothing to validate here.
+      Object.assign(postBody, assetRequestFields(categorizeAssetDraft));
+
       const txRes = await fetch(`/api/entities/${entityId}/transactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          type: categorizeType,
-          category_id: categorizeCategoryId,
-          subcategory_id: categorizeSubcategoryId,
-          invoice_date: bankTx.date,
-          gross_amount: grossAmount,
-          gst_amount: gstAmount,
-          description: bankTx.payee ?? bankTx.description ?? null,
-          internal_remarks: null,
-          review_status: "reviewed",
-          is_asset_purchase: false,
-          metadata: { source: "reconciliation_categorized" },
-          splits,
-        }),
+        body: JSON.stringify(postBody),
       });
+
       if (!txRes.ok) {
         const body = await txRes.json().catch(() => ({})) as { message?: string };
         setCategorizeError(body.message ?? "Failed to create transaction.");
@@ -1263,6 +1569,8 @@ export default function AccountantReconciliationSessionPage() {
     setBulkSubcategories([]);
     setBulkPropertyId("");
     setBulkGst(false);
+    setBulkIsPersonal(false);
+    setBulkPersonalPercentage("");
     setBulkError(null);
     setBulkProgress(null);
     setBulkOpen(true);
@@ -1278,6 +1586,26 @@ export default function AccountantReconciliationSessionPage() {
       setBulkError("Please select sub category to continue.");
       return;
     }
+    // Validated once, before any row is written: a bad percentage would
+    // otherwise fail every line individually partway through the batch.
+    const applyBulkPersonalSplit = allowsPersonalPortion(bulkType) && bulkIsPersonal;
+    if (applyBulkPersonalSplit && bulkPersonalError) {
+      setBulkError(bulkPersonalError);
+      return;
+    }
+    // Checked before the loop, not per row: the backend requires a description
+    // on every contra, and discovering that on row 1 of 40 would leave the run
+    // half-applied.
+    if (bulkType === "contra" && !bulkDescription.trim()) {
+      setBulkError(
+        "A description is required on a contra entry: it is the only record " +
+          "of which accounts the money moved between.",
+      );
+      return;
+    }
+    const bulkPersonalPercentageValue = Number(
+      (Number.parseFloat(bulkPersonalPercentage) || 0).toFixed(2),
+    );
     const rows = selectedEligibleRows;
     if (rows.length === 0) return;
     setBulkError(null);
@@ -1302,12 +1630,18 @@ export default function AccountantReconciliationSessionPage() {
               invoice_date: row.date,
               gross_amount: gross,
               gst_amount: gst,
-              description: row.payee ?? row.description ?? null,
+              description:
+                bulkDescription.trim() || row.payee || row.description || null,
               internal_remarks: null,
-              review_status: "reviewed",
               is_asset_purchase: false,
               metadata: { source: "reconciliation_categorized" },
               splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
+              // One percentage across every selected line. Each line's own
+              // business and personal amounts are derived by the backend from
+              // its own total, so lines of different sizes each split correctly.
+              ...(applyBulkPersonalSplit
+                ? { personal_split: { percentage: bulkPersonalPercentageValue } }
+                : {}),
             }),
           });
           if (!txRes.ok) throw new Error("create failed");
@@ -1413,6 +1747,80 @@ export default function AccountantReconciliationSessionPage() {
           { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } },
         );
         await reloadMatches();
+      } catch { /* optimistic rolls back */ }
+    });
+  }
+
+  /**
+   * Bulk Undo on the Categorized (Reviewed) tab.
+   *
+   * Same single-row DELETE the per-row Undo button already calls, run over the
+   * selection. There is no bulk endpoint in the Go reconciliation handler and
+   * every other bulk action here is likewise a client-side loop.
+   *
+   * `deleteMatch` is idempotent — both branches are WHERE-scoped with no
+   * existence check and return 200 {"ok":true} — so a partially failed run is
+   * safe to re-run.
+   *
+   * Note it UNLINKS: the transaction that Categorize created stays in the
+   * entity ledger and P&L. That is how the per-row Undo has always behaved;
+   * bulk inherits it rather than introducing it, but at 50 rows it is visible,
+   * hence the warning in the toolbar.
+   */
+  function doBulkUndoReviewed() {
+    const rows = selectedReviewedRows;
+    if (rows.length === 0) return;
+    startTransition(async () => {
+      rows.forEach(({ reconId, bankTxIndex }) => {
+        addOptimisticMatch({ remove: mkey(reconId, bankTxIndex) });
+      });
+      try {
+        const token = getToken();
+        await Promise.all(
+          rows.map(({ reconId, bankTxIndex }) =>
+            fetch(
+              `/api/entities/${entityId}/reconciliations/${reconId}/matches?bankTxIndex=${bankTxIndex}`,
+              { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+            ).catch(() => {})
+          )
+        );
+        await reloadMatches();
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          rows.forEach(({ reconId, bankTxIndex }) => {
+            next.delete(mkey(reconId, bankTxIndex));
+          });
+          return next;
+        });
+      } catch { /* optimistic rolls back */ }
+    });
+  }
+
+  function doBulkUndoExcluded() {
+    const rows = selectedExcludedRows;
+    if (rows.length === 0) return;
+    startTransition(async () => {
+      rows.forEach(({ reconId, bankTxIndex }) => {
+        addOptimisticMatch({ remove: mkey(reconId, bankTxIndex) });
+      });
+      try {
+        const token = getToken();
+        await Promise.all(
+          rows.map(({ reconId, bankTxIndex }) =>
+            fetch(
+              `/api/entities/${entityId}/reconciliations/${reconId}/matches?bankTxIndex=${bankTxIndex}`,
+              { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+            ).catch(() => {})
+          )
+        );
+        await reloadMatches();
+        setSelectedRowKeys((prev) => {
+          const next = new Set(prev);
+          rows.forEach(({ reconId, bankTxIndex }) => {
+            next.delete(mkey(reconId, bankTxIndex));
+          });
+          return next;
+        });
       } catch { /* optimistic rolls back */ }
     });
   }
@@ -1676,6 +2084,14 @@ export default function AccountantReconciliationSessionPage() {
       const candidates = candidateMatches.get(key) ?? [];
       const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
       const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+      if (activeTab === "excluded") {
+        return isExcluded && !isSessionCompleted;
+      }
+      // Confirmed rows are selectable on the Reviewed tab so they can be bulk
+      // undone. No selectedType filter: undo does not care about the sign.
+      if (activeTab === "reviewed") {
+        return isConfirmed && !isSessionCompleted;
+      }
       const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
       if (!isEligible) return false;
       if (selectedType) {
@@ -1684,7 +2100,7 @@ export default function AccountantReconciliationSessionPage() {
       }
       return true;
     });
-  }, [pagedReconRows, candidateMatches, optimisticMatches, isSessionCompleted, selectedType]);
+  }, [pagedReconRows, candidateMatches, optimisticMatches, isSessionCompleted, selectedType, activeTab]);
 
   const unreviewedCount = combinedRows.length - reconciledCount - excludedCount;
 
@@ -1742,7 +2158,7 @@ export default function AccountantReconciliationSessionPage() {
             {statements.length} statement{statements.length === 1 ? "" : "s"}
           </p>
         </div>
-        {!isSessionCompleted && (
+        {!isSessionCompleted ? (
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button
               type="button"
@@ -1761,6 +2177,21 @@ export default function AccountantReconciliationSessionPage() {
               Upload Statement
             </button>
           </div>
+        ) : (
+          // A completed session's header was empty. The ledger is the thing an
+          // accountant wants next, and it is only reachable once the status is
+          // completed — so this is where it belongs.
+          <Link
+            className="accountant-reconciliation-upload-button"
+            href={`/dashboard/accountant/clients/${clientId}/entities/${entityId}/reconciliation/${sessionId}/ledger`}
+            style={{ textDecoration: "none" }}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+            </svg>
+            View Ledger
+          </Link>
         )}
         <input
           ref={fileRef}
@@ -2124,7 +2555,10 @@ export default function AccountantReconciliationSessionPage() {
         </section>
 
         {/* ── Bulk action bar ────────────────────────────────────────────── */}
-        {selectedEligibleRows.length > 0 && !isSessionCompleted && (
+        {/* Scoped to the Unreviewed tab: selectedEligibleRows spans every row,
+            not just the visible ones, so a selection carried over from another
+            tab used to surface a Categorize button for rows you cannot see. */}
+        {activeTab === "unreviewed" && selectedEligibleRows.length > 0 && !isSessionCompleted && (
           <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
             <span className="recon-bulk-bar-count">
               {selectedEligibleRows.length} transaction{selectedEligibleRows.length > 1 ? "s" : ""} selected
@@ -2148,6 +2582,61 @@ export default function AccountantReconciliationSessionPage() {
           </div>
         )}
 
+        {/* ── Bulk action bar for Categorized (Reviewed) ── */}
+        {activeTab === "reviewed" && selectedReviewedRows.length > 0 && !isSessionCompleted && (
+          <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
+            <span className="recon-bulk-bar-count">
+              {selectedReviewedRows.length} transaction{selectedReviewedRows.length > 1 ? "s" : ""} selected
+            </span>
+            <div className="recon-bulk-bar-actions">
+              <span className="recon-bulk-bar-note">
+                Undo unlinks the bank line. The transaction it created stays in the ledger.
+              </span>
+              <button
+                type="button"
+                className="recon-bulk-clear-btn"
+                onClick={() => setSelectedRowKeys(new Set())}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="recon-bulk-categorize-btn"
+                disabled={isPending}
+                onClick={doBulkUndoReviewed}
+              >
+                Bulk Undo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Bulk action bar for Excluded ── */}
+        {activeTab === "excluded" && selectedExcludedRows.length > 0 && !isSessionCompleted && (
+          <div className="recon-bulk-bar mx-4 my-4" role="toolbar" aria-label="Bulk actions">
+            <span className="recon-bulk-bar-count">
+              {selectedExcludedRows.length} transaction{selectedExcludedRows.length > 1 ? "s" : ""} selected
+            </span>
+            <div className="recon-bulk-bar-actions">
+              <button
+                type="button"
+                className="recon-bulk-clear-btn"
+                onClick={() => setSelectedRowKeys(new Set())}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="recon-bulk-categorize-btn"
+                disabled={isPending}
+                onClick={doBulkUndoExcluded}
+              >
+                Undo Exclude
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Combined transaction table ─────────────────────────────────── */}
         <section className="accountant-reconciliation-table">
           <div className="accountant-reconciliation-table-head">
@@ -2162,32 +2651,39 @@ export default function AccountantReconciliationSessionPage() {
                     setSelectedRowKeys((prev) => {
                       const next = new Set(prev);
                       if (checked) {
-                        let typeToSelect = selectedType;
-                        if (!typeToSelect) {
-                          const firstEligible = pagedReconRows.find((row) => {
+                        if (activeTab === "excluded" || activeTab === "reviewed") {
+                          // No sign lock on the undo tabs — take the lot.
+                          selectableRowsOnPage.forEach((row) => {
+                            next.add(mkey(row.reconId, row.bankTxIndex));
+                          });
+                        } else {
+                          let typeToSelect = selectedType;
+                          if (!typeToSelect) {
+                            const firstEligible = pagedReconRows.find((row) => {
+                              const key = mkey(row.reconId, row.bankTxIndex);
+                              const candidates = candidateMatches.get(key) ?? [];
+                              const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
+                              const isExcluded = optimisticMatches.get(key)?.status === "excluded";
+                              return !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+                            });
+                            if (firstEligible) {
+                              typeToSelect = firstEligible.row.credit != null ? "revenue" : "expense";
+                            }
+                          }
+                          pagedReconRows.forEach((row) => {
                             const key = mkey(row.reconId, row.bankTxIndex);
                             const candidates = candidateMatches.get(key) ?? [];
                             const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
                             const isExcluded = optimisticMatches.get(key)?.status === "excluded";
-                            return !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
-                          });
-                          if (firstEligible) {
-                            typeToSelect = firstEligible.row.credit != null ? "revenue" : "expense";
-                          }
-                        }
-                        pagedReconRows.forEach((row) => {
-                          const key = mkey(row.reconId, row.bankTxIndex);
-                          const candidates = candidateMatches.get(key) ?? [];
-                          const isConfirmed = optimisticMatches.get(key)?.status === "confirmed";
-                          const isExcluded = optimisticMatches.get(key)?.status === "excluded";
-                          const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
-                          if (isEligible) {
-                            const rowType = row.row.credit != null ? "revenue" : "expense";
-                            if (rowType === typeToSelect) {
-                              next.add(key);
+                            const isEligible = !isConfirmed && !isExcluded && candidates.length === 0 && !isSessionCompleted;
+                            if (isEligible) {
+                              const rowType = row.row.credit != null ? "revenue" : "expense";
+                              if (rowType === typeToSelect) {
+                                next.add(key);
+                              }
                             }
-                          }
-                        });
+                          });
+                        }
                       } else {
                         selectableRowsOnPage.forEach((row) => {
                           next.delete(mkey(row.reconId, row.bankTxIndex));
@@ -2574,9 +3070,17 @@ export default function AccountantReconciliationSessionPage() {
               const isExpanded = expandedKey === key;
               const isCatExpanded = categorizeKey === key;
 
-              const isSelectable = !isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted;
+              const isSelectable = activeTab === "excluded"
+                ? (isExcluded && !isSessionCompleted)
+                : activeTab === "reviewed"
+                  ? (isConfirmed && !isSessionCompleted)
+                  : (!isConfirmed && !isExcluded && !hasCandidates && !isSessionCompleted);
               const rowType = row.credit != null ? "revenue" : "expense";
-              const isRowDisabled = isSelectable && selectedType !== null && rowType !== selectedType;
+              // The sign lock belongs to bulk categorize. Undo (Reviewed and
+              // Excluded) is sign-agnostic, so nothing is dimmed on those tabs.
+              const isRowDisabled = activeTab === "excluded" || activeTab === "reviewed"
+                ? false
+                : (isSelectable && selectedType !== null && rowType !== selectedType);
 
               const matchedTx = isConfirmed && matchEntry?.transactionId
                 ? entityTxs.find((t) => t.id === matchEntry.transactionId) ?? null
@@ -2896,33 +3400,126 @@ export default function AccountantReconciliationSessionPage() {
                               Transaction Type <span className="is-required">*</span>
                             </label>
                             <StaticSelect
-                              value={categorizeType}
-                              options={[
-                                { label: "Expense", value: "expense" },
-                                { label: "Revenue", value: "revenue" },
-                              ]}
+                              value={
+                                categorizeType === "contra" ? "expense" : categorizeType
+                              }
+                              options={TRANSACTION_TYPE_ENTRY_OPTIONS}
                               onChange={(val) => {
-                                setCategorizeType(val as "expense" | "revenue");
+                                const nextType = parseTransactionType(val);
+                                setCategorizeType(nextType);
+                                // Cost base is capitalised, not depreciated, so
+                                // it must NOT set is_asset_purchase — doing so
+                                // sent asset_class: null and the backend
+                                // rejected every cost-base save.
+                                if (!allowsAssetPurchase(nextType)) {
+                                  setCategorizeAssetDraft(null);
+                                }
+                                if (!allowsBusinessExtras(nextType)) {
+                                  setCategorizeIsPersonal(false);
+                                }
                                 setCategorizeCategoryId(null);
                                 setCategorizeSubcategoryId(null);
                               }}
                             />
                           </div>
-                          <div className="recon-categorize-field">
-                            <label className="recon-categorize-label">
-                              Category <span className="is-required">*</span>
+
+                          {/* This is where a transfer is most often spotted: a
+                          statement debit that looks like a payment but is money
+                          moving to another of the entity's own accounts. */}
+                          {allowsContraFlag(categorizeType) && (
+                            <label className="figma-toggle-container">
+                              <div className="figma-toggle-info">
+                                <span className="figma-toggle-title">
+                                  Is this a contra entry?
+                                </span>
+                                <span className="figma-toggle-desc">
+                                  A transfer between your own accounts. It has no
+                                  effect on the profit and loss statement or the BAS.
+                                </span>
+                              </div>
+                              <span className="figma-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={categorizeType === "contra"}
+                                  onChange={(e) => {
+                                    setCategorizeType(e.target.checked ? "contra" : "expense");
+                                    setCategorizeCategoryId(null);
+                                    setCategorizeSubcategoryId(null);
+                                    if (e.target.checked) {
+                                      setCategorizeIsPersonal(false);
+                                      setCategorizeAssetDraft(null);
+                                      setCategorizeGst(false);
+                                      // Prefilled from the statement so the
+                                      // common case is one edit, not one entry.
+                                      setCategorizeDescription(
+                                        row.payee || row.description || "",
+                                      );
+                                    } else {
+                                      setCategorizeDescription("");
+                                    }
+                                  }}
+                                />
+                                <span className="figma-switch-slider" />
+                              </span>
                             </label>
-                            <StaticSelect
-                              value={String(categorizeCategoryId ?? "")}
-                              placeholder="Select category"
-                              options={categorizeCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
-                              onChange={(val) => {
-                                setCategorizeCategoryId(val ? Number(val) : null);
-                                setCategorizeSubcategoryId(null);
-                              }}
-                            />
-                          </div>
-                          {showCategorizeSubcategorySelect && (
+                          )}
+
+                          {/* Mandatory on a contra and shown nowhere else: the
+                          drawer otherwise takes the payee silently, and a payee
+                          like "TRANSFER 1234" records that money moved but not
+                          where it went — which is the one thing a transfer
+                          needs to say. */}
+                          {categorizeType === "contra" && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Description <span className="is-required">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                className="recon-categorize-input"
+                                placeholder="e.g. Transfer to savings account"
+                                value={categorizeDescription}
+                                onChange={(e) => setCategorizeDescription(e.target.value)}
+                              />
+                            </div>
+                          )}
+
+                          {!hidesCategoryPicker(categorizeType) && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Category <span className="is-required">*</span>
+                              </label>
+                              <StaticSelect
+                                value={String(categorizeCategoryId ?? "")}
+                                placeholder="Select category"
+                                options={categorizeCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                                onChange={(val) => {
+                                  setCategorizeCategoryId(val ? Number(val) : null);
+                                  setCategorizeSubcategoryId(null);
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {categorizeType === "cost_base" && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              background: '#f0f9ff',
+                              border: '1px solid #e0f2fe',
+                              color: '#0284c7',
+                              borderRadius: '8px',
+                              padding: '12px 16px',
+                              fontSize: '13px',
+                              height: '50px',
+                              marginTop: '24px',
+                              boxSizing: 'border-box'
+                            }}>
+                              No subcategory for Property Cost Base — one free-text/typeable category only.
+                            </div>
+                          )}
+
+                          {!hidesSubcategoryPicker(categorizeType) && showCategorizeSubcategorySelect && (
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Subcategory <span className="is-required">*</span>
@@ -2938,101 +3535,280 @@ export default function AccountantReconciliationSessionPage() {
                           )}
                         </div>
 
-                        {/* Split option and section placed before GST */}
-                        <div className="recon-categorize-split-container" style={{ marginTop: 16 }}>
-                          <label className="recon-categorize-checkbox-row">
-                            <input
-                              type="checkbox"
-                              className="custom-recon-checkbox"
-                              checked={categorizeIsSplit}
-                              onChange={(e) => handleCategorizeSplitToggle(e.target.checked)}
-                            />
-                            <span>Is this a split transaction?</span>
-                          </label>
+                        {/* Add Asset.
+                            Was a ~240-line three-step wizard here, a second
+                            copy of the one in TransactionsFeature. Both are
+                            AssetBuilder now, so the categorize drawer and the
+                            add-transaction form cannot drift apart again. */}
+                        {allowsBusinessExtras(categorizeType) && (
+                          <div style={{ marginTop: 16 }}>
+                            {categorizeAssetDraft && (
+                              <AssetSummaryChip
+                                draft={categorizeAssetDraft}
+                                onRemove={() => setCategorizeAssetDraft(null)}
+                              />
+                            )}
 
-                          {categorizeIsSplit && (
-                            <div className="recon-categorize-split-section">
-                              <div className="recon-split-header">
-                                <span>Property Name <span className="is-required">*</span></span>
-                                <span>Amount <span className="is-required">*</span></span>
-                                <span></span>
+                            {!categorizeAssetDraft && !assetBuilderOpen && (
+                              <button
+                                type="button"
+                                className="figma-add-asset-trigger"
+                                onClick={() => setAssetBuilderOpen(true)}
+                              >
+                                + Add Asset
+                              </button>
+                            )}
+
+                            {assetBuilderOpen && (
+                              <AssetBuilder
+                                initial={categorizeAssetDraft}
+                                onCancel={() => setAssetBuilderOpen(false)}
+                                onSubmit={(draft) => {
+                                  setCategorizeAssetDraft(draft);
+                                  setAssetBuilderOpen(false);
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Private-use split. Expense only — the backend
+                            rejects it on any other type, and a wholly private
+                            line is the Personal Transaction type instead. */}
+                        {allowsPersonalPortion(categorizeType) && (
+                          <div style={{ marginTop: 16 }}>
+                            <label className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
+                              <div className="figma-toggle-info">
+                                <span className="figma-toggle-title">Was part of this personal?</span>
+                                <span className="figma-toggle-desc">Split this transaction between business and personal use. Only the business share is deductible.</span>
                               </div>
+                              <span className="figma-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={categorizeIsPersonal}
+                                  onChange={(e) => {
+                                    setCategorizeIsPersonal(e.target.checked);
+                                  }}
+                                />
+                                <span className="figma-switch-slider" />
+                              </span>
+                            </label>
 
-                              {categorizeSplitRows.map((row) => {
-                                const rowError = categorizeSplitErrors[row.id];
-                                const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
-                                const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
-
-                                return (
-                                  <div key={row.id} className="recon-split-row">
+                            {categorizeIsPersonal && (
+                              <div className="figma-personal-alloc-section">
+                                <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
+                                  <div className="recon-categorize-field">
+                                    <label className="recon-categorize-label">Personal Allocation</label>
                                     <StaticSelect
-                                      value={row.propertyId}
-                                      placeholder="Select Property"
-                                      options={properties.map((p) => ({ label: p.name, value: p.id }))}
-                                      onChange={(value) => updateCategorizeSplitRow(row.id, { propertyId: value })}
-                                      error={propertyError}
+                                      value={categorizePersonalAllocationType}
+                                      options={[
+                                        { label: "Percentage", value: "percentage" },
+                                        { label: "Amount", value: "amount" },
+                                      ]}
+                                      onChange={(value) => setCategorizePersonalAllocationType(value as "percentage" | "amount")}
                                     />
-                                    <div className="recon-categorize-field">
-                                      <div className="recon-categorize-amount-input-wrapper">
-                                        <input
-                                          type="number"
-                                          inputMode="decimal"
-                                          step="0.01"
-                                          placeholder="0.00"
-                                          className={`recon-categorize-input${amountError ? " has-error" : ""}`}
-                                          value={row.amount}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "-" || e.key === "Minus") {
-                                              e.preventDefault();
-                                            }
-                                          }}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/-/g, "");
-                                            updateCategorizeSplitRow(row.id, { amount: val });
-                                          }}
-                                        />
-                                        <span className="recon-categorize-amount-currency">A$</span>
-                                      </div>
-                                      {amountError && (
-                                        <p className="recon-split-row-error">{amountError}</p>
-                                      )}
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="recon-split-remove-btn"
-                                      disabled={categorizeSplitRows.length <= 1}
-                                      onClick={() => removeCategorizeSplitRow(row.id)}
-                                    >
-                                      Remove
-                                    </button>
                                   </div>
-                                );
-                              })}
+                                  <div className="recon-categorize-field">
+                                    <label className="recon-categorize-label">
+                                      {categorizePersonalAllocationType === "percentage" ? "Personal %" : "Personal Amount"}
+                                    </label>
+                                    <input
+                                      type="number"
+                                      className="recon-categorize-input"
+                                      style={{ height: '48px' }}
+                                      value={categorizePersonalValue}
+                                      onChange={(e) => setCategorizePersonalValue(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
 
-                              {categorizeSplitErrors.__form && (
-                                <p className="recon-split-form-error">{categorizeSplitErrors.__form}</p>
-                              )}
+                                <div className="figma-portion-wrapper">
+                                  <div className="figma-portion-box">
+                                    <span className="figma-portion-label">Business portion (deductible)</span>
+                                    <span className="figma-portion-value">A$ {categorizeBusinessPortion.toFixed(2)}</span>
+                                  </div>
+                                  <div className="figma-portion-box">
+                                    <span className="figma-portion-label">Personal portion</span>
+                                    <span className="figma-portion-value">A$ {categorizePersonalPortion.toFixed(2)}</span>
+                                  </div>
+                                </div>
 
-                              <div className="recon-split-footer">
-                                <span
-                                  className={`recon-split-total-info${!categorizeSplitMatches ? " is-mismatch" : ""}`}
-                                >
-                                  {activeGrossAmount > 0
-                                    ? `Split total: ${categorizeSplitTotal.toFixed(2)} of ${activeGrossAmount.toFixed(2)}`
-                                    : "Splits must equal the transaction total."}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="recon-split-add-btn"
-                                  onClick={addCategorizeSplitRow}
-                                  disabled={properties.length < 2}
-                                >
-                                  + Add Property
-                                </button>
+                                {categorizePersonalError && (
+                                  <p className="recon-split-row-error" role="alert">
+                                    {categorizePersonalError}
+                                  </p>
+                                )}
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Is it a regular payment? */}
+                        {allowsBusinessExtras(categorizeType) && (
+                          <div style={{ marginTop: 16 }}>
+                            <label className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
+                              <div className="figma-toggle-info">
+                                <span className="figma-toggle-title">Is it a regular payment?</span>
+                                <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+                              </div>
+                              <span className="figma-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={categorizeIsRegularPayment}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setCategorizeIsRegularPayment(checked);
+                                    if (!checked) {
+                                      setCategorizeDueDate("");
+                                      setCategorizeDueDateTouched(false);
+                                      setCategorizeAlertName("");
+                                      setCategorizeUserEditedAlertName(false);
+                                    }
+                                  }}
+                                />
+                                <span className="figma-switch-slider" />
+                              </span>
+                            </label>
+
+                            {categorizeIsRegularPayment && (
+                              <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
+                                <div className="recon-categorize-field">
+                                  <label className="recon-categorize-label">Due Date <span className="is-required">*</span></label>
+                                  <input
+                                    type="date"
+                                    className="recon-categorize-input"
+                                    style={{ height: '48px' }}
+                                    value={categorizeDueDate}
+                                    onChange={(e) => setCategorizeDueDate(e.target.value)}
+                                    onBlur={() => setCategorizeDueDateTouched(true)}
+                                  />
+                                  {categorizeDueDateTouched && categorizeDueDateError && (
+                                    <p className="recon-split-row-error">{categorizeDueDateError}</p>
+                                  )}
+                                </div>
+                                <div className="recon-categorize-field">
+                                  <label className="recon-categorize-label">Alert Name <span className="is-required">*</span></label>
+                                  <input
+                                    type="text"
+                                    className="recon-categorize-input"
+                                    style={{ height: '48px' }}
+                                    placeholder="e.g. Quarterly insurance reminder"
+                                    value={categorizeAlertName}
+                                    onChange={(e) => {
+                                      setCategorizeAlertName(e.target.value);
+                                      setCategorizeUserEditedAlertName(true);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Split option and section placed before GST */}
+                        {allowsBusinessExtras(categorizeType) && (
+                          <div className="recon-categorize-split-container" style={{ marginTop: 16 }}>
+                            <label className="recon-categorize-checkbox-row">
+                              <input
+                                type="checkbox"
+                                className="custom-recon-checkbox"
+                                checked={categorizeIsSplit}
+                                onChange={(e) => handleCategorizeSplitToggle(e.target.checked)}
+                              />
+                              <span>Is this a split transaction?</span>
+                            </label>
+
+                            {categorizeIsSplit && (
+                              <div className="recon-categorize-split-section">
+                                <div className="recon-split-header">
+                                  <span>Property Name <span className="is-required">*</span></span>
+                                  <span>Amount <span className="is-required">*</span></span>
+                                  <span></span>
+                                </div>
+
+                                {categorizeSplitRows.map((row) => {
+                                  const rowError = categorizeSplitErrors[row.id];
+                                  const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
+                                  const amountError = rowError === "Enter a positive amount." ? rowError : undefined;
+
+                                  return (
+                                    <div key={row.id} className="recon-split-row">
+                                      <StaticSelect
+                                        value={row.propertyId}
+                                        placeholder="Select Property"
+                                        options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                                        onChange={(value) => updateCategorizeSplitRow(row.id, { propertyId: value })}
+                                        error={propertyError}
+                                      />
+                                      <div className="recon-categorize-field">
+                                        <div className="recon-categorize-amount-input-wrapper">
+                                          <input
+                                            type="number"
+                                            inputMode="decimal"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            className={`recon-categorize-input${amountError ? " has-error" : ""}`}
+                                            value={row.amount}
+                                            onKeyDown={(e) => {
+                                              if (e.key === "-" || e.key === "Minus") {
+                                                e.preventDefault();
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              const val = e.target.value.replace(/-/g, "");
+                                              updateCategorizeSplitRow(row.id, { amount: val });
+                                            }}
+                                          />
+                                          <span className="recon-categorize-amount-currency">A$</span>
+                                        </div>
+                                        {amountError && (
+                                          <p className="recon-split-row-error">{amountError}</p>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="recon-split-remove-btn"
+                                        disabled={categorizeSplitRows.length <= 1}
+                                        onClick={() => removeCategorizeSplitRow(row.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+
+                                {categorizeSplitErrors.__form && (
+                                  <p className="recon-split-form-error">{categorizeSplitErrors.__form}</p>
+                                )}
+
+                                <div className="recon-split-footer">
+                                  <span
+                                    className={`recon-split-total-info${!categorizeSplitMatches ? " is-mismatch" : ""}`}
+                                  >
+                                    {activeGrossAmount > 0
+                                      ? `Split total: ${categorizeSplitTotal.toFixed(2)} of ${activeGrossAmount.toFixed(2)}`
+                                      : "Splits must equal the transaction total."}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="recon-split-add-btn"
+                                    onClick={addCategorizeSplitRow}
+                                    disabled={properties.length < 2}
+                                  >
+                                    + Add Property
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Personal, cost base and contra carry no GST claim.
+                        Contra especially: transaction_contra_no_gst_check
+                        rejects a contra with GST, so leaving these radios
+                        visible let the user build a row the database refuses.
+                        Matches the other allowsBusinessExtras gates above. */}
+                        {allowsBusinessExtras(categorizeType) && (
                         <div className="recon-categorize-gst">
                           <span className="recon-categorize-gst-label">GST Applicable</span>
                           <div className="recon-categorize-gst-options">
@@ -3077,6 +3853,7 @@ export default function AccountantReconciliationSessionPage() {
                             </div>
                           )}
                         </div>
+                        )}
                         <hr className="recon-categorize-divider" />
                         {categorizeError && (
                           <div className="recon-match-error" role="alert" style={{ marginBottom: 12 }}>
@@ -3102,7 +3879,8 @@ export default function AccountantReconciliationSessionPage() {
                               categorizeSaving ||
                               !categorizeCategoryId ||
                               (!categorizeIsSplit && !categorizePropertyId) ||
-                              (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches))
+                              (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches)) ||
+                              (categorizeIsRegularPayment && (!categorizeDueDate || !!categorizeDueDateError || !categorizeAlertName.trim()))
                             }
                             onClick={() => { void doSaveCategorize(reconId, bankTxIndex); }}
                           >
@@ -3357,18 +4135,66 @@ export default function AccountantReconciliationSessionPage() {
                     Transaction Type <span className="is-required">*</span>
                   </label>
                   <StaticSelect
-                    value={bulkType}
-                    options={[
-                      { label: "Expense", value: "expense" },
-                      { label: "Revenue", value: "revenue" },
-                    ]}
+                    value={bulkType === "contra" ? "expense" : bulkType}
+                    options={TRANSACTION_TYPE_ENTRY_OPTIONS}
                     onChange={(val) => {
-                      setBulkType(val as "expense" | "revenue");
+                      setBulkType(parseTransactionType(val));
                       setBulkCategoryId(null);
                       setBulkSubcategoryId(null);
                     }}
                   />
                 </div>
+
+                {/* Marking a run of statement lines as transfers at once — the
+                usual case being a recurring sweep between two accounts. */}
+                {allowsContraFlag(bulkType) && (
+                  <label className="figma-toggle-container">
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Are these contra entries?</span>
+                      <span className="figma-toggle-desc">
+                        Transfers between your own accounts. They have no effect on
+                        the profit and loss statement or the BAS.
+                      </span>
+                    </div>
+                    <span className="figma-switch">
+                      <input
+                        type="checkbox"
+                        checked={bulkType === "contra"}
+                        onChange={(e) => {
+                          setBulkType(e.target.checked ? "contra" : "expense");
+                          setBulkCategoryId(null);
+                          setBulkSubcategoryId(null);
+                          if (e.target.checked) {
+                            setBulkIsPersonal(false);
+                            setBulkGst(false);
+                          } else {
+                            setBulkDescription("");
+                          }
+                        }}
+                      />
+                      <span className="figma-switch-slider" />
+                    </span>
+                  </label>
+                )}
+
+                {/* One description for the whole run. Not prefilled from a bank
+                line, because the lines selected here are different rows — the
+                shared fact is where the money went, which only the accountant
+                knows. */}
+                {bulkType === "contra" && (
+                  <div className="recon-categorize-field">
+                    <label className="recon-categorize-label">
+                      Description <span className="is-required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="recon-categorize-input"
+                      placeholder="e.g. Weekly sweep to savings account"
+                      value={bulkDescription}
+                      onChange={(e) => setBulkDescription(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 <div className="recon-categorize-field">
                   <label className="recon-categorize-label">
@@ -3401,34 +4227,96 @@ export default function AccountantReconciliationSessionPage() {
                 )}
               </div>
 
-              <div className="recon-categorize-gst">
-                <span className="recon-categorize-gst-label">GST Applicable</span>
-                <div className="recon-categorize-gst-options">
-                  <label className="recon-categorize-gst-option">
-                    <input
-                      type="radio"
-                      name="bulk-gst"
-                      checked={bulkGst === true}
-                      onChange={() => setBulkGst(true)}
-                    />
-                    Yes
-                  </label>
-                  <label className="recon-categorize-gst-option">
-                    <input
-                      type="radio"
-                      name="bulk-gst"
-                      checked={bulkGst === false}
-                      onChange={() => setBulkGst(false)}
-                    />
-                    No
-                  </label>
+              {/* Same gate as the single drawer: contra carries no GST and the
+              database rejects one that does. */}
+              {allowsBusinessExtras(bulkType) && (
+                <div className="recon-categorize-gst">
+                  <span className="recon-categorize-gst-label">GST Applicable</span>
+                  <div className="recon-categorize-gst-options">
+                    <label className="recon-categorize-gst-option">
+                      <input
+                        type="radio"
+                        name="bulk-gst"
+                        checked={bulkGst === true}
+                        onChange={() => setBulkGst(true)}
+                      />
+                      Yes
+                    </label>
+                    <label className="recon-categorize-gst-option">
+                      <input
+                        type="radio"
+                        name="bulk-gst"
+                        checked={bulkGst === false}
+                        onChange={() => setBulkGst(false)}
+                      />
+                      No
+                    </label>
+                  </div>
+                  {bulkGst && (
+                    <p className="recon-bulk-gst-hint">
+                      GST will be recorded as 1/11th of each transaction&apos;s amount.
+                    </p>
+                  )}
                 </div>
-                {bulkGst && (
-                  <p className="recon-bulk-gst-hint">
-                    GST will be recorded as 1/11th of each transaction&apos;s amount.
-                  </p>
-                )}
-              </div>
+              )}
+
+              {/* Private-use split applied to every selected line. Percentage
+                  only: each line's own amounts are then derived from its own
+                  total, so lines of different sizes all split correctly. */}
+              {allowsPersonalPortion(bulkType) && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="figma-toggle-container" style={{ marginBottom: bulkIsPersonal ? 16 : 0 }}>
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Was part of these personal?</span>
+                      <span className="figma-toggle-desc">
+                        Applies the same private-use share to all {selectedEligibleRows.length} selected
+                        {selectedEligibleRows.length === 1 ? " transaction" : " transactions"}. Only the business share is deductible.
+                      </span>
+                    </div>
+                    <span className="figma-switch">
+                      <input
+                        type="checkbox"
+                        checked={bulkIsPersonal}
+                        onChange={(e) => setBulkIsPersonal(e.target.checked)}
+                      />
+                      <span className="figma-switch-slider" />
+                    </span>
+                  </div>
+
+                  {bulkIsPersonal && (
+                    <div className="figma-personal-alloc-section">
+                      <div className="recon-categorize-field">
+                        <label className="recon-categorize-label">
+                          Personal % <span className="is-required">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          max="100"
+                          step="any"
+                          className="recon-categorize-input"
+                          style={{ height: "48px" }}
+                          placeholder="e.g. 30"
+                          value={bulkPersonalPercentage}
+                          onChange={(e) => {
+                            // Digits and one dot only — the same guard the
+                            // single-line drawer uses.
+                            const clean = e.target.value.replace(/[^0-9.]/g, "");
+                            const parts = clean.split(".");
+                            setBulkPersonalPercentage(
+                              parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : parts[0],
+                            );
+                          }}
+                        />
+                        {bulkPersonalError && (
+                          <p className="recon-split-row-error" role="alert">{bulkPersonalError}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {bulkError && (
                 <div className="recon-match-error" role="alert" style={{ marginTop: 12 }}>

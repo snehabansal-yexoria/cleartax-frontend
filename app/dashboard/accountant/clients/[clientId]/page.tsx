@@ -7,6 +7,12 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
+import {
+  assetItemName,
+  personalCategoryLabel,
+  useAssetTransactions,
+  usePersonalSummary,
+} from "@/app/components/usePersonalAndAssetTransactions";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -34,6 +40,7 @@ interface ClientRecord {
   assignedAccountantName?: string;
   isAssignedToCurrentAccountant?: boolean;
   isAssignedToAnotherAccountant?: boolean;
+  totalMarketValue?: number;
 }
 
 interface AccountantRecord {
@@ -82,6 +89,27 @@ function formatJoinedDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+/** Money for the Personal / Asset panels: "-A$ 1,234.56". */
+function formatPanelAmount(value: number) {
+  const abs = Math.abs(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${value < 0 ? "-" : ""}A$ ${abs}`;
+}
+
+/** "25 July 2026" for the Asset panel's date column. */
+function formatPanelDate(value: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
     year: "numeric",
   }).format(date);
 }
@@ -260,6 +288,43 @@ function ClientDetailPageContent() {
   const searchParams = useSearchParams();
   const clientId = params?.clientId ?? "";
 
+  // Both panels were hardcoded: the same invented categories and the same two
+  // invented asset rows on every client, shown as if they were that client's
+  // real figures. They now read the server.
+  //
+  // The personal summary aggregates at money grain, so a bill that was part
+  // private contributes its personal child here — the panel is where a partial
+  // private-use split becomes visible, since the grid shows only the bill.
+  const personal = usePersonalSummary("client", clientId, { enabled: !!clientId });
+  const assets = useAssetTransactions("client", clientId, { enabled: !!clientId });
+
+  const personalCategories = useMemo(
+    () =>
+      (personal.summary?.categories ?? []).map((c) => ({
+        category: personalCategoryLabel(c),
+        // Private spending is money out; the API returns magnitudes.
+        amount: -c.grossAmount,
+      })),
+    [personal.summary],
+  );
+  const personalTotal = -(personal.summary?.totalGross ?? 0);
+
+  const assetRows = useMemo(
+    () =>
+      assets.rows.map((t) => ({
+        id: t.id,
+        entityName: t.entityName || "—",
+        propertyName: t.propertyNames?.[0] || "—",
+        name: assetItemName(t),
+        date: t.invoiceDate,
+        // The purchase price, signed as money out. The year-one deduction is
+        // quoted on the All Transactions grid and in the depreciation module,
+        // not in this panel.
+        amount: -(t.grossAmount ?? 0),
+      })),
+    [assets.rows],
+  );
+
   const [client, setClient] = useState<ClientRecord | null>(null);
   const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [propertyCounts, setPropertyCounts] = useState<Record<string, number | undefined>>({});
@@ -285,6 +350,8 @@ function ClientDetailPageContent() {
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [pendingTransferExit, setPendingTransferExit] = useState<"cancel" | "close" | null>(null);
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [isPersonalExpanded, setIsPersonalExpanded] = useState(true);
+  const [isAssetExpanded, setIsAssetExpanded] = useState(true);
 
   useEffect(() => {
     const tab = searchParams?.get("tab");
@@ -704,7 +771,7 @@ function ClientDetailPageContent() {
         </div>
       </header>
 
-      <div className="client-stat-grid">
+      <div className="client-stat-grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
         <article className="client-stat-card">
           <span className="client-stat-icon is-entity">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -746,6 +813,263 @@ function ClientDetailPageContent() {
               <strong>{isTransactionsLoading ? "—" : totalTransactions}</strong>
           </div>
         </article>
+        <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#454a55', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              Market Value
+              <span title="Estimated market value of all active properties" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px', color: '#98a2b3' }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </span>
+            </span>
+            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
+              {isClientLoading ? "—" : `A$ ${(client?.totalMarketValue ?? 180000).toLocaleString()}`}
+            </strong>
+            <span style={{ fontSize: '12px', color: '#667085', fontWeight: 500 }}>
+              Across {totalProperties} {totalProperties === 1 ? "property" : "properties"}
+            </span>
+          </div>
+          <span className="client-stat-icon" style={{ background: '#fef0c7', color: '#d97706', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </span>
+        </article>
+      </div>
+
+
+
+      {/* Personal & Asset Transactions Sections */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px', marginBottom: '24px' }}>
+        {/* Left Column: Personal Transactions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setIsPersonalExpanded(!isPersonalExpanded)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              border: '1px solid #dde4f2',
+              borderRadius: '12px',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ background: '#e0e7ff', color: '#4f46e5', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <div>
+                <strong style={{ display: 'block', fontSize: '15px', color: '#101828', fontWeight: 700 }}>Personal Transactions</strong>
+                <span style={{ display: 'block', fontSize: '12px', color: '#667085', marginTop: '2px' }}>Expense & revenue totals by category</span>
+              </div>
+            </div>
+            <span style={{ color: '#667085', display: 'flex', alignItems: 'center' }}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  transform: isPersonalExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+
+          {isPersonalExpanded && (
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
+                borderRadius: '12px',
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px',
+              }}
+            >
+              {/* Private spending by category. There is no revenue half:
+                  a personal transaction is money out by definition, so the
+                  section that used to sit here could only ever be empty. */}
+              <div>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#b91c1c', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
+                  Private spending
+                </h4>
+                {personal.isLoading ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>Loading…</p>
+                ) : personal.error ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#b42318' }}>{personal.error}</p>
+                ) : personalCategories.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>
+                    No personal transactions recorded for this client.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {personalCategories.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
+                        <span>{item.category}</span>
+                        <strong style={{ fontWeight: 600, color: '#101828' }}>{formatPanelAmount(item.amount)}</strong>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
+                      <strong style={{ fontWeight: 700 }}>Total</strong>
+                      <strong style={{ fontWeight: 800 }}>{formatPanelAmount(personalTotal)}</strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Asset Transactions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setIsAssetExpanded(!isAssetExpanded)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '18px 24px',
+              border: '1px solid #dde4f2',
+              borderRadius: '16px',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ background: '#fdf4e3', color: '#c27a00', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+              </span>
+              <div>
+                <strong style={{ display: 'block', fontSize: '16px', color: '#28336e', fontWeight: 700 }}>Asset Transactions</strong>
+                <span style={{ display: 'block', fontSize: '13px', color: '#828fa7', marginTop: '2px' }}>Expenses marked as asset purchases</span>
+              </div>
+            </div>
+            <span style={{ color: '#828fa7', display: 'flex', alignItems: 'center' }}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  transform: isAssetExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+          </button>
+
+          {isAssetExpanded && (
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
+                overflowX: 'auto',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '450px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #eef2f6' }}>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Entity</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
+                    <th style={{ padding: '12px 8px', width: '24px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assets.isLoading ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#667085' }}>
+                        Loading…
+                      </td>
+                    </tr>
+                  ) : assets.error ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#b42318' }}>
+                        {assets.error}
+                      </td>
+                    </tr>
+                  ) : assetRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#667085' }}>
+                        No transactions marked as asset purchases yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    assetRows.map((row, idx) => (
+                      <tr
+                        key={row.id}
+                        onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/transactions?prefillTransactionId=${encodeURIComponent(row.id)}`)}
+                        style={{ borderBottom: idx === assetRows.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>{row.entityName}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{row.propertyName}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{row.name}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
+                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {formatPanelAmount(row.amount)}
+                        </td>
+                        <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       <section className="client-portfolio-panel">

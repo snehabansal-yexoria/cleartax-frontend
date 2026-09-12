@@ -6,8 +6,15 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
+import { affectsPnl, transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
+import {
+  ReviewQueueCount,
+  ReviewStatusBadge,
+} from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import { formatClientCurrency, formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
+import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -90,6 +97,7 @@ function formatUSD(val: number, showPlus = false) {
   if (showPlus && val > 0) return `+${str}`;
   return str;
 }
+
 
 export default function ClientEntityDetailView({
   entityId,
@@ -274,6 +282,10 @@ export default function ClientEntityDetailView({
         income: 0,
       };
       const amount = Math.abs(row.grossAmount || 0);
+      // Skip non-P&L types. The else branch used to count personal spending,
+      // capitalised cost base and contra transfers as expenses, so this chart
+      // disagreed with the server-side P&L on the same data.
+      if (!affectsPnl(row.type)) continue;
       if (row.type === "revenue") current.income += amount;
       else current.expenses += amount;
       byMonth.set(key, current);
@@ -339,17 +351,26 @@ export default function ClientEntityDetailView({
     });
   }, [properties, transactions, entity]);
 
-  // Recent transactions list
+  // Recent transactions list. Anything the client sent to their accountant is
+  // surfaced here rather than only on the transactions page — at entity level
+  // you should be able to see what is still waiting on sign-off.
   const recentTransactions = useMemo(() => {
     return transactions.slice(0, 5).map((tx) => ({
       id: tx.id,
-      description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+      description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
       meta: tx.propertyNames?.[0] || "General",
       type: tx.type,
       amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
       dateText: tx.invoiceDate ? formatDateLabel(tx.invoiceDate) : "today",
+      awaitingReview: isAwaitingReview(tx.reviewStatus),
+      awaitingExtraction: isAwaitingExtraction(tx.metadata),
     }));
   }, [transactions]);
+
+  const awaitingReviewCount = useMemo(
+    () => transactions.filter((tx) => isAwaitingReview(tx.reviewStatus)).length,
+    [transactions],
+  );
 
   function formatDateLabel(dateString: string) {
     try {
@@ -718,7 +739,10 @@ export default function ClientEntityDetailView({
             {/* Recent Transactions (1/3 width) */}
             <div className="client-entity-chart-card flex flex-col gap-4">
               <div className="flex justify-between items-center">
-                <h3 className="client-entity-chart-title">Recent transactions</h3>
+                <h3 className="client-entity-chart-title">
+                  Recent transactions
+                  <ReviewQueueCount count={awaitingReviewCount} />
+                </h3>
                 <Link href="/dashboard/client/transactions" className="text-xs font-bold text-slate-500 hover:text-slate-700" style={{ textDecoration: "none" }}>
                   View all
                 </Link>
@@ -752,6 +776,10 @@ export default function ClientEntityDetailView({
                           <span className="text-slate-400 text-xs font-semibold mt-1">
                             {tx.meta} • {tx.dateText}
                           </span>
+                          <ReviewStatusBadge
+                            awaitingReview={tx.awaitingReview}
+                            awaitingExtraction={tx.awaitingExtraction}
+                          />
                         </div>
                       </div>
 
@@ -765,7 +793,29 @@ export default function ClientEntityDetailView({
             </div>
           </div>
 
-          {/* 5. ROW 5: DOCUMENTS SECTION (FULL WIDTH) */}
+          {/* 5. ROW 5: DEPRECIATION (FULL WIDTH)
+
+              Across every property this entity owns.
+
+              Above Documents on purpose, the same ordering as the property
+              page: the generated schedules are also filed in the Documents
+              list below as PDFs, so a client who has just read the year's
+              deduction here knows what those files are.
+
+              Entity scope spans properties, hence showProperty — two houses
+              can each have a "Hot water system". Rows link into the
+              entity-scoped asset route rather than the property-scoped one
+              because the card does not know, per row, which property page to
+              send the reader to. */}
+          <ClientDepreciationCard
+            level="entity"
+            id={entityId}
+            showProperty
+            assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
+            className="client-entity-doc-section-card"
+          />
+
+          {/* 6. ROW 6: DOCUMENTS SECTION (FULL WIDTH) */}
           <div className="client-entity-doc-section-card flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Documents</h3>
@@ -951,7 +1001,10 @@ export default function ClientEntityDetailView({
           {/* Mobile Recent Transactions */}
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Recent transactions</h3>
+              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">
+                Recent transactions
+                <ReviewQueueCount count={awaitingReviewCount} />
+              </h3>
               <Link href="/dashboard/client/transactions" className="text-xs font-bold text-slate-500 hover:text-slate-700" style={{ textDecoration: 'none' }}>
                 View all
               </Link>
@@ -985,6 +1038,10 @@ export default function ClientEntityDetailView({
                         <span className="text-slate-400 text-xs font-semibold mt-1">
                           {tx.meta} • {tx.dateText}
                         </span>
+                        <ReviewStatusBadge
+                          awaitingReview={tx.awaitingReview}
+                          awaitingExtraction={tx.awaitingExtraction}
+                        />
                       </div>
                     </div>
 
@@ -996,6 +1053,18 @@ export default function ClientEntityDetailView({
               )}
             </div>
           </div>
+
+          {/* Depreciation. The mobile twin of ROW 5 above — same props, same
+              placement above Documents. Keep the two in step: this file
+              carries fully separate desktop and mobile trees, so a card added
+              to one is simply absent on the other. */}
+          <ClientDepreciationCard
+            level="entity"
+            id={entityId}
+            showProperty
+            assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
+            className="client-entity-doc-section-card"
+          />
 
           {/* Mobile Documents Section */}
           <div className="client-entity-doc-section-card flex flex-col gap-4">

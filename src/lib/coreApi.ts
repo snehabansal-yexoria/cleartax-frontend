@@ -6,7 +6,22 @@ type CoreApiRequestOptions = {
   method?: CoreApiMethod;
   token?: string;
   body?: unknown;
+  /**
+   * Hard cap on the upstream round trip. Defaults to DEFAULT_CORE_TIMEOUT_MS;
+   * routes that proxy a slower Go handler (documents: 60s) pass a longer one.
+   */
+  timeoutMs?: number;
 };
+
+/**
+ * Longer than the longest common Go handler timeout (30s) so the backend's own
+ * 504 wins whenever it can; this is a backstop for a hung socket, not the
+ * primary deadline.
+ */
+export const DEFAULT_CORE_TIMEOUT_MS = 35_000;
+
+/** For routes proxying the documents handler, whose Go timeout is 60s. */
+export const CORE_DOCUMENTS_TIMEOUT_MS = 65_000;
 
 type RawRecord = Record<string, unknown>;
 
@@ -51,6 +66,18 @@ export type CoreBeneficiary = {
   position?: number;
 };
 
+/**
+ * The regional manager assigned to an entity. Not part of the core API's
+ * entity shape: the BFF (`app/api/entities/[id]/route.ts`) reads it from the
+ * frontend's direct DB connection and grafts it on.
+ */
+export type CoreRegionalManager = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export type CoreEntity = {
   id: string;
   orgId: string;
@@ -68,6 +95,12 @@ export type CoreEntity = {
   trustType?: string;
   propertiesCount: number;
   transactionsCount: number;
+  /**
+   * Present only on responses from the entity BFF (`GET/PATCH
+   * /api/entities/{id}`); `null` there means nobody is assigned. Absent on
+   * everything that comes straight from the core API.
+   */
+  regionalManager?: CoreRegionalManager | null;
 };
 
 export type CorePropertyOwner = {
@@ -330,9 +363,50 @@ function readStringField(payload: unknown, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function errorName(error: unknown): string {
+  return typeof error === "object" && error !== null && "name" in error
+    ? String((error as { name?: unknown }).name)
+    : "";
+}
+
+function errorCauseMessage(error: unknown): string {
+  const cause =
+    typeof error === "object" && error !== null && "cause" in error
+      ? (error as { cause?: unknown }).cause
+      : undefined;
+  return cause instanceof Error ? cause.message : "";
+}
+
+/**
+ * A fetch that never produced a response — the socket timed out or the host
+ * was unreachable — as a CoreApiError, so renderUpstreamError returns
+ * structured JSON instead of a bare 502 with the raw error text.
+ */
+function toUpstreamFailure(
+  error: unknown,
+  method: string,
+  path: string,
+  timeoutMs: number,
+): CoreApiError {
+  const timedOut = errorName(error) === "TimeoutError";
+  const cause = errorCauseMessage(error);
+  return new CoreApiError({
+    status: 504,
+    statusText: "Gateway Timeout",
+    code: timedOut ? "upstream_timeout" : "upstream_unreachable",
+    upstreamMessage: timedOut
+      ? `The core API did not respond within ${Math.round(timeoutMs / 1000)}s.`
+      : `Could not reach the core API${cause ? ` (${cause})` : ""}.`,
+    bodyExcerpt: "",
+    method,
+    path,
+    payload: null,
+  });
+}
+
 export async function coreApiRequest<T = unknown>(
   path: string,
-  { method = "GET", token, body }: CoreApiRequestOptions = {},
+  { method = "GET", token, body, timeoutMs }: CoreApiRequestOptions = {},
 ) {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -346,14 +420,24 @@ export async function coreApiRequest<T = unknown>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${getCoreApiBaseUrl()}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  const timeout = timeoutMs ?? DEFAULT_CORE_TIMEOUT_MS;
+  let response: Response;
+  let text: string;
+  try {
+    response = await fetch(`${getCoreApiBaseUrl()}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeout),
+    });
+    // The signal also covers reading the body: a server that sends headers and
+    // then stalls would otherwise hang here past the deadline.
+    text = await response.text();
+  } catch (error) {
+    throw toUpstreamFailure(error, method, path, timeout);
+  }
 
-  const text = await response.text();
   let payload: unknown = null;
   let parseError: Error | null = null;
   if (text) {
@@ -890,11 +974,125 @@ export async function updateCorePropertyLogit(
 }
 
 // =============================================================================
+// Property settlement entries — "Amount Settled By"
+// =============================================================================
+
+/**
+ * One funding line on the property's settlement statement: how the purchase was
+ * paid for (deposit, loan drawdown, trust account, ...).
+ *
+ * Deliberately NOT a transaction. A deposit is neither income, an expense nor a
+ * cost base item — it is how the cost base was funded — so it lives in its own
+ * table (migration 0040) and is invisible to P&L, GST, the ledger and All
+ * Transactions. The only consumer is the Property Cost Base panel.
+ */
+export type CoreSettlementEntry = {
+  id: string;
+  orgId: string;
+  propertyId: string;
+  entryType: string;
+  /** Signed gross (GST-inclusive): a refund line reduces the amount settled. */
+  amount: number;
+  /** GST included in `amount`: same sign, never larger. Zero for most lines. */
+  gstAmount: number;
+  /** `amount - gstAmount`, derived by the database (migration 0048). */
+  netAmount: number;
+  description: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function normalizeCoreSettlementEntry(
+  raw: RawRecord,
+): CoreSettlementEntry {
+  const amount = toFloatValue(raw.amount);
+  const gstAmount = toFloatValue(raw.gst_amount ?? raw.gstAmount ?? 0);
+  // A backend that predates the GST split sends neither field. Reading that as
+  // "no GST" keeps the grid showing net = gross instead of a blank.
+  const rawNet = raw.net_amount ?? raw.netAmount;
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    entryType: toStringValue(raw.entry_type ?? raw.entryType),
+    amount,
+    gstAmount,
+    netAmount: rawNet == null ? amount - gstAmount : toFloatValue(rawNet),
+    description:
+      raw.description == null ? null : toStringValue(raw.description) || null,
+    position: toNumberValue(raw.position) ?? 0,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export async function listCoreSettlementEntries(
+  token: string,
+  propertyId: string,
+): Promise<CoreSettlementEntry[]> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreSettlementEntry);
+}
+
+export async function createCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<CoreSettlementEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreSettlementEntry(getJsonObject(payload));
+}
+
+export async function updateCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreSettlementEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreSettlementEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreSettlementEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/settlement-entries/${encodeURIComponent(entryId)}`,
+    { method: "DELETE", token },
+  );
+}
+
+// =============================================================================
 // Transactions
 // =============================================================================
 
-export type CoreTransactionType = "revenue" | "expense";
+// "personal" (wholly private spending), "cost_base" (capitalised against a
+// property's CGT cost base) and "contra" (a transfer between the entity's own
+// accounts) are all money out but none is a deductible expense, so they are
+// distinct types rather than flags on an expense.
+export type CoreTransactionType =
+  | "revenue"
+  | "expense"
+  | "personal"
+  | "cost_base"
+  | "contra";
+// "active" is the default for every new transaction — live in the ledger, in
+// nobody's queue. "unreviewed" means a client pressed "Submit to accountant"
+// and it is waiting for sign-off, so it is the accountant's review queue.
 export type CoreReviewStatus =
+  | "active"
   | "unreviewed"
   | "reviewed"
   | "approved"
@@ -927,6 +1125,41 @@ export type CoreTransactionSplit = {
   allocations: CoreTransactionAllocation[];
 };
 
+/**
+ * One side of a private-use split, nested on its parent's detail response.
+ *
+ * A partly-private expense is stored as three rows: a parent holding the full
+ * bill, a business child that is deductible, and a personal child that is not.
+ * The grid only ever shows the parent — these are what the detail view expands
+ * underneath it.
+ */
+export type CoreTransactionChild = {
+  id: string;
+  type: CoreTransactionType;
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  isAssetPurchase: boolean;
+};
+
+/**
+ * Fields shared by every transaction shape describing where it sits in the
+ * parent/child tree.
+ *
+ * `hasChildren` marks a container: its own amount is the whole bill and must
+ * never be added to its children's. `parentTransactionId` marks a child, which
+ * the UI refuses to edit directly — the API returns 409 for those.
+ */
+export type CorePersonalSplitFields = {
+  parentTransactionId?: string | null;
+  hasChildren?: boolean;
+  personalPercentage?: number | null;
+};
+
 export type CoreTransactionDetail = {
   id: string;
   orgId: string;
@@ -946,6 +1179,12 @@ export type CoreTransactionDetail = {
   isAssetPurchase: boolean;
   assetClass: CoreAssetClass | null;
   effectiveLifeYears: number | null;
+  // Migration 0037 promoted these out of metadata.asset_item_name /
+  // metadata.depreciation_method. Optional for the same reason reviewedBy is:
+  // sample and mock row literals predate them, and the normalizers always
+  // populate them from the API.
+  assetName?: string | null;
+  depreciationMethod?: CoreDepreciationMethod | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
   // Reviewer stamp — optional so pre-workflow object literals (mocks, sample
@@ -957,13 +1196,19 @@ export type CoreTransactionDetail = {
   metadata: Record<string, unknown>;
   documentId: string | null;
   documentFileName: string | null;
+  // Present when the transaction has an attached document. A status other than
+  // "completed" means extraction has not run yet — the client deferred it by
+  // choosing "Submit to accountant", and the reviewing accountant triggers it.
+  documentS3Key: string | null;
+  documentProcessingStatus: string | null;
   createdBy: string;
   updatedBy: string | null;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
   splits: CoreTransactionSplit[];
-};
+  children?: CoreTransactionChild[];
+} & CorePersonalSplitFields;
 
 export type CoreTransactionListItem = {
   id: string;
@@ -981,6 +1226,12 @@ export type CoreTransactionListItem = {
   isAssetPurchase: boolean;
   assetClass: CoreAssetClass | null;
   effectiveLifeYears: number | null;
+  // Migration 0037 promoted these out of metadata.asset_item_name /
+  // metadata.depreciation_method. Optional for the same reason reviewedBy is:
+  // sample and mock row literals predate them, and the normalizers always
+  // populate them from the API.
+  assetName?: string | null;
+  depreciationMethod?: CoreDepreciationMethod | null;
   ruleId: number | null;
   reviewStatus: CoreReviewStatus;
   reviewedBy?: string | null;
@@ -998,7 +1249,7 @@ export type CoreTransactionListItem = {
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
-};
+} & CorePersonalSplitFields;
 
 export type CorePropertyTransactionRow = {
   transactionId: string;
@@ -1023,12 +1274,20 @@ export type CorePropertyTransactionRow = {
   splitGstAmount: number;
   splitNetAmount: number;
   createdAt: string;
+  // Optional for the same reason the reviewer stamp is: sample rows and mock
+  // fixtures predate the field, and the normalizer always populates it.
+  hasChildren?: boolean;
+  personalPercentage?: number | null;
 };
 
 export type CoreTransactionCategory = {
   id: number;
   name: string;
   type: CoreTransactionType;
+  // Chart-of-accounts code the category posts to ("5020" for council rates).
+  // Null for the personal and cost-base categories, which sit outside the
+  // chart, and for org categories that have not been given one.
+  accountCode: string | null;
   isSystem: boolean;
   metadata: Record<string, unknown>;
 };
@@ -1070,21 +1329,41 @@ function toNullableInt(value: unknown): number | null {
   return parsed;
 }
 
+function toOptionalDepreciationMethod(value: unknown): CoreDepreciationMethod | null {
+  return value === "prime_cost" || value === "diminishing_value" ? value : null;
+}
+
 function toAssetClass(value: unknown): CoreAssetClass | null {
   const s = toNullableString(value);
   if (s === "capital_works" || s === "capital_allowance") return s;
   return null;
 }
 
+// Every non-expense type must be listed. The fallthrough is "expense", so a
+// value missing from this check does not fail loudly — it silently renders as an
+// expense, which for a contra transfer would put it back in the very place the
+// type exists to keep it out of.
 function toTxnType(value: unknown): CoreTransactionType {
   const s = toStringValue(value).toLowerCase();
-  return s === "revenue" ? "revenue" : "expense";
+  if (s === "revenue" || s === "personal" || s === "cost_base" || s === "contra") {
+    return s;
+  }
+  return "expense";
 }
 
 function toReviewStatus(value: unknown): CoreReviewStatus {
   const s = toStringValue(value).toLowerCase();
-  if (s === "reviewed" || s === "approved" || s === "rejected") return s;
-  return "unreviewed";
+  if (
+    s === "unreviewed" ||
+    s === "reviewed" ||
+    s === "approved" ||
+    s === "rejected"
+  ) {
+    return s;
+  }
+  // Fall back to "active", not "unreviewed": an absent or unrecognised value
+  // must not fabricate a review request the client never made.
+  return "active";
 }
 
 export function normalizeCoreTransactionAllocation(
@@ -1131,10 +1410,47 @@ export function normalizeCoreTransactionSplit(
   };
 }
 
+/**
+ * Where a row sits in the parent/child tree.
+ *
+ * Defaults are the "no private-use split" shape, so a response from a backend
+ * that predates migration 0036 normalizes to an ordinary standalone
+ * transaction rather than to undefined.
+ */
+function normalizePersonalSplitFields(raw: RawRecord): CorePersonalSplitFields {
+  return {
+    parentTransactionId: toNullableString(
+      raw.parent_transaction_id ?? raw.parentTransactionId,
+    ),
+    hasChildren: Boolean(raw.has_children ?? raw.hasChildren),
+    personalPercentage: toNullableNumber(
+      raw.personal_percentage ?? raw.personalPercentage,
+    ),
+  };
+}
+
+export function normalizeCoreTransactionChild(
+  raw: RawRecord,
+): CoreTransactionChild {
+  return {
+    id: toStringValue(raw.id),
+    type: toTxnType(raw.type),
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+    subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+    grossAmount: toFloatValue(raw.gross_amount ?? raw.grossAmount),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    netAmount: toFloatValue(raw.net_amount ?? raw.netAmount),
+    isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
+  };
+}
+
 export function normalizeCoreTransactionDetail(
   raw: RawRecord,
 ): CoreTransactionDetail {
   const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
+  const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
   return {
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
@@ -1155,6 +1471,10 @@ export function normalizeCoreTransactionDetail(
     ),
     isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
     assetClass: toAssetClass(raw.asset_class ?? raw.assetClass),
+    assetName: toStringValue(raw.asset_name ?? raw.assetName) || null,
+    depreciationMethod: toOptionalDepreciationMethod(
+      raw.depreciation_method ?? raw.depreciationMethod,
+    ),
     effectiveLifeYears: toNullableNumber(
       raw.effective_life_years ?? raw.effectiveLifeYears,
     ),
@@ -1169,6 +1489,10 @@ export function normalizeCoreTransactionDetail(
     metadata: toRecord(raw.metadata),
     documentId: toNullableString(raw.document_id ?? raw.documentId),
     documentFileName: toNullableString(raw.document_file_name ?? raw.documentFileName),
+    documentS3Key: toNullableString(raw.document_s3_key ?? raw.documentS3Key),
+    documentProcessingStatus: toNullableString(
+      raw.document_processing_status ?? raw.documentProcessingStatus,
+    ),
     createdBy: toStringValue(raw.created_by ?? raw.createdBy),
     updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
     isDeleted: Boolean(raw.is_deleted ?? raw.isDeleted),
@@ -1177,6 +1501,10 @@ export function normalizeCoreTransactionDetail(
     splits: splitsRaw
       .filter((s): s is RawRecord => typeof s === "object" && s !== null)
       .map(normalizeCoreTransactionSplit),
+    children: childrenRaw
+      .filter((c): c is RawRecord => typeof c === "object" && c !== null)
+      .map(normalizeCoreTransactionChild),
+    ...normalizePersonalSplitFields(raw),
   };
 }
 
@@ -1200,6 +1528,10 @@ export function normalizeCoreTransactionListItem(
     ),
     isAssetPurchase: Boolean(raw.is_asset_purchase ?? raw.isAssetPurchase),
     assetClass: toAssetClass(raw.asset_class ?? raw.assetClass),
+    assetName: toStringValue(raw.asset_name ?? raw.assetName) || null,
+    depreciationMethod: toOptionalDepreciationMethod(
+      raw.depreciation_method ?? raw.depreciationMethod,
+    ),
     effectiveLifeYears: toNullableNumber(
       raw.effective_life_years ?? raw.effectiveLifeYears,
     ),
@@ -1233,6 +1565,7 @@ export function normalizeCoreTransactionListItem(
     metadata: toRecord(raw.metadata),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+    ...normalizePersonalSplitFields(raw),
   };
 }
 
@@ -1270,6 +1603,10 @@ export function normalizeCorePropertyTransactionRow(
     splitGstAmount: toFloatValue(raw.split_gst_amount ?? raw.splitGstAmount),
     splitNetAmount: toFloatValue(raw.split_net_amount ?? raw.splitNetAmount),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    hasChildren: Boolean(raw.has_children ?? raw.hasChildren),
+    personalPercentage: toNullableNumber(
+      raw.personal_percentage ?? raw.personalPercentage,
+    ),
   };
 }
 
@@ -1280,6 +1617,7 @@ export function normalizeCoreTransactionCategory(
     id: toNumberValue(raw.id) ?? 0,
     name: toStringValue(raw.name),
     type: toTxnType(raw.type),
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
     isSystem: Boolean(raw.is_system ?? raw.isSystem),
     metadata: toRecord(raw.metadata),
   };
@@ -1388,10 +1726,652 @@ export function normalizeCoreTransactionRuleList(payload: unknown): unknown {
 }
 
 // Optional server-side review filter shared by the transaction list helpers.
-function reviewStatusQuery(reviewStatus?: CoreReviewStatus): string {
-  return reviewStatus
-    ? `?review_status=${encodeURIComponent(reviewStatus)}`
-    : "";
+// ---------------------------------------------------------------------------
+// Transaction list query
+//
+// Search, sorting, the date range and pagination are all resolved in Postgres
+// rather than in the browser. Before this, the grid downloaded every row (and
+// the backend silently capped each list at 100), so anything computed on the
+// client was working from a truncated set.
+// ---------------------------------------------------------------------------
+
+// Sort keys the Go API whitelists. Which ones a given scope accepts depends on
+// the columns that scope renders — an out-of-scope key is a 400, not a silent
+// fallback. See sortExprs in internal/handlers/transaction/query.go.
+export type CoreTransactionSortKey =
+  | "date"
+  | "created"
+  | "client"
+  | "entity"
+  | "property"
+  | "description"
+  | "gross"
+  | "net"
+  | "share";
+
+export type CoreTransactionListQuery = {
+  search?: string;
+  /** Inclusive invoice_date bounds, YYYY-MM-DD. */
+  from?: string;
+  to?: string;
+  reviewStatus?: CoreReviewStatus;
+  /**
+   * The grid's two tabs. "queue" is review_status = 'unreviewed' (what a client
+   * submitted for review); "ledger" is everything else. A single-value
+   * reviewStatus cannot express "not unreviewed".
+   */
+  reviewBucket?: "queue" | "ledger";
+  clientId?: string;
+  entityId?: string;
+  propertyId?: string;
+  type?: CoreTransactionType;
+  categoryId?: number | string;
+  /**
+   * Which level of the parent/child tree to read.
+   *
+   * "top" (the default when omitted) returns one row per bill: parent
+   * containers and standalone transactions. "leaf" returns the rows money is
+   * summed from — the business and personal children, plus standalone
+   * transactions — and is what the personal list uses, paired with
+   * `type: "personal"`.
+   *
+   * Reading both levels at once would double-count, so the backend always
+   * applies one or the other.
+   */
+  grain?: "top" | "leaf";
+  /** Filters on the depreciation flag; drives the Asset Transactions panel. */
+  assetPurchase?: boolean;
+  sort?: CoreTransactionSortKey | string;
+  dir?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+};
+
+export type CorePaginated<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+// The single place the query object becomes a query string, so the BFF proxy
+// and any direct caller agree on parameter names.
+export function transactionListQueryString(
+  q: CoreTransactionListQuery = {},
+): string {
+  const sp = new URLSearchParams();
+  const put = (key: string, value: unknown) => {
+    if (value === undefined || value === null || value === "") return;
+    sp.set(key, String(value));
+  };
+
+  put("search", q.search?.trim());
+  put("from", q.from);
+  put("to", q.to);
+  put("review_status", q.reviewStatus);
+  put("review_bucket", q.reviewBucket);
+  put("client_id", q.clientId);
+  put("entity_id", q.entityId);
+  put("property_id", q.propertyId);
+  put("type", q.type);
+  put("category_id", q.categoryId);
+  put("grain", q.grain);
+  // Explicit undefined check: `put` skips empty-ish values, and `false` is a
+  // meaningful filter here (rows that are NOT asset purchases), not an absence.
+  if (q.assetPurchase !== undefined) sp.set("asset_purchase", String(q.assetPurchase));
+  put("sort", q.sort);
+  put("dir", q.dir);
+  put("limit", q.limit);
+  put("offset", q.offset);
+
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+function toPaginated<T>(
+  payload: unknown,
+  items: T[],
+  fallbackLimit: number | undefined,
+): CorePaginated<T> {
+  const record =
+    typeof payload === "object" && payload !== null
+      ? (payload as RawRecord)
+      : {};
+  // total is absent on a backend that predates pagination; falling back to the
+  // page length keeps "Showing X of Y" truthful rather than reporting zero.
+  const total = toNumberValue(record.total);
+  const limit = toNumberValue(record.limit);
+  const offset = toNumberValue(record.offset);
+  return {
+    items,
+    total: total ?? items.length,
+    limit: limit ?? fallbackLimit ?? items.length,
+    offset: offset ?? 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GST summary (BAS labels G1 / 1A / 1B / 9)
+// ---------------------------------------------------------------------------
+
+export type CoreGstScopeLevel = "property" | "entity" | "client";
+
+export type CoreGstOutcome = "payment_due" | "refund_due" | "nil";
+
+export type CoreGstPeriod = {
+  label: string;
+  financialYear: number;
+  /** 1-4, or 0 for a whole financial year / custom range. */
+  quarter: number;
+  from: string;
+  to: string;
+  custom: boolean;
+};
+
+export type CoreGstSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CoreGstPeriod;
+  /**
+   * Which date column the period filtered on. The backend only has
+   * invoice_date, so this report is accruals basis — surfaced so the UI can
+   * say so rather than let someone file it as a cash-basis BAS.
+   */
+  dateBasis: string;
+  /** G1 — total sales, GST-inclusive. */
+  g1TotalSales: number;
+  /** 1A — GST collected on sales. */
+  gstOnSales: number;
+  /** 1B — GST paid on purchases. */
+  gstOnPurchases: number;
+  /** 9 — signed net position; positive means payable to the ATO. */
+  netGst: number;
+  outcome: CoreGstOutcome;
+  /** |netGst|, so the UI never renders a minus sign. */
+  amountDue: number;
+  salesNet: number;
+  purchasesTotal: number;
+  purchasesNet: number;
+  salesCount: number;
+  purchasesCount: number;
+};
+
+export type CoreGstQuery = {
+  /** Year the FY ends in: 2026 means 1 Jul 2025 - 30 Jun 2026. */
+  financialYear?: number;
+  /** BAS quarter 1-4. Omit for the whole financial year. */
+  quarter?: number;
+  from?: string;
+  to?: string;
+};
+
+/**
+ * Builds the GST query string. Deliberately does NOT emit `period=` — the core
+ * API rejects it, because in the reports API `period=quarter` means "the last
+ * 90 days" rather than a calendar BAS quarter.
+ */
+export function gstQueryString(query: CoreGstQuery = {}): string {
+  const params = new URLSearchParams();
+  if (query.financialYear) {
+    params.set("financial_year", String(query.financialYear));
+  }
+  if (query.quarter) params.set("quarter", String(query.quarter));
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+/**
+ * Narrows untrusted query params into a CoreGstQuery. Used by the BFF routes
+ * to forward only recognised keys upstream.
+ */
+export function toCoreGstQuery(params: URLSearchParams): CoreGstQuery {
+  const query: CoreGstQuery = {};
+  const fy = Number.parseInt(params.get("financial_year") ?? "", 10);
+  if (Number.isFinite(fy)) query.financialYear = fy;
+  const quarter = Number.parseInt(params.get("quarter") ?? "", 10);
+  if (Number.isFinite(quarter)) query.quarter = quarter;
+  const from = params.get("from");
+  if (from) query.from = from;
+  const to = params.get("to");
+  if (to) query.to = to;
+  return query;
+}
+
+function toGstOutcome(value: unknown): CoreGstOutcome {
+  const s = toStringValue(value);
+  return s === "payment_due" || s === "refund_due" ? s : "nil";
+}
+
+function toGstScopeLevel(value: unknown): CoreGstScopeLevel {
+  const s = toStringValue(value);
+  return s === "entity" || s === "client" ? s : "property";
+}
+
+export function normalizeCoreGstSummary(raw: RawRecord): CoreGstSummary {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const period = (raw.period ?? {}) as RawRecord;
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: {
+      label: toStringValue(period.label),
+      financialYear:
+        toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+      quarter: toNumberValue(period.quarter) ?? 0,
+      from: toStringValue(period.from),
+      to: toStringValue(period.to),
+      custom: Boolean(period.custom),
+    },
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    g1TotalSales: toFloatValue(raw.g1_total_sales ?? raw.g1TotalSales),
+    gstOnSales: toFloatValue(raw.gst_on_sales ?? raw.gstOnSales),
+    gstOnPurchases: toFloatValue(raw.gst_on_purchases ?? raw.gstOnPurchases),
+    netGst: toFloatValue(raw.net_gst ?? raw.netGst),
+    outcome: toGstOutcome(raw.outcome),
+    amountDue: toFloatValue(raw.amount_due ?? raw.amountDue),
+    salesNet: toFloatValue(raw.sales_net ?? raw.salesNet),
+    purchasesTotal: toFloatValue(raw.purchases_total ?? raw.purchasesTotal),
+    purchasesNet: toFloatValue(raw.purchases_net ?? raw.purchasesNet),
+    salesCount: toNumberValue(raw.sales_count ?? raw.salesCount) ?? 0,
+    purchasesCount:
+      toNumberValue(raw.purchases_count ?? raw.purchasesCount) ?? 0,
+  };
+}
+
+export async function getCoreGstSummaryByProperty(
+  token: string,
+  propertyId: string,
+  query?: CoreGstQuery,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/gst-summary${gstQueryString(query)}`,
+    { token },
+  );
+  return normalizeCoreGstSummary(getJsonObject(payload));
+}
+
+export async function getCoreGstSummaryByEntity(
+  token: string,
+  entityId: string,
+  query?: CoreGstQuery,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/gst-summary${gstQueryString(query)}`,
+    { token },
+  );
+  return normalizeCoreGstSummary(getJsonObject(payload));
+}
+
+export async function getCoreGstSummaryForClient(
+  token: string,
+  clientId: string,
+  query?: CoreGstQuery,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/gst-summary${gstQueryString(query)}`,
+    { token },
+  );
+  return normalizeCoreGstSummary(getJsonObject(payload));
+}
+
+// ---------------------------------------------------------------------------
+// Profit & Loss statement
+//
+// GET /properties/{id}/pnl?financial_year=YYYY
+//
+// The server does the aggregation. That is not an optimisation — the statement
+// this replaces was summed in the browser from one capped page of
+// display-grain transaction rows, which meant it deducted the private slice of
+// every part-private bill, expensed capital purchases in full, added expenses
+// to income instead of subtracting them, and silently reported the first fifty
+// rows as a whole year.
+//
+// Two conventions to hold on to when rendering:
+//
+//   - Every amount is a POSITIVE magnitude, including expenses. The sign is a
+//     display choice. `netProfit` is the one genuinely signed figure.
+//   - `totals` is authoritative. Do not re-sum the lines; the server foots the
+//     statement so it cannot disagree with itself.
+// ---------------------------------------------------------------------------
+
+/** One bucket of money at the three grains the statement prints. */
+export type CorePnlAmount = {
+  gross: number;
+  gst: number;
+  net: number;
+};
+
+/** A figure paired with the same figure a financial year earlier. */
+export type CorePnlComparison = {
+  current: CorePnlAmount;
+  previous: CorePnlAmount;
+};
+
+export type CorePnlPeriod = {
+  /** Year the FY ends in: 2026 means 1 Jul 2025 - 30 Jun 2026. */
+  financialYear: number;
+  /** Printed label, e.g. "FY 2025-26". */
+  label: string;
+  from: string;
+  to: string;
+};
+
+/**
+ * One category/subcategory row.
+ *
+ * The ids are the stable key — group and diff on those, never on the display
+ * name. The old client-side version matched categories by normalising strings,
+ * which merged or split lines depending on punctuation.
+ */
+export type CorePnlLine = CorePnlComparison & {
+  categoryId: number;
+  categoryName: string;
+  subcategoryId: number;
+  subcategoryName: string;
+};
+
+/**
+ * A depreciation deduction. These have no transaction rows in the reporting
+ * year — they come from the schedules written when each asset was saved — so
+ * they are a separate band rather than an expense category.
+ */
+export type CorePnlDeductionLine = CorePnlComparison & {
+  kind: "capital_works" | "capital_allowance" | string;
+  label: string;
+};
+
+export type CorePnlSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CorePnlPeriod;
+  comparison: CorePnlPeriod;
+  /** Always "invoice_date": the statement is unavoidably accruals basis. */
+  dateBasis: string;
+  income: CorePnlLine[];
+  expenses: CorePnlLine[];
+  deductions: CorePnlDeductionLine[];
+  totals: {
+    income: CorePnlComparison;
+    expenses: CorePnlComparison;
+    deductions: CorePnlComparison;
+    /** Income - expenses - deductions. Negative is a loss. */
+    netProfit: CorePnlComparison;
+  };
+};
+
+function toPnlAmount(value: unknown): CorePnlAmount {
+  const raw = (value ?? {}) as RawRecord;
+  return {
+    gross: toFloatValue(raw.gross),
+    gst: toFloatValue(raw.gst),
+    net: toFloatValue(raw.net),
+  };
+}
+
+function toPnlComparison(raw: RawRecord): CorePnlComparison {
+  return {
+    current: toPnlAmount(raw.current),
+    previous: toPnlAmount(raw.previous),
+  };
+}
+
+function toPnlPeriod(value: unknown): CorePnlPeriod {
+  const raw = (value ?? {}) as RawRecord;
+  return {
+    financialYear: toNumberValue(raw.financial_year ?? raw.financialYear) ?? 0,
+    label: toStringValue(raw.label),
+    from: toStringValue(raw.from),
+    to: toStringValue(raw.to),
+  };
+}
+
+function toPnlLines(value: unknown): CorePnlLine[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((raw) => ({
+      categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+      categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+      subcategoryId: toNumberValue(raw.subcategory_id ?? raw.subcategoryId) ?? 0,
+      subcategoryName: toStringValue(raw.subcategory_name ?? raw.subcategoryName),
+      ...toPnlComparison(raw),
+    }));
+}
+
+function toPnlDeductions(value: unknown): CorePnlDeductionLine[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((raw) => ({
+      kind: toStringValue(raw.kind),
+      label: toStringValue(raw.label),
+      ...toPnlComparison(raw),
+    }));
+}
+
+export function normalizeCorePnlSummary(raw: RawRecord): CorePnlSummary {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const totals = (raw.totals ?? {}) as RawRecord;
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: toPnlPeriod(raw.period),
+    comparison: toPnlPeriod(raw.comparison),
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    income: toPnlLines(raw.income),
+    expenses: toPnlLines(raw.expenses),
+    deductions: toPnlDeductions(raw.deductions),
+    totals: {
+      income: toPnlComparison((totals.income ?? {}) as RawRecord),
+      expenses: toPnlComparison((totals.expenses ?? {}) as RawRecord),
+      deductions: toPnlComparison((totals.deductions ?? {}) as RawRecord),
+      netProfit: toPnlComparison(
+        (totals.net_profit ?? totals.netProfit ?? {}) as RawRecord,
+      ),
+    },
+  };
+}
+
+export async function getCorePnlSummaryByProperty(
+  token: string,
+  propertyId: string,
+  financialYear?: number,
+) {
+  const qs = financialYear ? `?financial_year=${financialYear}` : "";
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/pnl${qs}`,
+    { token },
+  );
+  return normalizeCorePnlSummary(getJsonObject(payload));
+}
+
+// ---------------------------------------------------------------------------
+// P&L trend (monthly income / expenses across one financial year)
+// ---------------------------------------------------------------------------
+
+/** One calendar month of the trend. `month` is "YYYY-MM". */
+export type CorePnlTrendMonth = {
+  month: string;
+  income: number;
+  expenses: number;
+  /** income - expenses; signed, negative is a loss. */
+  netResult: number;
+};
+
+/**
+ * GET /entities/{id}/pnl-trend. Shares the statement's row eligibility
+ * server-side (money grain, revenue/expense only, rejected rows excluded), so
+ * a month here foots to the P&L statement for the same window. Always twelve
+ * rows, July to June, zero-filled.
+ */
+export type CorePnlTrend = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CorePnlPeriod;
+  /** Always "invoice_date": accruals basis, like the statement. */
+  dateBasis: string;
+  months: CorePnlTrendMonth[];
+  totals: { income: number; expenses: number; netResult: number };
+  /** FY end-years with any eligible row, newest first. */
+  availableFinancialYears: number[];
+  transactionCount: number;
+};
+
+function toPnlTrendMonths(value: unknown): CorePnlTrendMonth[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((raw) => ({
+      month: toStringValue(raw.month),
+      income: toFloatValue(raw.income),
+      expenses: toFloatValue(raw.expenses),
+      netResult: toFloatValue(raw.net_result ?? raw.netResult),
+    }));
+}
+
+export function normalizeCorePnlTrend(raw: RawRecord): CorePnlTrend {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const totals = (raw.totals ?? {}) as RawRecord;
+  const yearsRaw =
+    raw.available_financial_years ?? raw.availableFinancialYears;
+  const availableFinancialYears = Array.isArray(yearsRaw)
+    ? yearsRaw
+        .map((y) => toNumberValue(y))
+        .filter((y): y is number => y !== null)
+    : [];
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: toPnlPeriod(raw.period),
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    months: toPnlTrendMonths(raw.months),
+    totals: {
+      income: toFloatValue(totals.income),
+      expenses: toFloatValue(totals.expenses),
+      netResult: toFloatValue(totals.net_result ?? totals.netResult),
+    },
+    availableFinancialYears,
+    transactionCount:
+      toNumberValue(raw.transaction_count ?? raw.transactionCount) ?? 0,
+  };
+}
+
+export async function getCorePnlTrendByEntity(
+  token: string,
+  entityId: string,
+  financialYear?: number,
+) {
+  const qs = financialYear ? `?financial_year=${financialYear}` : "";
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/pnl-trend${qs}`,
+    { token },
+  );
+  return normalizeCorePnlTrend(getJsonObject(payload));
+}
+
+// -----------------------------------------------------------------------------
+// Personal (private-use) spending summary
+// -----------------------------------------------------------------------------
+
+/**
+ * Private, non-deductible spending totalled by category, for the Personal
+ * Transactions panel on the property, entity and client pages.
+ *
+ * Aggregated server-side rather than by filtering a page's transactions array:
+ * that array is one capped page at display grain, where the personal child of a
+ * part-private bill is hidden and its container is typed 'expense'. Totalling
+ * it client-side therefore both truncates and misses every partial split.
+ *
+ * Amounts are positive magnitudes; private spending is money out by definition,
+ * so the UI applies the sign.
+ */
+export type CorePersonalCategoryTotal = {
+  categoryId: number;
+  categoryName: string;
+  subcategoryName: string;
+  grossAmount: number;
+  gstAmount: number;
+  netAmount: number;
+  count: number;
+};
+
+export type CorePersonalSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  categories: CorePersonalCategoryTotal[];
+  totalGross: number;
+  totalGst: number;
+  totalNet: number;
+  count: number;
+};
+
+export function normalizeCorePersonalSummary(
+  raw: RawRecord,
+): CorePersonalSummary {
+  const scope = toRecord(raw.scope);
+  const categories = Array.isArray(raw.categories) ? raw.categories : [];
+  return {
+    scope: {
+      level: (toStringValue(scope.level) || "entity") as CoreGstScopeLevel,
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    categories: categories
+      .filter((c): c is RawRecord => typeof c === "object" && c !== null)
+      .map((c) => ({
+        categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+        categoryName: toStringValue(c.category_name ?? c.categoryName),
+        subcategoryName: toStringValue(c.subcategory_name ?? c.subcategoryName),
+        grossAmount: toFloatValue(c.gross_amount ?? c.grossAmount),
+        gstAmount: toFloatValue(c.gst_amount ?? c.gstAmount),
+        netAmount: toFloatValue(c.net_amount ?? c.netAmount),
+        count: toNumberValue(c.count) ?? 0,
+      })),
+    totalGross: toFloatValue(raw.total_gross ?? raw.totalGross),
+    totalGst: toFloatValue(raw.total_gst ?? raw.totalGst),
+    totalNet: toFloatValue(raw.total_net ?? raw.totalNet),
+    count: toNumberValue(raw.count) ?? 0,
+  };
+}
+
+export async function getCorePersonalSummaryForProperty(
+  token: string,
+  propertyId: string,
+) {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
+export async function getCorePersonalSummaryForEntity(
+  token: string,
+  entityId: string,
+) {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
+}
+
+export async function getCorePersonalSummaryForClient(
+  token: string,
+  clientId: string,
+) {
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/personal-summary`,
+    { token },
+  );
+  return normalizeCorePersonalSummary(getJsonObject(payload));
 }
 
 // Narrows an untrusted query-param value to a CoreReviewStatus, or undefined
@@ -1401,6 +2381,7 @@ export function toCoreReviewStatusParam(
 ): CoreReviewStatus | undefined {
   const s = (value ?? "").trim().toLowerCase();
   if (
+    s === "active" ||
     s === "unreviewed" ||
     s === "reviewed" ||
     s === "approved" ||
@@ -1411,40 +2392,140 @@ export function toCoreReviewStatusParam(
   return undefined;
 }
 
+// GET /transactions — the org-wide list behind the "All Transactions" page.
+// This replaces a BFF fan-out that issued one upstream call per client, then
+// per entity, then per property, and merged every row in Node memory.
+export async function listCoreTransactionsForOrg(
+  token: string,
+  query: CoreTransactionListQuery = {},
+) {
+  const payload = await coreApiRequest(
+    `/transactions${transactionListQueryString(query)}`,
+    { token },
+  );
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
+}
+
 export async function listCoreTransactionsByClient(
   token: string,
   clientId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/clients/${encodeURIComponent(clientId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
 }
 
 export async function listCoreTransactionsByEntity(
   token: string,
   entityId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/entities/${encodeURIComponent(entityId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  const items = getJsonArray(payload).map(normalizeCoreTransactionListItem);
+  return toPaginated(payload, items, query.limit);
 }
 
 export async function listCoreTransactionsByProperty(
   token: string,
   propertyId: string,
-  reviewStatus?: CoreReviewStatus,
+  query: CoreTransactionListQuery = {},
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/transactions${reviewStatusQuery(reviewStatus)}`,
+    `/properties/${encodeURIComponent(propertyId)}/transactions${transactionListQueryString(query)}`,
     { token },
   );
-  return getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+  const items = getJsonArray(payload).map(normalizeCorePropertyTransactionRow);
+  return toPaginated(payload, items, query.limit);
+}
+
+// GET /transactions/facets — the filter dropdown options and the review-status
+// tab counts for a scope. Both used to be derived in the browser from the fully
+// loaded row array; under server pagination that array is one page, so they
+// need their own aggregate.
+export type CoreTransactionFacetOption = {
+  id: string;
+  name: string;
+  /** Categories only — lets the grid tint each option revenue/expense. */
+  type?: string;
+};
+
+export type CoreTransactionFacets = {
+  reviewStatusCounts: Record<string, number>;
+  clients: CoreTransactionFacetOption[];
+  entities: CoreTransactionFacetOption[];
+  properties: CoreTransactionFacetOption[];
+  categories: CoreTransactionFacetOption[];
+  types: string[];
+};
+
+function toFacetOptions(value: unknown): CoreTransactionFacetOption[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    .map((item) => {
+      const type = toStringValue(item.type);
+      return {
+        id: toStringValue(item.id),
+        name: toStringValue(item.name),
+        ...(type ? { type } : {}),
+      };
+    })
+    .filter((option) => option.id !== "");
+}
+
+export async function getCoreTransactionFacets(
+  token: string,
+  query: CoreTransactionListQuery = {},
+): Promise<CoreTransactionFacets> {
+  const payload = await coreApiRequest(
+    `/transactions/facets${transactionListQueryString(query)}`,
+    { token },
+  );
+  const record = getJsonObject(payload);
+
+  const counts: Record<string, number> = {};
+  const rawCounts = record.review_status_counts ?? record.reviewStatusCounts;
+  if (typeof rawCounts === "object" && rawCounts !== null) {
+    for (const [key, value] of Object.entries(rawCounts as RawRecord)) {
+      counts[key] = toNumberValue(value) ?? 0;
+    }
+  }
+
+  return {
+    reviewStatusCounts: counts,
+    clients: toFacetOptions(record.clients),
+    entities: toFacetOptions(record.entities),
+    properties: toFacetOptions(record.properties),
+    categories: toFacetOptions(record.categories),
+    types: Array.isArray(record.types)
+      ? record.types.map((t) => toStringValue(t)).filter(Boolean)
+      : [],
+  };
+}
+
+export type CoreTransactionExportFormat = "csv" | "xlsx" | "pdf";
+
+// Returns the upstream Response untouched so the BFF can stream the body
+// through instead of buffering an export in Node memory.
+export async function fetchCoreTransactionExport(
+  token: string,
+  format: CoreTransactionExportFormat,
+  query: CoreTransactionListQuery = {},
+): Promise<Response> {
+  const qs = transactionListQueryString({ ...query, limit: undefined, offset: undefined });
+  const separator = qs ? "&" : "?";
+  return fetch(
+    `${getCoreApiBaseUrl()}/transactions/export${qs}${separator}format=${encodeURIComponent(format)}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
 }
 
 export async function getCoreTransaction(token: string, id: string) {
@@ -1795,6 +2876,11 @@ export type ReconciliationSession = {
   periodTo: string | null;
   status: ReconciliationSessionStatus;
   statementCount: number;
+  /**
+   * Free-text name of the bank account being reconciled (migration 0047).
+   * `null` on a backend that predates the column, so render it as "—".
+   */
+  accountAffected: string | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -1806,6 +2892,7 @@ export type ReconciliationSessionDetail = ReconciliationSession & {
 
 function normalizeReconciliationSession(raw: RawRecord): ReconciliationSession {
   const status = raw.status === "completed" ? "completed" : "open";
+  const accountAffectedRaw = raw.account_affected ?? raw.accountAffected ?? null;
   return {
     id: String(raw.id ?? ""),
     entityId: String(raw.entity_id ?? raw.entityId ?? ""),
@@ -1813,6 +2900,10 @@ function normalizeReconciliationSession(raw: RawRecord): ReconciliationSession {
     periodFrom: raw.period_from != null ? String(raw.period_from) : null,
     periodTo: raw.period_to != null ? String(raw.period_to) : null,
     status,
+    accountAffected:
+      accountAffectedRaw != null && String(accountAffectedRaw) !== ""
+        ? String(accountAffectedRaw)
+        : null,
     statementCount: Number(raw.statement_count ?? raw.statementCount ?? 0),
     createdAt: String(raw.created_at ?? raw.createdAt ?? ""),
     updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ""),
@@ -1836,7 +2927,12 @@ export async function listReconciliationSessions(
 export async function createReconciliationSession(
   token: string,
   entityId: string,
-  body: { label: string; periodFrom?: string | null; periodTo?: string | null },
+  body: {
+    label: string;
+    periodFrom?: string | null;
+    periodTo?: string | null;
+    accountAffected?: string | null;
+  },
 ): Promise<ReconciliationSession> {
   const payload = await coreApiRequest(
     `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions`,
@@ -1847,6 +2943,9 @@ export async function createReconciliationSession(
         label: body.label,
         period_from: body.periodFrom ?? null,
         period_to: body.periodTo ?? null,
+        // Ignored by a Go binary that predates migration 0047 (unknown JSON
+        // keys are dropped), so this is safe to ship ahead of the backend.
+        account_affected: body.accountAffected ?? null,
       },
     },
   );
@@ -1881,6 +2980,7 @@ export async function updateReconciliationSession(
     periodFrom?: string | null;
     periodTo?: string | null;
     status?: ReconciliationSessionStatus;
+    accountAffected?: string | null;
   },
 ): Promise<ReconciliationSession> {
   const reqBody: Record<string, unknown> = {};
@@ -1888,11 +2988,288 @@ export async function updateReconciliationSession(
   if (body.periodFrom !== undefined) reqBody.period_from = body.periodFrom;
   if (body.periodTo !== undefined) reqBody.period_to = body.periodTo;
   if (body.status !== undefined) reqBody.status = body.status;
+  if (body.accountAffected !== undefined) {
+    reqBody.account_affected = body.accountAffected;
+  }
   const payload = await coreApiRequest(
     `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}`,
     { method: "PATCH", token, body: reqBody },
   );
   return normalizeReconciliationSession(getJsonObject(payload) as RawRecord);
+}
+
+// ── Account ledger ───────────────────────────────────────────────────────────
+//
+// The ledger is a statement-shaped view of a completed reconciliation: one row
+// per bank statement line, with a running balance anchored to the statement's
+// opening balance. Note these paths carry the `/api` prefix, matching the other
+// reconciliation endpoints upstream (the transaction endpoints do not).
+
+export type CoreLedgerMatchStatus = "confirmed" | "excluded" | "unmatched";
+
+export type CoreLedgerAccount = {
+  reconciliationId: string;
+  label: string;
+  bank: string;
+  accountNumber: string;
+  accountType: string;
+  holder: string;
+  openingBalance: number;
+  closingBalance: number;
+  /** False for every CSV-sourced statement — the parser stores no account
+   *  metadata, so the ledger has nothing to anchor its balance to until an
+   *  accountant sets one. The page prompts rather than showing a fake zero. */
+  hasOpeningBalance: boolean;
+  statementFrom: string;
+  statementTo: string;
+  lineCount: number;
+};
+
+export type CoreLedgerRow = {
+  bankTxIndex: number;
+  distributionAccount: string;
+  date: string;
+  transactionType: string | null;
+  transactionTypeLabel: string;
+  name: string;
+  description: string;
+  categoryId: number | null;
+  split: string;
+  subcategoryId: number | null;
+  subcategory: string;
+  amount: number;
+  balance: number;
+  transactionId: string | null;
+  matchStatus: CoreLedgerMatchStatus;
+  /** "active", "reviewed" or "approved" — the ledger excludes anything awaiting
+   *  review or rejected, so those three are all that can appear. */
+  reviewStatus: string;
+};
+
+export type CoreLedgerCategory = {
+  categoryId: number;
+  categoryName: string;
+  type: string;
+};
+
+export type CoreLedgerUnusedCategory = CoreLedgerCategory & { amount: number };
+
+export type CoreLedgerResponse = {
+  session: {
+    id: string;
+    label: string;
+    status: ReconciliationSessionStatus;
+    periodFrom: string | null;
+    periodTo: string | null;
+  };
+  accounts: CoreLedgerAccount[];
+  account: CoreLedgerAccount;
+  period: { from: string | null; to: string | null };
+  openingBalance: number;
+  statementOpeningBalance: number;
+  closingBalance: number;
+  rows: CoreLedgerRow[];
+  totals: { debits: number; credits: number; net: number };
+  categories: CoreLedgerCategory[];
+  unusedCategories: CoreLedgerUnusedCategory[];
+  total: number;
+  limit: number;
+  offset: number;
+  dateBasis: string;
+};
+
+export type CoreLedgerQuery = {
+  reconciliationId?: string;
+  from?: string;
+  to?: string;
+  categoryId?: number;
+  type?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export function ledgerQueryString(query: CoreLedgerQuery): string {
+  const sp = new URLSearchParams();
+  if (query.reconciliationId) sp.set("reconciliation_id", query.reconciliationId);
+  if (query.from) sp.set("from", query.from);
+  if (query.to) sp.set("to", query.to);
+  if (query.categoryId != null) sp.set("category_id", String(query.categoryId));
+  if (query.type) sp.set("type", query.type);
+  if (query.limit != null) sp.set("limit", String(query.limit));
+  if (query.offset != null) sp.set("offset", String(query.offset));
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
+
+function normalizeLedgerAccount(raw: RawRecord): CoreLedgerAccount {
+  return {
+    reconciliationId: String(raw.reconciliation_id ?? ""),
+    label: String(raw.label ?? ""),
+    bank: String(raw.bank ?? ""),
+    accountNumber: String(raw.account_number ?? ""),
+    accountType: String(raw.account_type ?? ""),
+    holder: String(raw.holder ?? ""),
+    openingBalance: Number(raw.opening_balance ?? 0),
+    closingBalance: Number(raw.closing_balance ?? 0),
+    hasOpeningBalance: Boolean(raw.has_opening_balance),
+    statementFrom: String(raw.statement_from ?? ""),
+    statementTo: String(raw.statement_to ?? ""),
+    lineCount: Number(raw.line_count ?? 0),
+  };
+}
+
+function normalizeLedgerRow(raw: RawRecord): CoreLedgerRow {
+  const status = String(raw.match_status ?? "unmatched");
+  return {
+    bankTxIndex: Number(raw.bank_tx_index ?? 0),
+    distributionAccount: String(raw.distribution_account ?? ""),
+    date: String(raw.date ?? ""),
+    transactionType: raw.transaction_type != null ? String(raw.transaction_type) : null,
+    transactionTypeLabel: String(raw.transaction_type_label ?? ""),
+    name: String(raw.name ?? ""),
+    description: String(raw.description ?? ""),
+    categoryId: raw.category_id != null ? Number(raw.category_id) : null,
+    split: String(raw.split ?? ""),
+    subcategoryId: raw.subcategory_id != null ? Number(raw.subcategory_id) : null,
+    subcategory: String(raw.subcategory ?? ""),
+    amount: Number(raw.amount ?? 0),
+    balance: Number(raw.balance ?? 0),
+    transactionId: raw.transaction_id != null ? String(raw.transaction_id) : null,
+    matchStatus:
+      status === "confirmed" || status === "excluded"
+        ? (status as CoreLedgerMatchStatus)
+        : "unmatched",
+    reviewStatus: String(raw.review_status ?? ""),
+  };
+}
+
+function normalizeLedgerCategory(raw: RawRecord): CoreLedgerCategory {
+  return {
+    categoryId: Number(raw.category_id ?? 0),
+    categoryName: String(raw.category_name ?? ""),
+    type: String(raw.type ?? ""),
+  };
+}
+
+export function normalizeCoreLedger(payload: RawRecord): CoreLedgerResponse {
+  const session = (payload.session ?? {}) as RawRecord;
+  const period = (payload.period ?? {}) as RawRecord;
+  const totals = (payload.totals ?? {}) as RawRecord;
+  const accounts = Array.isArray(payload.accounts)
+    ? (payload.accounts as RawRecord[]).map(normalizeLedgerAccount)
+    : [];
+
+  return {
+    session: {
+      id: String(session.id ?? ""),
+      label: String(session.label ?? ""),
+      status: session.status === "completed" ? "completed" : "open",
+      periodFrom: session.period_from != null ? String(session.period_from) : null,
+      periodTo: session.period_to != null ? String(session.period_to) : null,
+    },
+    accounts,
+    account: normalizeLedgerAccount((payload.account ?? {}) as RawRecord),
+    period: {
+      from: period.from != null ? String(period.from) : null,
+      to: period.to != null ? String(period.to) : null,
+    },
+    openingBalance: Number(payload.opening_balance ?? 0),
+    statementOpeningBalance: Number(payload.statement_opening_balance ?? 0),
+    closingBalance: Number(payload.closing_balance ?? 0),
+    rows: Array.isArray(payload.rows)
+      ? (payload.rows as RawRecord[]).map(normalizeLedgerRow)
+      : [],
+    totals: {
+      debits: Number(totals.debits ?? 0),
+      credits: Number(totals.credits ?? 0),
+      net: Number(totals.net ?? 0),
+    },
+    categories: Array.isArray(payload.categories)
+      ? (payload.categories as RawRecord[]).map(normalizeLedgerCategory)
+      : [],
+    unusedCategories: Array.isArray(payload.unused_categories)
+      ? (payload.unused_categories as RawRecord[]).map((r) => ({
+          ...normalizeLedgerCategory(r),
+          amount: Number(r.amount ?? 0),
+        }))
+      : [],
+    total: Number(payload.total ?? 0),
+    limit: Number(payload.limit ?? 0),
+    offset: Number(payload.offset ?? 0),
+    dateBasis: String(payload.date_basis ?? ""),
+  };
+}
+
+export async function fetchCoreLedger(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  query: CoreLedgerQuery = {},
+): Promise<CoreLedgerResponse> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger${ledgerQueryString(query)}`,
+    { token },
+  )) as RawRecord;
+  return normalizeCoreLedger(payload);
+}
+
+/**
+ * Returns the upstream Response untouched so the BFF can stream the body
+ * through instead of buffering an export in Node memory — same contract as
+ * fetchCoreTransactionExport.
+ */
+export async function fetchCoreLedgerExport(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  format: CoreTransactionExportFormat,
+  query: CoreLedgerQuery = {},
+): Promise<Response> {
+  const qs = ledgerQueryString({ ...query, limit: undefined, offset: undefined });
+  const separator = qs ? "&" : "?";
+  return fetch(
+    `${getCoreApiBaseUrl()}/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/export${qs}${separator}format=${encodeURIComponent(format)}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+export async function patchCoreLedgerEntryName(
+  token: string,
+  entityId: string,
+  sessionId: string,
+  bankTxIndex: number,
+  body: { reconciliationId: string; name: string },
+): Promise<{ bankTxIndex: number; name: string }> {
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliation-sessions/${encodeURIComponent(sessionId)}/ledger/entries/${bankTxIndex}`,
+    {
+      method: "PATCH",
+      token,
+      body: { reconciliation_id: body.reconciliationId, name: body.name },
+    },
+  )) as RawRecord;
+  return {
+    bankTxIndex: Number(payload.bank_tx_index ?? bankTxIndex),
+    name: String(payload.name ?? ""),
+  };
+}
+
+export async function patchCoreReconciliationAccount(
+  token: string,
+  entityId: string,
+  reconciliationId: string,
+  body: { bank?: string; accountNumber?: string; openingBalance?: number },
+): Promise<RawRecord> {
+  const reqBody: Record<string, unknown> = {};
+  if (body.bank !== undefined) reqBody.bank = body.bank;
+  if (body.accountNumber !== undefined) reqBody.account_number = body.accountNumber;
+  if (body.openingBalance !== undefined) reqBody.opening_balance = body.openingBalance;
+
+  const payload = (await coreApiRequest(
+    `/api/entities/${encodeURIComponent(entityId)}/reconciliations/${encodeURIComponent(reconciliationId)}/account`,
+    { method: "PATCH", token, body: reqBody },
+  )) as RawRecord;
+  return payload;
 }
 
 export async function listCoreTransactionCategories(
@@ -2209,4 +3586,839 @@ export async function listReportRules(token: string, q: ReportQuery = {}) {
     token,
   });
   return getJsonArray(payload).map(normalizeReportRule);
+}
+
+// =============================================================================
+// Depreciation (migration 0037)
+//
+// Schedules are computed and stored by the backend when an asset is saved. The
+// frontend never recalculates them: there used to be a second engine in
+// AssetDepreciationDetailPage.tsx and it disagreed with the backend about leap
+// years and about where a schedule ends. One engine, in Go.
+// =============================================================================
+
+export type CoreDepreciationMethod = "prime_cost" | "diminishing_value";
+
+export type CoreDepreciationYear = {
+  fyStartYear: number;
+  fyLabel: string;
+  periodStart: string;
+  periodEnd: string;
+  daysHeld: number;
+  openingAdjustableValue: number;
+  /** Annual percentage, e.g. 2.5 for capital works or 40 for a 5-year DV asset. */
+  rate: number;
+  depreciation: number;
+  closingAdjustableValue: number;
+  /** The year of purchase and the stub at the end of the effective life. */
+  isPartial: boolean;
+};
+
+export type CoreDepreciationSchedule = {
+  id: string;
+  transactionId: string;
+
+  /**
+   * The id the asset panels hold for this asset.
+   *
+   * A schedule hangs off the asset at MONEY grain, so on a part-private
+   * purchase it belongs to the business CHILD. The panels list transactions at
+   * display grain, which is the PARENT — so looking a panel row up by
+   * `transactionId` never matched and every part-private asset rendered "—"
+   * where its deduction belongs. Key by this instead.
+   *
+   * `transactionId` stays the money-grain id: it is what the per-transaction
+   * and rebuild endpoints address.
+   */
+  displayTransactionId: string;
+
+  propertyId: string;
+  propertyName: string;
+  entityId: string;
+  entityName: string;
+  clientId: string;
+
+  assetName: string;
+  assetClass: CoreAssetClass;
+  depreciationMethod: CoreDepreciationMethod;
+  effectiveLifeYears: number;
+  startDate: string;
+
+  costBase: number;
+  personalPercentage: number;
+  businessPercentage: number;
+  /** Cost base after the private-use portion is removed — what the engine ran on. */
+  depreciableAmount: number;
+  annualRate: number;
+
+  /** Whole-of-life figures; unaffected by any financial-year filter. */
+  totalDepreciation: number;
+  residualValue: number;
+  /** The selected year's claim, or null when no `fy` was requested. */
+  fyDepreciation: number | null;
+
+  /**
+   * Year ONE of the schedule, independent of any `fy` filter.
+   *
+   * This is the deduction the asset panels quote. They used to render the
+   * transaction's gross amount, which is the depreciable cost base — the price
+   * paid, not the amount claimable. `fyDepreciation` cannot stand in for it: a
+   * list of assets bought in different years has no single `fy` that means
+   * "year one" for all of them.
+   *
+   * Null when the schedule has no year rows yet, which is distinct from a
+   * genuine $0 claim.
+   */
+  firstYearDepreciation: number | null;
+  firstYearFyStartYear: number | null;
+  /** e.g. "FY 2026-27", for labelling the column. */
+  firstYearFyLabel: string;
+
+  documentId: string | null;
+  documentName: string;
+  generatedAt: string;
+
+  /** Populated by the per-transaction and single-schedule endpoints only. */
+  years: CoreDepreciationYear[];
+};
+
+export type CoreDepreciationTotals = {
+  assetCount: number;
+  capitalWorks: number;
+  capitalAllowances: number;
+  depreciation: number;
+  depreciableAmount: number;
+  closingValue: number;
+};
+
+export type CoreDepreciationList = {
+  scope: { level: string; id: string; name: string };
+  fyStartYear: number | null;
+  fyLabel: string;
+  totals: CoreDepreciationTotals;
+  items: CoreDepreciationSchedule[];
+};
+
+function toDepreciationMethod(value: unknown): CoreDepreciationMethod {
+  return value === "prime_cost" ? "prime_cost" : "diminishing_value";
+}
+
+function normalizeDepreciationYear(raw: RawRecord): CoreDepreciationYear {
+  return {
+    fyStartYear: toNumberValue(raw.fy_start_year ?? raw.fyStartYear) ?? 0,
+    fyLabel: toStringValue(raw.fy_label ?? raw.fyLabel),
+    periodStart: toStringValue(raw.period_start ?? raw.periodStart),
+    periodEnd: toStringValue(raw.period_end ?? raw.periodEnd),
+    daysHeld: toNumberValue(raw.days_held ?? raw.daysHeld) ?? 0,
+    openingAdjustableValue:
+      toFloatValue(raw.opening_adjustable_value ?? raw.openingAdjustableValue) ?? 0,
+    rate: toFloatValue(raw.rate) ?? 0,
+    depreciation: toFloatValue(raw.depreciation) ?? 0,
+    closingAdjustableValue:
+      toFloatValue(raw.closing_adjustable_value ?? raw.closingAdjustableValue) ?? 0,
+    isPartial: Boolean(raw.is_partial ?? raw.isPartial),
+  };
+}
+
+function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule {
+  const fyDep = toFloatValue(raw.fy_depreciation ?? raw.fyDepreciation);
+  const rawFirstYearDep =
+    raw.first_year_depreciation ?? raw.firstYearDepreciation;
+  return {
+    id: toStringValue(raw.id),
+    transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
+    // Falls back to the money-grain id so a response from a backend that
+    // predates the field still keys correctly for every asset that is not
+    // part-private — which is all of them until a split is entered.
+    displayTransactionId:
+      toStringValue(raw.display_transaction_id ?? raw.displayTransactionId) ||
+      toStringValue(raw.transaction_id ?? raw.transactionId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    propertyName: toStringValue(raw.property_name ?? raw.propertyName),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entityName: toStringValue(raw.entity_name ?? raw.entityName),
+    clientId: toStringValue(raw.client_id ?? raw.clientId),
+
+    assetName: toStringValue(raw.asset_name ?? raw.assetName),
+    assetClass: toAssetClass(raw.asset_class ?? raw.assetClass) ?? "capital_allowance",
+    depreciationMethod: toDepreciationMethod(
+      raw.depreciation_method ?? raw.depreciationMethod,
+    ),
+    effectiveLifeYears:
+      toFloatValue(raw.effective_life_years ?? raw.effectiveLifeYears) ?? 0,
+    startDate: toStringValue(raw.start_date ?? raw.startDate),
+
+    costBase: toFloatValue(raw.cost_base ?? raw.costBase) ?? 0,
+    personalPercentage:
+      toFloatValue(raw.personal_percentage ?? raw.personalPercentage) ?? 0,
+    businessPercentage:
+      toFloatValue(raw.business_percentage ?? raw.businessPercentage) ?? 100,
+    depreciableAmount:
+      toFloatValue(raw.depreciable_amount ?? raw.depreciableAmount) ?? 0,
+    annualRate: toFloatValue(raw.annual_rate ?? raw.annualRate) ?? 0,
+
+    totalDepreciation:
+      toFloatValue(raw.total_depreciation ?? raw.totalDepreciation) ?? 0,
+    residualValue: toFloatValue(raw.residual_value ?? raw.residualValue) ?? 0,
+    fyDepreciation: fyDep,
+
+    // Read through a null check rather than toFloatValue alone: that helper
+    // folds a missing value to 0, which would report "no schedule generated"
+    // as a $0 deduction.
+    firstYearDepreciation:
+      rawFirstYearDep == null ? null : toFloatValue(rawFirstYearDep),
+    firstYearFyStartYear: toNumberValue(
+      raw.first_year_fy_start_year ?? raw.firstYearFyStartYear,
+    ),
+    firstYearFyLabel: toStringValue(
+      raw.first_year_fy_label ?? raw.firstYearFyLabel,
+    ),
+
+    documentId: toStringValue(raw.document_id ?? raw.documentId) || null,
+    documentName: toStringValue(raw.document_name ?? raw.documentName),
+    generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
+
+    years: Array.isArray(raw.years)
+      ? raw.years.map((y) => normalizeDepreciationYear(getJsonObject(y)))
+      : [],
+  };
+}
+
+function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
+  const record = getJsonObject(payload);
+  const scope = getJsonObject(record.scope);
+  const totals = getJsonObject(record.totals);
+  return {
+    scope: {
+      level: toStringValue(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    fyStartYear: toNumberValue(record.fy_start_year ?? record.fyStartYear),
+    fyLabel: toStringValue(record.fy_label ?? record.fyLabel),
+    totals: {
+      assetCount: toNumberValue(totals.asset_count ?? totals.assetCount) ?? 0,
+      capitalWorks: toFloatValue(totals.capital_works ?? totals.capitalWorks) ?? 0,
+      capitalAllowances:
+        toFloatValue(totals.capital_allowances ?? totals.capitalAllowances) ?? 0,
+      depreciation: toFloatValue(totals.depreciation) ?? 0,
+      depreciableAmount:
+        toFloatValue(totals.depreciable_amount ?? totals.depreciableAmount) ?? 0,
+      closingValue: toFloatValue(totals.closing_value ?? totals.closingValue) ?? 0,
+    },
+    items: Array.isArray(record.items)
+      ? record.items.map((i) => normalizeDepreciationSchedule(getJsonObject(i)))
+      : [],
+  };
+}
+
+/** `fy` is the July side of the financial year: 2025 means FY 2025-26. */
+function fyQuery(fy?: number | null) {
+  return fy == null ? "" : `?fy=${encodeURIComponent(String(fy))}`;
+}
+
+export type CoreDepreciationScopeLevel =
+  | "transaction"
+  | "property"
+  | "entity"
+  | "client"
+  | "org";
+
+function depreciationScopePath(level: CoreDepreciationScopeLevel, id: string) {
+  const encoded = encodeURIComponent(id);
+  switch (level) {
+    case "transaction":
+      return `/transactions/${encoded}/depreciation`;
+    case "property":
+      return `/properties/${encoded}/depreciation`;
+    case "entity":
+      return `/entities/${encoded}/depreciation`;
+    // Org-wide takes no id: the backend reads the org from the caller's Cognito
+    // claims, so there is nothing to put in the path and `id` is ignored.
+    case "org":
+      return `/depreciation`;
+    default:
+      return `/clients/${encoded}/depreciation`;
+  }
+}
+
+export async function listCoreDepreciation(
+  token: string,
+  level: CoreDepreciationScopeLevel,
+  id: string,
+  fy?: number | null,
+): Promise<CoreDepreciationList> {
+  const payload = await coreApiRequest(
+    `${depreciationScopePath(level, id)}${fyQuery(fy)}`,
+    { token },
+  );
+  return normalizeDepreciationList(payload);
+}
+
+export async function getCoreDepreciationSchedule(
+  token: string,
+  scheduleId: string,
+  fy?: number | null,
+): Promise<CoreDepreciationSchedule> {
+  const payload = await coreApiRequest(
+    `/depreciation/${encodeURIComponent(scheduleId)}${fyQuery(fy)}`,
+    { token },
+  );
+  return normalizeDepreciationSchedule(getJsonObject(payload));
+}
+
+export async function rebuildCoreDepreciation(token: string, transactionId: string) {
+  await coreApiRequest(
+    `/transactions/${encodeURIComponent(transactionId)}/depreciation/rebuild`,
+    { method: "POST", token },
+  );
+}
+
+/**
+ * The generated schedule PDF, as a raw Response so the route handler can pipe
+ * the body straight through rather than buffering it — the same shape as
+ * fetchCoreTransactionExport.
+ */
+export async function fetchCoreDepreciationDocument(
+  token: string,
+  scheduleId: string,
+): Promise<Response> {
+  return fetch(
+    `${getCoreApiBaseUrl()}/depreciation/${encodeURIComponent(scheduleId)}/document`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+// =============================================================================
+// Journal entries and the Chart of Accounts
+// =============================================================================
+
+/** One row of the Chart of Accounts master (backend migration 0042). */
+export interface CoreChartAccount {
+  id: number;
+  accountCode: string;
+  accountName: string;
+  /** income | expense | asset | liability | equity */
+  category: string;
+  subcategory: string;
+  /** "debit" or "credit" — which direction increases this account. */
+  normalBalance: string;
+  isActive: boolean;
+  isSystem: boolean;
+  /**
+   * True for income/expense accounts, whose journal lines are projected into
+   * `transaction` and therefore reach P&L, All Transactions and the GST
+   * report. Balance-sheet accounts stay in the journal only — that is correct,
+   * not a gap.
+   */
+  postable: boolean;
+}
+
+/** One of the six approved GST codes. */
+export interface CoreGstCode {
+  code: string;
+  rate: number;
+  /** "sales" or "purchases" — must agree with the account's category. */
+  direction: string;
+  basReportable: boolean;
+  position: number;
+}
+
+export interface CoreJournalLine {
+  id: number;
+  lineNo: number;
+  chartOfAccountId: number;
+  accountCode: string;
+  accountName: string;
+  accountCategory: string;
+  propertyId: string | null;
+  propertyName: string | null;
+  debit: number;
+  credit: number;
+  gstCode: string | null;
+  gstAmount: number;
+  description: string | null;
+  name: string | null;
+  posted: boolean;
+  postedTransactionId: string | null;
+  postedType: string | null;
+  postedGross: number | null;
+  postedNet: number | null;
+}
+
+export interface CoreJournalEntry {
+  id: string;
+  entryNo: string;
+  orgId: string;
+  entityId: string;
+  entryDate: string;
+  reference: string | null;
+  memo: string | null;
+  status: string;
+  source: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  isBalanced: boolean;
+  lines: CoreJournalLine[];
+  createdBy: string | null;
+  createdAt: string;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface CoreJournalEntrySummary {
+  id: string;
+  entryNo: string;
+  entityId: string;
+  entryDate: string;
+  reference: string | null;
+  memo: string | null;
+  status: string;
+  source: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  isBalanced: boolean;
+  propertyNames: string[];
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoreJournalEntryListQuery {
+  from?: string;
+  to?: string;
+  search?: string;
+  source?: string;
+  sort?: string;
+  dir?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CoreJournalImportIssue {
+  line: number;
+  field?: string;
+  reason: string;
+}
+
+export interface CoreImportedEntry {
+  index: number;
+  lines: number[];
+  status: string;
+  entryId?: string;
+  entryNo?: string;
+  entryDate: string;
+  reference?: string;
+  totalDebit: number;
+  totalCredit: number;
+  lineCount: number;
+  errors?: CoreJournalImportIssue[];
+}
+
+export interface CoreJournalImportResult {
+  dryRun: boolean;
+  imported: number;
+  failed: number;
+  entries: CoreImportedEntry[];
+  issues: CoreJournalImportIssue[];
+}
+
+export function normalizeCoreChartAccount(raw: RawRecord): CoreChartAccount {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    accountCode: toStringValue(raw.account_code ?? raw.accountCode),
+    accountName: toStringValue(raw.account_name ?? raw.accountName),
+    category: toStringValue(raw.category),
+    subcategory: toStringValue(raw.subcategory),
+    normalBalance: toStringValue(raw.normal_balance ?? raw.normalBalance),
+    isActive: raw.is_active !== false && raw.isActive !== false,
+    isSystem: raw.is_system === true || raw.isSystem === true,
+    postable: raw.postable === true,
+  };
+}
+
+export function normalizeCoreGstCode(raw: RawRecord): CoreGstCode {
+  return {
+    code: toStringValue(raw.code),
+    rate: toFloatValue(raw.rate),
+    direction: toStringValue(raw.direction),
+    basReportable: raw.bas_reportable !== false && raw.basReportable !== false,
+    position: toNumberValue(raw.position) ?? 0,
+  };
+}
+
+export function normalizeCoreJournalLine(raw: RawRecord): CoreJournalLine {
+  return {
+    id: toNumberValue(raw.id) ?? 0,
+    lineNo: toNumberValue(raw.line_no ?? raw.lineNo) ?? 0,
+    chartOfAccountId:
+      toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? 0,
+    accountCode: toStringValue(raw.account_code ?? raw.accountCode),
+    accountName: toStringValue(raw.account_name ?? raw.accountName),
+    accountCategory: toStringValue(raw.account_category ?? raw.accountCategory),
+    propertyId: toNullableString(raw.property_id ?? raw.propertyId),
+    propertyName: toNullableString(raw.property_name ?? raw.propertyName),
+    debit: toFloatValue(raw.debit),
+    credit: toFloatValue(raw.credit),
+    gstCode: toNullableString(raw.gst_code ?? raw.gstCode),
+    gstAmount: toFloatValue(raw.gst_amount ?? raw.gstAmount),
+    description: toNullableString(raw.description),
+    name: toNullableString(raw.name),
+    posted: raw.posted === true,
+    postedTransactionId: toNullableString(
+      raw.posted_transaction_id ?? raw.postedTransactionId,
+    ),
+    postedType: toNullableString(raw.posted_type ?? raw.postedType),
+    postedGross: toNullableNumber(raw.posted_gross ?? raw.postedGross),
+    postedNet: toNullableNumber(raw.posted_net ?? raw.postedNet),
+  };
+}
+
+export function normalizeCoreJournalEntry(raw: RawRecord): CoreJournalEntry {
+  const lines = Array.isArray(raw.lines) ? raw.lines : [];
+  return {
+    id: toStringValue(raw.id),
+    entryNo: toStringValue(raw.entry_no ?? raw.entryNo),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entryDate: toStringValue(raw.entry_date ?? raw.entryDate),
+    reference: toNullableString(raw.reference),
+    memo: toNullableString(raw.memo),
+    status: toStringValue(raw.status),
+    source: toStringValue(raw.source),
+    totalDebit: toFloatValue(raw.total_debit ?? raw.totalDebit),
+    totalCredit: toFloatValue(raw.total_credit ?? raw.totalCredit),
+    lineCount: toNumberValue(raw.line_count ?? raw.lineCount) ?? 0,
+    isBalanced: raw.is_balanced === true || raw.isBalanced === true,
+    lines: lines.map((l) => normalizeCoreJournalLine(toRecord(l))),
+    createdBy: toNullableString(raw.created_by ?? raw.createdBy),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedBy: toNullableString(raw.updated_by ?? raw.updatedBy),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export function normalizeCoreJournalEntrySummary(
+  raw: RawRecord,
+): CoreJournalEntrySummary {
+  return {
+    id: toStringValue(raw.id),
+    entryNo: toStringValue(raw.entry_no ?? raw.entryNo),
+    entityId: toStringValue(raw.entity_id ?? raw.entityId),
+    entryDate: toStringValue(raw.entry_date ?? raw.entryDate),
+    reference: toNullableString(raw.reference),
+    memo: toNullableString(raw.memo),
+    status: toStringValue(raw.status),
+    source: toStringValue(raw.source),
+    totalDebit: toFloatValue(raw.total_debit ?? raw.totalDebit),
+    totalCredit: toFloatValue(raw.total_credit ?? raw.totalCredit),
+    lineCount: toNumberValue(raw.line_count ?? raw.lineCount) ?? 0,
+    isBalanced: raw.is_balanced === true || raw.isBalanced === true,
+    propertyNames: toStringArray(raw.property_names ?? raw.propertyNames),
+    createdBy: toNullableString(raw.created_by ?? raw.createdBy),
+    createdByName: toNullableString(raw.created_by_name ?? raw.createdByName),
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+function normalizeCoreJournalIssue(raw: RawRecord): CoreJournalImportIssue {
+  return {
+    line: toNumberValue(raw.line) ?? 0,
+    field: toStringValue(raw.field) || undefined,
+    reason: toStringValue(raw.reason),
+  };
+}
+
+export function normalizeCoreJournalImportResult(
+  payload: unknown,
+): CoreJournalImportResult {
+  const raw = toRecord(payload);
+  const entries = Array.isArray(raw.entries) ? raw.entries : [];
+  const issues = Array.isArray(raw.issues) ? raw.issues : [];
+  return {
+    dryRun: raw.dry_run === true || raw.dryRun === true,
+    imported: toNumberValue(raw.imported) ?? 0,
+    failed: toNumberValue(raw.failed) ?? 0,
+    entries: entries.map((e) => {
+      const r = toRecord(e);
+      const errs = Array.isArray(r.errors) ? r.errors : [];
+      return {
+        index: toNumberValue(r.index) ?? 0,
+        lines: Array.isArray(r.lines)
+          ? r.lines.map((l) => toNumberValue(l) ?? 0)
+          : [],
+        status: toStringValue(r.status),
+        entryId: toStringValue(r.entry_id ?? r.entryId) || undefined,
+        entryNo: toStringValue(r.entry_no ?? r.entryNo) || undefined,
+        entryDate: toStringValue(r.entry_date ?? r.entryDate),
+        reference: toStringValue(r.reference) || undefined,
+        totalDebit: toFloatValue(r.total_debit ?? r.totalDebit),
+        totalCredit: toFloatValue(r.total_credit ?? r.totalCredit),
+        lineCount: toNumberValue(r.line_count ?? r.lineCount) ?? 0,
+        errors: errs.map((x) => normalizeCoreJournalIssue(toRecord(x))),
+      };
+    }),
+    issues: issues.map((x) => normalizeCoreJournalIssue(toRecord(x))),
+  };
+}
+
+export async function listCoreChartOfAccounts(
+  token: string,
+  query: { category?: string; search?: string; postable?: boolean } = {},
+): Promise<CoreChartAccount[]> {
+  const sp = new URLSearchParams();
+  if (query.category) sp.set("category", query.category);
+  if (query.search) sp.set("search", query.search);
+  if (query.postable) sp.set("postable", "true");
+  const qs = sp.toString();
+  const payload = await coreApiRequest(
+    `/chart-of-accounts${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreChartAccount);
+}
+
+export async function listCoreGstCodes(token: string): Promise<CoreGstCode[]> {
+  const payload = await coreApiRequest("/gst-codes", { token });
+  return getJsonArray(payload).map(normalizeCoreGstCode);
+}
+
+export async function listCoreJournalEntriesByEntity(
+  token: string,
+  entityId: string,
+  query: CoreJournalEntryListQuery = {},
+): Promise<CorePaginated<CoreJournalEntrySummary>> {
+  const sp = new URLSearchParams();
+  const put = (k: string, v: unknown) => {
+    if (v !== undefined && v !== null && v !== "") sp.set(k, String(v));
+  };
+  put("from", query.from);
+  put("to", query.to);
+  put("search", query.search);
+  put("source", query.source);
+  put("sort", query.sort);
+  put("dir", query.dir);
+  put("limit", query.limit);
+  put("offset", query.offset);
+  const qs = sp.toString();
+
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/journal-entries${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  const items = getJsonArray(payload).map(normalizeCoreJournalEntrySummary);
+  return toPaginated(payload, items, query.limit);
+}
+
+export async function createCoreJournalEntry(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/journal-entries`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function getCoreJournalEntry(
+  token: string,
+  entryId: string,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/journal-entries/${encodeURIComponent(entryId)}`,
+    { token },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function updateCoreJournalEntry(
+  token: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreJournalEntry> {
+  const payload = await coreApiRequest(
+    `/journal-entries/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreJournalEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreJournalEntry(
+  token: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(`/journal-entries/${encodeURIComponent(entryId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function importCoreJournalEntries(
+  token: string,
+  entityId: string,
+  body: Record<string, unknown>,
+  dryRun: boolean,
+): Promise<CoreJournalImportResult> {
+  const path = `/entities/${encodeURIComponent(entityId)}/journal-entries/import${
+    dryRun ? "/validate" : ""
+  }`;
+  const payload = await coreApiRequest(path, { method: "POST", token, body });
+  return normalizeCoreJournalImportResult(payload);
+}
+
+/** Raw General Ledger response, passed through with light normalisation. */
+export interface CoreGeneralLedgerRow {
+  date: string;
+  sourceKind: string;
+  sourceId: string;
+  reference: string;
+  description: string;
+  name: string;
+  contraAccounts: string[];
+  gstCode: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+  reviewStatus: string | null;
+  isAssetPurchase: boolean;
+}
+
+export interface CoreGeneralLedgerAccount {
+  accountCode: string;
+  accountName: string;
+  category: string;
+  subcategory: string;
+  normalBalance: string;
+  openingBalance: number;
+  closingBalance: number;
+  openingBalanceBasis: string;
+  debits: number;
+  credits: number;
+  rows: CoreGeneralLedgerRow[];
+}
+
+export interface CoreGeneralLedger {
+  scope: { level: string; id: string; name: string };
+  period: { financialYear: number; label: string; from: string; to: string };
+  account: CoreChartAccount | null;
+  dateBasis: string;
+  accounts: CoreGeneralLedgerAccount[];
+  totals: { debits: number; credits: number };
+  /**
+   * Debits minus credits across every account. Non-zero by design: ordinary
+   * transactions post only their P&L leg, with no cash or GST contra, so this
+   * report is account activity and not a trial balance. The gap is the value of
+   * all non-journalised activity, and it is shown rather than hidden.
+   */
+  unbalancedBy: number;
+  unmappedRowCount: number;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+function normalizeGeneralLedgerRow(raw: RawRecord): CoreGeneralLedgerRow {
+  return {
+    date: toStringValue(raw.date),
+    sourceKind: toStringValue(raw.source_kind ?? raw.sourceKind),
+    sourceId: toStringValue(raw.source_id ?? raw.sourceId),
+    reference: toStringValue(raw.reference),
+    description: toStringValue(raw.description),
+    name: toStringValue(raw.name),
+    contraAccounts: toStringArray(raw.contra_accounts ?? raw.contraAccounts),
+    gstCode: toNullableString(raw.gst_code ?? raw.gstCode),
+    debit: toFloatValue(raw.debit),
+    credit: toFloatValue(raw.credit),
+    balance: toFloatValue(raw.balance),
+    reviewStatus: toNullableString(raw.review_status ?? raw.reviewStatus),
+    isAssetPurchase:
+      raw.is_asset_purchase === true || raw.isAssetPurchase === true,
+  };
+}
+
+export function normalizeCoreGeneralLedger(payload: unknown): CoreGeneralLedger {
+  const raw = toRecord(payload);
+  const scope = toRecord(raw.scope);
+  const period = toRecord(raw.period);
+  const totals = toRecord(raw.totals);
+  const accounts = Array.isArray(raw.accounts) ? raw.accounts : [];
+
+  return {
+    scope: {
+      level: toStringValue(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: {
+      financialYear: toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+      label: toStringValue(period.label),
+      from: toStringValue(period.from),
+      to: toStringValue(period.to),
+    },
+    account: raw.account ? normalizeCoreChartAccount(toRecord(raw.account)) : null,
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    accounts: accounts.map((a) => {
+      const r = toRecord(a);
+      const rows = Array.isArray(r.rows) ? r.rows : [];
+      return {
+        accountCode: toStringValue(r.account_code ?? r.accountCode),
+        accountName: toStringValue(r.account_name ?? r.accountName),
+        category: toStringValue(r.category),
+        subcategory: toStringValue(r.subcategory),
+        normalBalance: toStringValue(r.normal_balance ?? r.normalBalance),
+        openingBalance: toFloatValue(r.opening_balance ?? r.openingBalance),
+        closingBalance: toFloatValue(r.closing_balance ?? r.closingBalance),
+        openingBalanceBasis: toStringValue(
+          r.opening_balance_basis ?? r.openingBalanceBasis,
+        ),
+        debits: toFloatValue(r.debits),
+        credits: toFloatValue(r.credits),
+        rows: rows.map((x) => normalizeGeneralLedgerRow(toRecord(x))),
+      };
+    }),
+    totals: {
+      debits: toFloatValue(totals.debits),
+      credits: toFloatValue(totals.credits),
+    },
+    unbalancedBy: toFloatValue(raw.unbalanced_by ?? raw.unbalancedBy),
+    unmappedRowCount: toNumberValue(raw.unmapped_row_count ?? raw.unmappedRowCount) ?? 0,
+    total: toNumberValue(raw.total) ?? 0,
+    limit: toNumberValue(raw.limit) ?? 0,
+    offset: toNumberValue(raw.offset) ?? 0,
+  };
+}
+
+export async function fetchCoreGeneralLedger(
+  token: string,
+  entityId: string,
+  query: Record<string, string> = {},
+): Promise<CoreGeneralLedger> {
+  const qs = new URLSearchParams(query).toString();
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/general-ledger${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return normalizeCoreGeneralLedger(payload);
+}
+
+/**
+ * Returns the raw upstream Response so the BFF can stream the body straight
+ * through instead of buffering a whole export in memory.
+ */
+export async function fetchCoreGeneralLedgerExport(
+  token: string,
+  entityId: string,
+  query: Record<string, string> = {},
+): Promise<Response> {
+  const qs = new URLSearchParams(query).toString();
+  return fetch(
+    `${getCoreApiBaseUrl()}/entities/${encodeURIComponent(entityId)}/general-ledger/export${qs ? `?${qs}` : ""}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
 }

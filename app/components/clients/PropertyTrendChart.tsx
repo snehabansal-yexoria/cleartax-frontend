@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { formatClientCurrency } from "./CurrencyFormatter";
+import { affectsPnl } from "@/src/lib/transactionTypes";
 import type { CorePropertyTransactionRow } from "@/src/lib/coreApi";
 
 interface PropertyTrendChartProps {
@@ -30,7 +31,12 @@ export default function PropertyTrendChart({ transactions }: PropertyTrendChartP
       const monthObj = months.find((m) => m.key === key);
       if (monthObj) {
         const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount || 0);
-        if (row.transactionType === "revenue") {
+        // Personal, cost base and contra are excluded: none of them is income
+        // or an expense, and the else branch used to count all three as
+        // expenses.
+        if (!affectsPnl(row.transactionType)) {
+          // nothing to plot
+        } else if (row.transactionType === "revenue") {
           monthObj.income += amount;
         } else {
           monthObj.expense += amount;

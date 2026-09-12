@@ -7,8 +7,10 @@ import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { affectsPnl } from "@/src/lib/transactionTypes";
 import type { CoreProperty, CoreEntity, CorePropertyTransactionRow } from "@/src/lib/coreApi";
 import PropertyTrendChart from "@/app/components/clients/PropertyTrendChart";
+import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -280,6 +282,10 @@ export default function ClientPropertyDetailPage() {
       })
       .reduce((sum, t) => {
         const amt = Math.abs(t.splitGrossAmount || t.transactionGrossAmount || 0);
+        // Only revenue and expense move net position. The ternary used to
+        // subtract everything that was not revenue, so a contra transfer — and
+        // personal spending, and capitalised cost base — all reduced it.
+        if (!affectsPnl(t.transactionType)) return sum;
         return t.transactionType === "revenue" ? sum + amt : sum - amt;
       }, 0);
   }, [transactions]);
@@ -305,7 +311,10 @@ export default function ClientPropertyDetailPage() {
       const monthObj = months.find((m) => m.key === key);
       if (monthObj) {
         const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount || 0);
-        if (row.transactionType === "revenue") {
+        if (!affectsPnl(row.transactionType)) {
+          // Not income and not an expense — a contra transfer, private
+          // spending or a capitalised cost. None of them belongs on this chart.
+        } else if (row.transactionType === "revenue") {
           monthObj.income += amount;
         } else {
           monthObj.expense += amount;
@@ -687,6 +696,16 @@ export default function ClientPropertyDetailPage() {
             )}
           </div>
 
+          {/* Depreciation.
+              Above Documents on purpose: the generated schedules also appear in
+              Documents as PDFs, and a client who has just read the year's
+              deduction here knows what the file in that list is. */}
+          <ClientDepreciationCard
+            level="property"
+            id={propertyId}
+            assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
+          />
+
           {/* Documents Card */}
           <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -1021,6 +1040,13 @@ export default function ClientPropertyDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Row 3, Col 1: Depreciation */}
+          <ClientDepreciationCard
+            level="property"
+            id={propertyId}
+            assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
+          />
 
           {/* Row 2, Col 2: Documents */}
           <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">

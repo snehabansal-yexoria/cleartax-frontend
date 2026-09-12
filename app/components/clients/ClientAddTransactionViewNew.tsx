@@ -15,9 +15,20 @@ import type {
   CoreTransactionType,
 } from "@/src/lib/coreApi";
 import {
+  TRANSACTION_TYPE_OPTIONS,
+  allowsAssetPurchase,
+  allowsBusinessExtras,
+  hidesCategoryPicker,
+  hidesSubcategoryPicker,
+  parseTransactionType,
+} from "@/src/lib/transactionTypes";
+import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
+import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
+import {
   DocumentDropZone,
   type ExtractedDocumentData,
   type ExtractedMeta,
+  type MatchedRule,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
 import {
@@ -1492,6 +1503,10 @@ export default function ClientAddTransactionViewNew({
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  // Kept from the upload so "Review & submit" can run the extraction that no
+  // longer happens at upload time.
+  const [documentS3Key, setDocumentS3Key] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Auto-calculate GST amount when GST Option or Gross Amount changes
   useEffect(() => {
@@ -1700,7 +1715,7 @@ export default function ClientAddTransactionViewNew({
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
       if (!cancelled) {
-        const items = data.items || [];
+        const items = withoutDedicatedFlowCategories(data.items || []);
         setCategories(items);
         const pending = pendingRuleRef.current;
         if (pending && items.some((c) => c.id === pending.categoryId)) {
@@ -1764,6 +1779,19 @@ export default function ClientAddTransactionViewNew({
       setIsAssetPurchase(false);
     }
   }, [isAssetPurchase, type]);
+
+  // Personal posts to the single seeded "Personal" category, so its picker is
+  // hidden and the category auto-selected. (Cost base keeps a visible category
+  // picker; its lone "General" subcategory is auto-selected by the subcategory
+  // loader above.)
+  // Filtered by type, never `categories[0]`: the list is refetched
+  // asynchronously on a type change, so index 0 can still hold the previous
+  // type's rows.
+  useEffect(() => {
+    if (!hidesCategoryPicker(type) || categoryId) return;
+    const match = firstCategoryOfType(categories, type);
+    if (match) setCategoryId(match.id);
+  }, [type, categories, categoryId]);
 
   useEffect(() => {
     if (!isAssetPurchase) {
@@ -1997,9 +2025,11 @@ export default function ClientAddTransactionViewNew({
       filled.add("subcategoryId");
     }
 
+    // parseTransactionType rather than an equality check on the two literals:
+    // the model answers "income" often enough, and that used to fall through
+    // and leave the type unset entirely.
     const effectiveType =
-      ruleType ??
-      (data.type === "expense" || data.type === "revenue" ? data.type : null);
+      ruleType ?? (data.type ? parseTransactionType(data.type) : null);
     if (effectiveType) {
       setType(effectiveType);
       filled.add("type");
@@ -2073,6 +2103,60 @@ export default function ClientAddTransactionViewNew({
     setWizardStep(3);
   };
 
+  /**
+   * Runs the extraction that used to fire automatically at upload.
+   *
+   * Uploads no longer extract — "Submit to accountant" must not spend a
+   * Bedrock call on a document the accountant will process later. So the
+   * "Review & submit" path, which genuinely needs the pre-filled values, runs
+   * it here instead. Returns an error message to display, or null on success.
+   */
+  const runExtraction = async (): Promise<string | null> => {
+    if (!token) return "You're signed out. Refresh and log in again.";
+    if (!documentS3Key || !documentId) return null; // nothing uploaded to read
+
+    setIsExtracting(true);
+    try {
+      const res = await fetch("/api/documents/extract", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          s3_key: documentS3Key,
+          ...(activeEntityId ? { entity_id: activeEntityId } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          message?: string;
+          error?: string;
+        } | null;
+        return (
+          data?.message ||
+          data?.error ||
+          `We couldn't read the document (${res.status}). Enter the details manually.`
+        );
+      }
+      const result = (await res.json()) as {
+        data?: ExtractedDocumentData;
+        matched_rule?: MatchedRule | null;
+      };
+      handleExtracted(result.data ?? {}, documentId, {
+        filename: uploadedFilename ?? "",
+        jobId: "",
+        matchedRule: result.matched_rule ?? null,
+      });
+      return null;
+    } catch (err) {
+      console.error("Extraction failed:", err);
+      return "We couldn't read the document. Enter the details manually.";
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   // POSTs a create-transaction body to the core API via the BFF. Returns an
   // error message to display, or null on success.
   const postTransaction = async (
@@ -2116,7 +2200,7 @@ export default function ClientAddTransactionViewNew({
     );
     if (!catRes.ok) return null;
     const catData = (await catRes.json()) as { items?: CoreTransactionCategory[] };
-    const category = catData.items?.[0];
+    const category = withoutDedicatedFlowCategories(catData.items || [])[0];
     if (!category) return null;
     const subRes = await fetch(
       `/api/transactions/categories/${category.id}/sub-categories`,
@@ -2141,13 +2225,14 @@ export default function ClientAddTransactionViewNew({
         setSubmitError("Select a property before submitting.");
         return;
       }
+
+      // No extraction has run on this path by design, so there is usually no
+      // amount to read — this is a placeholder the accountant fills in when
+      // they open it to review. A parsed amount is used only in the rare case
+      // where the client typed one before switching to this option.
       const grossNum = Number.parseFloat(grossAmount);
-      if (Number.isNaN(grossNum) || grossNum <= 0) {
-        setSubmitError(
-          "We couldn't read an amount from the document. Use 'Review & Submit' to enter it.",
-        );
-        return;
-      }
+      const placeholderGross =
+        Number.isNaN(grossNum) || grossNum <= 0 ? 0 : grossNum;
 
       const effectiveType: CoreTransactionType =
         type === "revenue" ? "revenue" : "expense";
@@ -2175,12 +2260,23 @@ export default function ClientAddTransactionViewNew({
         category_id: resolvedCategoryId,
         subcategory_id: resolvedSubcategoryId,
         invoice_date: invoiceDate || getLocalDateString(),
-        gross_amount: grossNum,
-        description: description.trim() || null,
+        gross_amount: placeholderGross,
+        // Falling back to the filename gives the accountant something to
+        // recognise in the queue before extraction has filled in the details.
+        description:
+          description.trim() || uploadedFilename || "Uploaded document",
         internal_remarks: internalRemarks.trim() || null,
         is_asset_purchase: false,
         splits: [{ property_id: propertyId, split_percentage: 100 }],
-        metadata: { source: "client_submit_invoice" },
+        // extraction_pending marks this as a placeholder: no extraction has
+        // run, so the amount and category are stand-ins. List rows carry
+        // metadata but not the document's status, so this is what the
+        // "Awaiting extraction" badge keys off. The accountant's save clears it.
+        metadata: { source: "client_submit_invoice", extraction_pending: true },
+        // This is the one path that asks for accountant sign-off, so it is the
+        // one path that puts the transaction in the review queue. "Review &
+        // submit" below saves it as 'active', same as an accountant's upload.
+        submit_for_review: true,
       };
       if (documentId) body.document_id = documentId;
       if (appliedRuleIdRef.current) body.rule_id = appliedRuleIdRef.current;
@@ -2225,7 +2321,7 @@ export default function ClientAddTransactionViewNew({
       );
       if (!res.ok) return null;
       const data = (await res.json()) as { items?: CoreTransactionCategory[] };
-      options = data.items || [];
+      options = withoutDedicatedFlowCategories(data.items || []);
       cache.set(importType, options);
     }
     if (!categoryName.trim()) return options[0]?.id ?? null;
@@ -2481,12 +2577,12 @@ export default function ClientAddTransactionViewNew({
         if (isAsset) {
           const rawClass = row.asset_class || "";
           body.asset_class = rawClass === "capital_works" ? "capital_works" : "capital_allowance";
-          if (row.asset_item_name) {
-            body.metadata = {
-              ...(body.metadata as Record<string, unknown> | undefined),
-              asset_item_name: row.asset_item_name.trim(),
-            };
+          // Same column-not-metadata rule as the single-transaction path above.
+          const csvAssetName = (row.asset_item_name || row.asset_name || "").trim();
+          if (!csvAssetName) {
+            throw new Error(`Row ${rowNumber}: asset purchases require an asset name.`);
           }
+          body.asset_name = csvAssetName;
           if (body.asset_class === "capital_allowance") {
             const lifeYears = Number.parseFloat(row.effective_life_years || row.life_years || "");
             if (Number.isNaN(lifeYears) || lifeYears <= 0) {
@@ -2529,7 +2625,11 @@ export default function ClientAddTransactionViewNew({
 
   async function resolveLockedCategorySelection() {
     if (!token || !lockAssetPurchaseCategory || categories.length === 0) return null;
-    const cat = categories[0];
+    // Resolved from the asset class, not `categories[0]`. The list endpoint
+    // sorts alphabetically, so index 0 was always "Advertising for Tenants" and
+    // every asset purchase was filed under it and posted to account 5070.
+    const cat = findAssetCategory(categories, assetClass);
+    if (!cat) return null;
     const catRes = await fetch(
       `/api/transactions/categories/${cat.id}/sub-categories`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -2690,12 +2790,17 @@ export default function ClientAddTransactionViewNew({
       };
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
-        if (assetItemName.trim()) {
-          body.metadata = {
-            ...(body.metadata as Record<string, unknown> | undefined),
-            asset_item_name: assetItemName.trim(),
-          };
+        // asset_name is a COLUMN (migration 0037) and the API rejects an asset
+        // purchase without it — "asset_name is required when
+        // is_asset_purchase=true" (validate.go). Writing it only into
+        // metadata.asset_item_name, as this form used to, made every asset the
+        // client portal created fail with a 400, and 0037 strips that key
+        // anyway.
+        if (!assetItemName.trim()) {
+          setSubmitError("Asset purchases need an asset name.");
+          return;
         }
+        body.asset_name = assetItemName.trim();
         if (assetClass === "capital_allowance") {
           const yearsNum = Number.parseFloat(effectiveLifeYears);
           if (Number.isNaN(yearsNum) || yearsNum <= 0) {
@@ -3255,11 +3360,31 @@ export default function ClientAddTransactionViewNew({
           <div style={{ width: '100%' }}>
             <DocumentDropZone
               token={token}
+              // Upload only. Which of the two options the client picks on step
+              // 3 decides whether extraction ever runs, so paying for it here
+              // would waste a Bedrock call on every "Submit to accountant".
+              deferExtraction
+              onUploaded={({ documentId: docId, s3Key, filename }) => {
+                setDocumentId(docId);
+                setDocumentS3Key(s3Key);
+                setUploadedFilename(filename);
+                setWizardStep(3);
+              }}
               onExtracted={(data, docId, meta) => {
                 handleExtracted(data, docId, meta);
                 setWizardStep(3);
               }}
-              scope={activeEntityId ? { entityId: activeEntityId } : undefined}
+              // Step 1 sets both ids off the picked property card, so the
+              // document is scoped to the same entity + property the
+              // transaction will carry.
+              scope={
+                activeEntityId
+                  ? {
+                    entityId: activeEntityId,
+                    ...(propertyId ? { propertyId } : {}),
+                  }
+                  : undefined
+              }
               isSubmitting={isSubmitting}
               submitError={submitError && !submitError.toLowerCase().includes("split") ? submitError : ""}
               primaryLabelText="Scan or upload invoice / receipt"
@@ -3471,13 +3596,19 @@ export default function ClientAddTransactionViewNew({
           {/* Option 2: Review & Submit */}
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               setIsEditingEntity(false);
               setIsEditingProperty(false);
               setSelectedMethod("review_submit");
+              setSubmitError("");
+              // This is the path that needs the extracted values, so run the
+              // extraction the upload skipped. A failure is non-blocking: the
+              // form still opens and the client types the details in.
+              const extractError = await runExtraction();
+              if (extractError) setSubmitError(extractError);
               setWizardStep("form");
             }}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isExtracting}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -3511,10 +3642,12 @@ export default function ClientAddTransactionViewNew({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
               <span style={{ fontSize: '17px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
-                Review & submit
+                {isExtracting ? "Reading your receipt…" : "Review & submit"}
               </span>
               <span style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#475467', lineHeight: '1.4' }}>
-                We've pre-filled the details from your receipt — check them and save.
+                {isExtracting
+                  ? "This takes a few seconds. We'll pre-fill what we find."
+                  : "We'll pre-fill the details from your receipt — check them and save."}
               </span>
             </div>
           </button>
@@ -3767,36 +3900,72 @@ export default function ClientAddTransactionViewNew({
               </div>
             </div>
 
-            {/* Row 2: Category and Sub-category */}
+            {/* Row 2: Transaction type. Kept on its own row so Category and
+                Sub-category below stay paired side by side — a third field in
+                that row wraps it onto two lines. The type is pre-filled from the
+                uploaded document or a matching rule, but the client can override
+                it; before this control existed the only way to get anything but
+                an expense was for OCR to say so. */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <StaticSelect
-                  label="Category"
+                  label="Transaction type"
                   required={true}
-                  placeholder="Select category"
-                  value={categoryId == null ? "" : String(categoryId)}
-                  options={categorySelectOptions}
-                  onChange={(value) => setCategoryId(value ? Number(value) : null)}
-                  disabled={lockAssetPurchaseCategory}
+                  placeholder="Select transaction type"
+                  value={type}
+                  options={TRANSACTION_TYPE_OPTIONS}
+                  onChange={(value) => {
+                    const nextType = parseTransactionType(value);
+                    setType(nextType);
+                    setCategoryId(null);
+                    setSubcategoryId(null);
+                    if (!allowsAssetPurchase(nextType)) {
+                      setIsAssetPurchase(false);
+                    }
+                  }}
                 />
               </div>
-
-              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <StaticSelect
-                  label="Sub-category"
-                  required={true}
-                  placeholder="Select sub-category"
-                  value={subcategoryId == null ? "" : String(subcategoryId)}
-                  options={subcategorySelectOptions}
-                  onChange={(value) =>
-                    setSubcategoryId(value ? Number(value) : null)
-                  }
-                  disabled={lockAssetPurchaseCategory}
-                />
-              </div>
+              <div aria-hidden="true" />
             </div>
 
-            {/* Row 3: Amount (AUD) and GST (optional) */}
+            {/* Row 3: Category and Sub-category — unchanged pair. Personal posts
+                to its single seeded category and cost base to a single "General"
+                subcategory, so those pickers are hidden and auto-selected. */}
+            {!hidesCategoryPicker(type) && (
+              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <StaticSelect
+                    label="Category"
+                    required={true}
+                    placeholder="Select category"
+                    value={categoryId == null ? "" : String(categoryId)}
+                    options={categorySelectOptions}
+                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                    disabled={lockAssetPurchaseCategory}
+                  />
+                </div>
+
+                {hidesSubcategoryPicker(type) ? (
+                  <div aria-hidden="true" />
+                ) : (
+                  <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <StaticSelect
+                      label="Sub-category"
+                      required={true}
+                      placeholder="Select sub-category"
+                      value={subcategoryId == null ? "" : String(subcategoryId)}
+                      options={subcategorySelectOptions}
+                      onChange={(value) =>
+                        setSubcategoryId(value ? Number(value) : null)
+                      }
+                      disabled={lockAssetPurchaseCategory}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Row 4: Amount (AUD) and GST (optional) */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className={`client-tx-field-group ${flashClass("grossAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
@@ -3856,7 +4025,9 @@ export default function ClientAddTransactionViewNew({
               </div>
             </div>
 
-            {/* Split Toggle Switch */}
+            {/* Split Toggle Switch — a personal transaction or a cost-base
+                entry belongs to one property, so it is not split. */}
+            {allowsBusinessExtras(type) && (
             <div className="client-tx-split-toggle-container" style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -3901,6 +4072,7 @@ export default function ClientAddTransactionViewNew({
                 }} />
               </label>
             </div>
+            )}
 
             {!isSplit && submitError && submitError.toLowerCase().includes("split") && (
               <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>

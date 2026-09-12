@@ -45,6 +45,7 @@ interface SearchSuggestion {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
+import { getAuthSession } from "../../src/lib/authToken";
 import { logout } from "../../src/lib/logout";
 import { normalizeRoleName } from "../../src/lib/roleNames";
 import {
@@ -478,7 +479,9 @@ export default function DashboardLayout({
           setOrganizationName(bootstrap.orgName);
         }
 
-        const session = (await getSession()) as SessionWithIdToken | null;
+        // getAuthSession primes the shared token cache, so every page hook
+        // that runs after this is a cache hit rather than its own decode.
+        const session = await getAuthSession();
 
         if (!session) {
           router.replace("/login");
@@ -487,6 +490,25 @@ export default function DashboardLayout({
 
         const idToken = session.getIdToken();
         const token = idToken.getJwtToken();
+
+        if (!bootstrap) {
+          // Cold load: let children mount now on the role claim, provided it
+          // agrees with the `role` cookie proxy.ts already admitted this
+          // request on. No security change — APIs authorise from the bearer
+          // token; `role` only picks menus. /api/users/me below stays
+          // authoritative and overwrites, exactly as it does for the
+          // sessionStorage bootstrap path.
+          const claimRole = normalizeRoleName(idToken.payload?.["custom:role"]);
+          const cookieMatch = /(?:^|;\s*)role=([^;]*)/.exec(document.cookie);
+          const cookieRole = cookieMatch
+            ? normalizeRoleName(decodeURIComponent(cookieMatch[1]))
+            : "unknown";
+          if (claimRole !== "unknown" && claimRole === cookieRole) {
+            setRole(claimRole);
+            const claimEmail = idToken.payload?.email;
+            if (typeof claimEmail === "string") setEmail(claimEmail);
+          }
+        }
 
         void fetch("/api/invitations/accept", {
           method: "POST",
@@ -650,7 +672,6 @@ export default function DashboardLayout({
 
     function handleClickOutside(event: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        console.log("Clicked outside global search! Closing suggestions.");
         setIsSearchFocused(false);
       }
     }
@@ -666,7 +687,6 @@ export default function DashboardLayout({
 
     function handleClickOutside(event: MouseEvent) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        console.log("Clicked outside accountant profile! Closing menu.");
         setIsAccountMenuOpen(false);
       }
     }
@@ -678,7 +698,6 @@ export default function DashboardLayout({
 
   // Compute and filter search suggestions on typing
   useEffect(() => {
-    console.log("Suggestions hook ran. isSearchFocused:", isSearchFocused, "role:", role, "query:", globalSearch);
     if (!isSearchFocused) {
       setSuggestions([]);
       return;
@@ -1074,31 +1093,6 @@ export default function DashboardLayout({
 
             <div className="accountant-topbar-actions">
               {isClientPage && <ThemeToggle />}
-              {isClientPage && (
-                <Link
-                  href="/dashboard/client/alerts"
-                  className="accountant-icon-button"
-                  aria-label="Notifications"
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: '6px',
-                      right: '6px',
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: '#f04438',
-                      border: '1.5px solid var(--surface-1)'
-                    }}
-                  />
-                </Link>
-              )}
               {/* <button
                 type="button"
                 className="accountant-icon-button"

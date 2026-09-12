@@ -33,6 +33,12 @@ export type MatchedRule = {
   assigned_category_id?: number;
   assigned_subcategory_id?: number;
   auto_confirm?: boolean;
+  /**
+   * A standing private-use portion — "this vendor is always 30% personal".
+   * Only ever pre-fills the Add Transaction form; the rule never writes a
+   * transaction itself, so the person saving it still sees and owns the split.
+   */
+  assigned_personal_percentage?: number | null;
 };
 
 export type ExtractedMeta = {
@@ -52,9 +58,19 @@ type Status =
 const ALLOWED_EXT = [".pdf", ".png", ".jpg", ".jpeg"];
 const ACCEPT_ATTR = ALLOWED_EXT.join(",");
 
+/** What the caller gets back when extraction is deferred. */
+export type UploadedDocumentInfo = {
+  documentId: string;
+  s3Key: string;
+  filename: string;
+  jobId: string;
+};
+
 export function DocumentDropZone({
   token,
   onExtracted,
+  onUploaded,
+  deferExtraction = false,
   scope,
   allowMultiple = false,
   isSubmitting = false,
@@ -73,6 +89,18 @@ export function DocumentDropZone({
     documentId: string,
     meta?: ExtractedMeta,
   ) => void;
+  /**
+   * Called instead of `onExtracted` when `deferExtraction` is set — the file is
+   * in S3 but Bedrock has not run. The caller decides when (or whether) to
+   * extract, using the returned `s3Key`.
+   */
+  onUploaded?: (info: UploadedDocumentInfo) => void;
+  /**
+   * Stop after the S3 upload rather than extracting. Used by the client's
+   * add-transaction wizard, where "Submit to accountant" must not burn a
+   * Bedrock call on a document the accountant will process later.
+   */
+  deferExtraction?: boolean;
   scope?: DocumentProcessingScope;
   allowMultiple?: boolean;
   isSubmitting?: boolean;
@@ -186,6 +214,10 @@ export function DocumentDropZone({
         document_type: "transaction",
       });
       if (scope?.entityId) presignParams.set("entity_id", scope.entityId);
+      // Presign cross-checks the two against each other and 400s on a
+      // mismatch, so sending both catches a bad entity/property pairing at
+      // upload rather than at transaction create.
+      if (scope?.propertyId) presignParams.set("property_id", scope.propertyId);
       const presignRes = await fetch(
         `/api/documents/presign?${presignParams.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } },
@@ -223,6 +255,52 @@ export function DocumentDropZone({
       });
       if (!putRes.ok) {
         throw new Error(`Upload to S3 failed (${putRes.status})`);
+      }
+
+      // Deferred mode: the bytes are in S3 and that is all we promise. Flag the
+      // document so "uploaded, extraction pending" is distinguishable from a
+      // presigned row whose upload never landed, then hand the caller the
+      // s3_key so it can extract later on its own terms.
+      if (deferExtraction) {
+        const statusRes = await fetch(
+          `/api/documents/${encodeURIComponent(document_id)}/status`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ status: "uploaded" }),
+          },
+        );
+        // A failed status write is cosmetic — the upload itself succeeded and
+        // the document simply stays 'pending', which the reviewer treats the
+        // same way. Don't fail the upload over it.
+        if (!statusRes.ok) {
+          console.warn(
+            `Could not mark document ${document_id} as uploaded (${statusRes.status})`,
+          );
+        }
+
+        upsertDocumentProcessingJob({
+          id: jobId,
+          filename: file.name,
+          documentId: document_id,
+          status: "uploaded",
+          progress: 100,
+          href,
+          scope,
+        });
+        onUploaded?.({
+          documentId: document_id,
+          s3Key: s3_key,
+          filename: file.name,
+          jobId,
+        });
+        setProgress(100);
+        setStatus("done");
+        setQueueDone((current) => Math.min(total, current + 1));
+        return;
       }
 
       updateStatus("extracting", 62, file.name, jobId, href);
@@ -364,56 +442,80 @@ export function DocumentDropZone({
         aria-busy={busy}
         style={style}
       >
-        {showProgress ? (
-          <>
-            <div className="transaction-document-drop__progress" />
-            <div className="transaction-document-drop__gif-container">
-              <img
-                src="/document-loading.gif"
-                alt="Document Loading Animation"
-                className="transaction-document-drop__gif"
-                width={150}
-                height={150}
+        {/* Left Side: Icon Container */}
+        <div className="transaction-document-drop__icon-wrap">
+          {activeStatus === "uploading" || activeStatus === "extracting" ? (
+            <div className="figma-uploader-icon">
+              <svg className="transaction-document-drop__spinner" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="spinner-bg" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </div>
+          ) : activeStatus === "done" ? (
+            <div className="figma-uploader-icon is-done">
+              <Lottie
+                animationData={transactionDocumentSuccessAnimation}
+                loop={false}
+                style={{ width: 28, height: 28 }}
               />
             </div>
-            <span className="transaction-document-drop__percentage-label">
-              {isSubmitting ? submitProgress : progress}%
-            </span>
-            <div className="transaction-document-drop__percentage-bar-outer">
-              <div
-                className="transaction-document-drop__percentage-bar-inner"
-                style={{ width: `${isSubmitting ? submitProgress : progress}%` }}
-              />
+          ) : activeStatus === "error" ? (
+            <div className="figma-uploader-icon is-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
             </div>
-          </>
-        ) : activeStatus === "done" ? (
-          <span className="transaction-document-drop__lottie" aria-hidden="true">
-            <Lottie
-              animationData={transactionDocumentSuccessAnimation}
-              loop={false}
-            />
-          </span>
-        ) : (
-          (!hideIconOnIdle || activeStatus !== "idle") && (
+          ) : (!hideIconOnIdle || activeStatus !== "idle") && (
             activeStatus === "idle" && customIcon ? (
               customIcon
             ) : (
-              <span>{iconForStatus(activeStatus)}</span>
+              <div className="figma-uploader-icon">
+                {iconForStatus(activeStatus)}
+              </div>
             )
-          )
-        )}
-        <strong style={strongStyle}>
-          {isSubmitting ? "Adding Transaction…" : (primaryLabelText && activeStatus === "idle" ? primaryLabelText : primaryLabel(activeStatus, filename))}
-        </strong>
-        <small style={smallStyle}>
-          {isSubmitting ? "Writing record to secure ledger…" : (secondaryLabelText && activeStatus === "idle" ? secondaryLabelText : secondaryLabel(activeStatus, activeError, allowMultiple))}
-        </small>
-        {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
-          <div>
-            {filename}
-            {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
+          )}
+        </div>
+
+        {/* Middle: Texts */}
+        <div className="transaction-document-drop__text-container">
+          <strong style={strongStyle}>
+            {isSubmitting ? "Adding Transaction…" : (primaryLabelText && activeStatus === "idle" ? primaryLabelText : primaryLabel(activeStatus, filename))}
+          </strong>
+          <small style={smallStyle}>
+            {isSubmitting ? "Writing record to secure ledger…" : (secondaryLabelText && activeStatus === "idle" ? secondaryLabelText : secondaryLabel(activeStatus, activeError, allowMultiple))}
+          </small>
+          {filename && (status === "uploading" || status === "extracting" || status === "done") ? (
+            <div className="transaction-document-drop__filename">
+              {filename}
+              {queueTotal > 1 ? ` (${Math.min(queueDone + 1, queueTotal)} of ${queueTotal})` : ""}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Right Side: Interactive Button/Progress Badge */}
+        {activeStatus === "uploading" || activeStatus === "extracting" ? (
+          <div className="transaction-document-drop__progress-badge">
+            {isSubmitting ? submitProgress : progress}%
           </div>
-        ) : null}
+        ) : activeStatus === "done" ? (
+          <div className="transaction-document-drop__status-badge is-done">Ready</div>
+        ) : activeStatus === "error" ? (
+          <div className="transaction-document-drop__status-badge is-error">Retry</div>
+        ) : (
+          <div className="transaction-document-drop__choose-btn">Choose File</div>
+        )}
+
+        {/* Thin bottom progress bar during loading */}
+        {(activeStatus === "uploading" || activeStatus === "extracting") && (
+          <div className="transaction-document-drop__bottom-bar">
+            <div
+              className="transaction-document-drop__bottom-bar-inner"
+              style={{ width: `${isSubmitting ? submitProgress : progress}%` }}
+            />
+          </div>
+        )}
       </button>
       <input
         ref={inputRef}

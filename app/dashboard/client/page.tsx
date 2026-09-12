@@ -10,7 +10,14 @@ import { logout } from "@/src/lib/logout";
 import { getSession } from "@/src/lib/session";
 import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
+import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
+import {
+  ReviewQueueCount,
+  ReviewStatusBadge,
+} from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
+import PaymentAlerts from "@/app/components/clients/PaymentAlerts";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
@@ -419,12 +426,19 @@ export default function ClientPage() {
 
   const activityItems = transactions.slice(0, 5).map(tx => ({
     id: tx.id,
-    description: tx.description || `${tx.type === "revenue" ? "Income" : "Expense"} - ${tx.categoryName}`,
+    description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
     categoryName: tx.categoryName,
     meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
     type: tx.type,
     amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
+    awaitingReview: isAwaitingReview(tx.reviewStatus),
+    awaitingExtraction: isAwaitingExtraction(tx.metadata),
   }));
+
+  // What the client has sent to their accountant and is still waiting on.
+  const awaitingReviewCount = transactions.filter(tx =>
+    isAwaitingReview(tx.reviewStatus),
+  ).length;
 
   const entityListItems = entities.map(entity => {
     const entityProperties = properties.filter(p => p.entityId === entity.id);
@@ -576,7 +590,7 @@ export default function ClientPage() {
       <Skeleton
         name="client-portfolio-page"
         loading={isLoading}
-        fallback={<ClientPortfolioSkeleton />}
+        fallback={<ClientPortfolioSkeleton isMobile={true} activeTab={activeTab} activeMobileView={activeMobileView} />}
       >
         <div className="mobile-client-dashboard">
           {/* Header */}
@@ -590,13 +604,6 @@ export default function ClientPage() {
             </div>
             <div className="m-db-actions-section">
               <ThemeToggle />
-              <Link href="/dashboard/client/alerts" className="m-db-bell-btn" aria-label="Notifications" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'inherit' }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="m-db-bell-dot" />
-              </Link>
               <Link href="/dashboard/client/profile" className="m-db-avatar-circle" style={{ textDecoration: 'none' }}>
                 {userInitials}
               </Link>
@@ -729,6 +736,11 @@ export default function ClientPage() {
                 </div>
               </div>
 
+              {/* Payment Alerts Section */}
+              <div className="m-db-activity-section">
+                <PaymentAlerts />
+              </div>
+
               {/* Stacked Bar Chart Card */}
               <div className="m-db-chart-card">
                 <div className="m-db-chart-header">
@@ -795,7 +807,10 @@ export default function ClientPage() {
               {/* Recent Activity Card */}
               <div className="m-db-activity-section">
                 <div className="m-db-activity-header">
-                  <h3 className="m-db-activity-title">Recent activity</h3>
+                  <h3 className="m-db-activity-title">
+                    Recent activity
+                    <ReviewQueueCount count={awaitingReviewCount} />
+                  </h3>
                   <button
                     type="button"
                     className="m-db-activity-view-all"
@@ -840,6 +855,10 @@ export default function ClientPage() {
                             <span className="m-db-activity-meta">
                               {item.categoryName} - {item.meta}
                             </span>
+                            <ReviewStatusBadge
+                              awaitingReview={item.awaitingReview}
+                              awaitingExtraction={item.awaitingExtraction}
+                            />
                           </div>
                         </div>
                         <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
@@ -1097,7 +1116,7 @@ export default function ClientPage() {
     <Skeleton
       name="client-portfolio-page"
       loading={isLoading}
-      fallback={<ClientPortfolioSkeleton />}
+      fallback={<ClientPortfolioSkeleton isMobile={false} activeTab={activeTab} activeMobileView={activeMobileView} />}
     >
       <div className="desktop-client-dashboard">
 
@@ -1256,10 +1275,18 @@ export default function ClientPage() {
             />
           </div>
 
-          {/* Recent Activity card */}
+          {/* Payment Alerts card in place of Recent Activity */}
           <div className="col-span-1 order-3 xl:order-2 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+            <PaymentAlerts />
+          </div>
+
+          {/* Recent Activity card where By Entity card was */}
+          <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[#101828] text-base font-bold">Recent Activity</h3>
+              <h3 className="text-[#101828] text-base font-bold">
+                Recent Activity
+                <ReviewQueueCount count={awaitingReviewCount} />
+              </h3>
             </div>
 
             <div className="flex flex-col divide-y divide-[#f2f4f7]">
@@ -1296,78 +1323,15 @@ export default function ClientPage() {
                         <span className="text-[#667085] text-[11px] truncate">
                           {item.categoryName} · {item.meta}
                         </span>
+                        <ReviewStatusBadge
+                          awaitingReview={item.awaitingReview}
+                          awaitingExtraction={item.awaitingExtraction}
+                        />
                       </div>
                     </div>
                     <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
                       {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                     </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* By Entity Section */}
-          <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-[#101828] text-base font-bold">By entity</h3>
-              {entities.length > 0 && (
-                <Link href="/dashboard/client/entities" className="text-[#175cd3] text-xs font-bold hover:underline">
-                  View all
-                </Link>
-              )}
-            </div>
-
-            <div className="flex flex-col divide-y divide-[#f2f4f7]">
-              {entityListItems.length === 0 ? (
-                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#98a2b3]">
-                    <path d="M3 21h18" />
-                    <path d="M3 10h18" />
-                    <path d="M5 6h14" />
-                    <path d="M4 10v11" />
-                    <path d="M20 10v11" />
-                  </svg>
-                  <span className="text-sm font-semibold">No entities available</span>
-                  <span className="text-xs text-[#98a2b3] mt-1">Create an entity to get started.</span>
-                </div>
-              ) : (
-                entityListItems.map((item) => (
-                  <div key={item.id}>
-                    {item.propertiesCount === 0 ? (
-                      <div className="py-4 flex justify-between items-center">
-                        <span className="text-[#101828] text-[14px] font-bold">{item.name}</span>
-                        <span className="text-[#8c9ba5] text-xs font-semibold">No properties yet</span>
-                      </div>
-                    ) : (
-                      <div className="py-4 flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <Link
-                            href={`/dashboard/client/entities/${item.id}`}
-                            className="text-[#101828] text-[14px] font-bold hover:underline"
-                          >
-                            {item.name}
-                          </Link>
-                          <span className="text-[#12b76a] text-[14px] font-bold">{formatCurrencyShort(item.netPosition)}</span>
-                        </div>
-
-                        <p className="text-[#667085] text-xs m-0">
-                          {item.propertiesCount} propert{item.propertiesCount === 1 ? 'y' : 'ies'}
-                        </p>
-
-                        <div className="h-2 w-full bg-[var(--accent)] rounded-full overflow-hidden my-1 relative">
-                          <div
-                            className="h-full bg-[var(--brand)] transition-all duration-300"
-                            style={{ width: `${Math.min(item.loanPercentage, 100)}%` }}
-                          />
-                        </div>
-
-                        <div className="flex justify-between text-[#475467] text-xs font-medium">
-                          <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                          <span>Equity <strong className="text-[#101828]">{formatCurrencyShort(item.netPosition)}</strong></span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))
               )}
