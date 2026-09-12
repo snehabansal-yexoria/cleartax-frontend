@@ -137,59 +137,6 @@ function gridAmounts(
   };
 }
 
-/**
- * The This FY Depreciation cell: the deduction claimable in the current
- * financial year, which is the figure that goes on the return being prepared.
- *
- * Year one is printed in Gross and Net instead (see gridAmounts). The two
- * coincide only for an asset bought this year — under diminishing value they
- * diverge immediately afterwards, and for an asset bought three years ago year
- * one is history.
- *
- * Three distinct states, and they must not collapse into one:
- *   - not an asset purchase  -> blank, no column noise on ordinary rows
- *   - an asset with a schedule -> the amount and its financial year
- *   - an asset with no schedule -> "—", meaning "not yet generated", not "$0"
- */
-function DepreciationCell({
-  row,
-  deduction,
-}: {
-  row: DisplayTransactionRow;
-  deduction?: FirstYearDeduction;
-}) {
-  if (!row.isAssetPurchase) return null;
-  if (!deduction) {
-    return (
-      <span className="transaction-depreciation-empty" title="No depreciation schedule yet">
-        —
-      </span>
-    );
-  }
-  // Nothing claimable this year: the schedule either starts later or has run
-  // out of effective life. Rendered as "—", never $0 — on a tax screen those
-  // are different claims.
-  if (deduction.currentFyAmount == null) {
-    return (
-      <span
-        className="transaction-depreciation-empty"
-        title={`No deduction in ${deduction.currentFyLabel}`}
-      >
-        —
-      </span>
-    );
-  }
-  return (
-    <span
-      className="transaction-depreciation"
-      title={`Deduction claimable in ${deduction.currentFyLabel}`}
-    >
-      {formatCurrency(deduction.currentFyAmount)}
-      <small className="transaction-depreciation-fy">{deduction.currentFyLabel}</small>
-    </span>
-  );
-}
-
 type DisplayTransactionRow = CoreTransactionListItem;
 type TransactionModalMode = "view" | "edit";
 type TransactionReviewAction = "approve" | "reject" | "reset";
@@ -2599,24 +2546,21 @@ function TransactionTable({
   selection?: TableSelection;
   /**
    * Deductions per DISPLAY-grain transaction id, from
-   * `useFirstYearDepreciation`. Drives both the This FY column and the
-   * year-one figure printed in Gross and Net on asset rows (gridAmounts).
-   * Omitted where no endpoint can serve it, in which case no column is
-   * rendered and every row shows its stored amounts.
+   * `useFirstYearDepreciation`. Drives the year-one figure printed in Gross
+   * and Net on asset rows (gridAmounts); there is no depreciation column of
+   * its own. Omitted where no endpoint can serve it, in which case every row
+   * shows its stored amounts.
    */
   firstYearDepreciation?: Map<string, FirstYearDeduction>;
 }) {
   const showClientName = scope === "global";
   const showEntityName = scope !== "entity";
-  const showDepreciation = firstYearDepreciation !== undefined;
   const canExpand = Boolean(onToggleExpand);
   // Child rows span the full table, so the count has to track the optional
   // columns or the indented row stops short of the right edge.
   const columnCount =
     9 + (showClientName ? 1 : 0) + (showEntityName ? 1 : 0) +
-    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0) +
-    // One column, This FY. Year one is printed inside Gross and Net.
-    (showDepreciation ? 1 : 0);
+    (showClientShare ? 1 : 0) + (canExpand ? 1 : 0) + (selection ? 1 : 0);
   const [hoveredDescription, setHoveredDescription] = useState<{
     text: string;
     x: number;
@@ -2647,11 +2591,6 @@ function TransactionTable({
               <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
               <th style={{ textAlign: "right" }}>GST</th>
               <SortableTh label="Net" sortKey="net" handlers={sortHandlers} align="right" />
-              {showDepreciation ? (
-                <th style={{ textAlign: "right" }} title="Deduction claimable in the current financial year">
-                  This FY Depreciation
-                </th>
-              ) : null}
               {showClientShare ? (
                 <SortableTh label="Client Share" sortKey="share" handlers={sortHandlers} align="right" />
               ) : null}
@@ -2790,11 +2729,6 @@ function TransactionTable({
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
                     </td>
-                    {showDepreciation ? (
-                      <td style={{ textAlign: "right" }}>
-                        <DepreciationCell row={row} deduction={firstYearDepreciation?.get(row.id)} />
-                      </td>
-                    ) : null}
                     {showClientShare ? (
                       <td style={{ textAlign: "right" }}>
                         {row.clientShareNet != null

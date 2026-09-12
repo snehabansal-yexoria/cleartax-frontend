@@ -128,20 +128,6 @@ export type FirstYearDeduction = {
   amount: number;
   /** e.g. "FY 2026-27" — which year the figure belongs to. */
   fyLabel: string;
-  /**
-   * Deduction for the CURRENT financial year, and the number that actually goes
-   * on this year's return.
-   *
-   * Year one is only the claimable figure for an asset bought this year. For
-   * one bought three years ago it is history — the schedule has moved on, and
-   * under diminishing value the two differ substantially. Null when the asset's
-   * schedule has no row for this year: either it starts later, or its effective
-   * life has run out and there is nothing left to claim. Null is rendered as
-   * "—", never as $0, because those mean different things on a tax screen.
-   */
-  currentFyAmount: number | null;
-  /** e.g. "FY 2026-27" for the current year. Always present. */
-  currentFyLabel: string;
 };
 
 export type UseFirstYearDepreciationResult = {
@@ -181,19 +167,14 @@ export function useFirstYearDepreciation(
   id: string,
   options: { enabled?: boolean } = {},
 ): UseFirstYearDepreciationResult {
-  // Asking for the current financial year costs nothing extra: `first_yr` is
-  // projected by scheduleSelect regardless, and the ?fy= LATERAL is a LEFT JOIN
-  // with no WHERE clause, so it ADDS this year's figure without dropping any
-  // schedule. One request returns both columns.
-  const currentFy = useMemo(() => currentAuFyStartYear(), []);
-
+  // No ?fy= here: `first_yr` is projected by scheduleSelect regardless, and
+  // nothing on the grid reads a current-year figure any more (the This FY
+  // Depreciation column was removed 2026-09-12).
   const { data, isLoading, error } = useDepreciation(level, id, {
     enabled: options.enabled ?? true,
-    fy: currentFy,
   });
 
   const byTransactionId = useMemo(() => {
-    const currentFyLabel = `FY ${currentFy}-${String((currentFy + 1) % 100).padStart(2, "0")}`;
     const out = new Map<string, FirstYearDeduction>();
     for (const item of data?.items ?? []) {
       // A schedule with no year-one row has not been generated yet. Skipped
@@ -202,25 +183,16 @@ export function useFirstYearDepreciation(
       const key = item.displayTransactionId || item.transactionId;
       const existing = out.get(key);
 
-      // Summed across schedules, as year one is: an asset split over two
-      // properties has one schedule each, and the panels quote the whole asset
-      // at entity and client level. Stays null while every contributing
-      // schedule is null, so "no claim this year" never becomes $0.
-      const fyPart = item.fyDepreciation;
-      const currentFyAmount =
-        fyPart == null
-          ? (existing?.currentFyAmount ?? null)
-          : (existing?.currentFyAmount ?? 0) + fyPart;
-
+      // Summed across schedules: an asset split over two properties has one
+      // schedule each, and the panels quote the whole asset at entity and
+      // client level.
       out.set(key, {
         amount: (existing?.amount ?? 0) + item.firstYearDepreciation,
         fyLabel: existing?.fyLabel || item.firstYearFyLabel,
-        currentFyAmount,
-        currentFyLabel,
       });
     }
     return out;
-  }, [data, currentFy]);
+  }, [data]);
 
   return { byTransactionId, isLoading, error };
 }
