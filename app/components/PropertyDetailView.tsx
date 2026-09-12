@@ -74,14 +74,139 @@ const GST_QUARTER_LABELS: Record<number, string> = {
  *
  * `entryId` empty means the row exists only in the browser and has never been
  * saved; the save POSTs those and PATCHes the rest.
+ *
+ * `amount` is the gross (GST-inclusive) figure and `gst` the GST inside it;
+ * the Net Total column is derived from the two at render time and never
+ * stored on the row, so it cannot drift from what was typed.
  */
 type FundingRow = {
   key: string;
   entryId: string;
   name: string;
   amount: string;
+  gst: string;
   description: string;
 };
+
+function fundingRowGross(row: FundingRow): number {
+  return parseFloat(row.amount) || 0;
+}
+
+function fundingRowGst(row: FundingRow): number {
+  return parseFloat(row.gst) || 0;
+}
+
+function fundingRowNet(row: FundingRow): number {
+  return fundingRowGross(row) - fundingRowGst(row);
+}
+
+function formatAud(value: number): string {
+  return `A$ ${value.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Every money figure on the Property Cost Base screen is a gross / GST / net
+ * triple, and every total is taken column by column so gross is only ever
+ * added to gross. The old grand total added the auto-filled NET to the manual
+ * GROSS, a number that matched neither column.
+ */
+type MoneyTriple = { gross: number; gst: number; net: number };
+
+const ZERO_TRIPLE: MoneyTriple = { gross: 0, gst: 0, net: 0 };
+
+function addTriples(a: MoneyTriple, b: MoneyTriple): MoneyTriple {
+  return { gross: a.gross + b.gross, gst: a.gst + b.gst, net: a.net + b.net };
+}
+
+function subtractTriples(a: MoneyTriple, b: MoneyTriple): MoneyTriple {
+  return { gross: a.gross - b.gross, gst: a.gst - b.gst, net: a.net - b.net };
+}
+
+function sumTriples(rows: MoneyTriple[]): MoneyTriple {
+  return rows.reduce(addTriples, ZERO_TRIPLE);
+}
+
+function fundingRowTriple(row: FundingRow): MoneyTriple {
+  return { gross: fundingRowGross(row), gst: fundingRowGst(row), net: fundingRowNet(row) };
+}
+
+/**
+ * One manually estimated cost base line. Browser state only: these rows have
+ * no table behind them yet. Net is derived from gross and GST at render time,
+ * the same way the funding table works, so the three cannot disagree.
+ */
+type ManualCostBaseRow = {
+  id: string;
+  category: string;
+  description: string;
+  gross: string;
+  gst: string;
+};
+
+function manualCostBaseRowTriple(row: ManualCostBaseRow): MoneyTriple {
+  const gross = parseFloat(row.gross) || 0;
+  const gst = parseFloat(row.gst) || 0;
+  return { gross, gst, net: gross - gst };
+}
+
+const TRIPLE_COLUMN_HEADERS = ["Total Gross", "Total GST", "Total Net"] as const;
+
+/**
+ * A stacked summary of money triples: a column header row, one row per
+ * figure, a divider, then the emphasised result row. Renders the dark Grand
+ * Total card and the light Settlement Difference box from the same layout so
+ * the three columns line up identically in both.
+ */
+function TripleSummary({
+  tone,
+  rows,
+  result,
+}: {
+  tone: "dark" | "light";
+  rows: Array<{ label: string; value: MoneyTriple }>;
+  result: { label: string; value: MoneyTriple };
+}) {
+  const dark = tone === "dark";
+  const text = dark ? "#ffffff" : "#1c244b";
+  const muted = dark ? "rgba(255, 255, 255, 0.7)" : "#64748b";
+  const divider = dark ? "rgba(255, 255, 255, 0.15)" : "#e2e8f0";
+  const accent = dark ? "#f4a117" : "#b45309";
+  const numeric = {
+    textAlign: "right" as const,
+    whiteSpace: "nowrap" as const,
+    fontFamily: dark ? "monospace" : undefined,
+  };
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) repeat(3, minmax(110px, max-content))",
+      columnGap: "20px",
+      rowGap: "12px",
+      alignItems: "center",
+    }}>
+      <span />
+      {TRIPLE_COLUMN_HEADERS.map((header) => (
+        <span key={header} style={{ ...numeric, fontFamily: undefined, fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: muted }}>
+          {header}
+        </span>
+      ))}
+      {rows.map((row) => (
+        <div key={row.label} style={{ display: "contents" }}>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: text, opacity: dark ? 0.9 : 1 }}>{row.label}</span>
+          <span style={{ ...numeric, fontSize: "14px", fontWeight: 700, color: text, opacity: dark ? 0.9 : 1 }}>{formatAud(row.value.gross)}</span>
+          <span style={{ ...numeric, fontSize: "14px", fontWeight: 700, color: text, opacity: dark ? 0.9 : 1 }}>{formatAud(row.value.gst)}</span>
+          <span style={{ ...numeric, fontSize: "14px", fontWeight: 700, color: text, opacity: dark ? 0.9 : 1 }}>{formatAud(row.value.net)}</span>
+        </div>
+      ))}
+      <div style={{ gridColumn: "1 / -1", height: "1px", backgroundColor: divider, margin: "2px 0" }} />
+      <span style={{ fontSize: dark ? "18px" : "16px", fontWeight: 800, color: text }}>{result.label}</span>
+      <span style={{ ...numeric, fontSize: dark ? "20px" : "18px", fontWeight: 800, color: accent }}>{formatAud(result.value.gross)}</span>
+      <span style={{ ...numeric, fontSize: dark ? "20px" : "18px", fontWeight: 800, color: accent }}>{formatAud(result.value.gst)}</span>
+      <span style={{ ...numeric, fontSize: dark ? "20px" : "18px", fontWeight: 800, color: accent }}>{formatAud(result.value.net)}</span>
+    </div>
+  );
+}
 
 /**
  * The funding sources every settlement statement starts from. They are seeded
@@ -110,6 +235,7 @@ function settlementEntryToRow(entry: CoreSettlementEntry): FundingRow {
     entryId: entry.id,
     name: entry.entryType,
     amount: entry.amount.toFixed(2),
+    gst: entry.gstAmount.toFixed(2),
     description: entry.description || "",
   };
 }
@@ -120,6 +246,7 @@ function defaultFundingRows(): FundingRow[] {
     entryId: "",
     name,
     amount: "0.00",
+    gst: "0.00",
     description: "",
   }));
 }
@@ -215,7 +342,7 @@ export default function PropertyDetailView({
   // empty: it used to be seeded with three invented rows (Building & Pest $660,
   // Conveyancing $1,320, Loan Establishment $600) that footed into the grand
   // total and the settlement difference as if they were real money.
-  const [manualCostBaseRows, setManualCostBaseRows] = useState<Array<{ id: string; category: string; description: string; gross: string; net: string }>>([]);
+  const [manualCostBaseRows, setManualCostBaseRows] = useState<ManualCostBaseRow[]>([]);
   // Real cost_base transactions for this property, loaded separately from the
   // page's `transactions` array: that one is a single unfiltered page capped by
   // the API, so cost base rows past the cap would silently disappear.
@@ -795,6 +922,28 @@ export default function PropertyDetailView({
     });
   }, [costBaseTransactions]);
 
+  // The one place the cost base is totalled. The table footers, the Grand
+  // Total card, the settlement box and the CSV all read from here, so they
+  // cannot disagree with each other.
+  const costBaseTotals = useMemo(() => {
+    const auto = sumTriples(costBaseAutoRows);
+    const manual = sumTriples(manualCostBaseRows.map(manualCostBaseRowTriple));
+    return { auto, manual, grand: addTriples(auto, manual) };
+  }, [costBaseAutoRows, manualCostBaseRows]);
+
+  const fundingTotals = useMemo(
+    () => sumTriples(fundingSources.map(fundingRowTriple)),
+    [fundingSources],
+  );
+
+  // Column by column: the gross difference is the money that changed hands on
+  // the day, the net difference the ex-GST position, and the GST difference
+  // whether the GST in the funding matches the GST in the cost base.
+  const settlementDifference = useMemo(
+    () => subtractTriples(costBaseTotals.grand, fundingTotals),
+    [costBaseTotals, fundingTotals],
+  );
+
   const handleExportCostBaseCsv = () => {
     if (!property) return;
     const esc = (value: string | number | null | undefined) => {
@@ -820,39 +969,32 @@ export default function PropertyDetailView({
         money(r.gross), money(r.gst), money(r.net),
       ].map(esc).join(","));
     }
-    const autoGrossTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gross, 0);
-    const autoGstTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gst, 0);
-    const autoNetTotal = costBaseAutoRows.reduce((sum, r) => sum + r.net, 0);
-    lines.push(["Total Auto-filled", "", "", "", money(autoGrossTotal), money(autoGstTotal), money(autoNetTotal)].map(esc).join(","));
+    const triple = (t: MoneyTriple) => [money(t.gross), money(t.gst), money(t.net)];
+    lines.push(["Total Auto-filled", "", "", "", ...triple(costBaseTotals.auto)].map(esc).join(","));
     lines.push("");
 
     lines.push("--- MANUAL COST BASE BALANCE ---");
-    lines.push(["Category", "Description", "Gross Amount", "Estimated Net"].map(esc).join(","));
+    lines.push(["Category", "Description", "Gross", "GST", "Net"].map(esc).join(","));
     for (const r of manualCostBaseRows) {
-      lines.push([r.category, r.description || "", money(parseFloat(r.gross) || 0), money(parseFloat(r.net) || 0)].map(esc).join(","));
+      lines.push([r.category, r.description || "", ...triple(manualCostBaseRowTriple(r))].map(esc).join(","));
     }
-    const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
-    const manualNetTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.net) || 0), 0);
-    lines.push(["Total Manual", "", money(manualGrossTotal), money(manualNetTotal)].map(esc).join(","));
+    lines.push(["Total Manual", "", ...triple(costBaseTotals.manual)].map(esc).join(","));
     lines.push("");
 
-    const grandTotal = autoNetTotal + manualGrossTotal;
-    lines.push(`Grand Total,,${money(grandTotal)}`);
+    lines.push(["", "", "Gross", "GST", "Net"].map(esc).join(","));
+    lines.push(["Grand Total", "", ...triple(costBaseTotals.grand)].map(esc).join(","));
     lines.push("");
 
     // Settlement funding is exported here and nowhere else: it is not a
     // transaction, so it appears in no other report.
     lines.push("--- SETTLEMENT FUNDING (AMOUNT SETTLED BY) ---");
-    lines.push(["Funding Source", "Description", "Amount"].map(esc).join(","));
-    let settlementTotal = 0;
+    lines.push(["Funding Source", "Description", "Gross", "GST", "Net"].map(esc).join(","));
     for (const r of fundingSources) {
-      const amount = parseFloat(r.amount) || 0;
-      settlementTotal += amount;
-      lines.push([r.name, r.description || "", money(amount)].map(esc).join(","));
+      lines.push([r.name, r.description || "", ...triple(fundingRowTriple(r))].map(esc).join(","));
     }
-    lines.push(["Total Funding Entered", "", money(settlementTotal)].map(esc).join(","));
-    lines.push(["Property Cost Base Grand Total", "", money(grandTotal)].map(esc).join(","));
-    lines.push(["Settlement Difference", "", money(grandTotal - settlementTotal)].map(esc).join(","));
+    lines.push(["Total Funding Entered", "", ...triple(fundingTotals)].map(esc).join(","));
+    lines.push(["Property Cost Base Grand Total", "", ...triple(costBaseTotals.grand)].map(esc).join(","));
+    lines.push(["Settlement Difference", "", ...triple(settlementDifference)].map(esc).join(","));
 
     const safeName = (property.name || propertyId).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "Property";
     const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }));
@@ -879,7 +1021,7 @@ export default function PropertyDetailView({
   const handleAddManualCostBaseRow = () => {
     setManualCostBaseRows(prev => [
       ...prev,
-      { id: String(Date.now()), category: "", description: "", gross: "", net: "" }
+      { id: String(Date.now()), category: "", description: "", gross: "", gst: "" }
     ]);
   };
 
@@ -887,7 +1029,7 @@ export default function PropertyDetailView({
     setManualCostBaseRows(prev => prev.filter(r => r.id !== id));
   };
 
-  const handleUpdateManualCostBaseRow = (id: string, field: "category" | "description" | "gross" | "net", value: string) => {
+  const handleUpdateManualCostBaseRow = (id: string, field: "category" | "description" | "gross" | "gst", value: string) => {
     setManualCostBaseRows(prev => prev.map(r => {
       if (r.id === id) {
         return { ...r, [field]: value };
@@ -900,7 +1042,7 @@ export default function PropertyDetailView({
     setSettlementSaved(false);
     setFundingSources(prev => [
       ...prev,
-      { key: nextFundingDraftKey(), entryId: "", name: "", amount: "0.00", description: "" }
+      { key: nextFundingDraftKey(), entryId: "", name: "", amount: "0.00", gst: "0.00", description: "" }
     ]);
   };
 
@@ -911,7 +1053,7 @@ export default function PropertyDetailView({
     setFundingSources(prev => prev.filter(r => r.key !== key));
   };
 
-  const handleUpdateFundingSource = (key: string, field: "name" | "amount" | "description", val: string) => {
+  const handleUpdateFundingSource = (key: string, field: "name" | "amount" | "gst" | "description", val: string) => {
     setSettlementSaved(false);
     setFundingSources(prev => prev.map(r => r.key === key ? { ...r, [field]: val } : r));
   };
@@ -934,7 +1076,20 @@ export default function PropertyDetailView({
       }
       const amount = Number.parseFloat(row.amount);
       if (row.amount.trim() !== "" && !Number.isFinite(amount)) {
-        setSettlementError(`"${row.name.trim()}" has an amount that is not a number.`);
+        setSettlementError(`"${row.name.trim()}" has a gross amount that is not a number.`);
+        return;
+      }
+      const gst = Number.parseFloat(row.gst);
+      if (row.gst.trim() !== "" && !Number.isFinite(gst)) {
+        setSettlementError(`"${row.name.trim()}" has a GST amount that is not a number.`);
+        return;
+      }
+      // Same rule the backend enforces, checked here so the message names the
+      // row instead of coming back as a bare "gst_amount cannot exceed amount".
+      const grossValue = fundingRowGross(row);
+      const gstValue = fundingRowGst(row);
+      if (gstValue !== 0 && (grossValue * gstValue < 0 || Math.abs(gstValue) > Math.abs(grossValue) + 0.005)) {
+        setSettlementError(`"${row.name.trim()}" has GST larger than, or the opposite sign to, its gross amount.`);
         return;
       }
     }
@@ -959,7 +1114,8 @@ export default function PropertyDetailView({
 
       const body = (row: FundingRow, index: number) => ({
         entry_type: row.name.trim(),
-        amount: Number.parseFloat(row.amount) || 0,
+        amount: fundingRowGross(row),
+        gst_amount: fundingRowGst(row),
         description: row.description.trim() || null,
         // Position is the grid order, so a reordered or newly inserted row
         // comes back where the accountant left it.
@@ -2337,26 +2493,18 @@ export default function PropertyDetailView({
                             </td>
                           </tr>
                         )}
-                        {(() => {
-                          const autoGrossTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gross, 0);
-                          const autoGstTotal = costBaseAutoRows.reduce((sum, r) => sum + r.gst, 0);
-                          const autoNetTotal = costBaseAutoRows.reduce((sum, r) => sum + r.net, 0);
-
-                          return (
-                            <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                              <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
-                              <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                                A$ {autoGrossTotal.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                                A$ {autoGstTotal.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                                A$ {autoNetTotal.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
-                              </td>
-                            </tr>
-                          );
-                        })()}
+                        <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                          <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
+                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
+                            {formatAud(costBaseTotals.auto.gross)}
+                          </td>
+                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
+                            {formatAud(costBaseTotals.auto.gst)}
+                          </td>
+                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
+                            {formatAud(costBaseTotals.auto.net)}
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -2402,10 +2550,11 @@ export default function PropertyDetailView({
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "26%" }}>Category</th>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "32%" }}>Description</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "19%" }}>Gross Amount</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "19%" }}>Estimated Net</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Category</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "30%" }}>Description</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Gross</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Net</th>
                           <th style={{ width: "4%" }}></th>
                         </tr>
                       </thead>
@@ -2451,8 +2600,10 @@ export default function PropertyDetailView({
                             <td style={{ padding: "8px 8px", textAlign: "right" }}>
                               <input
                                 type="number"
+                                step="0.01"
                                 value={row.gross}
                                 placeholder="0.00"
+                                aria-label="Gross amount"
                                 onChange={(e) => handleUpdateManualCostBaseRow(row.id, "gross", e.target.value)}
                                 style={{
                                   width: "100%",
@@ -2470,9 +2621,11 @@ export default function PropertyDetailView({
                             <td style={{ padding: "8px 8px", textAlign: "right" }}>
                               <input
                                 type="number"
-                                value={row.net}
+                                step="0.01"
+                                value={row.gst}
                                 placeholder="0.00"
-                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "net", e.target.value)}
+                                aria-label="GST amount"
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "gst", e.target.value)}
                                 style={{
                                   width: "100%",
                                   boxSizing: "border-box",
@@ -2485,6 +2638,10 @@ export default function PropertyDetailView({
                                   outline: "none"
                                 }}
                               />
+                            </td>
+                            {/* Net is gross less GST, derived as the other two are typed. */}
+                            <td style={{ padding: "8px 20px 8px 8px", textAlign: "right", fontSize: "13px", fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap" }}>
+                              {formatAud(manualCostBaseRowTriple(row).net)}
                             </td>
                             <td style={{ padding: "8px 8px", textAlign: "center" }}>
                               <button
@@ -2512,71 +2669,47 @@ export default function PropertyDetailView({
                         ))}
                         {manualCostBaseRows.length === 0 && (
                           <tr>
-                            <td colSpan={5} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                            <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
                               No manual balance rows. Use “Add Category” for costs you have an estimate for but no transaction yet.
                             </td>
                           </tr>
                         )}
-                        {(() => {
-                          const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
-                          const manualNetTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.net) || 0), 0);
-
-                          return (
-                            <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                              <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Balance</td>
-                              <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                                A$ {manualGrossTotal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                                A$ {manualNetTotal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td></td>
-                            </tr>
-                          );
-                        })()}
+                        <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Balance</td>
+                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                            {formatAud(costBaseTotals.manual.gross)}
+                          </td>
+                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                            {formatAud(costBaseTotals.manual.gst)}
+                          </td>
+                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                            {formatAud(costBaseTotals.manual.net)}
+                          </td>
+                          <td></td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
 
-                  {/* Summary Card */}
-                  {(() => {
-                    const autoNetTotal = costBaseAutoRows.reduce((sum, r) => sum + r.net, 0);
-                    const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
-                    const grandTotalVal = autoNetTotal + manualGrossTotal;
-
-                    return (
-                      <div style={{
-                        backgroundColor: "#28336e",
-                        color: "#ffffff",
-                        borderRadius: "12px",
-                        padding: "24px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "12px",
-                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
-                      }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 700, opacity: 0.9 }}>
-                          <span>Auto-filled Property Cost Base (Net)</span>
-                          <span style={{ fontFamily: "monospace" }}>
-                            A$ {autoNetTotal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 700, opacity: 0.9 }}>
-                          <span>+ Manual Balance (Gross)</span>
-                          <span style={{ fontFamily: "monospace" }}>
-                            A$ {manualGrossTotal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div style={{ height: "1px", backgroundColor: "rgba(255, 255, 255, 0.15)", margin: "4px 0" }}></div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "18px", fontWeight: 800 }}>
-                          <span>Grand Total</span>
-                          <span style={{ color: "#f4a117", fontSize: "20px" }}>
-                            A$ {grandTotalVal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {/* Summary Card — every column totalled separately, so the
+                      Grand Total is a gross / GST / net triple rather than the
+                      old auto-net-plus-manual-gross single figure. */}
+                  <div style={{
+                    backgroundColor: "#28336e",
+                    color: "#ffffff",
+                    borderRadius: "12px",
+                    padding: "24px",
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+                  }}>
+                    <TripleSummary
+                      tone="dark"
+                      rows={[
+                        { label: "Auto-filled Property Cost Base", value: costBaseTotals.auto },
+                        { label: "+ Manual Balance", value: costBaseTotals.manual },
+                      ]}
+                      result={{ label: "Grand Total", value: costBaseTotals.grand }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -2668,14 +2801,20 @@ export default function PropertyDetailView({
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} >
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "23%" }} >
                       FUNDING SOURCE
                     </th>
-                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} >
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "27%" }} >
                       DESCRIPTION
                     </th>
-                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} >
-                      AMOUNT (AUD)
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "16%" }} >
+                      GROSS AMOUNT (AUD)
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }} >
+                      GST AMOUNT (AUD)
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "16%" }} >
+                      NET TOTAL (AUD)
                     </th>
                     <th style={{ width: "40px" }}></th>
                   </tr>
@@ -2683,7 +2822,7 @@ export default function PropertyDetailView({
                 <tbody>
                   {fundingSources.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                      <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
                         {isSettlementLoading ? "Loading settlement entries…" : "No funding sources yet. Use “Add Category” to record how this settlement was funded."}
                       </td>
                     </tr>
@@ -2735,6 +2874,7 @@ export default function PropertyDetailView({
                           value={row.amount}
                           onChange={(e) => handleUpdateFundingSource(row.key, "amount", e.target.value)}
                           placeholder="0.00"
+                          aria-label="Gross amount"
                           style={{
                             width: "100%",
                             boxSizing: "border-box",
@@ -2759,6 +2899,42 @@ export default function PropertyDetailView({
                           }}
                         />
                       </td>
+                      <td style={{ padding: "12px 8px", textAlign: "right", verticalAlign: "middle" }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={row.gst}
+                          onChange={(e) => handleUpdateFundingSource(row.key, "gst", e.target.value)}
+                          placeholder="0.00"
+                          aria-label="GST amount"
+                          style={{
+                            width: "100%",
+                            boxSizing: "border-box",
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            border: "1px solid #e2e8f0",
+                            backgroundColor: "#ffffff",
+                            color: "#1e293b",
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            textAlign: "right",
+                            outline: "none",
+                            transition: "all 0.2s ease"
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = "#28336e";
+                            e.target.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.08)";
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = "#e2e8f0";
+                            e.target.style.boxShadow = "none";
+                          }}
+                        />
+                      </td>
+                      {/* Net is gross less GST, derived as the other two are typed. */}
+                      <td style={{ padding: "12px 22px 12px 8px", textAlign: "right", verticalAlign: "middle", fontSize: "14px", fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap" }}>
+                        {formatAud(fundingRowNet(row))}
+                      </td>
                       <td style={{ padding: "12px 8px", textAlign: "center", verticalAlign: "middle" }}>
                         <button
                           type="button"
@@ -2779,6 +2955,21 @@ export default function PropertyDetailView({
                       </td>
                     </tr>
                   ))}
+                  {fundingSources.length > 0 && (
+                    <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                      <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total</td>
+                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                        {formatAud(fundingTotals.gross)}
+                      </td>
+                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                        {formatAud(fundingTotals.gst)}
+                      </td>
+                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                        {formatAud(fundingTotals.net)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
 
@@ -2816,46 +3007,22 @@ export default function PropertyDetailView({
               </div>
 
               {/* Summary Box */}
-              {(() => {
-                const totalFundingEntered = fundingSources.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-                const autoNetTotal = costBaseAutoRows.reduce((sum, r) => sum + r.net, 0);
-                const manualGrossTotal = manualCostBaseRows.reduce((sum, r) => sum + (parseFloat(r.gross) || 0), 0);
-                const grandTotalVal = autoNetTotal + manualGrossTotal;
-                const settlementDifference = grandTotalVal - totalFundingEntered;
-
-                return (
-                  <div style={{
-                    marginTop: "24px",
-                    backgroundColor: "#f8fafc",
-                    borderRadius: "12px",
-                    border: "1px solid #f1f5f9",
-                    padding: "20px 24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>Total Funding Entered</span>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>
-                        A$ {totalFundingEntered.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>Property Cost Base Grand Total</span>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#1c244b" }}>
-                        A$ {grandTotalVal.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "2px 0" }}></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "16px", fontWeight: 800, color: "#1c244b" }}>Settlement Difference</span>
-                      <span style={{ fontSize: "18px", fontWeight: 800, color: "#b45309" }}>
-                        A$ {settlementDifference.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
+              <div style={{
+                marginTop: "24px",
+                backgroundColor: "#f8fafc",
+                borderRadius: "12px",
+                border: "1px solid #f1f5f9",
+                padding: "20px 24px",
+              }}>
+                <TripleSummary
+                  tone="light"
+                  rows={[
+                    { label: "Total Funding Entered", value: fundingTotals },
+                    { label: "Property Cost Base Grand Total", value: costBaseTotals.grand },
+                  ]}
+                  result={{ label: "Settlement Difference", value: settlementDifference }}
+                />
+              </div>
             </div>
 
             {/* Add Balance Modal */}

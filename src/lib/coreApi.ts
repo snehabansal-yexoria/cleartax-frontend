@@ -991,8 +991,12 @@ export type CoreSettlementEntry = {
   orgId: string;
   propertyId: string;
   entryType: string;
-  /** Signed: a refund line reduces the amount settled. */
+  /** Signed gross (GST-inclusive): a refund line reduces the amount settled. */
   amount: number;
+  /** GST included in `amount`: same sign, never larger. Zero for most lines. */
+  gstAmount: number;
+  /** `amount - gstAmount`, derived by the database (migration 0048). */
+  netAmount: number;
   description: string | null;
   position: number;
   createdAt: string;
@@ -1002,12 +1006,19 @@ export type CoreSettlementEntry = {
 export function normalizeCoreSettlementEntry(
   raw: RawRecord,
 ): CoreSettlementEntry {
+  const amount = toFloatValue(raw.amount);
+  const gstAmount = toFloatValue(raw.gst_amount ?? raw.gstAmount ?? 0);
+  // A backend that predates the GST split sends neither field. Reading that as
+  // "no GST" keeps the grid showing net = gross instead of a blank.
+  const rawNet = raw.net_amount ?? raw.netAmount;
   return {
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
     propertyId: toStringValue(raw.property_id ?? raw.propertyId),
     entryType: toStringValue(raw.entry_type ?? raw.entryType),
-    amount: toFloatValue(raw.amount),
+    amount,
+    gstAmount,
+    netAmount: rawNet == null ? amount - gstAmount : toFloatValue(rawNet),
     description:
       raw.description == null ? null : toStringValue(raw.description) || null,
     position: toNumberValue(raw.position) ?? 0,
