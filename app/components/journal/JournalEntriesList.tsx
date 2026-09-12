@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TableRowsSkeleton } from "@/app/components/PortalSkeletons";
+import ValidatedDateInput from "@/app/components/ValidatedDateInput";
 import type {
   CoreJournalEntry,
   CoreJournalEntrySummary,
@@ -193,11 +194,19 @@ export default function JournalEntriesList({
         />
         <label>
           <span>From</span>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <ValidatedDateInput
+            value={from}
+            max={to || undefined}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </label>
         <label>
           <span>To</span>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <ValidatedDateInput
+            value={to}
+            min={from || undefined}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </label>
         <label>
           <span>Source</span>
