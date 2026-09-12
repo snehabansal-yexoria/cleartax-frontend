@@ -20468,7 +20468,7 @@ html.dark .transaction-field-hint {
 }
 
 /* ===========================================================================
-   Journal entries — manual grid, bulk import, entries list, general ledger.
+   \ — manual grid, bulk import, entries list, general ledger.
 
    Class-based rather than inline styles, unlike the grid this replaces: an
    inline style cannot survive the focus/blur handlers a per-cell error border
@@ -21049,6 +21049,12 @@ html.dark .transaction-field-hint {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.transactions-table.journal-list-table {
+  min-width: unset;
+  width: 100%;
+  overflow: hidden;
 }
 
 .journal-list-filters {
