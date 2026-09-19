@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CoreChartAccount } from "@/src/lib/coreApi";
 import {
   announceDropdownOpen,
@@ -47,6 +48,7 @@ export default function AccountCodeCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
 
@@ -59,22 +61,45 @@ export default function AccountCodeCombobox({
     [accounts, query, open],
   );
 
+  const updateCoords = () => {
+    if (wrapRef.current) {
+      const rect = wrapRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+  };
+
   // Close when another dropdown opens, or the two stack on top of each other.
   useEffect(() => {
     if (!open) return;
+    updateCoords();
     const onOther = (event: Event) => {
       if (isDropdownRegistryEvent(event) && event.detail?.id !== id) {
         setOpen(false);
       }
     };
     const onClickAway = (event: MouseEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (
+        !wrapRef.current?.contains(target) &&
+        !listRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     };
+    const handleScrollOrResize = () => updateCoords();
+
     window.addEventListener(dropdownRegistryEvent, onOther);
     document.addEventListener("mousedown", onClickAway);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
     return () => {
       window.removeEventListener(dropdownRegistryEvent, onOther);
       document.removeEventListener("mousedown", onClickAway);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
     };
   }, [open, id]);
 
@@ -88,6 +113,7 @@ export default function AccountCodeCombobox({
 
   const openList = () => {
     if (disabled) return;
+    updateCoords();
     setOpen(true);
     setActiveIndex(0);
     announceDropdownOpen(id);
@@ -135,7 +161,7 @@ export default function AccountCodeCombobox({
   };
 
   return (
-    <div className="journal-combobox" ref={wrapRef}>
+    <div className={`journal-combobox${open ? " is-open" : ""}`} ref={wrapRef}>
       <input
         ref={inputRef}
         type="text"
@@ -162,41 +188,56 @@ export default function AccountCodeCombobox({
         onKeyDown={handleKeyDown}
       />
 
-      {open && (
-        <ul className="journal-combobox-list" id={`${id}-list`} role="listbox" ref={listRef}>
-          {matches.length === 0 && (
-            <li className="journal-combobox-empty">
-              No account matches “{query}”.
-            </li>
-          )}
-          {matches.map((a, i) => (
-            <li
-              key={a.id}
-              data-index={i}
-              role="option"
-              aria-selected={i === activeIndex}
-              className={`journal-combobox-option${i === activeIndex ? " is-active" : ""}`}
-              onMouseEnter={() => setActiveIndex(i)}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                commit(a);
-              }}
-            >
-              <span className="journal-combobox-code">{a.accountCode}</span>
-              <span className="journal-combobox-name">{a.accountName}</span>
-              <span className={`journal-account-chip is-${a.category}`}>
-                {a.category}
-              </span>
-              <span className="journal-combobox-sub">{a.subcategory}</span>
-            </li>
-          ))}
-          {more > 0 && (
-            <li className="journal-combobox-more">
-              {more} more — keep typing to narrow the list
-            </li>
-          )}
-        </ul>
-      )}
+      {open &&
+        coords &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ul
+            className="journal-combobox-list"
+            id={`${id}-list`}
+            role="listbox"
+            ref={listRef}
+            style={{
+              position: "fixed",
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              zIndex: 9999,
+            }}
+          >
+            {matches.length === 0 && (
+              <li className="journal-combobox-empty">
+                No account matches “{query}”.
+              </li>
+            )}
+            {matches.map((a, i) => (
+              <li
+                key={a.id}
+                data-index={i}
+                role="option"
+                aria-selected={i === activeIndex}
+                className={`journal-combobox-option${i === activeIndex ? " is-active" : ""}`}
+                onMouseEnter={() => setActiveIndex(i)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  commit(a);
+                }}
+              >
+                <span className="journal-combobox-code">{a.accountCode}</span>
+                <span className="journal-combobox-name">{a.accountName}</span>
+                <span className={`journal-account-chip is-${a.category}`}>
+                  {a.category}
+                </span>
+                <span className="journal-combobox-sub">{a.subcategory}</span>
+              </li>
+            ))}
+            {more > 0 && (
+              <li className="journal-combobox-more">
+                {more} more — keep typing to narrow the list
+              </li>
+            )}
+          </ul>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -805,7 +805,7 @@ export default function PropertyDetailView({
       try {
         const res = await fetch(
           `/api/properties/${encodeURIComponent(propertyId)}/transactions` +
-            `?type=cost_base&grain=top&limit=200`,
+          `?type=cost_base&grain=top&limit=200`,
           { headers: { Authorization: `Bearer ${sessionToken}` } },
         );
         if (cancelled) return;
@@ -1126,15 +1126,15 @@ export default function PropertyDetailView({
         ...fundingSources.map((row, index) =>
           row.entryId
             ? fetch(`${base}/${encodeURIComponent(row.entryId)}`, {
-                method: "PATCH",
-                headers: authHeaders,
-                body: JSON.stringify(body(row, index)),
-              })
+              method: "PATCH",
+              headers: authHeaders,
+              body: JSON.stringify(body(row, index)),
+            })
             : fetch(base, {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify(body(row, index)),
-              }),
+              method: "POST",
+              headers: authHeaders,
+              body: JSON.stringify(body(row, index)),
+            }),
         ),
         ...deletedIds.map((id) =>
           fetch(`${base}/${encodeURIComponent(id)}`, {
@@ -2418,13 +2418,7 @@ export default function PropertyDetailView({
                       color: "#64748b",
                       lineHeight: 1.4
                     }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#3b82f6", flexShrink: 0, marginTop: "2px" }}>
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 16v-4m0-4h.01" />
-                      </svg>
-                      <span>
-                        Income & Expense used for this Property Cost Base are pulled directly from the Statement of Profit & Loss above &mdash; nothing is re-entered here.
-                      </span>
+
                     </div>
                   </div>
 
@@ -2445,12 +2439,12 @@ export default function PropertyDetailView({
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Description</th>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Source</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Gross</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>GST</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Net</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Category</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "30%" }}>Description</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Gross</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Net</th>
+                          <th style={{ width: "4%" }}></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2459,17 +2453,6 @@ export default function PropertyDetailView({
                             <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>{row.category}</td>
                             <td style={{ padding: "12px 8px", fontSize: "13px", color: row.description ? "#475569" : "#94a3b8" }}>
                               {row.description || "—"}
-                            </td>
-                            <td style={{ padding: "12px 8px", fontSize: "12px" }}>
-                              <span style={{
-                                backgroundColor: row.source === "Reconciliation" ? "#dbeafe" : "#fef3c7",
-                                color: row.source === "Reconciliation" ? "#2563eb" : "#d97706",
-                                padding: "2px 8px",
-                                borderRadius: "4px",
-                                fontWeight: 700
-                              }}>
-                                Source: {row.source}
-                              </span>
                             </td>
                             <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#475569" }}>
                               A$ {row.gross.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -2480,6 +2463,7 @@ export default function PropertyDetailView({
                             <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>
                               A$ {row.net.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
+                            <td style={{ width: "4%" }}></td>
                           </tr>
                         ))}
                         {costBaseAutoRows.length === 0 && (
@@ -2494,7 +2478,7 @@ export default function PropertyDetailView({
                           </tr>
                         )}
                         <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                          <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
+                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
                           <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
                             {formatAud(costBaseTotals.auto.gross)}
                           </td>
@@ -2504,6 +2488,7 @@ export default function PropertyDetailView({
                           <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
                             {formatAud(costBaseTotals.auto.net)}
                           </td>
+                          <td style={{ width: "4%" }}></td>
                         </tr>
                       </tbody>
                     </table>

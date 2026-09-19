@@ -508,38 +508,6 @@ export default function PaymentAlerts() {
           {toastMessage}
         </div>
       )}
-
-      {/* Custom CSS styles */}
-      <style>{`
-        .mark-as-paid-btn:hover {
-          background: var(--surface-2) !important;
-          border-color: var(--brand) !important;
-        }
-        @keyframes fadeInAlert {
-          from { opacity: 0; transform: translate(-50%, 10px); }
-          to { opacity: 1; transform: translate(-50%, 0); }
-        }
-        html.dark .bell-icon-box.overdue,
-        .dark .bell-icon-box.overdue {
-          background-color: rgba(240, 68, 56, 0.15) !important;
-          color: #fda29b !important;
-        }
-        html.dark .bell-icon-box.due,
-        .dark .bell-icon-box.due {
-          background-color: rgba(212, 163, 115, 0.15) !important;
-          color: #fedf89 !important;
-        }
-        html.dark .bell-icon-box.paid,
-        .dark .bell-icon-box.paid {
-          background-color: rgba(194, 141, 72, 0.15) !important;
-          color: #f5c589 !important;
-        }
-        html.dark .paid-badge,
-        .dark .paid-badge {
-          color: #6cffb4 !important;
-          background-color: rgba(18, 183, 106, 0.15) !important;
-        }
-      `}</style>
     </>
   );
 }
