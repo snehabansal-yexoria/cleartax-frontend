@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { RegionError } from "@/app/components/ui/RegionError";
 import type { CoreChartAccount, CoreProperty } from "@/src/lib/coreApi";
 import type { CoreJournalImportResult } from "@/src/lib/coreApi";
 import {
@@ -111,28 +112,43 @@ export default function BulkUploadTab({
 
   return (
     <div className="journal-bulk">
-      <div className="csv-template-card">
-        <div>
-          <h3>Download the CSV template</h3>
-          <p>
-            One row per journal line. Rows are grouped into entries by the{" "}
-            <strong>Entry Reference</strong> column when it is filled in;
-            otherwise an entry ends as soon as its debits and credits balance.
-            Amounts are GST-exclusive.
-          </p>
+      <div className="journal-template-card">
+        <div className="journal-template-card-content">
+          <div className="journal-template-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h3>Download CSV template</h3>
+            <p>
+              One row per journal line. Rows are grouped into entries by the{" "}
+              <code className="journal-code-pill">Entry Reference</code> column when filled;
+              otherwise rows balance automatically. Amounts are GST-exclusive.
+            </p>
+          </div>
         </div>
         <button
           type="button"
-          className="entity-wizard-primary is-green"
+          className="journal-download-btn"
           onClick={() =>
             download("journal-entries-template.csv", journalCsvTemplate())
           }
         >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
           Download template
         </button>
       </div>
 
-      <label className={`csv-dropzone${fileName ? " has-file" : ""}`}>
+      <label className={`journal-dropzone${fileName ? " has-file" : ""}`}>
         <input
           ref={inputRef}
           type="file"
@@ -145,24 +161,38 @@ export default function BulkUploadTab({
             e.target.value = "";
           }}
         />
-        <span className="csv-dropzone-icon" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-            strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-        </span>
-        <span className="csv-dropzone-title">
-          {fileName || "Choose a CSV file"}
-        </span>
-        <span className="csv-dropzone-hint">
-          Every row is checked before anything is imported.
-        </span>
+        <div className="journal-dropzone-inner">
+          <div className="journal-dropzone-icon" aria-hidden="true">
+            {fileName ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            )}
+          </div>
+          <div className="journal-dropzone-text">
+            <span className="journal-dropzone-title">
+              {fileName ? fileName : "Choose a CSV file or drag and drop"}
+            </span>
+            <span className="journal-dropzone-hint">
+              {fileName
+                ? "Click to choose a different file. Validation is running below."
+                : "Every row is checked and validated before anything is imported."}
+            </span>
+          </div>
+        </div>
       </label>
 
-      {parseError && <div className="entity-wizard-error">{parseError}</div>}
+      {parseError && (
+        <div style={{ margin: "14px 0" }}>
+          <RegionError message={parseError} />
+        </div>
+      )}
 
       {positional && (
         <div className="journal-hint is-warning">
@@ -175,18 +205,28 @@ export default function BulkUploadTab({
       {validation && !result && (
         <>
           <div className="journal-import-summary">
-            <span>
+            <div className="journal-summary-pill">
               <strong>{validation.entries.length}</strong> entries
-            </span>
-            <span>
+            </div>
+            <div className="journal-summary-pill">
               <strong>{rows.length}</strong> lines
-            </span>
-            <span className="is-ok">
+            </div>
+            <div className="journal-summary-pill is-ok">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
               <strong>{validation.okEntryCount}</strong> ready to import
-            </span>
-            <span className={validation.errorEntryCount ? "is-error" : ""}>
-              <strong>{validation.errorEntryCount}</strong> need attention
-            </span>
+            </div>
+            {validation.errorEntryCount > 0 && (
+              <div className="journal-summary-pill is-error">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <strong>{validation.errorEntryCount}</strong> need attention
+              </div>
+            )}
 
             <label className="journal-import-toggle">
               <input

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ValidatedDateInput from "@/app/components/ValidatedDateInput";
+import { RegionError } from "@/app/components/ui/RegionError";
 import type {
   CoreEntity,
   CoreJournalEntry,
@@ -241,11 +243,8 @@ export default function JournalEntryEditor({
       </header>
 
       {chart.error && (
-        <div className="entity-wizard-error">
-          {chart.error}{" "}
-          <button type="button" className="journal-link-button" onClick={chart.reload}>
-            Try again
-          </button>
+        <div style={{ marginBottom: "16px" }}>
+          <RegionError message={chart.error} onRetry={chart.reload} />
         </div>
       )}
 
@@ -288,8 +287,7 @@ export default function JournalEntryEditor({
           <div className="journal-entry-header">
             <label className="journal-field">
               <span>Journal date</span>
-              <input
-                type="date"
+              <ValidatedDateInput
                 value={draft.entryDate}
                 onChange={(e) => setHeader({ entryDate: e.target.value })}
               />
@@ -347,8 +345,8 @@ export default function JournalEntryEditor({
           )}
 
           {saveError && (
-            <div ref={errorRef} className="entity-wizard-error" role="alert">
-              {saveError}
+            <div ref={errorRef} style={{ margin: "16px 0" }}>
+              <RegionError message={saveError} />
             </div>
           )}
 
@@ -359,7 +357,11 @@ export default function JournalEntryEditor({
               onClick={() => addLine()}
               disabled={isSaving}
             >
-              + Add line
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add line
             </button>
             <button
               type="button"
@@ -392,16 +394,42 @@ export default function JournalEntryEditor({
 
       {showConfirmClear && (
         <div className="transaction-modal-layer" role="dialog" aria-modal="true">
-          <div className="transaction-modal">
-            <div className="transaction-modal-header">
-              <h2>Clear all lines?</h2>
+          <button
+            type="button"
+            className="transaction-modal-backdrop"
+            onClick={() => setShowConfirmClear(false)}
+            aria-label="Close modal"
+          />
+          <div className="transaction-modal" style={{ maxWidth: "440px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}>
+            <div className="transaction-modal-header" style={{ padding: "20px 24px", borderBottom: "1px solid #eaecf0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#fee4e2", display: "flex", alignItems: "center", justifyContent: "center", color: "#d92d20", flexShrink: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                </div>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#101828", margin: 0 }}>Clear all lines?</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowConfirmClear(false)}
+                aria-label="Close"
+                style={{ width: "32px", height: "32px", background: "none", border: "none", cursor: "pointer", color: "#98a2b3", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
-            <div className="transaction-modal-body">
-              <p>
+            <div className="transaction-modal-body" style={{ padding: "20px 24px" }}>
+              <p style={{ margin: 0, color: "#475467", fontSize: "14px", lineHeight: "1.5" }}>
                 This removes every line from the grid. It cannot be undone.
               </p>
             </div>
-            <div className="transaction-modal-footer">
+            <div className="transaction-modal-footer" style={{ padding: "16px 24px", borderTop: "1px solid #eaecf0", display: "flex", justifyContent: "flex-end", gap: "10px", background: "#f8fafc" }}>
               <button
                 type="button"
                 className="entity-wizard-secondary"
@@ -411,7 +439,7 @@ export default function JournalEntryEditor({
               </button>
               <button
                 type="button"
-                className="entity-wizard-primary is-orange"
+                className="entity-wizard-primary is-danger"
                 onClick={() => {
                   clearAll();
                   setShowConfirmClear(false);

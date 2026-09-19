@@ -1064,17 +1064,6 @@ export default function ClientAddPropertyView({
           fontFamily: '"Inter", sans-serif'
         }}
       >
-        <style>{`
-          @keyframes skeleton-pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
-          }
-          .skeleton-pulse {
-            animation: skeleton-pulse 1.5s infinite ease-in-out;
-          }
-        `}</style>
-
         {/* Back Link / Title Area */}
         <div style={{ marginBottom: "24px" }}>
           {/* Breadcrumb line */}

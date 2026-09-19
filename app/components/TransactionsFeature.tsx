@@ -31,6 +31,7 @@ import {
 } from "@/app/components/useDepreciation";
 import { isAwaitingExtraction } from "@/src/lib/reviewStatus";
 import { ReviewStatusBadge } from "@/app/components/ReviewStatusBadge";
+import ValidatedDateInput from "@/app/components/ValidatedDateInput";
 import type {
   CoreAssetClass,
   CoreDepreciationMethod,
@@ -2611,9 +2612,11 @@ function TransactionTable({
               const isExpanded = expandedRowIds?.has(row.id) ?? false;
               const children = rowChildren?.[row.id];
               const isDimmed = selection?.isDisabled(row) ?? false;
+              const isSelected = selection?.selectedIds.has(row.id) ?? false;
               return (
                 <Fragment key={row.id}>
                   <tr
+                    className={isSelected ? "is-selected-row" : undefined}
                     style={
                       isDimmed
                         ? { opacity: 0.45, transition: "opacity 0.2s ease" }
@@ -3225,9 +3228,11 @@ function AwaitingReviewTable({
                     ? row.propertyNames[0]
                     : `${row.propertyNames[0]} +${row.propertyNames.length - 1}`;
               const isDimmed = selection?.isDisabled(row) ?? false;
+              const isSelected = selection?.selectedIds.has(row.id) ?? false;
               return (
                 <tr
                   key={row.id}
+                  className={isSelected ? "is-selected-row" : undefined}
                   style={
                     isDimmed
                       ? { opacity: 0.45, transition: "opacity 0.2s ease" }
@@ -3418,8 +3423,7 @@ function Filters({
         <div className="transaction-date-range">
           <label>
             <span>From</span>
-            <input
-              type="date"
+            <ValidatedDateInput
               value={filters.from}
               max={filters.to || undefined}
               onChange={(event) => onChange("from", event.target.value)}
@@ -3427,8 +3431,7 @@ function Filters({
           </label>
           <label>
             <span>To</span>
-            <input
-              type="date"
+            <ValidatedDateInput
               value={filters.to}
               min={filters.from || undefined}
               onChange={(event) => onChange("to", event.target.value)}
@@ -5096,32 +5099,43 @@ export function AllTransactionsView({
               role="toolbar"
               aria-label="Selected transactions"
             >
-              <span className="transactions-selection-count">
-                {selectedRows.size} selected
-                <span className="transactions-selection-sep">·</span>
-                Total{" "}
-                <strong
-                  className={
-                    selectedSign ? "amount-positive" : "amount-negative"
-                  }
+              <div className="transactions-selection-info">
+                <svg
+                  className="transactions-selection-check-icon"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  {formatTransactionCurrency(selectedTotal, selectedSign ?? true)}
-                </strong>
-              </span>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span className="transactions-selection-count">
+                  {selectedRows.size} transaction{selectedRows.size === 1 ? "" : "s"} selected
+                  <span className="transactions-selection-sep">·</span>
+                  Total:{" "}
+                  <strong className="transactions-selection-total">
+                    {formatTransactionCurrency(selectedTotal, selectedSign ?? true)}
+                  </strong>
+                </span>
+              </div>
               <div className="transactions-selection-actions">
                 <button
                   type="button"
-                  className="transaction-outline-button"
+                  className="transactions-selection-clear-btn"
                   onClick={clearSelection}
                 >
-                  Clear
+                  Clear selection
                 </button>
                 <button
                   type="button"
-                  className="transaction-primary-button"
+                  className="transactions-selection-export-btn"
                   onClick={exportSelectedTransactions}
                 >
-                  Export Selected
+                  Export selected
                 </button>
               </div>
             </div>

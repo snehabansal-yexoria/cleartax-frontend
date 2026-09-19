@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency } from "@/src/lib/currency";
 import type { CoreGstScopeLevel, CoreGstSummary } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -61,12 +60,6 @@ function endpointFor(scope: GstSummaryScope): string {
   }
 }
 
-const SCOPE_NOUN: Record<CoreGstScopeLevel, string> = {
-  property: "property",
-  entity: "entity",
-  client: "client",
-};
-
 export default function GstSummaryModal({
   isOpen,
   onClose,
@@ -80,12 +73,39 @@ export default function GstSummaryModal({
   const [summary, setSummary] = useState<CoreGstSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  // Six years back is enough to cover any period still amendable with the ATO.
-  const availableYears = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => currentFy - i),
+  const [isFyDropdownOpen, setIsFyDropdownOpen] = useState(false);
+  const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    if (!isFyDropdownOpen && !isPeriodDropdownOpen) return;
+    const handleClose = () => {
+      setIsFyDropdownOpen(false);
+      setIsPeriodDropdownOpen(false);
+    };
+    window.addEventListener("click", handleClose);
+    return () => window.removeEventListener("click", handleClose);
+  }, [isFyDropdownOpen, isPeriodDropdownOpen]);
+
+  const fyOptions = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, i) => currentFy - i).map((year) => ({
+        value: year,
+        label: `FY${year} (Jul ${year - 1} – Jun ${year})`,
+      })),
     [currentFy],
+  );
+
+  const periodOptions = useMemo(
+    () => [
+      { value: 1, label: QUARTER_LABELS[1] },
+      { value: 2, label: QUARTER_LABELS[2] },
+      { value: 3, label: QUARTER_LABELS[3] },
+      { value: 4, label: QUARTER_LABELS[4] },
+      { value: FULL_YEAR, label: "Full financial year" },
+    ],
+    [],
   );
 
   const load = useCallback(async () => {
@@ -124,9 +144,6 @@ export default function GstSummaryModal({
     void load();
   }, [isOpen, load]);
 
-  // Reset the transient copy confirmation whenever the figures change.
-  useEffect(() => setCopied(false), [summary]);
-
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -138,205 +155,922 @@ export default function GstSummaryModal({
 
   if (!isOpen) return null;
 
-  const rows = summary
-    ? [
-        {
-          code: "G1",
-          label: "Total sales",
-          hint: "Income including GST",
-          value: summary.g1TotalSales,
-        },
-        {
-          code: "1A",
-          label: "GST on sales",
-          hint: "GST you collected",
-          value: summary.gstOnSales,
-        },
-        {
-          code: "1B",
-          label: "GST on purchases",
-          hint: "GST you paid",
-          value: summary.gstOnPurchases,
-        },
-      ]
-    : [];
+  const formatGst = (val: number) => {
+    const formatted = Math.abs(val).toLocaleString("en-AU", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `A$ ${formatted}`;
+  };
 
-  const isRefund = summary?.outcome === "refund_due";
-  const isNil = summary?.outcome === "nil";
+  const gstSales = summary?.gstOnSales ?? 0;
+  const gstPurchases = summary?.gstOnPurchases ?? 0;
+  const totalIncomeVal = summary?.salesNet ?? 0;
+  const totalSalesVal = summary?.g1TotalSales ?? 0;
+  const refundOrPayment = gstPurchases - gstSales;
+  const gstPeriodLabel = summary?.period.label ?? "";
 
-  async function handleCopy() {
-    if (!summary) return;
-    const text = [
-      `GST Summary — ${summary.scope.name} (${summary.period.label})`,
-      `G1 Total sales:       ${formatCurrency(summary.g1TotalSales)}`,
-      `1A GST on sales:      ${formatCurrency(summary.gstOnSales)}`,
-      `1B GST on purchases:  ${formatCurrency(summary.gstOnPurchases)}`,
-      `9  Net GST:           ${formatCurrency(summary.netGst)}`,
-    ].join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  }
+  const handleExportGstCsv = () => {
+    const targetName = summary?.scope.name || scope.name || "Entity";
+    const lines = [
+      `GST Summary - ${targetName}`,
+      gstPeriodLabel
+        ? `${gstPeriodLabel} (${summary?.period.from} to ${summary?.period.to})`
+        : `Current period`,
+      `Accruals basis - dated by invoice date`,
+      ``,
+      `Code,Field,Amount`,
+      `G1,Total Sales,${formatGst(totalSalesVal)}`,
+      `1A,GST on Sales,${formatGst(gstSales)}`,
+      `1B,GST on Purchases,${formatGst(gstPurchases)}`,
+      `9,Refund / Payment Due,${formatGst(Math.abs(refundOrPayment))}`,
+      ``,
+      `${refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"},,${formatGst(Math.abs(refundOrPayment))}`,
+    ];
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `GST_Summary_${targetName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div
-      className="portal-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="gst-summary-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
       }}
+      onClick={onClose}
     >
-      <div className="portal-modal">
-        <div className="portal-modal-header">
+      <div
+        style={{
+          backgroundColor: "#ffffff",
+          borderRadius: "20px",
+          width: "100%",
+          maxWidth: "540px",
+          maxHeight: "min(760px, 92vh)",
+          boxShadow:
+            "0 20px 40px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.04)",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            backgroundColor: "var(--primary, #28336e)",
+            padding: "18px 24px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            color: "#ffffff",
+            borderTopLeftRadius: "20px",
+            borderTopRightRadius: "20px",
+            flexShrink: 0,
+          }}
+        >
           <div>
-            <h2 id="gst-summary-title">GST Summary</h2>
-            <p>
-              {summary?.scope.name || scope.name} ·{" "}
-              {SCOPE_NOUN[scope.level]}
-            </p>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "18px",
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              GST Summary
+            </h2>
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#c7d2fe",
+                marginTop: "2px",
+                fontWeight: 500,
+              }}
+            >
+              {summary?.scope.name || scope.name}
+              {gstPeriodLabel ? ` · ${gstPeriodLabel}` : ""}
+            </div>
           </div>
           <button
             type="button"
-            className="portal-modal-close"
             onClick={onClose}
             aria-label="Close GST summary"
+            style={{
+              background: "rgba(255, 255, 255, 0.08)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "10px",
+              width: "32px",
+              height: "32px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#cbd5e1",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)";
+              e.currentTarget.style.color = "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+              e.currentTarget.style.color = "#cbd5e1";
+            }}
           >
-            ×
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              style={{ width: "16px", height: "16px" }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        <div className="portal-modal-section">
-          <div className="gst-period-controls">
-            <label className="gst-period-field">
-              <span>Financial year</span>
-              <select
-                value={financialYear}
-                onChange={(e) => setFinancialYear(Number(e.target.value))}
+        {/* Scrollable Body */}
+        <div
+          style={{
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            overflowY: "auto",
+            flex: "1 1 auto",
+          }}
+        >
+          {/* Period selectors — custom dropdowns */}
+          <div style={{ display: "flex", gap: "12px", zIndex: 100 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                flex: "1",
+                position: "relative",
+              }}
+            >
+              <span style={{ fontSize: "12px", fontWeight: 650, color: "#475569" }}>
+                Financial year
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFyDropdownOpen(!isFyDropdownOpen);
+                  setIsPeriodDropdownOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  minHeight: "36px",
+                  padding: "0 12px",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "8px",
+                  backgroundColor: "#ffffff",
+                  color: "#1e293b",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s",
+                  outline: "none",
+                  boxShadow: isFyDropdownOpen
+                    ? "0 0 0 3px rgba(40, 51, 110, 0.12)"
+                    : "none",
+                  borderColor: isFyDropdownOpen ? "var(--primary, #28336e)" : "#cbd5e1",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isFyDropdownOpen) e.currentTarget.style.borderColor = "#94a3b8";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isFyDropdownOpen) e.currentTarget.style.borderColor = "#cbd5e1";
+                }}
               >
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    FY{year} (Jul {year - 1} – Jun {year})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="gst-period-field">
-              <span>Period</span>
-              <select
-                value={quarter}
-                onChange={(e) => setQuarter(Number(e.target.value))}
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {fyOptions.find((o) => o.value === financialYear)?.label}
+                </span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{
+                    width: "14px",
+                    height: "14px",
+                    color: "#64748b",
+                    transition: "transform 0.2s ease",
+                    transform: isFyDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {isFyDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    boxShadow:
+                      "0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)",
+                    zIndex: 1000,
+                    padding: "4px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1px",
+                  }}
+                >
+                  {fyOptions.map((option) => {
+                    const isSelected = option.value === financialYear;
+                    return (
+                      <div
+                        key={option.value}
+                        onClick={() => {
+                          setFinancialYear(option.value);
+                          setIsFyDropdownOpen(false);
+                        }}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: isSelected ? 600 : 500,
+                          color: isSelected ? "var(--primary, #28336e)" : "#334155",
+                          backgroundColor: isSelected ? "#eff6ff" : "transparent",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = isSelected
+                            ? "#eff6ff"
+                            : "#f1f5f9";
+                          if (!isSelected) e.currentTarget.style.color = "#0f172a";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = isSelected
+                            ? "#eff6ff"
+                            : "transparent";
+                          if (!isSelected) e.currentTarget.style.color = "#334155";
+                        }}
+                      >
+                        <span>{option.label}</span>
+                        {isSelected && (
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            style={{
+                              width: "14px",
+                              height: "14px",
+                              color: "var(--primary, #28336e)",
+                            }}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="m4.5 12.75 6 6 9-13.5"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                flex: "1",
+                position: "relative",
+              }}
+            >
+              <span style={{ fontSize: "12px", fontWeight: 650, color: "#475569" }}>
+                Period
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPeriodDropdownOpen(!isPeriodDropdownOpen);
+                  setIsFyDropdownOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  minHeight: "36px",
+                  padding: "0 12px",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "8px",
+                  backgroundColor: "#ffffff",
+                  color: "#1e293b",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s",
+                  outline: "none",
+                  boxShadow: isPeriodDropdownOpen
+                    ? "0 0 0 3px rgba(40, 51, 110, 0.12)"
+                    : "none",
+                  borderColor: isPeriodDropdownOpen
+                    ? "var(--primary, #28336e)"
+                    : "#cbd5e1",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = "#94a3b8";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = "#cbd5e1";
+                }}
               >
-                {[1, 2, 3, 4].map((q) => (
-                  <option key={q} value={q}>
-                    {QUARTER_LABELS[q]}
-                  </option>
-                ))}
-                <option value={FULL_YEAR}>Full financial year</option>
-              </select>
-            </label>
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {periodOptions.find((o) => o.value === quarter)?.label}
+                </span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{
+                    width: "14px",
+                    height: "14px",
+                    color: "#64748b",
+                    transition: "transform 0.2s ease",
+                    transform: isPeriodDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {isPeriodDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    boxShadow:
+                      "0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)",
+                    zIndex: 1000,
+                    padding: "4px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1px",
+                  }}
+                >
+                  {periodOptions.map((option) => {
+                    const isSelected = option.value === quarter;
+                    return (
+                      <div
+                        key={option.value}
+                        onClick={() => {
+                          setQuarter(option.value);
+                          setIsPeriodDropdownOpen(false);
+                        }}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: isSelected ? 600 : 500,
+                          color: isSelected ? "var(--primary, #28336e)" : "#334155",
+                          backgroundColor: isSelected ? "#eff6ff" : "transparent",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = isSelected
+                            ? "#eff6ff"
+                            : "#f1f5f9";
+                          if (!isSelected) e.currentTarget.style.color = "#0f172a";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = isSelected
+                            ? "#eff6ff"
+                            : "transparent";
+                          if (!isSelected) e.currentTarget.style.color = "#334155";
+                        }}
+                      >
+                        <span>{option.label}</span>
+                        {isSelected && (
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            style={{
+                              width: "14px",
+                              height: "14px",
+                              color: "var(--primary, #28336e)",
+                            }}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="m4.5 12.75 6 6 9-13.5"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {isLoading && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#64748b",
+                padding: "4px 2px",
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  animation: "spin 1s linear infinite",
+                }}
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="#cbd5e1"
+                  strokeWidth="3"
+                  fill="none"
+                  style={{ opacity: 0.3 }}
+                />
+                <path
+                  d="M12 2a10 10 0 0 1 10 10"
+                  stroke="var(--primary, #28336e)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </svg>
+              <span>Updating figures…</span>
+            </div>
+          )}
+
+          {error && (
+            <div
+              role="alert"
+              style={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#b42318",
+                backgroundColor: "#fef3f2",
+                padding: "10px 14px",
+                borderRadius: "8px",
+                border: "1px solid #fda29b",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Table Column Headers */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "56px 1fr 120px",
+              paddingBottom: "8px",
+              borderBottom: "2px solid #f1f5f9",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#475569",
+              textTransform: "uppercase",
+              letterSpacing: "0.075em",
+            }}
+          >
+            <div>Code</div>
+            <div>Field</div>
+            <div style={{ textAlign: "right" }}>Amount</div>
+          </div>
+
+          {/* Rows */}
+          {/* Row G1 */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "56px 1fr 120px",
+              alignItems: "start",
+              paddingBottom: "12px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <div
+              style={{
+                width: "34px",
+                height: "34px",
+                borderRadius: "8px",
+                backgroundColor: "#eff6ff",
+                color: "var(--primary, #28336e)",
+                border: "1px solid #dbeafe",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "12px",
+              }}
+            >
+              G1
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
+                Total Sales
+              </span>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                Total Income/Sales including GST
+              </span>
+              <div>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontFamily: "SFMono-Regular, Consolas, Monaco, monospace",
+                    color: "#64748b",
+                    marginTop: "4px",
+                    display: "inline-block",
+                    padding: "1px 6px",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #f1f5f9",
+                    borderRadius: "4px",
+                  }}
+                >
+                  G1 = Total Income + GST on Sales = {formatGst(totalIncomeVal)} + {formatGst(gstSales)}
+                </span>
+              </div>
+            </div>
+            <div
+              style={{
+                textAlign: "right",
+                fontWeight: 700,
+                fontSize: "15px",
+                color: "#0f172a",
+                whiteSpace: "nowrap",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {formatGst(totalSalesVal)}
+            </div>
+          </div>
+
+          {/* Row 1A */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "56px 1fr 120px",
+              alignItems: "start",
+              paddingBottom: "12px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <div
+              style={{
+                width: "34px",
+                height: "34px",
+                borderRadius: "8px",
+                backgroundColor: "#fff7ed",
+                color: "#ea580c",
+                border: "1px solid #ffedd5",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "12px",
+              }}
+            >
+              1A
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
+                GST on Sales
+              </span>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                GST collected on Income/Sales
+              </span>
+            </div>
+            <div
+              style={{
+                textAlign: "right",
+                fontWeight: 700,
+                fontSize: "15px",
+                color: "#0f172a",
+                whiteSpace: "nowrap",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {formatGst(gstSales)}
+            </div>
+          </div>
+
+          {/* Row 1B */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "56px 1fr 120px",
+              alignItems: "start",
+              paddingBottom: "12px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <div
+              style={{
+                width: "34px",
+                height: "34px",
+                borderRadius: "8px",
+                backgroundColor: "#f0fdf4",
+                color: "#16a34a",
+                border: "1px solid #dcfce7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "12px",
+              }}
+            >
+              1B
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
+                GST on Purchases
+              </span>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                GST paid on Expenses/Purchases
+              </span>
+            </div>
+            <div
+              style={{
+                textAlign: "right",
+                fontWeight: 700,
+                fontSize: "15px",
+                color: "#0f172a",
+                whiteSpace: "nowrap",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {formatGst(gstPurchases)}
+            </div>
+          </div>
+
+          {/* Row 9 */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "56px 1fr 120px",
+              alignItems: "start",
+              paddingBottom: "12px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <div
+              style={{
+                width: "34px",
+                height: "34px",
+                borderRadius: "8px",
+                backgroundColor: "#faf5ff",
+                color: "#9333ea",
+                border: "1px solid #f3e8ff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "12px",
+              }}
+            >
+              9
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
+                Refund / Payment Due
+              </span>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                Net GST position (1A - 1B)
+              </span>
+            </div>
+            <div
+              style={{
+                textAlign: "right",
+                fontWeight: 700,
+                fontSize: "15px",
+                color: "#0f172a",
+                whiteSpace: "nowrap",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {formatGst(Math.abs(refundOrPayment))}
+            </div>
+          </div>
+
+          {/* Net position Outcome Card */}
+          <div
+            style={{
+              background:
+                refundOrPayment >= 0
+                  ? "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)"
+                  : "linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)",
+              border:
+                refundOrPayment >= 0 ? "1px solid #bbf7d0" : "1px solid #fecdd3",
+              borderRadius: "12px",
+              padding: "16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              boxShadow: "0 2px 4px -1px rgba(0, 0, 0, 0.01)",
+              marginTop: "4px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              {refundOrPayment >= 0 ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{ width: "16px", height: "16px", color: "#16a34a" }}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{ width: "16px", height: "16px", color: "#dc2626" }}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+                  />
+                </svg>
+              )}
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  color: refundOrPayment >= 0 ? "#14532d" : "#7f1d1d",
+                }}
+              >
+                {refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"}
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: "11px",
+                color: refundOrPayment >= 0 ? "#15803d" : "#b91c1c",
+                fontWeight: 550,
+              }}
+            >
+              {refundOrPayment >= 0
+                ? `Formula: GST on Purchases - GST on Sales = ${formatGst(gstPurchases)} - ${formatGst(gstSales)}`
+                : `Formula: GST on Sales - GST on Purchases = ${formatGst(gstSales)} - ${formatGst(gstPurchases)}`}
+            </span>
+            <span
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color: refundOrPayment >= 0 ? "#16a34a" : "#dc2626",
+                fontVariantNumeric: "tabular-nums",
+                marginTop: "2px",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {formatGst(Math.abs(refundOrPayment))}
+            </span>
           </div>
         </div>
 
-        {error && (
-          <p className="portal-modal-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="portal-modal-section">
-          {isLoading && <p className="portal-modal-help">Loading…</p>}
-
-          {!isLoading && summary && (
-            <>
-              <div className="gst-rows">
-                {rows.map((row) => (
-                  <div key={row.code} className="gst-row">
-                    <span className="gst-row-code">{row.code}</span>
-                    <span className="gst-row-label">
-                      {row.label}
-                      <small>{row.hint}</small>
-                    </span>
-                    <span className="gst-row-value">
-                      {formatCurrency(row.value)}
-                    </span>
-                  </div>
-                ))}
-
-                <div
-                  className={`gst-row gst-row-net${
-                    isRefund ? " is-refund" : isNil ? " is-nil" : " is-payable"
-                  }`}
-                >
-                  <span className="gst-row-code">9</span>
-                  <span className="gst-row-label">
-                    {isNil
-                      ? "Nothing to pay or refund"
-                      : isRefund
-                        ? "Refund from the ATO"
-                        : "Payment due to the ATO"}
-                    <small>GST on sales − GST on purchases</small>
-                  </span>
-                  <span className="gst-row-value">
-                    {formatCurrency(summary.amountDue)}
-                  </span>
-                </div>
-              </div>
-
-              <dl className="gst-supporting">
-                <div>
-                  <dt>Income excluding GST</dt>
-                  <dd>{formatCurrency(summary.salesNet)}</dd>
-                </div>
-                <div>
-                  <dt>Income transactions</dt>
-                  <dd>{summary.salesCount}</dd>
-                </div>
-                <div>
-                  <dt>Expense transactions</dt>
-                  <dd>{summary.purchasesCount}</dd>
-                </div>
-              </dl>
-
-              <p className="gst-basis-note">
-                {summary.period.label} · {summary.period.from} to{" "}
-                {summary.period.to}. Figures are on an{" "}
-                <strong>accruals basis</strong>, dated by invoice date — if you
-                report GST on a cash basis these totals will differ. Personal
-                transactions and rejected transactions are excluded.
-              </p>
-            </>
-          )}
-
-          {!isLoading && summary && summary.salesCount === 0 && summary.purchasesCount === 0 && (
-            <p className="portal-modal-help">
-              No transactions fall in this period. If this is a residential
-              rental, that is expected — residential rent is input-taxed, so no
-              GST applies.
-            </p>
-          )}
-        </div>
-
-        <div className="portal-modal-actions">
-          {summary && (
-            <button
-              type="button"
-              className="property-outline-button"
-              onClick={handleCopy}
-            >
-              {copied ? "Copied" : "Copy values"}
-            </button>
-          )}
+        {/* Footer */}
+        <div
+          style={{
+            padding: "14px 24px",
+            borderTop: "1px solid #e2e8f0",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            backgroundColor: "#f8fafc",
+            borderBottomLeftRadius: "20px",
+            borderBottomRightRadius: "20px",
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: "11px",
+              color: "#64748b",
+              maxWidth: "62%",
+              lineHeight: 1.4,
+            }}
+          >
+            Accruals basis, dated by invoice date &mdash; cash-basis reporting will differ.
+            Personal and rejected transactions are excluded.
+          </span>
           <button
             type="button"
-            className="property-review-button"
-            onClick={onClose}
+            onClick={handleExportGstCsv}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 14px",
+              border: "1.5px solid #1e293b",
+              borderRadius: "8px",
+              backgroundColor: "#ffffff",
+              color: "#1e293b",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#f1f5f9";
+              e.currentTarget.style.borderColor = "#0f172a";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#ffffff";
+              e.currentTarget.style.borderColor = "#1e293b";
+            }}
           >
-            Done
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              style={{ width: "14px", height: "14px" }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+            </svg>
+            Export CSV
           </button>
         </div>
       </div>

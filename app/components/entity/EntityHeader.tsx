@@ -112,10 +112,43 @@ export default function EntityHeader({
                   so this is the summary an accountant actually transcribes. */}
               <button
                 type="button"
-                className="property-outline-button"
                 onClick={onOpenGst}
                 title="View the BAS GST summary for this entity"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 20px",
+                  border: "1.5px solid #233069",
+                  borderRadius: "10px",
+                  backgroundColor: "#e8ebfa",
+                  color: "#233069",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  height: "42px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#d8def7";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#e8ebfa";
+                }}
               >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{ width: "16px", height: "16px", flexShrink: 0 }}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
                 GST Summary
               </button>
             </div>
