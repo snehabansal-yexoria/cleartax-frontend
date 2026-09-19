@@ -17,10 +17,12 @@ export type InviteVerifiedToken = {
 
 type InviteInput = {
   inviter: InviteVerifiedToken;
+  apiToken?: string;
   email: string;
   requestedRole: string;
   organizationId?: string;
   fullName?: string;
+  phoneNumber?: string;
 };
 
 const appAccessKeyId = process.env.APP_ACCESS_KEY_ID;
@@ -134,9 +136,13 @@ export async function inviteUser(input: InviteInput) {
   try {
     const inviterEmail = String(input.inviter.email || "").trim().toLowerCase();
     const email = String(input.email || "").trim().toLowerCase();
-    const requestedRole = String(input.requestedRole || "").trim().toLowerCase();
+    const requestedRole = String(input.requestedRole || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
     const organizationId = String(input.organizationId || "").trim();
     const fullName = String(input.fullName || "").trim();
+    const phoneNumber = String(input.phoneNumber || "").trim();
 
     if (!input.inviter.sub || !inviterEmail) {
       throw new Error("Invalid inviter token");
@@ -154,7 +160,7 @@ export async function inviteUser(input: InviteInput) {
 
     const allowedInvites: Record<string, string[]> = {
       super_admin: ["admin"],
-      admin: ["accountant", "client"],
+      admin: ["accountant", "client", "regional_manager"],
       accountant: ["client"],
     };
 
@@ -232,15 +238,24 @@ export async function inviteUser(input: InviteInput) {
     const tempPassword = `${Math.random().toString(36).slice(-8)}A1!`;
     const cognitoUsername = generateCognitoUsername(email);
 
+    const userAttributes = [
+      { Name: "email", Value: email },
+      { Name: "email_verified", Value: "true" },
+    ];
+
+    if (phoneNumber) {
+      const sanitizedPhone = phoneNumber.replace(/[^\d+]/g, "");
+      if (sanitizedPhone) {
+        userAttributes.push({ Name: "phone_number", Value: sanitizedPhone });
+      }
+    }
+
     const command = new AdminCreateUserCommand({
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
       Username: cognitoUsername,
       TemporaryPassword: tempPassword,
       MessageAction: "SUPPRESS",
-      UserAttributes: [
-        { Name: "email", Value: email },
-        { Name: "email_verified", Value: "true" },
-      ],
+      UserAttributes: userAttributes,
     });
 
     await client.send(command);
@@ -260,9 +275,9 @@ export async function inviteUser(input: InviteInput) {
     await dbClient.query("BEGIN");
 
     await dbClient.query(
-      `INSERT INTO users (id, email, full_name, is_active)
-       VALUES ($1, $2, $3, true)`,
-      [inviteeUserId, email, inviteeName],
+      `INSERT INTO users (id, email, full_name, phone_number, is_active)
+       VALUES ($1, $2, $3, $4, true)`,
+      [inviteeUserId, email, inviteeName, phoneNumber || null],
     );
 
     await dbClient.query(
@@ -289,6 +304,9 @@ export async function inviteUser(input: InviteInput) {
     return {
       success: true,
       temporaryPassword: tempPassword,
+      invitationToken,
+      email,
+      role: requestedRole,
       userId: inviteeUserId,
       organizationId: finalOrgId,
     };

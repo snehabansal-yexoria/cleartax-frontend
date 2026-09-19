@@ -4,6 +4,7 @@ import {
   getCoreProperty,
   updateCoreProperty,
 } from "@/src/lib/coreApi";
+import { renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 function getBearerToken(req: Request) {
   const header = req.headers.get("authorization");
@@ -26,10 +27,7 @@ export async function GET(req: Request, context: RouteContext) {
     const property = await getCoreProperty(token, id);
     return NextResponse.json(property);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch property";
-    console.error(`GET /api/properties/${id} error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`GET /api/properties/${id}`, error);
   }
 }
 
@@ -55,10 +53,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     );
     return NextResponse.json(property);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to update property";
-    console.error(`PATCH /api/properties/${id} error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`PATCH /api/properties/${id}`, error, body);
   }
 }
 
@@ -73,9 +68,6 @@ export async function DELETE(req: Request, context: RouteContext) {
     await deleteCoreProperty(token, id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to delete property";
-    console.error(`DELETE /api/properties/${id} error:`, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return renderUpstreamError(`DELETE /api/properties/${id}`, error);
   }
 }

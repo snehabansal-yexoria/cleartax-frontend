@@ -4,9 +4,8 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 
 const cognitoClient = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION,
+  region: process.env.APP_REGION || process.env.AWS_REGION,
 });
-
 function escapeCognitoFilterValue(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }

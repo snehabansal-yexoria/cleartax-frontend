@@ -118,7 +118,23 @@ export default function SignupComponent({
               </div>
 
               <div className="lr-form">
-                <div className="login-form-wrap">
+                <form
+                  className="login-form-wrap"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (
+                      loading ||
+                      !fullName.trim() ||
+                      !email.trim() ||
+                      !password.trim() ||
+                      !confirmPassword.trim() ||
+                      (requiresTenantCode && !tenantCode.trim())
+                    ) {
+                      return;
+                    }
+                    void handleSignup();
+                  }}
+                >
                   <div className="login-element">
                     <label htmlFor="signup_full_name">Full Name</label>
                     <input
@@ -204,7 +220,7 @@ export default function SignupComponent({
 
                   <div className="login-submit">
                     <button
-                      onClick={handleSignup}
+                      type="submit"
                       disabled={
                         loading ||
                         !fullName.trim() ||
@@ -222,7 +238,7 @@ export default function SignupComponent({
                     <span>Already have an account?</span>
                     <Link href={loginHref}>Sign in</Link>
                   </div>
-                </div>
+                </form>
 
                 {error && (
                   <div className="login-error">

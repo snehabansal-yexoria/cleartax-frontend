@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/src/lib/verifyToken";
+import { sendInviteEmail } from "@/src/lib/coreApi";
 import { inviteUser, type InviteVerifiedToken } from "@/src/lib/invitations";
 import { pool } from "@/src/lib/db";
 import { findDirectoryUserByIdentity } from "@/src/lib/userDirectory";
+import { APP_BASE_URL } from "@/src/lib/appConfig";
 
 type BulkInviteRow = {
   email?: string;
@@ -53,6 +55,8 @@ export async function POST(req: Request) {
       role: string;
       success: boolean;
       temporaryPassword?: string;
+      invitationToken?: string;
+      invitePath?: string;
       error?: string;
     }> = [];
 
@@ -93,14 +97,15 @@ export async function POST(req: Request) {
           email = String(row.email || "").trim();
           requestedRole = String(row.role || "")
             .trim()
-            .toLowerCase();
+            .toLowerCase()
+            .replace(/[\s-]+/g, "_");
 
           if (!email || !requestedRole) {
             throw new Error("email and role are required");
           }
 
-          if (!["accountant", "client"].includes(requestedRole)) {
-            throw new Error("role must be accountant or client");
+          if (!["accountant", "client", "regional_manager"].includes(requestedRole)) {
+            throw new Error("role must be accountant, client, or regional_manager");
           }
         } else {
           return NextResponse.json(
@@ -117,12 +122,29 @@ export async function POST(req: Request) {
           fullName: String(row.full_name || "").trim(),
         });
 
+        const origin = APP_BASE_URL;
+        const inviteLink = `${origin}/invite?token=${encodeURIComponent(result.invitationToken)}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(requestedRole)}#temporary_password=${encodeURIComponent(result.temporaryPassword)}`;
+        const apiToken = req.headers.get("authorization")?.split(" ")[1] ?? "";
+        try {
+          await sendInviteEmail(apiToken, { email, role: requestedRole, invite_link: inviteLink });
+        } catch (emailErr) {
+          console.error("invite email failed (non-fatal):", email, emailErr);
+        }
+
         results.push({
           row: index + 2,
           email,
           role: requestedRole,
           success: true,
           temporaryPassword: result.temporaryPassword,
+          invitationToken: result.invitationToken,
+          invitePath: `/invite?token=${encodeURIComponent(
+            result.invitationToken,
+          )}&email=${encodeURIComponent(email)}&role=${encodeURIComponent(
+            requestedRole,
+          )}#temporary_password=${encodeURIComponent(
+            result.temporaryPassword,
+          )}`,
         });
       } catch (error) {
         results.push({

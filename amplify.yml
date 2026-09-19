@@ -6,6 +6,26 @@ frontend:
         - npm ci --cache .npm --prefer-offline
     build:
       commands:
+        # Client-visible vars (inlined into the browser bundle at build time)
+        - echo "NEXT_PUBLIC_COGNITO_USER_POOL_ID=$NEXT_PUBLIC_COGNITO_USER_POOL_ID" >> .env.production
+        - echo "NEXT_PUBLIC_COGNITO_CLIENT_ID=$NEXT_PUBLIC_COGNITO_CLIENT_ID" >> .env.production
+        - echo "NEXT_PUBLIC_CORE_API_BASE_URL=$NEXT_PUBLIC_CORE_API_BASE_URL" >> .env.production
+        # Server-only vars consumed by route handlers at runtime. Amplify does
+        # NOT forward console env vars to the Next.js SSR runtime automatically,
+        # so they must be baked into .env.production here or the server falls
+        # back to defaults (e.g. pg connecting to 127.0.0.1:5432 -> ECONNREFUSED).
+        - echo "COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID" >> .env.production
+        - echo "CORE_API_BASE_URL=$CORE_API_BASE_URL" >> .env.production
+        - echo "APP_REGION=$APP_REGION" >> .env.production
+        - echo "APP_ACCESS_KEY_ID=$APP_ACCESS_KEY_ID" >> .env.production
+        - echo "APP_SECRET_ACCESS_KEY=$APP_SECRET_ACCESS_KEY" >> .env.production
+        - echo "DATABASE_HOST=$DATABASE_HOST" >> .env.production
+        - echo "DATABASE_PORT=$DATABASE_PORT" >> .env.production
+        - echo "DATABASE_USER=$DATABASE_USER" >> .env.production
+        - echo "DATABASE_NAME=$DATABASE_NAME" >> .env.production
+        - echo "DATABASE_PASSWORD=$DATABASE_PASSWORD" >> .env.production
+        - echo "SES_FROM_EMAIL=$SES_FROM_EMAIL" >> .env.production
+        - echo "GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY" >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next
