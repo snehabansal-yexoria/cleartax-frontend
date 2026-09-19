@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TableRowsSkeleton } from "@/app/components/PortalSkeletons";
 import ValidatedDateInput from "@/app/components/ValidatedDateInput";
+import { StaticSelect } from "@/app/components/TransactionsFeature";
 import type {
   CoreJournalEntry,
   CoreJournalEntrySummary,
@@ -19,6 +20,12 @@ interface Props {
 
 const PAGE_SIZES = [10, 20, 50, 100, 200];
 
+const SOURCE_OPTIONS = [
+  { label: "All", value: "" },
+  { label: "Manual", value: "manual" },
+  { label: "CSV import", value: "csv" },
+];
+
 export default function JournalEntriesList({
   entityId,
   clientId,
@@ -31,6 +38,7 @@ export default function JournalEntriesList({
   const [items, setItems] = useState<CoreJournalEntrySummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [pageSize, setPageSize] = useState(20);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
@@ -49,6 +57,11 @@ export default function JournalEntriesList({
     null,
   );
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Sync page input value with current page
+  useEffect(() => {
+    setPageInputValue(String(page));
+  }, [page]);
 
   // Debounce search so a keystroke does not become a request.
   useEffect(() => {
@@ -186,36 +199,43 @@ export default function JournalEntriesList({
   return (
     <div className="journal-list">
       <div className="journal-list-filters">
-        <input
-          type="search"
-          placeholder="Search reference, memo, account or description"
-          value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
-        />
-        <label>
-          <span>From</span>
+        <div className="journal-search-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search reference, memo, account or description"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            aria-label="Search journal entries"
+          />
+        </div>
+        <div className="journal-filter-field">
+          <span className="journal-filter-field-label">From</span>
           <ValidatedDateInput
             value={from}
             max={to || undefined}
             onChange={(e) => setFrom(e.target.value)}
           />
-        </label>
-        <label>
-          <span>To</span>
+        </div>
+        <div className="journal-filter-field">
+          <span className="journal-filter-field-label">To</span>
           <ValidatedDateInput
             value={to}
             min={from || undefined}
             onChange={(e) => setTo(e.target.value)}
           />
-        </label>
-        <label>
-          <span>Source</span>
-          <select value={source} onChange={(e) => setSource(e.target.value)}>
-            <option value="">All</option>
-            <option value="manual">Manual</option>
-            <option value="csv">CSV import</option>
-          </select>
-        </label>
+        </div>
+        <div className="journal-filter-field">
+          <span className="journal-filter-field-label">Source</span>
+          <StaticSelect
+            value={source}
+            options={SOURCE_OPTIONS}
+            onChange={(val) => setSource(val)}
+          />
+        </div>
       </div>
 
       {error && <div className="entity-wizard-error">{error}</div>}
@@ -234,7 +254,7 @@ export default function JournalEntriesList({
               <th scope="col" className="is-numeric">Credit</th>
               <th scope="col">Source</th>
               <th scope="col">Created by</th>
-              <th scope="col">
+              <th scope="col" className="journal-col-actions">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
@@ -244,7 +264,7 @@ export default function JournalEntriesList({
 
             {!isLoading && items.length === 0 && (
               <tr>
-                <td colSpan={11} className="transactions-empty-state">
+                <td colSpan={11} className="journal-empty-cell">
                   No journal entries yet.
                 </td>
               </tr>
@@ -287,25 +307,53 @@ export default function JournalEntriesList({
                         </span>
                       </td>
                       <td>{entry.createdByName || entry.createdBy || "—"}</td>
-                      <td>
+                      <td className="journal-col-actions">
                         <div className="journal-row-actions">
                           <button
                             type="button"
-                            className="journal-link-button"
+                            className="journal-icon-button"
                             disabled={disabled}
-                            title={disabled ? disabledReason : undefined}
+                            title={disabled ? disabledReason : "Edit entry"}
+                            aria-label={`Edit ${entry.entryNo}`}
                             onClick={() => router.push(editHref(entry.id))}
                           >
-                            Edit
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
                           </button>
                           <button
                             type="button"
-                            className="journal-link-button is-danger"
+                            className="journal-icon-button is-danger"
                             disabled={disabled}
-                            title={disabled ? disabledReason : undefined}
+                            title={disabled ? disabledReason : "Delete entry"}
+                            aria-label={`Delete ${entry.entryNo}`}
                             onClick={() => setPendingDelete(entry)}
                           >
-                            Delete
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
                           </button>
                         </div>
                       </td>
@@ -374,12 +422,17 @@ export default function JournalEntriesList({
       </div>
 
       <footer className="premium-pagination-container">
-        <div className="premium-pagination-size">
-          <label>
-            Rows per page
+        {/* Left Section: Items per page and page range details */}
+        <div className="premium-pagination-left">
+          <span className="premium-pagination-label">Items per page</span>
+          <div className="premium-pagination-select-wrapper">
             <select
+              className="premium-pagination-select"
               value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
             >
               {PAGE_SIZES.map((n) => (
                 <option key={n} value={n}>
@@ -387,40 +440,123 @@ export default function JournalEntriesList({
                 </option>
               ))}
             </select>
-          </label>
-        </div>
-        <div className="transactions-showing-copy">
-          {total === 0
-            ? "No entries"
-            : `${firstRow}–${lastRow} of ${total} entries`}
-        </div>
-        <div className="premium-pagination-controls">
-          <button type="button" disabled={page <= 1} onClick={() => setPage(1)}>
-            First
-          </button>
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </button>
-          <span className="premium-pagination-page">
-            Page {page} of {totalPages}
+          </div>
+          <span className="premium-pagination-info">
+            {total === 0
+              ? "0 entries"
+              : `${firstRow}–${lastRow} of ${total} entries`}
           </span>
+        </div>
+
+        {/* Right Section: First, Previous, Page Input, Next, Last */}
+        <div className="premium-pagination-right">
+          {/* First Page */}
           <button
             type="button"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="premium-pagination-btn premium-pagination-icon-btn"
+            title="First Page"
+            onClick={() => setPage(1)}
+            disabled={page === 1 || totalPages <= 1}
           >
-            Next
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "14px", height: "14px" }}>
+              <line x1="5" y1="5" x2="5" y2="19" />
+              <polyline points="19 5 12 12 19 19" />
+            </svg>
           </button>
+
+          {/* Previous Page */}
           <button
             type="button"
-            disabled={page >= totalPages}
-            onClick={() => setPage(totalPages)}
+            className="premium-pagination-btn"
+            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+            disabled={page === 1 || totalPages <= 1}
           >
-            Last
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "14px", height: "14px" }}>
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span className="premium-pagination-btn-text">Previous</span>
+          </button>
+
+          {/* Page Selector Input Box */}
+          <div className="premium-pagination-page-input-wrapper">
+            <input
+              type="number"
+              className="premium-pagination-page-input"
+              value={pageInputValue}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "") {
+                  setPageInputValue("");
+                  return;
+                }
+                if (/^[1-9]\d*$/.test(value)) {
+                  const pageNum = Number(value);
+                  if (pageNum <= totalPages) {
+                    setPageInputValue(value);
+                  }
+                }
+              }}
+              onBlur={() => {
+                const pageNum = Number(pageInputValue);
+                if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                  setPage(pageNum);
+                } else {
+                  setPageInputValue(String(page));
+                }
+              }}
+              onKeyDown={(e) => {
+                if (["e", "E", "-", "+", "."].includes(e.key)) {
+                  e.preventDefault();
+                  return;
+                }
+                if (e.key === "Enter") {
+                  const pageNum = Number(pageInputValue);
+                  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                    setPage(pageNum);
+                    e.currentTarget.blur();
+                  } else {
+                    setPageInputValue(String(page));
+                    e.currentTarget.blur();
+                  }
+                }
+              }}
+              onPaste={(e) => {
+                const pastedData = e.clipboardData.getData("text");
+                if (!/^[1-9]\d*$/.test(pastedData) || Number(pastedData) > totalPages) {
+                  e.preventDefault();
+                }
+              }}
+              min={1}
+              max={totalPages}
+            />
+            <span className="premium-pagination-label">of {totalPages}</span>
+          </div>
+
+          {/* Next Page */}
+          <button
+            type="button"
+            className="premium-pagination-btn"
+            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={page === totalPages || totalPages <= 1}
+          >
+            <span className="premium-pagination-btn-text">Next</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "14px", height: "14px" }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+
+          {/* Last Page */}
+          <button
+            type="button"
+            className="premium-pagination-btn premium-pagination-icon-btn"
+            title="Last Page"
+            onClick={() => setPage(totalPages)}
+            disabled={page === totalPages || totalPages <= 1}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "14px", height: "14px" }}>
+              <line x1="19" y1="5" x2="19" y2="19" />
+              <polyline points="5 5 12 12 5 19" />
+            </svg>
           </button>
         </div>
       </footer>
