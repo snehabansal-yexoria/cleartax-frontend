@@ -180,20 +180,21 @@ export default function PaymentAlerts() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "16px",
+                padding: isMobile ? "12px 14px" : "16px",
                 background: "var(--surface-1)",
                 borderRadius: "16px",
                 border: "1px solid var(--border)",
-                boxShadow: "0 2px 8px rgba(16, 24, 40, 0.02)"
+                boxShadow: "0 2px 8px rgba(16, 24, 40, 0.02)",
+                gap: "10px"
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "14px", minWidth: 0, flex: 1 }}>
                 <div
                   className={`bell-icon-box ${alert.isPaid ? 'paid' : alert.statusType}`}
                   style={{
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "12px",
+                    width: isMobile ? "36px" : "42px",
+                    height: isMobile ? "36px" : "42px",
+                    borderRadius: "10px",
                     background: alert.isPaid ? "#fef6ee" : alert.bellBg,
                     color: alert.isPaid ? "#c28d48" : alert.bellColor,
                     display: "flex",
@@ -207,66 +208,77 @@ export default function PaymentAlerts() {
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   ) : (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "20px", height: "20px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: isMobile ? "18px" : "20px", height: isMobile ? "18px" : "20px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
                       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                     </svg>
                   )}
                 </div>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <strong style={{
-                    fontSize: "14px",
+                    fontSize: isMobile ? "13px" : "14px",
                     fontWeight: 700,
                     color: alert.isPaid ? "#8c9ba5" : "var(--text-primary)",
                     textDecoration: alert.isPaid ? "line-through" : "none",
-                    display: "block"
-                  }} className="truncate">
+                    display: "block",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis"
+                  }}>
                     {alert.title}
                   </strong>
                   <p style={{
-                    margin: "4px 0 0 0",
-                    fontSize: "12px",
+                    margin: "2px 0 0 0",
+                    fontSize: isMobile ? "11px" : "12px",
                     color: alert.isPaid ? "#c28d48" : alert.statusType === "overdue" ? "#d92d20" : "#b54708",
-                    fontWeight: 600
+                    fontWeight: 600,
+                    whiteSpace: "nowrap"
                   }}>
                     {alert.isPaid ? "Marked as paid" : alert.statusText}
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+              <div style={{
+                display: "flex",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "flex-end" : "center",
+                gap: isMobile ? "4px" : "12px",
+                flexShrink: 0
+              }}>
                 {alert.isPaid ? (
                   <span
                     className="paid-badge"
                     style={{
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: 700,
                       color: "#027a48",
                       background: "#ecfdf3",
-                      padding: "4px 12px",
-                      borderRadius: "12px"
+                      padding: "3px 10px",
+                      borderRadius: "10px"
                     }}
                   >
                     Paid
                   </span>
                 ) : (
                   <>
-                    <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>
+                    <span style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 800, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                       {formatClientCurrency(alert.amount)}
                     </span>
                     <button
                       type="button"
                       onClick={() => setSelectedAlert(alert)}
                       style={{
-                        padding: "8px 14px",
-                        borderRadius: "10px",
+                        padding: isMobile ? "4px 10px" : "8px 14px",
+                        borderRadius: "8px",
                         background: "var(--surface-1)",
                         color: "var(--text-primary)",
                         border: "1px solid var(--border)",
                         fontWeight: 600,
-                        fontSize: "13px",
+                        fontSize: isMobile ? "11px" : "13px",
                         cursor: "pointer",
-                        transition: "all 0.15s ease"
+                        transition: "all 0.15s ease",
+                        whiteSpace: "nowrap"
                       }}
                       className="mark-as-paid-btn"
                     >
