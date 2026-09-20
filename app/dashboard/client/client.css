@@ -261,6 +261,47 @@ html.dark .search-highlight {
    MOBILE CLIENT LAYOUT
    ========================================================================== */
 
+@media (max-width: 768px) {
+  .accountant-shell.client-dashboard-shell,
+  .accountant-shell:has(.mobile-client-dashboard) {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  .accountant-main-shell.client-main-shell,
+  .accountant-shell:has(.mobile-client-dashboard) .accountant-main-shell {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+
+  .accountant-main-content.client-main-content,
+  .accountant-main-shell:has(.mobile-client-dashboard) .accountant-main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+}
+
+.mobile-client-dashboard-layout {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.mobile-client-dashboard-content-area {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 html.dark .mobile-client-dashboard {
   background-color: var(--surface-0) !important;
 }
