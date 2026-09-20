@@ -229,7 +229,7 @@ export default function ClientPropertyPage() {
                 width: "40px",
                 height: "40px",
                 borderRadius: "20px",
-                background: "#1a235a",
+                background: "var(--brand)",
                 color: "#ffffff",
                 textDecoration: "none"
               }}

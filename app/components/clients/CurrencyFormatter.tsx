@@ -50,7 +50,7 @@ export function formatClientCurrency(
     });
   }
 
-  const sign = isNegative ? '- ' : (options.showPlus ? '+ ' : '');
+  const sign = isNegative ? '-' : (options.showPlus ? '+' : '');
 
   return `${CURRENCY_PREFIX}${CURRENCY_SPACER}${sign}${formattedValue}`;
 }

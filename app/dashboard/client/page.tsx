@@ -660,24 +660,28 @@ export default function ClientPage() {
               {/* Quick Actions */}
               <div className="m-db-actions-grid">
                 <Link href="/dashboard/client/entities/new" className="m-db-btn-entity">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                    <path d="M3 21h18" />
-                    <path d="M3 10h18" />
-                    <path d="M5 6h14" />
-                    <path d="M4 10v11" />
-                    <path d="M20 10v11" />
-                    <path d="M8 14v3" />
-                    <path d="M12 14v3" />
-                    <path d="M16 14v3" />
-                  </svg>
-                  Create Entity
+                  <div className="m-db-entity-icon-wrap">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '22px', height: '22px', minWidth: '22px', minHeight: '22px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                      <line x1="3" y1="22" x2="21" y2="22" />
+                      <line x1="6" y1="18" x2="6" y2="11" />
+                      <line x1="10" y1="18" x2="10" y2="11" />
+                      <line x1="14" y1="18" x2="14" y2="11" />
+                      <line x1="18" y1="18" x2="18" y2="11" />
+                      <polygon points="12 2 20 7 4 7" />
+                      <line x1="2" y1="18" x2="22" y2="18" />
+                      <line x1="2" y1="7" x2="22" y2="7" />
+                    </svg>
+                  </div>
+                  <span>Create Entity</span>
                 </Link>
                 <div className="m-db-actions-row">
                   <Link href="/dashboard/client/transactions/new" className="m-db-action-box tx">
                     <div className="m-db-action-icon-wrap">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                        <path d="m7 15 5 5 5-5" />
-                        <path d="m17 9-5-5-5 5" />
+                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                        <path d="m15 4 5 4-5 4" />
+                        <path d="M20 8H4" />
+                        <path d="m9 20-5-4 5-4" />
+                        <path d="M4 16h16" />
                       </svg>
                     </div>
                     <span>Add Transaction</span>
@@ -688,10 +692,14 @@ export default function ClientPage() {
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                        <path d="M12 18v-6" />
-                        <path d="M9 15h6" />
+                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                        <path d="M18 8V3h-3" />
+                        <path d="M4.5 11 2 11l10-8.5 10 8.5h-2.5" />
+                        <path d="M5 11v8a2 2 0 0 0 2 2h4" />
+                        <path d="M9 21v-5a1 1 0 0 1 1-1h2" />
+                        <circle cx="17.5" cy="17.5" r="4.5" />
+                        <path d="M17.5 15v5" />
+                        <path d="M15 17.5h5" />
                       </svg>
                     </div>
                     <span>Add Property</span>
@@ -902,24 +910,28 @@ export default function ClientPage() {
               {/* Quick Actions */}
               <div className="m-db-actions-grid" style={{ marginTop: '16px' }}>
                 <Link href="/dashboard/client/entities/new" className="m-db-btn-entity">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                    <path d="M3 21h18" />
-                    <path d="M3 10h18" />
-                    <path d="M5 6h14" />
-                    <path d="M4 10v11" />
-                    <path d="M20 10v11" />
-                    <path d="M8 14v3" />
-                    <path d="M12 14v3" />
-                    <path d="M16 14v3" />
-                  </svg>
-                  Create Entity
+                  <div className="m-db-entity-icon-wrap">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '22px', height: '22px', minWidth: '22px', minHeight: '22px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                      <line x1="3" y1="22" x2="21" y2="22" />
+                      <line x1="6" y1="18" x2="6" y2="11" />
+                      <line x1="10" y1="18" x2="10" y2="11" />
+                      <line x1="14" y1="18" x2="14" y2="11" />
+                      <line x1="18" y1="18" x2="18" y2="11" />
+                      <polygon points="12 2 20 7 4 7" />
+                      <line x1="2" y1="18" x2="22" y2="18" />
+                      <line x1="2" y1="7" x2="22" y2="7" />
+                    </svg>
+                  </div>
+                  <span>Create Entity</span>
                 </Link>
                 <div className="m-db-actions-row">
                   <Link href="/dashboard/client/transactions/new" className="m-db-action-box tx">
                     <div className="m-db-action-icon-wrap">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                        <path d="m7 15 5 5 5-5" />
-                        <path d="m17 9-5-5-5 5" />
+                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                        <path d="m15 4 5 4-5 4" />
+                        <path d="M20 8H4" />
+                        <path d="m9 20-5-4 5-4" />
+                        <path d="M4 16h16" />
                       </svg>
                     </div>
                     <span>Add Transaction</span>
@@ -930,10 +942,14 @@ export default function ClientPage() {
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                        <path d="M12 18v-6" />
-                        <path d="M9 15h6" />
+                      <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                        <path d="M18 8V3h-3" />
+                        <path d="M4.5 11 2 11l10-8.5 10 8.5h-2.5" />
+                        <path d="M5 11v8a2 2 0 0 0 2 2h4" />
+                        <path d="M9 21v-5a1 1 0 0 1 1-1h2" />
+                        <circle cx="17.5" cy="17.5" r="4.5" />
+                        <path d="M17.5 15v5" />
+                        <path d="M15 17.5h5" />
                       </svg>
                     </div>
                     <span>Add Property</span>
@@ -996,8 +1012,8 @@ export default function ClientPage() {
                         </div>
 
                         <div className="m-db-entity-label-row">
-                          <span>Value <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
-                          <span>Loan <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
                         </div>
                       </div>
                     ))
@@ -1023,59 +1039,59 @@ export default function ClientPage() {
 
                 <div className="m-db-activity-list-card">
                   {propertyListItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085]" style={{ minHeight: '120px' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085] dark:text-[#8891C4]" style={{ minHeight: '120px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: 'var(--text-muted)' }} className="mb-2">
                         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         <path d="M9 22V12h6v10" />
                       </svg>
                       <span className="text-sm font-semibold">No properties available</span>
-                      <span className="text-xs text-[#98a2b3] mt-1">Add a property to start tracking.</span>
+                      <span className="text-xs text-[#98a2b3] dark:text-[#6F76A6] mt-1">Add a property to start tracking.</span>
                     </div>
                   ) : (
                     propertyListItems.map((item, idx) => (
-                      <div key={`${item.id}-${idx}`} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < propertyListItems.length - 1 ? '1px solid #f2f4f7' : 'none' }}>
+                      <div key={`${item.id}-${idx}`} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < propertyListItems.length - 1 ? '1px solid var(--border)' : 'none' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             {item.isReal ? (
                               <Link
                                 href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`}
                                 className="m-db-entity-name"
-                                style={{ textDecoration: 'none', color: '#101828', fontSize: '15px', fontWeight: 700 }}
+                                style={{ textDecoration: 'none', color: 'var(--text-primary)', fontSize: '15px', fontWeight: 700 }}
                               >
                                 {item.name}
                               </Link>
                             ) : (
-                              <span style={{ color: '#101828', fontSize: '15px', fontWeight: 700 }}>{item.name}</span>
+                              <span style={{ color: 'var(--text-primary)', fontSize: '15px', fontWeight: 700 }}>{item.name}</span>
                             )}
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '12px', color: '#667085' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
                                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                               </svg>
                               <Link
                                 href={`/dashboard/client/entities/${item.entityId}`}
-                                style={{ textDecoration: 'none', color: '#667085' }}
+                                style={{ textDecoration: 'none', color: 'var(--text-secondary)' }}
                               >
                                 {item.entityName}
                               </Link>
                             </div>
                           </div>
 
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#98a2b3' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: 'var(--text-muted)' }}>
                             <path d="m9 18 6-6-6-6" />
                           </svg>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#475467' }}>
-                          <span>Value <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
-                          <span>Loan <strong style={{ color: '#101828' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
                         </div>
 
                         <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
-                          <span style={{ color: '#475467' }}>Income <strong style={{ color: '#12b76a' }}>{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
-                          <span style={{ color: '#475467' }}>Expense <strong style={{ color: '#344054' }}>{formatClientCurrency(-item.expense, { short: true })}</strong></span>
-                          <span style={{ color: '#475467' }}>Net <strong style={{ color: item.net >= 0 ? '#12b76a' : '#f04438' }}>{formatClientCurrency(item.net, { short: true, showPlus: true })}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Income <strong style={{ color: 'var(--success)' }}>{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Expense <strong style={{ color: 'var(--text-primary)' }}>{formatClientCurrency(-item.expense, { short: true })}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Net <strong style={{ color: item.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>{formatClientCurrency(item.net, { short: true, showPlus: true })}</strong></span>
                         </div>
                       </div>
                     ))
@@ -1086,7 +1102,7 @@ export default function ClientPage() {
               <div className="m-db-stat-card" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Loan vs Value</h3>
 
-                <div style={{ display: 'flex', height: '8px', width: '100%', borderRadius: '4px', overflow: 'hidden', background: 'var(--border)', margin: '4px 0' }}>
+                <div style={{ display: 'flex', height: '8px', width: '100%', borderRadius: '4px', overflow: 'hidden', background: 'var(--surface-2)', margin: '4px 0' }}>
                   <div style={{ width: `${loanPercentageOverall}%`, background: 'var(--brand)', transition: 'width 0.3s ease' }} />
                   <div style={{ width: `${equityPercentageOverall}%`, background: 'var(--accent)', transition: 'width 0.3s ease' }} />
                 </div>
@@ -1104,8 +1120,6 @@ export default function ClientPage() {
               </div>
             </div>
           )}
-
-
         </div>
       </Skeleton>
     );
@@ -1131,9 +1145,11 @@ export default function ClientPage() {
               boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
             }}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-              <path d="m7 15 5 5 5-5" />
-              <path d="m17 9-5-5-5 5" />
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+              <path d="m16 3 4 4-4 4" />
+              <path d="M20 7H4" />
+              <path d="m8 21-4-4 4-4" />
+              <path d="M4 17h16" />
             </svg>
             Add transaction
           </Link>
@@ -1147,10 +1163,11 @@ export default function ClientPage() {
               boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
             }}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <path d="M12 18v-6" />
-              <path d="M9 15h6" />
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+              <path d="M5 12l-2 0l9-9l9 9l-2 0" />
+              <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+              <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
+              <path d="M19 10v-6h-3" />
             </svg>
             Add property
           </Link>
@@ -1164,15 +1181,15 @@ export default function ClientPage() {
               boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
             }}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-              <path d="M3 21h18" />
-              <path d="M3 10h18" />
-              <path d="M5 6h14" />
-              <path d="M4 10v11" />
-              <path d="M20 10v11" />
-              <path d="M8 14v3" />
-              <path d="M12 14v3" />
-              <path d="M16 14v3" />
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+              <path d="M7 8c0-2.8 2.2-5 5-5s5 2.2 5 5" />
+              <path d="M3 8h18" />
+              <path d="M4 8v12" />
+              <path d="M20 8v12" />
+              <path d="M3 20h18" />
+              <path d="M8 12v4" />
+              <path d="M12 12v4" />
+              <path d="M16 12v4" />
             </svg>
             Create entity
           </Link>

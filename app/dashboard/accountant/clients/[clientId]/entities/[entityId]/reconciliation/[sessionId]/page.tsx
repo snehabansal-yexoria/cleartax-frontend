@@ -35,7 +35,12 @@ import {
   hidesSubcategoryPicker,
   parseTransactionType,
 } from "@/src/lib/transactionTypes";
-import { firstCategoryOfType } from "@/src/lib/assetCategory";
+import {
+  firstCategoryOfType,
+  findAssetCategory,
+  isCapitalAllowanceCategory,
+  isCapitalWorksCategory,
+} from "@/src/lib/assetCategory";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { getSession } from "@/src/lib/session";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
@@ -43,6 +48,7 @@ import { StaticSelect } from "@/app/components/TransactionsFeature";
 import AssetBuilder, {
   AssetSummaryChip,
   assetRequestFields,
+  isAssetEligibleCategory,
   type AssetDraft,
 } from "@/app/components/AssetBuilder";
 
@@ -464,6 +470,8 @@ export default function AccountantReconciliationSessionPage() {
   const categorizeIsAssetPurchase = categorizeAssetDraft !== null;
 
   const [assetBuilderOpen, setAssetBuilderOpen] = useState(false);
+  const [assetInitialClass, setAssetInitialClass] = useState<CoreAssetClass | null>(null);
+  const [assetCategoryError, setAssetCategoryError] = useState("");
 
   const [categorizeIsPersonal, setCategorizeIsPersonal] = useState(false);
   const [categorizePersonalAllocationType, setCategorizePersonalAllocationType] = useState<"percentage" | "amount">("percentage");
@@ -727,9 +735,14 @@ export default function AccountantReconciliationSessionPage() {
         totalCredits += s.totalCredits;
       } else {
         totalTransactions += rec.transactions.length;
+        for (const t of rec.transactions) {
+          if (t.debit) totalDebits += Math.abs(t.debit);
+          if (t.credit) totalCredits += t.credit;
+        }
       }
     }
-    return { totalTransactions, totalDebits, totalCredits };
+    const movement = totalCredits - totalDebits;
+    return { totalTransactions, totalDebits, totalCredits, movement };
   }, [selectedRecons]);
 
   // ── Data fetching ────────────────────────────────────────────────────────
@@ -884,6 +897,8 @@ export default function AccountantReconciliationSessionPage() {
     // Reset new states
     setCategorizeAssetDraft(null);
     setAssetBuilderOpen(false);
+    setAssetInitialClass(null);
+    setAssetCategoryError("");
 
     setCategorizeIsPersonal(false);
     setCategorizePersonalAllocationType("percentage");
@@ -961,6 +976,24 @@ export default function AccountantReconciliationSessionPage() {
     }
   }, [categorizeType, categorizeAssetDraft]);
 
+  const lockAssetPurchaseCategory = categorizeType === "expense" && categorizeIsAssetPurchase;
+  const lockedAssetCategory = lockAssetPurchaseCategory
+    ? findAssetCategory(categorizeCategories, categorizeAssetDraft?.assetClass ?? "")
+    : null;
+
+  useEffect(() => {
+    if (lockedAssetCategory && categorizeCategoryId !== lockedAssetCategory.id) {
+      setCategorizeCategoryId(lockedAssetCategory.id);
+      setCategorizeSubcategoryId(null);
+    }
+  }, [lockedAssetCategory, categorizeCategoryId]);
+
+  useEffect(() => {
+    if (lockAssetPurchaseCategory && !categorizeSubcategoryId && categorizeSubcategories[0]) {
+      setCategorizeSubcategoryId(categorizeSubcategories[0].id);
+    }
+  }, [lockAssetPurchaseCategory, categorizeSubcategories, categorizeSubcategoryId]);
+
   // Personal hides the category picker and cost base hides the subcategory
   // picker, so auto-select from the typed category fetch. Since migration 0032
   // seeds a taxonomy per type, this is a plain first-option pick rather than
@@ -1034,23 +1067,39 @@ export default function AccountantReconciliationSessionPage() {
   const categorizePersonalError = useMemo(() => {
     if (!categorizeIsPersonal) return "";
     if (activeGrossAmount <= 0) return "This line has no amount to split.";
-    if (categorizePersonalPercentage <= 0) return "Enter a personal portion above 0.";
+    if (categorizePersonalPercentage <= 0) {
+      return categorizePersonalAllocationType === "percentage"
+        ? "Enter a personal percentage above 0."
+        : "Enter a personal amount above 0.";
+    }
     if (categorizePersonalPercentage >= 100) {
-      return "The personal portion must be less than the whole amount. Use the Personal Transaction type instead.";
+      return categorizePersonalAllocationType === "percentage"
+        ? "Personal use must be under 100%. Choose the Personal Transaction type for a wholly private one."
+        : "The personal amount must be less than the total. Choose the Personal Transaction type for a wholly private one.";
     }
     return "";
-  }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPercentage]);
+  }, [categorizeIsPersonal, activeGrossAmount, categorizePersonalPercentage, categorizePersonalAllocationType]);
+
+  const categorizeDescriptionError = useMemo(() => {
+    if (categorizeType === "contra" && !categorizeDescription.trim()) {
+      return "A description is required on a contra entry: it is the only record of which accounts the money moved between.";
+    }
+    return "";
+  }, [categorizeType, categorizeDescription]);
 
   const categorizeDueDateError = useMemo(() => {
+    if (!categorizeIsRegularPayment) return "";
     if (!categorizeDueDate) {
       return "Due date is required.";
     }
     const todayStr = getLocalDateString();
-    if (categorizeDueDate < todayStr) {
+    if (categorizeDueDate <= todayStr) {
       return "Due date must be in the future.";
     }
     return "";
-  }, [categorizeDueDate]);
+  }, [categorizeIsRegularPayment, categorizeDueDate]);
+
+  const showCategorizeDueDateError = !!categorizeDueDateError && (categorizeDueDateTouched || categorizeDueDateError !== "Due date is required.");
 
   // ── Bulk categorize modal: load categories / subcategories ───────────────
 
@@ -1354,7 +1403,7 @@ export default function AccountantReconciliationSessionPage() {
     if (categorizeType === "contra" && !categorizeDescription.trim()) {
       setCategorizeError(
         "A description is required on a contra entry: it is the only record " +
-          "of which accounts the money moved between.",
+        "of which accounts the money moved between.",
       );
       return;
     }
@@ -1437,6 +1486,28 @@ export default function AccountantReconciliationSessionPage() {
         return;
       }
       gstAmount = parsed;
+    }
+
+    if (categorizeType === "contra" && !categorizeDescription.trim()) {
+      setCategorizeError("A description is required on a contra entry: it is the only record of which accounts the money moved between.");
+      setCategorizeSaving(false);
+      return;
+    }
+    if (categorizeIsRegularPayment && categorizeDueDateError) {
+      setCategorizeDueDateTouched(true);
+      setCategorizeError(categorizeDueDateError);
+      setCategorizeSaving(false);
+      return;
+    }
+    if (categorizeIsRegularPayment && !categorizeAlertName.trim()) {
+      setCategorizeError("Alert name is required for regular payments.");
+      setCategorizeSaving(false);
+      return;
+    }
+    if (allowsPersonalPortion(categorizeType) && categorizeIsPersonal && categorizePersonalError) {
+      setCategorizeError(categorizePersonalError);
+      setCategorizeSaving(false);
+      return;
     }
 
     try {
@@ -1578,11 +1649,11 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doBulkCategorize() {
     if (bulkSaving || bulkExcluding) return;
-    if (!bulkPropertyId || !bulkCategoryId) {
+    if (!bulkPropertyId || (!hidesCategoryPicker(bulkType) && !bulkCategoryId)) {
       setBulkError("Property and Category are required.");
       return;
     }
-    if (!bulkSubcategoryId) {
+    if (!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && !bulkSubcategoryId) {
       setBulkError("Please select sub category to continue.");
       return;
     }
@@ -1599,7 +1670,7 @@ export default function AccountantReconciliationSessionPage() {
     if (bulkType === "contra" && !bulkDescription.trim()) {
       setBulkError(
         "A description is required on a contra entry: it is the only record " +
-          "of which accounts the money moved between.",
+        "of which accounts the money moved between.",
       );
       return;
     }
@@ -1625,8 +1696,8 @@ export default function AccountantReconciliationSessionPage() {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               type: bulkType,
-              category_id: bulkCategoryId,
-              subcategory_id: bulkSubcategoryId,
+              category_id: hidesCategoryPicker(bulkType) ? null : bulkCategoryId,
+              subcategory_id: hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? null : bulkSubcategoryId,
               invoice_date: row.date,
               gross_amount: gross,
               gst_amount: gst,
@@ -1781,7 +1852,7 @@ export default function AccountantReconciliationSessionPage() {
             fetch(
               `/api/entities/${entityId}/reconciliations/${reconId}/matches?bankTxIndex=${bankTxIndex}`,
               { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
-            ).catch(() => {})
+            ).catch(() => { })
           )
         );
         await reloadMatches();
@@ -1810,7 +1881,7 @@ export default function AccountantReconciliationSessionPage() {
             fetch(
               `/api/entities/${entityId}/reconciliations/${reconId}/matches?bankTxIndex=${bankTxIndex}`,
               { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
-            ).catch(() => {})
+            ).catch(() => { })
           )
         );
         await reloadMatches();
@@ -2376,13 +2447,9 @@ export default function AccountantReconciliationSessionPage() {
             : `${selectedRecons.length} statement${selectedRecons.length === 1 ? "" : "s"} selected`}</small>
         </article>
         <article>
-          <span>Transactions</span>
-          <strong>{combinedRows.length}</strong>
-          <small>
-            {selectedRecons.length === 1 && selectedRecons[0].totalPages
-              ? `${selectedRecons[0].totalPages - (selectedRecons[0].summary?.pagesSkipped ?? 0)} pages processed`
-              : ""}
-          </small>
+          <span>Movement</span>
+          <strong>{fmtAud(aggregatedSummary.movement)}</strong>
+          <small>{combinedRows.length} transaction{combinedRows.length === 1 ? "" : "s"}</small>
         </article>
         <article>
           <span>Total Credits</span>
@@ -3388,8 +3455,11 @@ export default function AccountantReconciliationSessionPage() {
                             ) : (
                               <StaticSelect
                                 value={categorizePropertyId}
-                                placeholder="Select property"
-                                options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                                placeholder="Select Property"
+                                options={[
+                                  { label: "Select Property", value: "" },
+                                  ...properties.map((p) => ({ label: p.name, value: p.id })),
+                                ]}
                                 onChange={setCategorizePropertyId}
                               />
                             )}
@@ -3476,11 +3546,16 @@ export default function AccountantReconciliationSessionPage() {
                               </label>
                               <input
                                 type="text"
-                                className="recon-categorize-input"
+                                className={`recon-categorize-input${categorizeDescriptionError ? " has-error" : ""}`}
                                 placeholder="e.g. Transfer to savings account"
                                 value={categorizeDescription}
                                 onChange={(e) => setCategorizeDescription(e.target.value)}
                               />
+                              {categorizeDescriptionError && (
+                                <p className="recon-split-row-error" style={{ marginTop: "4px" }}>
+                                  {categorizeDescriptionError}
+                                </p>
+                              )}
                             </div>
                           )}
 
@@ -3492,10 +3567,34 @@ export default function AccountantReconciliationSessionPage() {
                               <StaticSelect
                                 value={String(categorizeCategoryId ?? "")}
                                 placeholder="Select category"
-                                options={categorizeCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
+                                options={[
+                                  { label: "Select category", value: "" },
+                                  ...categorizeCategories.map((c) => ({
+                                    label: c.name,
+                                    value: String(c.id),
+                                    type: categorizeType || undefined,
+                                  })),
+                                ]}
                                 onChange={(val) => {
-                                  setCategorizeCategoryId(val ? Number(val) : null);
+                                  const nextCatId = val ? Number(val) : null;
+                                  setCategorizeCategoryId(nextCatId);
                                   setCategorizeSubcategoryId(null);
+                                  setAssetCategoryError("");
+
+                                  const selectedCat = categorizeCategories.find((c) => c.id === nextCatId);
+                                  if (selectedCat && isCapitalWorksCategory(selectedCat.name)) {
+                                    setAssetInitialClass("capital_works");
+                                    setAssetBuilderOpen(true);
+                                  } else if (selectedCat && isCapitalAllowanceCategory(selectedCat.name)) {
+                                    setAssetInitialClass("capital_allowance");
+                                    setAssetBuilderOpen(true);
+                                  } else {
+                                    if (categorizeAssetDraft) {
+                                      setCategorizeAssetDraft(null);
+                                    }
+                                    setAssetBuilderOpen(false);
+                                    setAssetInitialClass(null);
+                                  }
                                 }}
                               />
                             </div>
@@ -3526,8 +3625,11 @@ export default function AccountantReconciliationSessionPage() {
                               </label>
                               <StaticSelect
                                 value={String(categorizeSubcategoryId ?? "")}
-                                placeholder="Select subcategory"
-                                options={categorizeSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                                placeholder="Select sub-category"
+                                options={[
+                                  { label: "Select sub-category", value: "" },
+                                  ...categorizeSubcategories.map((s) => ({ label: s.name, value: String(s.id) })),
+                                ]}
                                 onChange={(val) => setCategorizeSubcategoryId(val ? Number(val) : null)}
                                 disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
                               />
@@ -3535,46 +3637,120 @@ export default function AccountantReconciliationSessionPage() {
                           )}
                         </div>
 
-                        {/* Add Asset.
-                            Was a ~240-line three-step wizard here, a second
-                            copy of the one in TransactionsFeature. Both are
-                            AssetBuilder now, so the categorize drawer and the
-                            add-transaction form cannot drift apart again. */}
+                        {/* Add Asset. */}
                         {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
                             {categorizeAssetDraft && (
                               <AssetSummaryChip
                                 draft={categorizeAssetDraft}
-                                onRemove={() => setCategorizeAssetDraft(null)}
+                                onRemove={() => {
+                                  setCategorizeAssetDraft(null);
+                                  setAssetInitialClass(null);
+                                  setAssetCategoryError("");
+                                }}
                               />
                             )}
 
-                            {!categorizeAssetDraft && !assetBuilderOpen && (
-                              <button
-                                type="button"
-                                className="figma-add-asset-trigger"
-                                onClick={() => setAssetBuilderOpen(true)}
-                              >
-                                + Add Asset
-                              </button>
+                            {!categorizeAssetDraft && !assetBuilderOpen && categorizeType === "expense" && (
+                              <div>
+                                <button
+                                  type="button"
+                                  className="figma-add-asset-trigger"
+                                  onClick={() => {
+                                    const currentCat = categorizeCategories.find((c) => c.id === categorizeCategoryId);
+                                    if (!currentCat || !isAssetEligibleCategory(currentCat.name)) {
+                                      if (!currentCat) {
+                                        setAssetCategoryError(
+                                          "Please select a category (Capital Works Deductions or Capital Allowances) to add an asset."
+                                        );
+                                      } else {
+                                        setAssetCategoryError(
+                                          `"${currentCat.name}" is not an asset category. To add an asset, please select Capital Works Deductions or Capital Allowances as the category.`
+                                        );
+                                      }
+                                      return;
+                                    }
+                                    setAssetCategoryError("");
+                                    const isWorks = isCapitalWorksCategory(currentCat.name);
+                                    setAssetInitialClass(isWorks ? "capital_works" : "capital_allowance");
+                                    setAssetBuilderOpen(true);
+                                  }}
+                                >
+                                  + Add Asset
+                                </button>
+                                {assetCategoryError && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "8px",
+                                      padding: "10px 14px",
+                                      borderRadius: "10px",
+                                      background: "rgba(218, 56, 56, 0.08)",
+                                      border: "1px solid rgba(218, 56, 56, 0.24)",
+                                      color: "#da3838",
+                                      fontSize: "13px",
+                                      fontWeight: 500,
+                                      marginTop: "10px",
+                                    }}
+                                  >
+                                    <svg style={{ width: "16px", height: "16px", flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                    </svg>
+                                    <span>{assetCategoryError}</span>
+                                  </div>
+                                )}
+                              </div>
                             )}
 
                             {assetBuilderOpen && (
                               <AssetBuilder
-                                initial={categorizeAssetDraft}
-                                onCancel={() => setAssetBuilderOpen(false)}
+                                initial={
+                                  categorizeAssetDraft ||
+                                  (assetInitialClass ? { assetClass: assetInitialClass } : null)
+                                }
+                                onAssetClassChange={(newClass) => {
+                                  setAssetInitialClass(newClass);
+                                  if (newClass === "capital_works") {
+                                    const worksCat = categorizeCategories.find((c) => isCapitalWorksCategory(c.name));
+                                    if (worksCat) {
+                                      setCategorizeCategoryId(worksCat.id);
+                                      setCategorizeSubcategoryId(null);
+                                      setAssetCategoryError("");
+                                    }
+                                  } else if (newClass === "capital_allowance") {
+                                    const allowanceCat = categorizeCategories.find((c) => isCapitalAllowanceCategory(c.name));
+                                    if (allowanceCat) {
+                                      setCategorizeCategoryId(allowanceCat.id);
+                                      setCategorizeSubcategoryId(null);
+                                      setAssetCategoryError("");
+                                    }
+                                  }
+                                }}
+                                onCancel={() => {
+                                  setAssetBuilderOpen(false);
+                                  setAssetInitialClass(null);
+                                  setAssetCategoryError("");
+                                }}
                                 onSubmit={(draft) => {
                                   setCategorizeAssetDraft(draft);
                                   setAssetBuilderOpen(false);
+                                  setAssetInitialClass(null);
+                                  setAssetCategoryError("");
+                                  if (draft.assetClass === "capital_works") {
+                                    const worksCat = categorizeCategories.find((c) => isCapitalWorksCategory(c.name));
+                                    if (worksCat) setCategorizeCategoryId(worksCat.id);
+                                  } else if (draft.assetClass === "capital_allowance") {
+                                    const allowanceCat = categorizeCategories.find((c) => isCapitalAllowanceCategory(c.name));
+                                    if (allowanceCat) setCategorizeCategoryId(allowanceCat.id);
+                                  }
                                 }}
                               />
                             )}
                           </div>
                         )}
 
-                        {/* Private-use split. Expense only — the backend
-                            rejects it on any other type, and a wholly private
-                            line is the Personal Transaction type instead. */}
+                        {/* Private-use split. */}
                         {allowsPersonalPortion(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
                             <label className="figma-toggle-container" style={{ marginBottom: categorizeIsPersonal ? 16 : 0 }}>
@@ -3614,10 +3790,35 @@ export default function AccountantReconciliationSessionPage() {
                                     </label>
                                     <input
                                       type="number"
+                                      inputMode="decimal"
+                                      step="any"
                                       className="recon-categorize-input"
                                       style={{ height: '48px' }}
                                       value={categorizePersonalValue}
-                                      onChange={(e) => setCategorizePersonalValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "e" || e.key === "E" || e.key === "-" || e.key === "+" || e.key === "Minus") {
+                                          e.preventDefault();
+                                        }
+                                        if (e.key === ".") {
+                                          const input = e.currentTarget;
+                                          const value = input.value;
+                                          const hasDot = value.includes(".");
+                                          if (hasDot) {
+                                            const selectionStart = input.selectionStart ?? 0;
+                                            const selectionEnd = input.selectionEnd ?? 0;
+                                            const selectedText = value.substring(selectionStart, selectionEnd);
+                                            if (!selectedText.includes(".")) {
+                                              e.preventDefault();
+                                            }
+                                          }
+                                        }
+                                      }}
+                                      onChange={(e) => {
+                                        const cleanVal = e.target.value.replace(/[^0-9.]/g, "");
+                                        const parts = cleanVal.split(".");
+                                        const finalVal = parts.length > 1 ? parts[0] + "." + parts.slice(1).join("") : parts[0];
+                                        setCategorizePersonalValue(finalVal);
+                                      }}
                                     />
                                   </div>
                                 </div>
@@ -3676,14 +3877,22 @@ export default function AccountantReconciliationSessionPage() {
                                   <label className="recon-categorize-label">Due Date <span className="is-required">*</span></label>
                                   <input
                                     type="date"
-                                    className="recon-categorize-input"
+                                    className={`recon-categorize-input${showCategorizeDueDateError ? " has-error" : ""}`}
                                     style={{ height: '48px' }}
                                     value={categorizeDueDate}
-                                    onChange={(e) => setCategorizeDueDate(e.target.value)}
+                                    onChange={(e) => {
+                                      setCategorizeDueDate(e.target.value);
+                                      setCategorizeDueDateTouched(true);
+                                    }}
                                     onBlur={() => setCategorizeDueDateTouched(true)}
                                   />
-                                  {categorizeDueDateTouched && categorizeDueDateError && (
-                                    <p className="recon-split-row-error">{categorizeDueDateError}</p>
+                                  {showCategorizeDueDateError && (
+                                    <p className="recon-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                      </svg>
+                                      <span>{categorizeDueDateError}</span>
+                                    </p>
                                   )}
                                 </div>
                                 <div className="recon-categorize-field">
@@ -3736,7 +3945,10 @@ export default function AccountantReconciliationSessionPage() {
                                       <StaticSelect
                                         value={row.propertyId}
                                         placeholder="Select Property"
-                                        options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                                        options={[
+                                          { label: "Select Property", value: "" },
+                                          ...properties.map((p) => ({ label: p.name, value: p.id })),
+                                        ]}
                                         onChange={(value) => updateCategorizeSplitRow(row.id, { propertyId: value })}
                                         error={propertyError}
                                       />
@@ -3803,56 +4015,52 @@ export default function AccountantReconciliationSessionPage() {
                           </div>
                         )}
 
-                        {/* Personal, cost base and contra carry no GST claim.
-                        Contra especially: transaction_contra_no_gst_check
-                        rejects a contra with GST, so leaving these radios
-                        visible let the user build a row the database refuses.
-                        Matches the other allowsBusinessExtras gates above. */}
+                        {/* Personal, cost base and contra carry no GST claim. */}
                         {allowsBusinessExtras(categorizeType) && (
-                        <div className="recon-categorize-gst">
-                          <span className="recon-categorize-gst-label">GST Applicable</span>
-                          <div className="recon-categorize-gst-options">
-                            <label className="recon-categorize-gst-option">
-                              <input
-                                type="radio"
-                                name={`gst-${key}`}
-                                checked={categorizeGst === true}
-                                onChange={() => {
-                                  setCategorizeGst(true);
-                                  const rec = reconCache.get(reconId);
-                                  const bankTx = rec?.transactions[bankTxIndex];
-                                  const gross = bankTx ? (bankTx.debit ?? bankTx.credit ?? 0) : 0;
-                                  setCategorizeGstAmount(String(Math.round((gross / 11) * 100) / 100));
-                                }}
-                              />
-                              Yes
-                            </label>
-                            <label className="recon-categorize-gst-option">
-                              <input
-                                type="radio"
-                                name={`gst-${key}`}
-                                checked={categorizeGst === false}
-                                onChange={() => { setCategorizeGst(false); setCategorizeGstAmount(""); }}
-                              />
-                              No
-                            </label>
-                          </div>
-                          {categorizeGst && (
-                            <div className="recon-categorize-field" style={{ marginTop: 8 }}>
-                              <label className="recon-categorize-label">GST Amount</label>
-                              <input
-                                type="number"
-                                inputMode="decimal"
-                                step="0.01"
-                                min="0"
-                                placeholder="0.00"
-                                className="recon-categorize-input"
-                                value={categorizeGstAmount}
-                                onChange={(e) => setCategorizeGstAmount(e.target.value)}
-                              />
+                          <div className="recon-categorize-gst">
+                            <span className="recon-categorize-gst-label">GST Applicable</span>
+                            <div className="recon-categorize-gst-options">
+                              <label className="recon-categorize-gst-option">
+                                <input
+                                  type="radio"
+                                  name={`gst-${key}`}
+                                  checked={categorizeGst === true}
+                                  onChange={() => {
+                                    setCategorizeGst(true);
+                                    const rec = reconCache.get(reconId);
+                                    const bankTx = rec?.transactions[bankTxIndex];
+                                    const gross = bankTx ? (bankTx.debit ?? bankTx.credit ?? 0) : 0;
+                                    setCategorizeGstAmount(String(Math.round((gross / 11) * 100) / 100));
+                                  }}
+                                />
+                                Yes
+                              </label>
+                              <label className="recon-categorize-gst-option">
+                                <input
+                                  type="radio"
+                                  name={`gst-${key}`}
+                                  checked={categorizeGst === false}
+                                  onChange={() => { setCategorizeGst(false); setCategorizeGstAmount(""); }}
+                                />
+                                No
+                              </label>
                             </div>
-                          )}
-                        </div>
+                            {categorizeGst && (
+                              <div className="recon-categorize-field" style={{ marginTop: 8 }}>
+                                <label className="recon-categorize-label">GST Amount</label>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="0.00"
+                                  className="recon-categorize-input"
+                                  value={categorizeGstAmount}
+                                  onChange={(e) => setCategorizeGstAmount(e.target.value)}
+                                />
+                              </div>
+                            )}
+                          </div>
                         )}
                         <hr className="recon-categorize-divider" />
                         {categorizeError && (
@@ -3877,10 +4085,13 @@ export default function AccountantReconciliationSessionPage() {
                             className="recon-categorize-save-btn"
                             disabled={
                               categorizeSaving ||
-                              !categorizeCategoryId ||
+                              (lockAssetPurchaseCategory || hidesCategoryPicker(categorizeType) ? false : !categorizeCategoryId) ||
+                              (lockAssetPurchaseCategory || hidesSubcategoryPicker(categorizeType) ? false : (showCategorizeSubcategorySelect && !categorizeSubcategoryId)) ||
                               (!categorizeIsSplit && !categorizePropertyId) ||
                               (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches)) ||
-                              (categorizeIsRegularPayment && (!categorizeDueDate || !!categorizeDueDateError || !categorizeAlertName.trim()))
+                              (categorizeIsRegularPayment && (!categorizeDueDate || !!categorizeDueDateError || !categorizeAlertName.trim())) ||
+                              (categorizeType === "contra" && !categorizeDescription.trim()) ||
+                              (allowsPersonalPortion(categorizeType) && categorizeIsPersonal && (!!categorizePersonalError || categorizePersonalPercentage <= 0 || categorizePersonalPercentage >= 100))
                             }
                             onClick={() => { void doSaveCategorize(reconId, bankTxIndex); }}
                           >
@@ -4092,8 +4303,8 @@ export default function AccountantReconciliationSessionPage() {
       )}
 
       {bulkOpen && (
-        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" style={{ zIndex: 1000 }}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl border border-slate-100 my-auto overflow-visible relative">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-base font-semibold text-slate-900 m-0">
                 Categorize Transactions
@@ -4124,8 +4335,11 @@ export default function AccountantReconciliationSessionPage() {
                   </label>
                   <StaticSelect
                     value={bulkPropertyId}
-                    placeholder="Select property"
-                    options={properties.map((p) => ({ label: p.name, value: p.id }))}
+                    placeholder="Select Property"
+                    options={[
+                      { label: "Select Property", value: "" },
+                      ...properties.map((p) => ({ label: p.name, value: p.id })),
+                    ]}
                     onChange={setBulkPropertyId}
                   />
                 </div>
@@ -4196,30 +4410,60 @@ export default function AccountantReconciliationSessionPage() {
                   </div>
                 )}
 
-                <div className="recon-categorize-field">
-                  <label className="recon-categorize-label">
-                    Category <span className="is-required">*</span>
-                  </label>
-                  <StaticSelect
-                    value={String(bulkCategoryId ?? "")}
-                    placeholder="Select category"
-                    options={bulkCategories.map((c) => ({ label: c.name, value: String(c.id) }))}
-                    onChange={(val) => {
-                      setBulkCategoryId(val ? Number(val) : null);
-                      setBulkSubcategoryId(null);
-                    }}
-                  />
-                </div>
+                {!hidesCategoryPicker(bulkType) && (
+                  <div className="recon-categorize-field">
+                    <label className="recon-categorize-label">
+                      Category <span className="is-required">*</span>
+                    </label>
+                    <StaticSelect
+                      value={String(bulkCategoryId ?? "")}
+                      placeholder="Select category"
+                      options={[
+                        { label: "Select category", value: "" },
+                        ...bulkCategories.map((c) => ({
+                          label: c.name,
+                          value: String(c.id),
+                          type: bulkType || undefined,
+                        })),
+                      ]}
+                      onChange={(val) => {
+                        setBulkCategoryId(val ? Number(val) : null);
+                        setBulkSubcategoryId(null);
+                      }}
+                    />
+                  </div>
+                )}
 
-                {showBulkSubcategorySelect && (
+                {bulkType === "cost_base" && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#f0f9ff',
+                    border: '1px solid #e0f2fe',
+                    color: '#0284c7',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    height: '50px',
+                    marginTop: '24px',
+                    boxSizing: 'border-box'
+                  }}>
+                    No subcategory for Property Cost Base — one free-text/typeable category only.
+                  </div>
+                )}
+
+                {!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && (
                   <div className="recon-categorize-field">
                     <label className="recon-categorize-label">
                       Subcategory <span className="is-required">*</span>
                     </label>
                     <StaticSelect
                       value={String(bulkSubcategoryId ?? "")}
-                      placeholder="Select subcategory"
-                      options={bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) }))}
+                      placeholder="Select sub-category"
+                      options={[
+                        { label: "Select sub-category", value: "" },
+                        ...bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) })),
+                      ]}
                       onChange={(val) => setBulkSubcategoryId(val ? Number(val) : null)}
                       disabled={!bulkCategoryId || bulkSubcategories.length === 0}
                     />
@@ -4346,8 +4590,10 @@ export default function AccountantReconciliationSessionPage() {
                   bulkSaving ||
                   bulkExcluding ||
                   !bulkPropertyId ||
-                  !bulkCategoryId ||
-                  !bulkSubcategoryId
+                  (!hidesCategoryPicker(bulkType) && !bulkCategoryId) ||
+                  (!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && !bulkSubcategoryId) ||
+                  (bulkType === "contra" && !bulkDescription.trim()) ||
+                  (allowsPersonalPortion(bulkType) && bulkIsPersonal && (!!bulkPersonalError || !bulkPersonalPercentage))
                 }
                 onClick={() => { void doBulkCategorize(); }}
               >

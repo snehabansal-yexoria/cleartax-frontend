@@ -596,31 +596,36 @@ export default function ClientEntityDetailView({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {addTransactionHref && (
               <Link href={addTransactionHref} className="client-quick-action-btn">
-                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5 }}>
-                  <path d="m17 1 4 4-4 4" />
-                  <path d="M3 5h18" />
-                  <path d="m7 23-4-4 4-4" />
-                  <path d="M21 19H3" />
+                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                  <path d="m16 3 4 4-4 4" />
+                  <path d="M20 7H4" />
+                  <path d="m8 21-4-4 4-4" />
+                  <path d="M4 17h16" />
                 </svg>
                 <span>Add transaction</span>
               </Link>
             )}
 
             <Link href={addPropertyHref} className="client-quick-action-btn">
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5 }}>
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                <path d="M5 12l-2 0l9-9l9 9l-2 0" />
+                <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+                <path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6" />
+                <path d="M19 10v-6h-3" />
               </svg>
               <span>Add property</span>
             </Link>
 
             <Link href="/dashboard/client/entities/new" className="client-quick-action-btn">
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5 }}>
-                <path d="M3 21h18" />
-                <path d="M3 10h18" />
-                <path d="M5 6h14" />
-                <path d="M4 10v11" />
-                <path d="M20 10v11" />
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                <path d="M7 8c0-2.8 2.2-5 5-5s5 2.2 5 5" />
+                <path d="M3 8h18" />
+                <path d="M4 8v12" />
+                <path d="M20 8v12" />
+                <path d="M3 20h18" />
+                <path d="M8 12v4" />
+                <path d="M12 12v4" />
+                <path d="M16 12v4" />
               </svg>
               <span>Create entity</span>
             </Link>
@@ -919,20 +924,52 @@ export default function ClientEntityDetailView({
           <div className="grid grid-cols-2 gap-4">
             {addTransactionHref && (
               <Link href={addTransactionHref} className="client-quick-action-btn">
-                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                  <path d="m7 15 5 5 5-5" />
-                  <path d="m17 9-5-5-5 5" />
-                </svg>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                    <path d="m15 4 5 4-5 4" />
+                    <path d="M20 8H4" />
+                    <path d="m9 20-5-4 5-4" />
+                    <path d="M4 16h16" />
+                  </svg>
+                </div>
                 <span>Add Transaction</span>
               </Link>
             )}
 
             <Link href={addPropertyHref} className="client-quick-action-btn">
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <path d="M12 18v-6" />
-                <path d="M9 15h6" />
-              </svg>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                  <path d="M18 8V3h-3" />
+                  <path d="M4.5 11 2 11l10-8.5 10 8.5h-2.5" />
+                  <path d="M5 11v8a2 2 0 0 0 2 2h4" />
+                  <path d="M9 21v-5a1 1 0 0 1 1-1h2" />
+                  <circle cx="17.5" cy="17.5" r="4.5" />
+                  <path d="M17.5 15v5" />
+                  <path d="M15 17.5h5" />
+                </svg>
+              </div>
               <span>Add Property</span>
             </Link>
           </div>
