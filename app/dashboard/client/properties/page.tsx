@@ -197,11 +197,381 @@ export default function ClientPropertyPage() {
   };
 
   return (
-    <Skeleton
-      name="client-property-page-skeleton"
-      loading={isLoading}
-      fallback={<ClientPropertiesSkeleton />}
-    >
+    <>
+      <style>{`
+        /* Baseline styles (Mobile first) */
+        .property-cards-container {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+          margin-bottom: 24px !important;
+        }
+
+        .m-db-property-list-card {
+          display: flex !important;
+          flex-direction: row !important;
+          padding: 12px !important;
+          gap: 12px !important;
+          border-radius: 16px !important;
+          overflow: hidden !important;
+          height: auto !important;
+          margin-bottom: 0 !important;
+          border: 1px solid var(--border) !important;
+          background: var(--surface-1) !important;
+          box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05) !important;
+          transition: all 0.2s ease-in-out !important;
+        }
+
+        .m-db-property-list-card:hover {
+          box-shadow: 0px 4px 6px -2px rgba(16, 24, 40, 0.03), 0px 12px 16px -4px rgba(16, 24, 40, 0.08) !important;
+          transform: translateY(-2px) !important;
+        }
+
+        .m-db-property-img-container {
+          width: 96px !important;
+          height: 96px !important;
+          aspect-ratio: 1 / 1 !important;
+          border-radius: 12px !important;
+          flex-shrink: 0 !important;
+          overflow: hidden !important;
+          background: var(--surface-0) !important;
+        }
+
+        .m-db-property-img {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+
+        .m-db-property-details {
+          padding: 0 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          flex-grow: 1 !important;
+          gap: 0 !important;
+          justify-content: space-between !important;
+        }
+
+        .m-db-property-name {
+          font-size: 15px !important;
+          font-weight: 600 !important;
+          color: var(--text-primary) !important;
+          margin: 0 0 2px 0 !important;
+          line-height: 20px !important;
+        }
+
+        .m-db-property-entity {
+          font-size: 12px !important;
+          color: var(--text-secondary) !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 4px !important;
+          margin: 0 0 6px 0 !important;
+        }
+
+        .m-db-property-stats-line {
+          display: flex !important;
+          gap: 12px !important;
+          margin: 0 0 8px 0 !important;
+          font-size: 12px !important;
+          color: var(--text-secondary) !important;
+          font-weight: 400 !important;
+        }
+
+        .m-db-property-stat-label {
+          color: var(--text-secondary) !important;
+        }
+
+        .m-db-property-stat-value {
+          font-weight: 600 !important;
+        }
+
+        .m-db-property-stat-value.income {
+          color: var(--success) !important;
+        }
+
+        .m-db-property-stat-value.expense {
+          color: var(--text-primary) !important;
+        }
+
+        .m-db-property-bottom-line {
+          margin-top: 0 !important;
+          border-top: none !important;
+          padding-top: 0 !important;
+          display: flex !important;
+          justify-content: flex-start !important;
+          align-items: center !important;
+          gap: 12px !important;
+        }
+
+        .m-db-property-badge {
+          font-size: 12px !important;
+          font-weight: 500 !important;
+          padding: 4px 8px !important;
+          border-radius: 8px !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          text-align: center !important;
+          line-height: 14px !important;
+          max-width: 90px !important;
+        }
+
+        .m-db-property-badge.status-rented {
+          background: #ecfdf3 !important;
+          color: #027a48 !important;
+        }
+        .m-db-property-badge.status-self {
+          background: #eff8ff !important;
+          color: #175cd3 !important;
+        }
+        .m-db-property-badge.status-available {
+          background: #fef6e7 !important;
+          color: #b54708 !important;
+        }
+
+        html.dark .m-db-property-badge.status-rented {
+          background: rgba(93, 202, 165, 0.15) !important;
+          color: var(--success) !important;
+        }
+        html.dark .m-db-property-badge.status-self {
+          background: var(--surface-2) !important;
+          color: var(--text-secondary) !important;
+        }
+        html.dark .m-db-property-badge.status-available {
+          background: rgba(244, 161, 23, 0.15) !important;
+          color: var(--accent) !important;
+        }
+
+        .m-db-property-net {
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          color: var(--success) !important;
+        }
+
+        .m-db-portfolio-value.green-text {
+          color: var(--success) !important;
+        }
+
+        /* Mobile-specific badge color override */
+        @media (max-width: 767px) {
+          .m-db-property-badge {
+            background: #d1fadf !important;
+            color: #027a48 !important;
+          }
+          html.dark .m-db-property-badge {
+            background: rgba(93, 202, 165, 0.15) !important;
+            color: var(--success) !important;
+          }
+        }
+
+        /* Tablet & Desktop overrides */
+        @media (min-width: 768px) {
+          .m-db-subpage-header {
+            background: transparent !important;
+            border-bottom: none !important;
+            padding: 0 !important;
+            margin-bottom: 32px !important;
+          }
+          
+          /* Portfolio Card adjustments */
+          .m-db-portfolio-summary-card {
+            max-width: 100% !important;
+            padding: 24px !important;
+            margin-bottom: 32px !important;
+            border-radius: 16px !important;
+            background: var(--surface-1) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01) !important;
+          }
+          .m-db-portfolio-col {
+            padding: 0 8px !important;
+          }
+          .m-db-portfolio-col.divider-left {
+            border-left: 1px solid var(--border) !important;
+            padding-left: 32px !important;
+          }
+          .m-db-portfolio-label {
+            font-size: 14px !important;
+          }
+          .m-db-portfolio-value {
+          color: var(--text-primary) !important;
+            font-size: 28px !important;
+            margin-top: 8px !important;
+          }
+          
+          .property-cards-container {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 24px !important;
+          }
+
+          .m-db-property-list-card {
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            border-radius: 12px !important;
+            overflow: hidden !important;
+            height: 100% !important;
+            margin-bottom: 0 !important;
+            border: 1px solid var(--border) !important;
+            background: var(--surface-1) !important;
+            box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05) !important;
+          }
+
+          .m-db-property-img-container {
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 16 / 9 !important;
+            border-radius: 0 !important;
+          }
+
+          .m-db-property-details {
+            padding: 20px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            flex-grow: 1 !important;
+            gap: 0 !important;
+            justify-content: flex-start !important;
+          }
+
+          .m-db-property-name {
+            font-size: 18px !important;
+            font-weight: 600 !important;
+            color: var(--text-primary) !important;
+            margin: 0 0 6px 0 !important;
+            line-height: 28px !important;
+          }
+
+          .m-db-property-entity {
+            font-size: 14px !important;
+            color: var(--text-secondary) !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin: 0 0 16px 0 !important;
+          }
+
+          .m-db-property-stats-line {
+            display: flex !important;
+            gap: 16px !important;
+            margin: 0 0 16px 0 !important;
+            font-size: 14px !important;
+            color: var(--text-secondary) !important;
+            font-weight: 400 !important;
+          }
+
+          .m-db-property-stat-label {
+            color: var(--text-secondary) !important;
+          }
+
+          .m-db-property-stat-value {
+            font-weight: 600 !important;
+          }
+
+          .m-db-property-stat-value.expense {
+            color: var(--danger) !important;
+          }
+
+          .m-db-property-bottom-line {
+            margin-top: auto !important;
+            border-top: 1px solid var(--border) !important;
+            padding-top: 16px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 0 !important;
+          }
+
+          .m-db-property-badge {
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            padding: 4px 10px !important;
+            border-radius: 16px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: initial !important;
+            line-height: initial !important;
+            max-width: initial !important;
+          }
+
+          .m-db-property-net {
+            font-size: 15px !important;
+            font-weight: 500 !important;
+            color: var(--success) !important;
+          }
+        }
+
+        @media (min-width: 1025px) {
+          .property-cards-container {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 32px !important;
+          }
+        }
+
+        /* Dark mode overrides for other inline elements in page */
+        html.dark .m-db-subpage-header {
+          background: transparent !important;
+          border-bottom: none !important;
+        }
+        html.dark .m-db-entity-pill.is-active {
+          background: var(--surface-2) !important;
+          border-color: #ffb11f !important;
+          color: #ffb11f !important;
+        }
+        html.dark .m-db-entity-pill.is-inactive {
+          background: var(--surface-1) !important;
+          border-color: var(--border) !important;
+          color: var(--text-secondary) !important;
+        }
+
+        /* Skeleton specific styles */
+        .m-db-subpage-header-skeleton {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          padding: 16px 20px !important;
+          background: var(--surface-1) !important;
+          border-bottom: 1px solid var(--border) !important;
+          margin-bottom: 20px !important;
+        }
+
+        @media (min-width: 768px) {
+          .m-db-subpage-header-skeleton {
+            background: transparent !important;
+            border-bottom: none !important;
+            padding: 0 !important;
+            margin-bottom: 32px !important;
+          }
+        }
+
+        .m-db-content-container-skeleton {
+          padding: 0 16px !important;
+        }
+        @media (min-width: 768px) {
+          .m-db-content-container-skeleton {
+            padding: 0 !important;
+          }
+        }
+
+        .m-db-search-skeleton-container {
+          margin: 8px 0 16px 0 !important;
+          max-width: 100% !important;
+        }
+        @media (min-width: 768px) {
+          .m-db-search-skeleton-container {
+            margin: 12px 0 24px 0 !important;
+          }
+        }
+      `}</style>
+
+      <Skeleton
+        name="client-property-page-skeleton"
+        loading={isLoading}
+        fallback={<ClientPropertiesSkeleton />}
+      >
         <div
           className={isMobile ? "mobile-client-dashboard" : "desktop-client-dashboard"}
           style={isMobile ? { minHeight: "100vh", paddingBottom: "90px" } : undefined}
@@ -413,5 +783,6 @@ export default function ClientPropertyPage() {
           </div>
         </div>
       </Skeleton>
+    </>
   );
 }

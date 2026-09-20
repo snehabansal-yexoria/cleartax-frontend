@@ -1197,6 +1197,346 @@ export default function ClientInsightsPage() {
       fallback={<ClientInsightsSkeleton />}
     >
       <div className="desktop-client-dashboard">
+        {/* Scoped CSS Styles */}
+        <style>{`
+          .insights-header-section {
+            margin-bottom: 24px;
+          }
+          .insights-kicker {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin: 0;
+            text-transform: none;
+          }
+          .insights-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 4px 0 0 0;
+          }
+          .insights-pills-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+          }
+          .insights-pill {
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+          }
+          .insights-pill.active {
+            background: #1b265c;
+            color: #ffffff;
+            border: 1px solid #1b265c;
+          }
+          html.dark .insights-pill.active {
+            background: var(--surface-2) !important;
+            border-color: #ffb11f !important;
+            color: #ffb11f !important;
+          }
+          .insights-pill.inactive {
+            background: var(--surface-1);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+          }
+          .insights-pill.inactive:hover {
+            background: var(--surface-2);
+            border-color: var(--border);
+          }
+          .insights-grid {
+            display: grid;
+            gap: 24px;
+          }
+          @media (min-width: 1024px) {
+            .insights-grid {
+              grid-template-columns: 1fr 1.25fr;
+              grid-template-areas:
+                "cashflow income-expense"
+                "expense-breakdown top-performing"
+                "depreciation depreciation";
+            }
+          }
+          @media (min-width: 768px) and (max-width: 1023px) {
+            .insights-grid {
+              grid-template-columns: 1fr 1fr;
+              grid-template-areas:
+                "cashflow cashflow"
+                "income-expense income-expense"
+                "expense-breakdown top-performing"
+                "depreciation depreciation";
+            }
+          }
+          .area-cashflow { grid-area: cashflow; }
+          .area-income-expense { grid-area: income-expense; }
+          .area-expense-breakdown { grid-area: expense-breakdown; }
+          .area-top-performing { grid-area: top-performing; }
+          .area-depreciation { grid-area: depreciation; }
+
+          .insights-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+            transition: all 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+          }
+          .insights-card:hover {
+            box-shadow: 0px 4px 6px -2px rgba(16, 24, 40, 0.03), 0px 12px 16px -4px rgba(16, 24, 40, 0.08);
+            transform: translateY(-2px);
+          }
+          html.dark .insights-card {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          }
+          html.dark .insights-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          }
+          .insights-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+          }
+          .insights-card-kicker {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+          }
+          .trend-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+          }
+          .cashflow-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 12px 0;
+          }
+          .insights-card-main-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+          }
+          .expense-breakdown-body {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+          }
+          .donut-chart-wrapper {
+            width: 130px;
+            height: 130px;
+            position: relative;
+            flex-shrink: 0;
+          }
+          .expense-legend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-grow: 1;
+          }
+          .expense-legend-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+          }
+          .legend-color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+          }
+          .legend-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+          }
+          .legend-percentage {
+            font-weight: 700;
+            color: var(--text-primary);
+          }
+          @media (max-width: 1024px) {
+            .expense-breakdown-body {
+              flex-direction: column;
+              align-items: center;
+              gap: 24px;
+            }
+            .expense-legend-list {
+              width: 100%;
+            }
+          }
+          .forecast-toggle-btn {
+            border: none;
+            background: none;
+            color: #1b265c;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            padding: 0;
+            outline: none;
+          }
+          .forecast-toggle-btn:hover {
+            text-decoration: underline;
+          }
+          .bar-chart-outer-container {
+            display: flex;
+            gap: 16px;
+            height: 180px;
+            margin-bottom: 16px;
+            position: relative;
+          }
+          .chart-y-axis {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 500;
+            width: 32px;
+            text-align: right;
+            padding-bottom: 20px;
+            box-sizing: border-box;
+          }
+          .chart-grid-and-bars-wrapper {
+            flex: 1;
+            position: relative;
+            height: 100%;
+          }
+          .chart-grid-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 20px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+          }
+          .chart-grid-line {
+            width: 100%;
+            border-top: 1px dashed var(--border);
+          }
+          .chart-bars-wrap {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            z-index: 2;
+          }
+          .chart-month-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            height: 100%;
+          }
+          .chart-bars-container {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            padding-bottom: 4px;
+            height: calc(100% - 20px);
+          }
+          .bar {
+            width: 14px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            transition: height 0.3s ease;
+          }
+          .income-bar {
+            background-color: #1b265c;
+          }
+          .expense-bar {
+            background-color: #f7a61a;
+          }
+          .chart-month-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            height: 16px;
+            line-height: 16px;
+          }
+          .chart-legend-row {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            margin-top: 8px;
+          }
+          .legend-color-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+          }
+          .income-box {
+            background-color: #1b265c;
+          }
+          .expense-box {
+            background-color: #f7a61a;
+          }
+          .top-performing-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+          .top-performing-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed var(--border);
+          }
+          .top-performing-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+          }
+          .rank-circle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background-color: #1b265c;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+          }
+          .property-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+          }
+          .yield-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+          }
+          .return-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #12b76a;
+            min-width: 65px;
+            text-align: right;
+          }
+        `}</style>
+
         {/* Header */}
         <div className="insights-header-section">
           <p className="insights-kicker">Portfolio analytics</p>

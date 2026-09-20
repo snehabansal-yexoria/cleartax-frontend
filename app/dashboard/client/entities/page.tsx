@@ -338,6 +338,94 @@ export default function ClientEntitiesPage() {
             paddingBottom: "90px"
           }}
         >
+          <style>{`
+            .mobile-client-dashboard {
+              min-height: 100vh;
+              background-color: var(--surface-0);
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+            .m-db-subpage-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              background: var(--surface-1);
+              border-bottom: 1px solid var(--border);
+            }
+            html.dark .m-db-subpage-header {
+              background: transparent !important;
+              border-bottom: none !important;
+            }
+            .m-db-entity-list-header {
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--text-secondary);
+              margin: 20px 0 12px 0;
+            }
+            .m-db-entity-card-row {
+              background: var(--surface-1);
+              border: 1px solid var(--border);
+              border-radius: 16px;
+              padding: 16px;
+              margin-bottom: 12px;
+              display: flex;
+              flex-direction: column;
+              box-shadow: 0 4px 12px rgba(16, 24, 40, 0.01);
+              transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+              text-decoration: none;
+              cursor: pointer;
+            }
+            .m-db-entity-card-row:hover {
+              border-color: var(--brand);
+              transform: translateY(-2px);
+              box-shadow: 0 12px 20px rgba(27, 38, 92, 0.08);
+            }
+            .m-db-entity-card-top {
+              display: flex;
+              flex-direction: column;
+            }
+            .m-db-entity-card-name {
+              font-size: 17px;
+              font-weight: 700;
+              color: var(--text-primary);
+              margin: 0;
+            }
+            .m-db-entity-card-type {
+              font-size: 13px;
+              color: var(--text-secondary);
+              margin-top: 2px;
+              font-weight: 500;
+            }
+            .m-db-entity-card-divider {
+              height: 1px;
+              background: var(--border);
+              margin: 12px 0;
+            }
+            .m-db-entity-card-bottom {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .m-db-entity-card-col {
+              display: flex;
+              flex-direction: column;
+            }
+            .m-db-entity-card-col.right {
+              align-items: flex-end;
+              text-align: right;
+            }
+            .m-db-entity-card-label {
+              font-size: 13px;
+              color: var(--text-secondary);
+              font-weight: 500;
+            }
+            .m-db-entity-card-value {
+              font-size: 15px;
+              font-weight: 700;
+              color: var(--text-primary);
+              margin-top: 4px;
+            }
+          `}</style>
+
           {/* Header */}
           <div
             className="m-db-subpage-header"

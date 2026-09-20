@@ -576,6 +576,24 @@ function PropertySelect({
       }}
       onKeyDown={handleKeyDown}
     >
+      <style>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+      `}</style>
       {label && (
         <span
           className="client-tx-field-label"
@@ -2952,23 +2970,35 @@ export default function ClientAddTransactionViewNew({
     return (
       <section className="client-tx-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
         {/* Header */}
-        <div className="client-tx-header-bar">
-          <Link href={effectiveBackHref} className="client-tx-back-link">
+        <div className="client-tx-header-bar" style={{ marginBottom: '24px' }}>
+          <Link href={effectiveBackHref} className="client-tx-back-link" style={{ color: isDark ? 'var(--text-secondary)' : '#667085' }}>
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
               <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {backLabel}
           </Link>
-          <h1 className="client-tx-page-title">Add transaction</h1>
-          <p className="client-tx-page-subtitle">
+          <h1 className="client-tx-page-title" style={{ fontSize: '30px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', marginTop: '16px', marginBottom: '8px' }}>Add transaction</h1>
+          <p className="client-tx-page-subtitle" style={{ fontSize: '15px', color: isDark ? 'var(--text-secondary)' : '#667085', margin: 0 }}>
             Select a property to continue.
           </p>
         </div>
 
         {/* Search & Entity Filters Section */}
-        <div className="client-tx-search-filter-section">
-          <div className="client-tx-search-bar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="client-tx-search-icon">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px', width: '100%' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: isDark ? 'var(--surface-2)' : '#f8f9fb',
+            border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+            borderRadius: '16px',
+            padding: '12px 20px',
+            width: '100%',
+            boxSizing: 'border-box',
+            boxShadow: '0 2px 4px rgba(16, 24, 40, 0.02)',
+            transition: 'all 0.2s ease',
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} style={{ width: '18px', height: '18px', color: isDark ? 'var(--text-muted)' : '#667085', flexShrink: 0 }}>
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
@@ -2977,29 +3007,71 @@ export default function ClientAddTransactionViewNew({
               placeholder="Search properties by name or entity..."
               value={propertySearchQuery}
               onChange={(e) => setPropertySearchQuery(e.target.value)}
-              className="client-tx-search-input"
+              style={{
+                width: '100%',
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '15px',
+                color: 'var(--text-primary)',
+                padding: 0,
+              }}
             />
             {propertySearchQuery && (
               <button
                 type="button"
                 onClick={() => setPropertySearchQuery("")}
-                className="client-tx-search-clear-btn"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px',
+                  cursor: 'pointer',
+                  color: isDark ? 'var(--text-muted)' : '#667085',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
               >
                 <CloseIcon />
               </button>
             )}
-            <span className="client-tx-search-count-badge">
+            <span style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              background: isDark ? 'var(--surface-1)' : '#f2f4f7',
+              color: isDark ? 'var(--text-secondary)' : '#475467',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              whiteSpace: 'nowrap',
+            }}>
               {filteredProperties.length} of {allProperties.length}
             </span>
           </div>
 
           {/* Horizontal Entity Tabs */}
           {uniqueEntities.length > 0 && (
-            <div className="client-tx-entity-tabs-row">
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              overflowX: 'auto',
+              paddingBottom: '8px',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+            }}>
               <button
                 type="button"
                 onClick={() => setActiveEntityFilter("all")}
-                className={`client-tx-entity-tab-pill ${activeEntityFilter === "all" ? "is-active" : ""}`}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '9999px',
+                  border: `1px solid ${activeEntityFilter === "all" ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--border)' : '#eaeef4')}`,
+                  background: activeEntityFilter === "all" ? (isDark ? 'rgba(244, 161, 23, 0.15)' : '#1c2452') : (isDark ? 'var(--surface-1)' : '#ffffff'),
+                  color: activeEntityFilter === "all" ? (isDark ? 'var(--accent)' : '#ffffff') : (isDark ? 'var(--text-secondary)' : '#566474'),
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                }}
               >
                 All Entities ({allProperties.length})
               </button>
@@ -3010,7 +3082,18 @@ export default function ClientAddTransactionViewNew({
                     key={ent.id}
                     type="button"
                     onClick={() => setActiveEntityFilter(ent.id)}
-                    className={`client-tx-entity-tab-pill ${isActive ? "is-active" : ""}`}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '9999px',
+                      border: `1px solid ${isActive ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--border)' : '#eaeef4')}`,
+                      background: isActive ? (isDark ? 'rgba(244, 161, 23, 0.15)' : '#1c2452') : (isDark ? 'var(--surface-1)' : '#ffffff'),
+                      color: isActive ? (isDark ? 'var(--accent)' : '#ffffff') : (isDark ? 'var(--text-secondary)' : '#566474'),
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {ent.name} ({ent.count})
                   </button>

@@ -575,6 +575,7 @@ export default function NewPropertyPage() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
           <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #1a235a", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
           <span style={{ fontSize: "15px", color: "#667085", fontWeight: 500 }}>Loading workspace...</span>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
     );
