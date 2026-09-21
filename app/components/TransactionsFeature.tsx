@@ -2836,9 +2836,7 @@ function TransactionTable({
                               GST {formatCurrency(child.gstAmount)}
                             </td>
                             <td className="transaction-child-deductible" style={{ textAlign: "right" }}>
-                              {isPersonalSide
-                                ? "Not deductible"
-                                : `Deductible ${formatCurrency(child.netAmount)}`}
+
                             </td>
                             {showClientShare ? <td></td> : null}
                             <td></td>
@@ -3132,9 +3130,7 @@ function PropertyTransactionTable({
                               GST {formatCurrency(child.gstAmount)}
                             </td>
                             <td className="transaction-child-deductible" style={{ textAlign: "right" }}>
-                              {isPersonalSide
-                                ? "Not deductible"
-                                : `Deductible ${formatCurrency(child.netAmount)}`}
+
                             </td>
                             <td></td>
                             <td></td>
