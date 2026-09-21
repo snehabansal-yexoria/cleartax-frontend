@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import ClientTransactionsSkeleton from "@/app/components/clients/ClientTransactionsSkeleton";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
@@ -333,7 +332,7 @@ export default function ClientTransactionsPage() {
       <Skeleton
         name="client-transactions-page-skeleton"
         loading={isLoading}
-        fallback={<ClientTransactionsSkeleton />}
+        fallback={<ClientTransactionsSkeleton isMobile={true} />}
       >
         <div className="mobile-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '90px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
 
@@ -983,7 +982,7 @@ export default function ClientTransactionsPage() {
     <Skeleton
       name="client-transactions-page-skeleton-desktop"
       loading={isLoading}
-      fallback={<ClientTransactionsSkeleton />}
+      fallback={<ClientTransactionsSkeleton isMobile={false} />}
     >
       <div className="desktop-client-dashboard">
 
