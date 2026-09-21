@@ -181,21 +181,19 @@ export default function CashFlowChart({
                     return (
                       <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end z-10">
                         <div className="flex items-end gap-2.5 h-[150px] justify-center w-full">
-                          {/* Expense (Orange) - Rounded top only */}
+                          {/* Expense (Orange/Accent) - Rounded top only */}
                           <div
-                            className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90"
+                            className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90 cashflow-bar is-expense cursor-pointer"
                             style={{
                               height: `${Math.max(expHeightPct, 6)}%`,
-                              backgroundColor: 'var(--accent)'
                             }}
                             title={`Expenses: ${formatCurrencyShort(expVal)}`}
                           />
-                          {/* Income (Dark Blue) - Rounded top only */}
+                          {/* Income (Navy/Brand) - Rounded top only */}
                           <div
-                            className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90"
+                            className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90 cashflow-bar is-income cursor-pointer"
                             style={{
                               height: `${Math.max(incHeightPct, 6)}%`,
-                              backgroundColor: 'var(--brand)'
                             }}
                             title={`Income: ${formatCurrencyShort(incVal)}`}
                           />
@@ -211,14 +209,14 @@ export default function CashFlowChart({
 
           {/* Legend */}
           {hasData && (
-            <div className="flex justify-center gap-6 mt-4 select-none">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#f4a117]">
-                <span className="w-2.5 h-2.5 rounded bg-[#f4a117]" />
-                <span>Expenses</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#28336e] dark:text-[#B9C0E8]">
-                <span className="w-2.5 h-2.5 rounded bg-[#28336e] dark:bg-[#38417F]" />
+            <div className="flex justify-center gap-6 mt-4 select-none cashflow-legend">
+              <div className="flex items-center gap-1.5 text-xs font-semibold is-income">
+                <span className="w-2.5 h-2.5 rounded indicator" />
                 <span>Income</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold is-expense">
+                <span className="w-2.5 h-2.5 rounded indicator" />
+                <span>Expenses</span>
               </div>
             </div>
           )}
@@ -377,19 +375,19 @@ export default function CashFlowChart({
                       return (
                         <div key={month} className="flex-1 flex flex-col items-center h-full justify-end z-10">
                           <div className="flex items-end gap-2.5 h-[150px] justify-center w-full">
+                            {/* Expense (Orange/Accent) - Rounded top only */}
                             <div
-                              className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90"
+                              className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90 cashflow-bar is-expense cursor-pointer"
                               style={{
                                 height: `${Math.max(expHeightPct, 6)}%`,
-                                backgroundColor: 'var(--accent)'
                               }}
                               title={`Expenses: ${formatCurrencyShort(expVal)}`}
                             />
+                            {/* Income (Navy/Brand) - Rounded top only */}
                             <div
-                              className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90"
+                              className="w-4 rounded-t-[6px] transition-all duration-300 hover:opacity-90 cashflow-bar is-income cursor-pointer"
                               style={{
                                 height: `${Math.max(incHeightPct, 6)}%`,
-                                backgroundColor: 'var(--brand)'
                               }}
                               title={`Income: ${formatCurrencyShort(incVal)}`}
                             />
@@ -402,14 +400,14 @@ export default function CashFlowChart({
                 </div>
 
                 {/* Legend */}
-                <div className="flex justify-center gap-6 mt-4 select-none">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#f4a117]">
-                    <span className="w-2.5 h-2.5 rounded bg-[#f4a117]" />
-                    <span>Expenses</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#28336e] dark:text-[#B9C0E8]">
-                    <span className="w-2.5 h-2.5 rounded bg-[#28336e] dark:bg-[#38417F]" />
+                <div className="flex justify-center gap-6 mt-4 select-none cashflow-legend">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold is-income">
+                    <span className="w-2.5 h-2.5 rounded indicator" />
                     <span>Income</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold is-expense">
+                    <span className="w-2.5 h-2.5 rounded indicator" />
+                    <span>Expenses</span>
                   </div>
                 </div>
               </div>
@@ -559,16 +557,16 @@ export default function CashFlowChart({
                           style={{ height: `${Math.max(barHeightPct, 15)}%` }}
                           className="w-[18px] rounded-[6px] overflow-hidden flex flex-col-reverse gap-[1px]"
                         >
-                          {/* Expenses (Orange) - bottom */}
+                          {/* Expenses (Orange/Accent) - bottom */}
                           <div
                             style={{ height: `${expPct}%` }}
-                            className="w-full bg-[#f4a117]"
+                            className="w-full cashflow-bar is-expense"
                             title={`Expenses: ${formatCurrencyShort(expVal)}`}
                           />
-                          {/* Income (Dark Blue) - top */}
+                          {/* Income (Navy/Brand) - top */}
                           <div
                             style={{ height: `${incPct}%` }}
-                            className="w-full bg-[#28336e] dark:bg-[#38417F]"
+                            className="w-full cashflow-bar is-income"
                             title={`Income: ${formatCurrencyShort(incVal)}`}
                           />
                         </div>
@@ -582,13 +580,13 @@ export default function CashFlowChart({
               </div>
 
               {/* Mobile Legend */}
-              <div className="flex justify-start gap-4 mt-3 select-none">
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#28336e] dark:text-[#B9C0E8]">
-                  <span className="w-2.5 h-2.5 rounded bg-[#28336e] dark:bg-[#38417F]" />
+              <div className="flex justify-start gap-4 mt-3 select-none cashflow-legend">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold is-income">
+                  <span className="w-2.5 h-2.5 rounded indicator" />
                   <span>Income</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#f4a117]">
-                  <span className="w-2.5 h-2.5 rounded bg-[#f4a117]" />
+                <div className="flex items-center gap-1.5 text-[10px] font-bold is-expense">
+                  <span className="w-2.5 h-2.5 rounded indicator" />
                   <span>Expenses</span>
                 </div>
               </div>

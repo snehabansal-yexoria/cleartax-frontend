@@ -933,7 +933,7 @@ export default function DashboardLayout({
     role === "user"
   ) {
     return (
-      <div className="accountant-shell">
+      <div className={`accountant-shell${isClientPage ? " client-dashboard-shell" : ""}`}>
         <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30">
           <div className="flex flex-col gap-9 w-full">
             <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
@@ -976,8 +976,8 @@ export default function DashboardLayout({
           </div>
         </aside>
 
-        <div className="accountant-main-shell">
-          <div className="accountant-mobile-brand">
+        <div className={`accountant-main-shell${isClientPage ? " client-main-shell" : ""}`}>
+          <div className={`accountant-mobile-brand${isClientPage ? " client-mobile-brand" : ""}`}>
             <div className="accountant-brand">
               <div className="accountant-brand-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1162,7 +1162,7 @@ export default function DashboardLayout({
             </div>
           </header>
 
-          <main className="accountant-main-content">{children}</main>
+          <main className={`accountant-main-content${isClientPage ? " client-main-content" : ""}`}>{children}</main>
         </div>
         <ReconciliationJobMonitor />
 

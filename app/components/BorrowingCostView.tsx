@@ -95,6 +95,32 @@ function formatDateToDDMMYYYY(dateStr: string) {
 }
 
 /**
+ * Calculates the loan end date exactly 5 years from the start date (YYYY-MM-DD),
+ */
+function calculateFiveYearsEndDate(startDateStr: string): string {
+  if (!startDateStr) return "";
+  const parts = startDateStr.split("-");
+  if (parts.length !== 3) return "";
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!year || !month || !day || Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+    return "";
+  }
+
+  const targetYear = year + 5;
+  // Determine the maximum days in that month for the target year (handles Feb 28 vs Feb 29)
+  const maxDaysInTargetMonth = new Date(targetYear, month, 0).getDate();
+  const targetDay = Math.min(day, maxDaysInTargetMonth);
+
+  const formattedYear = String(targetYear);
+  const formattedMonth = String(month).padStart(2, "0");
+  const formattedDay = String(targetDay).padStart(2, "0");
+
+  return `${formattedYear}-${formattedMonth}-${formattedDay}`;
+}
+
+/**
  * The last day the loan actually runs, given its end date.
  *
  * Borrowing expenses amortise over the loan term [start, end) — the end date is
@@ -180,9 +206,8 @@ function TableDropdownSelect({
   return (
     <div
       ref={containerRef}
-      className={`borrowing-cost-dropdown-container ${isOpen ? "is-open" : ""} ${
-        disabled ? "is-disabled" : ""
-      }`}
+      className={`borrowing-cost-dropdown-container ${isOpen ? "is-open" : ""} ${disabled ? "is-disabled" : ""
+        }`}
     >
       <button
         type="button"
@@ -224,9 +249,8 @@ function TableDropdownSelect({
               type="button"
               role="option"
               aria-selected={option.id === value}
-              className={`borrowing-cost-dropdown-item ${
-                option.id === value ? "is-selected" : ""
-              }`}
+              className={`borrowing-cost-dropdown-item ${option.id === value ? "is-selected" : ""
+                }`}
               onClick={() => {
                 onChange(option.id);
                 setIsOpen(false);
@@ -333,10 +357,13 @@ export default function BorrowingCostView({
         const loanDetails = loadedProperty.loanDetails;
         if (!cancelled && loanDetails) {
           if (loanDetails.loan_start_date) {
-            setLoanStartDate(String(loanDetails.loan_start_date).slice(0, 10));
-          }
-          if (loanDetails.loan_end_date) {
-            setLoanEndDate(String(loanDetails.loan_end_date).slice(0, 10));
+            const startStr = String(loanDetails.loan_start_date).slice(0, 10);
+            setLoanStartDate(startStr);
+            if (loanDetails.loan_end_date) {
+              setLoanEndDate(String(loanDetails.loan_end_date).slice(0, 10));
+            } else {
+              setLoanEndDate(calculateFiveYearsEndDate(startStr));
+            }
           }
         }
 
@@ -374,7 +401,7 @@ export default function BorrowingCostView({
           ),
           fetch(
             `/api/transactions?property_id=${encodeURIComponent(propertyId)}` +
-              `&category_id=${borrowingCategory.id}&grain=top&limit=200`,
+            `&category_id=${borrowingCategory.id}&grain=top&limit=200`,
             { headers: authHeaders }
           ),
         ]);
@@ -423,7 +450,7 @@ export default function BorrowingCostView({
   const reloadExpenses = async (token: string, categoryId: number) => {
     const res = await fetch(
       `/api/transactions?property_id=${encodeURIComponent(propertyId)}` +
-        `&category_id=${categoryId}&grain=top&limit=200`,
+      `&category_id=${categoryId}&grain=top&limit=200`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!res.ok) return;
@@ -576,6 +603,16 @@ export default function BorrowingCostView({
     return schedule.reduce((sum, p) => sum + p.days, 0);
   }, [schedule]);
 
+  // Handle Loan Start Date change: automatically calculates 5-year End Date
+  const handleLoanStartDateChange = (newStartDate: string) => {
+    setLoanStartDate(newStartDate);
+    if (newStartDate) {
+      setLoanEndDate(calculateFiveYearsEndDate(newStartDate));
+    } else {
+      setLoanEndDate("");
+    }
+  };
+
   // Add Row — appended as a draft; it becomes a transaction on save.
   const handleAddExpense = () => {
     setBorrowingExpenses((prev) => [
@@ -684,15 +721,15 @@ export default function BorrowingCostView({
         ...borrowingExpenses.map((exp) =>
           exp.transactionId
             ? fetch(`/api/transactions/${encodeURIComponent(exp.transactionId)}`, {
-                method: "PATCH",
-                headers: authHeaders,
-                body: JSON.stringify(expenseRequestBody(exp, category.id)),
-              })
+              method: "PATCH",
+              headers: authHeaders,
+              body: JSON.stringify(expenseRequestBody(exp, category.id)),
+            })
             : fetch(`/api/entities/${encodeURIComponent(entityId)}/transactions`, {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify(expenseRequestBody(exp, category.id)),
-              })
+              method: "POST",
+              headers: authHeaders,
+              body: JSON.stringify(expenseRequestBody(exp, category.id)),
+            })
         ),
         ...deletedIds.map((id) =>
           fetch(`/api/transactions/${encodeURIComponent(id)}`, {
@@ -1302,22 +1339,22 @@ export default function BorrowingCostView({
               </label>
               <ValidatedDateInput
                 value={loanStartDate}
-                max={loanEndDate || undefined}
-                onChange={(e) => setLoanStartDate(e.target.value)}
+                onChange={(e) => handleLoanStartDateChange(e.target.value)}
                 className="borrowing-cost-input"
               />
             </div>
 
-            {/* End Date */}
+            {/* End Date (system calculated 5 years from start date) */}
             <div>
               <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
-                Loan End Date
+                Loan End Date (system)
               </label>
-              <ValidatedDateInput
-                value={loanEndDate}
-                min={loanStartDate || undefined}
-                onChange={(e) => setLoanEndDate(e.target.value)}
+              <input
+                type="text"
+                readOnly
+                value={formatDateToDDMMYYYY(loanEndDate)}
                 className="borrowing-cost-input"
+                placeholder="Calculated automatically (5 years)"
               />
             </div>
 

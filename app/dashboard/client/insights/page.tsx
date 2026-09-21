@@ -928,7 +928,7 @@ export default function ClientInsightsPage() {
                             className="m-db-chart-bar-income"
                             style={{
                               height: `${incPct}%`,
-                              backgroundColor: "#1b265c",
+                              backgroundColor: "var(--brand)",
                             }}
                             title={`Income: ${formatCurrency(d.income)}`}
                           />
@@ -936,7 +936,7 @@ export default function ClientInsightsPage() {
                             className="m-db-chart-bar-expense"
                             style={{
                               height: `${expPct}%`,
-                              backgroundColor: "#f7a61a",
+                              backgroundColor: "var(--accent)",
                             }}
                             title={`Expense: ${formatCurrency(d.expense)}`}
                           />
@@ -950,7 +950,7 @@ export default function ClientInsightsPage() {
                 <div
                   style={{
                     height: "1px",
-                    background: "#eaeef4",
+                    background: "var(--border, #eaeef4)",
                     margin: "4px 0",
                   }}
                 />
@@ -961,22 +961,24 @@ export default function ClientInsightsPage() {
                 >
                   <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <div
+                      className="m-db-legend-color income"
                       style={{
                         width: "12px",
                         height: "12px",
                         borderRadius: "3px",
-                        backgroundColor: "#1b265c",
+                        backgroundColor: "var(--brand)",
                       }}
                     />
                     <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Income</span>
                   </div>
                   <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <div
+                      className="m-db-legend-color expense"
                       style={{
                         width: "12px",
                         height: "12px",
                         borderRadius: "3px",
-                        backgroundColor: "#f7a61a",
+                        backgroundColor: "var(--accent)",
                       }}
                     />
                     <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Expenses</span>

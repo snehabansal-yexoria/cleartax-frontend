@@ -13,6 +13,9 @@ import {
   useAssetTransactions,
   usePersonalSummary,
 } from "@/app/components/usePersonalAndAssetTransactions";
+import { toRegion } from "@/app/components/useAsyncRegion";
+import { useGstSummary } from "@/app/components/useGstSummary";
+import EntityGstCards from "@/app/components/entity/EntityGstCards";
 import { getSession } from "@/src/lib/session";
 import { ClientEntityCardsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreEntity } from "@/src/lib/coreApi";
@@ -352,6 +355,16 @@ function ClientDetailPageContent() {
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
   const [isPersonalExpanded, setIsPersonalExpanded] = useState(true);
   const [isAssetExpanded, setIsAssetExpanded] = useState(true);
+
+  const gst = useGstSummary("client", clientId, { enabled: !!clientId });
+  const gstRegion = toRegion(
+    gst.isLoading,
+    gst.error,
+    gst.summary
+      ? { gstOnPurchases: gst.gstOnPurchases, gstOnSales: gst.gstOnSales, periodLabel: gst.periodLabel }
+      : null,
+    gst.reload,
+  );
 
   useEffect(() => {
     const tab = searchParams?.get("tab");
@@ -694,18 +707,23 @@ function ClientDetailPageContent() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "8px",
-                padding: "10px 16px",
+                height: "40px",
+                padding: "0 16px",
                 border: "1px solid #d0d5dd",
                 borderRadius: "8px",
                 background: "#ffffff",
                 color: "#344054",
                 fontSize: "14px",
                 fontWeight: 600,
+                lineHeight: "20px",
+                margin: 0,
                 cursor: isExporting ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
                 boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
                 opacity: isExporting ? 0.6 : 1,
+                boxSizing: "border-box",
               }}
               onMouseEnter={(e) => {
                 if (!isExporting) {
@@ -719,38 +737,42 @@ function ClientDetailPageContent() {
               }}
             >
               {isExporting ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", animation: "spin 0.9s linear infinite" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", flexShrink: 0, animation: "spin 0.9s linear infinite" }}>
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                 </svg>
               )}
-              {isExporting ? "Exporting…" : "Export CSV"}
+              <span>{isExporting ? "Exporting…" : "Export CSV"}</span>
             </button>
 
             {/* Transfer Ownership Button - Only visible when client is assigned to current accountant */}
             {client.isAssignedToCurrentAccountant && (
               <button
                 type="button"
-                className="accountant-transfer-btn"
                 onClick={() => openTransferDrawer()}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "8px",
-                  padding: "10px 16px",
+                  height: "40px",
+                  padding: "0 16px",
                   border: "1px solid #d0d5dd",
                   borderRadius: "8px",
                   background: "#ffffff",
                   color: "#344054",
                   fontSize: "14px",
                   fontWeight: 600,
+                  lineHeight: "20px",
+                  margin: 0,
                   cursor: "pointer",
                   transition: "all 0.2s",
-                  boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)"
+                  boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
+                  boxSizing: "border-box",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "#f9fafb";
@@ -761,10 +783,10 @@ function ClientDetailPageContent() {
                   e.currentTarget.style.borderColor = "#d0d5dd";
                 }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
                 </svg>
-                Transfer Ownership
+                <span>Transfer Ownership</span>
               </button>
             )}
           </div>
@@ -841,7 +863,7 @@ function ClientDetailPageContent() {
         </article>
       </div>
 
-
+      <EntityGstCards gst={gstRegion} />
 
       {/* Personal & Asset Transactions Sections */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px', marginBottom: '24px' }}>
@@ -1042,28 +1064,45 @@ function ClientDetailPageContent() {
                       </td>
                     </tr>
                   ) : (
-                    assetRows.map((row, idx) => (
-                      <tr
-                        key={row.id}
-                        onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/transactions?prefillTransactionId=${encodeURIComponent(row.id)}`)}
-                        style={{ borderBottom: idx === assetRows.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>{row.entityName}</td>
-                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{row.propertyName}</td>
-                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{row.name}</td>
-                        <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
-                        <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {formatPanelAmount(row.amount)}
-                        </td>
-                        <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
-                        </td>
-                      </tr>
-                    ))
+                    assetRows.map((row, idx) => {
+                      const to = `/dashboard/accountant/clients/${clientId}/assets/${encodeURIComponent(row.id)}`;
+                      return (
+                        <tr
+                          key={row.id}
+                          onClick={(event) => {
+                            if ((event.target as HTMLElement).closest("a")) return;
+                            router.push(to);
+                          }}
+                          style={{ borderBottom: idx === assetRows.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>{row.entityName}</td>
+                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{row.propertyName}</td>
+                          <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>
+                            <Link
+                              href={to}
+                              style={{ color: '#28336e', textDecoration: 'none' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                              onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+                            >
+                              {row.name}
+                            </Link>
+                          </td>
+                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
+                          <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {formatPanelAmount(row.amount)}
+                          </td>
+                          <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
+                            <Link href={to} aria-label={`Open ${row.name}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

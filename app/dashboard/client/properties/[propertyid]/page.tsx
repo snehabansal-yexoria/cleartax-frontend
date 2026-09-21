@@ -619,23 +619,41 @@ export default function ClientPropertyDetailPage() {
           {/* Add Transaction Banner Button */}
           <Link
             href={`/dashboard/client/transactions/new?propertyId=${propertyId}`}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#f4a117] hover:bg-[#e0900f] text-[#1b2559] font-extrabold rounded-2xl transition-all shadow-md cursor-pointer text-sm"
+            className="w-full flex items-center justify-center gap-3 py-3.5 font-bold rounded-2xl transition-all shadow-md cursor-pointer text-base"
+            style={{
+              background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
+              color: '#1b265c',
+              boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
+            }}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-4.5 h-4.5"
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: 'rgba(255, 255, 255, 0.45)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
             >
-              <path d="M17 3L21 7L17 11" />
-              <path d="M3 7H21" />
-              <path d="M7 21L3 17L7 13" />
-              <path d="M21 17H3" />
-            </svg>
-            Add Transaction
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px' }}
+              >
+                <path d="m15 4 5 4-5 4" />
+                <path d="M20 8H4" />
+                <path d="m9 20-5-4 5-4" />
+                <path d="M4 16h16" />
+              </svg>
+            </div>
+            <span>Add Transaction</span>
           </Link>
 
           {/* Recent Transactions Card */}
@@ -893,15 +911,15 @@ export default function ClientPropertyDetailPage() {
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="w-5 h-5"
+            style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px' }}
           >
-            <path d="M17 3L21 7L17 11" />
-            <path d="M3 7H21" />
-            <path d="M7 21L3 17L7 13" />
-            <path d="M21 17H3" />
+            <path d="m16 3 4 4-4 4" />
+            <path d="M20 7H4" />
+            <path d="m8 21-4-4 4-4" />
+            <path d="M4 17h16" />
           </svg>
           Add transaction
         </Link>

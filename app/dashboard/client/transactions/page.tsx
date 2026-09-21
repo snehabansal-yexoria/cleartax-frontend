@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
-import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import ClientTransactionsSkeleton from "@/app/components/clients/ClientTransactionsSkeleton";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
@@ -333,7 +332,7 @@ export default function ClientTransactionsPage() {
       <Skeleton
         name="client-transactions-page-skeleton"
         loading={isLoading}
-        fallback={<ClientTransactionsSkeleton />}
+        fallback={<ClientTransactionsSkeleton isMobile={true} />}
       >
         <div className="mobile-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '90px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
 
@@ -537,19 +536,10 @@ export default function ClientTransactionsPage() {
                       key={pill.id}
                       type="button"
                       onClick={() => handleQuickFilterChange(pill.id as any)}
-                      className={`m-db-filter-pill ${isActive ? 'is-active' : ''}`}
+                      className={`d-tx-pill ${isActive ? 'active' : 'inactive'}`}
                       style={{
-                        padding: '8px 18px',
-                        borderRadius: '20px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        border: isActive ? '1px solid var(--brand)' : '1px solid var(--border)',
-                        background: isActive ? 'var(--brand)' : 'var(--surface-1)',
-                        color: isActive ? '#ffffff' : 'var(--brand)',
                         whiteSpace: 'nowrap',
-                        cursor: 'pointer',
-                        outline: 'none',
-                        transition: 'all 0.2s ease'
+                        flexShrink: 0
                       }}
                     >
                       {pill.label}
@@ -992,7 +982,7 @@ export default function ClientTransactionsPage() {
     <Skeleton
       name="client-transactions-page-skeleton-desktop"
       loading={isLoading}
-      fallback={<ClientTransactionsSkeleton />}
+      fallback={<ClientTransactionsSkeleton isMobile={false} />}
     >
       <div className="desktop-client-dashboard">
 
