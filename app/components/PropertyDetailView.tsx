@@ -26,7 +26,6 @@ import {
   usePnlSummary,
 } from "@/app/components/usePnlSummary";
 import { getSession } from "@/src/lib/session";
-import { affectsPnl } from "@/src/lib/transactionTypes";
 import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
 import type {
   CoreEntity,
@@ -34,6 +33,7 @@ import type {
   CoreProperty,
   CorePropertyTransactionRow,
   CoreSettlementEntry,
+  CoreCostBaseEntry,
 } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -70,7 +70,7 @@ const GST_QUARTER_LABELS: Record<number, string> = {
 };
 
 /**
- * One line of the Settlement Funding table.
+ * One line of the "Amount Settled By" funding table, under Settlement Entries.
  *
  * `entryId` empty means the row exists only in the browser and has never been
  * saved; the save POSTs those and PATCHes the rest.
@@ -131,12 +131,24 @@ function fundingRowTriple(row: FundingRow): MoneyTriple {
 }
 
 /**
- * One manually estimated cost base line. Browser state only: these rows have
- * no table behind them yet. Net is derived from gross and GST at render time,
- * the same way the funding table works, so the three cannot disagree.
+ * One manually entered cost base line — now the WHOLE of the cost base.
+ *
+ * The auto-filled table that used to sit above these rows is gone: a
+ * transaction categorised as Property Cost renders under Settlement Entries
+ * instead. That made persistence mandatory rather than optional — these rows
+ * were browser state with no table behind them, so leaving them that way would
+ * mean a property's entire cost base vanished on reload and the settlement
+ * difference measured against nothing. They are now `property_cost_base`
+ * (migration 0049), and the row carries the same `key` / `entryId` pair as
+ * FundingRow: `entryId` empty means the row exists only in the browser and has
+ * never been saved, so the save POSTs those and PATCHes the rest.
+ *
+ * Net is derived from gross and GST at render time, the same way the funding
+ * table works, so the three cannot disagree.
  */
 type ManualCostBaseRow = {
-  id: string;
+  key: string;
+  entryId: string;
   category: string;
   description: string;
   gross: string;
@@ -251,6 +263,23 @@ function defaultFundingRows(): FundingRow[] {
   }));
 }
 
+let costBaseDraftKeySeq = 0;
+function nextCostBaseDraftKey() {
+  costBaseDraftKeySeq += 1;
+  return `cost-base-draft-${costBaseDraftKeySeq}`;
+}
+
+function costBaseEntryToRow(entry: CoreCostBaseEntry): ManualCostBaseRow {
+  return {
+    key: entry.id,
+    entryId: entry.id,
+    category: entry.category,
+    description: entry.description || "",
+    gross: entry.grossAmount.toFixed(2),
+    gst: entry.gstAmount.toFixed(2),
+  };
+}
+
 export type PropertyDetailViewProps = {
   propertyId: string;
   entityId?: string;
@@ -300,6 +329,143 @@ function getLoanAmount(property: CoreProperty | null) {
   return Number.isFinite(value) ? value : 0;
 }
 
+/**
+ * The financial-year picker for the P&L figures.
+ *
+ * One control, rendered twice: above the hero summary cards and in the header of
+ * the statement itself. Both read the SAME `pnlFinancialYear`, which is what
+ * makes it impossible for the cards to show one year while the statement shows
+ * another — the mismatch this component was extracted to prevent. It was
+ * previously ~90 lines of inline styles living only inside the statement header.
+ *
+ * Six years back, matching the GST summary's range beside it.
+ */
+function FinancialYearPicker({
+  value,
+  onChange,
+  isOpen,
+  setIsOpen,
+}: {
+  value: number;
+  onChange: (year: number) => void;
+  isOpen: boolean;
+  setIsOpen: (next: boolean) => void;
+}) {
+  const label = (year: number) => `FY ${year - 1}-${String(year).slice(-2)}`;
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "10px",
+          minWidth: "140px",
+          height: "40px",
+          padding: "0 14px",
+          borderRadius: "8px",
+          border: isOpen ? "1.5px solid #28336e" : "1px solid #cbd5e1",
+          backgroundColor: "#ffffff",
+          color: "#1e293b",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: "pointer",
+          outline: "none",
+          boxShadow: isOpen ? "0 0 0 3px rgba(40, 51, 110, 0.12)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
+          transition: "all 0.2s ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen) e.currentTarget.style.borderColor = "#94a3b8";
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) e.currentTarget.style.borderColor = "#cbd5e1";
+        }}
+      >
+        <span>{label(value)}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          style={{
+            width: "14px",
+            height: "14px",
+            color: "#64748b",
+            transition: "transform 0.2s ease",
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            minWidth: "160px",
+            backgroundColor: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "10px",
+            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+            zIndex: 1000,
+            padding: "4px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "2px",
+          }}
+        >
+          {Array.from({ length: 6 }, (_, i) => auFinancialYearOf(new Date()) - i).map((year) => {
+            const isSelected = year === value;
+            return (
+              <div
+                key={year}
+                onClick={() => {
+                  onChange(year);
+                  setIsOpen(false);
+                }}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: isSelected ? 700 : 500,
+                  color: isSelected ? "#28336e" : "#334155",
+                  backgroundColor: isSelected ? "#eff6ff" : "transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = "#f8fafc";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <span>{label(year)}</span>
+                {isSelected && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px", color: "#28336e" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PropertyDetailView({
   propertyId,
   entityId,
@@ -316,6 +482,11 @@ export default function PropertyDetailView({
   const [transactions, setTransactions] = useState<CorePropertyTransactionRow[]>(
     [],
   );
+  // The server's row count for this property, from the paginated response's
+  // `total`. "Total Transactions" used to print `transactions.length`, which is
+  // the size of ONE page — so a property with more rows than the page cap
+  // under-reported, and the number quietly changed meaning as the cap changed.
+  const [transactionTotal, setTransactionTotal] = useState<number | null>(null);
   const [currentTab, setCurrentTab] = useState<PropertyTab>("transactions");
   const [isLoading, setIsLoading] = useState(true);
   const [showPnLStatement, setShowPnLStatement] = useState(false);
@@ -338,11 +509,18 @@ export default function PropertyDetailView({
   const [contractDate, setContractDate] = useState("2026-08-15");
   const [settlementDate, setSettlementDate] = useState("2026-09-30");
   const [showCostBase, setShowCostBase] = useState(true);
-  // Estimates the accountant has not turned into transactions yet. Starts
+  // The property's cost base, backed by property_cost_base (0049). Starts
   // empty: it used to be seeded with three invented rows (Building & Pest $660,
   // Conveyancing $1,320, Loan Establishment $600) that footed into the grand
   // total and the settlement difference as if they were real money.
   const [manualCostBaseRows, setManualCostBaseRows] = useState<ManualCostBaseRow[]>([]);
+  const [isCostBaseEntriesLoading, setIsCostBaseEntriesLoading] = useState(true);
+  const [isSavingCostBase, setIsSavingCostBase] = useState(false);
+  const [costBaseEntryError, setCostBaseEntryError] = useState("");
+  const [costBaseSaved, setCostBaseSaved] = useState(false);
+  // Ids that were on screen when the grid last loaded, so the save can tell a
+  // removed row from one that was never there. Same diffing as the funding grid.
+  const loadedCostBaseIdsRef = useRef<string[]>([]);
   // Real cost_base transactions for this property, loaded separately from the
   // page's `transactions` array: that one is a single unfiltered page capped by
   // the API, so cost base rows past the cap would silently disappear.
@@ -438,10 +616,15 @@ export default function PropertyDetailView({
 
     const lines: string[] = [];
     lines.push("--- PROPERTY SUMMARY ---");
+    // The three money columns are the P&L's figures for the selected financial
+    // year, the same ones the summary cards show — so the file cannot contradict
+    // the screen. The year is named in its own column because these are no longer
+    // all-time totals, and a reader of the CSV has no dropdown to consult.
     lines.push([
       "Property Name", "Entity", "Property Type", "Location",
       "Estimated Market Value", "Loan Value", "Acquisition Date",
-      "Total Transactions", "Total Income", "Total Expenses", "Net Profit",
+      "Total Transactions", "Financial Year",
+      "Total Income", "Total Expenses (incl. depreciation)", "Net Profit / (Loss)",
     ].map(esc).join(","));
     lines.push([
       esc(property.name),
@@ -451,10 +634,13 @@ export default function PropertyDetailView({
       money(property.estimatedMarketValue),
       money(loanAmount),
       isoDate(property.purchaseDate),
-      String(transactionSummary.count),
-      money(transactionSummary.income),
-      money(transactionSummary.expenses),
-      money(transactionSummary.net),
+      String(transactionCount),
+      esc(`FY ${pnlFinancialYear - 1}-${String(pnlFinancialYear).slice(-2)}`),
+      // Empty rather than 0.00 when the statement has not loaded: an exported
+      // zero is indistinguishable from a real one once it is in a spreadsheet.
+      pnlReady ? money(pnlTotals.incomeCurrent) : "",
+      pnlReady ? money(pnlTotals.expenseCurrent) : "",
+      pnlReady ? money(pnlTotals.netCurrent) : "",
     ].join(","));
     lines.push("");
     lines.push("--- TRANSACTIONS ---");
@@ -564,8 +750,16 @@ export default function PropertyDetailView({
         if (transactionsRes.ok) {
           const data = (await transactionsRes.json()) as {
             items?: CorePropertyTransactionRow[];
+            total?: number;
           };
           setTransactions(data.items || []);
+          // coreApi's toPaginated falls back to items.length on a backend that
+          // predates pagination, so `total` is always present — but it is typed
+          // optional, and null here means "fall back to the page length" rather
+          // than printing a confident zero.
+          setTransactionTotal(
+            typeof data.total === "number" ? data.total : null,
+          );
         }
 
         const entityRes = await fetch(
@@ -656,9 +850,14 @@ export default function PropertyDetailView({
   // capital purchases in full in their purchase year, added expenses to income
   // because the API returns non-negative magnitudes, and reported one page as a
   // whole year.
-  const pnl = usePnlSummary(propertyId, pnlFinancialYear, {
-    enabled: showPnLStatement,
-  });
+  //
+  // Loaded on mount, not on statement open: the hero cards above read these same
+  // totals, so gating the fetch on `showPnLStatement` would leave them empty
+  // until the statement had been visited once. This is the argument the GST
+  // summary already makes for its own stat cards below. The cost is one request
+  // whose size is bounded by the number of categories the property uses — tens —
+  // rather than by its transaction count.
+  const pnl = usePnlSummary(propertyId, pnlFinancialYear);
 
   // Expenses and depreciation are printed as separate bands but deducted
   // together, so the cards and the chart read the combined figure — otherwise
@@ -676,6 +875,18 @@ export default function PropertyDetailView({
       netPrevious: t?.netProfit.previous.gross ?? 0,
     };
   }, [pnl.summary]);
+
+  /**
+   * Has the statement actually arrived?
+   *
+   * pnlTotals coalesces every missing figure to 0, which is right for arithmetic
+   * and wrong for display: a property whose statement is still in flight, or
+   * whose request failed, would render a confident "A$ 0.00" — indistinguishable
+   * from a property that genuinely earned and spent nothing. The hook's own rule,
+   * stated where it clears its data on error: a confident wrong total on a tax
+   * screen is worse than an empty one.
+   */
+  const pnlReady = !pnl.isLoading && !pnl.error && pnl.summary !== null;
 
   // Top five deductions by value, for the breakdown bars. Depreciation is
   // included because on most rental properties it is one of the largest.
@@ -884,6 +1095,50 @@ export default function PropertyDetailView({
     };
   }, [propertyId, sessionToken]);
 
+  // The manual cost base rows. Unlike the funding grid there are no seeded
+  // defaults to fall back on: an empty cost base is the normal state for a
+  // property nobody has itemised yet, so a failure must read as a failure and
+  // not as "nothing recorded".
+  useEffect(() => {
+    if (!sessionToken || !propertyId) return;
+    let cancelled = false;
+
+    async function loadCostBaseEntries() {
+      setIsCostBaseEntriesLoading(true);
+      try {
+        const res = await fetch(
+          `/api/properties/${encodeURIComponent(propertyId)}/cost-base`,
+          { headers: { Authorization: `Bearer ${sessionToken}` } },
+        );
+        if (cancelled) return;
+        if (!res.ok) {
+          setCostBaseEntryError("Failed to load cost base entries.");
+          loadedCostBaseIdsRef.current = [];
+          return;
+        }
+        const data = (await res.json()) as { items?: CoreCostBaseEntry[] };
+        if (cancelled) return;
+        const items = data.items || [];
+        setManualCostBaseRows(items.map(costBaseEntryToRow));
+        loadedCostBaseIdsRef.current = items.map((item) => item.id);
+        setCostBaseEntryError("");
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load cost base entries:", error);
+          setCostBaseEntryError("Failed to load cost base entries.");
+          loadedCostBaseIdsRef.current = [];
+        }
+      } finally {
+        if (!cancelled) setIsCostBaseEntriesLoading(false);
+      }
+    }
+
+    loadCostBaseEntries();
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, sessionToken]);
+
   /**
    * The property's real cost base transactions.
    *
@@ -922,13 +1177,20 @@ export default function PropertyDetailView({
     });
   }, [costBaseTransactions]);
 
-  // The one place the cost base is totalled. The table footers, the Grand
-  // Total card, the settlement box and the CSV all read from here, so they
-  // cannot disagree with each other.
+  /**
+   * The one place these figures are totalled. Every table footer, summary card,
+   * settlement box and CSV line reads from here, so they cannot disagree.
+   *
+   * There is deliberately no `grand` any more. It used to mean auto + manual,
+   * but the two halves no longer belong to the same section: `manual` IS the
+   * cost base, and `propertyCost` (the cost_base transactions) is now a group
+   * under Settlement Entries. A single "grand total" spanning both would be the
+   * same category error as the old one that added auto NET to manual GROSS.
+   */
   const costBaseTotals = useMemo(() => {
-    const auto = sumTriples(costBaseAutoRows);
+    const propertyCost = sumTriples(costBaseAutoRows);
     const manual = sumTriples(manualCostBaseRows.map(manualCostBaseRowTriple));
-    return { auto, manual, grand: addTriples(auto, manual) };
+    return { propertyCost, manual };
   }, [costBaseAutoRows, manualCostBaseRows]);
 
   const fundingTotals = useMemo(
@@ -936,12 +1198,23 @@ export default function PropertyDetailView({
     [fundingSources],
   );
 
+  /**
+   * What the settlement had to cover: the cost base plus the Property Cost
+   * transactions itemised beside the funding. Both are expenditure; funding is
+   * the other side of the same statement, which is why it is subtracted rather
+   * than added in here.
+   */
+  const settlementOutgoings = useMemo(
+    () => addTriples(costBaseTotals.manual, costBaseTotals.propertyCost),
+    [costBaseTotals],
+  );
+
   // Column by column: the gross difference is the money that changed hands on
   // the day, the net difference the ex-GST position, and the GST difference
   // whether the GST in the funding matches the GST in the cost base.
   const settlementDifference = useMemo(
-    () => subtractTriples(costBaseTotals.grand, fundingTotals),
-    [costBaseTotals, fundingTotals],
+    () => subtractTriples(settlementOutgoings, fundingTotals),
+    [settlementOutgoings, fundingTotals],
   );
 
   const handleExportCostBaseCsv = () => {
@@ -958,7 +1231,24 @@ export default function PropertyDetailView({
     lines.push(`Settlement Date: ${formatDisplayDate(settlementDate)}`);
     lines.push("");
 
-    lines.push("--- AUTO-FILLED COST BASE TRANSACTIONS ---");
+    const triple = (t: MoneyTriple) => [money(t.gross), money(t.gst), money(t.net)];
+
+    // The export follows the screen's grouping exactly. It used to lead with the
+    // auto-filled transactions as part of the cost base; those are now a group
+    // under Settlement Entries, and a CSV that still grouped them the old way
+    // would foot to a different set of subtotals than the page it came from.
+    lines.push("--- PROPERTY COST BASE (MANUAL) ---");
+    lines.push(["Category", "Description", "Gross", "GST", "Net"].map(esc).join(","));
+    for (const r of manualCostBaseRows) {
+      lines.push([r.category, r.description || "", ...triple(manualCostBaseRowTriple(r))].map(esc).join(","));
+    }
+    lines.push(["Total Property Cost Base", "", ...triple(costBaseTotals.manual)].map(esc).join(","));
+    lines.push("");
+
+    // Settlement entries are exported here and nowhere else: neither group is a
+    // transaction the other reports read — the funding lines are their own
+    // table, and the Property Cost lines are excluded from P&L by type.
+    lines.push("--- SETTLEMENT ENTRIES: PROPERTY COST (FROM TRANSACTIONS) ---");
     lines.push(["Date", "Category", "Description", "Source", "Gross", "GST", "Net"].map(esc).join(","));
     for (const r of costBaseAutoRows) {
       lines.push([
@@ -969,31 +1259,22 @@ export default function PropertyDetailView({
         money(r.gross), money(r.gst), money(r.net),
       ].map(esc).join(","));
     }
-    const triple = (t: MoneyTriple) => [money(t.gross), money(t.gst), money(t.net)];
-    lines.push(["Total Auto-filled", "", "", "", ...triple(costBaseTotals.auto)].map(esc).join(","));
+    lines.push(["Total Property Cost", "", "", "", ...triple(costBaseTotals.propertyCost)].map(esc).join(","));
     lines.push("");
 
-    lines.push("--- MANUAL COST BASE BALANCE ---");
-    lines.push(["Category", "Description", "Gross", "GST", "Net"].map(esc).join(","));
-    for (const r of manualCostBaseRows) {
-      lines.push([r.category, r.description || "", ...triple(manualCostBaseRowTriple(r))].map(esc).join(","));
-    }
-    lines.push(["Total Manual", "", ...triple(costBaseTotals.manual)].map(esc).join(","));
-    lines.push("");
-
-    lines.push(["", "", "Gross", "GST", "Net"].map(esc).join(","));
-    lines.push(["Grand Total", "", ...triple(costBaseTotals.grand)].map(esc).join(","));
-    lines.push("");
-
-    // Settlement funding is exported here and nowhere else: it is not a
-    // transaction, so it appears in no other report.
-    lines.push("--- SETTLEMENT FUNDING (AMOUNT SETTLED BY) ---");
+    lines.push("--- SETTLEMENT ENTRIES: AMOUNT SETTLED BY ---");
     lines.push(["Funding Source", "Description", "Gross", "GST", "Net"].map(esc).join(","));
     for (const r of fundingSources) {
       lines.push([r.name, r.description || "", ...triple(fundingRowTriple(r))].map(esc).join(","));
     }
     lines.push(["Total Funding Entered", "", ...triple(fundingTotals)].map(esc).join(","));
-    lines.push(["Property Cost Base Grand Total", "", ...triple(costBaseTotals.grand)].map(esc).join(","));
+    lines.push("");
+
+    lines.push(["", "", "Gross", "GST", "Net"].map(esc).join(","));
+    lines.push(["Property Cost Base (manual)", "", ...triple(costBaseTotals.manual)].map(esc).join(","));
+    lines.push(["+ Property Cost (transactions)", "", ...triple(costBaseTotals.propertyCost)].map(esc).join(","));
+    lines.push(["Total to Settle", "", ...triple(settlementOutgoings)].map(esc).join(","));
+    lines.push(["- Total Funding Entered", "", ...triple(fundingTotals)].map(esc).join(","));
     lines.push(["Settlement Difference", "", ...triple(settlementDifference)].map(esc).join(","));
 
     const safeName = (property.name || propertyId).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "Property";
@@ -1019,23 +1300,23 @@ export default function PropertyDetailView({
   };
 
   const handleAddManualCostBaseRow = () => {
+    setCostBaseSaved(false);
     setManualCostBaseRows(prev => [
       ...prev,
-      { id: String(Date.now()), category: "", description: "", gross: "", gst: "" }
+      { key: nextCostBaseDraftKey(), entryId: "", category: "", description: "", gross: "", gst: "" }
     ]);
   };
 
-  const handleDeleteManualCostBaseRow = (id: string) => {
-    setManualCostBaseRows(prev => prev.filter(r => r.id !== id));
+  // Removes the row from the grid only. The entry itself is deleted on save, so
+  // a mis-click is recoverable by leaving the page without saving.
+  const handleDeleteManualCostBaseRow = (key: string) => {
+    setCostBaseSaved(false);
+    setManualCostBaseRows(prev => prev.filter(r => r.key !== key));
   };
 
-  const handleUpdateManualCostBaseRow = (id: string, field: "category" | "description" | "gross" | "gst", value: string) => {
-    setManualCostBaseRows(prev => prev.map(r => {
-      if (r.id === id) {
-        return { ...r, [field]: value };
-      }
-      return r;
-    }));
+  const handleUpdateManualCostBaseRow = (key: string, field: "category" | "description" | "gross" | "gst", value: string) => {
+    setCostBaseSaved(false);
+    setManualCostBaseRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
   };
 
   const handleAddFundingSource = () => {
@@ -1176,6 +1457,125 @@ export default function PropertyDetailView({
     }
   };
 
+  /**
+   * Reconciles the cost base grid against the entries behind it — the same
+   * POST-new / PATCH-existing / DELETE-missing pass as handleSaveSettlement,
+   * against property_cost_base.
+   *
+   * The re-read at the end is what stops a second save duplicating everything
+   * just added: without it the new rows still carry an empty entryId and would
+   * POST again.
+   */
+  const handleSaveCostBase = async () => {
+    if (!sessionToken || isSavingCostBase) return;
+
+    for (const row of manualCostBaseRows) {
+      if (!row.category.trim()) {
+        setCostBaseEntryError("Every cost base row needs a category.");
+        return;
+      }
+      if (row.gross.trim() !== "" && !Number.isFinite(Number.parseFloat(row.gross))) {
+        setCostBaseEntryError(`"${row.category.trim()}" has a gross amount that is not a number.`);
+        return;
+      }
+      if (row.gst.trim() !== "" && !Number.isFinite(Number.parseFloat(row.gst))) {
+        setCostBaseEntryError(`"${row.category.trim()}" has a GST amount that is not a number.`);
+        return;
+      }
+      // Same rule the backend enforces, checked here so the message names the
+      // row instead of coming back as a bare "gst_amount cannot exceed amount".
+      const { gross, gst } = manualCostBaseRowTriple(row);
+      if (gst !== 0 && (gross * gst < 0 || Math.abs(gst) > Math.abs(gross) + 0.005)) {
+        setCostBaseEntryError(`"${row.category.trim()}" has GST larger than, or the opposite sign to, its gross amount.`);
+        return;
+      }
+    }
+
+    setIsSavingCostBase(true);
+    setCostBaseEntryError("");
+    setCostBaseSaved(false);
+
+    try {
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      };
+      const base = `/api/properties/${encodeURIComponent(propertyId)}/cost-base`;
+
+      const remainingIds = new Set(
+        manualCostBaseRows.map((row) => row.entryId).filter(Boolean),
+      );
+      const deletedIds = loadedCostBaseIdsRef.current.filter(
+        (id) => !remainingIds.has(id),
+      );
+
+      const body = (row: ManualCostBaseRow, index: number) => {
+        const { gross, gst } = manualCostBaseRowTriple(row);
+        return {
+          category: row.category.trim(),
+          description: row.description.trim() || null,
+          gross_amount: gross,
+          gst_amount: gst,
+          // Position is the grid order, so a reordered or newly inserted row
+          // comes back where the accountant left it.
+          position: index,
+        };
+      };
+
+      const responses = await Promise.all([
+        ...manualCostBaseRows.map((row, index) =>
+          row.entryId
+            ? fetch(`${base}/${encodeURIComponent(row.entryId)}`, {
+              method: "PATCH",
+              headers: authHeaders,
+              body: JSON.stringify(body(row, index)),
+            })
+            : fetch(base, {
+              method: "POST",
+              headers: authHeaders,
+              body: JSON.stringify(body(row, index)),
+            }),
+        ),
+        ...deletedIds.map((id) =>
+          fetch(`${base}/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          }),
+        ),
+      ]);
+
+      const failed = responses.filter((res) => !res.ok);
+      if (failed.length > 0) {
+        const detail = (await failed[0].json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setCostBaseEntryError(
+          detail?.message || detail?.error || "Failed to save cost base entries.",
+        );
+        return;
+      }
+
+      const reread = await fetch(base, {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      if (reread.ok) {
+        const data = (await reread.json()) as { items?: CoreCostBaseEntry[] };
+        const items = data.items || [];
+        setManualCostBaseRows(items.map(costBaseEntryToRow));
+        loadedCostBaseIdsRef.current = items.map((item) => item.id);
+      }
+
+      setCostBaseSaved(true);
+      setTimeout(() => setCostBaseSaved(false), 3000);
+    } catch (error) {
+      console.error("Failed to save cost base entries:", error);
+      setCostBaseEntryError("Failed to save cost base entries.");
+    } finally {
+      setIsSavingCostBase(false);
+    }
+  };
+
   const handleAddBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property) return;
@@ -1229,28 +1629,26 @@ export default function PropertyDetailView({
     }
   };
 
-  const transactionSummary = useMemo(() => {
-    const totals = transactions.reduce(
-      (acc, row) => {
-        const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount);
-        // Only revenue and expense belong in an income/expense total. Personal
-        // spending, capitalised cost base and contra transfers are all money
-        // movements that the P&L deliberately excludes, so they must be
-        // skipped rather than falling into the expense branch.
-        if (!affectsPnl(row.transactionType)) return acc;
-        if (row.transactionType === "revenue") acc.income += amount;
-        else acc.expenses += amount;
-        return acc;
-      },
-      { income: 0, expenses: 0 },
-    );
-
-    return {
-      ...totals,
-      net: totals.income - totals.expenses,
-      count: transactions.length,
-    };
-  }, [transactions]);
+  // The hero cards' Total Income / Total Expenses / Net Profit used to be summed
+  // HERE, from the `transactions` array, while the P&L statement below read the
+  // server aggregate. Two computations over different inputs cannot agree, and
+  // they disagreed in six independent ways — every one of them making the cards
+  // read higher or lower than the statement they sit above:
+  //
+  //   PERIOD       the cards summed all time; the statement is one financial year
+  //   PAGING       the cards summed ONE page of rows and called it a total
+  //   GRAIN        containers of part-private bills were summed whole, so the
+  //                private slice was deducted (pnlRowFilter takes has_children
+  //                = false, the money grain from migration 0036)
+  //   CAPITAL      asset purchases were expensed in their purchase year instead
+  //                of being depreciated over their effective life
+  //   REJECTED     transactions the accountant had refused still counted
+  //   DEPRECIATION the Div 40/43 deduction was missing entirely
+  //
+  // So the cards now read `pnlTotals`, the same server figures the statement
+  // prints. All that is left of the old summary is the row COUNT, and that comes
+  // from the response envelope's `total` rather than the length of one page.
+  const transactionCount = transactionTotal ?? transactions.length;
 
   // Every GST figure below comes from GET /properties/{id}/gst-summary. It is
   // deliberately NOT derived from `transactions`: that array is capped at 100
@@ -1382,13 +1780,37 @@ export default function PropertyDetailView({
     [assets.rows, property],
   );
 
+  /**
+   * Every money figure on this page prints to the cent.
+   *
+   * This used to be `Math.round(...)` with maximumFractionDigits: 0, which made
+   * the three summary cards disagree with the statement directly beneath them:
+   * the P&L API returns NUMERIC(14,2) figures and the statement table prints
+   * them with formatPLAmount, so a property whose net profit was 122,580.96
+   * read "A$ 122,581" on the card and "122,580.96" in the table. The API is the
+   * authority and it is already exact — rounding here was inventing a figure.
+   *
+   * The locale is pinned to en-AU rather than left to the browser, matching
+   * formatAud and formatGst above: a viewer with a de-DE locale would otherwise
+   * get "122.580,96" on these cards and "122,580.96" everywhere else.
+   */
   const formatAmount = (num: number) => {
-    const absVal = Math.round(Math.abs(num)).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const absVal = Math.abs(num).toLocaleString("en-AU", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     if (num < 0) {
       return `-A$ ${absVal}`;
     }
     return `A$ ${absVal}`;
   };
+
+  /**
+   * A summary-card figure, or an em dash until the server's statement is in hand.
+   * See pnlReady: pnlTotals coalesces absent figures to 0, and a confident
+   * "A$ 0" reads as "this property earned nothing" rather than "still loading".
+   */
+  const pnlCardAmount = (value: number) => (pnlReady ? formatAmount(value) : "—");
 
 
   if (isLoading) {
@@ -1476,117 +1898,15 @@ export default function PropertyDetailView({
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                {/* FY Custom Dropdown */}
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsPnlFyDropdownOpen((prev) => !prev);
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: "10px",
-                      minWidth: "140px",
-                      height: "40px",
-                      padding: "0 14px",
-                      borderRadius: "8px",
-                      border: isPnlFyDropdownOpen ? "1.5px solid #28336e" : "1px solid #cbd5e1",
-                      backgroundColor: "#ffffff",
-                      color: "#1e293b",
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      outline: "none",
-                      boxShadow: isPnlFyDropdownOpen ? "0 0 0 3px rgba(40, 51, 110, 0.12)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isPnlFyDropdownOpen) e.currentTarget.style.borderColor = "#94a3b8";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isPnlFyDropdownOpen) e.currentTarget.style.borderColor = "#cbd5e1";
-                    }}
-                  >
-                    <span>FY {pnlFinancialYear - 1}-{String(pnlFinancialYear).slice(-2)}</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      style={{
-                        width: "14px",
-                        height: "14px",
-                        color: "#64748b",
-                        transition: "transform 0.2s ease",
-                        transform: isPnlFyDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-
-                  {isPnlFyDropdownOpen && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "calc(100% + 4px)",
-                        right: 0,
-                        minWidth: "160px",
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "10px",
-                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
-                        zIndex: 1000,
-                        padding: "4px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "2px",
-                      }}
-                    >
-                      {Array.from({ length: 6 }, (_, i) => auFinancialYearOf(new Date()) - i).map((year) => {
-                        const isSelected = year === pnlFinancialYear;
-                        return (
-                          <div
-                            key={year}
-                            onClick={() => {
-                              setPnlFinancialYear(year);
-                              setIsPnlFyDropdownOpen(false);
-                            }}
-                            style={{
-                              padding: "8px 12px",
-                              borderRadius: "6px",
-                              fontSize: "13px",
-                              fontWeight: isSelected ? 700 : 500,
-                              color: isSelected ? "#28336e" : "#334155",
-                              backgroundColor: isSelected ? "#eff6ff" : "transparent",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              transition: "all 0.15s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isSelected) e.currentTarget.style.backgroundColor = "#f8fafc";
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
-                            }}
-                          >
-                            <span>FY {year - 1}-{String(year).slice(-2)}</span>
-                            {isSelected && (
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px", color: "#28336e" }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                              </svg>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                {/* The same control the hero summary cards carry, bound to the
+                same pnlFinancialYear — so the cards and this statement can never
+                report different years. */}
+                <FinancialYearPicker
+                  value={pnlFinancialYear}
+                  onChange={setPnlFinancialYear}
+                  isOpen={isPnlFyDropdownOpen}
+                  setIsOpen={setIsPnlFyDropdownOpen}
+                />
 
                 {/* Compare Toggle */}
                 <button
@@ -2211,7 +2531,7 @@ export default function PropertyDetailView({
 
                         <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "160px", paddingBottom: "10px", borderBottom: "1px solid #f1f5f9" }}>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {Math.round(incomeCurrent).toLocaleString()}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {formatPLAmount(incomeCurrent)}</span>
                             <div style={{
                               width: "36px",
                               height: `${(incomeCurrent / maxChartVal) * 120}px`,
@@ -2224,7 +2544,7 @@ export default function PropertyDetailView({
                           </div>
 
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {Math.round(expenseCurrent).toLocaleString()}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {formatPLAmount(expenseCurrent)}</span>
                             <div style={{
                               width: "36px",
                               height: `${(expenseCurrent / maxChartVal) * 120}px`,
@@ -2288,7 +2608,7 @@ export default function PropertyDetailView({
                 <div>
                   <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#1c244b" }}>Property Cost Base</h2>
                   <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b", fontWeight: 500 }}>
-                    Built from this property's Income & Expense above, plus purchase & balance transactions &mdash; {property.name}
+                    Entered by hand: what this property cost to acquire and improve. Transactions categorised as Property Cost are itemised under Settlement Entries &mdash; {property.name}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
@@ -2422,83 +2742,16 @@ export default function PropertyDetailView({
                     </div>
                   </div>
 
-                  {/* Auto-filled Section */}
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                      <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#1c244b" }}>Property Cost Base Transactions</h3>
-                      <span style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        backgroundColor: "#f1f5f9",
-                        color: "#475569",
-                        padding: "2px 8px",
-                        borderRadius: "4px"
-                      }}>Auto-filled</span>
-                    </div>
-
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Category</th>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "30%" }}>Description</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Gross</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Net</th>
-                          <th style={{ width: "4%" }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {costBaseAutoRows.map((row) => (
-                          <tr key={`cost-base-auto-${row.id}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                            <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>{row.category}</td>
-                            <td style={{ padding: "12px 8px", fontSize: "13px", color: row.description ? "#475569" : "#94a3b8" }}>
-                              {row.description || "—"}
-                            </td>
-                            <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#475569" }}>
-                              A$ {row.gross.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", color: "#64748b" }}>
-                              A$ {row.gst.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>
-                              A$ {row.net.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ width: "4%" }}></td>
-                          </tr>
-                        ))}
-                        {costBaseAutoRows.length === 0 && (
-                          <tr>
-                            <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
-                              {isCostBaseLoading
-                                ? "Loading cost base transactions…"
-                                : costBaseError
-                                  ? costBaseError
-                                  : "No cost base transactions recorded for this property yet. Add one with type “Property Cost Base” and it appears here."}
-                            </td>
-                          </tr>
-                        )}
-                        <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Auto-filled Property Cost Base Total</td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                            {formatAud(costBaseTotals.auto.gross)}
-                          </td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                            {formatAud(costBaseTotals.auto.gst)}
-                          </td>
-                          <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
-                            {formatAud(costBaseTotals.auto.net)}
-                          </td>
-                          <td style={{ width: "4%" }}></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Manual Section */}
+                  {/* Cost Base rows — manual, and the whole of the cost base.
+                      The auto-filled table that used to sit above these is now
+                      a group under Settlement Entries: a transaction typed as
+                      Property Cost is a settlement statement line, not an
+                      estimate, and mixing the two here meant the section was
+                      half derived and half typed with one total over both. */}
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#1c244b" }}>Balance</h3>
+                        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#1c244b" }}>Cost Base Items</h3>
                         <span style={{
                           fontSize: "11px",
                           fontWeight: 700,
@@ -2506,7 +2759,7 @@ export default function PropertyDetailView({
                           color: "#475569",
                           padding: "2px 8px",
                           borderRadius: "4px"
-                        }}>Manual</span>
+                        }}>Manual Entry</span>
                       </div>
                       <button
                         type="button"
@@ -2545,13 +2798,13 @@ export default function PropertyDetailView({
                       </thead>
                       <tbody>
                         {manualCostBaseRows.map((row) => (
-                          <tr key={`cost-base-manual-${row.id}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <tr key={`cost-base-manual-`} style={{ borderBottom: "1px solid #f1f5f9" }}>
                             <td style={{ padding: "8px 8px" }}>
                               <input
                                 type="text"
                                 value={row.category}
                                 placeholder="Category Name"
-                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "category", e.target.value)}
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.key, "category", e.target.value)}
                                 style={{
                                   width: "100%",
                                   boxSizing: "border-box",
@@ -2569,7 +2822,7 @@ export default function PropertyDetailView({
                                 type="text"
                                 value={row.description || ""}
                                 placeholder="Description"
-                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "description", e.target.value)}
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.key, "description", e.target.value)}
                                 style={{
                                   width: "100%",
                                   boxSizing: "border-box",
@@ -2589,7 +2842,7 @@ export default function PropertyDetailView({
                                 value={row.gross}
                                 placeholder="0.00"
                                 aria-label="Gross amount"
-                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "gross", e.target.value)}
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.key, "gross", e.target.value)}
                                 style={{
                                   width: "100%",
                                   boxSizing: "border-box",
@@ -2610,7 +2863,7 @@ export default function PropertyDetailView({
                                 value={row.gst}
                                 placeholder="0.00"
                                 aria-label="GST amount"
-                                onChange={(e) => handleUpdateManualCostBaseRow(row.id, "gst", e.target.value)}
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.key, "gst", e.target.value)}
                                 style={{
                                   width: "100%",
                                   boxSizing: "border-box",
@@ -2631,7 +2884,7 @@ export default function PropertyDetailView({
                             <td style={{ padding: "8px 8px", textAlign: "center" }}>
                               <button
                                 type="button"
-                                onClick={() => handleDeleteManualCostBaseRow(row.id)}
+                                onClick={() => handleDeleteManualCostBaseRow(row.key)}
                                 style={{
                                   background: "none",
                                   border: "none",
@@ -2655,12 +2908,16 @@ export default function PropertyDetailView({
                         {manualCostBaseRows.length === 0 && (
                           <tr>
                             <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
-                              No manual balance rows. Use “Add Category” for costs you have an estimate for but no transaction yet.
+                              {isCostBaseEntriesLoading
+                                ? "Loading cost base items…"
+                                : costBaseEntryError
+                                  ? costBaseEntryError
+                                  : "No cost base items yet. Use “Add Category” to record what the property cost. Transactions typed as Property Cost appear under Settlement Entries below."}
                             </td>
                           </tr>
                         )}
                         <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Balance</td>
+                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Property Cost Base</td>
                           <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                             {formatAud(costBaseTotals.manual.gross)}
                           </td>
@@ -2676,30 +2933,52 @@ export default function PropertyDetailView({
                     </table>
                   </div>
 
-                  {/* Summary Card — every column totalled separately, so the
-                      Grand Total is a gross / GST / net triple rather than the
-                      old auto-net-plus-manual-gross single figure. */}
-                  <div style={{
-                    backgroundColor: "#28336e",
-                    color: "#ffffff",
-                    borderRadius: "12px",
-                    padding: "24px",
-                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
-                  }}>
-                    <TripleSummary
-                      tone="dark"
-                      rows={[
-                        { label: "Auto-filled Property Cost Base", value: costBaseTotals.auto },
-                        { label: "+ Manual Balance", value: costBaseTotals.manual },
-                      ]}
-                      result={{ label: "Grand Total", value: costBaseTotals.grand }}
-                    />
+                  {/* Save — these rows are real records now (0049), so nothing
+                      is written until this is pressed and a half-typed row
+                      never reaches the database. */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
+                    {costBaseEntryError && (
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#d92d20", marginRight: "auto" }}>
+                        {costBaseEntryError}
+                      </span>
+                    )}
+                    {costBaseSaved && !costBaseEntryError && (
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#059669", marginRight: "auto" }}>
+                        Cost base saved.
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveCostBase}
+                      disabled={isSavingCostBase || isCostBaseEntriesLoading}
+                      style={{
+                        padding: "9px 20px",
+                        borderRadius: "8px",
+                        border: "none",
+                        backgroundColor: "#28336e",
+                        color: "#ffffff",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: isSavingCostBase || isCostBaseEntriesLoading ? "not-allowed" : "pointer",
+                        opacity: isSavingCostBase || isCostBaseEntriesLoading ? 0.6 : 1
+                      }}
+                    >
+                      {isSavingCostBase ? "Saving…" : "Save Cost Base"}
+                    </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Settlement Funding Section */}
+            {/* Settlement Entries Section — two groups.
+                Property Cost is DERIVED from cost_base transactions and read
+                only; Amount Settled By is the editable funding table. They are
+                subtotalled separately and never merged: one is what the
+                settlement had to cover, the other is where the money came from,
+                and a single list over both would total expenditure against
+                funding. The money itself stays in `transaction` — nothing here
+                is copied into property_settlement_entry, so an edit, a delete
+                or a review rejection upstream needs no sync to stay correct. */}
             <div style={{
               backgroundColor: "#ffffff",
               borderRadius: "16px",
@@ -2712,18 +2991,8 @@ export default function PropertyDetailView({
               <div style={{ marginBottom: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
                   <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#1c244b" }}>
-                    Settlement Funding (Amount Settled By)
+                    Settlement Entries
                   </h2>
-                  <span style={{
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    backgroundColor: "#f1f5f9",
-                    color: "#64748b",
-                    padding: "3px 8px",
-                    borderRadius: "6px"
-                  }}>
-                    Manual Entry
-                  </span>
                 </div>
                 <div style={{
                   display: "flex",
@@ -2739,16 +3008,102 @@ export default function PropertyDetailView({
                     <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <span>
-                    Enter how this property purchase was funded on settlement. These values are used for settlement reconciliation and journal creation. They do not affect Profit & Loss.
+                    The settlement statement: what the settlement had to cover, and how it was funded. Transactions categorised as Property Cost — through Add Transaction or reconciliation — appear here automatically. These values are used for settlement reconciliation and journal creation. They do not affect Profit &amp; Loss.
                   </span>
                 </div>
               </div>
 
+              {/* Property Cost group — derived, read only. Edited where the
+                  money actually lives: the transaction itself. */}
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>
+                    Property Cost
+                  </h3>
+                  <span style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    backgroundColor: "#f1f5f9",
+                    color: "#475569",
+                    padding: "2px 8px",
+                    borderRadius: "4px"
+                  }}>From transactions</span>
+                </div>
+
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "20%" }}>Category</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Description</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "12%" }}>Source</th>
+                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "15%" }}>Gross</th>
+                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
+                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "15%" }}>Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costBaseAutoRows.map((row) => (
+                      <tr key={`settlement-property-cost-${row.id}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>{row.category}</td>
+                        <td style={{ padding: "12px 8px", fontSize: "13px", color: row.description ? "#475569" : "#94a3b8" }}>
+                          {row.description || "—"}
+                        </td>
+                        <td style={{ padding: "12px 8px", fontSize: "12px", color: "#64748b" }}>{row.source}</td>
+                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>
+                          {formatAud(row.gross)}
+                        </td>
+                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", color: "#64748b", whiteSpace: "nowrap" }}>
+                          {formatAud(row.gst)}
+                        </td>
+                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap" }}>
+                          {formatAud(row.net)}
+                        </td>
+                      </tr>
+                    ))}
+                    {costBaseAutoRows.length === 0 && (
+                      <tr>
+                        <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                          {isCostBaseLoading
+                            ? "Loading Property Cost transactions…"
+                            : costBaseError
+                              ? costBaseError
+                              : "No Property Cost transactions for this property yet. Categorise one as “Property Cost Base” in Add Transaction or reconciliation and it appears here."}
+                        </td>
+                      </tr>
+                    )}
+                    {costBaseAutoRows.length > 0 && (
+                      <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                        <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Property Cost</td>
+                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                          {formatAud(costBaseTotals.propertyCost.gross)}
+                        </td>
+                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                          {formatAud(costBaseTotals.propertyCost.gst)}
+                        </td>
+                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                          {formatAud(costBaseTotals.propertyCost.net)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
               {/* Subheader */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>
-                  Funding Sources
-                </h3>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>
+                    Amount Settled By
+                  </h3>
+                  <span style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    backgroundColor: "#f1f5f9",
+                    color: "#475569",
+                    padding: "2px 8px",
+                    borderRadius: "4px"
+                  }}>Manual Entry</span>
+                </div>
                 <button
                   type="button"
                   onClick={handleAddFundingSource}
@@ -2999,11 +3354,15 @@ export default function PropertyDetailView({
                 border: "1px solid #f1f5f9",
                 padding: "20px 24px",
               }}>
+                {/* Both sides of the statement, in the order they are reasoned
+                    about: what had to be settled, then what settled it. The
+                    result is the gap. */}
                 <TripleSummary
                   tone="light"
                   rows={[
-                    { label: "Total Funding Entered", value: fundingTotals },
-                    { label: "Property Cost Base Grand Total", value: costBaseTotals.grand },
+                    { label: "Property Cost Base (manual)", value: costBaseTotals.manual },
+                    { label: "+ Property Cost (transactions)", value: costBaseTotals.propertyCost },
+                    { label: "− Total Funding Entered", value: fundingTotals },
                   ]}
                   result={{ label: "Settlement Difference", value: settlementDifference }}
                 />
@@ -3689,17 +4048,47 @@ export default function PropertyDetailView({
                 </div>
                 <div>
                   <dt>Total Transactions</dt>
-                  <dd>{transactionSummary.count}</dd>
+                  <dd>{transactionCount}</dd>
                 </div>
               </dl>
             </header>
+
+            {/* These three cards are the P&L's footed totals for the selected
+            financial year, not a separate sum over this page's transactions — so
+            opening the statement below shows the same Total Income, Total Expense
+            and net result the cards report. The year is chosen here, and the
+            statement header carries the same control bound to the same state. */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#1c244b' }}>
+                  Profit &amp; Loss summary
+                </span>
+                {/* Keyed off pnlReady, the same flag the cards use, so the period
+                line and the figures beneath it can never tell different stories —
+                the first render has neither loaded nor failed, and would
+                otherwise print a confident year above three em dashes. */}
+                <span style={{ fontSize: '12px', fontWeight: 500, color: pnl.error ? '#b91c1c' : '#64748b' }}>
+                  {pnl.error
+                    ? pnl.error
+                    : !pnlReady
+                      ? "Loading the statement…"
+                      : `Financial year ending 30 June ${pnlFinancialYear}`}
+                </span>
+              </div>
+              <FinancialYearPicker
+                value={pnlFinancialYear}
+                onChange={setPnlFinancialYear}
+                isOpen={isPnlFyDropdownOpen}
+                setIsOpen={setIsPnlFyDropdownOpen}
+              />
+            </div>
 
             <div className="client-stat-grid property-metric-grid">
               <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eef2ff', borderColor: '#c7d2fe' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '14px', fontWeight: 600, color: '#4338ca' }}>Total Income</span>
                   <strong style={{ fontSize: '28px', fontWeight: 800, color: '#1e1b4b', marginTop: '4px' }}>
-                    {formatAmount(transactionSummary.income)}
+                    {pnlCardAmount(pnlTotals.incomeCurrent)}
                   </strong>
                 </div>
                 <span className="client-stat-icon" style={{ background: '#1e1b4b', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -3711,9 +4100,16 @@ export default function PropertyDetailView({
               </article>
               <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#454a55' }}>Total Expenses</span>
+                  {/* Expenses AND depreciation. The statement prints them as
+                  separate bands but deducts them together, so a card showing only
+                  the expense band would not reconcile with the net profit beside
+                  it. */}
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#454a55' }}>
+                    Total Expenses
+                    <span style={{ fontWeight: 500, color: '#94a3b8' }}> incl. depreciation</span>
+                  </span>
                   <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-                    {formatAmount(transactionSummary.expenses)}
+                    {pnlCardAmount(pnlTotals.expenseCurrent)}
                   </strong>
                 </div>
                 <span className="client-stat-icon" style={{ background: '#f1f5f9', color: '#475569', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -3725,9 +4121,13 @@ export default function PropertyDetailView({
               </article>
               <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fffbeb', borderColor: '#fde68a' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>Net Profit</span>
-                  <strong style={{ fontSize: '28px', fontWeight: 800, color: transactionSummary.net >= 0 ? '#15803d' : '#b91c1c', marginTop: '4px' }}>
-                    {formatAmount(transactionSummary.net)}
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>Net Profit / (Loss)</span>
+                  {/* Signed by the server (Income − Expenses − Depreciation) and
+                  never re-derived here, so the card cannot disagree with the
+                  statement's footing. Grey while it is still unknown rather than
+                  green, which would read as a profit. */}
+                  <strong style={{ fontSize: '28px', fontWeight: 800, color: !pnlReady ? '#94a3b8' : pnlTotals.netCurrent >= 0 ? '#15803d' : '#b91c1c', marginTop: '4px' }}>
+                    {pnlCardAmount(pnlTotals.netCurrent)}
                   </strong>
                 </div>
                 <span className="client-stat-icon" style={{ background: '#f59e0b', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

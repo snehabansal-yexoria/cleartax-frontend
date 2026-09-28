@@ -1074,6 +1074,100 @@ export async function deleteCoreSettlementEntry(
   );
 }
 
+/**
+ * One manually entered line of the property's cost base: what the property cost
+ * (stamp duty, legal fees on purchase, capital improvements, adjustments).
+ *
+ * Deliberately NOT a transaction, for the same reasons as CoreSettlementEntry —
+ * its own table (migration 0049), invisible to P&L, GST, the ledger and All
+ * Transactions. These rows are estimates entered by hand; a transaction
+ * categorised as Property Cost shows under Settlement Entries instead, so
+ * nothing here is derived from one.
+ */
+export type CoreCostBaseEntry = {
+  id: string;
+  orgId: string;
+  propertyId: string;
+  category: string;
+  description: string | null;
+  /** Signed gross (GST-inclusive): an adjustment line reduces the cost base. */
+  grossAmount: number;
+  /** GST included in `grossAmount`: same sign, never larger. */
+  gstAmount: number;
+  /** `grossAmount - gstAmount`, derived by the database (migration 0049). */
+  netAmount: number;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function normalizeCoreCostBaseEntry(raw: RawRecord): CoreCostBaseEntry {
+  const grossAmount = toFloatValue(raw.gross_amount ?? raw.grossAmount);
+  const gstAmount = toFloatValue(raw.gst_amount ?? raw.gstAmount ?? 0);
+  const rawNet = raw.net_amount ?? raw.netAmount;
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    category: toStringValue(raw.category),
+    description:
+      raw.description == null ? null : toStringValue(raw.description) || null,
+    grossAmount,
+    gstAmount,
+    netAmount: rawNet == null ? grossAmount - gstAmount : toFloatValue(rawNet),
+    position: toNumberValue(raw.position) ?? 0,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export async function listCoreCostBaseEntries(
+  token: string,
+  propertyId: string,
+): Promise<CoreCostBaseEntry[]> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreCostBaseEntry);
+}
+
+export async function createCoreCostBaseEntry(
+  token: string,
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<CoreCostBaseEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreCostBaseEntry(getJsonObject(payload));
+}
+
+export async function updateCoreCostBaseEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreCostBaseEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreCostBaseEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreCostBaseEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base/${encodeURIComponent(entryId)}`,
+    { method: "DELETE", token },
+  );
+}
+
 // =============================================================================
 // Transactions
 // =============================================================================
@@ -3689,6 +3783,26 @@ export type CoreDepreciationTotals = {
   depreciation: number;
   depreciableAmount: number;
   closingValue: number;
+
+  /**
+   * Each asset's YEAR ONE, summed — the figure a property's depreciation card
+   * headlines. Unaffected by any `fy` filter, unlike the three above it.
+   *
+   * `depreciation` with no `fy` is whole-of-life: the entire depreciable amount
+   * spread over up to forty years, which on a property card was indistinguish-
+   * able from what the assets cost. A single `fy` cannot replace it either,
+   * because four assets bought in four financial years each start in their own.
+   *
+   * Two things about this number surprise people, and both are correct:
+   * year one is PRORATED for anything not bought on 1 July (an asset bought
+   * 1 January claims 181/365 of the annual amount), and the sum spans MIXED
+   * financial years — so it is "what each asset claims in its own first year",
+   * not any single tax year's deduction. The per-year figure is the P&L's
+   * depreciation band.
+   */
+  firstYearCapitalWorks: number;
+  firstYearCapitalAllowances: number;
+  firstYearDepreciation: number;
 };
 
 export type CoreDepreciationList = {
@@ -3788,6 +3902,40 @@ function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
   const record = getJsonObject(payload);
   const scope = getJsonObject(record.scope);
   const totals = getJsonObject(record.totals);
+  const items = Array.isArray(record.items)
+    ? record.items.map((i) => normalizeDepreciationSchedule(getJsonObject(i)))
+    : [];
+
+  /**
+   * The first-year totals, or the same sum taken over `items` when the server
+   * has not sent them yet.
+   *
+   * Normally totals are the server's job — a client that groups or hides lines
+   * must not be able to move the bottom line. The fallback is safe here for one
+   * specific reason: the depreciation list endpoints do not paginate, so
+   * `items` is every schedule in the scope rather than a page of them, and the
+   * arithmetic is identical to totalsFor's.
+   *
+   * It exists so the frontend can ship ahead of the App Runner deploy that adds
+   * these fields. DELETE IT once that deploy has landed — leaving it in means a
+   * future server-side change to how year one is totalled would be silently
+   * papered over by a browser that disagrees.
+   */
+  const firstYearFallback = (assetClass?: CoreAssetClass) => {
+    const sum = items
+      .filter((i) => (assetClass ? i.assetClass === assetClass : true))
+      .reduce((total, i) => total + (i.firstYearDepreciation ?? 0), 0);
+    // Rounded the way totalsFor rounds it, so the fallback and the server
+    // cannot differ by a floating-point cent.
+    return Math.round(sum * 100) / 100;
+  };
+
+  const firstYearOr = (
+    raw: unknown,
+    assetClass?: CoreAssetClass,
+  ): number =>
+    raw == null ? firstYearFallback(assetClass) : toFloatValue(raw) ?? 0;
+
   return {
     scope: {
       level: toStringValue(scope.level),
@@ -3805,10 +3953,20 @@ function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
       depreciableAmount:
         toFloatValue(totals.depreciable_amount ?? totals.depreciableAmount) ?? 0,
       closingValue: toFloatValue(totals.closing_value ?? totals.closingValue) ?? 0,
+
+      firstYearCapitalWorks: firstYearOr(
+        totals.first_year_capital_works ?? totals.firstYearCapitalWorks,
+        "capital_works",
+      ),
+      firstYearCapitalAllowances: firstYearOr(
+        totals.first_year_capital_allowances ?? totals.firstYearCapitalAllowances,
+        "capital_allowance",
+      ),
+      firstYearDepreciation: firstYearOr(
+        totals.first_year_depreciation ?? totals.firstYearDepreciation,
+      ),
     },
-    items: Array.isArray(record.items)
-      ? record.items.map((i) => normalizeDepreciationSchedule(getJsonObject(i)))
-      : [],
+    items,
   };
 }
 

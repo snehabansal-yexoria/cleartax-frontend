@@ -52,9 +52,10 @@ export const TRANSACTION_TYPE_OPTIONS = TRANSACTION_TYPES.map((value) => ({
 /**
  * Options for the type PICKER on entry forms — deliberately not the same list.
  *
- * Contra is reached by ticking "Contra entry" on an expense, not by choosing it
- * as a type. Offering both would put a fifth button beside a checkbox that does
- * the same thing, and the checkbox is the one that also locks the category.
+ * Contra is reached by ticking "Contra entry" on an income or an expense, not by
+ * choosing it as a type. Offering both would put a fifth button beside a
+ * checkbox that does the same thing, and the checkbox is the one that also locks
+ * the category.
  */
 export const TRANSACTION_TYPE_ENTRY_OPTIONS = TRANSACTION_TYPE_OPTIONS.filter(
   (option) => option.value !== "contra",
@@ -125,19 +126,76 @@ export function affectsPnl(type: CoreTransactionType | string): boolean {
 
 /**
  * A contra entry is a transfer between the entity's own accounts — cash banked,
- * a bank-to-bank transfer, cash drawn for petty cash. It looks like a payment on
- * the statement but is neither income nor an expense.
+ * a bank-to-bank transfer, cash drawn for petty cash. It looks like an ordinary
+ * bank line but is neither income nor an expense.
  *
- * The checkbox is offered on expense entry only, per the product decision. A
- * transfer has two legs, so if a second bank account is ever reconciled the
- * incoming leg still arrives as revenue — the backend accepts contra on either
- * side, so widening this gate is all that is needed then.
+ * Offered on BOTH sides. A transfer has two legs, and migration 0045 anticipated
+ * exactly this: "the type is accepted on either side, so surfacing the incoming
+ * leg later is a UI change, not a migration". While this gate excluded revenue
+ * the incoming leg could not be marked at all — the reconciliation drawer
+ * defaults a bank CREDIT line to `revenue`, so the toggle simply was not there
+ * on the one row most likely to be a transfer in.
  *
  * `contra` itself is included so an already-marked transaction can be unticked
- * back into an expense.
+ * back to the side it came from.
+ *
+ * KNOWN LIMITATION, accepted deliberately when income was added: the General
+ * Ledger signs a row from `chart_of_account.normal_balance`, not from
+ * `transaction.type`, and account 1150 Inter-Account Transfers is debit-normal.
+ * So an income-side contra still DEBITS 1150 and both legs of one transfer
+ * accumulate there instead of netting to zero, weakening 0045's "a non-zero 1150
+ * balance means a transfer has only one side matched" diagnostic. Closing it
+ * needs the side persisted (the transaction.metadata jsonb can carry it with no
+ * migration) and a CASE in the ledger's UNION branch. The P&L, the BAS and the
+ * Account Ledger are all unaffected: the first two exclude contra by allow-list,
+ * and the third takes its amount and direction from the statement line.
  */
 export function allowsContraFlag(type: CoreTransactionType | ""): boolean {
-  return type === "expense" || type === "contra";
+  return type === "revenue" || type === "expense" || type === "contra";
+}
+
+/**
+ * Which side a contra entry was reached from.
+ *
+ * `type` alone cannot answer this. The wire format is a flat 'contra' carrying no
+ * direction, and non-journal amounts are constrained non-negative
+ * (transaction_signed_amount_check), so the sign carries no hint either. Each
+ * form therefore remembers the side locally, for exactly two jobs: which type
+ * button renders active while the toggle is on, and which type to restore when it
+ * is switched off.
+ *
+ * Before this existed every site hardcoded `setType("expense")` on untick, which
+ * on a bank CREDIT line silently converted an income row into an expense.
+ */
+export type ContraSide = Extract<CoreTransactionType, "revenue" | "expense">;
+
+/**
+ * The side to remember when the toggle is switched on from `type`.
+ *
+ * Anything that is not revenue collapses to "expense", which keeps the default
+ * identical to the expense-only behaviour this replaced: the toggle is never
+ * offered on personal or cost_base, and an existing contra loaded for edit has no
+ * stored side to recover.
+ */
+export function contraSideOf(type: CoreTransactionType | ""): ContraSide {
+  return type === "revenue" ? "revenue" : "expense";
+}
+
+/**
+ * Whether a type picker should render `option` as the selected type.
+ *
+ * A contra has no button of its own — it is reached by the toggle — so while it
+ * is on, the button for the side it came from stays lit. Centralised because four
+ * pickers need identical behaviour and each used to spell out its own
+ * `type === "expense" || type === "contra"`, which is the expense side hardcoded.
+ */
+export function typeButtonActive(
+  option: CoreTransactionType,
+  type: CoreTransactionType | "",
+  contraSide: ContraSide,
+): boolean {
+  if (type === "contra") return option === contraSide;
+  return option === type;
 }
 
 /**
