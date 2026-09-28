@@ -3783,6 +3783,26 @@ export type CoreDepreciationTotals = {
   depreciation: number;
   depreciableAmount: number;
   closingValue: number;
+
+  /**
+   * Each asset's YEAR ONE, summed — the figure a property's depreciation card
+   * headlines. Unaffected by any `fy` filter, unlike the three above it.
+   *
+   * `depreciation` with no `fy` is whole-of-life: the entire depreciable amount
+   * spread over up to forty years, which on a property card was indistinguish-
+   * able from what the assets cost. A single `fy` cannot replace it either,
+   * because four assets bought in four financial years each start in their own.
+   *
+   * Two things about this number surprise people, and both are correct:
+   * year one is PRORATED for anything not bought on 1 July (an asset bought
+   * 1 January claims 181/365 of the annual amount), and the sum spans MIXED
+   * financial years — so it is "what each asset claims in its own first year",
+   * not any single tax year's deduction. The per-year figure is the P&L's
+   * depreciation band.
+   */
+  firstYearCapitalWorks: number;
+  firstYearCapitalAllowances: number;
+  firstYearDepreciation: number;
 };
 
 export type CoreDepreciationList = {
@@ -3882,6 +3902,40 @@ function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
   const record = getJsonObject(payload);
   const scope = getJsonObject(record.scope);
   const totals = getJsonObject(record.totals);
+  const items = Array.isArray(record.items)
+    ? record.items.map((i) => normalizeDepreciationSchedule(getJsonObject(i)))
+    : [];
+
+  /**
+   * The first-year totals, or the same sum taken over `items` when the server
+   * has not sent them yet.
+   *
+   * Normally totals are the server's job — a client that groups or hides lines
+   * must not be able to move the bottom line. The fallback is safe here for one
+   * specific reason: the depreciation list endpoints do not paginate, so
+   * `items` is every schedule in the scope rather than a page of them, and the
+   * arithmetic is identical to totalsFor's.
+   *
+   * It exists so the frontend can ship ahead of the App Runner deploy that adds
+   * these fields. DELETE IT once that deploy has landed — leaving it in means a
+   * future server-side change to how year one is totalled would be silently
+   * papered over by a browser that disagrees.
+   */
+  const firstYearFallback = (assetClass?: CoreAssetClass) => {
+    const sum = items
+      .filter((i) => (assetClass ? i.assetClass === assetClass : true))
+      .reduce((total, i) => total + (i.firstYearDepreciation ?? 0), 0);
+    // Rounded the way totalsFor rounds it, so the fallback and the server
+    // cannot differ by a floating-point cent.
+    return Math.round(sum * 100) / 100;
+  };
+
+  const firstYearOr = (
+    raw: unknown,
+    assetClass?: CoreAssetClass,
+  ): number =>
+    raw == null ? firstYearFallback(assetClass) : toFloatValue(raw) ?? 0;
+
   return {
     scope: {
       level: toStringValue(scope.level),
@@ -3899,10 +3953,20 @@ function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
       depreciableAmount:
         toFloatValue(totals.depreciable_amount ?? totals.depreciableAmount) ?? 0,
       closingValue: toFloatValue(totals.closing_value ?? totals.closingValue) ?? 0,
+
+      firstYearCapitalWorks: firstYearOr(
+        totals.first_year_capital_works ?? totals.firstYearCapitalWorks,
+        "capital_works",
+      ),
+      firstYearCapitalAllowances: firstYearOr(
+        totals.first_year_capital_allowances ?? totals.firstYearCapitalAllowances,
+        "capital_allowance",
+      ),
+      firstYearDepreciation: firstYearOr(
+        totals.first_year_depreciation ?? totals.firstYearDepreciation,
+      ),
     },
-    items: Array.isArray(record.items)
-      ? record.items.map((i) => normalizeDepreciationSchedule(getJsonObject(i)))
-      : [],
+    items,
   };
 }
 

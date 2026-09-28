@@ -1780,8 +1780,25 @@ export default function PropertyDetailView({
     [assets.rows, property],
   );
 
+  /**
+   * Every money figure on this page prints to the cent.
+   *
+   * This used to be `Math.round(...)` with maximumFractionDigits: 0, which made
+   * the three summary cards disagree with the statement directly beneath them:
+   * the P&L API returns NUMERIC(14,2) figures and the statement table prints
+   * them with formatPLAmount, so a property whose net profit was 122,580.96
+   * read "A$ 122,581" on the card and "122,580.96" in the table. The API is the
+   * authority and it is already exact — rounding here was inventing a figure.
+   *
+   * The locale is pinned to en-AU rather than left to the browser, matching
+   * formatAud and formatGst above: a viewer with a de-DE locale would otherwise
+   * get "122.580,96" on these cards and "122,580.96" everywhere else.
+   */
   const formatAmount = (num: number) => {
-    const absVal = Math.round(Math.abs(num)).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const absVal = Math.abs(num).toLocaleString("en-AU", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     if (num < 0) {
       return `-A$ ${absVal}`;
     }
@@ -2514,7 +2531,7 @@ export default function PropertyDetailView({
 
                         <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "160px", paddingBottom: "10px", borderBottom: "1px solid #f1f5f9" }}>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {Math.round(incomeCurrent).toLocaleString()}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {formatPLAmount(incomeCurrent)}</span>
                             <div style={{
                               width: "36px",
                               height: `${(incomeCurrent / maxChartVal) * 120}px`,
@@ -2527,7 +2544,7 @@ export default function PropertyDetailView({
                           </div>
 
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {Math.round(expenseCurrent).toLocaleString()}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {formatPLAmount(expenseCurrent)}</span>
                             <div style={{
                               width: "36px",
                               height: `${(expenseCurrent / maxChartVal) * 120}px`,

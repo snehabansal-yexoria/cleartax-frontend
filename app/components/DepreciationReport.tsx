@@ -63,6 +63,19 @@ export default function DepreciationReport({
   const items = useMemo(() => data?.items ?? [], [data]);
   const totals = data?.totals;
 
+  /**
+   * With no year selected the report headlined `totals.depreciation`, which
+   * with no `fy` is WHOLE-OF-LIFE — the entire depreciable amount spread across
+   * up to forty years. Summed over a scope's assets that is within rounding of
+   * what those assets cost, so the summary card printed a purchase price under
+   * the label "Total Depreciation".
+   *
+   * The default is now each asset's year one, summed. Both division cards and
+   * the table's claim column switch with it so the report keeps footing.
+   * Choosing a financial year still gives the genuine per-tax-year claim.
+   */
+  const isFirstYearView = fy == null;
+
   // The financial years the schedules actually span. Safe to derive from the
   // current response because `fy` narrows the CLAIM figures, not the item list —
   // the backend applies it to a lateral join, never to the WHERE clause — so the
@@ -143,12 +156,26 @@ export default function DepreciationReport({
       {totals && !error && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
           <Stat
-            label={fy == null ? "Total Depreciation" : `${fyLabel(fy)} Deduction`}
-            value={formatCurrency(totals.depreciation)}
-            note={fy == null ? "over the effective life" : undefined}
+            label={isFirstYearView ? "First-Year Depreciation" : `${fyLabel(fy)} Deduction`}
+            value={formatCurrency(
+              isFirstYearView ? totals.firstYearDepreciation : totals.depreciation,
+            )}
+            note={isFirstYearView ? "each asset's own year one" : undefined}
           />
-          <Stat label="Capital Works (Div 43)" value={formatCurrency(totals.capitalWorks)} />
-          <Stat label="Capital Allowances (Div 40)" value={formatCurrency(totals.capitalAllowances)} />
+          <Stat
+            label="Capital Works (Div 43)"
+            value={formatCurrency(
+              isFirstYearView ? totals.firstYearCapitalWorks : totals.capitalWorks,
+            )}
+          />
+          <Stat
+            label="Capital Allowances (Div 40)"
+            value={formatCurrency(
+              isFirstYearView
+                ? totals.firstYearCapitalAllowances
+                : totals.capitalAllowances,
+            )}
+          />
           <Stat
             label="Assets"
             value={String(totals.assetCount)}
@@ -180,14 +207,17 @@ export default function DepreciationReport({
                   <th style={{ ...th, textAlign: "right" }}>Rate</th>
                   <th style={{ ...th, textAlign: "right" }}>Depreciable</th>
                   <th style={{ ...th, textAlign: "right" }}>
-                    {fy == null ? "Total Claim" : `${fyLabel(fy)} Claim`}
+                    {isFirstYearView ? "Year 1 Claim" : `${fyLabel(fy)} Claim`}
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const claim =
-                    fy == null ? item.totalDepreciation : item.fyDepreciation ?? 0;
+                  // Same basis as the summary above, or the column does not
+                  // foot to the headline it sits under.
+                  const claim = isFirstYearView
+                    ? item.firstYearDepreciation ?? 0
+                    : item.fyDepreciation ?? 0;
                   const name = assetHrefBase ? (
                     <Link
                       href={`${assetHrefBase}/${encodeURIComponent(item.transactionId)}`}
