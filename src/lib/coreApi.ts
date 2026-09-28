@@ -1074,6 +1074,100 @@ export async function deleteCoreSettlementEntry(
   );
 }
 
+/**
+ * One manually entered line of the property's cost base: what the property cost
+ * (stamp duty, legal fees on purchase, capital improvements, adjustments).
+ *
+ * Deliberately NOT a transaction, for the same reasons as CoreSettlementEntry —
+ * its own table (migration 0049), invisible to P&L, GST, the ledger and All
+ * Transactions. These rows are estimates entered by hand; a transaction
+ * categorised as Property Cost shows under Settlement Entries instead, so
+ * nothing here is derived from one.
+ */
+export type CoreCostBaseEntry = {
+  id: string;
+  orgId: string;
+  propertyId: string;
+  category: string;
+  description: string | null;
+  /** Signed gross (GST-inclusive): an adjustment line reduces the cost base. */
+  grossAmount: number;
+  /** GST included in `grossAmount`: same sign, never larger. */
+  gstAmount: number;
+  /** `grossAmount - gstAmount`, derived by the database (migration 0049). */
+  netAmount: number;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function normalizeCoreCostBaseEntry(raw: RawRecord): CoreCostBaseEntry {
+  const grossAmount = toFloatValue(raw.gross_amount ?? raw.grossAmount);
+  const gstAmount = toFloatValue(raw.gst_amount ?? raw.gstAmount ?? 0);
+  const rawNet = raw.net_amount ?? raw.netAmount;
+  return {
+    id: toStringValue(raw.id),
+    orgId: toStringValue(raw.org_id ?? raw.orgId),
+    propertyId: toStringValue(raw.property_id ?? raw.propertyId),
+    category: toStringValue(raw.category),
+    description:
+      raw.description == null ? null : toStringValue(raw.description) || null,
+    grossAmount,
+    gstAmount,
+    netAmount: rawNet == null ? grossAmount - gstAmount : toFloatValue(rawNet),
+    position: toNumberValue(raw.position) ?? 0,
+    createdAt: toStringValue(raw.created_at ?? raw.createdAt),
+    updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
+  };
+}
+
+export async function listCoreCostBaseEntries(
+  token: string,
+  propertyId: string,
+): Promise<CoreCostBaseEntry[]> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base`,
+    { token },
+  );
+  return getJsonArray(payload).map(normalizeCoreCostBaseEntry);
+}
+
+export async function createCoreCostBaseEntry(
+  token: string,
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<CoreCostBaseEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base`,
+    { method: "POST", token, body },
+  );
+  return normalizeCoreCostBaseEntry(getJsonObject(payload));
+}
+
+export async function updateCoreCostBaseEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+  body: Record<string, unknown>,
+): Promise<CoreCostBaseEntry> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base/${encodeURIComponent(entryId)}`,
+    { method: "PATCH", token, body },
+  );
+  return normalizeCoreCostBaseEntry(getJsonObject(payload));
+}
+
+export async function deleteCoreCostBaseEntry(
+  token: string,
+  propertyId: string,
+  entryId: string,
+): Promise<void> {
+  await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/cost-base/${encodeURIComponent(entryId)}`,
+    { method: "DELETE", token },
+  );
+}
+
 // =============================================================================
 // Transactions
 // =============================================================================
