@@ -509,6 +509,11 @@ export default function AccountantReconciliationSessionPage() {
 
   const canSplitTransaction = properties.length > 1;
 
+  // These double as the "a subcategory is required" rule: a subcategory is only
+  // demanded when there is a picker offering one. A category with no
+  // subcategories configured — or only the implicit "General" — renders no
+  // field, so requiring a selection there was a dead end the accountant could
+  // not clear. The backend fills in the category's default when none is sent.
   const showCategorizeSubcategorySelect =
     !!categorizeCategoryId &&
     categorizeSubcategories.some((s) => s.name.toLowerCase() !== "general");
@@ -1387,13 +1392,21 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
-    // Every type has a category and subcategory now (hidden ones are
-    // auto-selected), and the backend requires both on every transaction.
     if (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId)) {
       setCategorizeError("Category and Property are required.");
       return;
     }
-    if (!categorizeSubcategoryId) {
+    // Only when the drawer is actually showing a subcategory picker — the same
+    // condition the Save button is disabled on, so the two cannot disagree. A
+    // category with no subcategories configured renders no field, and demanding
+    // a selection there was a dead end: the error named a control that was not
+    // on screen. The backend resolves the category's default when none is sent.
+    if (
+      !lockAssetPurchaseCategory &&
+      !hidesSubcategoryPicker(categorizeType) &&
+      showCategorizeSubcategorySelect &&
+      !categorizeSubcategoryId
+    ) {
       setCategorizeError("Please select sub category to continue.");
       return;
     }
@@ -1526,7 +1539,10 @@ export default function AccountantReconciliationSessionPage() {
       const postBody: Record<string, unknown> = {
         type: categorizeType,
         category_id: categorizeCategoryId,
-        subcategory_id: categorizeSubcategoryId,
+        // Null when the category has no subcategory to pick, matching the bulk
+        // modal below. subcategory_id is optional on the API and the backend
+        // resolves the category's default rather than rejecting the save.
+        subcategory_id: categorizeSubcategoryId || null,
         invoice_date: bankTx.date,
         gross_amount: grossAmount,
         gst_amount: gstAmount,
@@ -1653,6 +1669,8 @@ export default function AccountantReconciliationSessionPage() {
       setBulkError("Property and Category are required.");
       return;
     }
+    // Required only when a picker is offering one — the same rule the
+    // single-line drawer uses.
     if (!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && !bulkSubcategoryId) {
       setBulkError("Please select sub category to continue.");
       return;

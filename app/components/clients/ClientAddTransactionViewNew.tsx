@@ -1900,12 +1900,21 @@ export default function ClientAddTransactionViewNew({
     }
   };
 
+  // Whether this category actually offers a subcategory to choose. Mirrors
+  // showSubcategorySelect further down, which cannot be referenced here — it is
+  // declared after canSubmit in the same scope. Without this a category with no
+  // subcategories configured renders no picker and leaves Save permanently
+  // disabled with nothing on screen explaining why.
+  const hasSubcategoryChoice = subcategories.some(
+    (s) => s.name.toLowerCase() !== "general",
+  );
+
   const canSubmit =
     !hasNoProperties &&
     !!activeEntityId &&
     !!type &&
     (lockAssetPurchaseCategory || !!categoryId) &&
-    (lockAssetPurchaseCategory || !!subcategoryId) &&
+    (lockAssetPurchaseCategory || !hasSubcategoryChoice || !!subcategoryId) &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
@@ -2230,7 +2239,10 @@ export default function ClientAddTransactionViewNew({
         resolvedSubcategoryId =
           resolvedSubcategoryId ?? defaults?.subcategoryId ?? null;
       }
-      if (!resolvedCategoryId || !resolvedSubcategoryId) {
+      // Only the category has to resolve. A category with no subcategory
+      // configured leaves resolvedSubcategoryId null, and the backend fills in
+      // that category's default rather than rejecting the save.
+      if (!resolvedCategoryId) {
         setSubmitError(
           "Couldn't pick a category automatically. Use 'Review & Submit' to choose one.",
         );
@@ -2240,7 +2252,7 @@ export default function ClientAddTransactionViewNew({
       const body: Record<string, unknown> = {
         type: effectiveType,
         category_id: resolvedCategoryId,
-        subcategory_id: resolvedSubcategoryId,
+        ...(resolvedSubcategoryId ? { subcategory_id: resolvedSubcategoryId } : {}),
         invoice_date: invoiceDate || getLocalDateString(),
         gross_amount: placeholderGross,
         // Falling back to the filename gives the accountant something to
@@ -2738,15 +2750,17 @@ export default function ClientAddTransactionViewNew({
         resolvedSubcategoryId = selection?.subcategoryId ?? null;
       }
 
-      if (!resolvedCategoryId || !resolvedSubcategoryId) {
-        setSubmitError("Please select a category and sub-category.");
+      // Subcategory omitted from the check for the same reason as above: where
+      // the category offers none, there is nothing to select.
+      if (!resolvedCategoryId) {
+        setSubmitError("Please select a category.");
         return;
       }
 
       const body: Record<string, unknown> = {
         type,
         category_id: resolvedCategoryId,
-        subcategory_id: resolvedSubcategoryId,
+        ...(resolvedSubcategoryId ? { subcategory_id: resolvedSubcategoryId } : {}),
         invoice_date: invoiceDate || getLocalDateString(), // Redesign fallback to today if hidden
         gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
@@ -2843,9 +2857,7 @@ export default function ClientAddTransactionViewNew({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
   ];
-  const showSubcategorySelect =
-    !!categoryId &&
-    subcategories.some((s) => s.name.toLowerCase() !== "general");
+  const showSubcategorySelect = !!categoryId && hasSubcategoryChoice;
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: p.name,
     value: p.id,

@@ -1198,9 +1198,12 @@ function TransactionDetailPopup({
       value: String(subcategory.id),
     })),
   ];
-  const showSubcategorySelect =
-    !!categoryId &&
-    subcategories.some((s) => s.name.toLowerCase() !== "general");
+  // No picker renders for a category with no subcategories of its own, so
+  // handleSave must not demand one either.
+  const hasSubcategoryChoice = subcategories.some(
+    (s) => s.name.toLowerCase() !== "general",
+  );
+  const showSubcategorySelect = !!categoryId && hasSubcategoryChoice;
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
     ...properties.map((property) => ({ label: pickerLabel(property), value: property.id })),
@@ -1347,7 +1350,10 @@ function TransactionDetailPopup({
 
   async function handleSave() {
     const grossNum = Number.parseFloat(grossAmount);
-    if (!type || !categoryId || !subcategoryId || !invoiceDate) {
+    // The sub-category is only demanded when a picker is offering one. Switch
+    // to a category that has none configured and there is nothing to select —
+    // the backend resolves that category's default on save.
+    if (!type || !categoryId || (showSubcategorySelect && !subcategoryId) || !invoiceDate) {
       setInvoiceDateTouched(true);
       // When the picker is hidden the user cannot "complete" a category, so say
       // what actually went wrong: the seeded category for this type is missing.
@@ -1478,7 +1484,10 @@ function TransactionDetailPopup({
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
-      subcategory_id: subcategoryId,
+      // Omitted when the new category has no subcategory to pick — the PATCH
+      // re-resolves it from the category rather than keeping the old one,
+      // which would no longer belong to it.
+      ...(subcategoryId ? { subcategory_id: subcategoryId } : {}),
       invoice_date: invoiceDate,
       gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
@@ -6783,10 +6792,18 @@ export function AddTransactionView({
     }
   }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
 
-  // Category and subcategory are required for every type now that personal and
-  // cost base have a seeded taxonomy of their own — their pickers are hidden but
-  // auto-selected, so the ids are populated either way. The asset-purchase
-  // clause no longer blocks cost base: it is not an asset purchase.
+  // Whether this category actually offers a subcategory to choose. Mirrors
+  // showSubcategorySelect further down, which cannot be referenced here — it is
+  // declared after canSubmit in the same scope.
+  const hasSubcategoryChoice = subcategories.some(
+    (s) => s.name.toLowerCase() !== "general",
+  );
+
+  // A category is required for every type; a subcategory only where one is on
+  // offer. Personal and cost base have a seeded taxonomy of their own — their
+  // pickers are hidden but auto-selected, so the ids are populated either way.
+  // The asset-purchase clause no longer blocks cost base: it is not an asset
+  // purchase.
   const canSubmit =
     !mustChooseClientFirst &&
     (!allowsBusinessExtras(type) || !hasNoProperties) &&
@@ -6797,8 +6814,12 @@ export function AddTransactionView({
     // exactly how the contra failure presented. handleSubmit re-checks and
     // reports which category could not be resolved.
     (lockAssetPurchaseCategory || hidesCategoryPicker(type) || !!categoryId) &&
+    // Same reasoning, extended to a category that has no subcategories
+    // configured at all: no picker renders, so there is nothing to select and
+    // the backend resolves the category's default on save.
     (lockAssetPurchaseCategory ||
       hidesSubcategoryPicker(type) ||
+      !hasSubcategoryChoice ||
       !!subcategoryId) &&
     !descriptionError &&
     !!invoiceDate &&
@@ -7494,7 +7515,10 @@ export function AddTransactionView({
         resolvedSubcategoryId = selection?.subcategoryId ?? null;
       }
 
-      if (!resolvedCategoryId || !resolvedSubcategoryId) {
+      // Only the category is mandatory. A category with no subcategory
+      // configured leaves resolvedSubcategoryId null, and the backend fills in
+      // that category's default rather than rejecting the save.
+      if (!resolvedCategoryId) {
         // When the picker is hidden or locked the user has nothing to "select",
         // so the generic message is a dead end. Both cases mean the seeded
         // category for this type is missing from the server's taxonomy.
@@ -7509,7 +7533,7 @@ export function AddTransactionView({
             "The server may need updating before this can be saved.",
           );
         } else {
-          setSubmitError("Please select a category and sub-category.");
+          setSubmitError("Please select a category.");
         }
         return;
       }
@@ -7517,7 +7541,7 @@ export function AddTransactionView({
       const body: Record<string, unknown> = {
         type,
         category_id: resolvedCategoryId,
-        subcategory_id: resolvedSubcategoryId,
+        ...(resolvedSubcategoryId ? { subcategory_id: resolvedSubcategoryId } : {}),
         invoice_date: invoiceDate,
         gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
@@ -7724,9 +7748,7 @@ export function AddTransactionView({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
   ];
-  const showSubcategorySelect =
-    !!categoryId &&
-    subcategories.some((s) => s.name.toLowerCase() !== "general");
+  const showSubcategorySelect = !!categoryId && hasSubcategoryChoice;
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: pickerLabel(p),
     value: p.id,
