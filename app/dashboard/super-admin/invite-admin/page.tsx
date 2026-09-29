@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getSession } from "../../../../src/lib/session";
+import { SHOW_INVITE_CREDENTIALS } from "../../../../src/lib/appConfig";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -12,6 +13,23 @@ interface SessionWithIdToken {
 interface OrganizationOption {
   id: string;
   name: string;
+}
+
+function buildInviteLink(params: {
+  origin: string;
+  token: string;
+  email: string;
+  role: string;
+  temporaryPassword: string;
+}) {
+  const url = new URL("/invite", params.origin);
+  url.searchParams.set("token", params.token);
+  url.searchParams.set("email", params.email);
+  url.searchParams.set("role", params.role);
+
+  return `${url.toString()}#temporary_password=${encodeURIComponent(
+    params.temporaryPassword,
+  )}`;
 }
 
 export default function InviteAdminPage() {
@@ -85,9 +103,15 @@ export default function InviteAdminPage() {
       }
 
       setTempPassword(data.temporaryPassword);
-
-      const link = `${window.location.origin}/login`;
-      setInviteLink(link);
+      setInviteLink(
+        buildInviteLink({
+          origin: window.location.origin,
+          token: String(data.invitationToken || ""),
+          email: String(data.email || email),
+          role: String(data.role || role),
+          temporaryPassword: String(data.temporaryPassword || ""),
+        }),
+      );
 
       setEmail("");
       setSelectedOrg(""); // reset
@@ -184,22 +208,26 @@ export default function InviteAdminPage() {
           <h3>User Created</h3>
 
           <p>
-            <strong>Temporary Password:</strong>
+            An invitation email has been sent to the user with a secure link to
+            set their password and access their workspace.
           </p>
 
-          <pre>{tempPassword}</pre>
+          {SHOW_INVITE_CREDENTIALS && (
+            <>
+              <p>
+                <strong>Invite Link:</strong>
+              </p>
 
-          <p>
-            <strong>Invite Link:</strong>
-          </p>
+              <a href={inviteLink} target="_blank" style={{ color: "#2563eb" }}>
+                {inviteLink}
+              </a>
 
-          <a href={inviteLink} target="_blank" style={{ color: "#2563eb" }}>
-            {inviteLink}
-          </a>
-
-          <p style={{ marginTop: "10px" }}>
-            Send this link and password to the invited user.
-          </p>
+              <p style={{ marginTop: "10px" }}>
+                <strong>Backup Temporary Password:</strong>
+              </p>
+              <pre>{tempPassword}</pre>
+            </>
+          )}
         </div>
       )}
     </div>

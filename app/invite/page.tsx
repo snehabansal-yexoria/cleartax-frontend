@@ -2,15 +2,24 @@ import InviteClient from "./InviteClient";
 
 export const dynamic = "force-dynamic";
 
-export default function Page({
+type InviteSearchParams = {
+  email?: string;
+  role?: string;
+  token?: string;
+};
+
+export default async function Page({
   searchParams,
 }: {
-  searchParams: { email?: string; role?: string };
+  searchParams: Promise<InviteSearchParams>;
 }) {
+  const params = await searchParams;
+
   return (
     <InviteClient
-      email={searchParams.email || ""}
-      role={searchParams.role || "client"}
+      email={params.email || ""}
+      role={params.role || "client"}
+      token={params.token || ""}
     />
   );
 }

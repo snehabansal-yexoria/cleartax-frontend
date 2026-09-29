@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   createCoreEntity,
   listCoreEntities,
+  listCoreProperties,
 } from "@/src/lib/coreApi";
 
 function getBearerToken(req: Request) {
@@ -21,8 +22,29 @@ export async function GET(req: Request) {
   const clientId = new URL(req.url).searchParams.get("client_id") || undefined;
 
   try {
-    const items = await listCoreEntities(token, { clientId });
-    return NextResponse.json({ items });
+    const entities = await listCoreEntities(token, { clientId });
+    
+    // Server-side parallel fetch to aggregate properties for each entity
+    const enrichedEntities = await Promise.all(
+      entities.map(async (entity) => {
+        try {
+          const properties = await listCoreProperties(token, entity.id);
+          return {
+            ...entity,
+            properties: properties.map((p) => ({
+              ...p,
+              entityId: entity.id,
+              entityName: entity.name,
+            })),
+          };
+        } catch (err) {
+          console.error(`Failed to fetch properties for entity ${entity.id} on server:`, err);
+          return { ...entity, properties: [] };
+        }
+      })
+    );
+
+    return NextResponse.json({ items: enrichedEntities });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list entities";
     console.error("GET /api/entities error:", message);
