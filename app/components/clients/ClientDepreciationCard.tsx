@@ -141,7 +141,35 @@ export default function ClientDepreciationCard({
     );
   }
 
-  const claimLabel = fy == null ? "Total over effective life" : `${fyLabel(fy)} deduction`;
+  /**
+   * The headline, and the division split beneath it.
+   *
+   * With no year selected this used to read `totals.depreciation`, which with
+   * no `fy` is WHOLE-OF-LIFE — the entire depreciable amount spread over up to
+   * forty years. On a property with four assets that is arithmetically almost
+   * exactly what the four assets cost, so the card headlined a purchase price
+   * under the word "Depreciation".
+   *
+   * It now reads year one per asset, summed. The division cards move with it,
+   * because a headline its own two components do not add up to is worse than
+   * either number alone.
+   *
+   * Picking a year still switches every figure to that year's claim — that is
+   * the genuinely per-tax-year view, and it is what the `fy` filter is for.
+   */
+  const isFirstYearView = fy == null;
+  const claimLabel = isFirstYearView
+    ? "First-year deduction"
+    : `${fyLabel(fy)} deduction`;
+  const claimTotal = isFirstYearView
+    ? totals.firstYearDepreciation
+    : totals.depreciation;
+  const claimCapitalWorks = isFirstYearView
+    ? totals.firstYearCapitalWorks
+    : totals.capitalWorks;
+  const claimCapitalAllowances = isFirstYearView
+    ? totals.firstYearCapitalAllowances
+    : totals.capitalAllowances;
 
   return (
     <div className={`${className} flex flex-col`}>
@@ -170,10 +198,14 @@ export default function ClientDepreciationCard({
           {claimLabel}
         </span>
         <div className="text-2xl font-bold mt-1 tabular-nums">
-          {money(totals.depreciation)}
+          {money(claimTotal)}
         </div>
         <div className="text-[11px] font-semibold text-white/70 mt-1">
+          {/* Said explicitly, because the number is otherwise easy to read as a
+              tax-year figure: assets bought in different years each contribute
+              their OWN first year, so this total spans several. */}
           across {totals.assetCount} asset{totals.assetCount === 1 ? "" : "s"}
+          {isFirstYearView ? ", each in its first year" : ""}
         </div>
       </div>
 
@@ -184,7 +216,7 @@ export default function ClientDepreciationCard({
             Capital works
           </span>
           <div className="text-sm font-bold text-[var(--text-primary)] mt-1 tabular-nums">
-            {money(totals.capitalWorks)}
+            {money(claimCapitalWorks)}
           </div>
           <span className="text-[10px] text-[var(--text-muted)] font-semibold">Division 43</span>
         </div>
@@ -193,7 +225,7 @@ export default function ClientDepreciationCard({
             Plant &amp; equipment
           </span>
           <div className="text-sm font-bold text-[var(--text-primary)] mt-1 tabular-nums">
-            {money(totals.capitalAllowances)}
+            {money(claimCapitalAllowances)}
           </div>
           <span className="text-[10px] text-[var(--text-muted)] font-semibold">Division 40</span>
         </div>
@@ -207,7 +239,12 @@ export default function ClientDepreciationCard({
       {!compact && (
         <div className="flex flex-col gap-2">
           {items.map((item) => {
-            const claim = fy == null ? item.totalDepreciation : item.fyDepreciation ?? 0;
+            // Same basis as the headline, or the rows visibly fail to add up
+            // to it. `firstYearDepreciation` is null only when the engine has
+            // not generated the schedule's year rows yet.
+            const claim = isFirstYearView
+              ? item.firstYearDepreciation ?? 0
+              : item.fyDepreciation ?? 0;
             const href = assetHrefBase
               ? `${assetHrefBase}/${encodeURIComponent(item.transactionId)}`
               : null;

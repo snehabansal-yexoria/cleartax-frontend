@@ -18,10 +18,13 @@ import {
   hidesSubcategoryPicker,
   transactionSign,
   allowsContraFlag,
+  contraSideOf,
+  typeButtonActive,
   parseTransactionType,
   transactionTypeColor,
   transactionTypeLabel,
   transactionTypeModifier,
+  type ContraSide,
 } from "@/src/lib/transactionTypes";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
@@ -82,9 +85,9 @@ export type TransactionsContext =
 type TransactionTableScope = "global" | "client" | "entity";
 
 /**
- * What the grid prints in Gross, GST and Net for one row.
+ * What a grid prints in its gross, GST and net cells for one row.
  *
- * An asset purchase shows its YEAR ONE DEPRECIATION in Gross and Net, not the
+ * An asset purchase shows its YEAR ONE DEPRECIATION in gross and net, not the
  * price paid: on a tax screen the purchase price reads as the amount claimed,
  * and a $30,000 asset is not a $30,000 deduction. This is a rendering choice
  * only. The stored gross_amount is untouched — it is the money that left the
@@ -111,18 +114,32 @@ type GridAmounts = {
   title?: string;
 };
 
-function gridAmounts(
-  row: DisplayTransactionRow,
-  deduction?: FirstYearDeduction,
+/** The three stored amounts of a row, before any depreciation substitution. */
+type RowAmounts = { gross: number; gst: number; net: number };
+
+/**
+ * The substitution itself, shared by both grids.
+ *
+ * Two grids print money at two different grains — the transactions grid shows
+ * the whole bill, the property grid shows one property's slice of it — but the
+ * RULES for swapping in year-one depreciation are identical, and a second copy
+ * of them would drift. Only the amounts and the tooltip's noun phrase differ,
+ * so those are the parameters.
+ */
+function applyYearOneSubstitution(
+  amounts: RowAmounts,
+  isAssetPurchase: boolean,
+  deduction: FirstYearDeduction | undefined,
+  purchaseLabel: string,
 ): GridAmounts {
-  if (!row.isAssetPurchase) {
-    return { gross: row.grossAmount, gst: row.gstAmount, net: row.netAmount };
+  if (!isAssetPurchase) {
+    return { gross: amounts.gross, gst: amounts.gst, net: amounts.net };
   }
   if (!deduction) {
     return {
-      gross: row.grossAmount,
-      gst: row.gstAmount,
-      net: row.netAmount,
+      gross: amounts.gross,
+      gst: amounts.gst,
+      net: amounts.net,
       title: "No depreciation schedule yet; showing the purchase price",
     };
   }
@@ -133,9 +150,46 @@ function gridAmounts(
     deduction,
     title:
       `Year 1 depreciation, ${deduction.fyLabel}. ` +
-      `Purchased for ${formatCurrency(row.grossAmount)} ` +
-      `(GST ${formatCurrency(row.gstAmount)}, net ${formatCurrency(row.netAmount)})`,
+      `${purchaseLabel} ${formatCurrency(amounts.gross)} ` +
+      `(GST ${formatCurrency(amounts.gst)}, net ${formatCurrency(amounts.net)})`,
   };
+}
+
+function gridAmounts(
+  row: DisplayTransactionRow,
+  deduction?: FirstYearDeduction,
+): GridAmounts {
+  return applyYearOneSubstitution(
+    { gross: row.grossAmount, gst: row.gstAmount, net: row.netAmount },
+    row.isAssetPurchase,
+    deduction,
+    "Purchased for",
+  );
+}
+
+/**
+ * The same substitution for the property grid, which runs on the SPLIT figures.
+ *
+ * No re-apportioning is needed and none must be added: `depreciation_schedule`
+ * is one row per asset per property (migration 0037), so a property-scoped
+ * year-one figure is already this property's share and lines up with the
+ * "Property share" column it replaces. The "Bill total" column keeps the
+ * purchase price — it is labelled as the bill, not as a deduction.
+ */
+function propertyGridAmounts(
+  row: CorePropertyTransactionRow,
+  deduction?: FirstYearDeduction,
+): GridAmounts {
+  return applyYearOneSubstitution(
+    {
+      gross: row.splitGrossAmount,
+      gst: row.splitGstAmount,
+      net: row.splitNetAmount,
+    },
+    row.isAssetPurchase,
+    deduction,
+    "This property's share of the purchase:",
+  );
 }
 
 type DisplayTransactionRow = CoreTransactionListItem;
@@ -920,6 +974,11 @@ function TransactionDetailPopup({
   const [reviewStatus, setReviewStatus] = useState(row.reviewStatus);
   const [isAssetPurchase, setIsAssetPurchase] = useState(row.isAssetPurchase);
   const [type, setType] = useState<CoreTransactionType>(row.type);
+  // Which side the contra toggle was reached from, so unticking restores it and
+  // the right type button stays lit. An already-saved contra carries no stored
+  // direction, so it opens on "expense" — the behaviour before income was
+  // offered. See ContraSide in transactionTypes.ts.
+  const [contraSide, setContraSide] = useState<ContraSide>(contraSideOf(row.type));
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(row.categoryId);
@@ -1074,6 +1133,7 @@ function TransactionDetailPopup({
     setReviewStatus(source.reviewStatus);
     setIsAssetPurchase(source.isAssetPurchase);
     setType(source.type);
+    setContraSide(contraSideOf(source.type));
     setCategoryId(source.categoryId);
     setSubcategoryId(source.subcategoryId);
     setInvoiceDate(source.invoiceDate?.slice(0, 10) || "");
@@ -1198,9 +1258,12 @@ function TransactionDetailPopup({
       value: String(subcategory.id),
     })),
   ];
-  const showSubcategorySelect =
-    !!categoryId &&
-    subcategories.some((s) => s.name.toLowerCase() !== "general");
+  // No picker renders for a category with no subcategories of its own, so
+  // handleSave must not demand one either.
+  const hasSubcategoryChoice = subcategories.some(
+    (s) => s.name.toLowerCase() !== "general",
+  );
+  const showSubcategorySelect = !!categoryId && hasSubcategoryChoice;
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
     ...properties.map((property) => ({ label: pickerLabel(property), value: property.id })),
@@ -1347,7 +1410,10 @@ function TransactionDetailPopup({
 
   async function handleSave() {
     const grossNum = Number.parseFloat(grossAmount);
-    if (!type || !categoryId || !subcategoryId || !invoiceDate) {
+    // The sub-category is only demanded when a picker is offering one. Switch
+    // to a category that has none configured and there is nothing to select —
+    // the backend resolves that category's default on save.
+    if (!type || !categoryId || (showSubcategorySelect && !subcategoryId) || !invoiceDate) {
       setInvoiceDateTouched(true);
       // When the picker is hidden the user cannot "complete" a category, so say
       // what actually went wrong: the seeded category for this type is missing.
@@ -1478,7 +1544,10 @@ function TransactionDetailPopup({
     const body: Record<string, unknown> = {
       type,
       category_id: categoryId,
-      subcategory_id: subcategoryId,
+      // Omitted when the new category has no subcategory to pick — the PATCH
+      // re-resolves it from the category rather than keeping the old one,
+      // which would no longer belong to it.
+      ...(subcategoryId ? { subcategory_id: subcategoryId } : {}),
       invoice_date: invoiceDate,
       gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
@@ -1621,13 +1690,19 @@ function TransactionDetailPopup({
                       key={option.value}
                       type="button"
                       className={
-                        type === option.value ||
-                          (option.value === "expense" && type === "contra")
+                        typeButtonActive(option.value, type, contraSide)
                           ? `is-selected ${transactionTypeModifier(option.value)}`
                           : ""
                       }
                       onClick={() => {
-                        setType(option.value);
+                        // Picking Income or Expense while the toggle is on moves
+                        // which side the contra came from and keeps it a contra,
+                        // rather than silently switching the toggle off. Personal
+                        // and cost base have no contra, so they retype outright.
+                        const stayContra =
+                          type === "contra" && allowsContraFlag(option.value);
+                        if (stayContra) setContraSide(contraSideOf(option.value));
+                        else setType(option.value);
                         setCategoryId(null);
                         setSubcategoryId(null);
                       }}
@@ -1638,22 +1713,29 @@ function TransactionDetailPopup({
                 </div>
               </div>
 
-              {/* Lets a mis-marked transfer be turned back into a real expense,
-              and an expense that turns out to be a transfer be corrected
-              without deleting and re-entering it. */}
+              {/* Lets a mis-marked transfer be turned back into real income or a
+              real expense, and a transaction that turns out to be a transfer be
+              corrected without deleting and re-entering it. Offered on both
+              sides: the money-in leg of a transfer is saved as income. */}
               {allowsContraFlag(type) && (
                 <label className="transaction-checkbox-row">
                   <input
                     type="checkbox"
                     checked={type === "contra"}
                     onChange={(event) => {
-                      setType(event.target.checked ? "contra" : "expense");
-                      setCategoryId(null);
-                      setSubcategoryId(null);
                       if (event.target.checked) {
+                        // Captured BEFORE retyping, while `type` still names the
+                        // side. Unticking restores it, so a transfer in does not
+                        // come back as an expense.
+                        setContraSide(contraSideOf(type));
+                        setType("contra");
                         setShowGstBreakdown(false);
                         setGstAmount("");
+                      } else {
+                        setType(contraSide);
                       }
+                      setCategoryId(null);
+                      setSubcategoryId(null);
                     }}
                   />
                   <span>
@@ -2924,6 +3006,7 @@ function PropertyTransactionTable({
   expandedRowIds,
   rowChildren,
   onToggleExpand,
+  firstYearDepreciation,
 }: {
   rows: CorePropertyTransactionRow[];
   onView: (row: DisplayTransactionRow) => void;
@@ -2935,6 +3018,13 @@ function PropertyTransactionTable({
   expandedRowIds?: Set<string>;
   rowChildren?: Record<string, CoreTransactionChild[] | "loading" | "error">;
   onToggleExpand?: (row: DisplayTransactionRow) => void;
+  /**
+   * Year-one depreciation per asset, keyed at DISPLAY grain. The property grid
+   * runs at display grain too, so `row.transactionId` is the right key — see
+   * the note on `useFirstYearDepreciation` about part-private assets, whose
+   * schedule hangs off the business child but is keyed to the container here.
+   */
+  firstYearDepreciation?: Map<string, FirstYearDeduction>;
 }) {
   const canExpand = Boolean(onToggleExpand);
   const columnCount = 12 + (canExpand ? 1 : 0);
@@ -2966,6 +3056,10 @@ function PropertyTransactionTable({
               const displayRow = propertyRowToDisplayRow(row);
               const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
               const children = rowChildren?.[row.transactionId];
+              const amounts = propertyGridAmounts(
+                row,
+                firstYearDepreciation?.get(row.transactionId),
+              );
               return (
                 <Fragment key={`${row.transactionId}-${row.splitId}`}>
                   <tr>
@@ -3028,12 +3122,20 @@ function PropertyTransactionTable({
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
                     <td>{formatCurrency(row.transactionGrossAmount)}</td>
                     <td>{row.splitPercentage.toFixed(2)}%</td>
-                    <td className={amountClass(amountSign)}>
-                      {formatTransactionCurrency(row.splitGrossAmount, amountSign)}
+                    <td className={amountClass(amountSign)} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
                     </td>
-                    <td>{formatCurrency(row.splitGstAmount)}</td>
-                    <td className={amountClass(amountSign)}>
-                      {formatTransactionCurrency(row.splitNetAmount, amountSign)}
+                    <td title={amounts.title}>
+                      {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
+                    </td>
+                    <td className={amountClass(amountSign)} title={amounts.title}>
+                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {amounts.deduction ? (
+                        <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
+                      ) : null}
                     </td>
                     <td>
                       <span
@@ -5169,6 +5271,7 @@ export function AllTransactionsView({
               expandedRowIds={grain === "top" ? expandedRowIds : undefined}
               rowChildren={grain === "top" ? rowChildren : undefined}
               onToggleExpand={grain === "top" ? toggleRowExpanded : undefined}
+              firstYearDepreciation={firstYearDepreciation}
             />
           ) : (
             <TransactionTable
@@ -5883,6 +5986,10 @@ export function AddTransactionView({
   const [tokenLoaded, setTokenLoaded] = useState(false);
 
   const [type, setType] = useState<CoreTransactionType | "">("");
+  // Which side the contra toggle was reached from — see ContraSide in
+  // transactionTypes.ts. Only two jobs: which type button stays lit while the
+  // toggle is on, and which type to restore when it is switched off.
+  const [contraSide, setContraSide] = useState<ContraSide>("expense");
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -6174,6 +6281,7 @@ export function AddTransactionView({
       }
       if (matchedTx.type) {
         setType(matchedTx.type);
+        setContraSide(contraSideOf(matchedTx.type));
       }
 
       // 6. Deferred extraction. A "Submit to accountant" placeholder was never
@@ -6262,6 +6370,38 @@ export function AddTransactionView({
     if (newType === "contra") {
       setShowGstBreakdown(false);
       setGstAmount("");
+    }
+  }
+
+  /**
+   * A type button was pressed.
+   *
+   * While the contra toggle is on, Income and Expense move which side the
+   * transfer came from and leave it a contra: the toggle switching itself off
+   * because the accountant corrected the direction would be a surprise. Personal
+   * and cost base have no contra, so they retype outright.
+   */
+  function handleTypeButton(picked: CoreTransactionType) {
+    if (type === "contra" && allowsContraFlag(picked)) {
+      setContraSide(contraSideOf(picked));
+      return;
+    }
+    handleTransactionTypeChange(picked);
+  }
+
+  /**
+   * The contra toggle, offered on income and expense alike.
+   *
+   * The side is captured BEFORE retyping, while `type` still names it, so
+   * unticking puts the transaction back where it came from. Every site used to
+   * hardcode "expense" here, which turned a transfer IN into an expense.
+   */
+  function handleContraToggle(checked: boolean) {
+    if (checked) {
+      setContraSide(contraSideOf(type));
+      handleTransactionTypeChange("contra");
+    } else {
+      handleTransactionTypeChange(contraSide);
     }
   }
 
@@ -6783,10 +6923,18 @@ export function AddTransactionView({
     }
   }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
 
-  // Category and subcategory are required for every type now that personal and
-  // cost base have a seeded taxonomy of their own — their pickers are hidden but
-  // auto-selected, so the ids are populated either way. The asset-purchase
-  // clause no longer blocks cost base: it is not an asset purchase.
+  // Whether this category actually offers a subcategory to choose. Mirrors
+  // showSubcategorySelect further down, which cannot be referenced here — it is
+  // declared after canSubmit in the same scope.
+  const hasSubcategoryChoice = subcategories.some(
+    (s) => s.name.toLowerCase() !== "general",
+  );
+
+  // A category is required for every type; a subcategory only where one is on
+  // offer. Personal and cost base have a seeded taxonomy of their own — their
+  // pickers are hidden but auto-selected, so the ids are populated either way.
+  // The asset-purchase clause no longer blocks cost base: it is not an asset
+  // purchase.
   const canSubmit =
     !mustChooseClientFirst &&
     (!allowsBusinessExtras(type) || !hasNoProperties) &&
@@ -6797,8 +6945,12 @@ export function AddTransactionView({
     // exactly how the contra failure presented. handleSubmit re-checks and
     // reports which category could not be resolved.
     (lockAssetPurchaseCategory || hidesCategoryPicker(type) || !!categoryId) &&
+    // Same reasoning, extended to a category that has no subcategories
+    // configured at all: no picker renders, so there is nothing to select and
+    // the backend resolves the category's default on save.
     (lockAssetPurchaseCategory ||
       hidesSubcategoryPicker(type) ||
+      !hasSubcategoryChoice ||
       !!subcategoryId) &&
     !descriptionError &&
     !!invoiceDate &&
@@ -6941,6 +7093,10 @@ export function AddTransactionView({
       ruleType ?? (data.type ? parseTransactionType(data.type) : null);
     if (effectiveType) {
       setType(effectiveType);
+      // A rule may not assign a contra (0045 left transaction_rule.assigned_type
+      // at revenue/expense on purpose), and the extractor never returns one, so
+      // this only ever tracks which side the toggle would start from.
+      setContraSide(contraSideOf(effectiveType));
       filled.add("type");
     }
 
@@ -7494,7 +7650,10 @@ export function AddTransactionView({
         resolvedSubcategoryId = selection?.subcategoryId ?? null;
       }
 
-      if (!resolvedCategoryId || !resolvedSubcategoryId) {
+      // Only the category is mandatory. A category with no subcategory
+      // configured leaves resolvedSubcategoryId null, and the backend fills in
+      // that category's default rather than rejecting the save.
+      if (!resolvedCategoryId) {
         // When the picker is hidden or locked the user has nothing to "select",
         // so the generic message is a dead end. Both cases mean the seeded
         // category for this type is missing from the server's taxonomy.
@@ -7509,7 +7668,7 @@ export function AddTransactionView({
             "The server may need updating before this can be saved.",
           );
         } else {
-          setSubmitError("Please select a category and sub-category.");
+          setSubmitError("Please select a category.");
         }
         return;
       }
@@ -7517,7 +7676,7 @@ export function AddTransactionView({
       const body: Record<string, unknown> = {
         type,
         category_id: resolvedCategoryId,
-        subcategory_id: resolvedSubcategoryId,
+        ...(resolvedSubcategoryId ? { subcategory_id: resolvedSubcategoryId } : {}),
         invoice_date: invoiceDate,
         gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
@@ -7724,9 +7883,7 @@ export function AddTransactionView({
     { label: "Select sub-category", value: "" },
     ...subcategories.map((s) => ({ label: s.name, value: String(s.id) })),
   ];
-  const showSubcategorySelect =
-    !!categoryId &&
-    subcategories.some((s) => s.name.toLowerCase() !== "general");
+  const showSubcategorySelect = !!categoryId && hasSubcategoryChoice;
   const splitPropertyBaseOptions = properties.map((p) => ({
     label: pickerLabel(p),
     value: p.id,
@@ -7881,8 +8038,11 @@ export function AddTransactionView({
                 <div className="figma-type-row">
                   <button
                     type="button"
-                    className={`figma-type-btn is-income${type === "revenue" ? " active" : ""}`}
-                    onClick={() => handleTransactionTypeChange("revenue")}
+                    // Stays selected while the contra toggle is on and the
+                    // transfer came from this side — the money-in leg of a
+                    // transfer is entered as income.
+                    className={`figma-type-btn is-income${typeButtonActive("revenue", type, contraSide) ? " active" : ""}`}
+                    onClick={() => handleTypeButton("revenue")}
                   >
                     <span className="figma-type-circle is-income">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -7895,12 +8055,12 @@ export function AddTransactionView({
 
                   <button
                     type="button"
-                    // Stays selected while the contra toggle is on: a contra
-                    // entry IS an expense-shaped payment, reached from this
-                    // branch. Clicking it again is how you untick.
-                    className={`figma-type-btn is-expense${type === "expense" || type === "contra" ? " active" : ""
+                    // Stays selected while the contra toggle is on and the
+                    // transfer came from this side, which is the common case: a
+                    // contra looks like an expense-shaped payment on a statement.
+                    className={`figma-type-btn is-expense${typeButtonActive("expense", type, contraSide) ? " active" : ""
                       }`}
-                    onClick={() => handleTransactionTypeChange("expense")}
+                    onClick={() => handleTypeButton("expense")}
                   >
                     <span className="figma-type-circle is-expense">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -7943,16 +8103,19 @@ export function AddTransactionView({
               </div>
 
               {/* A transfer between the entity's own accounts — cash banked, a
-              bank-to-bank transfer, cash drawn for petty cash. It looks like a
-              payment on the statement, which is why the toggle lives on the
-              expense branch, but no expense was incurred: it is excluded from
-              the P&L and the BAS, and it posts to the seeded Contra / General
-              category rather than a real expense account.
+              bank-to-bank transfer, cash drawn for petty cash. On a statement it
+              looks like an ordinary line, but no income was earned and no expense
+              incurred: it is excluded from the P&L and the BAS, and it posts to
+              the seeded Contra / General category rather than a real account.
+
+              Offered on income AND expense. A transfer has two legs, and the leg
+              that arrives is entered as income — gating this on expense alone
+              made the money-in half of every transfer impossible to mark.
 
               Deliberately outside the allowsBusinessExtras block below, which
               is false for contra — placing it inside would make the toggle
               vanish the moment it was switched on. */}
-              {/* {allowsContraFlag(type) && (
+              {allowsContraFlag(type) && (
                 <label className="figma-toggle-container">
                   <div className="figma-toggle-info">
                     <span className="figma-toggle-title">Is this a contra entry?</span>
@@ -7966,14 +8129,12 @@ export function AddTransactionView({
                     <input
                       type="checkbox"
                       checked={type === "contra"}
-                      onChange={(e) =>
-                        handleTransactionTypeChange(e.target.checked ? "contra" : "expense")
-                      }
+                      onChange={(e) => handleContraToggle(e.target.checked)}
                     />
                     <span className="figma-switch-slider" />
                   </span>
                 </label>
-              )} */}
+              )}
 
               {/* Category / Sub-Category dropdowns */}
               {type === "cost_base" ? (
@@ -8056,10 +8217,17 @@ export function AddTransactionView({
                   <input
                     type="text"
                     className={`figma-input${descriptionError ? " has-error" : ""}`}
+                    // The description is the only record of WHICH accounts the
+                    // money moved between, so the hint names both ends — and
+                    // names them in the direction the entry was made, since a
+                    // money-in transfer prompted with "transfer TO savings"
+                    // invites the wrong sentence.
                     placeholder={
-                      type === "contra"
-                        ? "e.g. Transfer from business account to savings"
-                        : "Short description"
+                      type !== "contra"
+                        ? "Short description"
+                        : contraSide === "revenue"
+                          ? "e.g. Cash banked from petty cash to business account"
+                          : "e.g. Transfer from business account to savings"
                     }
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}

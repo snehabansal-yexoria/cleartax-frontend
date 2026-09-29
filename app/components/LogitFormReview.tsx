@@ -7,12 +7,83 @@ import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import type {
+  CoreDepreciationList,
   CoreEntity,
   CoreProperty,
   CoreTransactionListItem,
   CoreTransactionCategory,
   CoreTransactionSubcategory,
 } from "@/src/lib/coreApi";
+
+/**
+ * The two Depreciation rows, and where their figures actually come from.
+ *
+ * Every other row on this form is a sum of transaction gross amounts by
+ * category. These two cannot be, and the reason is the whole bug: an asset
+ * purchase IS a transaction, categorised 'Capital allowances' or 'Capital works
+ * deductions' (the picker locks an asset purchase to one of the two), carrying
+ * the PURCHASE PRICE. Summing it printed A$10,000 — what the asset cost — in a
+ * section headed Depreciation, where the deduction belongs.
+ *
+ * The deduction lives in depreciation_schedule_year, written by the Go engine
+ * when the asset was saved, and reaches this form through
+ * GET /properties/{id}/depreciation. Year one, matching the figure the
+ * Transactions grid prints for the same asset.
+ *
+ * Property scope needs no re-apportioning: depreciation_schedule is one row per
+ * asset PER PROPERTY, so a property-scoped total is already that property's
+ * own slice of an asset shared across two.
+ */
+const DEPRECIATION_ROW_SOURCE: Record<
+  string,
+  (totals: CoreDepreciationList["totals"]) => number
+> = {
+  "capital-allowances": (t) => t.firstYearCapitalAllowances,
+  "capital-works": (t) => t.firstYearCapitalWorks,
+};
+
+/**
+ * Fills the Depreciation rows from the stored schedules.
+ *
+ * Deliberately the same precedence applyTxSums uses, and for the same reason:
+ * a figure the accountant has typed is a judgement about a return they are
+ * about to lodge, so only a row still sitting at its "0.00" default is filled.
+ * Reopening the form must never silently rewrite an override.
+ *
+ * `totals` is null when the read failed. The rows are then left alone rather
+ * than zeroed — "we could not load this" and "the deduction is nil" are
+ * different facts, and only one of them belongs on a lodgement form.
+ */
+function applyScheduleAmounts(
+  rows: ReviewLine[],
+  totals: CoreDepreciationList["totals"] | null,
+): ReviewLine[] {
+  if (!totals) return rows;
+
+  return rows.map((row) => {
+    const read = DEPRECIATION_ROW_SOURCE[row.id];
+    if (!read) return row;
+
+    const isAmountEmpty =
+      row.amount === "0.00" || row.amount === "0" || row.amount === "";
+    if (!isAmountEmpty) return row;
+
+    const amount = read(totals);
+    if (!(amount > 0)) return row;
+
+    const amtStr = amount.toFixed(2);
+    // Neither depreciation category is in EXPANDABLE_CATEGORY_NAMES, so there
+    // are no subcategories to avoid double-counting against. Mirrored from
+    // applyTxSums anyway, so the two fillers cannot drift if one ever becomes
+    // expandable.
+    const hasSavedSubs = !!(row.subcategories && row.subcategories.length > 0);
+    return {
+      ...row,
+      amount: amtStr,
+      initialParentAmount: hasSavedSubs ? "0.00" : amtStr,
+    };
+  });
+}
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -462,15 +533,35 @@ export default function LogitFormReview({
           setAcquisitionCost(loadedProperty.purchaseAmount != null ? Number(loadedProperty.purchaseAmount).toFixed(2) : "");
         }
 
-        // 5. Fetch transactions & apply dynamic sums
-        const [entityRes, txRes] = await Promise.all([
+        // 5. Fetch transactions, the depreciation schedules & apply dynamic sums
+        //
+        // The schedules are awaited HERE rather than read through
+        // useDepreciation, because this effect calls setDepreciation exactly
+        // once with a fully-built array. A hook resolving on its own timeline
+        // would either land before that call and be overwritten, or after it
+        // and need a second effect to patch rows back in — a race whose two
+        // outcomes look identical on screen except for the number.
+        const [entityRes, txRes, depRes] = await Promise.all([
           fetch(`/api/entities/${encodeURIComponent(loadedProperty.entityId)}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`/api/entities/${encodeURIComponent(loadedProperty.entityId)}/transactions`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch(`/api/properties/${encodeURIComponent(propertyId)}/depreciation`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
+
+        // Absent rather than zero when the read fails: applyScheduleAmounts
+        // leaves the rows untouched, so a failed fetch shows the form without
+        // a depreciation figure instead of asserting a $0 deduction on a
+        // document being lodged.
+        let depreciationTotals: CoreDepreciationList["totals"] | null = null;
+        if (!cancelled && depRes.ok) {
+          depreciationTotals = ((await depRes.json()) as CoreDepreciationList)
+            .totals;
+        }
 
         if (!cancelled && entityRes.ok) {
           setEntity((await entityRes.json()) as CoreEntity);
@@ -485,6 +576,14 @@ export default function LogitFormReview({
           const sums: Record<string, number> = {};
           const computedSubSums: Record<string, number> = {};
           for (const tx of txs) {
+            // An asset purchase is not an expense of the year it was bought.
+            // Its cost is capitalised and re-enters as a depreciation
+            // deduction, which applyScheduleAmounts fills in below from the
+            // stored schedule — so counting the purchase price here as well
+            // would claim the asset twice. Same rule pnlRowFilter states as
+            // `AND t.is_asset_purchase = false`.
+            if (tx.isAssetPurchase) continue;
+
             const rowId = getCategoryRowId(tx.categoryName);
             if (rowId) {
               sums[rowId] = (sums[rowId] ?? 0) + Math.abs(tx.grossAmount);
@@ -557,6 +656,14 @@ export default function LogitFormReview({
           savedBorrowings = applyTxSums(savedBorrowings);
           savedDepreciation = applyTxSums(savedDepreciation);
         }
+
+        // Outside the txRes.ok block on purpose: the deduction comes from the
+        // schedules, not from the transaction list, so a failed or empty
+        // transactions read must not also cost the form its depreciation.
+        savedDepreciation = applyScheduleAmounts(
+          savedDepreciation,
+          depreciationTotals,
+        );
 
         if (!cancelled) {
           setRentedIncome(savedIncome);

@@ -744,6 +744,62 @@ export default function ClientPage() {
                 </div>
               </div>
 
+              {/* Last Financial Year Section */}
+              <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                      Last Financial Year
+                    </h3>
+                    <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
+                      NEW
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Net Income Card */}
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
+                    <div className="flex justify-between items-center">
+                      <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                          <polyline points="17 6 23 6 23 12" />
+                        </svg>
+                      </div>
+                      <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
+                        FY 25–26
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Income (Last FY)</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">0 properties in profit</span>
+                    </div>
+                  </div>
+
+                  {/* Net Loss Card */}
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
+                    <div className="flex justify-between items-center">
+                      <div className="w-8 h-8 rounded-[8px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                          <polyline points="17 18 23 18 23 12" />
+                        </svg>
+                      </div>
+                      <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
+                        FY 25–26
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Loss (Last FY)</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">0 properties at a loss</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Payment Alerts Section */}
               <div className="m-db-activity-section">
                 <PaymentAlerts />
@@ -848,7 +904,7 @@ export default function ClientPage() {
                           <div className={`m-db-activity-icon-box ${item.type === 'revenue' ? 'income' : 'expense'}`}>
                             {item.type === 'revenue' ? (
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                                <line x1="7" y1="17" x2="17" y2="7" />
+                                <line x1="7" y1="17" x2="7" y2="7" />
                                 <polyline points="7 7 17 7 17 17" />
                               </svg>
                             ) : (
@@ -954,6 +1010,132 @@ export default function ClientPage() {
                     </div>
                     <span>Add Property</span>
                   </Link>
+                </div>
+              </div>
+
+              {/* Loans & Interest Section */}
+              <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                      Loans & Interest
+                    </h3>
+                    <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
+                      NEW
+                    </span>
+                  </div>
+                  <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
+                    View all
+                  </Link>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {/* Overall Interest Card */}
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-[8px] bg-[#eff4ff] text-[#3538cd] flex items-center justify-center font-bold text-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                            <line x1="19" y1="5" x2="5" y2="19" />
+                            <circle cx="6.5" cy="6.5" r="2.5" />
+                            <circle cx="17.5" cy="17.5" r="2.5" />
+                          </svg>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Overall Interest (FY 25–26)</span>
+                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
+                        </div>
+                      </div>
+                      <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
+                        0.00% avg p.a.
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <div className="h-2 w-full rounded-full overflow-hidden flex bg-[#f2f4f7] dark:bg-[var(--surface-2)]">
+                        <div className="bg-[#1b265c] h-full" style={{ width: '60%' }} />
+                        <div className="bg-[#f79009] h-full" style={{ width: '40%' }} />
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-[#344054] dark:text-[var(--text-secondary)] font-medium">
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-[2px] bg-[#1b265c] inline-block" />
+                          <span>Fixed 0% · A$ 0</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-[2px] bg-[#f79009] inline-block" />
+                          <span>Variable 0% · A$ 0</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Card Row: Fixed & Variable */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Fixed Interest */}
+                    <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
+                      <div className="flex justify-between items-center">
+                        <div className="w-8 h-8 rounded-[8px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                        </div>
+                        <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                          0.00% p.a.
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Fixed Interest</span>
+                        <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
+                      </div>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
+                        A$ 0 fixed until Mar 2028
+                      </span>
+                    </div>
+
+                    {/* Variable Interest */}
+                    <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
+                      <div className="flex justify-between items-center">
+                        <div className="w-8 h-8 rounded-[8px] bg-[#fffaf5] text-[#d97706] flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                            <path d="M2 12h5l3 5 4-10 3 5h5" />
+                          </svg>
+                        </div>
+                        <span className="bg-[#fff6ed] dark:bg-[var(--surface-2)] border border-[#ffecd5] dark:border-[var(--border)] text-[#b54708] dark:text-[#f79009] px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                          0.00% p.a.
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Variable Interest</span>
+                        <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
+                      </div>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
+                        A$ 0 on variable rate
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Available Redraw Card */}
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center flex-shrink-0">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                          <rect x="2" y="4" width="20" height="16" rx="2" />
+                          <path d="M7 15h0M2 10h20" />
+                        </svg>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Available Redraw</span>
+                        <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-[8px] border border-[#d0d5dd] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-primary)] text-xs font-semibold hover:bg-[#f8f9fc] dark:hover:bg-[var(--surface-2)] transition-colors"
+                    >
+                      Redraw
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1235,54 +1417,121 @@ export default function ClientPage() {
 
         {/* Mini Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
               <div className="w-9 h-9 rounded-[10px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
                 <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
               </div>
-              <span className="bg-[#ecfdf3] text-[#027a48] px-2 py-0.5 rounded-[20px] text-xs font-semibold">+12%</span>
+              <span className="bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[20px] text-xs font-semibold">+12%</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#667085] text-xs font-medium">Cash Flow (this month)</span>
-              <span className="text-[#101828] text-xl font-bold">{formatCurrencyShort(displayCashFlow)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Cash Flow (this month)</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{formatCurrencyShort(displayCashFlow)}</span>
             </div>
           </div>
 
-          <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
               <div className="w-9 h-9 rounded-[10px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
                 <span className="text-base font-bold">$</span>
               </div>
-              <span className="bg-[#ecfdf3] text-[#027a48] px-2 py-0.5 rounded-[20px] text-xs font-semibold">+8.4%</span>
+              <span className="bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[20px] text-xs font-semibold">+8.4%</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#667085] text-xs font-medium">Income (this month)</span>
-              <span className="text-[#101828] text-xl font-bold">{formatCurrencyShort(displayIncomeThisMonth)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Income (this month)</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{formatCurrencyShort(displayIncomeThisMonth)}</span>
             </div>
           </div>
 
-          <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
               <div className="w-9 h-9 rounded-[10px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
                 <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
                   <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 </svg>
               </div>
-              <span className="bg-[#fef3f2] text-[#b42318] px-2 py-0.5 rounded-[20px] text-xs font-semibold">-3.5%</span>
+              <span className="bg-[#fef3f2] dark:bg-[var(--surface-2)] text-[#b42318] dark:text-[#f09595] px-2 py-0.5 rounded-[20px] text-xs font-semibold">-3.5%</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#667085] text-xs font-medium">Expenses (this month)</span>
-              <span className="text-[#101828] text-xl font-bold">{formatCurrencyShort(displayExpenseThisMonth)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Expenses (this month)</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{formatCurrencyShort(displayExpenseThisMonth)}</span>
             </div>
           </div>
         </div>
 
-        {/* Dashboard Grid Sections */}
+        {/* Section: Last Financial Year */}
+        <div className="flex flex-col gap-3.5">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                Last Financial Year
+              </h3>
+              <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
+                NEW
+              </span>
+            </div>
+            <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
+              FY 2025–26 · 1 Jul 2025 – 30 Jun 2026
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Net Income Card */}
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
+              <div className="flex justify-between items-center">
+                <div className="w-9 h-9 rounded-[10px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                    <polyline points="17 6 23 6 23 12" />
+                  </svg>
+                </div>
+                <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
+                  FY 25–26
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Income (Last FY)</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">A$ 0</span>
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">0 properties in profit</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] font-medium">--</span>
+                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">1 Jul 2025 – 30 Jun 2026</span>
+              </div>
+            </div>
+
+            {/* Net Loss Card */}
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
+              <div className="flex justify-between items-center">
+                <div className="w-9 h-9 rounded-[10px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                    <polyline points="17 18 23 18 23 12" />
+                  </svg>
+                </div>
+                <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
+                  FY 25–26
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Loss (Last FY)</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">A$ 0</span>
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">0 properties at a loss</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] font-medium">--</span>
+                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">1 Jul 2025 – 30 Jun 2026</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Grid Sections: Cash Flow & Payment Alerts */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Chart card */}
-          <div className="md:col-span-2 xl:col-span-2 order-1 xl:order-1 bg-white border border-[#eaeef4] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
+          <div className="md:col-span-2 xl:col-span-2 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
             <CashFlowChart
               months={displayMonths}
               income={displayIncome}
@@ -1292,23 +1541,208 @@ export default function ClientPage() {
             />
           </div>
 
-          {/* Payment Alerts card in place of Recent Activity */}
-          <div className="col-span-1 order-3 xl:order-2 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          {/* Payment Alerts card */}
+          <div className="col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <PaymentAlerts />
           </div>
+        </div>
 
-          {/* Recent Activity card where By Entity card was */}
-          <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+        {/* Section: Loans & Interest */}
+        <div className="flex flex-col gap-3.5">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                Loans & Interest
+              </h3>
+              <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
+                NEW
+              </span>
+            </div>
+            <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
+              View loans
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left 2 Columns: Overall Interest & 3 Sub-Cards */}
+            <div className="lg:col-span-2 flex flex-col gap-4">
+              {/* Overall Interest Card */}
+              <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-[10px] bg-[#eff4ff] text-[#3538cd] flex items-center justify-center font-bold text-base">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                        <line x1="19" y1="5" x2="5" y2="19" />
+                        <circle cx="6.5" cy="6.5" r="2.5" />
+                        <circle cx="17.5" cy="17.5" r="2.5" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Overall Interest (FY 25–26)</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">A$ 0</span>
+                    </div>
+                  </div>
+                  <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
+                    0.00% avg p.a.
+                  </span>
+                </div>
+
+                {/* Progress Bar (Fixed vs Variable) */}
+                <div className="flex flex-col gap-2">
+                  <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-[#f2f4f7] dark:bg-[var(--surface-2)]">
+                    <div className="bg-[#1b265c] h-full" style={{ width: '60%' }} />
+                    <div className="bg-[#f79009] h-full" style={{ width: '40%' }} />
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-[#344054] dark:text-[var(--text-secondary)] font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-[2px] bg-[#1b265c] inline-block" />
+                      <span>Fixed 0% · A$ 0</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-[2px] bg-[#f79009] inline-block" />
+                      <span>Variable 0% · A$ 0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Sub-Cards Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Fixed Interest Card */}
+                <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col justify-between gap-3">
+                  <div className="flex justify-between items-center">
+                    <div className="w-8 h-8 rounded-[8px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </div>
+                    <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded text-[11px] font-semibold">
+                      0.00% p.a.
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Fixed Interest</span>
+                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
+                  </div>
+                  <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
+                    A$ 0 fixed
+                  </span>
+                </div>
+
+                {/* Variable Interest Card */}
+                <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col justify-between gap-3">
+                  <div className="flex justify-between items-center">
+                    <div className="w-8 h-8 rounded-[8px] bg-[#fffaf5] text-[#d97706] flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                        <path d="M2 12h5l3 5 4-10 3 5h5" />
+                      </svg>
+                    </div>
+                    <span className="bg-[#fff6ed] dark:bg-[var(--surface-2)] border border-[#ffecd5] dark:border-[var(--border)] text-[#b54708] dark:text-[#f79009] px-2 py-0.5 rounded text-[11px] font-semibold">
+                      0.00% p.a.
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Variable Interest</span>
+                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
+                  </div>
+                  <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
+                    A$ 0 on variable rate
+                  </span>
+                </div>
+
+                {/* Available Redraw Card */}
+                <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col justify-between gap-3">
+                  <div className="flex justify-between items-center">
+                    <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="M7 15h0M2 10h20" />
+                      </svg>
+                    </div>
+                    <span className="bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[12px] text-[11px] font-semibold">
+                      Ready
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Available Redraw</span>
+                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
+                  </div>
+                  <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
+                    Variable loan
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right 1 Column: Repayment Summary Card */}
+            <div className="lg:col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-[8px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                  </div>
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-sm font-bold">Repayment Summary</h3>
+                </div>
+                <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
+                  View schedule
+                </Link>
+              </div>
+
+              {/* Month repayment / Next Due */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center text-xs font-medium">
+                  <span className="text-[#667085] dark:text-[var(--text-secondary)]">{monthName} repayment</span>
+                  <span className="text-[#101828] dark:text-[var(--text-primary)] font-bold">A$ 0 <span className="font-normal text-[#667085] dark:text-[var(--text-secondary)]">of A$ 0 paid</span></span>
+                </div>
+                <div className="h-1.5 w-full bg-[#f2f4f7] dark:bg-[var(--surface-2)] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#f79009] rounded-full w-0" />
+                </div>
+                <div className="text-[#b54708] dark:text-[#f79009] text-xs font-bold mt-1">
+                  Next due -- · in -- days
+                </div>
+              </div>
+
+              {/* This financial year (since 1 Jul) */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)]">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
+                  This financial year (since 1 Jul)
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] rounded-[10px] p-2.5 flex flex-col gap-0.5 items-center justify-center text-center">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px] font-bold tracking-wider uppercase">PRINCIPAL</span>
+                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xs font-bold">A$ 0</span>
+                  </div>
+                  <div className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] rounded-[10px] p-2.5 flex flex-col gap-0.5 items-center justify-center text-center">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px] font-bold tracking-wider uppercase">INTEREST</span>
+                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xs font-bold">A$ 0</span>
+                  </div>
+                  <div className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] rounded-[10px] p-2.5 flex flex-col gap-0.5 items-center justify-center text-center">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px] font-bold tracking-wider uppercase">TOTAL</span>
+                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xs font-bold">A$ 0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Existing remaining items: Recent Activity and By Property */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {/* Recent Activity card */}
+          <div className="col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[#101828] text-base font-bold">
+              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
                 Recent Activity
                 <ReviewQueueCount count={awaitingReviewCount} />
               </h3>
             </div>
 
-            <div className="flex flex-col divide-y divide-[#f2f4f7]">
+            <div className="flex flex-col divide-y divide-[#f2f4f7] dark:divide-[var(--border)]">
               {activityItems.length === 0 ? (
-                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085] dark:text-[var(--text-secondary)]">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 text-[#98a2b3] mb-2" style={{ width: '32px', height: '32px' }}>
                     <rect x="3" y="4" width="18" height="16" rx="2" />
                     <line x1="16" y1="2" x2="16" y2="6" />
@@ -1336,8 +1770,8 @@ export default function ClientPage() {
                         )}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <strong className="text-[#101828] text-[13px] font-bold truncate">{item.description}</strong>
-                        <span className="text-[#667085] text-[11px] truncate">
+                        <strong className="text-[#101828] dark:text-[var(--text-primary)] text-[13px] font-bold truncate">{item.description}</strong>
+                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] truncate">
                           {item.categoryName} · {item.meta}
                         </span>
                         <ReviewStatusBadge
@@ -1356,19 +1790,19 @@ export default function ClientPage() {
           </div>
 
           {/* By Property Section */}
-          <div className="md:col-span-2 xl:col-span-2 order-4 xl:order-4 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          <div className="md:col-span-2 xl:col-span-2 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[#101828] text-base font-bold">By property</h3>
+              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">By property</h3>
               {properties.length > 0 && (
-                <Link href="/dashboard/client/properties" className="text-[#175cd3] text-xs font-bold hover:underline">
+                <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
                   View all
                 </Link>
               )}
             </div>
 
-            <div className="flex flex-col divide-y divide-[#f2f4f7]">
+            <div className="flex flex-col divide-y divide-[#f2f4f7] dark:divide-[var(--border)]">
               {propertyListItems.length === 0 ? (
-                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085]">
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085] dark:text-[var(--text-secondary)]">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#98a2b3]">
                     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                     <path d="M9 22V12h6v10" />
@@ -1384,22 +1818,22 @@ export default function ClientPage() {
                         {item.isReal ? (
                           <Link
                             href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`}
-                            className="text-[#101828] text-[14px] font-bold hover:underline truncate"
+                            className="text-[#101828] dark:text-[var(--text-primary)] text-[14px] font-bold hover:underline truncate"
                           >
                             {item.name}
                           </Link>
                         ) : (
-                          <span className="text-[#101828] text-[14px] font-bold truncate">{item.name}</span>
+                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-[14px] font-bold truncate">{item.name}</span>
                         )}
 
-                        <div className="flex items-center gap-1.5 mt-1 text-[#667085] text-[11px]">
+                        <div className="flex items-center gap-1.5 mt-1 text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
                             <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                             <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                           </svg>
                           <Link
                             href={`/dashboard/client/entities/${item.entityId}`}
-                            className="text-[#667085] hover:underline"
+                            className="text-[#667085] dark:text-[var(--text-secondary)] hover:underline"
                           >
                             {item.entityName}
                           </Link>
@@ -1410,9 +1844,9 @@ export default function ClientPage() {
                       <span className="text-[#12b76a] text-[14px] font-bold">Net {formatClientCurrency(item.net, { short: true, showPlus: true, decimals: 1 })}</span>
                     </div>
 
-                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] mt-1">
-                      <span>Value <strong className="text-[#101828]">{formatCurrencyShort(item.marketValue)}</strong></span>
-                      <span>Loan <strong className="text-[#101828]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] dark:text-[var(--text-secondary)] mt-1">
+                      <span>Value <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatCurrencyShort(item.marketValue)}</strong></span>
+                      <span>Loan <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
                       <span>Income <strong className="text-[#12b76a]">{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
                       <span>Expenses <strong className="text-[#f04438]">{formatClientCurrency(-item.expense, { short: true })}</strong></span>
                     </div>
@@ -1421,7 +1855,6 @@ export default function ClientPage() {
               )}
             </div>
           </div>
-
         </div>
 
       </div>
