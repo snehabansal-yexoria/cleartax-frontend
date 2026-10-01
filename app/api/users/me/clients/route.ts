@@ -7,8 +7,10 @@ import {
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
 import {
+  assignCoreClients,
   CoreApiError,
   getCoreApiBearerFromRequest,
+  isCoreClientAssignmentEnabled,
   listCoreClients,
 } from "@/src/lib/coreApi";
 import { logError } from "@/src/lib/log";
@@ -81,7 +83,67 @@ export async function GET(req: Request) {
   }
 }
 
+// Backend path: the core API does the assignment and writes the
+// accountant.assigned audit row, which notifies the client. It enforces the
+// same rules as the direct-DB path below and answers in the same shape.
+async function assignViaCore(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as {
+    clientIds?: unknown;
+  };
+  const clientIds = Array.isArray(body.clientIds)
+    ? body.clientIds.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+
+  if (clientIds.length === 0) {
+    return NextResponse.json(
+      { error: "At least one client id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await assignCoreClients(
+      getCoreApiBearerFromRequest(req),
+      clientIds,
+    );
+    return NextResponse.json({
+      success: true,
+      assignedClientIds: result.assignedClientIds,
+      assignedAccountantId: result.assignedAccountantId,
+      assignedCount: result.assignedCount,
+    });
+  } catch (error) {
+    if (error instanceof CoreApiError && error.status === 409) {
+      return NextResponse.json(
+        {
+          error:
+            "Some clients are already added to an accountant or are not in your organization.",
+          assignedClientIds: [],
+        },
+        { status: 409 },
+      );
+    }
+    if (error instanceof CoreApiError && error.status < 500) {
+      return NextResponse.json(
+        { error: error.upstreamMessage || "Failed to assign clients" },
+        { status: error.status },
+      );
+    }
+    logError("Assign clients failed", error, {
+      route: "POST /api/users/me/clients (core)",
+    });
+    return NextResponse.json(
+      { error: "Failed to assign clients" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(req: Request) {
+  if (isCoreClientAssignmentEnabled()) {
+    return assignViaCore(req);
+  }
+
   try {
     const requesterResult = await getRequester(req);
     if ("error" in requesterResult) {

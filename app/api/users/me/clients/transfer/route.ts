@@ -5,8 +5,62 @@ import {
   findDirectoryUserByIdentity,
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
+import {
+  CoreApiError,
+  getCoreApiBearerFromRequest,
+  isCoreClientAssignmentEnabled,
+  transferCoreClient,
+} from "@/src/lib/coreApi";
+
+// Backend path: the core API does the transfer and writes the
+// accountant.reassigned audit row, which notifies the client and the new
+// accountant. It enforces the same rules as the direct-DB path below.
+async function transferViaCore(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as {
+    clientId?: unknown;
+    toAccountantId?: unknown;
+    reason?: unknown;
+  };
+  const clientId = String(body.clientId || "").trim();
+  const toAccountantId = String(body.toAccountantId || "").trim();
+  const reason =
+    typeof body.reason === "string" ? body.reason.trim() : undefined;
+
+  if (!clientId || !toAccountantId) {
+    return NextResponse.json(
+      { error: "clientId and toAccountantId are required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await transferCoreClient(
+      getCoreApiBearerFromRequest(req),
+      clientId,
+      toAccountantId,
+      reason,
+    );
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof CoreApiError && error.status < 500) {
+      return NextResponse.json(
+        { error: error.upstreamMessage || "Failed to transfer client" },
+        { status: error.status },
+      );
+    }
+    console.error("Transfer client error (core):", error);
+    return NextResponse.json(
+      { error: "Failed to transfer client" },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(req: Request) {
+  if (isCoreClientAssignmentEnabled()) {
+    return transferViaCore(req);
+  }
+
   try {
     const authHeader = req.headers.get("authorization");
 

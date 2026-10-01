@@ -58,6 +58,7 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
+import NotificationBell from "@/app/components/notifications/NotificationBell";
 import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SessionWithIdToken {
@@ -1093,16 +1094,12 @@ export default function DashboardLayout({
 
             <div className="accountant-topbar-actions">
               {isClientPage && <ThemeToggle />}
-              {/* <button
-                type="button"
-                className="accountant-icon-button"
-                aria-label="Notifications"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M15 17H5l1.4-1.4A2 2 0 0 0 7 14.2V10a5 5 0 0 1 10 0v4.2a2 2 0 0 0 .6 1.4L19 17h-4" />
-                  <path d="M10 20a2 2 0 0 0 4 0" />
-                </svg>
-              </button> */}
+              {/* Clients and accountants are the only notification recipients.
+                  key remounts the bell when the signed-in user changes, since
+                  its "seen" marker is per user. */}
+              {(role === "client" || role === "accountant") && email && (
+                <NotificationBell key={email} role={role} viewer={email} />
+              )}
 
               <div className="accountant-header-profile" ref={profileMenuRef}>
                 <button
