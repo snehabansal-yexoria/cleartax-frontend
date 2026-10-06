@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import NotificationsFeed from "@/app/components/notifications/NotificationsFeed";
 
+// The client's notifications. Linked from the topbar bell's "View all".
 export default function ClientAlertsPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/dashboard/client");
-  }, [router]);
-
-  return null;
+  return <NotificationsFeed role="client" />;
 }

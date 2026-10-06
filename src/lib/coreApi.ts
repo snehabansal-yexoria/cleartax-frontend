@@ -587,6 +587,134 @@ export async function getCoreAccountantSummary(
   };
 }
 
+// Notifications. Rows are written by the backend when a routed audit event is
+// recorded; title and body arrive already worded for the reader.
+export const NOTIFICATION_CATEGORIES = [
+  "property",
+  "entity",
+  "transaction",
+  "reconciliation",
+  "journal",
+  "document",
+  "client_bank",
+] as const;
+
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
+export interface CoreNotification {
+  id: string;
+  eventType: string;
+  category: string;
+  title: string;
+  body: string;
+  recipientRole: "client" | "accountant";
+  actorName: string;
+  clientId: string;
+  clientName: string;
+  recordType: string;
+  recordId: string;
+  recordName: string;
+  count: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoreNotificationPage {
+  items: CoreNotification[];
+  nextCursor: string | null;
+}
+
+function normalizeCoreNotification(raw: RawRecord): CoreNotification {
+  const actor = getJsonObject(raw.actor);
+  const client = getJsonObject(raw.client);
+  const record = getJsonObject(raw.record);
+  return {
+    id: toStringValue(raw.id),
+    eventType: toStringValue(raw.event_type),
+    category: toStringValue(raw.category),
+    title: toStringValue(raw.title),
+    body: toStringValue(raw.body),
+    recipientRole:
+      toStringValue(raw.recipient_role) === "accountant" ? "accountant" : "client",
+    actorName: toStringValue(actor.name),
+    clientId: toStringValue(client.id),
+    clientName: toStringValue(client.name),
+    recordType: toStringValue(record.type),
+    recordId: toStringValue(record.id),
+    recordName: toStringValue(record.name),
+    count: toNumberValue(raw.count) ?? 1,
+    createdAt: toStringValue(raw.created_at),
+    updatedAt: toStringValue(raw.updated_at) || toStringValue(raw.created_at),
+  };
+}
+
+export async function listCoreNotifications(
+  token: string,
+  params?: { limit?: number; cursor?: string; category?: string },
+): Promise<CoreNotificationPage> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.category) query.set("category", params.category);
+  const qs = query.toString();
+  const raw = getJsonObject(
+    await coreApiRequest(`/notifications${qs ? `?${qs}` : ""}`, { token }),
+  );
+  return {
+    items: getJsonArray(raw.items).map(normalizeCoreNotification),
+    nextCursor: toStringValue(raw.next_cursor) || null,
+  };
+}
+
+// Client ↔ accountant assignment. The backend writes the change and its
+// accountant.assigned / accountant.reassigned audit row in one transaction,
+// which is what creates the client's and new accountant's notifications.
+// Callers gate these behind USE_CORE_CLIENT_ASSIGNMENT until migration 0051
+// and the matching backend deploy are live.
+export function isCoreClientAssignmentEnabled() {
+  return process.env.USE_CORE_CLIENT_ASSIGNMENT === "true";
+}
+
+export interface CoreAssignClientsResult {
+  assignedClientIds: string[];
+  assignedAccountantId: string;
+  assignedCount: number;
+}
+
+export async function assignCoreClients(
+  token: string,
+  clientIds: string[],
+): Promise<CoreAssignClientsResult> {
+  const raw = getJsonObject(
+    await coreApiRequest("/clients/assign", {
+      method: "POST",
+      token,
+      body: { client_ids: clientIds },
+    }),
+  );
+  const ids = Array.isArray(raw.assigned_client_ids)
+    ? raw.assigned_client_ids.map((id) => toStringValue(id)).filter(Boolean)
+    : [];
+  return {
+    assignedClientIds: ids,
+    assignedAccountantId: toStringValue(raw.assigned_accountant_id),
+    assignedCount: toNumberValue(raw.assigned_count) ?? ids.length,
+  };
+}
+
+export async function transferCoreClient(
+  token: string,
+  clientId: string,
+  toAccountantId: string,
+  reason?: string,
+) {
+  await coreApiRequest(`/clients/${encodeURIComponent(clientId)}/transfer`, {
+    method: "POST",
+    token,
+    body: { to_accountant_id: toAccountantId, reason: reason ?? null },
+  });
+}
+
 export async function createCoreUser(
   token: string,
   body: Record<string, unknown>,

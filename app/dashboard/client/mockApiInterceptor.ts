@@ -1259,6 +1259,9 @@ const ENABLE_MOCK_API =
 const PASSTHROUGH_PATHS: RegExp[] = [
   /^\/api\/depreciation\//,
   /\/depreciation(\?|$)/,
+  // The topbar bell polls this on every client page; with no mock model the
+  // catch-all would 404 it every 30 seconds.
+  /^\/api\/notifications(\?|$)/,
 ];
 
 let originalFetch: typeof window.fetch | null = null;
