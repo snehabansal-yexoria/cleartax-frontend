@@ -26,13 +26,14 @@ import type {
   CoreTransactionType,
 } from "@/src/lib/coreApi";
 import {
-  RECONCILIATION_TYPE_ENTRY_OPTIONS,
+  TRANSACTION_TYPE_ENTRY_OPTIONS,
   CONTRA_BASE_TYPE,
   allowsContraFlag,
   allowsAssetPurchase,
   allowsBusinessExtras,
   allowsPersonalPortion,
   hidesCategoryPicker,
+  usesTypedCategory,
   hidesSubcategoryPicker,
   parseTransactionType,
   typeAfterPick,
@@ -443,6 +444,9 @@ export default function AccountantReconciliationSessionPage() {
   // kept in sync on every change.
   const [categorizeType, setCategorizeType] = useState<CoreTransactionType>("expense");
   const [categorizeCategoryId, setCategorizeCategoryId] = useState<number | null>(null);
+  // Balance Sheet only: the typed category, sent as `category_name` — the API
+  // finds or creates the org's category of that name.
+  const [categorizeCategoryName, setCategorizeCategoryName] = useState("");
   const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
   const [categorizeGst, setCategorizeGst] = useState<boolean>(false);
@@ -488,6 +492,7 @@ export default function AccountantReconciliationSessionPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkType, setBulkType] = useState<CoreTransactionType>("expense");
   const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
+  const [bulkCategoryName, setBulkCategoryName] = useState("");
   const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
   const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
   const [bulkGst, setBulkGst] = useState(false);
@@ -900,6 +905,7 @@ export default function AccountantReconciliationSessionPage() {
     // judgement the accountant makes in the drawer, so default from debit vs
     // credit and let them change it.
     setCategorizeType(bankTx.debit != null ? "expense" : "revenue");
+    setCategorizeCategoryName("");
 
     // Reset new states
     setCategorizeAssetDraft(null);
@@ -1408,7 +1414,13 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
-    if (!categorizeCategoryId || (!categorizeIsSplit && !categorizePropertyId)) {
+    const typedCategoryName = usesTypedCategory(categorizeType)
+      ? categorizeCategoryName.trim()
+      : "";
+    if (
+      (!categorizeCategoryId && !typedCategoryName) ||
+      (!categorizeIsSplit && !categorizePropertyId)
+    ) {
       setCategorizeError("Category and Property are required.");
       return;
     }
@@ -1554,11 +1566,14 @@ export default function AccountantReconciliationSessionPage() {
 
       const postBody: Record<string, unknown> = {
         type: categorizeType,
-        category_id: categorizeCategoryId,
+        // Balance Sheet names its category; the API resolves the id.
+        ...(typedCategoryName
+          ? { category_name: typedCategoryName }
+          : { category_id: categorizeCategoryId }),
         // Null when the category has no subcategory to pick, matching the bulk
         // modal below. subcategory_id is optional on the API and the backend
         // resolves the category's default rather than rejecting the save.
-        subcategory_id: categorizeSubcategoryId || null,
+        subcategory_id: typedCategoryName ? null : categorizeSubcategoryId || null,
         invoice_date: bankTx.date,
         gross_amount: grossAmount,
         gst_amount: gstAmount,
@@ -1667,6 +1682,7 @@ export default function AccountantReconciliationSessionPage() {
     if (selectedEligibleRows.length === 0) return;
     const first = selectedEligibleRows[0];
     setBulkType(first.row.debit != null ? "expense" : "revenue");
+    setBulkCategoryName("");
     setBulkCategoryId(null);
     setBulkSubcategoryId(null);
     setBulkSubcategories([]);
@@ -1685,7 +1701,8 @@ export default function AccountantReconciliationSessionPage() {
       ? (bulkCategoryId ?? firstCategoryOfType(bulkCategories, bulkType)?.id ?? null)
       : bulkCategoryId;
 
-    if (!bulkPropertyId || !resolvedBulkCategoryId) {
+    const typedBulkCategoryName = usesTypedCategory(bulkType) ? bulkCategoryName.trim() : "";
+    if (!bulkPropertyId || (!resolvedBulkCategoryId && !typedBulkCategoryName)) {
       setBulkError("Property and Category are required.");
       return;
     }
@@ -1734,8 +1751,12 @@ export default function AccountantReconciliationSessionPage() {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               type: bulkType,
-              category_id: resolvedBulkCategoryId,
-              subcategory_id: hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? (bulkSubcategoryId || null) : bulkSubcategoryId,
+              ...(typedBulkCategoryName
+                ? { category_name: typedBulkCategoryName }
+                : { category_id: resolvedBulkCategoryId }),
+              subcategory_id: typedBulkCategoryName
+                ? null
+                : hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? (bulkSubcategoryId || null) : bulkSubcategoryId,
               invoice_date: row.date,
               gross_amount: gross,
               gst_amount: gst,
@@ -3516,7 +3537,7 @@ export default function AccountantReconciliationSessionPage() {
                                   ? CONTRA_BASE_TYPE
                                   : categorizeType
                               }
-                              options={RECONCILIATION_TYPE_ENTRY_OPTIONS}
+                              options={TRANSACTION_TYPE_ENTRY_OPTIONS}
                               onChange={(val) => {
                                 // Re-picking Personal while the toggle is on
                                 // keeps it a contra rather than switching the
@@ -3537,8 +3558,16 @@ export default function AccountantReconciliationSessionPage() {
                                 if (!allowsBusinessExtras(nextType)) {
                                   setCategorizeIsPersonal(false);
                                 }
+                                // Balance Sheet carries no GST, and its radio is
+                                // hidden, so a "Yes" left from the previous type
+                                // would be sent with nothing on screen to show it.
+                                if (nextType === "balance_sheet") {
+                                  setCategorizeGst(false);
+                                  setCategorizeGstAmount("");
+                                }
                                 setCategorizeCategoryId(null);
                                 setCategorizeSubcategoryId(null);
+                                setCategorizeCategoryName("");
                               }}
                             />
                           </div>
@@ -3612,7 +3641,31 @@ export default function AccountantReconciliationSessionPage() {
                             </div>
                           )}
 
-                          {!hidesCategoryPicker(categorizeType) && (
+                          {/* Balance Sheet: free text, with the org's earlier
+                          Balance Sheet categories as suggestions. */}
+                          {usesTypedCategory(categorizeType) && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Category <span className="is-required">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                className="recon-categorize-input"
+                                list={`balance-sheet-categories-${key}`}
+                                placeholder="e.g. Loan from director"
+                                maxLength={64}
+                                value={categorizeCategoryName}
+                                onChange={(e) => setCategorizeCategoryName(e.target.value)}
+                              />
+                              <datalist id={`balance-sheet-categories-${key}`}>
+                                {categorizeCategories.map((c) => (
+                                  <option key={c.id} value={c.name} />
+                                ))}
+                              </datalist>
+                            </div>
+                          )}
+
+                          {!hidesCategoryPicker(categorizeType) && !usesTypedCategory(categorizeType) && (
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Category <span className="is-required">*</span>
@@ -4138,7 +4191,9 @@ export default function AccountantReconciliationSessionPage() {
                             className="recon-categorize-save-btn"
                             disabled={
                               categorizeSaving ||
-                              (lockAssetPurchaseCategory || hidesCategoryPicker(categorizeType) ? false : !categorizeCategoryId) ||
+                              (usesTypedCategory(categorizeType)
+                                ? !categorizeCategoryName.trim()
+                                : lockAssetPurchaseCategory || hidesCategoryPicker(categorizeType) ? false : !categorizeCategoryId) ||
                               (lockAssetPurchaseCategory || hidesSubcategoryPicker(categorizeType) ? false : (showCategorizeSubcategorySelect && !categorizeSubcategoryId)) ||
                               (!categorizeIsSplit && !categorizePropertyId) ||
                               (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches)) ||
@@ -4403,7 +4458,7 @@ export default function AccountantReconciliationSessionPage() {
                   </label>
                   <StaticSelect
                     value={bulkType === "contra" ? CONTRA_BASE_TYPE : bulkType}
-                    options={RECONCILIATION_TYPE_ENTRY_OPTIONS}
+                    options={TRANSACTION_TYPE_ENTRY_OPTIONS}
                     onChange={(val) => {
                       // Re-picking Personal while the toggle is on keeps the
                       // run marked as contra.
@@ -4412,6 +4467,8 @@ export default function AccountantReconciliationSessionPage() {
                       setBulkType(nextType);
                       setBulkCategoryId(null);
                       setBulkSubcategoryId(null);
+                      setBulkCategoryName("");
+                      if (nextType === "balance_sheet") setBulkGst(false);
                     }}
                   />
                 </div>
@@ -4469,7 +4526,29 @@ export default function AccountantReconciliationSessionPage() {
                   </div>
                 )}
 
-                {!hidesCategoryPicker(bulkType) && (
+                {usesTypedCategory(bulkType) && (
+                  <div className="recon-categorize-field">
+                    <label className="recon-categorize-label">
+                      Category <span className="is-required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="recon-categorize-input"
+                      list="balance-sheet-categories-bulk"
+                      placeholder="e.g. Loan from director"
+                      maxLength={64}
+                      value={bulkCategoryName}
+                      onChange={(e) => setBulkCategoryName(e.target.value)}
+                    />
+                    <datalist id="balance-sheet-categories-bulk">
+                      {bulkCategories.map((c) => (
+                        <option key={c.id} value={c.name} />
+                      ))}
+                    </datalist>
+                  </div>
+                )}
+
+                {!hidesCategoryPicker(bulkType) && !usesTypedCategory(bulkType) && (
                   <div className="recon-categorize-field">
                     <label className="recon-categorize-label">
                       Category <span className="is-required">*</span>
@@ -4649,7 +4728,9 @@ export default function AccountantReconciliationSessionPage() {
                   bulkSaving ||
                   bulkExcluding ||
                   !bulkPropertyId ||
-                  (!hidesCategoryPicker(bulkType) && !bulkCategoryId) ||
+                  (usesTypedCategory(bulkType)
+                    ? !bulkCategoryName.trim()
+                    : !hidesCategoryPicker(bulkType) && !bulkCategoryId) ||
                   (!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && !bulkSubcategoryId) ||
                   (bulkType === "contra" && !bulkDescription.trim()) ||
                   (allowsPersonalPortion(bulkType) && bulkIsPersonal && (!!bulkPersonalError || !bulkPersonalPercentage))
