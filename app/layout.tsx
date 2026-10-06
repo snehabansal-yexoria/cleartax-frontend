@@ -1,5 +1,6 @@
 import "./globals.css";
 import BoneyardProvider from "./components/BoneyardProvider";
+import ClientThemeProvider from "./components/ClientThemeProvider";
 
 export default function RootLayout({
   children,
@@ -7,9 +8,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <BoneyardProvider>{children}</BoneyardProvider>
+        <ClientThemeProvider>
+          <BoneyardProvider>{children}</BoneyardProvider>
+        </ClientThemeProvider>
       </body>
     </html>
   );
