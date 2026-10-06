@@ -8080,6 +8080,12 @@ html.dark .transaction-tab-btn.is-active .transaction-tab-badge {
   color: #0e7490;
 }
 
+/* Balance Sheet — recorded, not counted. Slate, outside every P&L colour. */
+.transaction-type-badge.is-balance-sheet {
+  background: #f1f5f9;
+  color: #334155;
+}
+
 /* Beautiful empty state for Awaiting Review */
 .awaiting-review-empty-state {
   display: flex;
@@ -8262,6 +8268,11 @@ html.dark .transactions-table tbody tr:hover {
 .transaction-type-pill.is-contra {
   color: #0e7490;
   background: #cffafe;
+}
+
+.transaction-type-pill.is-balance-sheet {
+  color: #334155;
+  background: #e2e8f0;
 }
 
 /* A part-private bill appears in the grid as its parent row — an expense whose
@@ -9235,6 +9246,12 @@ html.dark .transaction-document-drop__bottom-bar {
   color: #c2410c;
   border-color: #f97316;
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+.transaction-type-control button.is-selected.is-balance-sheet {
+  color: #334155;
+  border-color: #64748b;
+  box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.12);
 }
 
 .transaction-asset-card {
@@ -19601,6 +19618,32 @@ html.dark .figma-type-circle {
   color: #ef6820 !important;
 }
 
+/* BALANCE SHEET */
+.figma-type-btn.is-balance-sheet:hover {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #334155;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.figma-type-btn.is-balance-sheet:hover .figma-type-circle {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.figma-type-btn.is-balance-sheet.active {
+  background: #f8fafc !important;
+  border-color: #64748b !important;
+  color: #334155 !important;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05), 0px 0px 0px 3px rgba(100, 116, 139, 0.12) !important;
+}
+
+.figma-type-btn.is-balance-sheet.active .figma-type-circle {
+  background: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
 /* --- Dark Mode Active/Hover overrides --- */
 
 /* INCOME (Revenue) - Dark Mode */
@@ -19697,6 +19740,30 @@ html.dark .figma-type-btn.is-cost-base.active {
 html.dark .figma-type-btn.is-cost-base.active .figma-type-circle {
   background: rgba(249, 115, 22, 0.25) !important;
   color: #ffb076 !important;
+}
+
+/* BALANCE SHEET - Dark Mode */
+html.dark .figma-type-btn.is-balance-sheet:hover {
+  background: rgba(148, 163, 184, 0.05);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #cbd5e1;
+}
+
+html.dark .figma-type-btn.is-balance-sheet:hover .figma-type-circle {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+}
+
+html.dark .figma-type-btn.is-balance-sheet.active {
+  background: rgba(148, 163, 184, 0.1) !important;
+  border-color: #94a3b8 !important;
+  color: #cbd5e1 !important;
+  box-shadow: 0px 0px 0px 3px rgba(148, 163, 184, 0.25) !important;
+}
+
+html.dark .figma-type-btn.is-balance-sheet.active .figma-type-circle {
+  background: rgba(148, 163, 184, 0.25) !important;
+  color: #cbd5e1 !important;
 }
 
 /* Radio Group (GST Applicable) */

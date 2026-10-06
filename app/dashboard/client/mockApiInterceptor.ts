@@ -157,6 +157,8 @@ const categories = {
   contra: [
     { id: 41, name: "Contra", isSystem: true },
   ],
+  // Free text in the real API; nothing is seeded.
+  balance_sheet: [] as { id: number; name: string; isSystem: boolean }[],
 };
 
 const allCategories = [

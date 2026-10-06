@@ -160,6 +160,7 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
         : assetPurchase === "false" || assetPurchase === "0"
           ? false
           : undefined,
+    includeBalanceSheet: sp.get("include_balance_sheet")?.trim() === "true",
     sort: str("sort"),
     dir: dir === "asc" || dir === "desc" ? dir : undefined,
     limit: int("limit"),
