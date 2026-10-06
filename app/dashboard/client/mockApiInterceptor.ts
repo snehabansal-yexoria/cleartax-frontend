@@ -157,6 +157,8 @@ const categories = {
   contra: [
     { id: 41, name: "Contra", isSystem: true },
   ],
+  // Free text in the real API; nothing is seeded.
+  balance_sheet: [] as { id: number; name: string; isSystem: boolean }[],
 };
 
 const allCategories = [
@@ -1259,6 +1261,9 @@ const ENABLE_MOCK_API =
 const PASSTHROUGH_PATHS: RegExp[] = [
   /^\/api\/depreciation\//,
   /\/depreciation(\?|$)/,
+  // The topbar bell polls this on every client page; with no mock model the
+  // catch-all would 404 it every 30 seconds.
+  /^\/api\/notifications(\?|$)/,
 ];
 
 let originalFetch: typeof window.fetch | null = null;

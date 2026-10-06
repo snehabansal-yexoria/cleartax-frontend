@@ -16,15 +16,16 @@ import {
   allowsPersonalPortion,
   hidesCategoryPicker,
   hidesSubcategoryPicker,
+  usesTypedCategory,
   transactionSign,
   allowsContraFlag,
-  contraSideOf,
+  CONTRA_BASE_TYPE,
+  typeAfterPick,
   typeButtonActive,
   parseTransactionType,
   transactionTypeColor,
   transactionTypeLabel,
   transactionTypeModifier,
-  type ContraSide,
 } from "@/src/lib/transactionTypes";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
@@ -974,11 +975,10 @@ function TransactionDetailPopup({
   const [reviewStatus, setReviewStatus] = useState(row.reviewStatus);
   const [isAssetPurchase, setIsAssetPurchase] = useState(row.isAssetPurchase);
   const [type, setType] = useState<CoreTransactionType>(row.type);
-  // Which side the contra toggle was reached from, so unticking restores it and
-  // the right type button stays lit. An already-saved contra carries no stored
-  // direction, so it opens on "expense" — the behaviour before income was
-  // offered. See ContraSide in transactionTypes.ts.
-  const [contraSide, setContraSide] = useState<ContraSide>(contraSideOf(row.type));
+  // Balance Sheet only: the typed category, sent as `category_name`.
+  const [categoryName, setCategoryName] = useState(
+    usesTypedCategory(row.type) ? row.categoryName : "",
+  );
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(row.categoryId);
@@ -1133,7 +1133,7 @@ function TransactionDetailPopup({
     setReviewStatus(source.reviewStatus);
     setIsAssetPurchase(source.isAssetPurchase);
     setType(source.type);
-    setContraSide(contraSideOf(source.type));
+    setCategoryName(usesTypedCategory(source.type) ? source.categoryName : "");
     setCategoryId(source.categoryId);
     setSubcategoryId(source.subcategoryId);
     setInvoiceDate(source.invoiceDate?.slice(0, 10) || "");
@@ -1413,7 +1413,17 @@ function TransactionDetailPopup({
     // The sub-category is only demanded when a picker is offering one. Switch
     // to a category that has none configured and there is nothing to select —
     // the backend resolves that category's default on save.
-    if (!type || !categoryId || (showSubcategorySelect && !subcategoryId) || !invoiceDate) {
+    const typedCategoryName = usesTypedCategory(type) ? categoryName.trim() : "";
+    if (usesTypedCategory(type) && !typedCategoryName) {
+      setEditError("Please enter a category.");
+      return;
+    }
+    if (
+      !type ||
+      (!categoryId && !typedCategoryName) ||
+      (showSubcategorySelect && !subcategoryId) ||
+      !invoiceDate
+    ) {
       setInvoiceDateTouched(true);
       // When the picker is hidden the user cannot "complete" a category, so say
       // what actually went wrong: the seeded category for this type is missing.
@@ -1543,11 +1553,14 @@ function TransactionDetailPopup({
 
     const body: Record<string, unknown> = {
       type,
-      category_id: categoryId,
+      // Balance Sheet names its category instead; the API resolves the id.
+      ...(typedCategoryName
+        ? { category_name: typedCategoryName }
+        : { category_id: categoryId }),
       // Omitted when the new category has no subcategory to pick — the PATCH
       // re-resolves it from the category rather than keeping the old one,
       // which would no longer belong to it.
-      ...(subcategoryId ? { subcategory_id: subcategoryId } : {}),
+      ...(subcategoryId && !typedCategoryName ? { subcategory_id: subcategoryId } : {}),
       invoice_date: invoiceDate,
       gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
@@ -1690,21 +1703,19 @@ function TransactionDetailPopup({
                       key={option.value}
                       type="button"
                       className={
-                        typeButtonActive(option.value, type, contraSide)
+                        typeButtonActive(option.value, type)
                           ? `is-selected ${transactionTypeModifier(option.value)}`
                           : ""
                       }
                       onClick={() => {
-                        // Picking Income or Expense while the toggle is on moves
-                        // which side the contra came from and keeps it a contra,
-                        // rather than silently switching the toggle off. Personal
-                        // and cost base have no contra, so they retype outright.
-                        const stayContra =
-                          type === "contra" && allowsContraFlag(option.value);
-                        if (stayContra) setContraSide(contraSideOf(option.value));
-                        else setType(option.value);
+                        setType(typeAfterPick(option.value, type));
                         setCategoryId(null);
                         setSubcategoryId(null);
+                        setCategoryName("");
+                        if (option.value === "balance_sheet") {
+                          setShowGstBreakdown(false);
+                          setGstAmount("");
+                        }
                       }}
                     >
                       {option.label}
@@ -1713,10 +1724,10 @@ function TransactionDetailPopup({
                 </div>
               </div>
 
-              {/* Lets a mis-marked transfer be turned back into real income or a
-              real expense, and a transaction that turns out to be a transfer be
-              corrected without deleting and re-entering it. Offered on both
-              sides: the money-in leg of a transfer is saved as income. */}
+              {/* Lets a mis-marked transfer be turned back into a personal
+              transaction, and one that turns out to be a transfer be corrected
+              without deleting and re-entering it. Offered on Personal
+              Transaction only. */}
               {allowsContraFlag(type) && (
                 <label className="transaction-checkbox-row">
                   <input
@@ -1724,15 +1735,11 @@ function TransactionDetailPopup({
                     checked={type === "contra"}
                     onChange={(event) => {
                       if (event.target.checked) {
-                        // Captured BEFORE retyping, while `type` still names the
-                        // side. Unticking restores it, so a transfer in does not
-                        // come back as an expense.
-                        setContraSide(contraSideOf(type));
                         setType("contra");
                         setShowGstBreakdown(false);
                         setGstAmount("");
                       } else {
-                        setType(contraSide);
+                        setType(CONTRA_BASE_TYPE);
                       }
                       setCategoryId(null);
                       setSubcategoryId(null);
@@ -1911,7 +1918,25 @@ function TransactionDetailPopup({
                 AssetBuilder already captured. Both ends now agree on the same
                 two categories, so an asset can no longer be filed under
                 "Advertising for Tenants" from either direction. */}
-                {!hidesCategoryPicker(type) && (
+                {usesTypedCategory(type) && (
+                  <label className="transaction-field">
+                    <span className="transaction-field-label">Category<em>*</em></span>
+                    <input
+                      type="text"
+                      list="balance-sheet-category-suggestions-edit"
+                      placeholder="e.g. Loan from director"
+                      maxLength={64}
+                      value={categoryName}
+                      onChange={(event) => setCategoryName(event.target.value)}
+                    />
+                    <datalist id="balance-sheet-category-suggestions-edit">
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.name} />
+                      ))}
+                    </datalist>
+                  </label>
+                )}
+                {!hidesCategoryPicker(type) && !usesTypedCategory(type) && (
                   <StaticSelect
                     label="Category"
                     required
@@ -2007,14 +2032,17 @@ function TransactionDetailPopup({
                   )}
                 </label>
               </div>
-              <label className="transaction-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={showGstBreakdown}
-                  onChange={(event) => setShowGstBreakdown(event.target.checked)}
-                />
-                <span>Add GST Breakdown</span>
-              </label>
+              {/* Balance Sheet carries no GST (transaction_balance_sheet_no_gst_check). */}
+              {type !== "balance_sheet" && (
+                <label className="transaction-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={showGstBreakdown}
+                    onChange={(event) => setShowGstBreakdown(event.target.checked)}
+                  />
+                  <span>Add GST Breakdown</span>
+                </label>
+              )}
               {showGstBreakdown ? (
                 <label className="transaction-field">
                   <span className="transaction-field-label">GST Amount<em>*</em></span>
@@ -4072,6 +4100,9 @@ export function AllTransactionsView({
     // all describe the same set of rows. Omitted for "top" because that is the
     // API default — one row per bill.
     if (grain === "leaf") sp.set("grain", "leaf");
+    // Balance Sheet rows are listed here and nowhere else; every other list
+    // gets them excluded by the API's default.
+    sp.set("include_balance_sheet", "true");
     return sp;
   }, [contextKind, filters, grain]);
 
@@ -5986,13 +6017,12 @@ export function AddTransactionView({
   const [tokenLoaded, setTokenLoaded] = useState(false);
 
   const [type, setType] = useState<CoreTransactionType | "">("");
-  // Which side the contra toggle was reached from — see ContraSide in
-  // transactionTypes.ts. Only two jobs: which type button stays lit while the
-  // toggle is on, and which type to restore when it is switched off.
-  const [contraSide, setContraSide] = useState<ContraSide>("expense");
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  // Balance Sheet only: the category as typed. Sent as `category_name`; the
+  // API finds or creates the org's category of that name.
+  const [categoryName, setCategoryName] = useState("");
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
   // When a document extraction matches a rule, the rule's category/subcategory
@@ -6281,7 +6311,6 @@ export function AddTransactionView({
       }
       if (matchedTx.type) {
         setType(matchedTx.type);
-        setContraSide(contraSideOf(matchedTx.type));
       }
 
       // 6. Deferred extraction. A "Submit to accountant" placeholder was never
@@ -6350,6 +6379,7 @@ export function AddTransactionView({
     setType(newType);
     setCategoryId(null);
     setSubcategoryId(null);
+    setCategoryName("");
     setAssetCategoryError("");
     setAssetInitialClass(null);
     if (!allowsAssetPurchase(newType)) {
@@ -6367,7 +6397,8 @@ export function AddTransactionView({
     // accounts, not a purchase or a sale, and transaction_contra_no_gst_check
     // rejects a non-zero amount. Cleared here rather than validated on submit,
     // so the accountant never types a figure that is going to be refused.
-    if (newType === "contra") {
+    // Balance Sheet likewise carries no GST (transaction_balance_sheet_no_gst_check).
+    if (newType === "contra" || newType === "balance_sheet") {
       setShowGstBreakdown(false);
       setGstAmount("");
     }
@@ -6376,33 +6407,19 @@ export function AddTransactionView({
   /**
    * A type button was pressed.
    *
-   * While the contra toggle is on, Income and Expense move which side the
-   * transfer came from and leave it a contra: the toggle switching itself off
-   * because the accountant corrected the direction would be a surprise. Personal
-   * and cost base have no contra, so they retype outright.
+   * Pressing Personal Transaction while the contra toggle is on leaves it a
+   * contra: the toggle switching itself off because the accountant re-clicked
+   * the button it hangs off would be a surprise. Every other type retypes.
    */
   function handleTypeButton(picked: CoreTransactionType) {
-    if (type === "contra" && allowsContraFlag(picked)) {
-      setContraSide(contraSideOf(picked));
-      return;
-    }
-    handleTransactionTypeChange(picked);
+    const next = typeAfterPick(picked, type);
+    if (next === type) return;
+    handleTransactionTypeChange(next);
   }
 
-  /**
-   * The contra toggle, offered on income and expense alike.
-   *
-   * The side is captured BEFORE retyping, while `type` still names it, so
-   * unticking puts the transaction back where it came from. Every site used to
-   * hardcode "expense" here, which turned a transfer IN into an expense.
-   */
+  /** The contra toggle, offered on Personal Transaction only. */
   function handleContraToggle(checked: boolean) {
-    if (checked) {
-      setContraSide(contraSideOf(type));
-      handleTransactionTypeChange("contra");
-    } else {
-      handleTransactionTypeChange(contraSide);
-    }
+    handleTransactionTypeChange(checked ? "contra" : CONTRA_BASE_TYPE);
   }
 
   useEffect(() => {
@@ -6635,6 +6652,14 @@ export function AddTransactionView({
       cancelled = true;
     };
   }, [token, type]);
+
+  // A Balance Sheet row opened for review arrives as an id; show its name in
+  // the free-text field once the type's categories have loaded.
+  useEffect(() => {
+    if (!usesTypedCategory(type) || !categoryId) return;
+    const match = categories.find((c) => c.id === categoryId);
+    if (match) setCategoryName((prev) => prev || match.name);
+  }, [type, categories, categoryId]);
 
   // Load subcategories whenever the category changes.
   useEffect(() => {
@@ -6944,7 +6969,10 @@ export function AddTransactionView({
     // has no control to satisfy it — a disabled Save with no visible reason is
     // exactly how the contra failure presented. handleSubmit re-checks and
     // reports which category could not be resolved.
-    (lockAssetPurchaseCategory || hidesCategoryPicker(type) || !!categoryId) &&
+    (lockAssetPurchaseCategory ||
+      hidesCategoryPicker(type) ||
+      !!categoryId ||
+      (usesTypedCategory(type) && !!categoryName.trim())) &&
     // Same reasoning, extended to a category that has no subcategories
     // configured at all: no picker renders, so there is nothing to select and
     // the backend resolves the category's default on save.
@@ -7093,10 +7121,6 @@ export function AddTransactionView({
       ruleType ?? (data.type ? parseTransactionType(data.type) : null);
     if (effectiveType) {
       setType(effectiveType);
-      // A rule may not assign a contra (0045 left transaction_rule.assigned_type
-      // at revenue/expense on purpose), and the extractor never returns one, so
-      // this only ever tracks which side the toggle would start from.
-      setContraSide(contraSideOf(effectiveType));
       filled.add("type");
     }
 
@@ -7644,6 +7668,12 @@ export function AddTransactionView({
 
       let resolvedCategoryId = categoryId;
       let resolvedSubcategoryId = subcategoryId;
+      // Balance Sheet sends the typed name instead of an id; see the body below.
+      const typedCategoryName = usesTypedCategory(type) ? categoryName.trim() : "";
+      if (usesTypedCategory(type) && !typedCategoryName) {
+        setSubmitError("Please enter a category.");
+        return;
+      }
       if (lockAssetPurchaseCategory && (!resolvedCategoryId || !resolvedSubcategoryId)) {
         const selection = await resolveLockedCategorySelection();
         resolvedCategoryId = selection?.categoryId ?? null;
@@ -7653,7 +7683,7 @@ export function AddTransactionView({
       // Only the category is mandatory. A category with no subcategory
       // configured leaves resolvedSubcategoryId null, and the backend fills in
       // that category's default rather than rejecting the save.
-      if (!resolvedCategoryId) {
+      if (!resolvedCategoryId && !typedCategoryName) {
         // When the picker is hidden or locked the user has nothing to "select",
         // so the generic message is a dead end. Both cases mean the seeded
         // category for this type is missing from the server's taxonomy.
@@ -7675,8 +7705,12 @@ export function AddTransactionView({
 
       const body: Record<string, unknown> = {
         type,
-        category_id: resolvedCategoryId,
-        ...(resolvedSubcategoryId ? { subcategory_id: resolvedSubcategoryId } : {}),
+        ...(typedCategoryName
+          ? { category_name: typedCategoryName }
+          : { category_id: resolvedCategoryId }),
+        ...(resolvedSubcategoryId && !typedCategoryName
+          ? { subcategory_id: resolvedSubcategoryId }
+          : {}),
         invoice_date: invoiceDate,
         gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
@@ -8038,10 +8072,7 @@ export function AddTransactionView({
                 <div className="figma-type-row">
                   <button
                     type="button"
-                    // Stays selected while the contra toggle is on and the
-                    // transfer came from this side — the money-in leg of a
-                    // transfer is entered as income.
-                    className={`figma-type-btn is-income${typeButtonActive("revenue", type, contraSide) ? " active" : ""}`}
+                    className={`figma-type-btn is-income${typeButtonActive("revenue", type) ? " active" : ""}`}
                     onClick={() => handleTypeButton("revenue")}
                   >
                     <span className="figma-type-circle is-income">
@@ -8055,10 +8086,7 @@ export function AddTransactionView({
 
                   <button
                     type="button"
-                    // Stays selected while the contra toggle is on and the
-                    // transfer came from this side, which is the common case: a
-                    // contra looks like an expense-shaped payment on a statement.
-                    className={`figma-type-btn is-expense${typeButtonActive("expense", type, contraSide) ? " active" : ""
+                    className={`figma-type-btn is-expense${typeButtonActive("expense", type) ? " active" : ""
                       }`}
                     onClick={() => handleTypeButton("expense")}
                   >
@@ -8073,8 +8101,10 @@ export function AddTransactionView({
 
                   <button
                     type="button"
-                    className={`figma-type-btn is-personal${type === "personal" ? " active" : ""}`}
-                    onClick={() => handleTransactionTypeChange("personal")}
+                    // Stays selected while the contra toggle is on — a contra
+                    // is reached from Personal Transaction.
+                    className={`figma-type-btn is-personal${typeButtonActive("personal", type) ? " active" : ""}`}
+                    onClick={() => handleTypeButton("personal")}
                   >
                     <span className="figma-type-circle is-personal">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -8088,7 +8118,7 @@ export function AddTransactionView({
                   <button
                     type="button"
                     className={`figma-type-btn is-cost-base${type === "cost_base" ? " active" : ""}`}
-                    onClick={() => handleTransactionTypeChange("cost_base")}
+                    onClick={() => handleTypeButton("cost_base")}
                   >
                     <span className="figma-type-circle is-cost-base">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -8099,6 +8129,21 @@ export function AddTransactionView({
                     </span>
                     <span className="figma-type-text">Property Cost Base</span>
                   </button>
+
+                  <button
+                    type="button"
+                    className={`figma-type-btn is-balance-sheet${type === "balance_sheet" ? " active" : ""}`}
+                    onClick={() => handleTypeButton("balance_sheet")}
+                  >
+                    <span className="figma-type-circle is-balance-sheet">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="3" x2="12" y2="21" />
+                        <line x1="4" y1="7" x2="20" y2="7" />
+                        <line x1="7" y1="21" x2="17" y2="21" />
+                      </svg>
+                    </span>
+                    <span className="figma-type-text">Balance Sheet</span>
+                  </button>
                 </div>
               </div>
 
@@ -8108,9 +8153,7 @@ export function AddTransactionView({
               incurred: it is excluded from the P&L and the BAS, and it posts to
               the seeded Contra / General category rather than a real account.
 
-              Offered on income AND expense. A transfer has two legs, and the leg
-              that arrives is entered as income — gating this on expense alone
-              made the money-in half of every transfer impossible to mark.
+              Offered on Personal Transaction only — see allowsContraFlag.
 
               Deliberately outside the allowsBusinessExtras block below, which
               is false for contra — placing it inside would make the toggle
@@ -8137,7 +8180,30 @@ export function AddTransactionView({
               )}
 
               {/* Category / Sub-Category dropdowns */}
-              {type === "cost_base" ? (
+              {usesTypedCategory(type) ? (
+                <div className="figma-form-row">
+                  <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                    <span className="figma-field-label">Category<em>*</em></span>
+                    {/* Free text, with the org's earlier Balance Sheet
+                    categories offered as suggestions so "Loan" is not typed
+                    three ways. Recorded in All Transactions only. */}
+                    <input
+                      type="text"
+                      className="figma-input"
+                      list="balance-sheet-category-suggestions"
+                      placeholder="e.g. Loan from director"
+                      maxLength={64}
+                      value={categoryName}
+                      onChange={(e) => setCategoryName(e.target.value)}
+                    />
+                    <datalist id="balance-sheet-category-suggestions">
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.name} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              ) : type === "cost_base" ? (
                 <div className="figma-form-row">
                   <div className="figma-field-container">
                     <StaticSelect
@@ -8218,16 +8284,11 @@ export function AddTransactionView({
                     type="text"
                     className={`figma-input${descriptionError ? " has-error" : ""}`}
                     // The description is the only record of WHICH accounts the
-                    // money moved between, so the hint names both ends — and
-                    // names them in the direction the entry was made, since a
-                    // money-in transfer prompted with "transfer TO savings"
-                    // invites the wrong sentence.
+                    // money moved between, so the hint names both ends.
                     placeholder={
                       type !== "contra"
                         ? "Short description"
-                        : contraSide === "revenue"
-                          ? "e.g. Cash banked from petty cash to business account"
-                          : "e.g. Transfer from business account to savings"
+                        : "e.g. Transfer from business account to savings"
                     }
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}

@@ -26,16 +26,16 @@ import type {
   CoreTransactionType,
 } from "@/src/lib/coreApi";
 import {
-  TRANSACTION_TYPE_ENTRY_OPTIONS,
+  RECONCILIATION_TYPE_ENTRY_OPTIONS,
+  CONTRA_BASE_TYPE,
   allowsContraFlag,
   allowsAssetPurchase,
   allowsBusinessExtras,
   allowsPersonalPortion,
-  contraSideOf,
   hidesCategoryPicker,
   hidesSubcategoryPicker,
   parseTransactionType,
-  type ContraSide,
+  typeAfterPick,
 } from "@/src/lib/transactionTypes";
 import {
   firstCategoryOfType,
@@ -442,10 +442,6 @@ export default function AccountantReconciliationSessionPage() {
   // "revenue" value for the request and a wider display union — which had to be
   // kept in sync on every change.
   const [categorizeType, setCategorizeType] = useState<CoreTransactionType>("expense");
-  // Which side the contra toggle was reached from — see ContraSide in
-  // transactionTypes.ts. Here, uniquely, it can be seeded from real evidence: the
-  // bank line's debit/credit says which way the money went.
-  const [categorizeContraSide, setCategorizeContraSide] = useState<ContraSide>("expense");
   const [categorizeCategoryId, setCategorizeCategoryId] = useState<number | null>(null);
   const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
@@ -491,9 +487,6 @@ export default function AccountantReconciliationSessionPage() {
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkType, setBulkType] = useState<CoreTransactionType>("expense");
-  // Seeded from the first selected row's direction, like bulkType — see
-  // ContraSide in transactionTypes.ts.
-  const [bulkContraSide, setBulkContraSide] = useState<ContraSide>("expense");
   const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
   const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
   const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
@@ -906,12 +899,7 @@ export default function AccountantReconciliationSessionPage() {
     // A bank line only tells us the direction; personal / cost base is a
     // judgement the accountant makes in the drawer, so default from debit vs
     // credit and let them change it.
-    const side: ContraSide = bankTx.debit != null ? "expense" : "revenue";
-    setCategorizeType(side);
-    // The same direction seeds the contra side, so ticking the toggle on a credit
-    // line and then unticking it returns to Income rather than flipping the row
-    // into an expense.
-    setCategorizeContraSide(side);
+    setCategorizeType(bankTx.debit != null ? "expense" : "revenue");
 
     // Reset new states
     setCategorizeAssetDraft(null);
@@ -1678,9 +1666,7 @@ export default function AccountantReconciliationSessionPage() {
   function openBulkCategorize() {
     if (selectedEligibleRows.length === 0) return;
     const first = selectedEligibleRows[0];
-    const firstSide: ContraSide = first.row.debit != null ? "expense" : "revenue";
-    setBulkType(firstSide);
-    setBulkContraSide(firstSide);
+    setBulkType(first.row.debit != null ? "expense" : "revenue");
     setBulkCategoryId(null);
     setBulkSubcategoryId(null);
     setBulkSubcategories([]);
@@ -3523,27 +3509,23 @@ export default function AccountantReconciliationSessionPage() {
                             </label>
                             <StaticSelect
                               // Contra has no option of its own — it is reached by
-                              // the toggle — so while it is on the dropdown shows
-                              // the side the transfer came from.
+                              // the toggle on Personal Transaction — so while it
+                              // is on the dropdown shows Personal.
                               value={
                                 categorizeType === "contra"
-                                  ? categorizeContraSide
+                                  ? CONTRA_BASE_TYPE
                                   : categorizeType
                               }
-                              options={TRANSACTION_TYPE_ENTRY_OPTIONS}
+                              options={RECONCILIATION_TYPE_ENTRY_OPTIONS}
                               onChange={(val) => {
-                                const nextType = parseTransactionType(val);
-                                // Choosing Income or Expense while the toggle is
-                                // on corrects the DIRECTION of the transfer, so it
-                                // stays a contra rather than switching the toggle
-                                // off underneath the accountant.
-                                if (
-                                  categorizeType === "contra" &&
-                                  allowsContraFlag(nextType)
-                                ) {
-                                  setCategorizeContraSide(contraSideOf(nextType));
-                                  return;
-                                }
+                                // Re-picking Personal while the toggle is on
+                                // keeps it a contra rather than switching the
+                                // toggle off underneath the accountant.
+                                const nextType = typeAfterPick(
+                                  parseTransactionType(val),
+                                  categorizeType,
+                                );
+                                if (nextType === categorizeType) return;
                                 setCategorizeType(nextType);
                                 // Cost base is capitalised, not depreciated, so
                                 // it must NOT set is_asset_purchase — doing so
@@ -3564,10 +3546,8 @@ export default function AccountantReconciliationSessionPage() {
                           {/* This is where a transfer is most often spotted: a
                           statement line that looks like an ordinary payment or
                           deposit but is money moving between the entity's own
-                          accounts. Offered on credit lines as well as debits —
-                          the drawer defaults a credit to Income, so while this
-                          was gated on expense the arriving leg of a transfer
-                          could not be marked here at all. */}
+                          accounts. Offered on Personal Transaction only — see
+                          allowsContraFlag. */}
                           {allowsContraFlag(categorizeType) && (
                             <label className="figma-toggle-container">
                               <div className="figma-toggle-info">
@@ -3585,13 +3565,6 @@ export default function AccountantReconciliationSessionPage() {
                                   checked={categorizeType === "contra"}
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      // Captured BEFORE retyping, while
-                                      // categorizeType still names the side, so
-                                      // unticking a credit line returns it to
-                                      // Income instead of making it an expense.
-                                      setCategorizeContraSide(
-                                        contraSideOf(categorizeType),
-                                      );
                                       setCategorizeType("contra");
                                       setCategorizeIsPersonal(false);
                                       setCategorizeAssetDraft(null);
@@ -3602,7 +3575,7 @@ export default function AccountantReconciliationSessionPage() {
                                         row.payee || row.description || "",
                                       );
                                     } else {
-                                      setCategorizeType(categorizeContraSide);
+                                      setCategorizeType(CONTRA_BASE_TYPE);
                                       setCategorizeDescription("");
                                     }
                                     setCategorizeCategoryId(null);
@@ -4429,17 +4402,13 @@ export default function AccountantReconciliationSessionPage() {
                     Transaction Type <span className="is-required">*</span>
                   </label>
                   <StaticSelect
-                    value={bulkType === "contra" ? bulkContraSide : bulkType}
-                    options={TRANSACTION_TYPE_ENTRY_OPTIONS}
+                    value={bulkType === "contra" ? CONTRA_BASE_TYPE : bulkType}
+                    options={RECONCILIATION_TYPE_ENTRY_OPTIONS}
                     onChange={(val) => {
-                      const nextType = parseTransactionType(val);
-                      // While the toggle is on, this picks the transfer's
-                      // direction rather than turning it back into a real
-                      // income or expense row.
-                      if (bulkType === "contra" && allowsContraFlag(nextType)) {
-                        setBulkContraSide(contraSideOf(nextType));
-                        return;
-                      }
+                      // Re-picking Personal while the toggle is on keeps the
+                      // run marked as contra.
+                      const nextType = typeAfterPick(parseTransactionType(val), bulkType);
+                      if (nextType === bulkType) return;
                       setBulkType(nextType);
                       setBulkCategoryId(null);
                       setBulkSubcategoryId(null);
@@ -4448,8 +4417,8 @@ export default function AccountantReconciliationSessionPage() {
                 </div>
 
                 {/* Marking a run of statement lines as transfers at once — the
-                usual case being a recurring sweep between two accounts, whose
-                arriving leg is a run of CREDITS. */}
+                usual case being a recurring sweep between two accounts.
+                Offered on Personal Transaction only. */}
                 {allowsContraFlag(bulkType) && (
                   <label className="figma-toggle-container">
                     <div className="figma-toggle-info">
@@ -4465,14 +4434,11 @@ export default function AccountantReconciliationSessionPage() {
                         checked={bulkType === "contra"}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            // Captured before retyping, so unticking a run of
-                            // credits returns them to Income, not to expenses.
-                            setBulkContraSide(contraSideOf(bulkType));
                             setBulkType("contra");
                             setBulkIsPersonal(false);
                             setBulkGst(false);
                           } else {
-                            setBulkType(bulkContraSide);
+                            setBulkType(CONTRA_BASE_TYPE);
                             setBulkDescription("");
                           }
                           setBulkCategoryId(null);
