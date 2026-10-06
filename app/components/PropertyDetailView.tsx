@@ -1199,22 +1199,27 @@ export default function PropertyDetailView({
   );
 
   /**
-   * What the settlement had to cover: the cost base plus the Property Cost
-   * transactions itemised beside the funding. Both are expenditure; funding is
-   * the other side of the same statement, which is why it is subtracted rather
-   * than added in here.
+   * Everything under Settlement Entries: the Property Cost transactions plus the
+   * Amount Settled By funding lines. Both groups are how the cost base was
+   * met, so both are deducted from it.
+   *
+   * Changed 2026-10-06 at the client's request. Property Cost transactions used
+   * to be ADDED to the manual cost base ("Total to Settle") with funding
+   * subtracted from that; the manual cost base is now the single top figure
+   * and every settlement entry reduces it.
    */
-  const settlementOutgoings = useMemo(
-    () => addTriples(costBaseTotals.manual, costBaseTotals.propertyCost),
-    [costBaseTotals],
+  const settlementEntriesTotal = useMemo(
+    () => addTriples(costBaseTotals.propertyCost, fundingTotals),
+    [costBaseTotals, fundingTotals],
   );
 
-  // Column by column: the gross difference is the money that changed hands on
-  // the day, the net difference the ex-GST position, and the GST difference
-  // whether the GST in the funding matches the GST in the cost base.
+  // Column by column: Property Cost Base − Settlement Entries. The gross
+  // difference is the money still unaccounted for, the net difference the
+  // ex-GST position, and the GST difference whether the GST in the entries
+  // matches the GST in the cost base.
   const settlementDifference = useMemo(
-    () => subtractTriples(settlementOutgoings, fundingTotals),
-    [settlementOutgoings, fundingTotals],
+    () => subtractTriples(costBaseTotals.manual, settlementEntriesTotal),
+    [costBaseTotals, settlementEntriesTotal],
   );
 
   const handleExportCostBaseCsv = () => {
@@ -1267,14 +1272,12 @@ export default function PropertyDetailView({
     for (const r of fundingSources) {
       lines.push([r.name, r.description || "", ...triple(fundingRowTriple(r))].map(esc).join(","));
     }
-    lines.push(["Total Funding Entered", "", ...triple(fundingTotals)].map(esc).join(","));
+    lines.push(["Total Amount Settled By", "", ...triple(fundingTotals)].map(esc).join(","));
     lines.push("");
 
     lines.push(["", "", "Gross", "GST", "Net"].map(esc).join(","));
     lines.push(["Property Cost Base (manual)", "", ...triple(costBaseTotals.manual)].map(esc).join(","));
-    lines.push(["+ Property Cost (transactions)", "", ...triple(costBaseTotals.propertyCost)].map(esc).join(","));
-    lines.push(["Total to Settle", "", ...triple(settlementOutgoings)].map(esc).join(","));
-    lines.push(["- Total Funding Entered", "", ...triple(fundingTotals)].map(esc).join(","));
+    lines.push(["- Settlement Entries", "", ...triple(settlementEntriesTotal)].map(esc).join(","));
     lines.push(["Settlement Difference", "", ...triple(settlementDifference)].map(esc).join(","));
 
     const safeName = (property.name || propertyId).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "Property";
@@ -3354,15 +3357,14 @@ export default function PropertyDetailView({
                 border: "1px solid #f1f5f9",
                 padding: "20px 24px",
               }}>
-                {/* Both sides of the statement, in the order they are reasoned
-                    about: what had to be settled, then what settled it. The
-                    result is the gap. */}
+                {/* The cost base first, then everything under Settlement
+                    Entries (Property Cost + Amount Settled By) deducted from
+                    it. The result is the gap. */}
                 <TripleSummary
                   tone="light"
                   rows={[
                     { label: "Property Cost Base (manual)", value: costBaseTotals.manual },
-                    { label: "+ Property Cost (transactions)", value: costBaseTotals.propertyCost },
-                    { label: "− Total Funding Entered", value: fundingTotals },
+                    { label: "− Settlement Entries", value: settlementEntriesTotal },
                   ]}
                   result={{ label: "Settlement Difference", value: settlementDifference }}
                 />
