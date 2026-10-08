@@ -1154,6 +1154,20 @@ export default function AccountantReconciliationSessionPage() {
   }, [bulkCategoryId]);
 
   useEffect(() => {
+    if (!bulkOpen) return;
+    if (!hidesCategoryPicker(bulkType) || bulkCategoryId) return;
+    const match = firstCategoryOfType(bulkCategories, bulkType);
+    if (match) setBulkCategoryId(match.id);
+  }, [bulkOpen, bulkType, bulkCategories, bulkCategoryId]);
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    if (hidesSubcategoryPicker(bulkType) && !bulkSubcategoryId && bulkSubcategories[0]) {
+      setBulkSubcategoryId(bulkSubcategories[0].id);
+    }
+  }, [bulkOpen, bulkType, bulkSubcategories, bulkSubcategoryId]);
+
+  useEffect(() => {
     if (!openSortDropdown) return;
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -1656,7 +1670,7 @@ export default function AccountantReconciliationSessionPage() {
     setBulkCategoryId(null);
     setBulkSubcategoryId(null);
     setBulkSubcategories([]);
-    setBulkPropertyId("");
+    setBulkPropertyId(properties.length === 1 ? properties[0].id : "");
     setBulkGst(false);
     setBulkIsPersonal(false);
     setBulkPersonalPercentage("");
@@ -1667,7 +1681,11 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doBulkCategorize() {
     if (bulkSaving || bulkExcluding) return;
-    if (!bulkPropertyId || (!hidesCategoryPicker(bulkType) && !bulkCategoryId)) {
+    const resolvedBulkCategoryId = hidesCategoryPicker(bulkType)
+      ? (bulkCategoryId ?? firstCategoryOfType(bulkCategories, bulkType)?.id ?? null)
+      : bulkCategoryId;
+
+    if (!bulkPropertyId || !resolvedBulkCategoryId) {
       setBulkError("Property and Category are required.");
       return;
     }
@@ -1716,8 +1734,8 @@ export default function AccountantReconciliationSessionPage() {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               type: bulkType,
-              category_id: hidesCategoryPicker(bulkType) ? null : bulkCategoryId,
-              subcategory_id: hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? null : bulkSubcategoryId,
+              category_id: resolvedBulkCategoryId,
+              subcategory_id: hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? (bulkSubcategoryId || null) : bulkSubcategoryId,
               invoice_date: row.date,
               gross_amount: gross,
               gst_amount: gst,
