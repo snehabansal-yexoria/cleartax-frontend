@@ -1303,13 +1303,16 @@ export async function deleteCoreCostBaseEntry(
 // "personal" (wholly private spending), "cost_base" (capitalised against a
 // property's CGT cost base) and "contra" (a transfer between the entity's own
 // accounts) are all money out but none is a deductible expense, so they are
-// distinct types rather than flags on an expense.
+// distinct types rather than flags on an expense. "balance_sheet" (migration
+// 0052) is recorded and listed in All Transactions only — no P&L, BAS, CGT or
+// ledger figure reads it — and its category is typed free text.
 export type CoreTransactionType =
   | "revenue"
   | "expense"
   | "personal"
   | "cost_base"
-  | "contra";
+  | "contra"
+  | "balance_sheet";
 // "active" is the default for every new transaction — live in the ledger, in
 // nobody's queue. "unreviewed" means a client pressed "Submit to accountant"
 // and it is waiting for sign-off, so it is the accountant's review queue.
@@ -1567,7 +1570,13 @@ function toAssetClass(value: unknown): CoreAssetClass | null {
 // type exists to keep it out of.
 function toTxnType(value: unknown): CoreTransactionType {
   const s = toStringValue(value).toLowerCase();
-  if (s === "revenue" || s === "personal" || s === "cost_base" || s === "contra") {
+  if (
+    s === "revenue" ||
+    s === "personal" ||
+    s === "cost_base" ||
+    s === "contra" ||
+    s === "balance_sheet"
+  ) {
     return s;
   }
   return "expense";
@@ -2003,6 +2012,14 @@ export type CoreTransactionListQuery = {
   grain?: "top" | "leaf";
   /** Filters on the depreciation flag; drives the Asset Transactions panel. */
   assetPurchase?: boolean;
+  /**
+   * Balance Sheet rows are left out of every list unless this is set (or the
+   * caller filters `type: "balance_sheet"` explicitly). They were asked for in
+   * All Transactions only, so the grid opts in and every other list — the
+   * client portal's recent-activity widgets, the property pages' own fetches —
+   * stays clean without each having to remember a filter.
+   */
+  includeBalanceSheet?: boolean;
   sort?: CoreTransactionSortKey | string;
   dir?: "asc" | "desc";
   limit?: number;
@@ -2041,6 +2058,7 @@ export function transactionListQueryString(
   // Explicit undefined check: `put` skips empty-ish values, and `false` is a
   // meaningful filter here (rows that are NOT asset purchases), not an absence.
   if (q.assetPurchase !== undefined) sp.set("asset_purchase", String(q.assetPurchase));
+  if (q.includeBalanceSheet) sp.set("include_balance_sheet", "true");
   put("sort", q.sort);
   put("dir", q.dir);
   put("limit", q.limit);

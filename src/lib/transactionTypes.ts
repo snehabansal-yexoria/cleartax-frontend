@@ -1,7 +1,7 @@
 import type { CoreTransactionType } from "@/src/lib/coreApi";
 
 /**
- * Shared vocabulary for the five transaction types.
+ * Shared vocabulary for the six transaction types.
  *
  * Before this existed, the Add Transaction form, the reconciliation categorize
  * drawer and the transaction tables each kept their own copy — including a
@@ -20,6 +20,7 @@ export const TRANSACTION_TYPES: readonly CoreTransactionType[] = [
   "personal",
   "cost_base",
   "contra",
+  "balance_sheet",
 ] as const;
 
 const TRANSACTION_TYPE_LABELS: Record<CoreTransactionType, string> = {
@@ -28,6 +29,7 @@ const TRANSACTION_TYPE_LABELS: Record<CoreTransactionType, string> = {
   personal: "Personal Transaction",
   cost_base: "Property Cost Base",
   contra: "Contra",
+  balance_sheet: "Balance Sheet",
 };
 
 /**
@@ -61,12 +63,25 @@ export const TRANSACTION_TYPE_ENTRY_OPTIONS = TRANSACTION_TYPE_OPTIONS.filter(
   (option) => option.value !== "contra",
 );
 
+/**
+ * The reconciliation drawers' picker: the entry options minus Balance Sheet.
+ *
+ * A reconciled transaction is also listed in the bank Account Ledger, and
+ * Balance Sheet was asked for as visible in All Transactions only. Its typed
+ * category also has no field in those drawers. Recorded from the Add
+ * Transaction form instead.
+ */
+export const RECONCILIATION_TYPE_ENTRY_OPTIONS = TRANSACTION_TYPE_ENTRY_OPTIONS.filter(
+  (option) => option.value !== "balance_sheet",
+);
+
 const TRANSACTION_TYPE_MODIFIERS: Record<CoreTransactionType, string> = {
   revenue: "is-income",
   expense: "is-expense",
   personal: "is-personal",
   cost_base: "is-cost-base",
   contra: "is-contra",
+  balance_sheet: "is-balance-sheet",
 };
 
 /**
@@ -84,6 +99,7 @@ const TRANSACTION_TYPE_COLORS: Record<CoreTransactionType, string> = {
   personal: "#a855f7",
   cost_base: "#f97316",
   contra: "#0891b2",
+  balance_sheet: "#64748b",
 };
 
 export function transactionTypeColor(type: CoreTransactionType): string {
@@ -103,12 +119,14 @@ export function isRevenueType(type: CoreTransactionType | string): boolean {
  * expenses invites exactly the misreading the type was created to prevent. The
  * bank Account Ledger is unaffected — its amount comes from the statement line,
  * where the money genuinely did leave that account.
+ *
+ * Balance Sheet is neutral for the same reason: it is recorded, not counted.
  */
 export function transactionSign(
   type: CoreTransactionType | string,
 ): "positive" | "negative" | "neutral" {
   if (type === "revenue") return "positive";
-  if (type === "contra") return "neutral";
+  if (type === "contra" || type === "balance_sheet") return "neutral";
   return "negative";
 }
 
@@ -129,73 +147,61 @@ export function affectsPnl(type: CoreTransactionType | string): boolean {
  * a bank-to-bank transfer, cash drawn for petty cash. It looks like an ordinary
  * bank line but is neither income nor an expense.
  *
- * Offered on BOTH sides. A transfer has two legs, and migration 0045 anticipated
- * exactly this: "the type is accepted on either side, so surfacing the incoming
- * leg later is a UI change, not a migration". While this gate excluded revenue
- * the incoming leg could not be marked at all — the reconciliation drawer
- * defaults a bank CREDIT line to `revenue`, so the toggle simply was not there
- * on the one row most likely to be a transfer in.
+ * Offered on PERSONAL TRANSACTION only (moved there 2026-10-06 at the client's
+ * request; it was previously a toggle on Income and Expense). Personal is the
+ * one type that is already outside the P&L and the BAS, so a contra is now
+ * reached from the type that shares its "not a business flow" nature rather
+ * than from the two that are.
  *
  * `contra` itself is included so an already-marked transaction can be unticked
- * back to the side it came from.
+ * back to Personal.
  *
- * KNOWN LIMITATION, accepted deliberately when income was added: the General
- * Ledger signs a row from `chart_of_account.normal_balance`, not from
- * `transaction.type`, and account 1150 Inter-Account Transfers is debit-normal.
- * So an income-side contra still DEBITS 1150 and both legs of one transfer
- * accumulate there instead of netting to zero, weakening 0045's "a non-zero 1150
- * balance means a transfer has only one side matched" diagnostic. Closing it
- * needs the side persisted (the transaction.metadata jsonb can carry it with no
- * migration) and a CASE in the ledger's UNION branch. The P&L, the BAS and the
- * Account Ledger are all unaffected: the first two exclude contra by allow-list,
- * and the third takes its amount and direction from the statement line.
+ * Side effect on the General Ledger, a fix rather than a regression: account
+ * 1150 Inter-Account Transfers is debit-normal and the ledger signs a row from
+ * `chart_of_account.normal_balance`, not from `transaction.type`. While the
+ * toggle sat on Income, an income-side contra still DEBITED 1150. Personal is
+ * money out, so every newly marked contra now matches the account's normal
+ * balance again. Income-side contras saved before the move keep that quirk.
  */
 export function allowsContraFlag(type: CoreTransactionType | ""): boolean {
-  return type === "revenue" || type === "expense" || type === "contra";
+  return type === CONTRA_BASE_TYPE || type === "contra";
 }
 
 /**
- * Which side a contra entry was reached from.
- *
- * `type` alone cannot answer this. The wire format is a flat 'contra' carrying no
- * direction, and non-journal amounts are constrained non-negative
- * (transaction_signed_amount_check), so the sign carries no hint either. Each
- * form therefore remembers the side locally, for exactly two jobs: which type
- * button renders active while the toggle is on, and which type to restore when it
+ * The type a contra is reached from, and the one it reverts to when the toggle
  * is switched off.
  *
- * Before this existed every site hardcoded `setType("expense")` on untick, which
- * on a bank CREDIT line silently converted an income row into an expense.
+ * A single constant now that the toggle lives on one type. Each form used to
+ * remember a per-form "side" (income or expense) because the wire format
+ * carries no direction; with one side there is nothing left to remember.
  */
-export type ContraSide = Extract<CoreTransactionType, "revenue" | "expense">;
-
-/**
- * The side to remember when the toggle is switched on from `type`.
- *
- * Anything that is not revenue collapses to "expense", which keeps the default
- * identical to the expense-only behaviour this replaced: the toggle is never
- * offered on personal or cost_base, and an existing contra loaded for edit has no
- * stored side to recover.
- */
-export function contraSideOf(type: CoreTransactionType | ""): ContraSide {
-  return type === "revenue" ? "revenue" : "expense";
-}
+export const CONTRA_BASE_TYPE = "personal" satisfies CoreTransactionType;
 
 /**
  * Whether a type picker should render `option` as the selected type.
  *
  * A contra has no button of its own — it is reached by the toggle — so while it
- * is on, the button for the side it came from stays lit. Centralised because four
- * pickers need identical behaviour and each used to spell out its own
- * `type === "expense" || type === "contra"`, which is the expense side hardcoded.
+ * is on, the Personal Transaction button stays lit.
  */
 export function typeButtonActive(
   option: CoreTransactionType,
   type: CoreTransactionType | "",
-  contraSide: ContraSide,
 ): boolean {
-  if (type === "contra") return option === contraSide;
+  if (type === "contra") return option === CONTRA_BASE_TYPE;
   return option === type;
+}
+
+/**
+ * The type to set when `option` is picked on a form whose current type is
+ * `type`. Picking Personal while the contra toggle is on keeps it a contra
+ * rather than silently switching the toggle off; every other pick retypes.
+ */
+export function typeAfterPick(
+  option: CoreTransactionType,
+  type: CoreTransactionType | "",
+): CoreTransactionType {
+  if (type === "contra" && option === CONTRA_BASE_TYPE) return "contra";
+  return option;
 }
 
 /**
@@ -211,7 +217,23 @@ export function hidesCategoryPicker(type: CoreTransactionType | ""): boolean {
  * a single "General" subcategory that is auto-selected.
  */
 export function hidesSubcategoryPicker(type: CoreTransactionType | ""): boolean {
-  return type === "personal" || type === "cost_base" || type === "contra";
+  return (
+    type === "personal" ||
+    type === "cost_base" ||
+    type === "contra" ||
+    type === "balance_sheet"
+  );
+}
+
+/**
+ * Balance Sheet takes its category as typed text, not a pick from a list. The
+ * form sends it as `category_name` and the API finds or creates the org's
+ * category of that name, with a "General" subcategory beneath it — so the
+ * subcategory picker is hidden too. Previously typed names are offered as
+ * suggestions.
+ */
+export function usesTypedCategory(type: CoreTransactionType | ""): boolean {
+  return type === "balance_sheet";
 }
 
 /**
@@ -250,7 +272,12 @@ export function allowsPersonalPortion(type: CoreTransactionType | ""): boolean {
  * Personal and Property Cost Base get a reduced form.
  */
 export function allowsBusinessExtras(type: CoreTransactionType | ""): boolean {
-  return type !== "personal" && type !== "cost_base" && type !== "contra";
+  return (
+    type !== "personal" &&
+    type !== "cost_base" &&
+    type !== "contra" &&
+    type !== "balance_sheet"
+  );
 }
 
 /** Normalises free text (CSV import, OCR, bank rows) onto a known type. */
@@ -264,5 +291,6 @@ export function parseTransactionType(
   if (s === "personal" || s === "personal_transaction") return "personal";
   if (s === "cost_base" || s === "property_cost_base") return "cost_base";
   if (s === "contra" || s === "contra_entry" || s === "transfer") return "contra";
+  if (s === "balance_sheet") return "balance_sheet";
   return fallback;
 }
