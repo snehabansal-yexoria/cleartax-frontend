@@ -1,5 +1,5 @@
-import { PortalDashboardSkeleton } from "@/app/components/PortalSkeletons";
+import { ConsolePageSkeleton } from "../_console/components/Skeletons";
 
 export default function Loading() {
-  return <PortalDashboardSkeleton />;
+  return <ConsolePageSkeleton />;
 }

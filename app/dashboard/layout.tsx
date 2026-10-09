@@ -21,6 +21,7 @@ import {
 } from "@/app/components/documentProcessingStore";
 import { fetchAccountantClientsBundle } from "./accountant/accountantClientsData";
 import { installClientApiCache } from "@/src/lib/clientApiCache";
+import ConsoleShell from "./_console/ConsoleShell";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -566,6 +567,21 @@ export default function DashboardLayout({
 
   if (!role) {
     return <DashboardShellSkeleton />;
+  }
+
+  // Admin and super admin use the dedicated console shell; the accountant and
+  // client portals below are unchanged.
+  if (role === "admin" || role === "super_admin") {
+    return (
+      <ConsoleShell
+        role={role}
+        email={email}
+        organizationName={organizationName}
+        onLogout={handleLogout}
+      >
+        {children}
+      </ConsoleShell>
+    );
   }
 
   if (
