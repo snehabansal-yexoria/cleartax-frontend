@@ -1,230 +1,87 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getSession } from "../../../../src/lib/session";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useState, type FormEvent } from "react";
+import { InviteResult, buildInviteLink, type InviteResponse } from "../../_console/components/InviteResult";
+import { Card, Field, Notice, PageHeader, SelectField } from "../../_console/components/ui";
+import { apiPost } from "../../_console/lib/api";
+import { useOrganisations } from "../../_console/lib/superAdminData";
+import { invalidateResource } from "../../_console/lib/useResource";
 
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
-
-interface OrganizationOption {
-  id: string;
-  name: string;
-}
-
-function buildInviteLink(params: {
-  origin: string;
-  token: string;
-  email: string;
-  role: string;
-  temporaryPassword: string;
-}) {
-  const url = new URL("/invite", params.origin);
-  url.searchParams.set("token", params.token);
-  url.searchParams.set("email", params.email);
-  url.searchParams.set("role", params.role);
-
-  return `${url.toString()}#temporary_password=${encodeURIComponent(
-    params.temporaryPassword,
-  )}`;
-}
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function InviteAdminPage() {
+  const params = useSearchParams();
+  const orgs = useOrganisations();
+  const [orgId, setOrgId] = useState(params.get("org") ?? "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("admin");
-  const [inviteLink, setInviteLink] = useState("");
-  const [tempPassword, setTempPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<{ link: string; password: string; email: string } | null>(null);
 
-  // 🔥 NEW STATE
-  const [organizations, setOrganizations] = useState<OrganizationOption[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState("");
+  const options = useMemo(
+    () => [{ value: "", label: "Choose an organisation" }, ...(orgs.data ?? []).map((org) => ({ value: org.id, label: org.name }))],
+    [orgs.data],
+  );
+  const canSubmit = Boolean(orgId) && EMAIL.test(email.trim()) && Boolean(firstName.trim()) && !submitting;
 
-  // 🔥 FETCH ORGANIZATIONS
-  useEffect(() => {
-    async function fetchOrganizations() {
-      try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-
-        if (!session) return;
-
-        const token = session.getIdToken().getJwtToken();
-
-        const res = await fetch("/api/organizations/list", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
-        setOrganizations(data.organizations || []);
-      } catch (error) {
-        console.error("Error fetching organizations:", error);
-      }
-    }
-
-    fetchOrganizations();
-  }, []);
-
-  async function createUser() {
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError("");
+    setResult(null);
     try {
-      setLoading(true);
-
-      const session = (await getSession()) as SessionWithIdToken | null;
-
-      if (!session) {
-        alert("Session expired. Please login again.");
-        return;
-      }
-
-      const token = session.getIdToken().getJwtToken();
-
-      const res = await fetch("/api/invite-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email,
-          role,
-          organization_id: selectedOrg, // 🔥 NEW
-        }),
+      const response = await apiPost<InviteResponse>("/api/invite-user", {
+        email: email.trim(),
+        role: "admin",
+        organization_id: orgId,
+        full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Failed to create user");
-        return;
-      }
-
-      setTempPassword(data.temporaryPassword);
-      setInviteLink(
-        buildInviteLink({
-          origin: window.location.origin,
-          token: String(data.invitationToken || ""),
-          email: String(data.email || email),
-          role: String(data.role || role),
-          temporaryPassword: String(data.temporaryPassword || ""),
-        }),
-      );
-
+      setResult({
+        link: buildInviteLink(window.location.origin, response, { email: email.trim(), role: "admin" }),
+        password: String(response.temporaryPassword || ""),
+        email: email.trim(),
+      });
+      setFirstName("");
+      setLastName("");
       setEmail("");
-      setSelectedOrg(""); // reset
-    } catch (error) {
-      console.error("Invite error:", error);
-      alert("Something went wrong while creating the user.");
+      invalidateResource("super:admins");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Something went wrong while creating the invite.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: "500px" }}>
-      <h1>Invite User</h1>
-
-      <div style={{ marginTop: "20px" }}>
-        <label>Email</label>
-        <br />
-
-        <input
-          type="email"
-          placeholder="User Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: "8px" }}
-        />
-
-        <br />
-        <br />
-
-        <label>Role</label>
-        <br />
-
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          style={{ width: "100%", padding: "8px" }}
-        >
-          <option value="admin">Admin</option>
-          {/* <option value="accountant">Accountant</option> */}
-          {/* <option value="client">Client</option> */}
-        </select>
-
-        <br />
-        <br />
-
-        {/* 🔥 NEW ORGANIZATION DROPDOWN */}
-        <label>Organization</label>
-        <br />
-
-        <select
-          value={selectedOrg}
-          onChange={(e) => setSelectedOrg(e.target.value)}
-          style={{ width: "100%", padding: "8px" }}
-        >
-          <option value="">Select Organization</option>
-
-          {organizations.map((org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
-
-        <br />
-        <br />
-
-        <button
-          onClick={createUser}
-          disabled={loading || !selectedOrg} // 🔥 prevent invalid submit
-          style={{
-            padding: "10px 16px",
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            cursor: "pointer",
-            borderRadius: "4px",
-          }}
-        >
-          {loading ? "Creating User..." : "Create User"}
-        </button>
-      </div>
-
-      {inviteLink && (
-        <div
-          style={{
-            marginTop: "30px",
-            padding: "15px",
-            background: "#ecfdf5",
-            border: "1px solid #10b981",
-            borderRadius: "6px",
-          }}
-        >
-          <h3>User Created</h3>
-
-          <p>
-            Send this invite link to the user. It includes the temporary
-            password and will take them straight to the create password step.
-          </p>
-
-          <p>
-            <strong>Invite Link:</strong>
-          </p>
-
-          <a href={inviteLink} target="_blank" style={{ color: "#2563eb" }}>
-            {inviteLink}
-          </a>
-
-          <p style={{ marginTop: "10px" }}>
-            <strong>Backup Temporary Password:</strong>
-          </p>
-          <pre>{tempPassword}</pre>
-        </div>
-      )}
+    <div style={{ maxWidth: "52em", display: "flex", flexDirection: "column", gap: "1.45em" }}>
+      <PageHeader title="Invite admin" subtitle="Invite the person who will run an organisation." crumbs={[{ label: "Admins", href: "/dashboard/super-admin/admins" }, { label: "Invite admin" }]} />
+      {result ? <InviteResult {...result} /> : null}
+      {error ? <Notice tone="red" title="Invite not sent">{error}</Notice> : null}
+      <Card title="Invite details">
+        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1em" }} noValidate>
+          <SelectField id="ia-org" label="Organisation *" value={orgId} onChange={setOrgId} options={options} />
+          <div className="cpc-form-grid">
+            <Field label="First name *" htmlFor="ia-first">
+              <input id="ia-first" className="cpc-input" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </Field>
+            <Field label="Last name" htmlFor="ia-last">
+              <input id="ia-last" className="cpc-input" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </Field>
+            <Field label="Email *" htmlFor="ia-email" className="cpc-span-all">
+              <input id="ia-email" className="cpc-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </Field>
+          </div>
+          <div className="cpc-actions">
+            <button type="submit" className="cpc-btn cpc-btn-primary" disabled={!canSubmit}>
+              {submitting ? "Sending…" : "Send invite"}
+            </button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }
