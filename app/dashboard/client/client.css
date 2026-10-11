@@ -26,6 +26,10 @@
   --brand: #28336E;
   --success: #0F6E56;
   --danger: #A32D2D;
+  /* Chart series (Portfolio Summary). Validated pair: OKLCH lightness band,
+     colour-vision separation and >= 3:1 contrast on --surface-1. */
+  --chart-income: #3A4699;
+  --chart-expense: #C77F0A;
 }
 
 .dark,
@@ -42,6 +46,9 @@ html.dark {
   --brand: #38417F;
   --success: #5DCAA5;
   --danger: #F09595;
+  /* Re-stepped for the dark surface, not flipped: same validation. */
+  --chart-income: #7380D4;
+  --chart-expense: #BF8420;
 }
 
 /* Dark Mode Selection */
@@ -6516,8 +6523,13 @@ html.dark [style*="color:#fdfdff"] {
     background: #ffffff !important;
     color: #000000 !important;
   }
-  html.dark .m-db-nav-bar,
-  html.dark aside.group\/sidebar {
+  /* Portal chrome never prints, in either theme. */
+  .m-db-nav-bar,
+  aside.group\/sidebar,
+  header.accountant-topbar,
+  .accountant-mobile-nav-sheet,
+  .accountant-mobile-nav-backdrop,
+  .print-hide {
     display: none !important;
   }
 }
@@ -6654,4 +6666,221 @@ html.dark [style*="color:#fdfdff"] {
 .m-db-nav-item svg {
   width: 20px !important;
   height: 20px !important;
+}
+/* ==========================================================================
+   PORTFOLIO SUMMARY REPORT (/dashboard/client/reports/portfolio-summary)
+   Screen styles on the client theme tokens, then an A4 print layout that
+   forces the light tokens so a report printed from dark mode reads as paper.
+   ========================================================================== */
+
+/* In the components layer so Tailwind utilities on the same elements
+   (text colours, alignment) win, as they would anywhere else. */
+@layer components {
+  /* Flex/grid children default to min-width:auto, which lets a wide table's
+     min-content push the page sideways on a phone; 0 keeps the scrolling
+     inside each table's own overflow box. */
+  .portfolio-report,
+  .portfolio-report > *,
+  .portfolio-two-col > * {
+    min-width: 0;
+  }
+
+  .portfolio-section {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    padding: 18px 20px;
+  }
+
+  /* Hairline grid: the 1px gap shows the border colour between cards. */
+  .portfolio-card-row {
+    gap: 1px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .portfolio-card {
+    background: var(--surface-1);
+  }
+
+  .portfolio-table {
+    border-collapse: collapse;
+  }
+
+  .portfolio-table th {
+    padding: 8px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--surface-0);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .portfolio-table td {
+    padding: 8px 10px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .portfolio-table tfoot td {
+    font-weight: 700;
+    background: var(--surface-0);
+  }
+
+  .portfolio-table tfoot tr.is-plain td {
+    font-weight: 400;
+    color: var(--text-secondary);
+    background: transparent;
+  }
+
+  .portfolio-pill {
+    display: inline-block;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+
+  .portfolio-pill.is-lg { padding: 4px 12px; font-size: 11px; font-weight: 600; }
+  .portfolio-pill.is-good { background: #DCFCE7; color: #166534; }
+  .portfolio-pill.is-bad { background: #FEE2E2; color: #991B1B; }
+  .portfolio-pill.is-warn { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+  .portfolio-pill.is-neutral { background: var(--surface-0); color: var(--text-secondary); border-color: var(--border); }
+
+  html.dark .portfolio-pill.is-good { background: rgba(93, 202, 165, 0.16); color: #5DCAA5; }
+  html.dark .portfolio-pill.is-bad { background: rgba(240, 149, 149, 0.16); color: #F09595; }
+  html.dark .portfolio-pill.is-warn { background: rgba(244, 161, 23, 0.16); color: #F4C46A; border-color: rgba(244, 161, 23, 0.3); }
+
+  .portfolio-print-only {
+    display: none;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  .accountant-shell {
+    display: block !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .accountant-main-shell,
+  .accountant-main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* The dark-theme and mobile-width shell backgrounds are !important and more
+     specific; an A4 page is ~700px wide, so the mobile ones match in print.
+     Matched selector-for-selector here (this file loads after globals.css). */
+  html.dark .accountant-shell,
+  html.dark .accountant-main-shell,
+  html.dark .accountant-shell.client-dashboard-shell .accountant-main-content,
+  html.dark .client-main-content,
+  .client-main-content {
+    background: #ffffff !important;
+  }
+
+  /* Paper is light whatever the screen theme. */
+  .portfolio-report {
+    --surface-0: #F7F8FC;
+    --surface-1: #FFFFFF;
+    --surface-2: #FFFFFF;
+    --text-primary: #14172E;
+    --text-secondary: #5C639A;
+    --text-muted: #6B739F;
+    --border: rgba(20, 23, 46, 0.12);
+    --brand: #28336E;
+    --success: #0F6E56;
+    --danger: #A32D2D;
+    --chart-income: #3A4699;
+    --chart-expense: #C77F0A;
+    color: #14172E;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    gap: 12px !important;
+  }
+
+  html.dark .portfolio-pill.is-good { background: #DCFCE7; color: #166534; }
+  html.dark .portfolio-pill.is-bad { background: #FEE2E2; color: #991B1B; }
+  html.dark .portfolio-pill.is-warn { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+
+  .portfolio-print-only {
+    display: block !important;
+  }
+
+  /* An A4 page is ~700px wide, below the md/lg breakpoints: restore the
+     statement's desktop columns explicitly. */
+  .portfolio-card-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .portfolio-two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .portfolio-section {
+    padding: 12px 14px;
+    border-radius: 10px;
+  }
+
+  /* Sections may split across pages (the chart's print-only table would
+     otherwise push the whole section to page 2); the pieces that must not
+     split are kept whole, and table headers repeat. */
+  .portfolio-card-row,
+  .portfolio-chart,
+  .portfolio-table tr,
+  .portfolio-report header {
+    break-inside: avoid;
+  }
+
+  .portfolio-report h2,
+  .portfolio-report h3 {
+    break-after: avoid;
+  }
+
+  .portfolio-table thead {
+    display: table-header-group;
+  }
+
+  /* Headers repeat on each page; totals print once, at the end, not as a
+     "Total" row in the middle of a table that continues overleaf. */
+  .portfolio-table tfoot {
+    display: table-row-group;
+  }
+
+  .portfolio-report .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .portfolio-report .portfolio-table {
+    min-width: 0 !important;
+    font-size: 9pt;
+  }
+
+  .portfolio-table th,
+  .portfolio-table td {
+    padding: 4px 6px;
+  }
+
 }

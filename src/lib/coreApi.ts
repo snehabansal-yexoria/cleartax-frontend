@@ -2517,6 +2517,276 @@ export async function getCorePnlTrendByEntity(
   return normalizeCorePnlTrend(getJsonObject(payload));
 }
 
+// ---------------------------------------------------------------------------
+// Portfolio Summary (client-level report)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /clients/{id}/portfolio-summary. One server aggregate behind the client
+ * portal's printable Portfolio Summary: hero totals, twelve months, income and
+ * expenses by category, depreciation bands, and By Entity / By Property rows.
+ *
+ * Money is GROSS at property-split grain with the P&L statement's eligibility,
+ * minus rows awaiting review (counted in `excludedUnreviewedCount`). The
+ * balance sheet is the latest RECORDED value whatever the year. Every total is
+ * footed server-side — render them, never re-sum rows in the browser.
+ *
+ * Nullable numbers are `null` when unknown (no recorded value, unreadable
+ * loan, no value to divide by, principal not recorded) and must print "—".
+ */
+export type CorePortfolioTotals = {
+  entityCount: number;
+  propertyCount: number;
+  marketValue: number;
+  propertiesMissingValue: number;
+  loanBalance: number;
+  loanCount: number;
+  loansUnparseable: number;
+  netEquity: number;
+  lvrPercent: number | null;
+  equityPercent: number | null;
+  income: number;
+  expenses: number;
+  depreciation: number;
+  expensesAndDepreciation: number;
+  /** Income − expenses, before depreciation. */
+  cashFlow: number;
+  /** Income − expenses − depreciation. Signed. */
+  netResult: number;
+  interest: number;
+  /** Always null until principal repayments are recorded. */
+  principal: number | null;
+  profitCount: number;
+  lossCount: number;
+  netIncomeTotal: number;
+  netLossTotal: number;
+  transactionCount: number;
+};
+
+export type CorePortfolioMonth = CorePnlTrendMonth & { interest: number };
+
+export type CorePortfolioCategoryLine = {
+  categoryId: number;
+  categoryName: string;
+  accountCode: string | null;
+  amount: number;
+  isInterest: boolean;
+};
+
+export type CorePortfolioDepreciationLine = {
+  kind: string;
+  label: string;
+  amount: number;
+};
+
+export type CorePortfolioEntityRow = {
+  entityId: string;
+  name: string;
+  enabled: boolean;
+  propertyCount: number;
+  marketValue: number;
+  propertiesMissingValue: number;
+  loanBalance: number;
+  loanCount: number;
+  loansUnparseable: number;
+  equity: number;
+  lvrPercent: number | null;
+  income: number;
+  expenses: number;
+  depreciation: number;
+  interest: number;
+  netResult: number;
+};
+
+export type CorePortfolioResult = "net_income" | "net_loss" | "break_even" | "no_activity";
+
+export type CorePortfolioPropertyRow = {
+  propertyId: string;
+  name: string;
+  entityId: string;
+  entityName: string;
+  enabled: boolean;
+  marketValue: number | null;
+  loanBalance: number | null;
+  loanStatus: "none" | "recorded" | "unparseable" | string;
+  equity: number | null;
+  income: number;
+  expenses: number;
+  depreciation: number;
+  interest: number;
+  netResult: number;
+  result: CorePortfolioResult;
+  transactionCount: number;
+};
+
+export type CorePortfolioSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CorePnlPeriod;
+  /** "invoice_date": accruals basis, like the P&L statement. */
+  dateBasis: string;
+  /** "gross": GST-inclusive. */
+  amountBasis: string;
+  /** "latest_recorded": market value and loans are today's, for every year. */
+  balanceBasis: string;
+  interestAccountCode: string;
+  generatedAt: string;
+  availableFinancialYears: number[];
+  excludedUnreviewedCount: number;
+  totals: CorePortfolioTotals;
+  months: CorePortfolioMonth[];
+  incomeByCategory: CorePortfolioCategoryLine[];
+  expensesByCategory: CorePortfolioCategoryLine[];
+  depreciationByKind: CorePortfolioDepreciationLine[];
+  entities: CorePortfolioEntityRow[];
+  properties: CorePortfolioPropertyRow[];
+};
+
+/** Unlike toFloatValue, keeps "unknown" distinct from zero. */
+function toNullableFloatValue(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const asNumber =
+    typeof value === "number" ? value : Number.parseFloat(toStringValue(value));
+  return Number.isNaN(asNumber) ? null : asNumber;
+}
+
+function toRecordArray(value: unknown): RawRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is RawRecord => typeof item === "object" && item !== null,
+  );
+}
+
+function toPortfolioResult(value: unknown): CorePortfolioResult {
+  return value === "net_income" || value === "net_loss" || value === "break_even"
+    ? value
+    : "no_activity";
+}
+
+function toPortfolioCategoryLines(value: unknown): CorePortfolioCategoryLine[] {
+  return toRecordArray(value).map((raw) => ({
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
+    amount: toFloatValue(raw.amount),
+    isInterest: (raw.is_interest ?? raw.isInterest) === true,
+  }));
+}
+
+export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSummary {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const t = (raw.totals ?? {}) as RawRecord;
+  const int = (v: unknown) => toNumberValue(v) ?? 0;
+  const yearsRaw = raw.available_financial_years ?? raw.availableFinancialYears;
+
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: toPnlPeriod(raw.period),
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    amountBasis: toStringValue(raw.amount_basis ?? raw.amountBasis),
+    balanceBasis: toStringValue(raw.balance_basis ?? raw.balanceBasis),
+    interestAccountCode: toStringValue(raw.interest_account_code ?? raw.interestAccountCode),
+    generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
+    availableFinancialYears: Array.isArray(yearsRaw)
+      ? yearsRaw.map((y) => toNumberValue(y)).filter((y): y is number => y !== null)
+      : [],
+    excludedUnreviewedCount: int(raw.excluded_unreviewed_count ?? raw.excludedUnreviewedCount),
+    totals: {
+      entityCount: int(t.entity_count),
+      propertyCount: int(t.property_count),
+      marketValue: toFloatValue(t.market_value),
+      propertiesMissingValue: int(t.properties_missing_value),
+      loanBalance: toFloatValue(t.loan_balance),
+      loanCount: int(t.loan_count),
+      loansUnparseable: int(t.loans_unparseable),
+      netEquity: toFloatValue(t.net_equity),
+      lvrPercent: toNullableFloatValue(t.lvr_percent),
+      equityPercent: toNullableFloatValue(t.equity_percent),
+      income: toFloatValue(t.income),
+      expenses: toFloatValue(t.expenses),
+      depreciation: toFloatValue(t.depreciation),
+      expensesAndDepreciation: toFloatValue(t.expenses_and_depreciation),
+      cashFlow: toFloatValue(t.cash_flow),
+      netResult: toFloatValue(t.net_result),
+      interest: toFloatValue(t.interest),
+      principal: toNullableFloatValue(t.principal),
+      profitCount: int(t.profit_count),
+      lossCount: int(t.loss_count),
+      netIncomeTotal: toFloatValue(t.net_income_total),
+      netLossTotal: toFloatValue(t.net_loss_total),
+      transactionCount: int(t.transaction_count),
+    },
+    months: toRecordArray(raw.months).map((m) => ({
+      month: toStringValue(m.month),
+      income: toFloatValue(m.income),
+      expenses: toFloatValue(m.expenses),
+      interest: toFloatValue(m.interest),
+      netResult: toFloatValue(m.net_result ?? m.netResult),
+    })),
+    incomeByCategory: toPortfolioCategoryLines(raw.income_by_category ?? raw.incomeByCategory),
+    expensesByCategory: toPortfolioCategoryLines(raw.expenses_by_category ?? raw.expensesByCategory),
+    depreciationByKind: toRecordArray(raw.depreciation_by_kind ?? raw.depreciationByKind).map(
+      (d) => ({
+        kind: toStringValue(d.kind),
+        label: toStringValue(d.label),
+        amount: toFloatValue(d.amount),
+      }),
+    ),
+    entities: toRecordArray(raw.entities).map((e) => ({
+      entityId: toStringValue(e.entity_id ?? e.entityId),
+      name: toStringValue(e.name),
+      enabled: e.enabled !== false,
+      propertyCount: int(e.property_count),
+      marketValue: toFloatValue(e.market_value),
+      propertiesMissingValue: int(e.properties_missing_value),
+      loanBalance: toFloatValue(e.loan_balance),
+      loanCount: int(e.loan_count),
+      loansUnparseable: int(e.loans_unparseable),
+      equity: toFloatValue(e.equity),
+      lvrPercent: toNullableFloatValue(e.lvr_percent),
+      income: toFloatValue(e.income),
+      expenses: toFloatValue(e.expenses),
+      depreciation: toFloatValue(e.depreciation),
+      interest: toFloatValue(e.interest),
+      netResult: toFloatValue(e.net_result),
+    })),
+    properties: toRecordArray(raw.properties).map((p) => ({
+      propertyId: toStringValue(p.property_id ?? p.propertyId),
+      name: toStringValue(p.name),
+      entityId: toStringValue(p.entity_id ?? p.entityId),
+      entityName: toStringValue(p.entity_name ?? p.entityName),
+      enabled: p.enabled !== false,
+      marketValue: toNullableFloatValue(p.market_value),
+      loanBalance: toNullableFloatValue(p.loan_balance),
+      loanStatus: toStringValue(p.loan_status) || "none",
+      equity: toNullableFloatValue(p.equity),
+      income: toFloatValue(p.income),
+      expenses: toFloatValue(p.expenses),
+      depreciation: toFloatValue(p.depreciation),
+      interest: toFloatValue(p.interest),
+      netResult: toFloatValue(p.net_result),
+      result: toPortfolioResult(p.result),
+      transactionCount: int(p.transaction_count),
+    })),
+  };
+}
+
+export async function getCorePortfolioSummaryForClient(
+  token: string,
+  clientId: string,
+  financialYear?: number,
+) {
+  const qs = financialYear ? `?financial_year=${financialYear}` : "";
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/portfolio-summary${qs}`,
+    { token },
+  );
+  return normalizeCorePortfolioSummary(getJsonObject(payload));
+}
+
 // -----------------------------------------------------------------------------
 // Personal (private-use) spending summary
 // -----------------------------------------------------------------------------
