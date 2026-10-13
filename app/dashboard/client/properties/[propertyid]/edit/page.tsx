@@ -6,7 +6,7 @@ import { Skeleton } from "boneyard-js/react";
 import ClientAddPropertyView from "@/app/components/clients/ClientAddPropertyView";
 import { PropertyWizardSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-import type { CoreEntity, CoreProperty } from "@/src/lib/coreApi";
+import type { CoreProperty } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -14,12 +14,14 @@ interface SessionWithIdToken {
   };
 }
 
+// Lives under /properties/[propertyid] (lowercase slug, matching the detail
+// page beside it) — a sibling [propertyId] folder would make Next refuse to
+// build. The entity comes from the loaded property, so the URL needs only the
+// property id.
 export default function ClientEditPropertyPage() {
-  const params = useParams<{ entityId: string; propertyId: string }>();
+  const params = useParams<{ propertyid: string }>();
   const router = useRouter();
-  const entityId = params?.entityId ?? "";
-  const propertyId = params?.propertyId ?? "";
-  const [entity, setEntity] = useState<CoreEntity | null>(null);
+  const propertyId = params?.propertyid ?? "";
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -36,23 +38,17 @@ export default function ClientEditPropertyPage() {
         }
         const token = session.getIdToken().getJwtToken();
 
-        const [entityRes, propertyRes] = await Promise.all([
-          fetch(`/api/entities/${encodeURIComponent(entityId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+        const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (cancelled) return;
 
-        if (!entityRes.ok || !propertyRes.ok) {
+        if (!res.ok) {
           setErrorMessage("Failed to load property details.");
           return;
         }
 
-        setEntity((await entityRes.json()) as CoreEntity);
-        setProperty((await propertyRes.json()) as CoreProperty);
+        setProperty((await res.json()) as CoreProperty);
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to load property edit page:", error);
@@ -63,11 +59,11 @@ export default function ClientEditPropertyPage() {
       }
     }
 
-    if (entityId && propertyId) load();
+    if (propertyId) load();
     return () => {
       cancelled = true;
     };
-  }, [entityId, propertyId, router]);
+  }, [propertyId, router]);
 
   if (isLoading) {
     return (
@@ -81,25 +77,27 @@ export default function ClientEditPropertyPage() {
     );
   }
 
-  if (!entity || !property) {
+  if (!property) {
     return (
       <section className="entity-wizard">
-        <p className="entity-wizard-error">
+        <div className="entity-wizard-error">
           {errorMessage || "Property not found."}
-        </p>
+        </div>
       </section>
     );
   }
+
+  const detailHref = `/dashboard/client/properties/${propertyId}`;
 
   return (
     <ClientAddPropertyView
       mode="edit"
       propertyId={propertyId}
       initialProperty={property}
-      entityId={entityId}
-      backUrl={`/dashboard/client/entities/${entityId}/properties/${propertyId}`}
+      entityId={property.entityId}
+      backUrl={detailHref}
       backText="Property Details"
-      onSuccessUrl={`/dashboard/client/entities/${entityId}/properties/${propertyId}`}
+      onSuccessUrl={detailHref}
     />
   );
 }

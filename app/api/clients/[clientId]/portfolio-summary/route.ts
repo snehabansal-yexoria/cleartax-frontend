@@ -4,12 +4,17 @@ import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type RouteContext = { params: Promise<{ clientId: string }> };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * The client's Portfolio Summary for one financial year.
+ * The client's Portfolio Summary for one financial year, optionally narrowed
+ * to one of the client's entities or properties.
  *
- * Mirrors GET /api/entities/{id}/pnl-trend: only `financial_year` is forwarded,
- * and only when it parses as a number. Authorization is the core API's — a
- * client asking for anyone but themselves gets a 404, which is forwarded as-is.
+ * Mirrors GET /api/entities/{id}/pnl-trend: `financial_year` is forwarded only
+ * when it parses as a number, `entity_id` / `property_id` only when they are
+ * UUIDs. Authorization is the core API's — a client asking for anyone but
+ * themselves (or for an entity or property that isn't theirs) gets a 404,
+ * which is forwarded as-is.
  */
 export async function GET(req: Request, context: RouteContext) {
   const token = getBearerToken(req);
@@ -19,12 +24,22 @@ export async function GET(req: Request, context: RouteContext) {
 
   const { clientId } = await context.params;
 
-  const raw = new URL(req.url).searchParams.get("financial_year");
-  const parsed = Number.parseInt(raw ?? "", 10);
+  const params = new URL(req.url).searchParams;
+  const parsed = Number.parseInt(params.get("financial_year") ?? "", 10);
   const financialYear = Number.isFinite(parsed) ? parsed : undefined;
+  const rawEntityId = (params.get("entity_id") ?? "").trim();
+  const entityId = UUID_RE.test(rawEntityId) ? rawEntityId : undefined;
+  const rawPropertyId = (params.get("property_id") ?? "").trim();
+  const propertyId = UUID_RE.test(rawPropertyId) ? rawPropertyId : undefined;
 
   try {
-    const summary = await getCorePortfolioSummaryForClient(token, clientId, financialYear);
+    const summary = await getCorePortfolioSummaryForClient(
+      token,
+      clientId,
+      financialYear,
+      entityId,
+      propertyId,
+    );
     return NextResponse.json(summary);
   } catch (error) {
     return renderUpstreamError(`GET /api/clients/${clientId}/portfolio-summary`, error);

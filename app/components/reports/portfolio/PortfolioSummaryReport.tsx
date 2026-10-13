@@ -12,6 +12,7 @@ import type {
 } from "@/src/lib/coreApi";
 import PortfolioMonthlyChart from "./PortfolioMonthlyChart";
 import PortfolioMethodology from "./PortfolioMethodology";
+import type { ReportScopeLevel, ReportScopeView } from "./reportScope";
 import {
   DASH,
   categoryLabel,
@@ -26,12 +27,14 @@ import {
 
 /**
  * The client portal's Portfolio Summary: the dashboard's detailed view frozen
- * for one financial year and printable as a statement.
+ * for one financial year and printable as a statement — for the whole client,
+ * one entity or one property.
  *
  * Purely presentational over GET /clients/{id}/portfolio-summary. Every total
  * on the page — hero cards, table footers, category subtotals — is the
  * server's footed figure; nothing here re-sums rows, so a hidden or truncated
- * row can never change a bottom line.
+ * row can never change a bottom line. What the scope changes (titles, which
+ * breakdowns are shown) comes from `scope` — see reportScope.ts.
  */
 
 export type PortfolioSummaryReportProps = {
@@ -40,6 +43,15 @@ export type PortfolioSummaryReportProps = {
   onFinancialYearChange: (year: number) => void;
   /** Years for the picker, newest first. */
   yearOptions: number[];
+  scope: ReportScopeView;
+  /**
+   * "page" is the standalone, printable Reports page. "embedded" sits inside
+   * an entity or property page's Reporting tab: no kicker or Print button, an
+   * h2 rather than the page's h1, methodology folded away.
+   */
+  variant?: "page" | "embedded";
+  /** Extra controls beside the year picker (the Reports page's scope picker). */
+  headerControls?: ReactNode;
 };
 
 // ---------------------------------------------------------------------------
@@ -51,11 +63,17 @@ function ReportHeader({
   financialYear,
   onFinancialYearChange,
   yearOptions,
+  scope,
+  embedded,
+  controls,
 }: {
   summary: CorePortfolioSummary | null;
   financialYear: number;
   onFinancialYearChange: (year: number) => void;
   yearOptions: number[];
+  scope: ReportScopeView;
+  embedded: boolean;
+  controls?: ReactNode;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -71,13 +89,20 @@ function ReportHeader({
   return (
     <header className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-            Clear Portfolio · Client Portal · Reports
-          </span>
-          <h1 className="text-[26px] leading-tight font-bold text-[var(--text-primary)]">Portfolio Summary</h1>
+        <div className="flex flex-col gap-1 min-w-0">
+          {embedded ? (
+            <h2 className="text-[20px] leading-tight font-bold text-[var(--text-primary)]">{scope.title}</h2>
+          ) : (
+            <>
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                Clear Portfolio · Client Portal · Reports
+              </span>
+              <h1 className="text-[26px] leading-tight font-bold text-[var(--text-primary)]">{scope.title}</h1>
+            </>
+          )}
         </div>
-        <div className="print-hide flex items-center gap-2">
+        <div className="print-hide flex items-center gap-2 flex-wrap">
+          {controls}
           <FinancialYearPicker
             value={financialYear}
             onChange={onFinancialYearChange}
@@ -85,25 +110,27 @@ function ReportHeader({
             setIsOpen={setPickerOpen}
             years={yearOptions}
           />
-          <button
-            type="button"
-            onClick={() => window.print()}
-            disabled={!summary}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-[var(--brand)] text-white text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6z" />
-            </svg>
-            Print
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              disabled={!summary}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-[var(--brand)] text-white text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6z" />
+              </svg>
+              Print
+            </button>
+          )}
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[var(--border)] bg-[var(--surface-1)] px-4 py-3">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Portfolio summary</span>
-          <span className="text-[15px] font-bold text-[var(--text-primary)]">
-            {summary ? `${summary.scope.name || "Your portfolio"} · All entities` : DASH}
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{scope.kicker}</span>
+          <span className="text-[15px] font-bold text-[var(--text-primary)] break-words">
+            {summary ? scope.subject : DASH}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -154,10 +181,12 @@ function Card({
 
 const signTone = (v: number) => (v > 0 ? "good" : v < 0 ? "bad" : "neutral");
 
-function HeroCards({ summary }: { summary: CorePortfolioSummary }) {
+function HeroCards({ summary, level }: { summary: CorePortfolioSummary; level: ReportScopeLevel }) {
   const t = summary.totals;
   const hasProperties = t.propertyCount > 0;
   const periodEnd = longDate(summary.period.to);
+  // One property: its own result, not "1 in profit · 0 at a loss".
+  const onlyProperty = level === "property" ? summary.properties[0] : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -171,10 +200,14 @@ function HeroCards({ summary }: { summary: CorePortfolioSummary }) {
           label="Net Market Value"
           value={hasProperties ? heroAmount(t.marketValue) : DASH}
           sub={
-            <>
-              {plural(t.propertyCount, "property", "properties")}
-              {t.propertiesMissingValue > 0 && ` · ${t.propertiesMissingValue} without a value`}
-            </>
+            onlyProperty ? (
+              t.propertiesMissingValue > 0 ? "No value recorded" : "Latest recorded"
+            ) : (
+              <>
+                {plural(t.propertyCount, "property", "properties")}
+                {t.propertiesMissingValue > 0 && ` · ${t.propertiesMissingValue} without a value`}
+              </>
+            )
           }
         />
         <Card
@@ -211,7 +244,11 @@ function HeroCards({ summary }: { summary: CorePortfolioSummary }) {
         <Card
           label="Net Income / Net Loss"
           value={
-            hasProperties ? (
+            onlyProperty ? (
+              <span className={`portfolio-pill is-lg ${RESULT_BADGE[onlyProperty.result].cls}`}>
+                {RESULT_BADGE[onlyProperty.result].label}
+              </span>
+            ) : hasProperties ? (
               <span className="text-[16px]">
                 <span className="text-[var(--success)]">{t.profitCount} in profit</span>
                 <span className="text-[var(--text-muted)]"> · </span>
@@ -341,7 +378,7 @@ function EntityTable({ summary }: { summary: CorePortfolioSummary }) {
   return (
     <section className="portfolio-section">
       <SectionTitle title="By Entity" note="Each entity's properties at 100%" />
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="By Entity table">
         <table className="portfolio-table w-full min-w-[720px] text-[12px] tabular-nums">
           <thead>
             <tr>
@@ -400,17 +437,19 @@ const RESULT_BADGE: Record<CorePortfolioPropertyRow["result"], { label: string; 
   no_activity: { label: "No activity", cls: "is-neutral" },
 };
 
-function PropertyTable({ summary }: { summary: CorePortfolioSummary }) {
+function PropertyTable({ summary, showEntityColumn }: { summary: CorePortfolioSummary; showEntityColumn: boolean }) {
   const t = summary.totals;
   return (
     <section className="portfolio-section">
       <SectionTitle title="By Property" note="At 100%" />
-      <div className="overflow-x-auto">
-        <table className="portfolio-table w-full min-w-[780px] text-[12px] tabular-nums">
+      <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="By Property table">
+        <table
+          className={`portfolio-table w-full ${showEntityColumn ? "min-w-[780px]" : "min-w-[660px]"} text-[12px] tabular-nums`}
+        >
           <thead>
             <tr>
               <th className="text-left">Property</th>
-              <th className="text-left">Entity</th>
+              {showEntityColumn && <th className="text-left">Entity</th>}
               <th className="text-right">Value</th>
               <th className="text-right">Loan</th>
               <th className="text-right">Income</th>
@@ -429,7 +468,7 @@ function PropertyTable({ summary }: { summary: CorePortfolioSummary }) {
                     {p.name}
                     {!p.enabled && <span className="ml-2 text-[10px] font-semibold text-[var(--text-muted)]">Inactive</span>}
                   </td>
-                  <td className="text-[var(--text-secondary)]">{p.entityName}</td>
+                  {showEntityColumn && <td className="text-[var(--text-secondary)]">{p.entityName}</td>}
                   <td className="text-right">{tableAmount(p.marketValue)}</td>
                   <td
                     className="text-right"
@@ -453,7 +492,7 @@ function PropertyTable({ summary }: { summary: CorePortfolioSummary }) {
           <tfoot>
             <tr>
               <td>Total</td>
-              <td />
+              {showEntityColumn && <td />}
               <td className="text-right">{tableAmount(t.marketValue)}</td>
               <td className="text-right">{tableAmount(t.loanBalance)}</td>
               <td className="text-right">{tableAmount(t.income)}</td>
@@ -548,13 +587,11 @@ function ReportSkeleton() {
   );
 }
 
-function EmptyPortfolio() {
+function EmptyPortfolio({ scope }: { scope: ReportScopeView }) {
   return (
     <div className="portfolio-section text-center py-10">
-      <h2 className="text-[15px] font-bold text-[var(--text-primary)]">No properties yet</h2>
-      <div className="mt-1 text-[12px] text-[var(--text-secondary)]">
-        Add an entity and a property to see your portfolio summary here.
-      </div>
+      <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{scope.emptyTitle}</h2>
+      <div className="mt-1 text-[12px] text-[var(--text-secondary)]">{scope.emptyText}</div>
     </div>
   );
 }
@@ -568,31 +605,38 @@ export default function PortfolioSummaryReport({
   financialYear,
   onFinancialYearChange,
   yearOptions,
+  scope,
+  variant = "page",
+  headerControls,
 }: PortfolioSummaryReportProps) {
   const summary = region.status === "ready" ? region.data : null;
-  // While a new year loads, keep the header's client name from the last good read.
+  // While a new year loads, keep the header's name from the last good read.
   const headerSummary = region.data;
+  const embedded = variant === "embedded";
 
   return (
-    <div className="portfolio-report flex flex-col gap-5">
+    <div className={`portfolio-report flex flex-col gap-5${embedded ? " is-embedded" : ""}`}>
       <ReportHeader
         summary={headerSummary}
         financialYear={financialYear}
         onFinancialYearChange={onFinancialYearChange}
         yearOptions={yearOptions}
+        scope={scope}
+        embedded={embedded}
+        controls={headerControls}
       />
 
       {(region.status === "loading" || region.status === "idle") && <ReportSkeleton />}
 
       {region.status === "error" && (
-        <RegionError message={region.error ?? "Couldn't load your portfolio summary."} onRetry={region.reload} />
+        <RegionError message={region.error ?? scope.errorText} onRetry={region.reload} />
       )}
 
       {summary && (
         <>
-          <HeroCards summary={summary} />
+          <HeroCards summary={summary} level={scope.level} />
           {summary.totals.propertyCount === 0 ? (
-            <EmptyPortfolio />
+            <EmptyPortfolio scope={scope} />
           ) : (
             <>
               <PortfolioMonthlyChart
@@ -601,12 +645,14 @@ export default function PortfolioSummaryReport({
                 periodLabel={fyText(summary.period.label)}
               />
               <CategoryTables summary={summary} />
-              <EntityTable summary={summary} />
-              <PropertyTable summary={summary} />
+              {scope.showEntityTable && <EntityTable summary={summary} />}
+              {scope.showPropertyTable && (
+                <PropertyTable summary={summary} showEntityColumn={scope.showEntityColumn} />
+              )}
               <LoanVsValue summary={summary} />
             </>
           )}
-          <PortfolioMethodology summary={summary} />
+          <PortfolioMethodology summary={summary} level={scope.level} collapsible={embedded} />
         </>
       )}
     </div>

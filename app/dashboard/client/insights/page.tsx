@@ -6,16 +6,28 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import ClientInsightsSkeleton from "@/app/components/clients/ClientInsightsSkeleton";
 import { logout } from "@/src/lib/logout";
-import { getSession } from "@/src/lib/session";
-import { formatCurrency as globalFormatCurrency, getCurrencyPrefix, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { getIdToken } from "@/src/lib/authToken";
+import {
+  formatCurrency as globalFormatCurrency,
+  formatClientCurrency,
+  formatClientPercent,
+  toneClass,
+} from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
+import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
+import { fetchCurrentUser, type CurrentUser } from "@/app/components/currentUser";
+import RegionError from "@/app/components/ui/RegionError";
+import {
+  currentFinancialYear,
+  fyShortLabel,
+  monthAt,
+  monthIndex,
+  monthKey,
+  monthShortLabel,
+  percentChange,
+  shiftMonth,
+} from "@/app/components/clients/portfolioDashboard";
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -25,18 +37,94 @@ function titleCase(value: string) {
     .join(" ");
 }
 
+type TimeFilter = "year" | "quarter" | "month";
+
+/** "YYYY-MM" keys from `from` to `to` inclusive (both month starts). */
+function monthKeysBetween(from: Date, to: Date): string[] {
+  const keys: string[] = [];
+  for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d = shiftMonth(d, 1)) {
+    keys.push(monthKey(d));
+  }
+  return keys;
+}
+
+/**
+ * The window a period pill covers, and the window it is compared with — in
+ * the Australian financial year (it used to be the calendar year).
+ *
+ *  year    FY to date (1 July → this month) vs the same months a year earlier
+ *  quarter this FY quarter (Jul–Sep, Oct–Dec, Jan–Mar, Apr–Jun) vs the last one
+ *  month   this month vs last month
+ */
+function periodWindows(filter: TimeFilter, now: Date) {
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (filter === "month") {
+    return {
+      current: [monthKey(thisMonth)],
+      previous: [monthKey(shiftMonth(thisMonth, -1))],
+    };
+  }
+  if (filter === "quarter") {
+    // Calendar quarters line up with FY quarters (Jul, Oct, Jan, Apr).
+    const start = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    return {
+      current: monthKeysBetween(start, shiftMonth(start, 2)),
+      previous: monthKeysBetween(shiftMonth(start, -3), shiftMonth(start, -1)),
+    };
+  }
+  const fyStart = new Date(currentFinancialYear(now) - 1, 6, 1);
+  return {
+    current: monthKeysBetween(fyStart, thisMonth),
+    previous: monthKeysBetween(shiftMonth(fyStart, -12), shiftMonth(thisMonth, -12)),
+  };
+}
+
+/**
+ * A round axis top and evenly spaced ticks for `max`, so the labels describe
+ * the bars. The axis used to be eight hardcoded labels ($14k…$0k) while the
+ * bars were scaled to the data — a ~A$1M month sat under a "$14k" top label.
+ */
+function niceAxis(max: number, intervals: number): { top: number; ticks: number[] } {
+  const safeMax = max > 0 ? max : 1;
+  const rough = safeMax / intervals;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough) ?? 10 * magnitude;
+  const top = step * intervals;
+  return {
+    top,
+    ticks: Array.from({ length: intervals + 1 }, (_, i) => top - i * step),
+  };
+}
+
+function formatAxisTick(value: number): string {
+  if (value === 0) return "A$0";
+  if (value >= 1_000_000) return `A$${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (value >= 1_000) return `A$${(value / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return `A$${Math.round(value)}`;
+}
+
+const PERIOD_LABEL: Record<TimeFilter, string> = {
+  year: "Financial year to date",
+  quarter: "This quarter",
+  month: "This month",
+};
+
+const COMPARISON_LABEL: Record<TimeFilter, string> = {
+  year: "vs same period last year",
+  quarter: "vs last quarter",
+  month: "vs last month",
+};
+
 export default function ClientInsightsPage() {
   const router = useRouter();
-  const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id?: string; fullName?: string; email?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
   // Interactive UI state
-  const [timeFilter, setTimeFilter] = useState<'year' | 'quarter' | 'month'>('year');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('year');
   const [showForecast, setShowForecast] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -50,70 +138,45 @@ export default function ClientInsightsPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch data from backend API
+  // The user (whose id keys the Portfolio Summary) and the properties (for
+  // market values) load together. No transactions: every figure on this page
+  // comes from the summary below.
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
+        let token: string;
+        try {
+          token = await getIdToken();
+        } catch {
           router.replace("/login/user");
           return;
         }
-        const token = session.getIdToken().getJwtToken();
 
-        // 1. Fetch current user
-        try {
-          const userRes = await fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (userRes.ok) {
-            const data = await userRes.json();
-            if (!cancelled) setCurrentUser(data);
-          }
-        } catch (err) {
-          console.error("Failed to fetch current user:", err);
-        }
-
-        // 2. Fetch entities
-        const res = await fetch("/api/entities", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const [userResult, entitiesResult] = await Promise.allSettled([
+          fetchCurrentUser(token),
+          fetch("/api/entities", { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
         if (cancelled) return;
 
-        let loadedEntities: CoreEntity[] = [];
-        if (res.ok) {
-          const data = (await res.json()) as { items?: CoreEntity[] };
-          loadedEntities = data.items || [];
-          if (!cancelled) setEntities(loadedEntities);
+        if (userResult.status === "fulfilled") {
+          setCurrentUser(userResult.value);
         } else {
-          const data = await res.json().catch(() => ({}));
-          if (!cancelled) setErrorMessage(data.error || "Failed to load your entities.");
+          console.error("Failed to fetch current user:", userResult.reason);
         }
 
-        if (cancelled || loadedEntities.length === 0) {
-          if (!cancelled) setIsLoading(false);
-          return;
-        }
-
-        // 3. Extract aggregated properties from nested entities response
-        const allProperties = loadedEntities.flatMap((entity: any) => entity.properties || []);
-        if (!cancelled) setProperties(allProperties);
-
-        if (cancelled) return;
-
-        // 4. Fetch transactions
-        try {
-          const txRes = await fetch("/api/transactions", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (txRes.ok) {
-            const data = await txRes.json();
-            if (!cancelled) setTransactions(data.items || []);
-          }
-        } catch (err) {
-          console.error("Failed to fetch transactions:", err);
+        if (entitiesResult.status === "fulfilled" && entitiesResult.value.ok) {
+          const data = (await entitiesResult.value.json()) as { items?: CoreEntity[] };
+          if (cancelled) return;
+          setProperties((data.items || []).flatMap((entity: any) => entity.properties || []));
+        } else {
+          const data =
+            entitiesResult.status === "fulfilled"
+              ? await entitiesResult.value.json().catch(() => ({}))
+              : {};
+          if (cancelled) return;
+          setErrorMessage(data.error || "Failed to load your entities.");
         }
       } catch (error) {
         if (!cancelled) {
@@ -142,10 +205,10 @@ export default function ClientInsightsPage() {
     ? firstWord(currentUser.fullName)
     : currentUser?.email
       ? titleCase(currentUser.email.split("@")[0])
-      : "Sarah";
+      : "";
 
   const getInitials = (value: string) => {
-    if (!value) return "SJ";
+    if (!value) return "";
     const localPart = value.split("@")[0] || value;
     const parts = localPart
       .split(/[._-]/)
@@ -161,381 +224,51 @@ export default function ClientInsightsPage() {
     ? getInitials(currentUser.fullName)
     : currentUser?.email
       ? getInitials(currentUser.email)
-      : "SJ";
-
-  // Financial period date range helpers
-  const periodBounds = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
-    let startCurr: Date;
-    let endCurr: Date;
-    let startPrev: Date;
-    let endPrev: Date;
-
-    if (timeFilter === "year") {
-      startCurr = new Date(currentYear, 0, 1);
-      endCurr = new Date(currentYear, 11, 31, 23, 59, 59);
-      startPrev = new Date(currentYear - 1, 0, 1);
-      endPrev = new Date(currentYear - 1, 11, 31, 23, 59, 59);
-    } else if (timeFilter === "quarter") {
-      const quarterIndex = Math.floor(currentMonth / 3); // 0, 1, 2, 3
-      startCurr = new Date(currentYear, quarterIndex * 3, 1);
-      endCurr = new Date(currentYear, (quarterIndex + 1) * 3, 0, 23, 59, 59);
-
-      let prevQuarterIndex = quarterIndex - 1;
-      let prevYear = currentYear;
-      if (prevQuarterIndex < 0) {
-        prevQuarterIndex = 3;
-        prevYear -= 1;
-      }
-      startPrev = new Date(prevYear, prevQuarterIndex * 3, 1);
-      endPrev = new Date(prevYear, (prevQuarterIndex + 1) * 3, 0, 23, 59, 59);
-    } else {
-      // month
-      startCurr = new Date(currentYear, currentMonth, 1);
-      endCurr = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
-
-      let prevMonth = currentMonth - 1;
-      let prevYear = currentYear;
-      if (prevMonth < 0) {
-        prevMonth = 11;
-        prevYear -= 1;
-      }
-      startPrev = new Date(prevYear, prevMonth, 1);
-      endPrev = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59);
-    }
-
-    return { startCurr, endCurr, startPrev, endPrev };
-  }, [timeFilter]);
-
-  // Net Cash Flow calculations
-  const cashFlowMetrics = useMemo(() => {
-    const filterTxs = (start: Date, end: Date) => {
-      return transactions.filter((tx) => {
-        if (!tx.invoiceDate) return false;
-        const d = new Date(tx.invoiceDate);
-        return d >= start && d <= end;
-      });
-    };
-
-    const currentTxs = filterTxs(periodBounds.startCurr, periodBounds.endCurr);
-    const previousTxs = filterTxs(periodBounds.startPrev, periodBounds.endPrev);
-
-    const getTotals = (txs: any[]) => {
-      const income = txs
-        .filter((tx) => tx.type === "revenue")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-      const expense = txs
-        .filter((tx) => tx.type === "expense")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-      return { income, expense, net: income - expense };
-    };
-
-    const curr = getTotals(currentTxs);
-    const prev = getTotals(previousTxs);
-
-    let trendPercentage = 0;
-    if (prev.net !== 0) {
-      trendPercentage = ((curr.net - prev.net) / Math.abs(prev.net)) * 100;
-    } else if (curr.net !== 0) {
-      trendPercentage = curr.net > 0 ? 100 : -100;
-    }
-
-    return {
-      currentNet: curr.net,
-      trendPercentage,
-    };
-  }, [transactions, periodBounds]);
-
-  // Line Chart Data points calculation
-  const lineChartPoints = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    const points: number[] = [];
-
-    if (timeFilter === "year") {
-      for (let m = 0; m <= currentMonth; m++) {
-        const monthStart = new Date(currentYear, m, 1);
-        const monthEnd = new Date(currentYear, m + 1, 0, 23, 59, 59);
-        const txs = transactions.filter((tx) => {
-          if (!tx.invoiceDate) return false;
-          const d = new Date(tx.invoiceDate);
-          return d >= monthStart && d <= monthEnd;
-        });
-        const inc = txs.filter((tx) => tx.type === "revenue").reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        const exp = txs.filter((tx) => tx.type === "expense").reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        points.push(inc - exp);
-      }
-    } else if (timeFilter === "quarter") {
-      const quarterIndex = Math.floor(currentMonth / 3);
-      const endOffset = currentMonth % 3; // how far into current quarter we are
-      for (let i = 0; i <= endOffset; i++) {
-        const m = quarterIndex * 3 + i;
-        const monthStart = new Date(currentYear, m, 1);
-        const monthEnd = new Date(currentYear, m + 1, 0, 23, 59, 59);
-        const txs = transactions.filter((tx) => {
-          if (!tx.invoiceDate) return false;
-          const d = new Date(tx.invoiceDate);
-          return d >= monthStart && d <= monthEnd;
-        });
-        const inc = txs.filter((tx) => tx.type === "revenue").reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        const exp = txs.filter((tx) => tx.type === "expense").reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        points.push(inc - exp);
-      }
-    } else {
-      // Month (5-day intervals)
-      const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const currentDay = now.getDate();
-      const intervalSize = 5;
-      const totalIntervals = Math.min(Math.ceil(currentDay / intervalSize), 6);
-
-      for (let i = 0; i < totalIntervals; i++) {
-        const startDay = i * intervalSize + 1;
-        const endDay = Math.min((i + 1) * intervalSize, lastDay);
-        const start = new Date(currentYear, currentMonth, startDay);
-        const end = new Date(currentYear, currentMonth, endDay, 23, 59, 59);
-        const txs = transactions.filter((tx) => {
-          if (!tx.invoiceDate) return false;
-          const d = new Date(tx.invoiceDate);
-          return d >= start && d <= end;
-        });
-        const inc = txs.filter((tx) => tx.type === "revenue").reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        const exp = txs.filter((tx) => tx.type === "expense").reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        points.push(inc - exp);
-      }
-    }
-
-    // Fallback in case of empty points to prevent render failure
-    return points.length === 0 ? [0] : points;
-  }, [transactions, timeFilter]);
-
-  // Generate path data for SVG
-  const lineChartSvg = useMemo(() => {
-    const width = 340;
-    const height = 90;
-    const paddingX = 5;
-    const paddingY = 15;
-    const usableWidth = width - 2 * paddingX;
-    const usableHeight = height - 2 * paddingY;
-
-    const min = Math.min(...lineChartPoints);
-    const max = Math.max(...lineChartPoints);
-    const range = max - min === 0 ? 1 : max - min;
-
-    const coords = lineChartPoints.map((p, idx) => {
-      const x = lineChartPoints.length > 1
-        ? paddingX + (idx / (lineChartPoints.length - 1)) * usableWidth
-        : paddingX + usableWidth / 2;
-      const y = height - paddingY - ((p - min) / range) * usableHeight;
-      return { x, y };
-    });
-
-    const linePath = coords
-      .map((c, idx) => `${idx === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
-      .join(" ");
-
-    const areaPath = coords.length > 0
-      ? `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${height} L ${coords[0].x.toFixed(1)} ${height} Z`
       : "";
 
-    return { linePath, areaPath, width, height };
-  }, [lineChartPoints]);
+  // ---------------------------------------------------------------------------
+  // Figures: the Portfolio Summary for this financial year and the last (the
+  // windows below can reach back before 1 July). Same aggregate as the home
+  // and Reports pages — gross, each property's share, unreviewed excluded.
+  // ---------------------------------------------------------------------------
+  const clientId = currentUser?.id || null;
+  const financialYear = currentFinancialYear();
+  const summaryRegion = usePortfolioSummary(clientId, financialYear);
+  const lastYearRegion = usePortfolioSummary(clientId, financialYear - 1);
+  const summary = summaryRegion.data;
+  const lastYearSummary = lastYearRegion.data;
 
-  // Income vs Expenses Stacked Bar Chart Calculations (Last 6 Months vs Next 6 Months Projection)
-  const barChartData = useMemo(() => {
-    if (!showForecast) {
-      // Last 6 months historical
-      const list = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date();
-        d.setMonth(d.getMonth() - i);
-        const m = d.getMonth();
-        const y = d.getFullYear();
-        const label = d.toLocaleDateString("en-US", { month: "short" });
+  const monthsByKey = useMemo(() => monthIndex(lastYearSummary, summary), [lastYearSummary, summary]);
+  const windows = useMemo(() => periodWindows(timeFilter, new Date()), [timeFilter]);
 
-        const monthStart = new Date(y, m, 1);
-        const monthEnd = new Date(y, m + 1, 0, 23, 59, 59);
+  const netOver = (keys: string[]) =>
+    keys.reduce((sum, key) => {
+      const m = monthAt(monthsByKey, key);
+      return sum + m.income - m.expenses;
+    }, 0);
 
-        const txs = transactions.filter((tx) => {
-          if (!tx.invoiceDate) return false;
-          const txd = new Date(tx.invoiceDate);
-          return txd >= monthStart && txd <= monthEnd;
-        });
-
-        const income = txs
-          .filter((tx) => tx.type === "revenue")
-          .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-        const expense = txs
-          .filter((tx) => tx.type === "expense")
-          .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-        list.push({ label, income, expense });
-      }
-      return list;
-    } else {
-      // Next 6 months forecast based on historical average
-      const totalInc = transactions
-        .filter((tx) => tx.type === "revenue")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-      const totalExp = transactions
-        .filter((tx) => tx.type === "expense")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-      let uniqueMonthsCount = 1;
-      if (transactions.length > 0) {
-        const dates = transactions
-          .map((tx) => tx.invoiceDate)
-          .filter(Boolean)
-          .map((d) => new Date(d));
-        if (dates.length > 0) {
-          const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
-          const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
-          const diffMonths =
-            (maxDate.getFullYear() - minDate.getFullYear()) * 12 +
-            maxDate.getMonth() -
-            minDate.getMonth();
-          uniqueMonthsCount = Math.max(diffMonths + 1, 1);
-        }
-      }
-
-      const avgInc = totalInc / uniqueMonthsCount;
-      const avgExp = totalExp / uniqueMonthsCount;
-
-      const list = [];
-      for (let i = 1; i <= 6; i++) {
-        const d = new Date();
-        d.setMonth(d.getMonth() + i);
-        const label = d.toLocaleDateString("en-US", { month: "short" });
-
-        // Introduce minor realistic seasonal variations
-        const variationInc = 1 + Math.sin(i) * 0.08;
-        const variationExp = 1 + Math.cos(i) * 0.05;
-
-        list.push({
-          label,
-          income: Math.round(avgInc * (avgInc > 0 ? variationInc : 0)),
-          expense: Math.round(avgExp * (avgExp > 0 ? variationExp : 0)),
-        });
-      }
-      return list;
-    }
-  }, [transactions, showForecast]);
-
-  const maxMonthSum = useMemo(() => {
-    const sums = barChartData.map((d) => d.income + d.expense);
-    return Math.max(...sums, 1);
-  }, [barChartData]);
-
-  // Expense Breakdown calculations
-  const expenseBreakdown = useMemo(() => {
-    const expenseTxs = transactions.filter((tx) => tx.type === "expense");
-    const total = expenseTxs.reduce(
-      (sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0),
-      0
-    );
-
-    const categoriesMap: Record<string, number> = {};
-    expenseTxs.forEach((tx) => {
-      const cat = tx.categoryName || "General Expenses";
-      categoriesMap[cat] =
-        (categoriesMap[cat] || 0) + (tx.netAmount || tx.grossAmount || 0);
-    });
-
-    const categoriesArray = Object.entries(categoriesMap).map(
-      ([name, amount]) => ({
-        name,
-        amount,
-        percentage: total > 0 ? Math.round((amount / total) * 100) : 0,
-      })
-    );
-
-    categoriesArray.sort((a, b) => b.amount - a.amount);
-
-    if (categoriesArray.length <= 3) {
-      return { total, items: categoriesArray };
-    }
-
-    const items = categoriesArray.slice(0, 3);
-    const otherAmount = categoriesArray
-      .slice(3)
-      .reduce((sum, c) => sum + c.amount, 0);
-    items.push({
-      name: "Other",
-      amount: otherAmount,
-      percentage: total > 0 ? Math.round((otherAmount / total) * 100) : 0,
-    });
-
-    return { total, items };
-  }, [transactions]);
-
-  const topPerformingProperties = useMemo(() => {
-    const list = properties.map((prop) => {
-      const propTxs = transactions.filter((tx) => {
-        return (
-          tx.propertyIds?.includes(prop.id) ||
-          tx.propertyNames?.includes(prop.name)
-        );
-      });
-
-      const periodTxs = propTxs.filter((tx) => {
-        if (!tx.invoiceDate) return false;
-        const d = new Date(tx.invoiceDate);
-        return d >= periodBounds.startCurr && d <= periodBounds.endCurr;
-      });
-
-      const income = periodTxs
-        .filter((tx) => tx.type === "revenue")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-      const expense = periodTxs
-        .filter((tx) => tx.type === "expense")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-      const net = income - expense;
-      const returnRate = prop.estimatedMarketValue > 0 ? (net / prop.estimatedMarketValue) * 100 : 0;
-
-      return {
-        name: prop.name,
-        income,
-        expense,
-        net,
-        returnRate,
-      };
-    });
-
-    list.sort((a, b) => b.income - a.income || b.returnRate - a.returnRate);
-    return list.slice(0, 3);
-  }, [properties, transactions, periodBounds]);
-
-  const formatKCurrency = (val: number) => {
-    return formatClientCurrency(val, { short: true, showPlus: true, decimals: 1 });
+  // Net Cash Flow for the selected period, and its change on the comparison
+  // period (null — no badge — when either side is zero).
+  const displayCashFlowMetrics = {
+    currentNet: netOver(windows.current),
+    trendPercentage: percentChange(netOver(windows.current), netOver(windows.previous)),
   };
 
-  // Doughnut Chart circle properties
-  const doughnutCircumference = 282.743; // 2 * Math.PI * 45
-  const categoryColors = ["#1b265c", "#f7a61a", "#12b76a", "#475467"];
+  // Line chart: monthly net across the period. A single month has no shape,
+  // so "This month" shows the six months leading up to it instead.
+  const displayLineChartPoints = useMemo(() => {
+    const now = new Date();
+    const keys =
+      timeFilter === "month"
+        ? [5, 4, 3, 2, 1, 0].map((back) => monthKey(shiftMonth(now, -back)))
+        : windows.current.filter((key) => key <= monthKey(now));
+    const points = keys.map((key) => {
+      const m = monthAt(monthsByKey, key);
+      return m.income - m.expenses;
+    });
+    return points.length === 0 ? [0] : points;
+  }, [monthsByKey, timeFilter, windows]);
 
-  const formatCurrency = (val: number) => {
-    return globalFormatCurrency(val, { decimals: 0 });
-  };
-
-  const isDemoMode = false;
-
-  // 1. Cash flow metrics
-  const displayCashFlowMetrics = isDemoMode ? {
-    currentNet: 24180,
-    trendPercentage: 12.4
-  } : cashFlowMetrics;
-
-  // 2. Line Chart Points
-  const displayLineChartPoints = isDemoMode
-    ? [12000, 14000, 13000, 17000, 16000, 21000, 24180]
-    : lineChartPoints;
-
-  // 3. Line Chart SVG
   const displayLineChartSvg = useMemo(() => {
     const width = 340;
     const height = 90;
@@ -567,65 +300,139 @@ export default function ClientInsightsPage() {
     return { linePath, areaPath, width, height };
   }, [displayLineChartPoints]);
 
-  // 4. Bar Chart Data
-  const displayBarChartData = isDemoMode ? (
-    !showForecast ? [
-      { label: "Nov", income: 12500, expense: 3800 },
-      { label: "Dec", income: 12000, expense: 3600 },
-      { label: "Jan", income: 12600, expense: 3700 },
-      { label: "Feb", income: 11000, expense: 4000 },
-      { label: "Mar", income: 12500, expense: 3000 },
-      { label: "Apr", income: 12800, expense: 3700 }
-    ] : [
-      { label: "May", income: 13000, expense: 3500 },
-      { label: "Jun", income: 13200, expense: 3600 },
-      { label: "Jul", income: 13500, expense: 3700 },
-      { label: "Aug", income: 12800, expense: 3800 },
-      { label: "Sep", income: 14000, expense: 3400 },
-      { label: "Oct", income: 14200, expense: 3600 }
-    ]
-  ) : barChartData;
+  // Income vs Expenses: the last six months, or a projection of the next six
+  // at their average. The projection is a flat average and says so — it used
+  // to add an invented sine-wave "seasonal variation".
+  const displayBarChartData = useMemo(() => {
+    const now = new Date();
+    const history = [5, 4, 3, 2, 1, 0].map((back) => {
+      const key = monthKey(shiftMonth(now, -back));
+      const m = monthAt(monthsByKey, key);
+      return { label: monthShortLabel(key), income: m.income, expense: m.expenses };
+    });
+    if (!showForecast) return history;
 
-  const displayMaxMonthSum = isDemoMode ? 16600 : maxMonthSum;
+    const active = history.filter((m) => m.income > 0 || m.expense > 0);
+    const avgIncome = active.length ? active.reduce((s, m) => s + m.income, 0) / active.length : 0;
+    const avgExpense = active.length ? active.reduce((s, m) => s + m.expense, 0) / active.length : 0;
+    return [1, 2, 3, 4, 5, 6].map((ahead) => ({
+      label: monthShortLabel(monthKey(shiftMonth(now, ahead))),
+      income: Math.round(avgIncome),
+      expense: Math.round(avgExpense),
+    }));
+  }, [monthsByKey, showForecast]);
 
-  // 5. Expense Breakdown
-  const displayExpenseBreakdown = isDemoMode ? {
-    total: 10000,
-    items: [
-      { name: "Loan interest", amount: 3800, percentage: 38 },
-      { name: "Maintenance", amount: 2400, percentage: 24 },
-      { name: "Rates", amount: 1800, percentage: 18 },
-      { name: "Insurance", amount: 1200, percentage: 12 },
-      { name: "Other", amount: 800, percentage: 8 }
-    ]
-  } : expenseBreakdown;
+  // Mobile stacks income on expense, so it scales to the month's SUM; desktop
+  // draws them side by side, so its axis is the larger of the two.
+  const displayMaxMonthSum = Math.max(...displayBarChartData.map((d) => d.income + d.expense), 1);
+  const barAxis = niceAxis(
+    Math.max(...displayBarChartData.map((d) => Math.max(d.income, d.expense)), 0),
+    7,
+  );
 
-  // 6. Top Performing Properties
-  const displayTopPerformingProperties = isDemoMode ? [
-    { name: "24 Darling St", returnRate: 5.4, net: 24200 },
-    { name: "12 Church Ave", returnRate: 4.8, net: 21600 },
-    { name: "8 Harbour Road", returnRate: 4.6, net: 20600 }
-  ] : topPerformingProperties.map(p => ({
-    name: p.name,
-    returnRate: p.returnRate,
-    net: p.net
-  }));
+  // Expense breakdown for the selected period, from the category × month
+  // matrix — it used to ignore the period and sum every loaded row.
+  const displayExpenseBreakdown = useMemo(() => {
+    const inWindow = new Set(windows.current);
+    const byCategory = new Map<string, number>();
+    for (const cell of summary?.categoryMonths ?? []) {
+      if (cell.type !== "expense" || !inWindow.has(cell.month)) continue;
+      const name = cell.categoryName || "Uncategorised";
+      byCategory.set(name, (byCategory.get(name) ?? 0) + cell.amount);
+    }
+    if (timeFilter === "year" || timeFilter === "quarter") {
+      for (const cell of lastYearSummary?.categoryMonths ?? []) {
+        if (cell.type !== "expense" || !inWindow.has(cell.month)) continue;
+        const name = cell.categoryName || "Uncategorised";
+        byCategory.set(name, (byCategory.get(name) ?? 0) + cell.amount);
+      }
+    }
+    const total = Array.from(byCategory.values()).reduce((s, v) => s + v, 0);
+    const categoriesArray = Array.from(byCategory.entries())
+      .filter(([, amount]) => amount > 0)
+      .map(([name, amount]) => ({
+        name,
+        amount,
+        percentage: total > 0 ? Math.round((amount / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
+    if (categoriesArray.length <= 3) {
+      return { total, items: categoriesArray };
+    }
+    const items = categoriesArray.slice(0, 3);
+    const otherAmount = categoriesArray.slice(3).reduce((sum, c) => sum + c.amount, 0);
+    items.push({
+      name: "Other",
+      amount: otherAmount,
+      percentage: total > 0 ? Math.round((otherAmount / total) * 100) : 0,
+    });
+    return { total, items };
+  }, [summary, lastYearSummary, windows, timeFilter]);
+
+  // Top performing: the summary has per-property totals for the financial
+  // year only (no per-property months), so this card is the FY ranking
+  // whatever pill is selected — and its label says so.
+  const displayTopPerformingProperties = useMemo(() => {
+    const valueById = new Map(properties.map((p) => [p.id as string, Number(p.estimatedMarketValue) || 0]));
+    return (summary?.properties ?? [])
+      .map((row) => {
+        const value = row.marketValue ?? valueById.get(row.propertyId) ?? 0;
+        return {
+          name: row.name,
+          income: row.income,
+          net: row.netResult,
+          returnRate: value > 0 ? (row.netResult / value) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.income - a.income || b.returnRate - a.returnRate)
+      .slice(0, 3);
+  }, [summary, properties]);
+
+  const formatKCurrency = (val: number) => {
+    return formatClientCurrency(val, { short: true, showPlus: true, decimals: 1 });
+  };
+
+  // Doughnut Chart circle properties
+  const doughnutCircumference = 282.743; // 2 * Math.PI * 45
+  const categoryColors = ["#1b265c", "#f7a61a", "#12b76a", "#475467"];
+
+  const formatCurrency = (val: number) => {
+    return globalFormatCurrency(val, { decimals: 0 });
+  };
+
+  const trendPercentage = displayCashFlowMetrics.trendPercentage;
   const trendBadgeStyle =
-    displayCashFlowMetrics.trendPercentage >= 0
+    trendPercentage !== null && trendPercentage >= 0
       ? { background: "#ecfdf3", color: "#027a48" }
       : { background: "#fef3f2", color: "#b42318" };
+  const trendLabel =
+    trendPercentage !== null ? formatClientPercent(trendPercentage, { showPlus: true }) : "";
+  const showTrendBadge = /[1-9]/.test(trendLabel);
 
-  const trendSign = displayCashFlowMetrics.trendPercentage >= 0 ? "+" : "";
+  const periodLabel = PERIOD_LABEL[timeFilter];
+
+  const figuresError =
+    summaryRegion.status === "error"
+      ? `Couldn't load your figures. ${summaryRegion.error ?? ""}`.trim()
+      : "";
+  const retryFigures = () => {
+    summaryRegion.reload();
+    lastYearRegion.reload();
+  };
+  // Hold the skeleton until the first summary arrives (no flash of zeros).
+  const figuresLoading =
+    isLoading || (clientId !== null && summaryRegion.status === "loading" && !summary);
+  const topPerformingLabel = `By income · ${fyShortLabel(financialYear)}`;
 
   // Check if workspace is empty
-  const isWorkspaceEmpty = isDemoMode ? false : (properties.length === 0 && transactions.length === 0);
+  const isWorkspaceEmpty = properties.length === 0 && (summary?.totals.transactionCount ?? 0) === 0;
 
   if (isMobile) {
     return (
       <Skeleton
         name="client-insights-mobile"
-        loading={isLoading}
+        loading={figuresLoading}
         fallback={<ClientInsightsSkeleton />}
       >
         <div
@@ -690,10 +497,16 @@ export default function ClientInsightsPage() {
             </Link>
           </div>
 
+          {figuresError && (
+            <div style={{ marginTop: "12px" }}>
+              <RegionError message={figuresError} onRetry={retryFigures} />
+            </div>
+          )}
+
           {/* Time Filter Pills */}
           <div style={{ display: "flex", gap: "10px", margin: "16px 0 20px 0" }}>
             {[
-              { label: "This Year", val: "year" },
+              { label: "This FY", val: "year" },
               { label: "This Quarter", val: "quarter" },
               { label: "This Month", val: "month" },
             ].map((p) => (
@@ -790,19 +603,21 @@ export default function ClientInsightsPage() {
                   <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-secondary)" }}>
                     Net Cash Flow
                   </span>
-                  <span
-                    className="m-db-trend-badge"
-                    style={{
-                      ...trendBadgeStyle,
-                      padding: "2px 8px",
-                      borderRadius: "20px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {trendSign}
-                    {displayCashFlowMetrics.trendPercentage.toFixed(1)}%
-                  </span>
+                  {showTrendBadge && (
+                    <span
+                      className={`m-db-trend-badge ${toneClass(trendPercentage)}`}
+                      title={COMPARISON_LABEL[timeFilter]}
+                      style={{
+                        ...trendBadgeStyle,
+                        padding: "2px 8px",
+                        borderRadius: "20px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {trendLabel}
+                    </span>
+                  )}
                 </div>
                 <div
                   style={{
@@ -813,6 +628,9 @@ export default function ClientInsightsPage() {
                   }}
                 >
                   {formatCurrency(displayCashFlowMetrics.currentNet)}
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "-8px", marginBottom: "8px" }}>
+                  {periodLabel}
                 </div>
 
                 {/* SVG Trend Line Chart */}
@@ -1121,7 +939,7 @@ export default function ClientInsightsPage() {
                     Top performing
                   </h3>
                   <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>
-                    By income - {timeFilter === "year" ? "This Year" : timeFilter === "quarter" ? "This Quarter" : "This Month"}
+                    {topPerformingLabel}
                   </p>
                 </div>
 
@@ -1167,7 +985,7 @@ export default function ClientInsightsPage() {
 
                         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                           <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>
-                            {item.returnRate.toFixed(1)}%
+                            {formatClientPercent(item.returnRate)}
                           </span>
                           <span
                             style={{
@@ -1195,7 +1013,7 @@ export default function ClientInsightsPage() {
   return (
     <Skeleton
       name="client-insights-desktop"
-      loading={isLoading}
+      loading={figuresLoading}
       fallback={<ClientInsightsSkeleton />}
     >
       <div className="desktop-client-dashboard">
@@ -1208,7 +1026,7 @@ export default function ClientInsightsPage() {
         {/* Filter Pills row */}
         <div className="insights-pills-row">
           {[
-            { label: "This Year", val: "year" },
+            { label: "This FY", val: "year" },
             { label: "This Quarter", val: "quarter" },
             { label: "This Month", val: "month" },
           ].map((p) => (
@@ -1227,6 +1045,11 @@ export default function ClientInsightsPage() {
           <p className="entity-wizard-error" style={{ marginBottom: "20px" }}>
             {errorMessage}
           </p>
+        )}
+        {figuresError && (
+          <div style={{ marginBottom: "20px" }}>
+            <RegionError message={figuresError} onRetry={retryFigures} />
+          </div>
         )}
 
         {isWorkspaceEmpty ? (
@@ -1247,17 +1070,19 @@ export default function ClientInsightsPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>
                   <span className="insights-card-title">Net Cash Flow</span>
-                  <div className="insights-card-kicker">Year to date</div>
+                  <div className="insights-card-kicker">{periodLabel} · {COMPARISON_LABEL[timeFilter]}</div>
                 </div>
-                <span
-                  className="trend-badge"
-                  style={{
-                    ...trendBadgeStyle,
-                  }}
-                >
-                  {trendSign}
-                  {displayCashFlowMetrics.trendPercentage.toFixed(1)}%
-                </span>
+                {showTrendBadge && (
+                  <span
+                    className={`trend-badge ${toneClass(trendPercentage)}`}
+                    title={COMPARISON_LABEL[timeFilter]}
+                    style={{
+                      ...trendBadgeStyle,
+                    }}
+                  >
+                    {trendLabel}
+                  </span>
+                )}
               </div>
               <div
                 className="cashflow-value"
@@ -1327,14 +1152,9 @@ export default function ClientInsightsPage() {
               <div className="bar-chart-outer-container">
                 {/* Y-Axis Labels */}
                 <div className="chart-y-axis">
-                  <span>$14k</span>
-                  <span>$12k</span>
-                  <span>$10k</span>
-                  <span>$8k</span>
-                  <span>$6k</span>
-                  <span>$4k</span>
-                  <span>$2k</span>
-                  <span>$0k</span>
+                  {barAxis.ticks.map((tick) => (
+                    <span key={tick}>{formatAxisTick(tick)}</span>
+                  ))}
                 </div>
 
                 {/* Grid and Bars wrapper */}
@@ -1349,10 +1169,9 @@ export default function ClientInsightsPage() {
                   {/* Columns */}
                   <div className="chart-bars-wrap">
                     {displayBarChartData.map((d) => {
-                      // Normalize bar heights. Ensure they fit in 0-14k bounds nicely.
-                      const maxLimit = Math.max(displayMaxMonthSum, 14000);
-                      const incomeHeightPct = d.income > 0 ? (d.income / maxLimit) * 100 : 0;
-                      const expenseHeightPct = d.expense > 0 ? (d.expense / maxLimit) * 100 : 0;
+                      // Scaled to the same rounded top the axis labels show.
+                      const incomeHeightPct = d.income > 0 ? (d.income / barAxis.top) * 100 : 0;
+                      const expenseHeightPct = d.expense > 0 ? (d.expense / barAxis.top) * 100 : 0;
 
                       return (
                         <div key={d.label} className="chart-month-column">
@@ -1392,7 +1211,7 @@ export default function ClientInsightsPage() {
             <div className="insights-card area-expense-breakdown">
               <div style={{ marginBottom: "20px" }}>
                 <h3 className="insights-card-main-title">Expense breakdown</h3>
-                <span className="insights-card-kicker">Where your money goes</span>
+                <span className="insights-card-kicker">Where your money goes · {periodLabel.toLowerCase()}</span>
               </div>
 
               <div className="expense-breakdown-body">
@@ -1465,7 +1284,7 @@ export default function ClientInsightsPage() {
             <div className="insights-card area-top-performing">
               <div style={{ marginBottom: "20px" }}>
                 <h3 className="insights-card-main-title">Top performing</h3>
-                <span className="insights-card-kicker">By income - this year</span>
+                <span className="insights-card-kicker">{topPerformingLabel}</span>
               </div>
 
               <div className="top-performing-list">
@@ -1482,8 +1301,8 @@ export default function ClientInsightsPage() {
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                        <span className="yield-text">{item.returnRate.toFixed(1)}%</span>
-                        <span className="return-value">
+                        <span className="yield-text">{formatClientPercent(item.returnRate)}</span>
+                        <span className={`return-value ${toneClass(item.net)}`}>
                           {formatKCurrency(item.net)}
                         </span>
                       </div>

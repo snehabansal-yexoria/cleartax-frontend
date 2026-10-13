@@ -117,7 +117,8 @@ export default function ClientLoginComponent() {
   const completeLogin = useCallback(
     async (token: string): Promise<string | null> => {
       document.cookie = `idToken=${token}; path=/`;
-      acceptInvitationInBackground(token);
+      // No invitation accept on an ordinary login — only when the invitee
+      // sets their password (the NEW_PASSWORD_REQUIRED path, below).
 
       const meResponse = await fetch("/api/users/me", {
         headers: { Authorization: `Bearer ${token}` },

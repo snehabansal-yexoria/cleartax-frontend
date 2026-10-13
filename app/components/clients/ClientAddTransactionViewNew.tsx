@@ -24,6 +24,7 @@ import {
 } from "@/src/lib/transactionTypes";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { findAssetCategory, firstCategoryOfType } from "@/src/lib/assetCategory";
+import { formatFileSize } from "@/app/components/DocumentsListView";
 import {
   DocumentDropZone,
   type ExtractedDocumentData,
@@ -170,13 +171,13 @@ function StaticSelect({
   const selected = options.find((option) => option.value === value);
 
   const selectRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   useEffect(() => {
     function closeIfAnotherOpened(event: Event) {
@@ -438,7 +439,7 @@ function PropertySelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const optionsListRef = useRef<HTMLDivElement>(null);
 
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -450,7 +451,7 @@ function PropertySelect({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   const filteredOptions = useMemo(() => {
     if (!searchQuery.trim()) return options;
@@ -1103,13 +1104,13 @@ function EntityPropertyHeaderCard({
   const propertyName =
     properties.find((p) => p.id === activePropertyId)?.name || "Not selected";
 
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
     <div
@@ -1396,13 +1397,13 @@ export default function ClientAddTransactionViewNew({
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
   const [activeEntityFilter, setActiveEntityFilter] = useState("all");
 
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   const [isMobile, setIsMobile] = useState(false);
   const [mobileStep, setMobileStep] = useState(1);
@@ -1426,6 +1427,10 @@ export default function ClientAddTransactionViewNew({
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
+  // The category whose fetch produced `subcategories`, set only once that
+  // fetch settles. Until it equals categoryId the list describes some other
+  // category (or none), so nothing may be decided from it.
+  const [subcategoriesFor, setSubcategoriesFor] = useState<number | null>(null);
 
   const pendingRuleRef = useRef<{ categoryId: number; subcategoryId: number } | null>(null);
   const appliedRuleIdRef = useRef<number | null>(null);
@@ -1485,6 +1490,7 @@ export default function ClientAddTransactionViewNew({
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  const [uploadedFileSize, setUploadedFileSize] = useState<number | null>(null);
   // Kept from the upload so "Review & submit" can run the extraction that no
   // longer happens at upload time.
   const [documentS3Key, setDocumentS3Key] = useState<string | null>(null);
@@ -1717,21 +1723,32 @@ export default function ClientAddTransactionViewNew({
   // Load subcategories when category changes.
   useEffect(() => {
     setSubcategories([]);
+    setSubcategoriesFor(null);
     if (!token || !categoryId) {
       setSubcategoryId(null);
       return;
     }
     let cancelled = false;
     async function loadSubcategories() {
-      const res = await fetch(
-        `/api/transactions/categories/${categoryId}/sub-categories`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!res.ok || cancelled) return;
-      const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
+      let loaded: CoreTransactionSubcategory[] = [];
+      try {
+        const res = await fetch(
+          `/api/transactions/categories/${categoryId}/sub-categories`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { items?: CoreTransactionSubcategory[] };
+        loaded = data.items || [];
+      } catch (err) {
+        // Settle on an empty list rather than leaving Save waiting on a load
+        // that will never finish: no picker renders, the save omits
+        // subcategory_id, and the backend resolves the category's default.
+        console.error("Failed to load sub-categories:", err);
+      }
       if (!cancelled) {
-        const loaded = data.items || [];
         setSubcategories(loaded);
+        setSubcategoriesFor(categoryId);
         const pending = pendingRuleRef.current;
         if (pending && pending.categoryId === categoryId) {
           if (loaded.some((s) => s.id === pending.subcategoryId)) {
@@ -1887,9 +1904,10 @@ export default function ClientAddTransactionViewNew({
 
   const gstAmountError = useMemo(() => {
     if (!gstAmount) return "";
+    // 0 is a real GST amount — "GST Free (0%)" sets exactly that.
     const parsed = Number.parseFloat(gstAmount.replace(/[^0-9.]/g, ""));
-    if (Number.isNaN(parsed) || parsed <= 0) {
-      return "GST amount cannot be 0.";
+    if (Number.isNaN(parsed) || parsed < 0) {
+      return "Enter a valid GST amount.";
     }
     return "";
   }, [gstAmount]);
@@ -1900,36 +1918,74 @@ export default function ClientAddTransactionViewNew({
     }
   };
 
-  // Whether this category actually offers a subcategory to choose. Mirrors
-  // showSubcategorySelect further down, which cannot be referenced here — it is
-  // declared after canSubmit in the same scope. Without this a category with no
-  // subcategories configured renders no picker and leaves Save permanently
-  // disabled with nothing on screen explaining why.
-  const hasSubcategoryChoice = subcategories.some(
-    (s) => s.name.toLowerCase() !== "general",
-  );
+  // Whether the list in `subcategories` was loaded for the current category.
+  // On the render where the category changes it still holds the previous
+  // category's rows, and they stay meaningless until the new fetch settles.
+  const subcategoriesReady = !categoryId || subcategoriesFor === categoryId;
 
-  const canSubmit =
-    !hasNoProperties &&
-    !!activeEntityId &&
-    !!type &&
-    (lockAssetPurchaseCategory || !!categoryId) &&
-    (lockAssetPurchaseCategory || !hasSubcategoryChoice || !!subcategoryId) &&
-    !!invoiceDate &&
-    !invoiceDateError &&
-    !!grossAmount &&
-    !grossAmountError &&
-    !gstAmountError &&
-    (!isRegularPayment || !dueDateError) &&
-    !!modeOfTransaction &&
-    (!isAssetPurchase ||
-      (assetClass === "capital_works" ||
-        (assetClass === "capital_allowance" && !!effectiveLifeYears))) &&
-    (isSplit
-      ? splitHasMultipleProperties &&
-      Object.keys(splitErrors).length === 0 &&
-      splitMatches
-      : !!propertyId);
+  // Whether this category actually offers a subcategory to choose — a list
+  // that is empty or holds only "General" does not, and then no picker renders
+  // and the save omits subcategory_id for the backend to resolve. Mirrors
+  // showSubcategorySelect further down, which cannot be referenced here — it is
+  // declared after canSubmit in the same scope. Never read off a list still
+  // belonging to the previous category.
+  const hasSubcategoryChoice =
+    subcategoriesReady &&
+    subcategories.some((s) => s.name.toLowerCase() !== "general");
+
+  // The selected subcategory, only while it is in the list loaded for the
+  // current category. Both save paths send this rather than subcategoryId, so
+  // one category's subcategory can never be posted with another category —
+  // the API rejects that pair ("subcategory does not belong to category").
+  const loadedSubcategoryId =
+    subcategoriesReady &&
+    subcategoryId != null &&
+    subcategories.some((s) => s.id === subcategoryId)
+      ? subcategoryId
+      : null;
+
+  // Every reason Save is disabled, in form order. canSubmit is "none left", and
+  // the first one is printed under the button, so a disabled Save always says
+  // why. Mode of transaction is deliberately absent: its picker was replaced by
+  // the GST select and the API never required it (it is optional metadata).
+  const submitBlockers: string[] = [];
+  if (hasNoProperties) submitBlockers.push("Add a property to this entity first.");
+  if (!activeEntityId) submitBlockers.push("Select an entity.");
+  if (!type) submitBlockers.push("Select a transaction type.");
+  if (!lockAssetPurchaseCategory && !categoryId) submitBlockers.push("Select a category.");
+  // Whether a subcategory is required is only known once the category's list
+  // has loaded. Saving before then would omit subcategory_id, and the backend
+  // never rejects that — it quietly files the default for a category that may
+  // offer a real choice. Waived where the picker is hidden or locked: there the
+  // default is the intended result.
+  if (!lockAssetPurchaseCategory && !hidesSubcategoryPicker(type)) {
+    if (categoryId && !subcategoriesReady) {
+      submitBlockers.push("Loading sub-categories…");
+    } else if (hasSubcategoryChoice && !loadedSubcategoryId) {
+      submitBlockers.push("Select a subcategory.");
+    }
+  }
+  if (!invoiceDate) submitBlockers.push("Enter the invoice date.");
+  else if (invoiceDateError) submitBlockers.push(invoiceDateError);
+  if (!grossAmount) submitBlockers.push("Enter the amount.");
+  else if (grossAmountError) submitBlockers.push(grossAmountError);
+  if (gstAmountError) submitBlockers.push(gstAmountError);
+  if (isRegularPayment && dueDateError) submitBlockers.push(dueDateError);
+  if (isAssetPurchase) {
+    if (assetClass !== "capital_works" && assetClass !== "capital_allowance") {
+      submitBlockers.push("Select the asset class.");
+    } else if (assetClass === "capital_allowance" && !effectiveLifeYears) {
+      submitBlockers.push("Enter the effective life.");
+    }
+  }
+  if (isSplit) {
+    if (!splitHasMultipleProperties) submitBlockers.push("Split across at least two properties.");
+    else if (Object.keys(splitErrors).length > 0) submitBlockers.push("Fix the split rows.");
+    else if (!splitMatches) submitBlockers.push("Split amounts must add up to the total.");
+  } else if (!propertyId) {
+    submitBlockers.push("Select a property.");
+  }
+  const canSubmit = submitBlockers.length === 0;
 
   function updateSplitRow(id: string, patch: Partial<SplitRowState>) {
     setSplitRows((rows) =>
@@ -1999,6 +2055,7 @@ export default function ClientAddTransactionViewNew({
   function handleExtracted(data: ExtractedDocumentData, docId: string, meta?: ExtractedMeta) {
     setDocumentId(docId);
     if (meta?.filename) setUploadedFilename(meta.filename);
+    setUploadedFileSize(meta?.fileSize ?? null);
     const filled = new Set<string>();
 
     const rule = meta?.matchedRule ?? null;
@@ -2070,29 +2127,6 @@ export default function ClientAddTransactionViewNew({
     queueMicrotask(() => setPrefilled(filled));
     window.setTimeout(() => setPrefilled(new Set()), 2200);
   }
-
-  const handleUseSampleReceipt = () => {
-    const mockData: ExtractedDocumentData = {
-      type: "expense",
-      title: "Google Workspace Invoice",
-      description: "Monthly subscription for G Suite / Workspace emails.",
-      vendor: "Google Workspace",
-      payer: activeEntityId ? entities.find(e => e.id === activeEntityId)?.name || "Johnson Family Trust" : "Johnson Family Trust",
-      amount: 120.00,
-      currency: "AUD",
-      gst_included: true,
-      gst_amount: 10.91,
-      date: getLocalDateString(),
-      reference: "INV-9827361",
-    };
-
-    handleExtracted(mockData, "sample-doc-id-123", {
-      filename: "ME.pdf",
-      jobId: "sample-job-id-999",
-    });
-
-    setWizardStep(3);
-  };
 
   /**
    * Runs the extraction that used to fire automatically at upload.
@@ -2178,12 +2212,15 @@ export default function ClientAddTransactionViewNew({
     return null;
   };
 
-  // Fallback categorisation for the quick "Submit to Accountant" path: first
-  // category for the type + its first sub-category (same convention as bulk
-  // import). The accountant re-categorises during review anyway.
-  const resolveDefaultCategory = async (
+  // Fallback categorisation for the quick "Submit to Accountant" path: the
+  // first category for the type (same convention as bulk import). No
+  // subcategory is resolved — the create endpoint fills in the category's
+  // General row when subcategory_id is omitted, so a default category with no
+  // subcategories configured no longer fails the submit. The accountant
+  // re-categorises during review anyway.
+  const resolveDefaultCategoryId = async (
     txnType: CoreTransactionType,
-  ): Promise<{ categoryId: number; subcategoryId: number } | null> => {
+  ): Promise<number | null> => {
     if (!token) return null;
     const catRes = await fetch(
       `/api/transactions/categories?type=${encodeURIComponent(txnType)}`,
@@ -2191,19 +2228,7 @@ export default function ClientAddTransactionViewNew({
     );
     if (!catRes.ok) return null;
     const catData = (await catRes.json()) as { items?: CoreTransactionCategory[] };
-    const category = withoutDedicatedFlowCategories(catData.items || [])[0];
-    if (!category) return null;
-    const subRes = await fetch(
-      `/api/transactions/categories/${category.id}/sub-categories`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (!subRes.ok) return null;
-    const subData = (await subRes.json()) as {
-      items?: CoreTransactionSubcategory[];
-    };
-    const subcategory = subData.items?.[0];
-    if (!subcategory) return null;
-    return { categoryId: category.id, subcategoryId: subcategory.id };
+    return withoutDedicatedFlowCategories(catData.items || [])[0]?.id ?? null;
   };
 
   const submitToAccountant = async () => {
@@ -2228,20 +2253,30 @@ export default function ClientAddTransactionViewNew({
       const effectiveType: CoreTransactionType =
         type === "revenue" ? "revenue" : "expense";
 
-      // Prefer the matched rule's categorisation (applied or still pending),
-      // then whatever is already selected, then the type's default.
-      const pending = pendingRuleRef.current;
-      let resolvedCategoryId = categoryId ?? pending?.categoryId ?? null;
-      let resolvedSubcategoryId = subcategoryId ?? pending?.subcategoryId ?? null;
-      if (!resolvedCategoryId || !resolvedSubcategoryId) {
-        const defaults = await resolveDefaultCategory(effectiveType);
-        resolvedCategoryId = resolvedCategoryId ?? defaults?.categoryId ?? null;
-        resolvedSubcategoryId =
-          resolvedSubcategoryId ?? defaults?.subcategoryId ?? null;
+      // Prefer the form's category (selected, or applied from a matched rule),
+      // then a rule still pending, then the type's default — but only a
+      // category of the type actually being sent. effectiveType folds every
+      // type but revenue into expense, and a cost base category posted as an
+      // expense is rejected ("category type does not match").
+      const ofEffectiveType = (id: number | null) =>
+        id != null &&
+        type === effectiveType &&
+        categories.some((c) => c.id === id && c.type === effectiveType);
+      const pendingCategoryId = pendingRuleRef.current?.categoryId ?? null;
+      let resolvedCategoryId = ofEffectiveType(categoryId)
+        ? categoryId
+        : ofEffectiveType(pendingCategoryId)
+          ? pendingCategoryId
+          : null;
+      if (!resolvedCategoryId) {
+        resolvedCategoryId = await resolveDefaultCategoryId(effectiveType);
       }
-      // Only the category has to resolve. A category with no subcategory
-      // configured leaves resolvedSubcategoryId null, and the backend fills in
-      // that category's default rather than rejecting the save.
+      // Only the category has to resolve. The subcategory goes only with the
+      // category it was picked under, from that category's loaded list; a
+      // default or still-pending category omits it and the backend fills in
+      // the category's General row rather than rejecting the save.
+      const resolvedSubcategoryId =
+        resolvedCategoryId === categoryId ? loadedSubcategoryId : null;
       if (!resolvedCategoryId) {
         setSubmitError(
           "Couldn't pick a category automatically. Use 'Review & Submit' to choose one.",
@@ -2662,12 +2697,6 @@ export default function ClientAddTransactionViewNew({
         setIsSubmitting(false);
         return;
       }
-      if (!modeOfTransaction) {
-        setSubmitError("Please select a mode of transaction.");
-        setIsSubmitting(false);
-        return;
-      }
-
       const grossNum = Number.parseFloat(grossAmount);
       const allBlank = isSplit && splitRows.every((row) => !row.amount || !row.amount.trim());
       if (!allBlank) {
@@ -2687,8 +2716,8 @@ export default function ClientAddTransactionViewNew({
       let gstNum: number | null = null;
       if (gstAmount) {
         const parsed = Number.parseFloat(gstAmount.replace(/[^0-9.]/g, ""));
-        if (Number.isNaN(parsed) || parsed <= 0) {
-          setSubmitError("GST amount cannot be 0.");
+        if (Number.isNaN(parsed) || parsed < 0) {
+          setSubmitError("Enter a valid GST amount.");
           setIsSubmitting(false);
           return;
         }
@@ -2742,7 +2771,9 @@ export default function ClientAddTransactionViewNew({
       }
 
       let resolvedCategoryId = categoryId;
-      let resolvedSubcategoryId = subcategoryId;
+      // Only a subcategory from the list loaded for this category; otherwise
+      // it is omitted and the backend resolves the category's General row.
+      let resolvedSubcategoryId = loadedSubcategoryId;
 
       if (lockAssetPurchaseCategory && (!resolvedCategoryId || !resolvedSubcategoryId)) {
         const selection = await resolveLockedCategorySelection();
@@ -3293,10 +3324,11 @@ export default function ClientAddTransactionViewNew({
               // 3 decides whether extraction ever runs, so paying for it here
               // would waste a Bedrock call on every "Submit to accountant".
               deferExtraction
-              onUploaded={({ documentId: docId, s3Key, filename }) => {
+              onUploaded={({ documentId: docId, s3Key, filename, fileSize }) => {
                 setDocumentId(docId);
                 setDocumentS3Key(s3Key);
                 setUploadedFilename(filename);
+                setUploadedFileSize(fileSize);
                 setWizardStep(3);
               }}
               onExtracted={(data, docId, meta) => {
@@ -3369,25 +3401,6 @@ export default function ClientAddTransactionViewNew({
               }}
             />
           </div>
-
-          {/* Sample Receipt Link */}
-          <button
-            type="button"
-            onClick={handleUseSampleReceipt}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: isDark ? 'var(--accent)' : '#1e3a7a',
-              fontSize: '15px',
-              fontWeight: '600',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              outline: 'none',
-              transition: 'opacity 0.2s ease',
-            }}
-          >
-            No file handy? Use a sample receipt
-          </button>
         </div>
       </section>
     );
@@ -3396,7 +3409,7 @@ export default function ClientAddTransactionViewNew({
   if (wizardStep === 3) {
     const selectedProp = allProperties.find(p => p.id === propertyId);
     const propName = selectedProp?.name || "Selected Property";
-    const fileSizeStr = uploadedFilename === "ME.pdf" ? "6 KB" : "152 KB";
+    const fileSizeStr = uploadedFileSize ? formatFileSize(uploadedFileSize) : "";
 
     return (
       <section className="client-tx-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
@@ -3735,6 +3748,7 @@ export default function ClientAddTransactionViewNew({
                 onReset={() => {
                   setDocumentId(null);
                   setUploadedFilename(null);
+                  setUploadedFileSize(null);
                   appliedRuleIdRef.current = null;
                 }}
               />
@@ -3854,12 +3868,51 @@ export default function ClientAddTransactionViewNew({
                   }}
                 />
               </div>
-              <div aria-hidden="true" />
+              {/* Invoice date. The API requires it, and before this input the
+                  only thing that could set it was OCR — a receipt without a
+                  readable date left Save disabled for good. */}
+              <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <label htmlFor="client-tx-invoice-date" className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                  Invoice date
+                  <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+                </label>
+                <input
+                  id="client-tx-invoice-date"
+                  type="date"
+                  className="client-tx-input"
+                  value={invoiceDate}
+                  max={getLocalDateString()}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  onBlur={() => setInvoiceDateTouched(true)}
+                  style={{
+                    background: isDark ? 'var(--surface-2)' : '#ffffff',
+                    border: `1px solid ${showDateError ? '#da3838' : isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    fontSize: '14.5px',
+                    fontWeight: '500',
+                    color: isDark ? 'var(--text-primary)' : '#1d2939',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    height: '50px',
+                  }}
+                />
+                {showDateError && (
+                  <span className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    {invoiceDateError}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Row 3: Category and Sub-category — unchanged pair. Personal posts
-                to its single seeded category and cost base to a single "General"
-                subcategory, so those pickers are hidden and auto-selected. */}
+            {/* Row 3: Category and Sub-category. Personal posts to its single
+                seeded category and cost base to a single "General"
+                subcategory, so those pickers are hidden and auto-selected.
+                Elsewhere the Sub-category picker appears only once the chosen
+                category's list has loaded with a real choice in it (not just
+                "General"); without it the auto-fit grid lets Category take
+                the whole row. */}
             {!hidesCategoryPicker(type) && (
               <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
                 <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -3869,14 +3922,23 @@ export default function ClientAddTransactionViewNew({
                     placeholder="Select category"
                     value={categoryId == null ? "" : String(categoryId)}
                     options={categorySelectOptions}
-                    onChange={(value) => setCategoryId(value ? Number(value) : null)}
+                    onChange={(value) => {
+                      const nextCategoryId = value ? Number(value) : null;
+                      if (nextCategoryId === categoryId) return;
+                      // A manual pick supersedes a matched rule still waiting
+                      // to apply — otherwise the next category reload would
+                      // put the rule's category back over the user's choice.
+                      // The rule path sets the category directly, never
+                      // through here, so it still fills both fields.
+                      pendingRuleRef.current = null;
+                      setCategoryId(nextCategoryId);
+                      setSubcategoryId(null);
+                    }}
                     disabled={lockAssetPurchaseCategory}
                   />
                 </div>
 
-                {hidesSubcategoryPicker(type) ? (
-                  <div aria-hidden="true" />
-                ) : (
+                {!hidesSubcategoryPicker(type) && showSubcategorySelect && (
                   <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                     <StaticSelect
                       label="Sub-category"
@@ -4332,7 +4394,9 @@ export default function ClientAddTransactionViewNew({
                   height: '50px',
                   boxSizing: 'border-box',
                 }}>
-                  Delete transaction
+                  {/* Nothing is saved yet on this form, so there is nothing to
+                      delete — this only leaves without saving. */}
+                  Discard
                 </Link>
               )}
               <button
@@ -4360,6 +4424,15 @@ export default function ClientAddTransactionViewNew({
                 {isSubmitting ? "Saving transaction..." : "Save transaction"}
               </button>
             </div>
+            {!canSubmit && !isSubmitting && isSelectionComplete && (
+              <div
+                className="client-tx-submit-hint"
+                aria-live="polite"
+                style={{ marginTop: '10px', textAlign: 'right', fontSize: '12.5px', fontWeight: '500', color: isDark ? 'var(--text-muted)' : '#667085' }}
+              >
+                To save: {submitBlockers[0]}
+              </div>
+            )}
 
           </fieldset>
         </form>
@@ -4416,13 +4489,13 @@ function BulkImportModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   useEffect(() => {
     setEntityId(defaultEntityId ?? "");
@@ -4636,13 +4709,13 @@ function TransactionFeedbackModal({
   message: string;
   onClose: () => void;
 }) {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
     <div style={{

@@ -14,6 +14,7 @@ import {
 } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
 import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
+import { gstOutcomeLabel } from "@/app/components/useGstSummary";
 import ValidatedDateInput from "@/app/components/ValidatedDateInput";
 import {
   assetItemName,
@@ -1528,6 +1529,9 @@ export default function PropertyDetailView({
   // Kept as purchases - sales to preserve this modal's existing sign
   // convention, where a positive value reads as a refund from the ATO.
   const refundOrPayment = gstPurchases - gstSales;
+  // The label comes from the server's outcome: the sign above alone reads a
+  // nil period (both zero) as "Refund Due".
+  const gstOutcomeText = gstOutcomeLabel(gstSummary?.outcome ?? "nil");
 
   const gstPeriodLabel = gstSummary?.period.label ?? "";
 
@@ -1589,7 +1593,7 @@ export default function PropertyDetailView({
       `1B,GST on Purchases,${formatGst(gstPurchases)}`,
       `9,Refund / Payment Due,${formatGst(Math.abs(refundOrPayment))}`,
       ``,
-      `${refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"},,${formatGst(Math.abs(refundOrPayment))}`
+      `${gstOutcomeText},,${formatGst(Math.abs(refundOrPayment))}`
     ];
 
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
@@ -4929,7 +4933,7 @@ export default function PropertyDetailView({
                       </svg>
                     )}
                     <span style={{ fontWeight: 700, fontSize: '13px', color: refundOrPayment >= 0 ? '#14532d' : '#7f1d1d' }}>
-                      {refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"}
+                      {gstOutcomeText}
                     </span>
                   </div>
                   <span style={{ fontSize: '11px', color: refundOrPayment >= 0 ? '#15803d' : '#b91c1c', fontWeight: 550 }}>

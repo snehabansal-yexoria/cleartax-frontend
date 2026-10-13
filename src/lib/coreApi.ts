@@ -617,11 +617,15 @@ export interface CoreNotification {
   count: number;
   createdAt: string;
   updatedAt: string;
+  /** When the recipient read it; null while unread. Server-side (0053). */
+  readAt: string | null;
 }
 
 export interface CoreNotificationPage {
   items: CoreNotification[];
   nextCursor: string | null;
+  /** The recipient's total unread, regardless of category / cursor / limit. */
+  unreadCount: number;
 }
 
 function normalizeCoreNotification(raw: RawRecord): CoreNotification {
@@ -645,6 +649,7 @@ function normalizeCoreNotification(raw: RawRecord): CoreNotification {
     count: toNumberValue(raw.count) ?? 1,
     createdAt: toStringValue(raw.created_at),
     updatedAt: toStringValue(raw.updated_at) || toStringValue(raw.created_at),
+    readAt: toStringValue(raw.read_at) || null,
   };
 }
 
@@ -663,6 +668,25 @@ export async function listCoreNotifications(
   return {
     items: getJsonArray(raw.items).map(normalizeCoreNotification),
     nextCursor: toStringValue(raw.next_cursor) || null,
+    unreadCount: toNumberValue(raw.unread_count) ?? 0,
+  };
+}
+
+/**
+ * POST /notifications/read — mark the caller's own notifications read, either
+ * the given ids or everything. The backend only touches the recipient's own
+ * unread rows; someone else's id is silently not counted.
+ */
+export async function markCoreNotificationsRead(
+  token: string,
+  body: { ids: string[] } | { all: true },
+): Promise<{ updated: number; unreadCount: number }> {
+  const raw = getJsonObject(
+    await coreApiRequest("/notifications/read", { method: "POST", token, body }),
+  );
+  return {
+    updated: toNumberValue(raw.updated) ?? 0,
+    unreadCount: toNumberValue(raw.unread_count) ?? 0,
   };
 }
 
@@ -2133,6 +2157,12 @@ export type CoreGstSummary = {
   purchasesNet: number;
   salesCount: number;
   purchasesCount: number;
+  /**
+   * Bills awaiting accountant review that ARE included in the figures above.
+   * null when the backend predates the field — the UI then says nothing rather
+   * than claiming "0 awaiting review".
+   */
+  unreviewedCount: number | null;
 };
 
 export type CoreGstQuery = {
@@ -2219,6 +2249,7 @@ export function normalizeCoreGstSummary(raw: RawRecord): CoreGstSummary {
     salesCount: toNumberValue(raw.sales_count ?? raw.salesCount) ?? 0,
     purchasesCount:
       toNumberValue(raw.purchases_count ?? raw.purchasesCount) ?? 0,
+    unreviewedCount: toNumberValue(raw.unreviewed_count ?? raw.unreviewedCount),
   };
 }
 
@@ -2636,9 +2667,25 @@ export type CorePortfolioSummary = {
   months: CorePortfolioMonth[];
   incomeByCategory: CorePortfolioCategoryLine[];
   expensesByCategory: CorePortfolioCategoryLine[];
+  /**
+   * The category × month matrix the category lines and months are folded
+   * from, so a page can total any window inside the year (this month, this
+   * quarter) without re-summing transactions. Empty from an older backend.
+   */
+  categoryMonths: CorePortfolioCategoryMonth[];
   depreciationByKind: CorePortfolioDepreciationLine[];
   entities: CorePortfolioEntityRow[];
   properties: CorePortfolioPropertyRow[];
+};
+
+export type CorePortfolioCategoryMonth = {
+  categoryId: number;
+  categoryName: string;
+  accountCode: string | null;
+  type: "revenue" | "expense";
+  /** "YYYY-MM" */
+  month: string;
+  amount: number;
 };
 
 /** Unlike toFloatValue, keeps "unknown" distinct from zero. */
@@ -2728,6 +2775,14 @@ export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSumm
     })),
     incomeByCategory: toPortfolioCategoryLines(raw.income_by_category ?? raw.incomeByCategory),
     expensesByCategory: toPortfolioCategoryLines(raw.expenses_by_category ?? raw.expensesByCategory),
+    categoryMonths: toRecordArray(raw.category_months ?? raw.categoryMonths).map((c) => ({
+      categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+      categoryName: toStringValue(c.category_name ?? c.categoryName),
+      accountCode: toNullableString(c.account_code ?? c.accountCode),
+      type: c.type === "revenue" ? "revenue" : "expense",
+      month: toStringValue(c.month),
+      amount: toFloatValue(c.amount),
+    })),
     depreciationByKind: toRecordArray(raw.depreciation_by_kind ?? raw.depreciationByKind).map(
       (d) => ({
         kind: toStringValue(d.kind),
@@ -2778,8 +2833,14 @@ export async function getCorePortfolioSummaryForClient(
   token: string,
   clientId: string,
   financialYear?: number,
+  entityId?: string,
+  propertyId?: string,
 ) {
-  const qs = financialYear ? `?financial_year=${financialYear}` : "";
+  const params = new URLSearchParams();
+  if (financialYear) params.set("financial_year", String(financialYear));
+  if (entityId) params.set("entity_id", entityId);
+  if (propertyId) params.set("property_id", propertyId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
   const payload = await coreApiRequest(
     `/clients/${encodeURIComponent(clientId)}/portfolio-summary${qs}`,
     { token },
@@ -2815,6 +2876,12 @@ export type CorePersonalCategoryTotal = {
 
 export type CorePersonalSummary = {
   scope: { level: CoreGstScopeLevel; id: string; name: string };
+  /**
+   * The window applied when the request named one (same params as the GST
+   * summary). null means ALL TIME — no period asked for, or a backend that
+   * predates period support and ignored it.
+   */
+  period: CoreGstPeriod | null;
   categories: CorePersonalCategoryTotal[];
   totalGross: number;
   totalGst: number;
@@ -2827,12 +2894,27 @@ export function normalizeCorePersonalSummary(
 ): CorePersonalSummary {
   const scope = toRecord(raw.scope);
   const categories = Array.isArray(raw.categories) ? raw.categories : [];
+  const period =
+    raw.period && typeof raw.period === "object"
+      ? (raw.period as RawRecord)
+      : null;
   return {
     scope: {
       level: (toStringValue(scope.level) || "entity") as CoreGstScopeLevel,
       id: toStringValue(scope.id),
       name: toStringValue(scope.name),
     },
+    period: period
+      ? {
+          label: toStringValue(period.label),
+          financialYear:
+            toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+          quarter: toNumberValue(period.quarter) ?? 0,
+          from: toStringValue(period.from),
+          to: toStringValue(period.to),
+          custom: Boolean(period.custom),
+        }
+      : null,
     categories: categories
       .filter((c): c is RawRecord => typeof c === "object" && c !== null)
       .map((c) => ({
@@ -2854,9 +2936,10 @@ export function normalizeCorePersonalSummary(
 export async function getCorePersonalSummaryForProperty(
   token: string,
   propertyId: string,
+  query?: CoreGstQuery,
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/personal-summary`,
+    `/properties/${encodeURIComponent(propertyId)}/personal-summary${gstQueryString(query)}`,
     { token },
   );
   return normalizeCorePersonalSummary(getJsonObject(payload));
@@ -2865,9 +2948,10 @@ export async function getCorePersonalSummaryForProperty(
 export async function getCorePersonalSummaryForEntity(
   token: string,
   entityId: string,
+  query?: CoreGstQuery,
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/personal-summary`,
+    `/entities/${encodeURIComponent(entityId)}/personal-summary${gstQueryString(query)}`,
     { token },
   );
   return normalizeCorePersonalSummary(getJsonObject(payload));
@@ -2876,9 +2960,10 @@ export async function getCorePersonalSummaryForEntity(
 export async function getCorePersonalSummaryForClient(
   token: string,
   clientId: string,
+  query?: CoreGstQuery,
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/personal-summary`,
+    `/clients/${encodeURIComponent(clientId)}/personal-summary${gstQueryString(query)}`,
     { token },
   );
   return normalizeCorePersonalSummary(getJsonObject(payload));

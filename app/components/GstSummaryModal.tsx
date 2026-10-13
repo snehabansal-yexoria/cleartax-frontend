@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSession } from "@/src/lib/session";
 import type { CoreGstScopeLevel, CoreGstSummary } from "@/src/lib/coreApi";
+import { gstOutcomeLabel } from "@/app/components/useGstSummary";
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -168,6 +169,12 @@ export default function GstSummaryModal({
   const totalIncomeVal = summary?.salesNet ?? 0;
   const totalSalesVal = summary?.g1TotalSales ?? 0;
   const refundOrPayment = gstPurchases - gstSales;
+  // The server's outcome decides refund / payment / nil. The sign of
+  // refundOrPayment alone read a nil period (both zero) as a refund.
+  const outcome = summary?.outcome ?? "nil";
+  const isRefund = outcome === "refund_due";
+  const isNil = outcome === "nil";
+  const outcomeLabel = gstOutcomeLabel(outcome);
   const gstPeriodLabel = summary?.period.label ?? "";
 
   const handleExportGstCsv = () => {
@@ -185,7 +192,7 @@ export default function GstSummaryModal({
       `1B,GST on Purchases,${formatGst(gstPurchases)}`,
       `9,Refund / Payment Due,${formatGst(Math.abs(refundOrPayment))}`,
       ``,
-      `${refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"},,${formatGst(Math.abs(refundOrPayment))}`,
+      `${outcomeLabel},,${formatGst(Math.abs(refundOrPayment))}`,
     ];
 
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
@@ -927,12 +934,16 @@ export default function GstSummaryModal({
           {/* Net position Outcome Card */}
           <div
             style={{
-              background:
-                refundOrPayment >= 0
+              background: isNil
+                ? "#f8fafc"
+                : isRefund
                   ? "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)"
                   : "linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)",
-              border:
-                refundOrPayment >= 0 ? "1px solid #bbf7d0" : "1px solid #fecdd3",
+              border: isNil
+                ? "1px solid #e2e8f0"
+                : isRefund
+                  ? "1px solid #bbf7d0"
+                  : "1px solid #fecdd3",
               borderRadius: "12px",
               padding: "16px",
               display: "flex",
@@ -943,13 +954,13 @@ export default function GstSummaryModal({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              {refundOrPayment >= 0 ? (
+              {isRefund || isNil ? (
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
-                  style={{ width: "16px", height: "16px", color: "#16a34a" }}
+                  style={{ width: "16px", height: "16px", color: isNil ? "#64748b" : "#16a34a" }}
                 >
                   <path
                     strokeLinecap="round"
@@ -976,20 +987,22 @@ export default function GstSummaryModal({
                 style={{
                   fontWeight: 700,
                   fontSize: "13px",
-                  color: refundOrPayment >= 0 ? "#14532d" : "#7f1d1d",
+                  color: isNil ? "#334155" : isRefund ? "#14532d" : "#7f1d1d",
                 }}
               >
-                {refundOrPayment >= 0 ? "Refund Due from ATO" : "Payment Due to ATO"}
+                {outcomeLabel}
               </span>
             </div>
             <span
               style={{
                 fontSize: "11px",
-                color: refundOrPayment >= 0 ? "#15803d" : "#b91c1c",
+                color: isNil ? "#64748b" : isRefund ? "#15803d" : "#b91c1c",
                 fontWeight: 550,
               }}
             >
-              {refundOrPayment >= 0
+              {isNil
+                ? `GST on Sales equals GST on Purchases (${formatGst(gstSales)})`
+                : isRefund
                 ? `Formula: GST on Purchases - GST on Sales = ${formatGst(gstPurchases)} - ${formatGst(gstSales)}`
                 : `Formula: GST on Sales - GST on Purchases = ${formatGst(gstSales)} - ${formatGst(gstPurchases)}`}
             </span>
@@ -997,7 +1010,7 @@ export default function GstSummaryModal({
               style={{
                 fontSize: "28px",
                 fontWeight: 800,
-                color: refundOrPayment >= 0 ? "#16a34a" : "#dc2626",
+                color: isNil ? "#334155" : isRefund ? "#16a34a" : "#dc2626",
                 fontVariantNumeric: "tabular-nums",
                 marginTop: "2px",
                 letterSpacing: "-0.02em",

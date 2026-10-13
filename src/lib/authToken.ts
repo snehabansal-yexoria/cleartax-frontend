@@ -74,6 +74,19 @@ function currentUser(): CognitoUser | null {
   return cachedUser;
 }
 
+/**
+ * Keep the `idToken` cookie in step with the session. The login pages set it
+ * once; Cognito id tokens live an hour, so without this every cookie-auth'd
+ * request — the property `<img src="/api/documents/download?key=…">`, which
+ * cannot send an Authorization header, and proxy.ts's role check — started
+ * failing an hour after sign-in even though the session had refreshed.
+ */
+function syncIdTokenCookie(session: CognitoUserSession | null) {
+  if (typeof document === "undefined" || !session) return;
+  const token = session.getIdToken().getJwtToken();
+  if (token) document.cookie = `idToken=${token}; path=/`;
+}
+
 function millisUntilExpiry(session: CognitoUserSession): number {
   return session.getIdToken().getExpiration() * 1000 - Date.now();
 }
@@ -141,7 +154,10 @@ export function getAuthSession(): Promise<CognitoUserSession | null> {
         reject(err instanceof Error ? err : new Error(String(err)));
         return;
       }
-      if (gen === generation) cachedSession = session;
+      if (gen === generation) {
+        cachedSession = session;
+        syncIdTokenCookie(session);
+      }
       resolve(session);
     };
 

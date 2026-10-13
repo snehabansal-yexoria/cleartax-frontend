@@ -6884,3 +6884,89 @@ html.dark [style*="color:#fdfdff"] {
   }
 
 }
+
+/* Signed figures. These classes paint their value green with !important in
+   both themes, so a negative net (e.g. "Avg. Return -151.9%", "Net -A$ 1.0M")
+   rendered green. The value's sign now travels as .is-positive / .is-negative
+   (toneClass() in CurrencyFormatter.tsx), and these rules out-rank the
+   always-green ones selector for selector. */
+.m-db-portfolio-value.is-positive,
+html.dark .m-db-portfolio-value.is-positive {
+  color: var(--success) !important;
+}
+.m-db-portfolio-value.is-negative,
+html.dark .m-db-portfolio-value.is-negative,
+.m-db-property-net.is-negative,
+html.dark .m-db-property-net.is-negative,
+.m-db-entity-net.is-negative,
+html.dark .m-db-entity-net.is-negative,
+.return-value.is-negative,
+html.dark .return-value.is-negative {
+  color: var(--danger) !important;
+}
+
+/* Property page document rows. Their hover is a near-white #f8f9fb, while
+   html.dark forces the file name to white — white on white in dark mode. */
+html.dark .client-doc-row {
+  border-color: var(--border) !important;
+}
+html.dark .client-doc-row:hover {
+  background: var(--surface-2) !important;
+}
+html.dark .trend-badge.is-negative {
+  color: var(--danger) !important;
+}
+
+/* ==========================================================================
+   CLIENT GST SUMMARY DIALOG (ClientGstSummaryModal)
+   A native <dialog> on the client theme tokens: centred on desktop, a bottom
+   sheet on phones that clears the home indicator. Reuses .portfolio-table and
+   .portfolio-pill from the report above.
+   ========================================================================== */
+@layer components {
+  .client-gst-dialog {
+    width: min(640px, calc(100vw - 32px));
+    max-width: none;
+    max-height: min(88dvh, 900px);
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-1);
+    color: var(--text-primary);
+    box-shadow: 0 24px 64px rgba(16, 24, 40, 0.24);
+    overflow: hidden;
+  }
+
+  /* Only while open: a display value on the closed dialog would show it. */
+  .client-gst-dialog[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .client-gst-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  .client-gst-dialog-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .client-gst-dialog {
+      width: 100vw;
+      max-height: 90dvh;
+      margin: auto 0 0;
+      border-width: 1px 0 0;
+      border-radius: 20px 20px 0 0;
+    }
+
+    .client-gst-dialog-body {
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+}

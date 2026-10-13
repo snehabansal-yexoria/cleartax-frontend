@@ -5,15 +5,22 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import { ClientPropertiesSkeleton } from "@/app/components/PortalSkeletons";
-import { getSession } from "@/src/lib/session";
-import { formatCurrencyShort, getCurrencyPrefix, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { getIdToken } from "@/src/lib/authToken";
+import {
+  formatCurrencyShort,
+  formatClientCurrency,
+  formatClientPercent,
+  toneClass,
+} from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
+import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
+import { fetchCurrentUser } from "@/app/components/currentUser";
+import RegionError from "@/app/components/ui/RegionError";
+import {
+  currentFinancialYear,
+  fyShortLabel,
+} from "@/app/components/clients/portfolioDashboard";
+import { propertyImageSrc } from "@/src/lib/propertyImage";
 
 export default function ClientPropertyPage() {
   const router = useRouter();
@@ -23,8 +30,7 @@ export default function ClientPropertyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string } | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
 
   // Search & Filters states
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
@@ -53,61 +59,35 @@ export default function ClientPropertyPage() {
 
     async function load() {
       try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
+        let token: string;
+        try {
+          token = await getIdToken();
+        } catch {
           router.replace("/login/user");
           return;
         }
-        const token = session.getIdToken().getJwtToken();
 
-        // 1. Fetch current user
-        try {
-          const userRes = await fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (userRes.ok) {
-            const data = await userRes.json();
-            if (!cancelled) setCurrentUser(data);
-          }
-        } catch (err) {
-          console.error("Failed to fetch user:", err);
-        }
-
-        // 2. Fetch entities
-        const res = await fetch("/api/entities", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // The user (for the client id the summary is keyed on) and the
+        // entities are independent, so they load together. No transactions:
+        // income / expense come from the Portfolio Summary below.
+        const [userResult, entitiesResult] = await Promise.allSettled([
+          fetchCurrentUser(token),
+          fetch("/api/entities", { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
         if (cancelled) return;
 
-        let loadedEntities: CoreEntity[] = [];
-        if (res.ok) {
-          const data = await res.json();
-          loadedEntities = data.items || [];
-          if (!cancelled) setEntities(loadedEntities);
+        if (userResult.status === "fulfilled") {
+          setClientId(userResult.value.id || null);
+        } else {
+          console.error("Failed to fetch user:", userResult.reason);
         }
 
-        if (cancelled || loadedEntities.length === 0) {
-          if (!cancelled) setIsLoading(false);
-          return;
-        }
-
-        // 3. Extract aggregated properties from nested entities response
-        const allProperties = loadedEntities.flatMap((entity: any) => entity.properties || []);
-        if (!cancelled) setProperties(allProperties);
-
-        if (cancelled) return;
-
-        // 4. Fetch transactions
-        try {
-          const txRes = await fetch("/api/transactions", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (txRes.ok) {
-            const data = await txRes.json();
-            if (!cancelled) setTransactions(data.items || []);
-          }
-        } catch (err) {
-          console.error("Failed to fetch transactions:", err);
+        if (entitiesResult.status === "fulfilled" && entitiesResult.value.ok) {
+          const data = await entitiesResult.value.json();
+          if (cancelled) return;
+          const loadedEntities: CoreEntity[] = data.items || [];
+          setEntities(loadedEntities);
+          setProperties(loadedEntities.flatMap((entity: any) => entity.properties || []));
         }
       } catch (err) {
         console.error("Failed to load property data:", err);
@@ -122,41 +102,33 @@ export default function ClientPropertyPage() {
     };
   }, [router]);
 
-  const propertyListItems = properties.map((prop, idx) => {
+  // Income / expense / net per property come from the Portfolio Summary — the
+  // Reports page's aggregate (gross, each property's share of a split bill,
+  // unreviewed rows excluded, this financial year). They used to be summed in
+  // the browser from one 50-row page of transactions, so any property whose
+  // older rows fell off that page showed too little (or A$ 0).
+  const financialYear = currentFinancialYear();
+  const summaryRegion = usePortfolioSummary(clientId, financialYear);
+  const summary = summaryRegion.data;
+  const summaryRows = new Map((summary?.properties ?? []).map((row) => [row.propertyId, row]));
+
+  const propertyListItems = properties.map((prop) => {
     const ent = entities.find(e => e.id === prop.entityId);
-    const entName = ent ? ent.name : "Individual";
-    const mValue = prop.estimatedMarketValue || 0;
-    const oLoans = prop.loanDetails ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0) : 0;
-
-    const propTxs = transactions.filter(tx => {
-      return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
-    });
-
-    const inc = propTxs
-      .filter(tx => tx.type === "revenue")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    const exp = propTxs
-      .filter(tx => tx.type === "expense")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    const netVal = inc - exp;
-    const statusVal = prop.status || "Rented";
-    const imageUrlVal = prop.imageUrl || null;
+    const row = summaryRows.get(prop.id);
 
     return {
-      id: prop.id,
-      name: prop.name,
-      entityName: entName,
-      marketValue: mValue,
-      outstandingLoans: oLoans,
-      income: inc,
-      expense: exp,
-      net: netVal,
-      status: statusVal,
-      imageUrl: imageUrlVal,
+      id: prop.id as string,
+      name: prop.name as string,
+      entityName: ent ? ent.name : "Individual",
+      marketValue: Number(prop.estimatedMarketValue) || 0,
+      income: row ? row.income : null,
+      expense: row ? row.expenses : null,
+      // Net after depreciation, as on the Reports page.
+      net: row ? row.netResult : null,
+      status: (prop.status as string) || "Rented",
+      imageUrl: (prop.imageUrl as string) || null,
       isReal: true,
-      entityId: prop.entityId,
+      entityId: prop.entityId as string,
     };
   });
 
@@ -176,11 +148,12 @@ export default function ClientPropertyPage() {
 
   // Calculate portfolio stats
   const portfolioValueSum = filteredProperties.reduce((sum, p) => sum + p.marketValue, 0);
-  const portfolioNetSum = filteredProperties.reduce((sum, p) => sum + p.net, 0);
-  const calculatedReturnRate = portfolioValueSum > 0 ? (portfolioNetSum / portfolioValueSum) * 100 : 0;
+  const portfolioNetSum = filteredProperties.reduce((sum, p) => sum + (p.net ?? 0), 0);
 
-  // Calculate average return rate
-  const portfolioAvgReturn = calculatedReturnRate;
+  // Net result this financial year over recorded value; null (shown "—")
+  // until the summary arrives or when there is no value to divide by.
+  const portfolioAvgReturn =
+    summary && portfolioValueSum > 0 ? (portfolioNetSum / portfolioValueSum) * 100 : null;
 
   // Entities list for properties filter row
   const propertiesEntityPills = [
@@ -199,7 +172,7 @@ export default function ClientPropertyPage() {
   return (
     <Skeleton
       name="client-property-page-skeleton"
-      loading={isLoading}
+      loading={isLoading || (clientId !== null && summaryRegion.status === "loading" && !summary)}
       fallback={<ClientPropertiesSkeleton />}
     >
         <div
@@ -261,7 +234,8 @@ export default function ClientPropertyPage() {
               </div>
               <input
                 type="text"
-                placeholder="Search Transactions"
+                placeholder="Search properties"
+                aria-label="Search properties"
                 value={propertySearchQuery}
                 onChange={(e) => setPropertySearchQuery(e.target.value)}
                 style={{
@@ -307,16 +281,26 @@ export default function ClientPropertyPage() {
               })}
             </div>
 
+            {summaryRegion.status === "error" && (
+              <div style={{ marginBottom: "16px" }}>
+                <RegionError
+                  message={`Couldn't load income and expenses. ${summaryRegion.error ?? ""}`.trim()}
+                  onRetry={summaryRegion.reload}
+                />
+              </div>
+            )}
+
             {/* Portfolio Stats Summary Card */}
             <div className="m-db-portfolio-summary-card">
               <div className="m-db-portfolio-col">
                 <span className="m-db-portfolio-label">Portfolio Value</span>
                 <span className="m-db-portfolio-value">{formatCurrencyShort(portfolioValueSum)}</span>
               </div>
-              <div className="m-db-portfolio-col divider-left">
+              <div className="m-db-portfolio-col divider-left" title={`Net result ${fyShortLabel(financialYear)} ÷ portfolio value`}>
                 <span className="m-db-portfolio-label">Avg. Return</span>
-                <span className="m-db-portfolio-value green-text">
-                  {portfolioAvgReturn.toFixed(1)}%
+                {/* Red when negative — this was always green, even at -151.9%. */}
+                <span className={`m-db-portfolio-value ${toneClass(portfolioAvgReturn)}`}>
+                  {portfolioAvgReturn != null ? formatClientPercent(portfolioAvgReturn) : "—"}
                 </span>
               </div>
               <div className="m-db-portfolio-col divider-left">
@@ -333,15 +317,10 @@ export default function ClientPropertyPage() {
             ) : (
               <div className="property-cards-container">
                 {filteredProperties.map((prop, idx) => {
-                  const formattedExpense = formatClientCurrency(-prop.expense, { short: true });
+                  const formattedExpense = prop.expense != null ? formatClientCurrency(-prop.expense, { short: true }) : "—";
                   const isImageBroken = brokenImages[prop.id];
-                  const hasImageUrl = prop.imageUrl && prop.imageUrl !== "null" && prop.imageUrl !== "undefined" && prop.imageUrl.trim() !== "";
-
-                  const imgTargetSrc = hasImageUrl
-                    ? (prop.imageUrl.startsWith("http") || prop.imageUrl.startsWith("/")
-                      ? prop.imageUrl
-                      : `/api/documents/download?key=${encodeURIComponent(prop.imageUrl)}`)
-                    : "";
+                  const imgTargetSrc = propertyImageSrc(prop.imageUrl);
+                  const hasImageUrl = imgTargetSrc !== null;
 
                   return (
                     <div
@@ -352,7 +331,7 @@ export default function ClientPropertyPage() {
                       <div className="m-db-property-img-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {hasImageUrl && !isImageBroken ? (
                           <img
-                            src={imgTargetSrc}
+                            src={imgTargetSrc ?? undefined}
                             alt={prop.name}
                             className="m-db-property-img"
                             onError={() => setBrokenImages(prev => ({ ...prev, [prop.id]: true }))}
@@ -385,7 +364,7 @@ export default function ClientPropertyPage() {
                           <div>
                             <span className="m-db-property-stat-label">Income </span>
                             <span className="m-db-property-stat-value income">
-                              {formatClientCurrency(prop.income, { short: true, showPlus: true })}
+                              {prop.income != null ? formatClientCurrency(prop.income, { short: true, showPlus: true }) : "—"}
                             </span>
                           </div>
                           <div>
@@ -400,8 +379,11 @@ export default function ClientPropertyPage() {
                           <span className={`m-db-property-badge ${getStatusClass(prop.status)}`}>
                             {prop.status}
                           </span>
-                          <span className="m-db-property-net">
-                            Net <span style={{ fontWeight: 700 }}>{formatClientCurrency(prop.net, { short: true, showPlus: true })}</span>
+                          <span
+                            className={`m-db-property-net ${toneClass(prop.net)}`}
+                            title={`Net result, ${fyShortLabel(financialYear)}`}
+                          >
+                            Net <span style={{ fontWeight: 700 }}>{prop.net != null ? formatClientCurrency(prop.net, { short: true, showPlus: true }) : "—"}</span>
                           </span>
                         </div>
                       </div>

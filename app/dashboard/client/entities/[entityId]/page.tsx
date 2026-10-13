@@ -15,7 +15,7 @@ export default function ClientEntityDetailPage() {
       addPropertyHref={`/dashboard/client/entities/${entityId}/properties/new`}
       addTransactionHref={`/dashboard/client/entities/${entityId}/transactions/new`}
       editEntityHref={`/dashboard/client/entities/${entityId}/edit`}
-      propertyDetailHrefBase={`/dashboard/client/entities/${entityId}/properties`}
+      propertyDetailHrefBase="/dashboard/client/properties"
     />
   );
 }
