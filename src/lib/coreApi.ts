@@ -3106,6 +3106,34 @@ export async function getCoreTransactionFacets(
   };
 }
 
+// GET /transactions/totals — Income and Expense totals for exactly the set a
+// list query describes (same scope, filters and review tab), minus its `type`
+// filter: the two figures are themselves the type split. Each sums the amount
+// the list rows display, so the cards above a list equal the rows below it.
+export type CoreTransactionTotals = {
+  income: number;
+  expense: number;
+  incomeCount: number;
+  expenseCount: number;
+};
+
+export async function getCoreTransactionTotals(
+  token: string,
+  query: CoreTransactionListQuery = {},
+): Promise<CoreTransactionTotals> {
+  const payload = await coreApiRequest(
+    `/transactions/totals${transactionListQueryString({ ...query, limit: undefined, offset: undefined })}`,
+    { token },
+  );
+  const record = getJsonObject(payload);
+  return {
+    income: toNumberValue(record.income) ?? 0,
+    expense: toNumberValue(record.expense) ?? 0,
+    incomeCount: toNumberValue(record.income_count ?? record.incomeCount) ?? 0,
+    expenseCount: toNumberValue(record.expense_count ?? record.expenseCount) ?? 0,
+  };
+}
+
 export type CoreTransactionExportFormat = "csv" | "xlsx" | "pdf";
 
 // Returns the upstream Response untouched so the BFF can stream the body
