@@ -17,22 +17,12 @@ interface CashFlowChartProps {
   title?: string;
   subtitle?: string;
   showViewDetail?: boolean;
+  /** Real category totals for the detail modal; empty shows "Nothing recorded yet". */
   expenseCategories?: CategoryItem[];
   incomeSources?: CategoryItem[];
+  /** The window the category lists cover, e.g. "FY 2025–26". */
+  detailPeriodLabel?: string;
 }
-
-const DEFAULT_EXPENSE_CATEGORIES: CategoryItem[] = [
-  { name: "Loan Interest", amount: 2180 },
-  { name: "Maintenance", amount: 1340 },
-  { name: "Council Rates", amount: 960 },
-  { name: "Insurance", amount: 640 },
-  { name: "Water & Utilities", amount: 260 },
-];
-
-const DEFAULT_INCOME_SOURCES: CategoryItem[] = [
-  { name: "Rental Income", amount: 4200 },
-  { name: "Other Rental Income", amount: 3800 },
-];
 
 export default function CashFlowChart({
   months,
@@ -43,8 +33,9 @@ export default function CashFlowChart({
   title = "Cash Flow",
   subtitle = "Income vs expense",
   showViewDetail = true,
-  expenseCategories = DEFAULT_EXPENSE_CATEGORIES,
-  incomeSources = DEFAULT_INCOME_SOURCES,
+  expenseCategories = [],
+  incomeSources = [],
+  detailPeriodLabel,
 }: CashFlowChartProps) {
   const [internalView, setInternalView] = useState<'graph' | 'table'>('graph');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,8 +62,8 @@ export default function CashFlowChart({
   const dataMax = Math.max(...income, ...expenses, 1);
 
   const formatYLabel = (val: number) => {
-    if (val >= 1000) return `$${(val / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-    return `$${val}`;
+    if (val >= 1000) return `A$${(val / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return `A$${val}`;
   };
 
   // Stacked chart calculation for mobile
@@ -259,7 +250,7 @@ export default function CashFlowChart({
                         <span className="dot">●</span> {formatClientCurrency(exp)}
                       </td>
                       <td className={isPositive ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                        {isPositive ? "+" : "-"}{formatClientCurrency(Math.abs(net))}
+                        {formatClientCurrency(net, { showPlus: true })}
                       </td>
                     </tr>
                   );
@@ -274,7 +265,7 @@ export default function CashFlowChart({
                       <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalIncome)}</td>
                       <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalExpense)}</td>
                       <td className={netTotal >= 0 ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                        {netTotal >= 0 ? "+" : "-"}{formatClientCurrency(Math.abs(netTotal))}
+                        {formatClientCurrency(netTotal, { showPlus: true })}
                       </td>
                     </tr>
                   );
@@ -438,7 +429,7 @@ export default function CashFlowChart({
                             <span className="dot">●</span> {formatClientCurrency(exp)}
                           </td>
                           <td className={isPositive ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                            {isPositive ? "+" : "-"}{formatClientCurrency(Math.abs(net))}
+                            {formatClientCurrency(net, { showPlus: true })}
                           </td>
                         </tr>
                       );
@@ -453,7 +444,7 @@ export default function CashFlowChart({
                           <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalIncome)}</td>
                           <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalExpense)}</td>
                           <td className={netTotal >= 0 ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                            {netTotal >= 0 ? "+" : "-"}{formatClientCurrency(Math.abs(netTotal))}
+                            {formatClientCurrency(netTotal, { showPlus: true })}
                           </td>
                         </tr>
                       );
@@ -469,7 +460,7 @@ export default function CashFlowChart({
             {/* Details Lists (Desktop: Side-by-Side 2-Columns) */}
             <div className="flex flex-col gap-4 text-left w-full select-none">
               <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-xs font-semibold">
-                Top categories driving this month's activity across your whole portfolio.
+                {detailPeriodLabel ? `Top categories for ${detailPeriodLabel} across your whole portfolio.` : "Top categories across your whole portfolio."}
               </span>
 
               <div className="flex flex-row gap-8 w-full mt-2">
@@ -479,6 +470,7 @@ export default function CashFlowChart({
                     TOP 5 EXPENSE CATEGORIES
                   </span>
                   <div className="flex flex-col gap-2">
+                    {expenseCategories.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {expenseCategories.map((item, idx) => (
                       <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#14172E] dark:text-white py-1">
                         <div className="flex items-center gap-3">
@@ -499,6 +491,7 @@ export default function CashFlowChart({
                     TOP INCOME SOURCES
                   </span>
                   <div className="flex flex-col gap-2">
+                    {incomeSources.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {incomeSources.map((item, idx) => (
                       <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#14172E] dark:text-white py-1">
                         <div className="flex items-center gap-3">
@@ -598,7 +591,7 @@ export default function CashFlowChart({
             {/* Mobile Categories lists stacked vertically */}
             <div className="flex flex-col gap-4 text-left w-full select-none max-h-[220px] overflow-y-auto pr-1">
               <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[10px] font-semibold">
-                Top categories driving this month's activity across your whole portfolio.
+                {detailPeriodLabel ? `Top categories for ${detailPeriodLabel} across your whole portfolio.` : "Top categories across your whole portfolio."}
               </span>
 
               {/* Expense Categories */}
@@ -606,7 +599,8 @@ export default function CashFlowChart({
                 <span className="text-[9px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                   TOP 5 EXPENSE CATEGORIES
                 </span>
-                {expenseCategories.map((item, idx) => (
+                {expenseCategories.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
+                    {expenseCategories.map((item, idx) => (
                   <div key={`mob-exp-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#14172E] dark:text-white py-0.5">
                     <div className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
@@ -624,7 +618,8 @@ export default function CashFlowChart({
                 <span className="text-[9px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                   TOP INCOME SOURCES
                 </span>
-                {incomeSources.map((item, idx) => (
+                {incomeSources.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
+                    {incomeSources.map((item, idx) => (
                   <div key={`mob-inc-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#14172E] dark:text-white py-0.5">
                     <div className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">

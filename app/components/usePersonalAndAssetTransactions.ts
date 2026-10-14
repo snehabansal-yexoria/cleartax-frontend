@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getIdToken } from "@/src/lib/authToken";
+import { GST_FULL_YEAR } from "./useGstSummary";
 import type {
   CoreGstScopeLevel,
   CorePersonalSummary,
@@ -68,9 +69,20 @@ export type UsePersonalSummaryResult = {
 export function usePersonalSummary(
   level: CoreGstScopeLevel,
   id: string,
-  options: { enabled?: boolean } = {},
+  options: {
+    enabled?: boolean;
+    /**
+     * Narrow to a BAS period (the GST card's). Omitted = all time, which is
+     * what the accountant panels show. quarter 0 (GST_FULL_YEAR) is the whole
+     * financial year.
+     */
+    period?: { financialYear: number; quarter: number };
+  } = {},
 ): UsePersonalSummaryResult {
   const enabled = options.enabled ?? true;
+  // Primitives, not the object, so a fresh literal each render doesn't refetch.
+  const periodYear = options.period?.financialYear ?? null;
+  const periodQuarter = options.period?.quarter ?? null;
   const [summary, setSummary] = useState<CorePersonalSummary | null>(null);
   // Loading from the first frame whenever a fetch will happen (see useGstSummary).
   const [isLoading, setIsLoading] = useState(() => enabled && !!id);
@@ -82,7 +94,15 @@ export function usePersonalSummary(
     setError(null);
     try {
       const token = await bearerToken();
-      const res = await fetch(`${scopePath(level, id)}/personal-summary`, {
+      const params = new URLSearchParams();
+      if (periodYear !== null) {
+        params.set("financial_year", String(periodYear));
+        if (periodQuarter !== null && periodQuarter !== GST_FULL_YEAR) {
+          params.set("quarter", String(periodQuarter));
+        }
+      }
+      const qs = params.toString();
+      const res = await fetch(`${scopePath(level, id)}/personal-summary${qs ? `?${qs}` : ""}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -103,7 +123,7 @@ export function usePersonalSummary(
     } finally {
       setIsLoading(false);
     }
-  }, [enabled, level, id]);
+  }, [enabled, level, id, periodYear, periodQuarter]);
 
   useEffect(() => {
     void load();

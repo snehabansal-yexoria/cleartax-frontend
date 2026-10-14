@@ -1,18 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { getAuthSession, idTokenClaim } from "@/src/lib/authToken";
+import { useEffect, useState } from "react";
 import {
   CATEGORY_FILTERS,
   fetchNotifications,
   formatFullTime,
   formatRelativeTime,
-  isNewSince,
-  newestUpdatedAt,
+  isUnread,
+  markNotificationsRead,
   notificationHref,
-  readSeenAt,
-  writeSeenAt,
+  READ_EVENT,
+  withRead,
   type NotificationItem,
   type NotificationViewerRole,
 } from "./notificationClient";
@@ -33,9 +32,8 @@ export default function NotificationsFeed({ role }: { role: NotificationViewerRo
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  // Seen marker as it stood when the page opened: those rows get the dot.
-  const [seenAt, setSeenAt] = useState<number | null>(null);
-  const viewerRef = useRef("");
+  // The viewer's unread total (server read state), for "Mark all read".
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // First page for the current filter. Status is set to "loading" by whatever
   // changed the filter, so this effect only sets state after the fetch.
@@ -50,15 +48,10 @@ export default function NotificationsFeed({ role }: { role: NotificationViewerRo
         });
         if (controller.signal.aborted) return;
 
-        // Opening the full list counts as seeing it, which clears the bell.
-        if (!viewerRef.current) {
-          const email = idTokenClaim(await getAuthSession(), "email");
-          viewerRef.current = typeof email === "string" ? email : "";
-        }
-        const viewer = viewerRef.current;
-        setSeenAt((prev) => (prev === null ? readSeenAt(viewer) : prev));
-        if (category === "") writeSeenAt(viewer, newestUpdatedAt(page.items));
-
+        // Opening the page no longer marks anything: unread rows keep their
+        // dot until they are opened or "Mark all read" is pressed, and that
+        // state is the server's, so it is the same on every device.
+        setUnreadCount(page.unreadCount);
         setItems(page.items);
         setCursor(page.nextCursor);
         setStatus("ready");
@@ -76,6 +69,31 @@ export default function NotificationsFeed({ role }: { role: NotificationViewerRo
     setCursor(null);
     setMoreError(false);
     setCategory(value);
+  }
+
+  // The bell marked something read: follow it.
+  useEffect(() => {
+    function sync(event: Event) {
+      const detail = (event as CustomEvent<{
+        unreadCount: number;
+        target: { ids: string[] } | { all: true };
+      }>).detail;
+      if (!detail) return;
+      setUnreadCount(detail.unreadCount);
+      setItems((current) => withRead(current, detail.target));
+    }
+    window.addEventListener(READ_EVENT, sync);
+    return () => window.removeEventListener(READ_EVENT, sync);
+  }, []);
+
+  // Optimistic; a failure is only logged — the next load shows the truth.
+  function markRead(target: { ids: string[] } | { all: true }) {
+    setItems((current) => withRead(current, target));
+    if ("all" in target) setUnreadCount(0);
+    else setUnreadCount((c) => Math.max(0, c - target.ids.length));
+    markNotificationsRead(target).catch((err) => {
+      console.warn("Could not mark notifications read:", err);
+    });
   }
 
   function retry() {
@@ -103,7 +121,14 @@ export default function NotificationsFeed({ role }: { role: NotificationViewerRo
   return (
     <div className="notif-page">
       <header className="notif-page-head">
-        <h1>Notifications</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+          <h1>Notifications</h1>
+          {unreadCount > 0 && (
+            <button type="button" className="notif-button" onClick={() => markRead({ all: true })}>
+              Mark all read
+            </button>
+          )}
+        </div>
         <p>
           {role === "client"
             ? "Changes your accountant makes to your properties, entities and transactions."
@@ -167,7 +192,7 @@ export default function NotificationsFeed({ role }: { role: NotificationViewerRo
               <ul className="notif-list">
                 {g.items.map((n) => {
                   const href = notificationHref(n, role);
-                  const fresh = seenAt !== null && isNewSince(n, seenAt);
+                  const fresh = isUnread(n);
                   const content = (
                     <>
                       <span className={`notif-dot${fresh ? " is-new" : ""}`} aria-hidden="true" />
@@ -186,13 +211,19 @@ export default function NotificationsFeed({ role }: { role: NotificationViewerRo
                         <button
                           type="button"
                           className="notif-row notif-row-page notif-row-action"
-                          onClick={() => router.push(href)}
+                          onClick={() => {
+                            if (fresh) markRead({ ids: [n.id] });
+                            router.push(href);
+                          }}
                         >
                           {fresh && <span className="sr-only">New: </span>}
                           {content}
                         </button>
                       ) : (
-                        <div className="notif-row notif-row-page">
+                        <div
+                          className="notif-row notif-row-page"
+                          onClick={fresh ? () => markRead({ ids: [n.id] }) : undefined}
+                        >
                           {fresh && <span className="sr-only">New: </span>}
                           {content}
                         </div>

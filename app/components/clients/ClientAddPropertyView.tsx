@@ -265,12 +265,14 @@ export default function ClientAddPropertyView({
   entityId,
   onSuccessUrl = "/dashboard/client/properties",
 }: ClientAddPropertyViewProps = {}) {
-  const { theme } = useTheme();
+  // resolvedTheme, not theme: under "system" the class on <html> can be dark
+  // while theme reads "system", which left inputs white-on-white.
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
 
   const router = useRouter();

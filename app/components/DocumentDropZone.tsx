@@ -44,6 +44,8 @@ export type MatchedRule = {
 export type ExtractedMeta = {
   filename: string;
   jobId: string;
+  /** Bytes, from the browser's File. */
+  fileSize?: number;
   matchedRule?: MatchedRule | null;
 };
 
@@ -64,6 +66,8 @@ export type UploadedDocumentInfo = {
   s3Key: string;
   filename: string;
   jobId: string;
+  /** Bytes, from the browser's File. */
+  fileSize: number;
 };
 
 export function DocumentDropZone({
@@ -212,6 +216,7 @@ export function DocumentDropZone({
       const presignParams = new URLSearchParams({
         filename: file.name,
         document_type: "transaction",
+        file_size: String(file.size),
       });
       if (scope?.entityId) presignParams.set("entity_id", scope.entityId);
       // Presign cross-checks the two against each other and 400s on a
@@ -296,6 +301,7 @@ export function DocumentDropZone({
           s3Key: s3_key,
           filename: file.name,
           jobId,
+          fileSize: file.size,
         });
         setProgress(100);
         setStatus("done");
@@ -347,6 +353,7 @@ export function DocumentDropZone({
       onExtracted(result.data ?? {}, document_id, {
         filename: file.name,
         jobId,
+        fileSize: file.size,
         matchedRule: result.matched_rule ?? null,
       });
       upsertDocumentProcessingJob({

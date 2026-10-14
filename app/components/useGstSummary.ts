@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getIdToken } from "@/src/lib/authToken";
-import type { CoreGstScopeLevel, CoreGstSummary } from "@/src/lib/coreApi";
+import type {
+  CoreGstOutcome,
+  CoreGstScopeLevel,
+  CoreGstSummary,
+} from "@/src/lib/coreApi";
 
 /**
  * Single source of truth for GST figures across the property, entity and client
@@ -45,6 +49,22 @@ export function auQuarterOf(date: Date): number {
   if (m >= 9) return 2; // Oct–Dec
   if (m <= 2) return 3; // Jan–Mar
   return 4; // Apr–Jun
+}
+
+/**
+ * BAS label 9 in words, from the SERVER's outcome. Never re-derive it from the
+ * sign of (purchases - sales) on the client: that reads a nil period as a
+ * refund.
+ */
+export function gstOutcomeLabel(outcome: CoreGstOutcome): string {
+  switch (outcome) {
+    case "payment_due":
+      return "Payment due to ATO";
+    case "refund_due":
+      return "Refund due from ATO";
+    default:
+      return "Nil — nothing to pay or claim";
+  }
 }
 
 /** Six years back covers any period still amendable with the ATO. */

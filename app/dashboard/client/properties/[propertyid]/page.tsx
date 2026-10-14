@@ -11,6 +11,18 @@ import { affectsPnl } from "@/src/lib/transactionTypes";
 import type { CoreProperty, CoreEntity, CorePropertyTransactionRow } from "@/src/lib/coreApi";
 import PropertyTrendChart from "@/app/components/clients/PropertyTrendChart";
 import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
+import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
+import ClientSegmentedTabs, {
+  SegmentedTabPanel,
+  segmentedPanelProps,
+} from "@/app/components/clients/ClientSegmentedTabs";
+import { currentFinancialYear } from "@/app/components/clients/portfolioDashboard";
+import ClientScopedReport from "@/app/components/reports/portfolio/ClientScopedReport";
+import {
+  clientReportHref,
+  useReportSearchParams,
+  type ReportTab,
+} from "@/app/components/reports/portfolio/useReportSearchParams";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -109,6 +121,18 @@ export default function ClientPropertyDetailPage() {
   const propertyId = params?.propertyid ?? "";
 
   const [isMobile, setIsMobile] = useState(false);
+  // Phones: Overview | Reporting inside the page (`?tab=reporting`, `?fy=`).
+  // Desktop links to the Reports page instead and ignores the tab.
+  const {
+    tab: reportTab,
+    financialYear: reportYear,
+    setTab: setReportTab,
+    setFinancialYear: setReportYear,
+  } = useReportSearchParams();
+  const switchTab = (next: ReportTab) => {
+    setReportTab(next);
+    window.scrollTo({ top: 0 });
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [entity, setEntity] = useState<CoreEntity | null>(null);
@@ -340,11 +364,11 @@ export default function ClientPropertyDetailPage() {
   }, [maxTrendAmount]);
 
   const formatYAxisTick = (val: number) => {
-    if (val === 0) return "$0k";
+    if (val === 0) return "A$0";
     if (val >= 1000) {
-      return `$${(val / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+      return `A$${(val / 1000).toFixed(1).replace(/\.0$/, "")}k`;
     }
-    return `$${Math.round(val)}`;
+    return `A$${Math.round(val)}`;
   };
 
   // Recent transactions (top 3)
@@ -482,15 +506,39 @@ export default function ClientPropertyDetailPage() {
 
           {/* Edit button */}
           <Link
-            href={`/dashboard/client/entities/${property.entityId}/properties/${property.id}/edit`}
+            href={`/dashboard/client/properties/${property.id}/edit`}
             className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
           >
             Edit
           </Link>
         </div>
 
-        {/* Content Area */}
-        <div className="p-4 flex flex-col gap-4 pb-28">
+        <div className="px-4 pt-4">
+          <ClientSegmentedTabs
+            idBase="property-detail"
+            label="Property sections"
+            tabs={[
+              { id: "overview", label: "Overview" },
+              { id: "reporting", label: "Reporting" },
+            ]}
+            value={reportTab}
+            onChange={switchTab}
+          />
+        </div>
+
+        {reportTab === "reporting" ? (
+          <SegmentedTabPanel idBase="property-detail" tabId="reporting" className="p-4 pb-28">
+            {/* Mounted only while open — the page's one portfolio request. */}
+            <ClientScopedReport
+              propertyId={propertyId}
+              variant="embedded"
+              financialYear={reportYear ?? currentFinancialYear()}
+              onFinancialYearChange={setReportYear}
+            />
+          </SegmentedTabPanel>
+        ) : (
+        /* Content Area */
+        <div className="p-4 flex flex-col gap-4 pb-28" {...segmentedPanelProps("property-detail", "overview")}>
           {/* Hero Blue Card */}
           <div
             className="rounded-3xl p-5 text-white flex flex-col gap-5 shadow-lg relative overflow-hidden"
@@ -701,7 +749,7 @@ export default function ClientPropertyDetailPage() {
                         </div>
                       </div>
                       <span className={`text-xs font-extrabold ${isIncome ? "text-[#16a34a]" : "text-[#e53e3e]"}`}>
-                        {isIncome ? "+" : "-"}{formatCurrency(amount)}
+                        {formatCurrency(isIncome ? amount : -amount, true)}
                       </span>
                     </div>
                   );
@@ -713,6 +761,10 @@ export default function ClientPropertyDetailPage() {
               </div>
             )}
           </div>
+
+          {/* GST Summary: this property's share of each bill, with personal
+              spending. Desktop has the same card — keep the two in step. */}
+          <ClientGstSummaryCard level="property" id={propertyId} scopeName={property.name} />
 
           {/* Depreciation.
               Above Documents on purpose: the generated schedules also appear in
@@ -762,7 +814,7 @@ export default function ClientPropertyDetailPage() {
                     <div
                       key={doc.id}
                       onClick={() => handleDownload(doc.id, doc.original_file_name)}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
+                      className="client-doc-row flex items-center justify-between p-2.5 rounded-xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-[#eaeef4]/60 text-[#1b2559] flex items-center justify-center shrink-0">
@@ -808,6 +860,7 @@ export default function ClientPropertyDetailPage() {
             </div>
           </div>
         </div>
+        )}
       </div>
     );
   };
@@ -845,10 +898,31 @@ export default function ClientPropertyDetailPage() {
               <p className="text-white/80 text-base font-medium">{entity?.name || "Individual"}</p>
             </div>
 
+            <div className="self-start flex items-center gap-2">
+            {/* Reports: this property's Portfolio Summary on the Reports page */}
+            <Link
+              href={clientReportHref({ entityId: property.entityId, propertyId: property.id })}
+              className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4"
+                aria-hidden="true"
+              >
+                <path d="M3 3v18h18" />
+                <path d="M7 15l4-4 3 3 5-6" />
+              </svg>
+              Reports
+            </Link>
             {/* Edit button */}
             <Link
-              href={`/dashboard/client/entities/${property.entityId}/properties/${property.id}/edit`}
-              className="self-start flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
+              href={`/dashboard/client/properties/${property.id}/edit`}
+              className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -864,6 +938,7 @@ export default function ClientPropertyDetailPage() {
               </svg>
               Edit
             </Link>
+            </div>
           </div>
 
           {/* Metric Cards Overlay */}
@@ -1046,7 +1121,7 @@ export default function ClientPropertyDetailPage() {
                         </div>
                       </div>
                       <span className={`text-sm font-extrabold ${isIncome ? "text-[#16a34a]" : "text-[#e53e3e]"}`}>
-                        {isIncome ? "+" : "-"}{formatCurrency(amount)}
+                        {formatCurrency(isIncome ? amount : -amount, true)}
                       </span>
                     </div>
                   );
@@ -1059,6 +1134,10 @@ export default function ClientPropertyDetailPage() {
             )}
           </div>
 
+          {/* Row 2, Col 2: GST Summary — this property's share of each bill,
+              with personal spending. The mobile view has the same card. */}
+          <ClientGstSummaryCard level="property" id={propertyId} scopeName={property.name} />
+
           {/* Row 3, Col 1: Depreciation */}
           <ClientDepreciationCard
             level="property"
@@ -1066,7 +1145,7 @@ export default function ClientPropertyDetailPage() {
             assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
           />
 
-          {/* Row 2, Col 2: Documents */}
+          {/* Row 3, Col 2: Documents */}
           <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-[#101828]">Documents</h2>
@@ -1111,7 +1190,7 @@ export default function ClientPropertyDetailPage() {
                     <div
                       key={doc.id}
                       onClick={() => handleDownload(doc.id, doc.original_file_name)}
-                      className="flex items-center justify-between p-3 rounded-2xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
+                      className="client-doc-row flex items-center justify-between p-3 rounded-2xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-[#eaeef4]/60 text-[#1b2559] flex items-center justify-center shrink-0">

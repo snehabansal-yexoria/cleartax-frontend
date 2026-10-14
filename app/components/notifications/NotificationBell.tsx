@@ -12,13 +12,12 @@ import {
   fetchNotifications,
   formatFullTime,
   formatRelativeTime,
-  isNewSince,
-  newestUpdatedAt,
+  isUnread,
+  markNotificationsRead,
   notificationHref,
   notificationsPagePath,
-  readSeenAt,
-  SEEN_EVENT,
-  writeSeenAt,
+  READ_EVENT,
+  withRead,
   type NotificationItem,
   type NotificationViewerRole,
 } from "./notificationClient";
@@ -30,51 +29,48 @@ const POLL_MS = 30_000;
 
 type Status = "loading" | "ready" | "error";
 
-// Topbar bell. Shows the newest notifications in a dropdown and a badge for
-// those that arrived since the viewer last opened it. There is no server-side
-// read state: "seen" is remembered per browser (see notificationClient).
+// Topbar bell. Shows the newest notifications in a dropdown and a badge with
+// the viewer's unread count. Read state is the server's (notification.read_at),
+// so it is the same in every browser: opening a notification marks it read,
+// and "Mark all read" clears the rest.
 // Render with key={viewer} so a different signed-in user gets fresh state.
 export default function NotificationBell({
   role,
-  viewer,
 }: {
   role: NotificationViewerRole;
-  viewer: string; // stable per-user key for the seen marker, e.g. email
+  /** Stable per-user key; the caller passes it as the React key too. */
+  viewer: string;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [status, setStatus] = useState<Status>("loading");
   const [open, setOpen] = useState(false);
-  const [seenAt, setSeenAt] = useState(() => readSeenAt(viewer));
-  // The seen marker as it was when the dropdown opened, so rows that were new
-  // keep their dot while the viewer is reading them.
-  const [seenAtOnOpen, setSeenAtOnOpen] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(false);
-
-  // Everything shown in an open dropdown counts as seen.
-  const markSeen = useCallback(
-    (list: NotificationItem[]) => {
-      const newest = newestUpdatedAt(list);
-      if (newest > readSeenAt(viewer)) {
-        writeSeenAt(viewer, newest);
-        setSeenAt(newest);
-      }
-    },
-    [viewer],
-  );
 
   const load = useCallback(async () => {
     try {
       const page = await fetchNotifications({ limit: PREVIEW_LIMIT });
       setItems(page.items);
+      setUnreadCount(page.unreadCount);
       setStatus("ready");
-      if (openRef.current) markSeen(page.items);
     } catch {
       // Keep showing what we had; only an empty first load shows the error.
       setStatus((s) => (s === "ready" ? s : "error"));
     }
-  }, [markSeen]);
+  }, []);
+
+  // Optimistic: the dot and badge clear at once; the next poll reconciles if
+  // the request failed.
+  const markRead = useCallback((target: { ids: string[] } | { all: true }) => {
+    setItems((current) => withRead(current, target));
+    if ("all" in target) setUnreadCount(0);
+    else setUnreadCount((c) => Math.max(0, c - target.ids.length));
+    markNotificationsRead(target).catch((err) => {
+      console.warn("Could not mark notifications read:", err);
+    });
+  }, []);
 
   // First load, then poll while the tab is visible, and refresh on return.
   useEffect(() => {
@@ -97,16 +93,20 @@ export default function NotificationBell({
     };
   }, [load]);
 
-  // The full page, or another tab, marked notifications as seen.
+  // The full notifications page marked something read: follow it.
   useEffect(() => {
-    const sync = () => setSeenAt(readSeenAt(viewer));
-    window.addEventListener(SEEN_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(SEEN_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, [viewer]);
+    function sync(event: Event) {
+      const detail = (event as CustomEvent<{
+        unreadCount: number;
+        target: { ids: string[] } | { all: true };
+      }>).detail;
+      if (!detail) return;
+      setUnreadCount(detail.unreadCount);
+      setItems((current) => withRead(current, detail.target));
+    }
+    window.addEventListener(READ_EVENT, sync);
+    return () => window.removeEventListener(READ_EVENT, sync);
+  }, []);
 
   const close = useCallback(() => {
     openRef.current = false;
@@ -146,19 +146,16 @@ export default function NotificationBell({
       close();
       return;
     }
-    setSeenAtOnOpen(seenAt);
     openRef.current = true;
     setOpen(true);
     announceDropdownOpen(DROPDOWN_ID);
-    markSeen(items);
     void load();
   }
 
-  const newCount = items.filter((n) => isNewSince(n, seenAt)).length;
-  const freshCount = items.filter((n) => isNewSince(n, seenAtOnOpen)).length;
-  const badge = newCount >= PREVIEW_LIMIT ? `${PREVIEW_LIMIT - 1}+` : String(newCount);
+  const newCount = unreadCount;
+  const badge = newCount > 99 ? "99+" : String(newCount);
   const label =
-    newCount > 0 ? `Notifications, ${newCount} new` : "Notifications";
+    newCount > 0 ? `Notifications, ${newCount} unread` : "Notifications";
 
   return (
     <div className="notif-bell" ref={rootRef}>
@@ -185,7 +182,15 @@ export default function NotificationBell({
         <div className="notif-panel" role="dialog" aria-label="Notifications">
           <div className="notif-panel-head">
             <strong>Notifications</strong>
-            {freshCount > 0 && <span className="notif-panel-sub">{freshCount} new</span>}
+            {newCount > 0 && (
+              <button
+                type="button"
+                className="notif-link-button"
+                onClick={() => markRead({ all: true })}
+              >
+                Mark all read
+              </button>
+            )}
           </div>
 
           <div className="notif-panel-body">
@@ -224,7 +229,7 @@ export default function NotificationBell({
               <ul className="notif-list">
                 {items.map((n) => {
                   const href = notificationHref(n, role);
-                  const fresh = isNewSince(n, seenAtOnOpen);
+                  const fresh = isUnread(n);
                   const content = (
                     <>
                       <span className={`notif-dot${fresh ? " is-new" : ""}`} aria-hidden="true" />
@@ -244,6 +249,7 @@ export default function NotificationBell({
                           type="button"
                           className="notif-row notif-row-action"
                           onClick={() => {
+                            if (fresh) markRead({ ids: [n.id] });
                             close();
                             router.push(href);
                           }}

@@ -59,6 +59,7 @@ import {
 } from "@/src/lib/dropdownRegistry";
 import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor";
 import NotificationBell from "@/app/components/notifications/NotificationBell";
+import { fetchCurrentUser } from "@/app/components/currentUser";
 import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SessionWithIdToken {
@@ -530,6 +531,19 @@ const clientMenuItems: PortalMenuItem[] = [
     ),
   },
   {
+    id: "reports",
+    href: "/dashboard/client/reports",
+    label: "Reports",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="M9 13h6" />
+        <path d="M9 17h4" />
+      </svg>
+    ),
+  },
+  {
     id: "profile",
     href: "/dashboard/client/profile",
     label: "Profile",
@@ -643,23 +657,18 @@ export default function DashboardLayout({
           }
         }
 
-        void fetch("/api/invitations/accept", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch((error) => {
-          console.warn("Invitation acceptance did not complete:", error);
-        });
-
-        const meResponse = await fetch("/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!meResponse.ok) {
+        // No invitation accept here: it ran on every dashboard mount (twice
+        // under StrictMode) — a token check, a user list, a user PATCH and a
+        // DB write per page load. The invite is accepted where the invitee
+        // sets their password (login NEW_PASSWORD_REQUIRED / set-password).
+        // Shared with the page and its hooks: one /api/users/me per token.
+        let me: MeResponse;
+        try {
+          me = (await fetchCurrentUser(token)) as MeResponse;
+        } catch {
           router.replace("/login");
           return;
         }
-
-        const me = (await meResponse.json()) as MeResponse;
 
         setEmail(me.email || "");
         const roleName = normalizeRoleName(me.role);
@@ -913,7 +922,7 @@ export default function DashboardLayout({
             href = `/dashboard/accountant/clients/${property.clientId}/entities/${property.entityId}/properties/${property.id}`;
             subtitle = `${property.clientName} / ${property.entityName}`;
           } else {
-            href = `/dashboard/client/entities/${property.entityId}/properties/${property.id}`;
+            href = `/dashboard/client/properties/${property.id}`;
             subtitle = property.entityName;
           }
 

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  // resolvedTheme, not theme: under the default "system" theme, theme is
+  // "system" even when the OS (and so <html class="dark">) is dark.
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function ThemeToggle() {
     );
   }
 
-  const isDark = theme === "dark";
+  const isDark = resolvedTheme === "dark";
 
   const handleToggle = () => {
     setTheme(isDark ? "light" : "dark");

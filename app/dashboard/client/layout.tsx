@@ -44,10 +44,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   }, [isMobile, pathname]);
 
-  if (!isMobile) {
-    return <>{children}</>;
-  }
-
   const handleNavClick = (view: 'home' | 'activity' | 'property' | 'entity' | 'insights') => {
     if (view === 'home') {
       router.push('/dashboard/client');
@@ -62,15 +58,30 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   };
 
+  // ONE tree at every width. isMobile starts false and flips after the first
+  // effect, and this used to return a bare fragment on desktop but a wrapper
+  // div on mobile — different element types, so React unmounted the page and
+  // mounted it again, re-running every fetch on the page. Now only class names
+  // and the bottom nav change; on desktop the wrappers are display: contents,
+  // so they add no box and the layout is what the fragment gave.
+  const passThrough = isMobile ? undefined : ({ display: "contents" } as const);
+
   return (
-    <div className="mobile-client-dashboard-layout mobile-client-dashboard">
-      <div className="mobile-client-dashboard-content-area">
+    <div
+      className={isMobile ? "mobile-client-dashboard-layout mobile-client-dashboard" : undefined}
+      style={passThrough}
+    >
+      <div
+        className={isMobile ? "mobile-client-dashboard-content-area" : undefined}
+        style={passThrough}
+      >
         <Suspense fallback={null}>
           {children}
         </Suspense>
       </div>
 
-      {/* Shared Mobile Bottom Navigation */}
+      {isMobile && (
+      /* Shared Mobile Bottom Navigation */
       <div className="m-db-nav-bar" style={{ zIndex: 100 }}>
         <button
           type="button"
@@ -134,6 +145,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <span>Insights</span>
         </button>
       </div>
+      )}
     </div>
   );
 }

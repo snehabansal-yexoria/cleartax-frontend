@@ -193,8 +193,8 @@ function propertyGridAmounts(
   );
 }
 
-type DisplayTransactionRow = CoreTransactionListItem;
-type TransactionModalMode = "view" | "edit";
+export type DisplayTransactionRow = CoreTransactionListItem;
+export type TransactionModalMode = "view" | "edit";
 type TransactionReviewAction = "approve" | "reject" | "reset";
 type TransactionFeedbackTone = "success" | "warning";
 
@@ -832,7 +832,7 @@ export function StaticSelect({
   );
 }
 
-function transactionDetailToRow(
+export function transactionDetailToRow(
   detail: CoreTransactionDetail,
   fallback?: DisplayTransactionRow | null,
 ): DisplayTransactionRow {
@@ -1433,7 +1433,19 @@ function TransactionDetailPopup({
           "The server may need updating before this can be saved.",
         );
       } else {
-        setEditError("Please complete type, category, sub-category, and date.");
+        // Name only what is actually missing, from the same checks as above —
+        // the sub-category only where a picker is offering one.
+        const missing = [
+          !type && "type",
+          !categoryId && !typedCategoryName && "category",
+          showSubcategorySelect && !subcategoryId && "sub-category",
+          !invoiceDate && "date",
+        ].filter(Boolean) as string[];
+        const missingList =
+          missing.length <= 2
+            ? missing.join(" and ")
+            : `${missing.slice(0, -1).join(", ")}, and ${missing[missing.length - 1]}`;
+        setEditError(`Please complete the ${missingList}.`);
       }
       return;
     }
@@ -2497,6 +2509,515 @@ function TransactionDetailPopup({
         />
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Transaction detail controller
+//
+// Everything behind the detail drawer — loading the detail, the deferred
+// extraction, related rules, save (+ review action) and delete — used to live
+// inline in AllTransactionsView. It is a standalone component so the client
+// portal's own list can open the same drawer from just a transaction id.
+// ---------------------------------------------------------------------------
+
+async function getSessionToken(): Promise<string> {
+  const session = (await getSession()) as SessionWithIdToken | null;
+  return session?.getIdToken().getJwtToken() || "";
+}
+
+/**
+ * Resolves the first category + sub-category for a transaction type, matching
+ * the convention the client's quick-submit and the bulk importer use. Needed
+ * when a deferred extraction flips the type: the placeholder was created with
+ * an expense category, which the API would reject against `revenue`.
+ */
+async function resolveDefaultCategory(
+  type: CoreTransactionType,
+  headers: Record<string, string>,
+): Promise<{ categoryId: number; subcategoryId: number } | null> {
+  const catRes = await fetch(
+    `/api/transactions/categories?type=${encodeURIComponent(type)}`,
+    { headers },
+  );
+  if (!catRes.ok) return null;
+  const category = withoutDedicatedFlowCategories(
+    ((await catRes.json()) as { items?: CoreTransactionCategory[] }).items || [],
+  )[0];
+  if (!category) return null;
+
+  const subRes = await fetch(
+    `/api/transactions/categories/${category.id}/sub-categories`,
+    { headers },
+  );
+  if (!subRes.ok) return null;
+  const subcategory = ((await subRes.json()) as {
+    items?: CoreTransactionSubcategory[];
+  }).items?.[0];
+  if (!subcategory) return null;
+
+  return { categoryId: category.id, subcategoryId: subcategory.id };
+}
+
+/**
+ * Runs the extraction the client deferred, and folds the result into the
+ * detail so the edit form opens pre-filled.
+ *
+ * A client who picks "Submit to accountant" uploads without extracting, so
+ * the transaction is a placeholder — zero amount, filename as description,
+ * default category. Opening it here is what finally invokes Bedrock. The
+ * accountant then confirms the values through the ordinary save.
+ */
+async function extractIntoDetail(
+  detail: CoreTransactionDetail,
+  headers: Record<string, string>,
+): Promise<CoreTransactionDetail | null> {
+  const res = await fetch("/api/documents/extract", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      s3_key: detail.documentS3Key,
+      ...(detail.entityId ? { entity_id: detail.entityId } : {}),
+    }),
+  });
+  if (!res.ok) return null;
+
+  const result = (await res.json()) as {
+    data?: Record<string, unknown>;
+    matched_rule?: {
+      assigned_type?: string;
+      assigned_category_id?: number;
+      assigned_subcategory_id?: number;
+    } | null;
+  };
+  const data = result.data ?? {};
+  const rule = result.matched_rule ?? null;
+
+  const next: CoreTransactionDetail = { ...detail };
+
+  const extractedType = rule?.assigned_type ?? data.type;
+  if (extractedType) next.type = parseTransactionType(extractedType);
+
+  if (typeof data.amount === "number" && Number.isFinite(data.amount)) {
+    next.grossAmount = data.amount;
+  }
+  if (
+    data.gst_included &&
+    typeof data.gst_amount === "number" &&
+    Number.isFinite(data.gst_amount) &&
+    data.gst_amount > 0
+  ) {
+    next.gstAmount = data.gst_amount;
+  }
+  next.netAmount = Number((next.grossAmount - next.gstAmount).toFixed(2));
+
+  if (typeof data.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+    next.invoiceDate = data.date;
+  }
+  const description = String(data.description ?? data.title ?? "").trim();
+  if (description) next.description = description;
+
+  const remarks = [
+    data.vendor && `Vendor: ${data.vendor}`,
+    data.payer && `Payer: ${data.payer}`,
+    data.reference && `Ref: ${data.reference}`,
+  ].filter(Boolean);
+  if (remarks.length) next.internalRemarks = remarks.join(" · ");
+
+  // Categories: the rule's assignment wins; otherwise only re-resolve when
+  // the type changed, so an accountant's earlier choice is left alone.
+  if (rule?.assigned_category_id && rule?.assigned_subcategory_id) {
+    next.categoryId = rule.assigned_category_id;
+    next.subcategoryId = rule.assigned_subcategory_id;
+  } else if (next.type !== detail.type) {
+    const defaults = await resolveDefaultCategory(next.type, headers);
+    if (defaults) {
+      next.categoryId = defaults.categoryId;
+      next.subcategoryId = defaults.subcategoryId;
+    }
+  }
+
+  // Extraction flipped the document to 'completed', so re-opening this
+  // transaction won't run Bedrock a second time.
+  next.documentProcessingStatus = "completed";
+  return next;
+}
+
+/**
+ * DELETE /api/transactions/{id}. Resolves to "" on success, or the message to
+ * show on failure — shared by the drawer and the grid's own trash action.
+ */
+async function deleteTransactionRequest(id: string): Promise<string> {
+  try {
+    const token = await getSessionToken();
+    if (!token) return "You're signed out.";
+    const res = await fetch(`/api/transactions/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        message?: string;
+      } | null;
+      return (
+        data?.message ||
+        data?.error ||
+        "Delete failed. The backend may not support transaction deletion yet."
+      );
+    }
+    return "";
+  } catch (error) {
+    console.error("Failed to delete transaction:", error);
+    return "Unexpected error deleting transaction.";
+  }
+}
+
+/**
+ * Shown in place of the drawer while there is no row to render yet — a deep
+ * link opens by id alone, so there is nothing to show until the detail lands —
+ * and when that load fails.
+ */
+function TransactionDetailShell({
+  isLoading,
+  error,
+  onClose,
+}: {
+  isLoading: boolean;
+  error: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="transaction-modal-layer">
+      <button
+        type="button"
+        className="transaction-modal-backdrop"
+        aria-label="Close transaction details"
+        onClick={onClose}
+      />
+      <section
+        className="transaction-detail-modal"
+        aria-label="Transaction Details"
+        aria-busy={isLoading}
+      >
+        <header className="transaction-detail-header">
+          <h2>Transaction Details</h2>
+          <button type="button" aria-label="Close transaction details" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </header>
+        <div className="transaction-detail-body">
+          {isLoading ? (
+            <div className="transaction-detail-loading">
+              <span className="skeleton-line skeleton-line-lg" />
+              <span className="skeleton-line skeleton-line-md" />
+              <span className="skeleton-line skeleton-line-xl" />
+            </div>
+          ) : (
+            <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span>{error || "This transaction could not be loaded."}</span>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export type TransactionDetailChange = "updated" | "deleted";
+
+/**
+ * The transaction detail drawer with its data and actions.
+ *
+ * Mount one per open transaction and key it by `transactionId`: state is set
+ * up on mount, and unmounting (via `onClose`) is how it resets.
+ *
+ * With `initialRow` the drawer renders the list row at once while the full
+ * detail loads (what the grids do). With only an id — a deep link — a loading
+ * shell shows until the detail arrives, and the row is built from it.
+ */
+export function TransactionDetailController({
+  transactionId,
+  initialRow = null,
+  initialMode = "view",
+  canReview = false,
+  disabled = false,
+  disabledReason,
+  runDeferredExtraction = false,
+  onClose,
+  onChanged,
+}: {
+  transactionId: string;
+  initialRow?: DisplayTransactionRow | null;
+  initialMode?: TransactionModalMode;
+  /** Approve/reject controls. The backend 403s clients, so they pass false. */
+  canReview?: boolean;
+  /** Disables Edit and Delete, with `disabledReason` as the tooltip. */
+  disabled?: boolean;
+  disabledReason?: string;
+  /**
+   * Run the extraction a client deferred with "Submit to accountant" when the
+   * transaction is opened, and open the form pre-filled from the document.
+   *
+   * Reviewer surfaces only. The extraction marks the document 'completed', so
+   * if a client's own view triggered it the accountant would later open an
+   * unextracted placeholder with nothing left to pre-fill it.
+   */
+  runDeferredExtraction?: boolean;
+  onClose: () => void;
+  /**
+   * Called after a successful save or delete. `detail` is the saved
+   * transaction for "updated" and null for "deleted"; on delete the drawer
+   * also calls `onClose`.
+   */
+  onChanged?: (
+    change: TransactionDetailChange,
+    detail: CoreTransactionDetail | null,
+  ) => void;
+}) {
+  const [row, setRow] = useState<DisplayTransactionRow | null>(initialRow);
+  const [hadInitialRow] = useState(initialRow !== null);
+  const [detail, setDetail] = useState<CoreTransactionDetail | null>(null);
+  const [mode, setMode] = useState<TransactionModalMode>(initialMode);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  // Set when opening the transaction is what triggered the extraction — the
+  // client deferred it by choosing "Submit to accountant".
+  const [notice, setNotice] = useState("");
+  const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  useEffect(() => {
+    // Aborted on unmount. In development StrictMode runs this effect twice;
+    // the abort is what stops the first pass before it reaches the
+    // extraction, which is a real Bedrock call rather than a read.
+    const controller = new AbortController();
+    const { signal } = controller;
+    const loadFailedMessage = hadInitialRow
+      ? "Showing table data. Full details could not be loaded."
+      : "This transaction could not be loaded.";
+
+    (async () => {
+      try {
+        const token = await getSessionToken();
+        if (signal.aborted) return;
+        if (!token) {
+          setError("You're signed out.");
+          return;
+        }
+        const headers = { Authorization: `Bearer ${token}` };
+        const detailRes = await fetch(
+          `/api/transactions/${encodeURIComponent(transactionId)}`,
+          { headers, signal },
+        );
+        if (!detailRes.ok) {
+          const data = (await detailRes.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          if (signal.aborted) return;
+          setError(data?.message || data?.error || loadFailedMessage);
+          return;
+        }
+        const loaded = (await detailRes.json()) as CoreTransactionDetail;
+        if (signal.aborted) return;
+        setDetail(loaded);
+        setRow((current) => current ?? transactionDetailToRow(loaded));
+
+        // The client deferred extraction on this one — opening it to review is
+        // the trigger. Pre-fill the form from the document and switch to edit
+        // so the accountant confirms the values rather than reading a
+        // placeholder.
+        if (
+          runDeferredExtraction &&
+          loaded.documentS3Key &&
+          loaded.documentProcessingStatus !== "completed"
+        ) {
+          try {
+            const enriched = await extractIntoDetail(loaded, headers);
+            if (signal.aborted) return;
+            if (enriched) {
+              setDetail(enriched);
+              setMode("edit");
+              setNotice(
+                `Read from ${loaded.documentFileName || "the uploaded document"} — check the values and save.`,
+              );
+            } else {
+              setNotice(
+                "We couldn't read the uploaded document. Enter the details manually.",
+              );
+            }
+          } catch (extractError) {
+            if (signal.aborted) return;
+            console.error("Deferred extraction failed:", extractError);
+            setNotice(
+              "We couldn't read the uploaded document. Enter the details manually.",
+            );
+          }
+        }
+
+        if (loaded.entityId) {
+          const rulesRes = await fetch(
+            `/api/entities/${encodeURIComponent(loaded.entityId)}/transaction-rules`,
+            { headers, signal },
+          );
+          if (rulesRes.ok) {
+            const data = (await rulesRes.json()) as {
+              items?: Record<string, unknown>[];
+            };
+            if (signal.aborted) return;
+            setRelatedRules((data.items ?? []).map(normalizeRule));
+          }
+        }
+      } catch (loadError) {
+        if (signal.aborted) return;
+        console.error("Failed to load transaction detail:", loadError);
+        setError(loadFailedMessage);
+      } finally {
+        if (!signal.aborted) setIsLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [transactionId, runDeferredExtraction, hadInitialRow]);
+
+  async function saveTransactionDetail(
+    body: Record<string, unknown>,
+    reviewAction?: TransactionReviewAction | null,
+  ) {
+    setError("");
+    setIsSaving(true);
+    try {
+      const token = await getSessionToken();
+      if (!token) {
+        setError("You're signed out.");
+        return;
+      }
+      const res = await fetch(
+        `/api/transactions/${encodeURIComponent(transactionId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        setError(data?.message || data?.error || "Update failed.");
+        return;
+      }
+      let saved = (await res.json()) as CoreTransactionDetail;
+
+      // Approve/reject/reset ride the dedicated review endpoint so the
+      // backend stamps the reviewer and writes the audit event.
+      if (reviewAction) {
+        const reviewRes = await fetch(
+          `/api/transactions/${encodeURIComponent(transactionId)}/review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: reviewAction }),
+          },
+        );
+        if (!reviewRes.ok) {
+          const data = (await reviewRes.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          setError(
+            data?.message ||
+            data?.error ||
+            "Saved, but updating the review status failed.",
+          );
+          return;
+        }
+        saved = (await reviewRes.json()) as CoreTransactionDetail;
+      }
+
+      setDetail(saved);
+      setRow((current) =>
+        current ? transactionDetailToRow(saved, current) : current,
+      );
+      onChanged?.("updated", saved);
+      setMode("view");
+    } catch (saveError) {
+      console.error("Failed to update transaction:", saveError);
+      setError("Unexpected error updating transaction.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function performDelete() {
+    setError("");
+    setIsDeleting(true);
+    try {
+      const failure = await deleteTransactionRequest(transactionId);
+      if (failure) {
+        setError(failure);
+        return;
+      }
+      onChanged?.("deleted", null);
+      onClose();
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      {row ? (
+        <TransactionDetailPopup
+          row={row}
+          detail={detail}
+          mode={mode}
+          isLoading={isLoading}
+          error={error}
+          notice={notice}
+          isSaving={isSaving}
+          isDeleting={isDeleting}
+          relatedRules={relatedRules}
+          onClose={onClose}
+          onEdit={() => setMode("edit")}
+          onCancelEdit={() => setMode("view")}
+          onSave={saveTransactionDetail}
+          onDelete={() => setIsConfirmingDelete(true)}
+          disabled={disabled}
+          disabledReason={disabledReason}
+          canReview={canReview}
+        />
+      ) : (
+        <TransactionDetailShell isLoading={isLoading} error={error} onClose={onClose} />
+      )}
+      {isConfirmingDelete && (
+        <ConfirmationDialog
+          title="Delete Transaction"
+          message="Are you sure you want to delete this transaction? This action is permanent and cannot be undone."
+          confirmLabel="Yes, Delete"
+          cancelLabel="No, Keep Transaction"
+          onConfirm={() => {
+            setIsConfirmingDelete(false);
+            void performDelete();
+          }}
+          onCancel={() => setIsConfirmingDelete(false)}
+          isDanger={true}
+        />
+      )}
+    </>
   );
 }
 
@@ -4050,20 +4571,11 @@ export function AllTransactionsView({
   useEffect(() => {
     setExpandedRowIds(new Set());
   }, [filters, sort, pageSize, activeTab, grain, currentPage]);
+  // The open drawer's row and the mode it opened in. Everything else about the
+  // drawer is TransactionDetailController's own state.
   const [selectedTransaction, setSelectedTransaction] =
     useState<DisplayTransactionRow | null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<CoreTransactionDetail | null>(
-    null,
-  );
   const [detailMode, setDetailMode] = useState<TransactionModalMode>("view");
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState("");
-  const [isDetailSaving, setIsDetailSaving] = useState(false);
-  const [isDetailDeleting, setIsDetailDeleting] = useState(false);
-  // Set when opening the transaction is what triggered the extraction — the
-  // client deferred it by choosing "Submit to accountant".
-  const [extractionNotice, setExtractionNotice] = useState("");
-  const [relatedRules, setRelatedRules] = useState<CoreTransactionRule[]>([]);
   const [transactionToDelete, setTransactionToDelete] = useState<DisplayTransactionRow | null>(null);
   const contextKind = context.kind;
   const contextId =
@@ -4289,123 +4801,6 @@ export function AllTransactionsView({
   }
 
   /**
-   * Resolves the first category + sub-category for a transaction type, matching
-   * the convention the client's quick-submit and the bulk importer use. Needed
-   * when a deferred extraction flips the type: the placeholder was created with
-   * an expense category, which the API would reject against `revenue`.
-   */
-  async function resolveDefaultCategory(
-    type: CoreTransactionType,
-    headers: Record<string, string>,
-  ): Promise<{ categoryId: number; subcategoryId: number } | null> {
-    const catRes = await fetch(
-      `/api/transactions/categories?type=${encodeURIComponent(type)}`,
-      { headers },
-    );
-    if (!catRes.ok) return null;
-    const category = withoutDedicatedFlowCategories(
-      ((await catRes.json()) as { items?: CoreTransactionCategory[] }).items || [],
-    )[0];
-    if (!category) return null;
-
-    const subRes = await fetch(
-      `/api/transactions/categories/${category.id}/sub-categories`,
-      { headers },
-    );
-    if (!subRes.ok) return null;
-    const subcategory = ((await subRes.json()) as {
-      items?: CoreTransactionSubcategory[];
-    }).items?.[0];
-    if (!subcategory) return null;
-
-    return { categoryId: category.id, subcategoryId: subcategory.id };
-  }
-
-  /**
-   * Runs the extraction the client deferred, and folds the result into the
-   * detail so the edit form opens pre-filled.
-   *
-   * A client who picks "Submit to accountant" uploads without extracting, so
-   * the transaction is a placeholder — zero amount, filename as description,
-   * default category. Opening it here is what finally invokes Bedrock. The
-   * accountant then confirms the values through the ordinary save.
-   */
-  async function extractIntoDetail(
-    detail: CoreTransactionDetail,
-    headers: Record<string, string>,
-  ): Promise<CoreTransactionDetail | null> {
-    const res = await fetch("/api/documents/extract", {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        s3_key: detail.documentS3Key,
-        ...(detail.entityId ? { entity_id: detail.entityId } : {}),
-      }),
-    });
-    if (!res.ok) return null;
-
-    const result = (await res.json()) as {
-      data?: Record<string, unknown>;
-      matched_rule?: {
-        assigned_type?: string;
-        assigned_category_id?: number;
-        assigned_subcategory_id?: number;
-      } | null;
-    };
-    const data = result.data ?? {};
-    const rule = result.matched_rule ?? null;
-
-    const next: CoreTransactionDetail = { ...detail };
-
-    const extractedType = rule?.assigned_type ?? data.type;
-    if (extractedType) next.type = parseTransactionType(extractedType);
-
-    if (typeof data.amount === "number" && Number.isFinite(data.amount)) {
-      next.grossAmount = data.amount;
-    }
-    if (
-      data.gst_included &&
-      typeof data.gst_amount === "number" &&
-      Number.isFinite(data.gst_amount) &&
-      data.gst_amount > 0
-    ) {
-      next.gstAmount = data.gst_amount;
-    }
-    next.netAmount = Number((next.grossAmount - next.gstAmount).toFixed(2));
-
-    if (typeof data.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-      next.invoiceDate = data.date;
-    }
-    const description = String(data.description ?? data.title ?? "").trim();
-    if (description) next.description = description;
-
-    const remarks = [
-      data.vendor && `Vendor: ${data.vendor}`,
-      data.payer && `Payer: ${data.payer}`,
-      data.reference && `Ref: ${data.reference}`,
-    ].filter(Boolean);
-    if (remarks.length) next.internalRemarks = remarks.join(" · ");
-
-    // Categories: the rule's assignment wins; otherwise only re-resolve when
-    // the type changed, so an accountant's earlier choice is left alone.
-    if (rule?.assigned_category_id && rule?.assigned_subcategory_id) {
-      next.categoryId = rule.assigned_category_id;
-      next.subcategoryId = rule.assigned_subcategory_id;
-    } else if (next.type !== detail.type) {
-      const defaults = await resolveDefaultCategory(next.type, headers);
-      if (defaults) {
-        next.categoryId = defaults.categoryId;
-        next.subcategoryId = defaults.subcategoryId;
-      }
-    }
-
-    // Extraction flipped the document to 'completed', so re-opening this
-    // transaction won't run Bedrock a second time.
-    next.documentProcessingStatus = "completed";
-    return next;
-  }
-
-  /**
    * Expand or collapse a part-private bill to show its business and personal
    * slices.
    *
@@ -4442,89 +4837,16 @@ export function AllTransactionsView({
     }
   }
 
-  async function openTransactionDetail(
+  // The drawer itself — detail fetch, deferred extraction, related rules, save,
+  // review actions and delete — lives in TransactionDetailController. This
+  // view only decides which row is open and folds the results back into the
+  // page it is showing.
+  function openTransactionDetail(
     row: DisplayTransactionRow,
     mode: TransactionModalMode = "view",
   ) {
     setSelectedTransaction(row);
-    setSelectedDetail(null);
-    setRelatedRules([]);
     setDetailMode(mode);
-    setDetailError("");
-    setExtractionNotice("");
-    setIsDetailLoading(true);
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        setDetailError("You're signed out.");
-        return;
-      }
-      const headers = { Authorization: `Bearer ${token}` };
-      const detailRes = await fetch(
-        `/api/transactions/${encodeURIComponent(row.id)}`,
-        { headers },
-      );
-      if (!detailRes.ok) {
-        const data = (await detailRes.json().catch(() => null)) as {
-          error?: string;
-          message?: string;
-        } | null;
-        setDetailError(
-          data?.message ||
-          data?.error ||
-          "Showing table data. Full details could not be loaded.",
-        );
-        return;
-      }
-      const detail = (await detailRes.json()) as CoreTransactionDetail;
-      setSelectedDetail(detail);
-
-      // The client deferred extraction on this one — opening it to review is
-      // the trigger. Pre-fill the form from the document and switch to edit so
-      // the accountant confirms the values rather than reading a placeholder.
-      if (
-        detail.documentS3Key &&
-        detail.documentProcessingStatus !== "completed"
-      ) {
-        try {
-          const enriched = await extractIntoDetail(detail, headers);
-          if (enriched) {
-            setSelectedDetail(enriched);
-            setDetailMode("edit");
-            setExtractionNotice(
-              `Read from ${detail.documentFileName || "the uploaded document"} — check the values and save.`,
-            );
-          } else {
-            setExtractionNotice(
-              "We couldn't read the uploaded document. Enter the details manually.",
-            );
-          }
-        } catch (extractError) {
-          console.error("Deferred extraction failed:", extractError);
-          setExtractionNotice(
-            "We couldn't read the uploaded document. Enter the details manually.",
-          );
-        }
-      }
-
-      if (detail.entityId) {
-        const rulesRes = await fetch(
-          `/api/entities/${encodeURIComponent(detail.entityId)}/transaction-rules`,
-          { headers },
-        );
-        if (rulesRes.ok) {
-          const data = (await rulesRes.json()) as {
-            items?: Record<string, unknown>[];
-          };
-          setRelatedRules((data.items ?? []).map(normalizeRule));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load transaction detail:", error);
-      setDetailError("Showing table data. Full details could not be loaded.");
-    } finally {
-      setIsDetailLoading(false);
-    }
   }
 
   function applyUpdatedTransaction(detail: CoreTransactionDetail) {
@@ -4557,125 +4879,28 @@ export function AllTransactionsView({
     );
   }
 
-  async function saveTransactionDetail(
-    body: Record<string, unknown>,
-    reviewAction?: TransactionReviewAction | null,
-  ) {
-    if (!selectedTransaction) return;
-    setDetailError("");
-    setIsDetailSaving(true);
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        setDetailError("You're signed out.");
-        return;
-      }
-      const res = await fetch(
-        `/api/transactions/${encodeURIComponent(selectedTransaction.id)}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
-        },
-      );
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-          message?: string;
-        } | null;
-        setDetailError(data?.message || data?.error || "Update failed.");
-        return;
-      }
-      let detail = (await res.json()) as CoreTransactionDetail;
-
-      // Approve/reject/reset ride the dedicated review endpoint so the
-      // backend stamps the reviewer and writes the audit event.
-      if (reviewAction) {
-        const reviewRes = await fetch(
-          `/api/transactions/${encodeURIComponent(selectedTransaction.id)}/review`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ action: reviewAction }),
-          },
-        );
-        if (!reviewRes.ok) {
-          const data = (await reviewRes.json().catch(() => null)) as {
-            error?: string;
-            message?: string;
-          } | null;
-          setDetailError(
-            data?.message ||
-            data?.error ||
-            "Saved, but updating the review status failed.",
-          );
-          return;
-        }
-        detail = (await reviewRes.json()) as CoreTransactionDetail;
-      }
-
-      setSelectedDetail(detail);
-      setSelectedTransaction((current) =>
-        current ? transactionDetailToRow(detail, current) : current,
-      );
-      applyUpdatedTransaction(detail);
-      setDetailMode("view");
-    } catch (error) {
-      console.error("Failed to update transaction:", error);
-      setDetailError("Unexpected error updating transaction.");
-    } finally {
-      setIsDetailSaving(false);
-    }
+  function removeDeletedTransaction(id: string) {
+    setRows((current) => current.filter((item) => item.id !== id));
+    setPropertyRows((current) =>
+      current.filter((item) => item.transactionId !== id),
+    );
   }
 
-  function deleteTransaction(row = selectedTransaction) {
-    if (!row) return;
+  // The table's own trash action. The drawer's Delete button goes through the
+  // controller instead, which has somewhere to show a failure.
+  function deleteTransaction(row: DisplayTransactionRow) {
     setTransactionToDelete(row);
   }
 
   async function performDeleteTransaction(row: DisplayTransactionRow) {
-    setDetailError("");
-    setIsDetailDeleting(true);
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        setDetailError("You're signed out.");
-        return;
-      }
-      const res = await fetch(`/api/transactions/${encodeURIComponent(row.id)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-          message?: string;
-        } | null;
-        setDetailError(
-          data?.message ||
-          data?.error ||
-          "Delete failed. The backend may not support transaction deletion yet.",
-        );
-        return;
-      }
-      setRows((current) => current.filter((item) => item.id !== row.id));
-      setPropertyRows((current) =>
-        current.filter((item) => item.transactionId !== row.id),
-      );
-      setSelectedTransaction(null);
-      setSelectedDetail(null);
-    } catch (error) {
-      console.error("Failed to delete transaction:", error);
-      setDetailError("Unexpected error deleting transaction.");
-    } finally {
-      setIsDetailDeleting(false);
+    const failure = await deleteTransactionRequest(row.id);
+    if (failure) {
+      // No drawer is open on this path, so there is nowhere to render it (the
+      // shared detail error this used to set was never visible either).
+      console.error("Failed to delete transaction:", failure);
+      return;
     }
+    removeDeletedTransaction(row.id);
   }
 
   // Tabs split the rows by review status: "To Be Reviewed" is the queue a
@@ -5469,27 +5694,24 @@ export function AllTransactionsView({
         </>
       )}
       {selectedTransaction ? (
-        <TransactionDetailPopup
-          row={selectedTransaction}
-          detail={selectedDetail}
-          mode={detailMode}
-          isLoading={isDetailLoading}
-          error={detailError}
-          notice={extractionNotice}
-          isSaving={isDetailSaving}
-          isDeleting={isDetailDeleting}
-          relatedRules={relatedRules}
-          onClose={() => {
-            setSelectedTransaction(null);
-            setSelectedDetail(null);
-            setRelatedRules([]);
-            setDetailError("");
-            setExtractionNotice("");
+        <TransactionDetailController
+          // Keyed so every open starts from fresh state, as the old inline
+          // handlers did by resetting on open and on close.
+          key={selectedTransaction.id}
+          transactionId={selectedTransaction.id}
+          initialRow={selectedTransaction}
+          initialMode={detailMode}
+          // The reviewer surfaces are where a deferred extraction is meant to
+          // run — opening the transaction to review it is the trigger.
+          runDeferredExtraction
+          onClose={() => setSelectedTransaction(null)}
+          onChanged={(change, detail) => {
+            if (change === "deleted") {
+              removeDeletedTransaction(selectedTransaction.id);
+            } else if (detail) {
+              applyUpdatedTransaction(detail);
+            }
           }}
-          onEdit={() => setDetailMode("edit")}
-          onCancelEdit={() => setDetailMode("view")}
-          onSave={saveTransactionDetail}
-          onDelete={() => deleteTransaction()}
           disabled={addTransactionDisabled}
           disabledReason={addTransactionDisabledReason}
           canReview={canReview}
@@ -6004,12 +6226,14 @@ export function AddTransactionView({
   backLabel?: string;
 }) {
   const router = useRouter();
-  const { theme } = useTheme();
+  // resolvedTheme, not theme: with the "system" setting `theme` is the literal
+  // string "system", so a dark OS read as light here.
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   const [effectiveBackHref, setEffectiveBackHref] = useState(backHref);
 

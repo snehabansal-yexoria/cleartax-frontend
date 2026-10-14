@@ -4,23 +4,41 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
-import { getSession } from "@/src/lib/session";
+import { getIdToken } from "@/src/lib/authToken";
 import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
-import { affectsPnl, transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
 import {
   ReviewQueueCount,
   ReviewStatusBadge,
 } from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
-import { formatClientCurrency, formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
+import { formatClientCurrency, signedTone } from "@/app/components/clients/CurrencyFormatter";
+import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
+import { fetchCurrentUser } from "@/app/components/currentUser";
+import RegionError from "@/app/components/ui/RegionError";
+import {
+  currentFinancialYear,
+  fyShortLabel,
+  monthAt,
+  monthIndex,
+  monthKey as monthKeyOf,
+  monthShortLabel,
+  shiftMonth,
+} from "@/app/components/clients/portfolioDashboard";
+import { propertyImageSrc } from "@/src/lib/propertyImage";
 import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
+import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
+import ClientSegmentedTabs, {
+  SegmentedTabPanel,
+  segmentedPanelProps,
+} from "@/app/components/clients/ClientSegmentedTabs";
+import ClientScopedReport from "@/app/components/reports/portfolio/ClientScopedReport";
+import {
+  clientReportHref,
+  useReportSearchParams,
+  type ReportTab,
+} from "@/app/components/reports/portfolio/useReportSearchParams";
 
 type DocumentListItem = {
   id: string;
@@ -68,34 +86,15 @@ function formatDocDate(value: string) {
   });
 }
 
-function monthKey(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  const date = new Date(year, month - 1, 1);
-  if (Number.isNaN(date.getTime())) return key;
-  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-}
-
-// Clean custom USD formatter to match Figma ($1.24M, -$1.61M, +$12,280, etc.)
-function formatUSD(val: number, showPlus = false) {
-  const isNegative = val < 0;
-  const abs = Math.abs(val);
-  let str = "";
-  if (abs >= 1000000) {
-    str = `$${(abs / 1000000).toFixed(2)}M`;
-  } else if (abs >= 1000) {
-    str = `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-  } else {
-    str = `$${abs.toFixed(0)}`;
-  }
-  if (isNegative) return `-${str}`;
-  if (showPlus && val > 0) return `+${str}`;
-  return str;
+// Every amount on this page goes through the client formatter: "A$" like the
+// rest of the portal (this used a local "$" formatter), the sign decided after
+// rounding (no "-$0"), and written once. Callers pass a SIGNED value instead
+// of prefixing "+"/"-" themselves — that is what printed "+-$1,230".
+function formatMoney(val: number | null | undefined, showPlus = false) {
+  if (val == null || !Number.isFinite(val)) return "—";
+  return Math.abs(val) >= 1000000
+    ? formatClientCurrency(val, { short: true, decimals: 2, showPlus })
+    : formatClientCurrency(val, { showPlus });
 }
 
 
@@ -113,7 +112,11 @@ export default function ClientEntityDetailView({
   // State Management
   const [entity, setEntity] = useState<CoreEntity | null>(null);
   const [properties, setProperties] = useState<CoreProperty[]>([]);
+  // Display only: the five newest rows. No money here is summed from
+  // transactions — see the Portfolio Summary below.
   const [transactions, setTransactions] = useState<CoreTransactionListItem[]>([]);
+  const [awaitingReviewCount, setAwaitingReviewCount] = useState(0);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocumentListItem[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -163,43 +166,52 @@ export default function ClientEntityDetailView({
 
     async function load() {
       try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
+        let token: string;
+        try {
+          token = await getIdToken();
+        } catch {
           router.replace("/login/user");
           return;
         }
-        const token = session.getIdToken().getJwtToken();
         if (!cancelled) setSessionToken(token);
 
         const headers = { Authorization: `Bearer ${token}` };
+        const base = `/api/entities/${encodeURIComponent(entityId)}`;
 
-        // Fetch Entity Details
-        const entityRes = await fetch(`/api/entities/${encodeURIComponent(entityId)}`, { headers });
-        if (entityRes.ok) {
-          const entityData = await entityRes.json();
-          if (!cancelled) setEntity(entityData);
-        }
+        // All independent, so they go out together (they used to run one
+        // after another). Recent transactions are the five newest BY DATE —
+        // the entity list defaults to newest-created, which is why this
+        // panel looked unsorted.
+        const [userResult, entityRes, propertiesRes, recentRes, queueRes, docsRes] =
+          await Promise.allSettled([
+            fetchCurrentUser(token),
+            fetch(base, { headers }),
+            fetch(`${base}/properties`, { headers }),
+            fetch(`${base}/transactions?sort=date&dir=desc&limit=5`, { headers }),
+            fetch(`${base}/transactions?review_status=unreviewed&limit=1`, { headers }),
+            fetch(`/api/documents/list?entity_id=${encodeURIComponent(entityId)}`, { headers }),
+          ]);
+        if (cancelled) return;
 
-        // Fetch Properties
-        const propertiesRes = await fetch(`/api/entities/${encodeURIComponent(entityId)}/properties`, { headers });
-        if (propertiesRes.ok) {
-          const propertiesData = await propertiesRes.json();
-          if (!cancelled) setProperties(propertiesData.items || []);
-        }
+        if (userResult.status === "fulfilled") setClientId(userResult.value.id || null);
 
-        // Fetch Transactions
-        const txsRes = await fetch(`/api/entities/${encodeURIComponent(entityId)}/transactions`, { headers });
-        if (txsRes.ok) {
-          const txsData = await txsRes.json();
-          if (!cancelled) setTransactions(txsData.items || []);
-        }
+        const readJson = async (result: PromiseSettledResult<Response>) =>
+          result.status === "fulfilled" && result.value.ok ? result.value.json() : null;
 
-        // Fetch Documents
-        const docsRes = await fetch(`/api/documents/list?entity_id=${encodeURIComponent(entityId)}`, { headers });
-        if (docsRes.ok) {
-          const docsData = await docsRes.json();
-          if (!cancelled) setDocuments(docsData.items || []);
-        }
+        const [entityData, propertiesData, recentData, queueData, docsData] = await Promise.all([
+          readJson(entityRes),
+          readJson(propertiesRes),
+          readJson(recentRes),
+          readJson(queueRes),
+          readJson(docsRes),
+        ]);
+        if (cancelled) return;
+
+        if (entityData) setEntity(entityData);
+        if (propertiesData) setProperties(propertiesData.items || []);
+        if (recentData) setTransactions(recentData.items || []);
+        if (queueData) setAwaitingReviewCount(Number(queueData.total) || 0);
+        if (docsData) setDocuments(docsData.items || []);
       } catch (err) {
         console.error("Error loading entity details:", err);
       } finally {
@@ -232,81 +244,55 @@ export default function ClientEntityDetailView({
     }
   };
 
-  // Metrics Calculations
-  const marketValue = useMemo(() => {
-    return properties.reduce((sum, prop) => sum + (prop.estimatedMarketValue || 0), 0);
-  }, [properties]);
+  // ---------------------------------------------------------------------------
+  // Money: the Portfolio Summary narrowed to this entity — the same aggregate
+  // as the home page and the Reports page (gross, each property's share of a
+  // split bill, unreviewed rows excluded, this financial year). The cash flow
+  // table used to sum GROSS while the property cards summed NET, both from
+  // one 50-row page, so the two never agreed (Sunset: 31,000 vs 29,091).
+  // ---------------------------------------------------------------------------
+  const financialYear = currentFinancialYear();
+  const summaryRegion = usePortfolioSummary(clientId, financialYear, entityId);
+  const lastYearRegion = usePortfolioSummary(clientId, financialYear - 1, entityId);
 
-  const outstandingLoans = useMemo(() => {
-    return properties.reduce((sum, prop) => {
-      if (!prop.loanDetails) return sum;
-      const loanAmt = prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0;
-      return sum + Number(loanAmt);
-    }, 0);
-  }, [properties]);
+  // Phones: Overview | Reporting inside the page (`?tab=reporting`, `?fy=`).
+  // Desktop links to the Reports page instead and ignores the tab.
+  const {
+    tab: reportTab,
+    financialYear: reportYear,
+    setTab: setReportTab,
+    setFinancialYear: setReportYear,
+  } = useReportSearchParams();
+  const showReport = isMobile && reportTab === "reporting";
+  const switchTab = (next: ReportTab) => {
+    setReportTab(next);
+    window.scrollTo({ top: 0 });
+  };
+  const summary = summaryRegion.data;
+  const lastYearSummary = lastYearRegion.data;
+  const totals = summary?.totals ?? null;
 
-  const netEquity = marketValue - outstandingLoans;
+  const marketValue = totals ? totals.marketValue : null;
+  const outstandingLoans = totals ? totals.loanBalance : null;
+  const netEquity = totals ? totals.netEquity : null;
 
-  // Monthly cash flow calculations for this month
-  const cashFlowThisMonth = useMemo(() => {
-    const currentMonthDate = new Date();
-    const currentMonth = currentMonthDate.getMonth();
-    const currentYear = currentMonthDate.getFullYear();
+  const monthsByKey = monthIndex(lastYearSummary, summary);
+  const now = new Date();
+  const thisMonth = monthAt(monthsByKey, monthKeyOf(now));
+  const cashFlowThisMonth = summary ? thisMonth.income - thisMonth.expenses : null;
 
-    const currentMonthTx = transactions.filter((tx) => {
-      if (!tx.invoiceDate) return false;
-      const d = new Date(tx.invoiceDate);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
-
-    const income = currentMonthTx
-      .filter((tx) => tx.type === "revenue")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    const expense = currentMonthTx
-      .filter((tx) => tx.type === "expense")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    return income - expense;
-  }, [transactions]);
-
-  // Aggregated monthly trend rows for the bar chart
-  const trendData = useMemo(() => {
-    const byMonth = new Map<string, { month: string; expenses: number; income: number }>();
-    for (const row of transactions) {
-      const key = monthKey(row.invoiceDate);
-      if (!key) continue;
-      const current = byMonth.get(key) || {
-        month: key,
-        expenses: 0,
-        income: 0,
-      };
-      const amount = Math.abs(row.grossAmount || 0);
-      // Skip non-P&L types. The else branch used to count personal spending,
-      // capitalised cost base and contra transfers as expenses, so this chart
-      // disagreed with the server-side P&L on the same data.
-      if (!affectsPnl(row.type)) continue;
-      if (row.type === "revenue") current.income += amount;
-      else current.expenses += amount;
-      byMonth.set(key, current);
-    }
-    return Array.from(byMonth.values())
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-7); // last 7 months to match desktop Figma layout
-  }, [transactions]);
-
-  const trendMonths = useMemo(() => trendData.map((row) => monthLabel(row.month)), [trendData]);
-  const trendIncome = useMemo(() => trendData.map((row) => row.income), [trendData]);
-  const trendExpenses = useMemo(() => trendData.map((row) => row.expenses), [trendData]);
+  // The last seven months, ending this month (the desktop Figma layout).
+  const trendKeys = [6, 5, 4, 3, 2, 1, 0].map((back) => monthKeyOf(shiftMonth(now, -back)));
+  const trendMonths = trendKeys.map(monthShortLabel);
+  const trendIncome = trendKeys.map((key) => monthAt(monthsByKey, key).income);
+  const trendExpenses = trendKeys.map((key) => monthAt(monthsByKey, key).expenses);
 
   // Beneficiaries data mapping
   const beneficiariesList = useMemo(() => {
+    // No invented people: the Figma's "Sneha / Mike Johnson" placeholders
+    // used to show for any entity without recorded beneficiaries.
     if (!entity?.beneficiaries || entity.beneficiaries.length === 0) {
-      // Mock defaults matching the Sneha and Mike design in Figma if none are in the DB
-      return [
-        { name: "Sneha Johnson", role: "Primary beneficiary", percentage: 50 },
-        { name: "Mike Johnson", role: "Beneficiary", percentage: 50 },
-      ];
+      return [];
     }
     return entity.beneficiaries.map((b, idx) => ({
       name: b.name,
@@ -319,37 +305,27 @@ export default function ClientEntityDetailView({
     return beneficiariesList.reduce((sum, b) => sum + b.percentage, 0);
   }, [beneficiariesList]);
 
-  // Property items mapping
+  // Property items mapping. Income / expense / net from the summary; value and
+  // loan too (loan at the property's allocation, as on the Reports page).
   const mappedProperties = useMemo(() => {
+    const rows = new Map((summary?.properties ?? []).map((row) => [row.propertyId, row]));
     return properties.map((prop) => {
-      const propTxs = transactions.filter((tx) => {
-        return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
-      });
-
-      const inc = propTxs
-        .filter((tx) => tx.type === "revenue")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-      const exp = propTxs
-        .filter((tx) => tx.type === "expense")
-        .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
+      const row = rows.get(prop.id);
       return {
         id: prop.id,
         name: prop.name,
-        entityName: entity?.name || "Johnson Family Trust",
-        marketValue: prop.estimatedMarketValue || 0,
-        outstandingLoans: prop.loanDetails
-          ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0)
-          : 0,
-        income: inc,
-        expense: exp,
-        net: inc - exp,
+        entityName: entity?.name || "",
+        marketValue: row ? row.marketValue : prop.estimatedMarketValue ?? null,
+        outstandingLoans: row ? row.loanBalance : null,
+        income: row ? row.income : null,
+        expense: row ? row.expenses : null,
+        // Net after depreciation, as on the Reports page.
+        net: row ? row.netResult : null,
         status: prop.status || "Rented",
-        imageUrl: prop.imageUrl || null,
+        imageSrc: propertyImageSrc(prop.imageUrl),
       };
     });
-  }, [properties, transactions, entity]);
+  }, [properties, summary, entity]);
 
   // Recent transactions list. Anything the client sent to their accountant is
   // surfaced here rather than only on the transactions page — at entity level
@@ -367,10 +343,6 @@ export default function ClientEntityDetailView({
     }));
   }, [transactions]);
 
-  const awaitingReviewCount = useMemo(
-    () => transactions.filter((tx) => isAwaitingReview(tx.reviewStatus)).length,
-    [transactions],
-  );
 
   function formatDateLabel(dateString: string) {
     try {
@@ -514,6 +486,13 @@ export default function ClientEntityDetailView({
     </svg>
   );
 
+  const ReportIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
+      <path d="M3 3v18h18" />
+      <path d="M7 15l4-4 3 3 5-6" />
+    </svg>
+  );
+
   const PlusIcon = () => (
     <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
       <line x1="12" y1="5" x2="12" y2="19" />
@@ -548,6 +527,33 @@ export default function ClientEntityDetailView({
         </div>
       )}
 
+      {isMobile && (
+        <ClientSegmentedTabs
+          idBase="entity-detail"
+          label="Entity sections"
+          tabs={[
+            { id: "overview", label: "Overview" },
+            { id: "reporting", label: "Reporting" },
+          ]}
+          value={reportTab}
+          onChange={switchTab}
+        />
+      )}
+
+      {showReport ? (
+        <SegmentedTabPanel idBase="entity-detail" tabId="reporting" className="pb-24">
+          {/* Mounted only while open. At the current year it reuses this
+              page's own summary request rather than making a second. */}
+          <ClientScopedReport
+            entityId={entityId}
+            variant="embedded"
+            financialYear={reportYear ?? financialYear}
+            onFinancialYearChange={setReportYear}
+            seed={{ financialYear, region: summaryRegion }}
+          />
+        </SegmentedTabPanel>
+      ) : (
+      <div className="flex flex-col gap-6" {...(isMobile ? segmentedPanelProps("entity-detail", "overview") : {})}>
       {/* 1. TOP HEADER STATS CARD */}
       <div className="client-entity-header-card">
         <span className="client-entity-kicker">
@@ -556,38 +562,68 @@ export default function ClientEntityDetailView({
 
         <div className="client-entity-title-row">
           <div className="flex flex-col gap-1">
-            <h1 className="client-entity-title">{entity?.name || "Johnson Family Trust"}</h1>
+            <h1 className="client-entity-title">{entity?.name || ""}</h1>
             <span className="text-white/60 text-xs font-semibold">
               {properties.length} propert{properties.length === 1 ? "y" : "ies"}
             </span>
           </div>
           {!isMobile && (
-            <Link href={editEntityHref} className="client-entity-edit-btn" style={{ textDecoration: 'none' }}>
-              <EditIcon />
-              <span>Edit</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={clientReportHref({ entityId })}
+                className="client-entity-edit-btn"
+                style={{ textDecoration: 'none' }}
+              >
+                <ReportIcon />
+                <span>Reports</span>
+              </Link>
+              <Link href={editEntityHref} className="client-entity-edit-btn" style={{ textDecoration: 'none' }}>
+                <EditIcon />
+                <span>Edit</span>
+              </Link>
+            </div>
           )}
         </div>
 
         <div className="client-entity-stats-grid">
           <div className="client-entity-stat-col">
             <span className="client-entity-stat-label">Net Equity</span>
-            <span className="client-entity-stat-val text-white">{formatUSD(netEquity)}</span>
+            <span className="client-entity-stat-val text-white">{formatMoney(netEquity)}</span>
           </div>
           <div className="client-entity-stat-col">
             <span className="client-entity-stat-label">Market Value</span>
-            <span className="client-entity-stat-val text-white">{formatUSD(marketValue)}</span>
+            <span className="client-entity-stat-val text-white">{formatMoney(marketValue)}</span>
           </div>
           <div className="client-entity-stat-col">
             <span className="client-entity-stat-label">Outstanding Loan</span>
-            <span className="client-entity-stat-val text-white">-{formatUSD(outstandingLoans)}</span>
+            <span className="client-entity-stat-val text-white">{formatMoney(outstandingLoans != null ? -outstandingLoans : null)}</span>
           </div>
           <div className="client-entity-stat-col">
             <span className="client-entity-stat-label">Cash Flow (this month)</span>
-            <span className="client-entity-stat-val text-[#5dcaa5]">{formatUSD(cashFlowThisMonth, true)}</span>
+            <span
+              className="client-entity-stat-val"
+              style={{ color: cashFlowThisMonth != null && cashFlowThisMonth < 0 ? "#F09595" : "#5dcaa5" }}
+            >
+              {formatMoney(cashFlowThisMonth, true)}
+            </span>
           </div>
         </div>
+        <div className="text-white/60 text-[11px] font-semibold mt-2">
+          {summary
+            ? `Income and expenses: ${fyShortLabel(financialYear)}, excluding transactions awaiting review.`
+            : " "}
+        </div>
       </div>
+
+      {summaryRegion.status === "error" && (
+        <RegionError
+          message={`Couldn't load this entity's figures. ${summaryRegion.error ?? ""}`.trim()}
+          onRetry={() => {
+            summaryRegion.reload();
+            lastYearRegion.reload();
+          }}
+        />
+      )}
 
       {/* DESKTOP LAYOUT  */}
       {!isMobile ? (
@@ -651,6 +687,9 @@ export default function ClientEntityDetailView({
             <div className="client-entity-beneficiaries-card flex flex-col gap-4">
               <h3 className="client-entity-chart-title">Beneficiaries</h3>
               <div className="flex flex-col justify-center gap-1.5">
+                {beneficiariesList.length === 0 && (
+                  <div className="text-sm text-slate-400 py-3">No beneficiaries recorded.</div>
+                )}
                 {beneficiariesList.map((item, idx) => (
                   <div key={idx} className="client-beneficiary-row" style={{ borderBottom: "none", padding: "12px 0" }}>
                     <div>
@@ -693,8 +732,8 @@ export default function ClientEntityDetailView({
                     <div key={prop.id} className="client-property-horizontal-row flex items-start gap-4 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 mb-4 last:mb-0">
                       {/* Thumbnail Image */}
                       <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center border border-slate-100">
-                        {prop.imageUrl ? (
-                          <img src={prop.imageUrl} alt={prop.name} className="w-full h-full object-cover" />
+                        {prop.imageSrc ? (
+                          <img src={prop.imageSrc} alt={prop.name} className="w-full h-full object-cover" />
                         ) : (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-slate-400">
                             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -711,7 +750,7 @@ export default function ClientEntityDetailView({
                           </div>
                           <div className="flex items-center gap-1 text-xs">
                             <span className="text-slate-400 font-semibold">Net</span>
-                            <span className="text-[#12b76a] font-extrabold text-sm">+{formatUSD(prop.net)}</span>
+                            <span className="font-extrabold text-sm" style={{ color: prop.net != null ? signedTone(prop.net) : undefined }}>{formatMoney(prop.net, true)}</span>
                           </div>
                         </div>
 
@@ -729,10 +768,10 @@ export default function ClientEntityDetailView({
 
                         {/* Line 3: Metrics Row */}
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 font-semibold">
-                          <span>Value <strong className="text-slate-700 dark:text-slate-200 ml-0.5">{formatUSD(prop.marketValue)}</strong></span>
-                          <span>Loan <strong className="text-slate-700 dark:text-slate-200 ml-0.5">{formatUSD(prop.outstandingLoans)}</strong></span>
-                          <span>Income <strong className="text-[#12b76a] ml-0.5">+{formatUSD(prop.income)}</strong></span>
-                          <span>Expenses <strong className="text-[#f04438] ml-0.5">-{formatUSD(prop.expense)}</strong></span>
+                          <span>Value <strong className="text-slate-700 dark:text-slate-200 ml-0.5">{formatMoney(prop.marketValue)}</strong></span>
+                          <span>Loan <strong className="text-slate-700 dark:text-slate-200 ml-0.5">{formatMoney(prop.outstandingLoans)}</strong></span>
+                          <span>Income <strong className="text-[#12b76a] ml-0.5">{formatMoney(prop.income, true)}</strong></span>
+                          <span>Expenses <strong className="text-[#f04438] ml-0.5">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
                         </div>
                       </div>
                     </div>
@@ -789,7 +828,7 @@ export default function ClientEntityDetailView({
                       </div>
 
                       <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
-                        {tx.type === "revenue" ? "+" : "-"}{formatUSD(tx.amount)}
+                        {formatMoney(tx.type === "revenue" ? tx.amount : -tx.amount, true)}
                       </span>
                     </div>
                   ))
@@ -812,6 +851,15 @@ export default function ClientEntityDetailView({
               entity-scoped asset route rather than the property-scoped one
               because the card does not know, per row, which property page to
               send the reader to. */}
+          {/* GST Summary: this entity's bills at full value (its properties
+              plus anything not allocated to one), with personal spending. */}
+          <ClientGstSummaryCard
+            level="entity"
+            id={entityId}
+            scopeName={entity?.name ?? ""}
+            className="client-entity-doc-section-card"
+          />
+
           <ClientDepreciationCard
             level="entity"
             id={entityId}
@@ -905,6 +953,9 @@ export default function ClientEntityDetailView({
 
           <div className="client-entity-beneficiaries-card flex flex-col gap-4">
             <h3 className="client-entity-chart-title">Beneficiaries</h3>
+            {beneficiariesList.length === 0 && (
+              <div className="text-sm text-slate-400">No beneficiaries recorded.</div>
+            )}
             {beneficiariesList.map((item, idx) => (
               <div key={idx} className="client-beneficiary-row">
                 <div>
@@ -995,8 +1046,8 @@ export default function ClientEntityDetailView({
                 mappedProperties.map((prop) => (
                   <div key={prop.id} className="client-entity-property-card">
                     <div className="client-entity-property-img-placeholder">
-                      {prop.imageUrl ? (
-                        <img src={prop.imageUrl} alt={prop.name} className="w-full h-full object-cover" />
+                      {prop.imageSrc ? (
+                        <img src={prop.imageSrc} alt={prop.name} className="w-full h-full object-cover" />
                       ) : (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '48px', height: '48px', color: '#98a2b3' }}>
                           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -1016,17 +1067,17 @@ export default function ClientEntityDetailView({
                           </Link>
                           <span className="text-slate-400 text-xs font-semibold">{prop.entityName}</span>
                         </div>
-                        <span className="text-[#12b76a] font-bold text-sm">Net +{formatUSD(prop.net)}</span>
+                        <span className="font-bold text-sm" style={{ color: prop.net != null ? signedTone(prop.net) : undefined }}>Net {formatMoney(prop.net, true)}</span>
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold border-t border-slate-50 dark:border-slate-800 pt-3 mt-1">
-                        <span>Value <strong>{formatUSD(prop.marketValue)}</strong></span>
-                        <span>Loan <strong>{formatUSD(prop.outstandingLoans)}</strong></span>
+                        <span>Value <strong>{formatMoney(prop.marketValue)}</strong></span>
+                        <span>Loan <strong>{formatMoney(prop.outstandingLoans)}</strong></span>
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold">
-                        <span>Income <strong className="text-[#12b76a]">{formatUSD(prop.income)}</strong></span>
-                        <span>Expenses <strong className="text-red-500">-{formatUSD(prop.expense)}</strong></span>
+                        <span>Income <strong className="text-[#12b76a]">{formatMoney(prop.income, true)}</strong></span>
+                        <span>Expenses <strong className="text-red-500">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
                       </div>
                     </div>
                   </div>
@@ -1083,7 +1134,7 @@ export default function ClientEntityDetailView({
                     </div>
 
                     <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
-                      {tx.type === "revenue" ? "+" : "-"}{formatUSD(tx.amount)}
+                      {formatMoney(tx.type === "revenue" ? tx.amount : -tx.amount, true)}
                     </span>
                   </div>
                 ))
@@ -1094,7 +1145,14 @@ export default function ClientEntityDetailView({
           {/* Depreciation. The mobile twin of ROW 5 above — same props, same
               placement above Documents. Keep the two in step: this file
               carries fully separate desktop and mobile trees, so a card added
-              to one is simply absent on the other. */}
+              to one is simply absent on the other. Same for GST, above it. */}
+          <ClientGstSummaryCard
+            level="entity"
+            id={entityId}
+            scopeName={entity?.name ?? ""}
+            className="client-entity-doc-section-card"
+          />
+
           <ClientDepreciationCard
             level="entity"
             id={entityId}
@@ -1159,6 +1217,8 @@ export default function ClientEntityDetailView({
             )}
           </div>
         </div>
+      )}
+      </div>
       )}
 
       {/* ==========================================================================
@@ -1271,7 +1331,7 @@ export default function ClientEntityDetailView({
                     <input
                       type="text"
                       className="client-upload-input"
-                      value={entity?.name || "Johnson Family Trust"}
+                      value={entity?.name || ""}
                       disabled
                       style={{ opacity: 0.7, cursor: "not-allowed" }}
                     />
