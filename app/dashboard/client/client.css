@@ -4120,6 +4120,22 @@ html.dark .m-db-chart-bar-expense {
   background-color: var(--accent) !important;
 }
 
+/* A full financial year (12 bars, Jul–Jun) has to fit a 375px phone: the
+   default 28px pills and 8px gaps only fit six. */
+.m-db-chart-bars-wrap.is-fy {
+  gap: 4px;
+}
+
+.m-db-chart-bars-wrap.is-fy .m-db-chart-bar-pill {
+  width: 100%;
+  max-width: 16px;
+  border-radius: 5px;
+}
+
+.m-db-chart-bars-wrap.is-fy .m-db-chart-bar-label {
+  font-size: 9px;
+}
+
 /* Entity Progress Bars & Detailed List Items */
 .m-db-entity-bar-container,
 html.dark .m-db-entity-bar-container {
