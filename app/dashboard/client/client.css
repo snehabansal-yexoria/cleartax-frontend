@@ -5078,8 +5078,7 @@ html.dark .m-db-portfolio-col.divider-left {
     grid-template-columns: 1fr 1.25fr;
     grid-template-areas:
       "cashflow income-expense"
-      "expense-breakdown top-performing"
-      "depreciation depreciation";
+      "expense-breakdown top-performing";
   }
 }
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -5088,8 +5087,7 @@ html.dark .m-db-portfolio-col.divider-left {
     grid-template-areas:
       "cashflow cashflow"
       "income-expense income-expense"
-      "expense-breakdown top-performing"
-      "depreciation depreciation";
+      "expense-breakdown top-performing";
   }
 }
 .area-cashflow { grid-area: cashflow; }
@@ -7124,4 +7122,87 @@ html.dark .client-pager-btn:hover:not(:disabled) {
 .client-pager-btn:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* ==========================================================================
+   Insights filters: period pills, FY dropdown, custom range, scope.
+   ========================================================================== */
+.insights-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.insights-filters.is-mobile {
+  margin: 16px 0 20px 0;
+}
+.insights-filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.insights-filters-period {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.insights-custom-range {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+}
+.insights-custom-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.insights-custom-range input[type="date"] {
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 14px;
+  color-scheme: light;
+}
+html.dark .insights-custom-range input[type="date"] {
+  color-scheme: dark;
+}
+.insights-custom-apply {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+html.dark .insights-custom-apply {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #14172e;
+}
+.insights-custom-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+.insights-filters.is-mobile .insights-custom-range label {
+  flex: 1 1 140px;
+}
+.insights-filters.is-mobile .insights-custom-range input[type="date"] {
+  width: 100%;
 }

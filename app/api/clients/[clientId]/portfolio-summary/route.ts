@@ -5,6 +5,7 @@ import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 type RouteContext = { params: Promise<{ clientId: string }> };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * The client's Portfolio Summary for one financial year, optionally narrowed
@@ -31,6 +32,12 @@ export async function GET(req: Request, context: RouteContext) {
   const entityId = UUID_RE.test(rawEntityId) ? rawEntityId : undefined;
   const rawPropertyId = (params.get("property_id") ?? "").trim();
   const propertyId = UUID_RE.test(rawPropertyId) ? rawPropertyId : undefined;
+  // An exact window (the Insights page). Forwarded only as a pair; the Go API
+  // validates the dates and the 24-month limit and 400s anything else.
+  const rawFrom = (params.get("from") ?? "").trim();
+  const rawTo = (params.get("to") ?? "").trim();
+  const range =
+    DATE_RE.test(rawFrom) && DATE_RE.test(rawTo) ? { from: rawFrom, to: rawTo } : undefined;
 
   try {
     const summary = await getCorePortfolioSummaryForClient(
@@ -39,6 +46,7 @@ export async function GET(req: Request, context: RouteContext) {
       financialYear,
       entityId,
       propertyId,
+      range,
     );
     return NextResponse.json(summary);
   } catch (error) {

@@ -2329,6 +2329,8 @@ export type CorePnlPeriod = {
   label: string;
   from: string;
   to: string;
+  /** An explicit from/to window, not a financial year (Portfolio Summary only). */
+  custom?: boolean;
 };
 
 /**
@@ -2396,6 +2398,7 @@ function toPnlPeriod(value: unknown): CorePnlPeriod {
     label: toStringValue(raw.label),
     from: toStringValue(raw.from),
     to: toStringValue(raw.to),
+    ...(raw.custom === true ? { custom: true } : {}),
   };
 }
 
@@ -2835,11 +2838,17 @@ export async function getCorePortfolioSummaryForClient(
   financialYear?: number,
   entityId?: string,
   propertyId?: string,
+  /** An exact window (YYYY-MM-DD, inclusive); overrides financialYear. */
+  range?: { from: string; to: string },
 ) {
   const params = new URLSearchParams();
   if (financialYear) params.set("financial_year", String(financialYear));
   if (entityId) params.set("entity_id", entityId);
   if (propertyId) params.set("property_id", propertyId);
+  if (range) {
+    params.set("from", range.from);
+    params.set("to", range.to);
+  }
   const qs = params.toString() ? `?${params.toString()}` : "";
   const payload = await coreApiRequest(
     `/clients/${encodeURIComponent(clientId)}/portfolio-summary${qs}`,
