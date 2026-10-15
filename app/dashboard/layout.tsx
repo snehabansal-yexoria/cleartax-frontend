@@ -61,6 +61,7 @@ import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor"
 import NotificationBell from "@/app/components/notifications/NotificationBell";
 import { fetchCurrentUser } from "@/app/components/currentUser";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import ConsoleShell from "./_console/ConsoleShell";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -1107,6 +1108,15 @@ export default function DashboardLayout({
     return <DashboardShellSkeleton />;
   }
 
+  // Super admin uses the dedicated console shell. Other roles keep the shell below.
+  if (role === "super_admin") {
+    return (
+      <ConsoleShell email={email} onLogout={handleLogout}>
+        {children}
+      </ConsoleShell>
+    );
+  }
+
   if (
     role === "accountant" ||
     role === "admin" ||
@@ -1116,7 +1126,11 @@ export default function DashboardLayout({
   ) {
     return (
       <div className={`accountant-shell${isClientPage ? " client-dashboard-shell" : ""}`}>
-        <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30">
+        <aside className={`hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30${
+          // Admin: pin the sidebar to the viewport height so it doesn't stretch
+          // with long pages; its own items scroll if the window is short.
+          role === "admin" ? " lg:sticky lg:top-4 lg:self-start lg:h-[calc(100vh-32px)] lg:overflow-y-auto lg:overflow-x-hidden" : ""
+        }`}>
           <div className="flex flex-col gap-9 w-full">
             <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
               <div className="flex items-center gap-3.5 w-full">

@@ -47,6 +47,18 @@ export type CoreOrganization = {
   name: string;
   email: string;
   tenantCode: string;
+  // Optional profile fields the organisations endpoint already returns; used by
+  // the super admin console. Absent values stay empty/null.
+  contactNumber?: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  subscriptionPlan?: string;
+  maxUsersAllowed?: number | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
 };
 
 export type EntityType =
@@ -317,6 +329,21 @@ export function normalizeCoreOrganization(raw: RawRecord): CoreOrganization {
     name: toStringValue(raw.name || raw.org_name || raw.orgName),
     email: toStringValue(raw.org_email || raw.email),
     tenantCode: toStringValue(raw.tenant_code || raw.tenantCode),
+    contactNumber: toStringValue(raw.contact_number || raw.contactNumber),
+    addressLine1: toStringValue(raw.address_line1 || raw.addressLine1),
+    city: toStringValue(raw.city),
+    state: toStringValue(raw.state),
+    postalCode: toStringValue(raw.postal_code || raw.postalCode),
+    country: toStringValue(raw.country),
+    subscriptionPlan: toStringValue(raw.subscription_plan || raw.subscriptionPlan),
+    maxUsersAllowed: toNumberValue(raw.max_users_allowed ?? raw.maxUsersAllowed),
+    isActive:
+      typeof raw.is_active === "boolean"
+        ? raw.is_active
+        : typeof raw.isActive === "boolean"
+          ? raw.isActive
+          : null,
+    createdAt: toStringValue(raw.created_at || raw.createdAt) || null,
   };
 }
 
