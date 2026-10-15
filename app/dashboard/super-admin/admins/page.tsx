@@ -23,7 +23,8 @@ import {
   SelectField,
   StatusBadge,
 } from "../../_console/components/ui";
-import { formatDate, formatNumber } from "../../_console/lib/format";
+import { formatDate, formatNumber, formatRelative } from "../../_console/lib/format";
+import { SHOW_SAMPLE_DATA, adminAuth } from "../../_console/lib/sampleData";
 import {
   ORG_STATUS_LABEL,
   currentAdmin,
@@ -44,6 +45,9 @@ export default function SuperAdminAdminsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [orgStatus, setOrgStatus] = useState<OrgStatus | "all">("all");
+  const [mfa, setMfa] = useState<"any" | "on" | "off">("any");
+  const [login, setLogin] = useState<"any" | "7d" | "30d" | "never">("any");
+  const [now] = useState(() => Date.now());
   const [changeFor, setChangeFor] = useState<OrganisationRow | null>(null);
 
   const rows = useMemo(() => joinOrganisations(orgs.data, admins.data), [orgs.data, admins.data]);
@@ -57,11 +61,20 @@ export default function SuperAdminAdminsPage() {
     if (status === "active" && isPendingStatus(admin.status)) return false;
     if (status === "pending" && !isPendingStatus(admin.status)) return false;
     if (orgStatus !== "all" && orgFor(admin)?.status !== orgStatus) return false;
+    const auth = adminAuth(admin);
+    if (mfa !== "any" && (!auth || auth.mfa !== (mfa === "on"))) return false;
+    if (login !== "any") {
+      const last = auth?.lastLogin ? new Date(auth.lastLogin).getTime() : null;
+      if (login === "never" && last != null) return false;
+      if (login === "7d" && (last == null || now - last > 7 * 86_400_000)) return false;
+      if (login === "30d" && (last == null || now - last > 30 * 86_400_000)) return false;
+    }
     return true;
   });
   const loading = admins.isLoading || orgs.isLoading;
   const thisYear = new Date().getFullYear();
   const pending = list.filter((a) => isPendingStatus(a.status)).length;
+  const mfaOn = SHOW_SAMPLE_DATA ? list.filter((a) => adminAuth(a)?.mfa).length : null;
 
   return (
     <>
@@ -80,6 +93,8 @@ export default function SuperAdminAdminsPage() {
                   { header: "Organisation", value: (a: InvitedUser) => a.organizationName },
                   { header: "Status", value: (a: InvitedUser) => (isPendingStatus(a.status) ? "Invite pending" : "Active") },
                   { header: "Admin since", value: (a: InvitedUser) => formatDate(a.createdAt) },
+                  { header: "MFA", value: (a: InvitedUser) => (adminAuth(a) ? (adminAuth(a)?.mfa ? "On" : "Off") : "") },
+                  { header: "Last login", value: (a: InvitedUser) => formatDate(adminAuth(a)?.lastLogin) },
                 ],
                 rows: visible,
               })}
@@ -98,7 +113,13 @@ export default function SuperAdminAdminsPage() {
         <Kpi label="Admins" loading={loading} value={formatNumber(list.length)} hint="one per organisation" />
         <Kpi label="Active" tone="good" loading={loading} value={formatNumber(list.length - pending)} />
         <Kpi label="Invite pending" tone="warn" loading={loading} value={formatNumber(pending)} hint="not yet accepted" />
-        <Kpi label="MFA on" value="—" hint={<ApiPending>{AUTH_REASON}</ApiPending>} />
+        <Kpi
+          label="MFA on"
+          tone={mfaOn != null && mfaOn < list.length - pending ? "warn" : undefined}
+          loading={loading}
+          value={formatNumber(mfaOn)}
+          hint={mfaOn == null ? <ApiPending>{AUTH_REASON}</ApiPending> : `of ${formatNumber(list.length - pending)} active admins`}
+        />
         <Kpi
           label="Changed this year"
           loading={loading}
@@ -131,16 +152,46 @@ export default function SuperAdminAdminsPage() {
             { value: "suspended", label: "Suspended" },
           ]}
         />
-        <Field label="MFA" htmlFor="ad-mfa">
-          <select id="ad-mfa" className="cpc-select" disabled title={AUTH_REASON}>
-            <option>Any</option>
-          </select>
-        </Field>
-        <Field label="Last login" htmlFor="ad-login">
-          <select id="ad-login" className="cpc-select" disabled title={AUTH_REASON}>
-            <option>Any time</option>
-          </select>
-        </Field>
+        {SHOW_SAMPLE_DATA ? (
+          <>
+            <SelectField
+              id="ad-mfa"
+              label="MFA"
+              value={mfa}
+              onChange={setMfa}
+              options={[
+                { value: "any", label: "Any" },
+                { value: "on", label: "On" },
+                { value: "off", label: "Off" },
+              ]}
+            />
+            <SelectField
+              id="ad-login"
+              label="Last login"
+              value={login}
+              onChange={setLogin}
+              options={[
+                { value: "any", label: "Any time" },
+                { value: "7d", label: "Last 7 days" },
+                { value: "30d", label: "Last 30 days" },
+                { value: "never", label: "Never signed in" },
+              ]}
+            />
+          </>
+        ) : (
+          <>
+            <Field label="MFA" htmlFor="ad-mfa">
+              <select id="ad-mfa" className="cpc-select" disabled title={AUTH_REASON}>
+                <option>Any</option>
+              </select>
+            </Field>
+            <Field label="Last login" htmlFor="ad-login">
+              <select id="ad-login" className="cpc-select" disabled title={AUTH_REASON}>
+                <option>Any time</option>
+              </select>
+            </Field>
+          </>
+        )}
       </FilterBar>
 
       <Card flush>
@@ -172,9 +223,30 @@ export default function SuperAdminAdminsPage() {
               sortValue: (a) => a.organizationName,
             },
             { id: "status", header: "Status", cell: (a) => <StatusBadge status={a.status} />, sortValue: (a) => a.status },
-            { id: "mfa", header: "MFA", cell: () => <span className="cpc-muted">—</span> },
+            {
+              id: "mfa",
+              header: "MFA",
+              cell: (a) => {
+                const auth = adminAuth(a);
+                if (!auth || isPendingStatus(a.status)) return <span className="cpc-muted">—</span>;
+                return (
+                  <Badge tone={auth.mfa ? "green" : "amber"} dot>
+                    {auth.mfa ? "On" : "Off"}
+                  </Badge>
+                );
+              },
+              sortValue: (a) => (adminAuth(a)?.mfa ? 1 : 0),
+            },
             { id: "since", header: "Admin since", cell: (a) => <span className="cpc-small">{formatDate(a.createdAt)}</span>, sortValue: (a) => a.createdAt ?? "" },
-            { id: "login", header: "Last login", cell: () => <span className="cpc-muted">—</span> },
+            {
+              id: "login",
+              header: "Last login",
+              cell: (a) => {
+                const last = adminAuth(a)?.lastLogin;
+                return last ? <span className="cpc-small">{formatRelative(last)}</span> : <span className="cpc-muted">{SHOW_SAMPLE_DATA ? "Never" : "—"}</span>;
+              },
+              sortValue: (a) => adminAuth(a)?.lastLogin ?? "",
+            },
             {
               id: "actions",
               header: "",

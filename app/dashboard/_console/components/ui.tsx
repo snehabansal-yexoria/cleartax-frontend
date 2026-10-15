@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Children, type CSSProperties, type ReactNode } from "react";
 import { initials, toneFor } from "../lib/format";
 
 export function cx(...names: (string | false | null | undefined)[]) {
@@ -83,8 +83,15 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 
 /* --------------------------------------------------------------- KPIs */
 
+/** Rows of at most 5 tiles; 7 or 8 tiles go 4 per row so no tile sits alone. */
 export function KpiGrid({ children }: { children: ReactNode }) {
-  return <section className="cpc-kpis">{children}</section>;
+  const count = Children.toArray(children).length;
+  const columns = count <= 5 ? count : count === 6 ? 6 : 4;
+  return (
+    <section className="cpc-kpis" style={{ "--cpc-kpi-cols": columns } as CSSProperties}>
+      {children}
+    </section>
+  );
 }
 
 export function Kpi({

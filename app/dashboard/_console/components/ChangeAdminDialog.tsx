@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { apiPost } from "../lib/api";
+import { isSampleId } from "../lib/sampleData";
 import type { InvitedUser } from "../lib/superAdminData";
 import { invalidateResource } from "../lib/useResource";
 import { Dialog } from "./Dialog";
@@ -55,6 +56,11 @@ export function ChangeAdminDialog({
     setSubmitting(true);
     setError("");
     try {
+      // Sample organisations don't exist in the backend: show the flow, send nothing.
+      if (isSampleId(organisation.id)) {
+        setResult({ link: "", password: "", email: email.trim() });
+        return;
+      }
       const response = await apiPost<InviteResponse>("/api/invite-user", {
         email: email.trim(),
         role: "admin",

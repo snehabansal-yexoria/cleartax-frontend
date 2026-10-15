@@ -2,6 +2,7 @@
 
 import type { CoreOrganization } from "@/src/lib/coreApi";
 import { apiGet } from "./api";
+import { SHOW_SAMPLE_DATA, sampleAdmins, sampleOrganisations } from "./sampleData";
 import { useResource } from "./useResource";
 
 /** GET /api/organizations/list (normalised CoreOrganization) */
@@ -41,14 +42,36 @@ export function isPendingStatus(status: string) {
   return ["INVITED", "PENDING", "FORCE_CHANGE_PASSWORD"].includes(String(status).toUpperCase());
 }
 
+const normalise = (value: string) => String(value ?? "").trim().toLowerCase();
+
+/**
+ * Real rows first, then the sample rows (when sample data is on). A sample row
+ * is skipped if a real row has the same key, so nothing is listed twice. If the
+ * API fails while sample data is on, the sample rows still render.
+ */
+async function withSamples<T>(load: () => Promise<T[]>, samples: () => T[], key: (row: T) => string) {
+  if (!SHOW_SAMPLE_DATA) return load();
+  try {
+    const real = await load();
+    const taken = new Set(real.map((row) => normalise(key(row))));
+    return [...real, ...samples().filter((row) => !taken.has(normalise(key(row))))];
+  } catch {
+    return samples();
+  }
+}
+
 async function loadOrganisations() {
-  const data = await apiGet<{ organizations: Organisation[] }>("/api/organizations/list");
-  return data.organizations ?? [];
+  return withSamples(async () => {
+    const data = await apiGet<{ organizations: Organisation[] }>("/api/organizations/list");
+    return data.organizations ?? [];
+  }, sampleOrganisations, (org) => org.name);
 }
 
 async function loadAdmins() {
-  const data = await apiGet<{ users: InvitedUser[] }>("/api/users/me/invited");
-  return (data.users ?? []).filter((user) => user.role === "admin");
+  return withSamples(async () => {
+    const data = await apiGet<{ users: InvitedUser[] }>("/api/users/me/invited");
+    return (data.users ?? []).filter((user) => user.role === "admin");
+  }, sampleAdmins, (admin) => admin.email);
 }
 
 async function loadMe() {
@@ -67,8 +90,6 @@ export function useCurrentUser() {
   return useResource("me", loadMe, 10 * 60 * 1000);
 }
 
-const normalise = (value: string) => value.trim().toLowerCase();
-
 /**
  * Join organisations with the admins invited into them. The invited-users API
  * returns the organisation by name, so the match is on name.
@@ -83,8 +104,10 @@ export function joinOrganisations(orgs: Organisation[] = [], admins: InvitedUser
   });
 }
 
+/** The newest admin who has accepted; otherwise the newest invite. */
 export function currentAdmin(row: OrganisationRow) {
-  return row.admins.find((admin) => !isPendingStatus(admin.status)) ?? row.admins[0] ?? null;
+  const newestFirst = [...row.admins].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  return newestFirst.find((admin) => !isPendingStatus(admin.status)) ?? newestFirst[0] ?? null;
 }
 
 export function orgAddress(org: Organisation) {

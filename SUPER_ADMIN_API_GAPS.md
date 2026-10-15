@@ -1,8 +1,22 @@
 # Super admin console: API status
 
-The super admin screens live in `app/dashboard/super-admin` and use the shell in
-`app/dashboard/_console`. Anything the backend doesn't return yet is shown as
-"—" with a tooltip, never as made-up numbers.
+The super admin screens live in `app/dashboard/super-admin`. They use the same
+sidebar and topbar as admin and accountant (`app/dashboard/layout.tsx`); page
+components and styles are in `app/dashboard/_console`.
+
+## Sample data
+
+`SHOW_SAMPLE_DATA` in `app/dashboard/_console/lib/sampleData.ts` is **on** so the
+screens can be reviewed with realistic figures. While it's on:
+
+- six sample organisations (with admins) are listed after the real ones;
+- totals the backend doesn't return yet (accountants, RMs, clients, properties,
+  equity, growth, people, MFA, last login) are filled with stable sample numbers
+  for every organisation, real or sample;
+- inviting an admin to a sample organisation shows the confirmation but sends nothing.
+
+Set it to `false` before going live: screens then show real API data only, and
+"—" with a tooltip wherever a figure isn't available yet.
 
 ## Connected (existing routes)
 

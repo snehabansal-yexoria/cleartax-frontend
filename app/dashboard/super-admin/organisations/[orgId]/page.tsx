@@ -10,6 +10,7 @@ import {
   Avatar,
   Badge,
   Card,
+  ColumnChart,
   EmptyState,
   Field,
   Kpi,
@@ -23,7 +24,8 @@ import {
   Skeleton,
   StatusBadge,
 } from "../../../_console/components/ui";
-import { formatDate, initials } from "../../../_console/lib/format";
+import { formatCompactMoney, formatDate, formatDateTime, formatNumber, initials } from "../../../_console/lib/format";
+import { adminAuth, changeReason, lastTwelveMonths, orgMetrics, orgPeople, type SampleRm } from "../../../_console/lib/sampleData";
 import {
   ORG_STATUS_LABEL,
   currentAdmin,
@@ -38,6 +40,20 @@ import {
 
 const TOTALS = "Needs organisation totals API";
 
+const TIME_ZONES: Record<string, string> = {
+  NSW: "Australia/Sydney",
+  ACT: "Australia/Sydney",
+  VIC: "Australia/Melbourne",
+  TAS: "Australia/Hobart",
+  QLD: "Australia/Brisbane",
+  SA: "Australia/Adelaide",
+  NT: "Australia/Darwin",
+  WA: "Australia/Perth",
+};
+
+/** How many of the 12 monthly points each period preset shows. */
+const PERIOD_MONTHS: Record<PeriodId, number> = { month: 1, quarter: 3, "fy-current": 12, "last-12": 12, all: 12 };
+
 type HistoryRow = InvitedUser & { to: string | null; isCurrent: boolean };
 
 export default function SuperAdminOrganisationDetailPage() {
@@ -50,7 +66,14 @@ export default function SuperAdminOrganisationDetailPage() {
 
   const row = useMemo(() => joinOrganisations(orgs.data, admins.data).find((item) => item.id === orgId), [orgs.data, admins.data, orgId]);
   const loading = orgs.isLoading || admins.isLoading;
-  const admin = row ? currentAdmin(row) : null;
+  const admin = useMemo(() => (row ? currentAdmin(row) : null), [row]);
+  const metrics = row ? orgMetrics(row.id) : null;
+  const people = useMemo(() => (row ? orgPeople(row.id) : []), [row]);
+  const auth = admin ? adminAuth(admin) : null;
+  const months = useMemo(() => lastTwelveMonths(), []);
+  const shown = PERIOD_MONTHS[periodId];
+  const kpi = (value: number | undefined, money = false) => (metrics ? (money ? formatCompactMoney(value) : formatNumber(value)) : "—");
+  const kpiHint = (text: string) => (metrics ? text : <ApiPending>{TOTALS}</ApiPending>);
 
   // Each admin's tenure runs until the next admin was invited.
   const history = useMemo<HistoryRow[]>(() => {
@@ -149,14 +172,19 @@ export default function SuperAdminOrganisationDetailPage() {
       </section>
 
       <KpiGrid>
-        <Kpi label="Accountants" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="RMs" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="Clients" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="Properties" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="Entities" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="Equity managed" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="Documents" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
-        <Kpi label="Bank accounts" value="—" hint={<ApiPending>{TOTALS}</ApiPending>} />
+        <Kpi label="Accountants" loading={loading} value={kpi(metrics?.accountants)} hint={kpiHint(`across ${metrics?.rms ?? 0} RM teams`)} />
+        <Kpi label="RMs" loading={loading} value={kpi(metrics?.rms)} hint={kpiHint("relationship managers")} />
+        <Kpi
+          label="Clients"
+          loading={loading}
+          value={kpi(metrics?.clients)}
+          hint={kpiHint(`+${formatNumber(metrics ? metrics.clients - metrics.clientsByMonth[12 - shown] : 0)} in period`)}
+        />
+        <Kpi label="Properties" loading={loading} value={kpi(metrics?.properties)} hint={kpiHint("under management")} />
+        <Kpi label="Entities" loading={loading} value={kpi(metrics?.entities)} hint={kpiHint("trusts, companies, SMSFs")} />
+        <Kpi label="Equity managed" loading={loading} value={kpi(metrics?.equity, true)} hint={kpiHint("total portfolio equity")} />
+        <Kpi label="Documents" loading={loading} value={kpi(metrics?.documents)} hint={kpiHint("uploaded to the vault")} />
+        <Kpi label="Bank accounts" loading={loading} value={kpi(metrics?.bankAccounts)} hint={kpiHint("connected feeds")} />
       </KpiGrid>
 
       <div className="cpc-grid-2">
@@ -187,11 +215,19 @@ export default function SuperAdminOrganisationDetailPage() {
                 <dt>Admin since</dt>
                 <dd>{formatDate(admin.createdAt)}</dd>
                 <dt>Phone</dt>
-                <dd className="cpc-muted">—</dd>
+                <dd className={auth ? undefined : "cpc-muted"}>{auth?.phone ?? "—"}</dd>
                 <dt>Last login</dt>
-                <dd className="cpc-muted">—</dd>
+                <dd className={auth?.lastLogin ? undefined : "cpc-muted"}>{auth?.lastLogin ? formatDateTime(auth.lastLogin) : "—"}</dd>
                 <dt>MFA</dt>
-                <dd className="cpc-muted">—</dd>
+                <dd>
+                  {auth ? (
+                    <Badge tone={auth.mfa ? "green" : "amber"} dot>
+                      {auth.mfa ? "On" : "Off"}
+                    </Badge>
+                  ) : (
+                    <span className="cpc-muted">—</span>
+                  )}
+                </dd>
               </dl>
             </div>
           ) : (
@@ -209,8 +245,12 @@ export default function SuperAdminOrganisationDetailPage() {
               <dd>{row?.email || "—"}</dd>
               <dt>Address</dt>
               <dd>{address || "—"}</dd>
+              <dt>Phone</dt>
+              <dd>{row?.contactNumber || "—"}</dd>
+              <dt>Plan</dt>
+              <dd style={{ textTransform: "capitalize" }}>{row?.subscriptionPlan || "—"}</dd>
               <dt>Time zone</dt>
-              <dd className="cpc-muted">—</dd>
+              <dd className={metrics && row?.state ? undefined : "cpc-muted"}>{metrics && row?.state ? TIME_ZONES[row.state] ?? "Australia/Sydney" : "—"}</dd>
               <dt>FY starts</dt>
               <dd>1 July</dd>
             </dl>
@@ -219,21 +259,31 @@ export default function SuperAdminOrganisationDetailPage() {
       </div>
 
       <div className="cpc-grid-2">
-        <Card title="Growth" meta="Clients and equity at month end" actions={<Legend items={[{ label: "Clients", color: "var(--cpc-blue)" }]} />}>
-          <EmptyState title="No growth data yet">Monthly client and equity totals appear once the organisation totals API is available.</EmptyState>
+        <Card title="Growth" meta="Clients at month end" actions={<Legend items={[{ label: "Clients", color: "#2e387a" }]} />}>
+          {metrics ? (
+            <ColumnChart
+              loading={loading}
+              labels={months.slice(12 - Math.max(shown, 6))}
+              series={[{ name: "Clients", color: "#2e387a", values: metrics.clientsByMonth.slice(12 - Math.max(shown, 6)) }]}
+            />
+          ) : (
+            <EmptyState title="No growth data yet">Monthly client and equity totals appear once the organisation totals API is available.</EmptyState>
+          )}
         </Card>
         <Card flush title="People" meta="RMs and the accountants under them">
-          <DataTable<{ id: string }>
+          <DataTable<SampleRm>
             caption="Relationship managers"
-            rows={[]}
+            loading={loading}
+            rows={people}
             rowKey={(item) => item.id}
+            initialSort={{ id: "clients", direction: "desc" }}
             empty={<EmptyState title="No people data yet">RMs and their accountants appear once the organisation totals API is available.</EmptyState>}
             columns={[
-              { id: "rm", header: "Relationship manager", cell: () => null },
-              { id: "acc", header: "Accountants", align: "right", cell: () => null },
-              { id: "clients", header: "Clients", align: "right", cell: () => null },
-              { id: "props", header: "Properties", align: "right", cell: () => null },
-              { id: "equity", header: "Equity", align: "right", cell: () => null },
+              { id: "rm", header: "Relationship manager", cell: (item) => <Person name={item.name} />, sortValue: (item) => item.name },
+              { id: "acc", header: "Accountants", align: "right", cell: (item) => formatNumber(item.accountants), sortValue: (item) => item.accountants },
+              { id: "clients", header: "Clients", align: "right", cell: (item) => formatNumber(item.clients), sortValue: (item) => item.clients },
+              { id: "props", header: "Properties", align: "right", cell: (item) => formatNumber(item.properties), sortValue: (item) => item.properties },
+              { id: "equity", header: "Equity", align: "right", cell: (item) => formatCompactMoney(item.equity), sortValue: (item) => item.equity },
             ]}
           />
         </Card>
@@ -283,11 +333,22 @@ export default function SuperAdminOrganisationDetailPage() {
                 ),
             },
             { id: "by", header: "Changed by", cell: (a) => <span className="cpc-muted">{a.invitedByEmail || "—"}</span> },
-            { id: "reason", header: "Reason", cell: () => <span className="cpc-muted">—</span> },
+            {
+              id: "reason",
+              header: "Reason",
+              cell: (a) => <span className="cpc-muted">{a.isCurrent ? "—" : changeReason(a.id) ?? "—"}</span>,
+            },
             {
               id: "account",
               header: "Previous admin's account",
-              cell: (a) => <span className="cpc-small cpc-muted">{a.isCurrent ? "—" : isPendingStatus(a.status) ? "Invite pending" : "Active"}</span>,
+              cell: (a) =>
+                a.isCurrent ? (
+                  <span className="cpc-muted">—</span>
+                ) : isPendingStatus(a.status) ? (
+                  <span className="cpc-small cpc-muted">Invite pending</span>
+                ) : (
+                  <Badge tone="gray">Deactivated</Badge>
+                ),
             },
           ]}
         />

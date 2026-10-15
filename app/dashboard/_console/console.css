@@ -1,5 +1,5 @@
 /*
- * ClearPortfolio admin console (admin + super admin).
+ * ClearPortfolio super admin pages.
  *
  * Every rule is scoped under `.cpc` so nothing leaks into the accountant and
  * client portals, which keep using globals.css. Sizes are in `em` against a
@@ -67,41 +67,15 @@
   outline-offset: 2px;
 }
 
-/* ------------------------------------------------------------------ shell */
+/* -------------------------------------------------------------- brand */
 
-.cpc-sidebar {
-  /* Pinned to the viewport: it never grows with the page, the content scrolls beside it. */
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 25;
-  height: 100vh;
-  height: 100dvh;
-  width: var(--cpc-sidebar);
-  flex: none;
-  background: var(--cpc-navy);
-  color: #dfe2f5;
-  display: flex;
-  flex-direction: column;
-  padding: 1.3em 0.86em 1.4em;
-  overflow-y: auto;
-}
-
-.cpc-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-  padding: 0.15em 0.6em 1.3em;
-  text-decoration: none;
-}
-
+/* Orange logo tile, same as the shared sidebar's logo. */
 .cpc-brand-logo {
   width: 2.6em;
   height: 2.6em;
   border-radius: 0.65em;
-  background: #f59e0b;
-  color: #2a1a00;
+  background: linear-gradient(180deg, #fbb228, #f4a117);
+  color: #24316e;
   font-weight: 700;
   font-size: 0.93em;
   display: flex;
@@ -110,211 +84,11 @@
   flex: none;
 }
 
-.cpc-brand-name {
-  font-family: var(--cpc-head);
-  font-weight: 600;
-  color: #fff;
-  font-size: 1.07em;
-  line-height: 1.2;
-}
-
-.cpc-brand-org {
-  font-size: 0.82em;
-  color: #aab0dc;
-}
-
-.cpc-nav-section {
-  font-size: 0.75em;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #9ca3d6;
-  padding: 1.3em 0.95em 0.5em;
-}
-
-.cpc-nav-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6em;
-  min-height: 2.7em;
-  padding: 0 0.7em;
-  border-radius: 0.57em;
-  color: #dfe2f5;
-  text-decoration: none;
-  font-size: 0.96em;
-}
-
-.cpc .cpc-nav-link {
-  color: #dfe2f5;
-}
-
-.cpc-nav-link:hover {
-  background: #2f3678;
-  color: #fff;
-}
-
-.cpc .cpc-nav-link.is-active {
-  background: var(--cpc-navy-2);
-  color: #fff;
-  font-weight: 600;
-}
-
-.cpc-nav-count {
-  font-size: 0.8em;
-  background: #1c2257;
-  color: #cfd3f2;
-  border-radius: 99px;
-  padding: 0.05em 0.55em;
-  font-variant-numeric: tabular-nums;
-}
-
-.cpc-sidebar-user {
-  margin-top: auto;
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-  padding: 1em 0.55em 0;
-  border-top: 1px solid var(--cpc-navy-2);
-}
-
-.cpc-sidebar-user div strong {
-  display: block;
-  color: #fff;
-  font-size: 0.93em;
-  font-weight: 600;
-}
-
-.cpc-sidebar-user div span {
-  display: block;
-  font-size: 0.82em;
-  color: #aab0dc;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 11em;
-}
-
-.cpc-main {
-  flex: 1;
-  min-width: 0;
-  margin-left: var(--cpc-sidebar);
-  display: flex;
-  flex-direction: column;
-}
-
-.cpc-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1em;
-  padding: 0.85em 2em;
-  background: #fff;
-  border-bottom: 1px solid var(--cpc-line);
-}
-
-.cpc-topbar-title {
-  display: flex;
-  align-items: center;
-  gap: 0.8em;
-  min-width: 0;
-}
-
-.cpc-topbar-title strong {
-  font-family: var(--cpc-head);
-  font-weight: 600;
-  font-size: 1.07em;
-  display: block;
-}
-
-.cpc-topbar-title span {
-  font-size: 0.86em;
-  color: var(--cpc-muted);
-  display: block;
-}
-
-.cpc-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-}
-
-.cpc-search {
-  height: 2.7em;
-  width: 20em;
-  max-width: 30vw;
-  border: 1px solid var(--cpc-line-2);
-  border-radius: 0.57em;
-  padding: 0 0.85em;
-  font: inherit;
-  font-size: 0.93em;
-  background: #faf9f7;
-  color: var(--cpc-ink);
-}
-
-.cpc .cpc-menu-toggle {
-  display: none;
-}
-
 .cpc-content {
   width: 100%;
-  max-width: 120em;
-  margin-inline: auto;
-  padding: 1.7em 2em 3.4em;
   display: flex;
   flex-direction: column;
   gap: 1.45em;
-}
-
-.cpc-scrim {
-  display: none;
-}
-
-/* Below laptop width the sidebar becomes a drawer. */
-@media (max-width: 1023px) {
-  .cpc-main {
-    margin-left: 0;
-  }
-
-  .cpc-sidebar {
-    z-index: 40;
-    transform: translateX(-100%);
-    transition: transform 180ms ease;
-    box-shadow: 0 0 40px rgba(10, 14, 40, 0.3);
-  }
-
-  .cpc.is-nav-open .cpc-sidebar {
-    transform: none;
-  }
-
-  .cpc.is-nav-open .cpc-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    background: rgba(16, 18, 30, 0.42);
-    border: 0;
-  }
-
-  .cpc .cpc-menu-toggle {
-    display: inline-flex;
-  }
-
-  .cpc-topbar,
-  .cpc-content {
-    padding-left: 1.3em;
-    padding-right: 1.3em;
-  }
-}
-
-@media (max-width: 767px) {
-  .cpc-search {
-    display: none;
-  }
 }
 
 /* ------------------------------------------------------------- page head */
@@ -1423,17 +1197,11 @@ a.cpc-kpi:hover {
   .cpc-skel {
     animation: none;
   }
-
-  .cpc-sidebar {
-    transition: none;
-  }
 }
 
 /* ----------------------------------------------------------- print / pdf */
 
 @media print {
-  .cpc-sidebar,
-  .cpc-topbar,
   .cpc-actions,
   .cpc-filters,
   .cpc-table-foot {
@@ -1444,12 +1212,267 @@ a.cpc-kpi:hover {
     background: #fff;
   }
 
-  .cpc-main {
-    margin-left: 0;
-  }
-
   .cpc-content {
     max-width: none;
     padding: 0;
   }
+}
+
+/* ------------------------------------------------- shared-shell theme */
+/*
+ * Super admin pages render inside the same shell as admin and accountant, so
+ * they take the admin dashboard's look: navy + orange brand, white 16px cards
+ * with soft shadows, Public Sans headings, Inter text, admin chart colours.
+ */
+
+.cpc.cpc-embed {
+  --cpc-ink: #101828;
+  --cpc-muted: #667085;
+  --cpc-faint: #98a2b3;
+  --cpc-line: #eaecf0;
+  --cpc-line-2: #d0d5dd;
+  --cpc-bg: transparent;
+  --cpc-navy: #2e387a;
+  --cpc-navy-2: #3a4291;
+  --cpc-blue: #1570ef;
+  --cpc-blue-d: #175cd3;
+  --cpc-teal: #039855;
+  --cpc-red: #d92d20;
+  --cpc-amber: #dc6803;
+  --cpc-orange: #f4a117;
+  --cpc-radius: 16px;
+  --cpc-shadow: 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+  --cpc-shadow-hover: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+
+  display: block;
+  min-height: 0;
+  background: transparent;
+  font-size: 14px;
+  padding-bottom: 48px;
+}
+
+@media (min-width: 1800px) {
+  .cpc.cpc-embed {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 2400px) {
+  .cpc.cpc-embed {
+    font-size: 17px;
+  }
+}
+
+.cpc-embed .cpc-content {
+  gap: 24px;
+}
+
+.cpc-embed a {
+  color: var(--cpc-blue-d);
+}
+
+/* Page head: same as the admin dashboard header. */
+.cpc-embed .cpc-page-title {
+  font-family: "Public Sans", sans-serif;
+  font-size: 2.28em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--cpc-ink);
+}
+
+.cpc-embed .cpc-page-sub {
+  font-size: 1em;
+  color: var(--cpc-muted);
+  margin-top: 6px;
+}
+
+.cpc-embed .cpc-page-head {
+  align-items: center;
+}
+
+/* Buttons */
+.cpc-embed .cpc-btn {
+  height: auto;
+  min-height: 2.9em;
+  padding: 0.7em 1.15em;
+  border-radius: 10px;
+  border-color: var(--cpc-line-2);
+  font-weight: 600;
+  color: #344054;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.cpc-embed .cpc-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #c6c9d2;
+}
+
+.cpc-embed .cpc-btn-sm {
+  min-height: 2.3em;
+  padding: 0.35em 0.8em;
+  border-radius: 8px;
+}
+
+.cpc-embed .cpc-btn-primary {
+  background: linear-gradient(180deg, #343f8a, #2b3470);
+  border-color: #2b3470;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(43, 52, 112, 0.22);
+}
+
+.cpc-embed .cpc-btn-primary:hover:not(:disabled) {
+  background: #252d63;
+  border-color: #252d63;
+}
+
+.cpc-embed .cpc-btn-ghost {
+  box-shadow: none;
+  color: var(--cpc-navy);
+}
+
+.cpc-embed .cpc-link {
+  color: #1570ef;
+  font-weight: 600;
+}
+
+/* Cards, KPI tiles, filter panel */
+.cpc-embed .cpc-card,
+.cpc-embed .cpc-kpi,
+.cpc-embed .cpc-filters {
+  border-color: var(--cpc-line);
+  border-radius: var(--cpc-radius);
+  box-shadow: var(--cpc-shadow);
+}
+
+.cpc-embed .cpc-card {
+  padding: 24px;
+}
+
+.cpc-embed .cpc-card-flush {
+  padding: 0;
+}
+
+.cpc-embed .cpc-card-flush > .cpc-card-head {
+  padding: 20px 24px 0;
+  margin-bottom: 16px;
+}
+
+.cpc-embed .cpc-card-head {
+  margin-bottom: 20px;
+  align-items: flex-start;
+}
+
+.cpc-embed .cpc-card-title {
+  font-family: "Public Sans", sans-serif;
+  font-size: 1.28em;
+  font-weight: 800;
+  color: var(--cpc-ink);
+}
+
+.cpc-embed .cpc-card-meta {
+  font-size: 0.93em;
+  margin-top: 4px;
+}
+
+.cpc-embed .cpc-filters {
+  padding: 16px 20px;
+}
+
+.cpc-embed .cpc-kpis {
+  /* At most --cpc-kpi-cols per row; fewer when tiles would get narrower than 11em. */
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(min(100%, 11em), calc((100% - (var(--cpc-kpi-cols, 4) - 1) * 20px) / var(--cpc-kpi-cols, 4))), 1fr)
+  );
+  gap: 20px;
+}
+
+.cpc-embed .cpc-kpi {
+  padding: 22px 24px;
+  gap: 10px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.cpc-embed .cpc-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cpc-shadow-hover);
+}
+
+.cpc-embed .cpc-kpi-label {
+  font-size: 0.86em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--cpc-muted);
+}
+
+.cpc-embed .cpc-kpi-value {
+  font-family: "Public Sans", sans-serif;
+  font-size: 2.3em;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--cpc-ink);
+}
+
+.cpc-embed .cpc-kpi-hint {
+  font-size: 0.93em;
+}
+
+.cpc-embed .cpc-up {
+  color: #12b76a;
+  font-weight: 700;
+}
+
+.cpc-embed .cpc-down {
+  color: #d92d20;
+  font-weight: 700;
+}
+
+/* Inputs */
+.cpc-embed .cpc-input,
+.cpc-embed .cpc-select,
+.cpc-embed .cpc-textarea {
+  border-radius: 10px;
+  border-color: var(--cpc-line-2);
+}
+
+.cpc-embed .cpc-input:focus,
+.cpc-embed .cpc-select:focus,
+.cpc-embed .cpc-textarea:focus {
+  outline: none;
+  border-color: #3a4291;
+  box-shadow: 0 0 0 4px rgba(58, 66, 145, 0.12);
+}
+
+.cpc-embed .cpc-preset.is-on {
+  background: var(--cpc-navy);
+  border-color: var(--cpc-navy);
+}
+
+/* Tables: same header treatment as the admin tables. */
+.cpc-embed .cpc-table th {
+  background: #f9fafb;
+  color: var(--cpc-muted);
+  font-weight: 700;
+  border-bottom-color: var(--cpc-line);
+}
+
+.cpc-embed .cpc-table td {
+  border-bottom-color: #f2f4f7;
+  padding-top: 1em;
+  padding-bottom: 1em;
+}
+
+.cpc-embed .cpc-table tbody tr:hover td {
+  background: #f9fafb;
+}
+
+.cpc-embed .cpc-tab.is-on {
+  color: var(--cpc-navy);
+  border-color: var(--cpc-orange);
+  font-weight: 700;
+}
+
+.cpc-embed .cpc-tab-count {
+  background: #eef0fa;
+  color: var(--cpc-navy);
 }

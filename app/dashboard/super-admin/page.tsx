@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChangeAdminDialog } from "../_console/components/ChangeAdminDialog";
 import { DataTable } from "../_console/components/DataTable";
 import { ExportMenu } from "../_console/components/ExportMenu";
@@ -9,17 +9,22 @@ import { PlusIcon, UserPlusIcon } from "../_console/components/icons";
 import {
   ApiPending,
   Badge,
+  BarList,
   Card,
+  ColumnChart,
   EmptyState,
   FilterBar,
   Kpi,
   KpiGrid,
+  Legend,
+  Meter,
   Notice,
   PageHeader,
   Person,
   SelectField,
 } from "../_console/components/ui";
-import { formatDate, formatNumber } from "../_console/lib/format";
+import { formatCompactMoney, formatDate, formatNumber } from "../_console/lib/format";
+import { lastTwelveMonths, orgMetrics, platformMetrics } from "../_console/lib/sampleData";
 import {
   ORG_STATUS_LABEL,
   currentAdmin,
@@ -51,7 +56,7 @@ export default function SuperAdminDashboardPage() {
 
   const period = getPeriod(periodId);
   const rows = useMemo(() => joinOrganisations(orgs.data, admins.data), [orgs.data, admins.data]);
-  const visible = rows.filter((row) => status === "all" || row.status === status);
+  const visible = useMemo(() => rows.filter((row) => status === "all" || row.status === status), [rows, status]);
   const adminList = useMemo(() => admins.data ?? [], [admins.data]);
   const loading = orgs.isLoading || admins.isLoading;
   const count = (value: OrgStatus) => rows.filter((row) => row.status === value).length;
@@ -67,6 +72,20 @@ export default function SuperAdminDashboardPage() {
   );
 
   const inviteTarget = rows.find((row) => row.id === inviteOrgId) ?? null;
+  const totals = useMemo(() => platformMetrics(visible.map((row) => row.id)), [visible]);
+  const months = useMemo(() => lastTwelveMonths(), []);
+  const pending = (value: number | null | undefined, money = false) =>
+    totals ? (money ? formatCompactMoney(value) : formatNumber(value)) : "—";
+  const pendingHint = (text: ReactNode) => (totals ? text : <ApiPending>{TOTALS_PENDING}</ApiPending>);
+  const equityRows = useMemo(
+    () =>
+      visible
+        .map((row) => ({ row, metrics: orgMetrics(row.id) }))
+        .filter((item) => item.metrics)
+        .sort((a, b) => (b.metrics?.equity ?? 0) - (a.metrics?.equity ?? 0))
+        .slice(0, 6),
+    [visible],
+  );
 
   return (
     <>
@@ -161,31 +180,69 @@ export default function SuperAdminDashboardPage() {
           value={formatNumber(adminList.length)}
           hint={`${adminList.length - pendingAdmins} active · ${pendingAdmins} invite pending`}
         />
-        <Kpi label="Accountants" value="—" hint={<ApiPending>{TOTALS_PENDING}</ApiPending>} />
-        <Kpi label="Relationship managers" value="—" hint={<ApiPending>{TOTALS_PENDING}</ApiPending>} />
-        <Kpi label="Clients" value="—" hint={<ApiPending>{TOTALS_PENDING}</ApiPending>} />
-        <Kpi label="Properties" value="—" hint={<ApiPending>{TOTALS_PENDING}</ApiPending>} />
-        <Kpi label="Equity managed" value="—" hint={<ApiPending>{TOTALS_PENDING}</ApiPending>} />
+        <Kpi label="Accountants" loading={loading} value={pending(totals?.accountants)} hint={pendingHint("across all organisations")} />
+        <Kpi label="Relationship managers" loading={loading} value={pending(totals?.rms)} hint={pendingHint("leading accountant teams")} />
+        <Kpi
+          label="Clients"
+          loading={loading}
+          value={pending(totals?.clients)}
+          hint={pendingHint(
+            totals ? (
+              <>
+                <span className="cpc-up">↑ {formatNumber(totals.clients - totals.clientsByMonth[0])}</span> in 12 months
+              </>
+            ) : null,
+          )}
+        />
+        <Kpi label="Properties" loading={loading} value={pending(totals?.properties)} hint={pendingHint(`${formatNumber(totals?.entities)} entities`)} />
+        <Kpi label="Equity managed" loading={loading} value={pending(totals?.equity, true)} hint={pendingHint("total portfolio equity")} />
       </KpiGrid>
 
       <div className="cpc-grid-2">
-        <Card title="Clients on the platform" meta={`Total clients at month end · ${period.label.toLowerCase()}`}>
-          <EmptyState title="No platform totals yet">
-            Monthly client counts appear here once the backend exposes platform-wide totals.
-          </EmptyState>
+        <Card
+          title="Clients on the platform"
+          meta={`Total clients at month end · ${period.label.toLowerCase()}`}
+          actions={<Legend items={[{ label: "Clients", color: "#2e387a" }]} />}
+        >
+          {totals ? (
+            <ColumnChart loading={loading} labels={months} series={[{ name: "Clients", color: "#2e387a", values: totals.clientsByMonth }]} />
+          ) : (
+            <EmptyState title="No platform totals yet">
+              Monthly client counts appear here once the backend exposes platform-wide totals.
+            </EmptyState>
+          )}
         </Card>
         <Card
           title="Equity managed by organisation"
+          meta="Top organisations by equity"
           actions={<Link className="cpc-link" href="/dashboard/super-admin/organisations">All organisations →</Link>}
         >
-          <EmptyState title="No equity totals yet">Each organisation&apos;s equity appears here once platform totals are available.</EmptyState>
+          {totals ? (
+            <BarList
+              loading={loading}
+              color="#f4a117"
+              labelWidth="13em"
+              rows={equityRows.map(({ row, metrics }) => ({
+                key: row.id,
+                label: (
+                  <Link className="cpc-person-name" href={`/dashboard/super-admin/organisations/${encodeURIComponent(row.id)}`}>
+                    {row.name}
+                  </Link>
+                ),
+                value: metrics?.equity ?? 0,
+                display: formatCompactMoney(metrics?.equity),
+              }))}
+            />
+          ) : (
+            <EmptyState title="No equity totals yet">Each organisation&apos;s equity appears here once platform totals are available.</EmptyState>
+          )}
         </Card>
       </div>
 
       <Card
         flush
         title="Organisations at a glance"
-        meta="Sorted by name"
+        meta={totals ? "Sorted by equity" : "Sorted by name"}
         actions={
           <>
             <ExportMenu
@@ -197,6 +254,11 @@ export default function SuperAdminDashboardPage() {
                   { header: "Organisation", value: (row: OrganisationRow) => row.name },
                   { header: "Admin", value: (row: OrganisationRow) => currentAdmin(row)?.name ?? "" },
                   { header: "Status", value: (row: OrganisationRow) => ORG_STATUS_LABEL[row.status].label },
+                  { header: "Accountants", value: (row: OrganisationRow) => orgMetrics(row.id)?.accountants },
+                  { header: "RMs", value: (row: OrganisationRow) => orgMetrics(row.id)?.rms },
+                  { header: "Clients", value: (row: OrganisationRow) => orgMetrics(row.id)?.clients },
+                  { header: "Properties", value: (row: OrganisationRow) => orgMetrics(row.id)?.properties },
+                  { header: "Equity", value: (row: OrganisationRow) => orgMetrics(row.id)?.equity },
                 ],
                 rows: visible,
               })}
@@ -213,7 +275,7 @@ export default function SuperAdminDashboardPage() {
           rows={visible}
           rowKey={(row) => row.id}
           pageSize={10}
-          initialSort={{ id: "name", direction: "asc" }}
+          initialSort={totals ? { id: "equity", direction: "desc" } : { id: "name", direction: "asc" }}
           empty={<EmptyState title="No organisations yet" />}
           columns={[
             {
@@ -246,12 +308,29 @@ export default function SuperAdminDashboardPage() {
               ),
               sortValue: (row) => row.status,
             },
-            { id: "acc", header: "Accountants", align: "right", cell: () => "—" },
-            { id: "rms", header: "RMs", align: "right", cell: () => "—" },
-            { id: "clients", header: "Clients", align: "right", cell: () => "—" },
-            { id: "props", header: "Properties", align: "right", cell: () => "—" },
-            { id: "equity", header: "Equity", align: "right", cell: () => "—" },
-            { id: "share", header: "Clients share", cell: () => <span className="cpc-muted">—</span> },
+            { id: "acc", header: "Accountants", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.accountants), sortValue: (row) => orgMetrics(row.id)?.accountants ?? 0 },
+            { id: "rms", header: "RMs", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.rms), sortValue: (row) => orgMetrics(row.id)?.rms ?? 0 },
+            { id: "clients", header: "Clients", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.clients), sortValue: (row) => orgMetrics(row.id)?.clients ?? 0 },
+            { id: "props", header: "Properties", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.properties), sortValue: (row) => orgMetrics(row.id)?.properties ?? 0 },
+            {
+              id: "equity",
+              header: "Equity",
+              align: "right",
+              cell: (row) => <span className="cpc-strong">{formatCompactMoney(orgMetrics(row.id)?.equity)}</span>,
+              sortValue: (row) => orgMetrics(row.id)?.equity ?? 0,
+            },
+            {
+              id: "share",
+              header: "Clients share",
+              cell: (row) => {
+                const clients = orgMetrics(row.id)?.clients;
+                return clients != null && totals?.clients ? (
+                  <Meter value={clients / totals.clients} color="#2e387a" />
+                ) : (
+                  <span className="cpc-muted">—</span>
+                );
+              },
+            },
           ]}
         />
       </Card>

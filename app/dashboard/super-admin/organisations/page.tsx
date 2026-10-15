@@ -23,7 +23,8 @@ import {
   SelectField,
   Tabs,
 } from "../../_console/components/ui";
-import { formatDate, formatNumber, titleCase } from "../../_console/lib/format";
+import { formatCompactMoney, formatDate, formatNumber, titleCase } from "../../_console/lib/format";
+import { SHOW_SAMPLE_DATA, orgMetrics } from "../../_console/lib/sampleData";
 import {
   ORG_STATUS_LABEL,
   currentAdmin,
@@ -36,6 +37,15 @@ import {
 
 type Tab = "all" | OrgStatus;
 type Created = "any" | "30d" | "year";
+type ClientBand = "any" | "lt100" | "100-300" | "gt300";
+type EquityBand = "any" | "lt100" | "100-300" | "gt300";
+
+const inBand = (value: number | undefined, band: ClientBand | EquityBand, unit = 1) => {
+  if (band === "any") return true;
+  if (value == null) return false;
+  const v = value / unit;
+  return band === "lt100" ? v < 100 : band === "100-300" ? v >= 100 && v <= 300 : v > 300;
+};
 
 const ALL = "all";
 const TOTALS_REASON = "Needs per-organisation totals from the backend";
@@ -49,6 +59,8 @@ export default function SuperAdminOrganisationsPage() {
   const [plan, setPlan] = useState(ALL);
   const [state, setState] = useState(ALL);
   const [created, setCreated] = useState<Created>("any");
+  const [clientBand, setClientBand] = useState<ClientBand>("any");
+  const [equityBand, setEquityBand] = useState<EquityBand>("any");
   const [changeFor, setChangeFor] = useState<OrganisationRow | null>(null);
   const [now] = useState(() => Date.now());
 
@@ -66,6 +78,8 @@ export default function SuperAdminOrganisationsPage() {
       }
       if (plan !== ALL && row.subscriptionPlan !== plan) return false;
       if (state !== ALL && row.state !== state) return false;
+      if (!inBand(orgMetrics(row.id)?.clients, clientBand)) return false;
+      if (!inBand(orgMetrics(row.id)?.equity, equityBand, 1_000_000)) return false;
       if (created !== "any") {
         const time = row.createdAt ? new Date(row.createdAt).getTime() : NaN;
         if (Number.isNaN(time)) return false;
@@ -74,11 +88,16 @@ export default function SuperAdminOrganisationsPage() {
       }
       return true;
     });
-  }, [rows, query, plan, state, created, now]);
+  }, [rows, query, plan, state, created, now, clientBand, equityBand]);
 
   const visible = filtered.filter((row) => tab === "all" || row.status === tab);
   const count = (value: OrgStatus) => rows.filter((row) => row.status === value).length;
   const loading = orgs.isLoading || admins.isLoading;
+  const metrics = rows.map((row) => orgMetrics(row.id)).filter((m) => m != null);
+  const avg = (pick: (m: NonNullable<ReturnType<typeof orgMetrics>>) => number) =>
+    metrics.length ? metrics.reduce((sum, m) => sum + pick(m), 0) / metrics.length : null;
+  const avgClients = avg((m) => m.clients);
+  const avgEquity = avg((m) => m.equity);
 
   return (
     <>
@@ -99,6 +118,11 @@ export default function SuperAdminOrganisationsPage() {
                   { header: "Admin email", value: (row: OrganisationRow) => currentAdmin(row)?.email ?? "" },
                   { header: "Status", value: (row: OrganisationRow) => ORG_STATUS_LABEL[row.status].label },
                   { header: "Plan", value: (row: OrganisationRow) => row.subscriptionPlan ?? "" },
+                  { header: "Accountants", value: (row: OrganisationRow) => orgMetrics(row.id)?.accountants },
+                  { header: "RMs", value: (row: OrganisationRow) => orgMetrics(row.id)?.rms },
+                  { header: "Clients", value: (row: OrganisationRow) => orgMetrics(row.id)?.clients },
+                  { header: "Properties", value: (row: OrganisationRow) => orgMetrics(row.id)?.properties },
+                  { header: "Equity", value: (row: OrganisationRow) => orgMetrics(row.id)?.equity },
                   { header: "State", value: (row: OrganisationRow) => row.state ?? "" },
                   { header: "Created", value: (row: OrganisationRow) => formatDate(row.createdAt) },
                 ],
@@ -119,8 +143,18 @@ export default function SuperAdminOrganisationsPage() {
         <Kpi label="Active" tone="good" loading={loading} value={formatNumber(count("active"))} hint="running normally" />
         <Kpi label="Onboarding" tone="warn" loading={loading} value={formatNumber(count("onboarding"))} hint="admin invite pending" />
         <Kpi label="Suspended" tone="bad" loading={loading} value={formatNumber(count("suspended"))} hint="no access, data kept" />
-        <Kpi label="Avg clients" value="—" hint={<ApiPending>Needs platform totals API</ApiPending>} />
-        <Kpi label="Avg equity" value="—" hint={<ApiPending>Needs platform totals API</ApiPending>} />
+        <Kpi
+          label="Avg clients"
+          loading={loading}
+          value={formatNumber(avgClients == null ? null : Math.round(avgClients))}
+          hint={avgClients == null ? <ApiPending>Needs platform totals API</ApiPending> : "per organisation"}
+        />
+        <Kpi
+          label="Avg equity"
+          loading={loading}
+          value={formatCompactMoney(avgEquity)}
+          hint={avgEquity == null ? <ApiPending>Needs platform totals API</ApiPending> : "per organisation"}
+        />
       </KpiGrid>
 
       <FilterBar>
@@ -144,16 +178,47 @@ export default function SuperAdminOrganisationsPage() {
           onChange={setPlan}
           options={[{ value: ALL, label: "All plans" }, ...plans.map((value) => ({ value, label: titleCase(value) }))]}
         />
-        <Field label="Clients" htmlFor="o-clients">
-          <select id="o-clients" className="cpc-select" disabled title={TOTALS_REASON}>
-            <option>Any</option>
-          </select>
-        </Field>
-        <Field label="Equity" htmlFor="o-equity">
-          <select id="o-equity" className="cpc-select" disabled title={TOTALS_REASON}>
-            <option>Any</option>
-          </select>
-        </Field>
+        {SHOW_SAMPLE_DATA ? (
+          <>
+            <SelectField
+              id="o-clients"
+              label="Clients"
+              value={clientBand}
+              onChange={setClientBand}
+              options={[
+                { value: "any", label: "Any" },
+                { value: "lt100", label: "Under 100" },
+                { value: "100-300", label: "100 – 300" },
+                { value: "gt300", label: "Over 300" },
+              ]}
+            />
+            <SelectField
+              id="o-equity"
+              label="Equity"
+              value={equityBand}
+              onChange={setEquityBand}
+              options={[
+                { value: "any", label: "Any" },
+                { value: "lt100", label: "Under $100M" },
+                { value: "100-300", label: "$100M – $300M" },
+                { value: "gt300", label: "Over $300M" },
+              ]}
+            />
+          </>
+        ) : (
+          <>
+            <Field label="Clients" htmlFor="o-clients">
+              <select id="o-clients" className="cpc-select" disabled title={TOTALS_REASON}>
+                <option>Any</option>
+              </select>
+            </Field>
+            <Field label="Equity" htmlFor="o-equity">
+              <select id="o-equity" className="cpc-select" disabled title={TOTALS_REASON}>
+                <option>Any</option>
+              </select>
+            </Field>
+          </>
+        )}
         <SelectField
           id="o-state"
           label="State"
@@ -194,7 +259,7 @@ export default function SuperAdminOrganisationsPage() {
           rows={visible}
           rowKey={(row) => row.id}
           initialSort={{ id: "name", direction: "asc" }}
-          footer={`${visible.length} organisations · accountant, client and equity totals appear once the platform totals API is connected`}
+          footer={SHOW_SAMPLE_DATA ? `${visible.length} organisations` : `${visible.length} organisations · accountant, client and equity totals appear once the platform totals API is connected`}
           empty={<EmptyState title="No organisations match these filters" />}
           columns={[
             {
@@ -223,11 +288,17 @@ export default function SuperAdminOrganisationsPage() {
               ),
               sortValue: (row) => row.status,
             },
-            { id: "acc", header: "Accountants", align: "right", cell: () => "—" },
-            { id: "rms", header: "RMs", align: "right", cell: () => "—" },
-            { id: "clients", header: "Clients", align: "right", cell: () => "—" },
-            { id: "props", header: "Properties", align: "right", cell: () => "—" },
-            { id: "equity", header: "Equity", align: "right", cell: () => "—" },
+            { id: "acc", header: "Accountants", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.accountants), sortValue: (row) => orgMetrics(row.id)?.accountants ?? 0 },
+            { id: "rms", header: "RMs", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.rms), sortValue: (row) => orgMetrics(row.id)?.rms ?? 0 },
+            { id: "clients", header: "Clients", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.clients), sortValue: (row) => orgMetrics(row.id)?.clients ?? 0 },
+            { id: "props", header: "Properties", align: "right", cell: (row) => formatNumber(orgMetrics(row.id)?.properties), sortValue: (row) => orgMetrics(row.id)?.properties ?? 0 },
+            {
+              id: "equity",
+              header: "Equity",
+              align: "right",
+              cell: (row) => <span className="cpc-strong">{formatCompactMoney(orgMetrics(row.id)?.equity)}</span>,
+              sortValue: (row) => orgMetrics(row.id)?.equity ?? 0,
+            },
             { id: "state", header: "State", cell: (row) => row.state || "—", sortValue: (row) => row.state ?? "" },
             {
               id: "created",
