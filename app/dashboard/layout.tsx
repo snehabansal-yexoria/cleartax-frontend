@@ -383,7 +383,7 @@ const adminMenuItems: PortalMenuItem[] = [
   },
   {
     id: "organisation",
-    href: "#",
+    href: "/dashboard/admin/organisation",
     label: "Organisation",
     section: "CONFIGURATION",
     icon: (
@@ -395,7 +395,7 @@ const adminMenuItems: PortalMenuItem[] = [
   },
   {
     id: "access-control",
-    href: "#",
+    href: "/dashboard/admin/access-control",
     label: "Access control",
     section: "CONFIGURATION",
     icon: (
