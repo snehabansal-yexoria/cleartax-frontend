@@ -1050,12 +1050,12 @@ export default function DashboardLayout({
     }
 
     // Desktop styling with Tailwind matching Figma
-    const navItemClass = `w-full h-12 px-2.5 py-2.5 rounded-xl flex items-center justify-start gap-3.5 transition-all duration-200 ${isActive
+    const navItemClass = `w-full ${role === "admin" ? "h-10 min-h-10 py-1" : "h-12 py-2.5"} px-2.5 rounded-xl flex items-center justify-start gap-3.5 transition-all duration-200 ${isActive
       ? "bg-white/12 text-white shadow-sm"
       : "text-white/80 hover:text-white hover:bg-white/5"
       }`;
 
-    const iconWrapperClass = `w-11 h-11 min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-white" : "text-white/80"
+    const iconWrapperClass = `${role === "admin" ? "w-11 h-9" : "w-11 h-11"} min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-white" : "text-white/80"
       }`;
 
     const labelClass = `${role === 'admin' ? 'font-normal' : 'font-semibold'} text-[15px] tracking-wide transition-all duration-300 ${isActive ? "text-white" : "text-white/80"
@@ -1128,11 +1128,12 @@ export default function DashboardLayout({
       <div className={`accountant-shell${isClientPage ? " client-dashboard-shell" : ""}`}>
         <aside className={`hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30${
           // Admin: pin the sidebar to the viewport height so it doesn't stretch
-          // with long pages; its own items scroll if the window is short.
-          role === "admin" ? " lg:sticky lg:top-4 lg:self-start lg:h-[calc(100vh-32px)] lg:overflow-y-auto lg:overflow-x-hidden" : ""
+          // with long pages. Logo and footer stay put; only the menu scrolls,
+          // and only when the window is too short to fit it.
+          role === "admin" ? " lg:sticky lg:top-4 lg:self-start lg:h-[calc(100vh-32px)] overflow-hidden !pt-5" : ""
         }`}>
-          <div className="flex flex-col gap-9 w-full">
-            <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
+          <div className={`flex flex-col w-full ${role === "admin" ? "gap-4 min-h-0 flex-1" : "gap-9"}`}>
+            <div className="flex items-center justify-start w-full px-1.5 h-12 shrink-0 overflow-hidden">
               <div className="flex items-center gap-3.5 w-full">
                 <div className="w-11 h-11 min-w-11 flex items-center justify-center rounded-xl bg-gradient-to-b from-[#fbb228] to-[#f4a117] text-[#24316e] shadow-lg shadow-[#f4a117]/20 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1148,7 +1149,7 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <nav className="flex flex-col gap-2">
+            <nav className={role === "admin" ? "flex flex-col gap-0.5 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "flex flex-col gap-2"}>
               {(() => {
                 let currentSection = "";
                 return portalMenuItems.map((item, idx) => {
@@ -1160,7 +1161,7 @@ export default function DashboardLayout({
                     <div key={item.id || idx} className="contents">
                       {showHeader && (
                         <div
-                          className={`text-white/40 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-extrabold'} tracking-wider uppercase px-3.5 mt-4 mb-1 select-none transition-all duration-300 opacity-0 max-w-0 overflow-hidden group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs`}
+                          className={`text-white/40 text-[10px] ${role === 'admin' ? 'font-normal mt-2.5 mb-0.5' : 'font-extrabold mt-4 mb-1'} tracking-wider uppercase px-3.5 select-none transition-all duration-300 opacity-0 max-w-0 overflow-hidden group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs`}
                         >
                           {item.section}
                         </div>
@@ -1173,7 +1174,7 @@ export default function DashboardLayout({
             </nav>
           </div>
 
-          <div className="flex items-center gap-3.5 w-full justify-start px-1.5 pt-4 border-t border-white/10">
+          <div className={`flex items-center gap-3.5 w-full justify-start px-1.5 border-t border-white/10 shrink-0 ${role === "admin" ? "pt-3 mt-2" : "pt-4"}`}>
             <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>
               {initials}
             </div>
