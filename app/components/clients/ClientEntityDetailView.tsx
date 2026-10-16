@@ -27,8 +27,9 @@ import {
   shiftMonth,
 } from "@/app/components/clients/portfolioDashboard";
 import { propertyImageSrc } from "@/src/lib/propertyImage";
-import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
+import ClientPersonalTransactionsCard from "@/app/components/clients/ClientPersonalTransactionsCard";
+import ClientAssetsCard from "@/app/components/clients/ClientAssetsCard";
 import ClientSegmentedTabs, {
   SegmentedTabPanel,
   segmentedPanelProps,
@@ -729,11 +730,19 @@ export default function ClientEntityDetailView({
                   </div>
                 ) : (
                   mappedProperties.map((prop) => (
-                    <div key={prop.id} className="client-property-horizontal-row flex items-start gap-4 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 mb-4 last:mb-0">
+                    // The whole row opens the property: a real link, so
+                    // keyboard, middle-click and "open in new tab" all work.
+                    <Link
+                      key={prop.id}
+                      href={`${propertyDetailHrefBase}/${encodeURIComponent(prop.id)}`}
+                      className="client-property-horizontal-row flex items-start gap-4 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 mb-4 last:mb-0"
+                      style={{ textDecoration: "none" }}
+                    >
                       {/* Thumbnail Image */}
                       <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center border border-slate-100">
                         {prop.imageSrc ? (
-                          <img src={prop.imageSrc} alt={prop.name} className="w-full h-full object-cover" />
+                          // Decorative: the name is in the link text beside it.
+                          <img src={prop.imageSrc} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-slate-400">
                             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -774,7 +783,7 @@ export default function ClientEntityDetailView({
                           <span>Expenses <strong className="text-[#f04438] ml-0.5">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))
                 )}
               </div>
@@ -837,22 +846,9 @@ export default function ClientEntityDetailView({
             </div>
           </div>
 
-          {/* 5. ROW 5: DEPRECIATION (FULL WIDTH)
-
-              Across every property this entity owns.
-
-              Above Documents on purpose, the same ordering as the property
-              page: the generated schedules are also filed in the Documents
-              list below as PDFs, so a client who has just read the year's
-              deduction here knows what those files are.
-
-              Entity scope spans properties, hence showProperty — two houses
-              can each have a "Hot water system". Rows link into the
-              entity-scoped asset route rather than the property-scoped one
-              because the card does not know, per row, which property page to
-              send the reader to. */}
-          {/* GST Summary: this entity's bills at full value (its properties
-              plus anything not allocated to one), with personal spending. */}
+          {/* 5. ROW 5: GST Summary (FULL WIDTH): this entity's bills at full
+              value (its properties plus anything not allocated to one), with
+              personal spending. */}
           <ClientGstSummaryCard
             level="entity"
             id={entityId}
@@ -860,15 +856,27 @@ export default function ClientEntityDetailView({
             className="client-entity-doc-section-card"
           />
 
-          <ClientDepreciationCard
-            level="entity"
-            id={entityId}
-            showProperty
-            assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
-            className="client-entity-doc-section-card"
-          />
+          {/* 6. ROW 6: PERSONAL TRANSACTIONS & ASSETS — the accountant entity
+              page's two panels, same requests. Asset rows open the
+              entity-scoped asset route: the list spans properties, so a row
+              cannot know which property page to send the reader to. */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <ClientPersonalTransactionsCard
+              level="entity"
+              id={entityId}
+              className="client-entity-doc-section-card"
+            />
+            <div className="lg:col-span-2 min-w-0">
+              <ClientAssetsCard
+                level="entity"
+                id={entityId}
+                assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
+                className="client-entity-doc-section-card h-full"
+              />
+            </div>
+          </div>
 
-          {/* 6. ROW 6: DOCUMENTS SECTION (FULL WIDTH) */}
+          {/* 7. ROW 7: DOCUMENTS SECTION (FULL WIDTH) */}
           <div className="client-entity-doc-section-card flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Documents</h3>
@@ -1044,10 +1052,16 @@ export default function ClientEntityDetailView({
                 </div>
               ) : (
                 mappedProperties.map((prop) => (
-                  <div key={prop.id} className="client-entity-property-card">
+                  // The whole card opens the property (only the name used to).
+                  <Link
+                    key={prop.id}
+                    href={`${propertyDetailHrefBase}/${encodeURIComponent(prop.id)}`}
+                    className="client-entity-property-card"
+                    style={{ textDecoration: "none" }}
+                  >
                     <div className="client-entity-property-img-placeholder">
                       {prop.imageSrc ? (
-                        <img src={prop.imageSrc} alt={prop.name} className="w-full h-full object-cover" />
+                        <img src={prop.imageSrc} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '48px', height: '48px', color: '#98a2b3' }}>
                           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -1062,9 +1076,9 @@ export default function ClientEntityDetailView({
                     <div className="flex flex-col gap-2 mt-4">
                       <div className="flex justify-between items-start">
                         <div className="flex flex-col">
-                          <Link href={`${propertyDetailHrefBase}/${prop.id}`} className="font-extrabold text-slate-800 dark:text-white text-base hover:underline" style={{ textDecoration: 'none' }}>
+                          <span className="font-extrabold text-slate-800 dark:text-white text-base">
                             {prop.name}
-                          </Link>
+                          </span>
                           <span className="text-slate-400 text-xs font-semibold">{prop.entityName}</span>
                         </div>
                         <span className="font-bold text-sm" style={{ color: prop.net != null ? signedTone(prop.net) : undefined }}>Net {formatMoney(prop.net, true)}</span>
@@ -1080,7 +1094,7 @@ export default function ClientEntityDetailView({
                         <span>Expenses <strong className="text-red-500">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -1142,10 +1156,10 @@ export default function ClientEntityDetailView({
             </div>
           </div>
 
-          {/* Depreciation. The mobile twin of ROW 5 above — same props, same
-              placement above Documents. Keep the two in step: this file
-              carries fully separate desktop and mobile trees, so a card added
-              to one is simply absent on the other. Same for GST, above it. */}
+          {/* GST, Personal Transactions and Assets: the mobile twins of ROWS
+              5–6 above — same props, same placement above Documents. Keep the
+              two in step: this file carries fully separate desktop and mobile
+              trees, so a card added to one is simply absent on the other. */}
           <ClientGstSummaryCard
             level="entity"
             id={entityId}
@@ -1153,11 +1167,17 @@ export default function ClientEntityDetailView({
             className="client-entity-doc-section-card"
           />
 
-          <ClientDepreciationCard
+          <ClientPersonalTransactionsCard
             level="entity"
             id={entityId}
-            showProperty
+            className="client-entity-doc-section-card"
+          />
+
+          <ClientAssetsCard
+            level="entity"
+            id={entityId}
             assetHrefBase={`/dashboard/client/entities/${entityId}/assets`}
+            layout="list"
             className="client-entity-doc-section-card"
           />
 

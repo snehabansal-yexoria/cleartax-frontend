@@ -82,7 +82,10 @@ export default function ClientGstSummaryCard({
   className = DEFAULT_CHROME,
 }: ClientGstSummaryCardProps) {
   const enabled = !!id;
-  const gst = useGstSummary(level, id ?? "", { enabled });
+  // Opens on the whole financial year, not the current BAS quarter: early in a
+  // quarter that is a near-empty window, and a card of A$ 0 tiles read as
+  // "the GST figures are broken" rather than "nothing dated in these weeks".
+  const gst = useGstSummary(level, id ?? "", { enabled, initialQuarter: GST_FULL_YEAR });
   const personal = usePersonalSummary(level, id ?? "", {
     enabled,
     period: { financialYear: gst.financialYear, quarter: gst.quarter },
@@ -96,6 +99,10 @@ export default function ClientGstSummaryCard({
   // An older backend ignores the period and answers for all time; say so
   // rather than print an all-time total under a quarter's heading.
   const personalAllTime = !!personal.summary && personal.summary.period == null;
+  // Zero tiles for a period with no bills at all, said in words — otherwise
+  // an empty quarter is indistinguishable from figures that failed to bind.
+  const periodEmpty =
+    !loading && !!summary && summary.salesCount === 0 && summary.purchasesCount === 0;
   const idBase = `gst-${level}`;
 
   return (
@@ -181,6 +188,15 @@ export default function ClientGstSummaryCard({
               loading={loading || (personal.isLoading && !personal.summary)}
             />
           </dl>
+
+          {/* A div, not a <p>: globals.css styles bare p unlayered, which
+              beats these utilities. */}
+          {periodEmpty && (
+            <div className="mt-3 text-[11px] font-semibold text-[var(--text-secondary)]" role="status">
+              No sales or purchases dated in {summary?.period.label || "this period"}. Choose
+              another year or quarter above.
+            </div>
+          )}
 
           <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
