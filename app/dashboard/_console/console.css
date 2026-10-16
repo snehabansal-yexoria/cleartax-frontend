@@ -1476,3 +1476,101 @@ a.cpc-kpi:hover {
   background: #eef0fa;
   color: var(--cpc-navy);
 }
+
+/* ------------------------------------------------------- switch + banner */
+
+.cpc-switch {
+  position: relative;
+  width: 3.15em;
+  height: 1.85em;
+  border-radius: 99px;
+  border: 0;
+  padding: 0;
+  flex: none;
+  cursor: pointer;
+  background: #d0d5dd;
+  transition: background 150ms ease;
+}
+
+.cpc-switch::after {
+  content: "";
+  position: absolute;
+  top: 0.2em;
+  left: 0.2em;
+  width: 1.45em;
+  height: 1.45em;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: left 150ms ease;
+}
+
+.cpc-switch[aria-checked="true"] {
+  background: var(--cpc-navy, #2e387a);
+}
+
+.cpc-switch[aria-checked="true"]::after {
+  left: 1.5em;
+}
+
+.cpc-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  border: 1px solid var(--cpc-line);
+  border-radius: 0.75em;
+  padding: 0.85em 1em;
+}
+
+.cpc-workspace-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.85em;
+  flex-wrap: wrap;
+  background: #fdf6e8;
+  border: 1px solid #f0dfb8;
+  border-radius: 12px;
+  padding: 0.75em 1.1em;
+  font-size: 0.93em;
+}
+
+.cpc-workspace-banner .cpc-select {
+  min-width: 14em;
+  height: 2.4em;
+}
+
+.cpc-perm {
+  min-width: 7.6em;
+  height: 2.3em;
+  border-radius: 99px;
+  font: inherit;
+  font-size: 0.86em;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px dashed #d0d5dd;
+  background: #fff;
+  color: #8a8f9c;
+}
+
+.cpc-perm.is-view {
+  border: 1px solid #c9d4f5;
+  background: #eef2fd;
+  color: #2443a8;
+}
+
+.cpc-perm.is-edit,
+.cpc-perm.is-on {
+  border: 1px solid #bfe2d4;
+  background: #e8f5ef;
+  color: #0f6b4f;
+}
+
+.cpc-drag-hint {
+  font-size: 0.86em;
+  color: var(--cpc-muted);
+}
+
+.cpc-workspace-banner .cpc-actions {
+  flex-wrap: nowrap;
+}

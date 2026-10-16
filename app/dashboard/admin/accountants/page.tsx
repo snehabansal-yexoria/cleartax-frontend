@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getSession } from "@/src/lib/session";
+import ExportMenu from "../_components/ExportMenu";
 import { PortalDashboardSkeleton } from "../../../components/PortalSkeletons";
 
 interface SessionWithIdToken {
@@ -321,6 +322,23 @@ export default function AccountantsPage() {
             )}
           </div>
 
+          <ExportMenu
+            filename="accountants"
+            visibleRows={filteredAccountants}
+            allRows={accountants}
+            columns={[
+              { header: "Accountant", value: (a: AccountantData) => a.name },
+              { header: "Email", value: (a: AccountantData) => a.email },
+              { header: "Status", value: (a: AccountantData) => a.status },
+              { header: "Clients", value: (a: AccountantData) => a.clients },
+              { header: "Properties", value: (a: AccountantData) => a.properties },
+              { header: "Entities", value: (a: AccountantData) => a.entities },
+              { header: "Transactions", value: (a: AccountantData) => a.transactions },
+              { header: "Portfolio value", value: (a: AccountantData) => a.portfolioValue },
+              { header: "Reconciliation %", value: (a: AccountantData) => a.reconciliationRate },
+              { header: "Last active", value: (a: AccountantData) => a.lastActive },
+            ]}
+          />
           <Link href="/dashboard/admin/invite" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold text-white transition shadow-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

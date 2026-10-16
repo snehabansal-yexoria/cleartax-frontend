@@ -41,3 +41,20 @@ Add organisation sends the admin's email as `org_email`, an auto-generated
 - **Admin sign-in details**: phone, MFA on/off, last login, reset MFA.
 - **Invite management**: resend invite; record the change reason and whether the
   previous admin was kept or deactivated.
+
+## Organisation workspace and audit log (sample data)
+
+`Open →` on Organisations opens an organisation's workspace
+(`/dashboard/super-admin/organisations/[orgId]/workspace`): Users & roles,
+Permissions and Data settings & rules. The platform Audit log is at
+`/dashboard/super-admin/audit`. Their data comes from
+`app/dashboard/_console/lib/workspaceData.ts` until these endpoints exist:
+
+- users of one organisation (all roles), disable / reactivate, change role,
+  invite non-admin roles as super admin;
+- role permissions per organisation (screens, reports, exports) and per-person exceptions;
+- master-data rules per organisation (who can add / edit / delete each list, protected values);
+- a platform-wide audit event feed.
+
+Real today: the organisation and its admins, "Create user" with the Admin role
+(invite), and "Reset password" for real users (Cognito reset email).

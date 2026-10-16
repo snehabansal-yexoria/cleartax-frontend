@@ -7,6 +7,7 @@ import { ChangeAdminDialog } from "../../_console/components/ChangeAdminDialog";
 import { DataTable } from "../../_console/components/DataTable";
 import { ExportMenu } from "../../_console/components/ExportMenu";
 import { PlusIcon } from "../../_console/components/icons";
+import { workspacePath } from "../../_console/components/Workspace";
 import {
   ApiPending,
   Badge,
@@ -311,12 +312,12 @@ export default function SuperAdminOrganisationsPage() {
               header: "",
               cell: (row) => (
                 <div className="cpc-actions" style={{ flexWrap: "nowrap" }}>
-                  <Link className="cpc-btn cpc-btn-sm" href={`/dashboard/super-admin/organisations/${encodeURIComponent(row.id)}`}>
-                    View
-                  </Link>
                   <button type="button" className="cpc-btn cpc-btn-sm" onClick={() => setChangeFor(row)}>
                     {row.admins.length ? "Change admin" : "Invite admin"}
                   </button>
+                  <Link className="cpc-btn cpc-btn-sm cpc-btn-primary" href={workspacePath(row.id)} title="Open workspace" aria-label={`Open ${row.name} workspace`}>
+                    Open →
+                  </Link>
                 </div>
               ),
             },

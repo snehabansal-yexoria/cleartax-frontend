@@ -464,6 +464,20 @@ const superAdminMenuItems: PortalMenuItem[] = [
     ),
   },
   {
+    id: "audit-log",
+    href: "/dashboard/super-admin/audit",
+    label: "Audit log",
+    section: "Platform",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="M9 13h6" />
+        <path d="M9 17h6" />
+      </svg>
+    ),
+  },
+  {
     id: "profile",
     href: "/dashboard/super-admin/profile",
     label: "My profile",
@@ -476,6 +490,86 @@ const superAdminMenuItems: PortalMenuItem[] = [
     ),
   },
 ];
+
+/** Super admin menu while working inside one organisation's workspace. */
+function superAdminWorkspaceMenuItems(orgId: string): PortalMenuItem[] {
+  const base = `/dashboard/super-admin/organisations/${encodeURIComponent(orgId)}`;
+  return [
+    {
+      id: "ws-back",
+      href: "/dashboard/super-admin/organisations",
+      label: "All organisations",
+      section: "Workspace",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-dashboard",
+      href: `${base}/workspace`,
+      label: "Dashboard",
+      section: "Organisation",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-details",
+      href: base,
+      label: "Organisation details",
+      section: "Organisation",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="4" width="7" height="16" rx="1.5" />
+          <rect x="13" y="8" width="7" height="12" rx="1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-users",
+      href: `${base}/workspace/users`,
+      label: "Users & roles",
+      section: "Control",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+          <circle cx="9.5" cy="7" r="4" />
+          <path d="M20 19v-1a4 4 0 0 0-3-3.87" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-permissions",
+      href: `${base}/workspace/permissions`,
+      label: "Permissions",
+      section: "Control",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-data",
+      href: `${base}/workspace/data-settings`,
+      label: "Data settings & rules",
+      section: "Control",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+        </svg>
+      ),
+    },
+  ];
+}
 
 const clientMenuItems: PortalMenuItem[] = [
   {
@@ -733,9 +827,14 @@ export default function DashboardLayout({
   // Admin and super admin share the same sidebar/topbar look.
   const adminLook = role === "admin" || role === "super_admin";
 
+  const workspaceOrgId =
+    role === "super_admin" ? pathname.match(/^\/dashboard\/super-admin\/organisations\/([^/]+)\/workspace/)?.[1] : undefined;
+
   const portalMenuItems =
     role === "super_admin"
-      ? superAdminMenuItems
+      ? workspaceOrgId
+        ? superAdminWorkspaceMenuItems(decodeURIComponent(workspaceOrgId))
+        : superAdminMenuItems
       : role === "admin"
         ? adminMenuItems
         : role === "client" || role === "user"
@@ -1008,7 +1107,10 @@ export default function DashboardLayout({
       ? hrefPath === "/dashboard/accountant" ||
         hrefPath === "/dashboard/admin" ||
         hrefPath === "/dashboard/super-admin" ||
-        hrefPath === "/dashboard/client"
+        hrefPath === "/dashboard/client" ||
+        item.id === "ws-back" ||
+        item.id === "ws-dashboard" ||
+        item.id === "ws-details"
         ? pathname === hrefPath
         : pathname.startsWith(hrefPath)
       : false;
