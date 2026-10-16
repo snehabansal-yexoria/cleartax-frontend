@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { WorkspaceBanner, useWorkspaceOrg, workspacePath } from "../../../../_console/components/Workspace";
-import { ApiPending, Card, Kpi, KpiGrid, Notice, PageHeader, Skeleton } from "../../../../_console/components/ui";
+import { ApiPending, BackLink, Card, Kpi, KpiGrid, Notice, PageHeader, Skeleton } from "../../../../_console/components/ui";
 import { formatCompactMoney, formatNumber } from "../../../../_console/lib/format";
 import { orgMetrics } from "../../../../_console/lib/sampleData";
 import { currentAdmin } from "../../../../_console/lib/superAdminData";
@@ -31,12 +31,13 @@ export default function OrganisationWorkspacePage() {
     { title: "Users & roles", text: "Create, disable, reactivate, assign Admin and other roles", href: workspacePath(orgId, "users") },
     { title: "Permissions", text: "Who can open each screen, report and export", href: workspacePath(orgId, "permissions") },
     { title: "Data settings & rules", text: "Edit lists and lock the ones admins can’t change", href: workspacePath(orgId, "data-settings") },
-    { title: "Organisation details", text: "Admin, address, plan and admin history", href: `/dashboard/super-admin/organisations/${encodeURIComponent(orgId)}` },
+    { title: "Organisation details", text: "Admin, address and admin history", href: `/dashboard/super-admin/organisations/${encodeURIComponent(orgId)}` },
   ];
 
   return (
     <>
       <WorkspaceBanner org={org} rows={rows} />
+      <BackLink href="/dashboard/super-admin/organisations">Back to organisations</BackLink>
       <PageHeader
         title={org ? org.name : <Skeleton width="14em" height="1.6em" />}
         subtitle={[admin ? `Admin: ${admin.name || admin.email}` : null, place || null].filter(Boolean).join(" · ") || undefined}

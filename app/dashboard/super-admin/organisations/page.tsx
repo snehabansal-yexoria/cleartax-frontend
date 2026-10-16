@@ -24,7 +24,7 @@ import {
   SelectField,
   Tabs,
 } from "../../_console/components/ui";
-import { formatCompactMoney, formatDate, formatNumber, titleCase } from "../../_console/lib/format";
+import { formatCompactMoney, formatDate, formatNumber } from "../../_console/lib/format";
 import { SHOW_SAMPLE_DATA, orgMetrics } from "../../_console/lib/sampleData";
 import {
   ORG_STATUS_LABEL,
@@ -57,7 +57,6 @@ export default function SuperAdminOrganisationsPage() {
   const admins = useAdmins();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [tab, setTab] = useState<Tab>("all");
-  const [plan, setPlan] = useState(ALL);
   const [state, setState] = useState(ALL);
   const [created, setCreated] = useState<Created>("any");
   const [clientBand, setClientBand] = useState<ClientBand>("any");
@@ -66,7 +65,6 @@ export default function SuperAdminOrganisationsPage() {
   const [now] = useState(() => Date.now());
 
   const rows = useMemo(() => joinOrganisations(orgs.data, admins.data), [orgs.data, admins.data]);
-  const plans = useMemo(() => [...new Set(rows.map((row) => row.subscriptionPlan).filter(Boolean) as string[])].sort(), [rows]);
   const states = useMemo(() => [...new Set(rows.map((row) => row.state).filter(Boolean) as string[])].sort(), [rows]);
 
   const filtered = useMemo(() => {
@@ -77,7 +75,6 @@ export default function SuperAdminOrganisationsPage() {
         const hay = `${row.name} ${row.email} ${admin?.name ?? ""} ${admin?.email ?? ""}`.toLowerCase();
         if (!hay.includes(needle)) return false;
       }
-      if (plan !== ALL && row.subscriptionPlan !== plan) return false;
       if (state !== ALL && row.state !== state) return false;
       if (!inBand(orgMetrics(row.id)?.clients, clientBand)) return false;
       if (!inBand(orgMetrics(row.id)?.equity, equityBand, 1_000_000)) return false;
@@ -89,7 +86,7 @@ export default function SuperAdminOrganisationsPage() {
       }
       return true;
     });
-  }, [rows, query, plan, state, created, now, clientBand, equityBand]);
+  }, [rows, query, state, created, now, clientBand, equityBand]);
 
   const visible = filtered.filter((row) => tab === "all" || row.status === tab);
   const count = (value: OrgStatus) => rows.filter((row) => row.status === value).length;
@@ -118,7 +115,6 @@ export default function SuperAdminOrganisationsPage() {
                   { header: "Admin", value: (row: OrganisationRow) => currentAdmin(row)?.name ?? "" },
                   { header: "Admin email", value: (row: OrganisationRow) => currentAdmin(row)?.email ?? "" },
                   { header: "Status", value: (row: OrganisationRow) => ORG_STATUS_LABEL[row.status].label },
-                  { header: "Plan", value: (row: OrganisationRow) => row.subscriptionPlan ?? "" },
                   { header: "Accountants", value: (row: OrganisationRow) => orgMetrics(row.id)?.accountants },
                   { header: "RMs", value: (row: OrganisationRow) => orgMetrics(row.id)?.rms },
                   { header: "Clients", value: (row: OrganisationRow) => orgMetrics(row.id)?.clients },
@@ -171,13 +167,6 @@ export default function SuperAdminOrganisationsPage() {
             { value: "onboarding", label: "Onboarding" },
             { value: "suspended", label: "Suspended" },
           ]}
-        />
-        <SelectField
-          id="o-plan"
-          label="Plan"
-          value={plan}
-          onChange={setPlan}
-          options={[{ value: ALL, label: "All plans" }, ...plans.map((value) => ({ value, label: titleCase(value) }))]}
         />
         {SHOW_SAMPLE_DATA ? (
           <>

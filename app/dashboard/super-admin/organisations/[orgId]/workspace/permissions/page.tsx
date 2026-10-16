@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Dialog } from "../../../../../_console/components/Dialog";
-import { WorkspaceBanner, useWorkspaceOrg } from "../../../../../_console/components/Workspace";
+import { WorkspaceBanner, useWorkspaceOrg, workspacePath } from "../../../../../_console/components/Workspace";
+import { BackLink } from "../../../../../_console/components/ui";
 import { Badge, Card, PageHeader, Tabs } from "../../../../../_console/components/ui";
 import { DEFAULT_PERMISSIONS, ROLES, ROLE_HEADCOUNT, SAMPLE_EXCEPTIONS, type PermissionTable } from "../../../../../_console/lib/workspaceData";
 
@@ -49,6 +50,7 @@ export default function WorkspacePermissionsPage() {
   return (
     <>
       <WorkspaceBanner org={org} rows={rows} section="permissions" />
+      <BackLink href={workspacePath(org?.id ?? "")}>Back to {org?.name ?? "organisation"}</BackLink>
       <PageHeader
         title="Permissions"
         subtitle="Decide which roles can open each screen, run each report and export data. Exceptions for one person are listed below."

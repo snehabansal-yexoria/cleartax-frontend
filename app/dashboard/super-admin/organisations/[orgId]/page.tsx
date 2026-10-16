@@ -8,6 +8,7 @@ import { ExportMenu } from "../../../_console/components/ExportMenu";
 import {
   ApiPending,
   Avatar,
+  BackLink,
   Badge,
   Card,
   ColumnChart,
@@ -86,7 +87,8 @@ export default function SuperAdminOrganisationDetailPage() {
   if (!loading && !row) {
     return (
       <>
-        <PageHeader title="Organisation" crumbs={[{ label: "Organisations", href: "/dashboard/super-admin/organisations" }, { label: "Not found" }]} />
+        <BackLink href="/dashboard/super-admin/organisations">Back to organisations</BackLink>
+      <PageHeader title="Organisation" crumbs={[{ label: "Organisations", href: "/dashboard/super-admin/organisations" }, { label: "Not found" }]} />
         <Notice tone="red" title="Organisation not found">
           It may have been removed, or the link is out of date.
         </Notice>
@@ -99,6 +101,7 @@ export default function SuperAdminOrganisationDetailPage() {
 
   return (
     <>
+      <BackLink href="/dashboard/super-admin/organisations">Back to organisations</BackLink>
       <PageHeader title={row ? name : <Skeleton width="14em" height="1.6em" />} crumbs={[{ label: "Organisations", href: "/dashboard/super-admin/organisations" }, { label: name }]} />
 
       <Card>
@@ -247,8 +250,6 @@ export default function SuperAdminOrganisationDetailPage() {
               <dd>{address || "—"}</dd>
               <dt>Phone</dt>
               <dd>{row?.contactNumber || "—"}</dd>
-              <dt>Plan</dt>
-              <dd style={{ textTransform: "capitalize" }}>{row?.subscriptionPlan || "—"}</dd>
               <dt>Time zone</dt>
               <dd className={metrics && row?.state ? undefined : "cpc-muted"}>{metrics && row?.state ? TIME_ZONES[row.state] ?? "Australia/Sydney" : "—"}</dd>
               <dt>FY starts</dt>

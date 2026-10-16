@@ -55,7 +55,6 @@ type SampleOrg = {
   city: string;
   state: string;
   postcode: string;
-  plan: string;
   created: string;
   active: boolean;
   admin: { name: string; email: string; since: string; pending?: boolean; invitedBy?: string };
@@ -72,7 +71,6 @@ const SAMPLE_ORGS: SampleOrg[] = [
     city: "Sydney",
     state: "NSW",
     postcode: "2000",
-    plan: "enterprise",
     created: "2025-03-12T09:20:00Z",
     active: true,
     admin: { name: "Sarah Pike", email: "sarah@bluegum.com.au", since: "2025-11-04T10:00:00Z" },
@@ -87,7 +85,6 @@ const SAMPLE_ORGS: SampleOrg[] = [
     city: "Melbourne",
     state: "VIC",
     postcode: "3000",
-    plan: "practice",
     created: "2025-05-20T03:10:00Z",
     active: true,
     admin: { name: "James O'Neill", email: "james@harbourtax.com.au", since: "2025-05-20T03:30:00Z" },
@@ -101,7 +98,6 @@ const SAMPLE_ORGS: SampleOrg[] = [
     city: "Brisbane",
     state: "QLD",
     postcode: "4000",
-    plan: "practice",
     created: "2025-08-02T00:40:00Z",
     active: true,
     admin: { name: "Mei Lin", email: "mei@coastalledger.com.au", since: "2026-02-16T04:00:00Z" },
@@ -116,7 +112,6 @@ const SAMPLE_ORGS: SampleOrg[] = [
     city: "Perth",
     state: "WA",
     postcode: "6000",
-    plan: "starter",
     created: "2026-01-09T02:00:00Z",
     active: true,
     admin: { name: "Oliver Brooks", email: "oliver@swanriver.com.au", since: "2026-01-09T02:15:00Z" },
@@ -130,7 +125,6 @@ const SAMPLE_ORGS: SampleOrg[] = [
     city: "Adelaide",
     state: "SA",
     postcode: "5000",
-    plan: "starter",
     created: "2026-09-28T05:00:00Z",
     active: true,
     admin: { name: "Priya Rajan", email: "priya@adelaidehills.com.au", since: "2026-09-28T05:10:00Z", pending: true },
@@ -144,7 +138,6 @@ const SAMPLE_ORGS: SampleOrg[] = [
     city: "Canberra",
     state: "ACT",
     postcode: "2601",
-    plan: "practice",
     created: "2025-02-14T00:00:00Z",
     active: false,
     admin: { name: "Ravi Iyer", email: "ravi@capitalledger.com.au", since: "2025-02-14T00:20:00Z" },
@@ -165,7 +158,6 @@ export function sampleOrganisations(): Organisation[] {
     state: org.state,
     postalCode: org.postcode,
     country: "AU",
-    subscriptionPlan: org.plan,
     maxUsersAllowed: 250,
     isActive: org.active,
     createdAt: org.created,

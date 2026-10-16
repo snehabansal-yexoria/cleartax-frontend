@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { requestPasswordReset } from "@/src/lib/auth";
 import { Dialog } from "../../../../../_console/components/Dialog";
-import { WorkspaceBanner, useWorkspaceOrg } from "../../../../../_console/components/Workspace";
+import { WorkspaceBanner, useWorkspaceOrg, workspacePath } from "../../../../../_console/components/Workspace";
+import { BackLink } from "../../../../../_console/components/ui";
 import {
   Badge,
   Card,
@@ -197,6 +198,7 @@ export default function WorkspaceUsersPage() {
   return (
     <>
       <WorkspaceBanner org={org} rows={rows} section="users" />
+      <BackLink href={workspacePath(org?.id ?? "")}>Back to {org?.name ?? "organisation"}</BackLink>
       <PageHeader
         title="Users & roles"
         subtitle={`Everyone in ${org?.name ?? "this organisation"}. Create accounts, disable or reactivate them, and assign roles, including Admin.`}

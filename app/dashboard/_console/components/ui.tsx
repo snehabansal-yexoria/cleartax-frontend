@@ -525,3 +525,15 @@ export function ApiPending({ children = "Waiting on API" }: { children?: ReactNo
 export function Skeleton({ width = "100%", height = "1em", radius }: { width?: string; height?: string; radius?: string }) {
   return <span className="cpc-skel" style={{ width, height, borderRadius: radius }} aria-hidden="true" />;
 }
+
+/** "← Back to …" link shown above a page title. */
+export function BackLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="cpc-back">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+      {children}
+    </Link>
+  );
+}

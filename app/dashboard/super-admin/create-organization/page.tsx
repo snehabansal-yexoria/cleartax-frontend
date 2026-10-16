@@ -4,24 +4,21 @@ import Link from "next/link";
 import { useState } from "react";
 import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 import { InviteResult, buildInviteLink, type InviteResponse } from "../../_console/components/InviteResult";
-import { Card, Field, Notice, PageHeader, PendingAction, cx } from "../../_console/components/ui";
+import { Card, Field, Notice, PageHeader, PendingAction } from "../../_console/components/ui";
 import { apiPost } from "../../_console/lib/api";
 import { invalidateResource } from "../../_console/lib/useResource";
 
 type Step = 1 | 2 | 3 | 4;
-type Plan = "starter" | "practice" | "enterprise";
 
 type Form = {
   name: string;
   address: string;
   timeZone: string;
   fyStart: string;
-  plan: Plan;
   maxAccountants: string;
   maxRms: string;
   maxClients: string;
   storage: string;
-  trialEnds: string;
   adminFirstName: string;
   adminLastName: string;
   adminEmail: string;
@@ -34,24 +31,16 @@ const EMPTY: Form = {
   address: "",
   timeZone: "Australia/Sydney",
   fyStart: "1 July (ATO)",
-  plan: "practice",
   maxAccountants: "20",
   maxRms: "5",
   maxClients: "150",
   storage: "50 GB",
-  trialEnds: "",
   adminFirstName: "",
   adminLastName: "",
   adminEmail: "",
   adminPhone: "",
   message: "",
 };
-
-const PLANS: { id: Plan; title: string; body: string; limits: [string, string, string] }[] = [
-  { id: "starter", title: "Starter", body: "Up to 8 accountants · 60 clients", limits: ["8", "2", "60"] },
-  { id: "practice", title: "Practice", body: "Up to 20 accountants · 150 clients", limits: ["20", "5", "150"] },
-  { id: "enterprise", title: "Enterprise", body: "Custom limits", limits: ["50", "10", "500"] },
-];
 
 const TIME_ZONES = [
   { value: "Australia/Sydney", label: "Australia/Sydney (AEST)" },
@@ -61,7 +50,7 @@ const TIME_ZONES = [
 
 const STEP_TITLES: Record<Step, string> = {
   1: "Organisation details",
-  2: "Plan & limits",
+  2: "Limits",
   3: "Invite the admin",
   4: "Review & create",
 };
@@ -135,7 +124,6 @@ export default function CreateOrganisationPage() {
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
   const errors = stepErrors(step, form);
-  const plan = PLANS.find((item) => item.id === form.plan)!;
 
   function next() {
     setTouched(true);
@@ -165,7 +153,6 @@ export default function CreateOrganisationPage() {
         state: address.state,
         country: "AU",
         postal_code: address.postalCode,
-        subscription_plan: form.plan,
         // The API stores one seat limit: accountants + RMs + clients + the admin.
         max_users_allowed:
           (Number(form.maxAccountants) || 0) + (Number(form.maxRms) || 0) + (Number(form.maxClients) || 0) + 1,
@@ -327,29 +314,6 @@ export default function CreateOrganisationPage() {
 
           {step === 2 ? (
             <>
-              <div className="cpc-grid-3" role="radiogroup" aria-label="Plan">
-                {PLANS.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={form.plan === item.id}
-                    className={cx("cpc-role-card", form.plan === item.id && "is-on")}
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-                        plan: item.id,
-                        maxAccountants: item.limits[0],
-                        maxRms: item.limits[1],
-                        maxClients: item.limits[2],
-                      }))
-                    }
-                  >
-                    <span className="cpc-strong">{item.title}</span>
-                    <span className="cpc-small cpc-muted">{item.body}</span>
-                  </button>
-                ))}
-              </div>
               <div className="cpc-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12em), 1fr))" }}>
                 {text("maxAccountants", "Max accountants", { inputMode: "numeric" })}
                 {text("maxRms", "Max RMs", { inputMode: "numeric" })}
@@ -359,9 +323,6 @@ export default function CreateOrganisationPage() {
                     <option>50 GB</option>
                     <option>100 GB</option>
                   </select>
-                </Field>
-                <Field label="Trial ends (optional)" htmlFor="co-trial">
-                  <input id="co-trial" className="cpc-input" type="date" value={form.trialEnds} onChange={(e) => set("trialEnds", e.target.value)} />
                 </Field>
               </div>
             </>
@@ -399,9 +360,8 @@ export default function CreateOrganisationPage() {
                 ["Address", form.address],
                 ["Time zone", form.timeZone],
               ])}
-              {reviewBox("Plan", [
-                ["Plan", plan.title],
-                ["Limits", `${form.maxAccountants} accountants · ${form.maxRms} RMs · ${form.maxClients} clients`],
+              {reviewBox("Limits", [
+                ["Users", `${form.maxAccountants} accountants · ${form.maxRms} RMs · ${form.maxClients} clients`],
                 ["Storage", form.storage],
               ])}
               {reviewBox("Admin", [

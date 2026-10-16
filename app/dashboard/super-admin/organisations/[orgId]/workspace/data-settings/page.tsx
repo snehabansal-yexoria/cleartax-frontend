@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Dialog } from "../../../../../_console/components/Dialog";
-import { WorkspaceBanner, useWorkspaceOrg } from "../../../../../_console/components/Workspace";
+import { WorkspaceBanner, useWorkspaceOrg, workspacePath } from "../../../../../_console/components/Workspace";
+import { BackLink } from "../../../../../_console/components/ui";
 import { Badge, Card, Field, Notice, PageHeader } from "../../../../../_console/components/ui";
 import { exportRows } from "../../../../../_console/lib/export";
 import { DEFAULT_CODES, DEFAULT_LIST_RULES, type AccountCode, type ListRule } from "../../../../../_console/lib/workspaceData";
@@ -66,6 +67,7 @@ export default function WorkspaceDataRulesPage() {
   return (
     <>
       <WorkspaceBanner org={org} rows={rows} section="data-settings" />
+      <BackLink href={workspacePath(org?.id ?? "")}>Back to {org?.name ?? "organisation"}</BackLink>
       <PageHeader
         title="Data settings & rules"
         subtitle="The same lists the admin manages, plus the rules only you can set: which lists the admin can edit and which values are protected."
