@@ -14,17 +14,11 @@ import {
 import { getSession } from "@/src/lib/session";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
-import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
-import { fetchCurrentUser } from "@/app/components/currentUser";
-import {
-  currentFinancialYear,
-  monthAt,
-  monthIndex,
-  monthKey,
-} from "@/app/components/clients/portfolioDashboard";
+import ClientPagination from "@/app/components/clients/ClientPagination";
 import type {
   CoreTransactionDetail,
   CoreTransactionListItem,
+  CoreTransactionTotals,
 } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -33,9 +27,8 @@ interface SessionWithIdToken {
   };
 }
 
-type QuickFilter = 'all' | 'income' | 'expense' | 'month';
 type TypeFilter = 'all' | 'income' | 'expense';
-type DateRangeFilter = 'all' | '3days' | 'week' | '30days' | 'quarter';
+type DateRangeFilter = 'month' | '3days' | 'week' | '30days' | 'quarter' | 'all';
 type ListTab = 'reviewed' | 'pending';
 
 // The API sends propertyNames; the dev mock interceptor's rows also carry a
@@ -52,27 +45,110 @@ type EntitiesResponse = {
   }[];
 };
 
-// One page per request. The Go API defaults to 50 and caps at 200; the list
-// grows by appending pages with "Load more" rather than downloading everything.
-const PAGE_SIZE = 50;
+// One page per request, navigated with the pager under the list. The Go API
+// caps a page at 200.
+const DEFAULT_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
-const QUICK_FILTER_PILLS: { id: QuickFilter; label: string }[] = [
+// Type only. Duration used to share this single-select row ("This Month"), so
+// picking Expense silently dropped the month and vice versa; it is its own
+// control now (DATE_RANGE_OPTIONS), always visible beside these.
+const TYPE_PILLS: { id: TypeFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'income', label: 'Income' },
   { id: 'expense', label: 'Expense' },
-  { id: 'month', label: 'This Month' },
 ];
 
 const TYPE_FILTER_OPTIONS: TypeFilter[] = ['all', 'income', 'expense'];
 
+// The page opens on this month, as the Income/Expense cards always did.
+const DEFAULT_DATE_RANGE: DateRangeFilter = 'month';
+
 const DATE_RANGE_OPTIONS: { label: string; value: DateRangeFilter }[] = [
-  { label: 'All', value: 'all' },
+  { label: 'This month', value: 'month' },
   { label: 'Past 3 days', value: '3days' },
   { label: 'Past week', value: 'week' },
   { label: 'Last 30 days', value: '30days' },
   { label: 'This quarter', value: 'quarter' },
+  { label: 'All time', value: 'all' },
 ];
+
+function dateRangeLabel(value: DateRangeFilter): string {
+  return DATE_RANGE_OPTIONS.find((option) => option.value === value)?.label ?? '';
+}
+
+/**
+ * How a row reads. Only income and expense are signed and coloured; contra,
+ * personal, cost base and balance sheet are neither, and used to be drawn as
+ * expenses — so they looked "missing" from the Expense tab, which is strictly
+ * type = expense.
+ */
+function rowTone(type: string): 'income' | 'expense' | 'neutral' {
+  if (type === 'revenue') return 'income';
+  if (type === 'expense') return 'expense';
+  return 'neutral';
+}
+
+function rowAmountText(type: string, amount: number): string {
+  const tone = rowTone(type);
+  if (tone === 'income') return formatClientCurrency(amount, { showPlus: true });
+  if (tone === 'expense') return formatClientCurrency(-amount, { showPlus: true });
+  return formatClientCurrency(amount);
+}
+
+/** The type badge for a neutral row, unless its category already says it. */
+function rowTypeBadge(type: CoreTransactionListItem['type'], categoryName: string): string | null {
+  if (rowTone(type) !== 'neutral') return null;
+  const label = transactionTypeLabel(type);
+  return label && label.toLowerCase() !== categoryName.trim().toLowerCase() ? label : null;
+}
+
+function RowIcon({ type }: { type: string }) {
+  const tone = rowTone(type);
+  if (tone === 'income') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+        <line x1="7" y1="17" x2="17" y2="7" />
+        <polyline points="7 7 17 7 17 17" />
+      </svg>
+    );
+  }
+  if (tone === 'expense') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+        <line x1="17" y1="7" x2="7" y2="17" />
+        <polyline points="17 17 7 17 7 7" />
+      </svg>
+    );
+  }
+  // Two-way arrows: money moved, but not in or out of the portfolio's P&L.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+      <polyline points="17 3 21 7 17 11" />
+      <line x1="3" y1="7" x2="21" y2="7" />
+      <polyline points="7 13 3 17 7 21" />
+      <line x1="21" y1="17" x2="3" y2="17" />
+    </svg>
+  );
+}
+
+/**
+ * Sets the review-tab predicates on a query. "unreviewed" rows are the ones
+ * sent to the accountant via "Submit to accountant"; they live in the "To Be
+ * Reviewed" tab (newest submission first), so the main tab is the ledger
+ * bucket — everything else. Shared by the list and the totals cards so both
+ * describe the same set.
+ */
+function applyTab(sp: URLSearchParams, tab: ListTab) {
+  if (tab === 'pending') {
+    sp.set("review_status", "unreviewed");
+    sp.set("sort", "created");
+  } else {
+    sp.set("review_bucket", "ledger");
+    sp.set("sort", "date");
+  }
+  sp.set("dir", "desc");
+}
 
 /** Local calendar date as YYYY-MM-DD — the only date format the API accepts. */
 function toIsoDate(date: Date) {
@@ -82,13 +158,11 @@ function toIsoDate(date: Date) {
 }
 
 /**
- * The invoice-date bounds for the date-range sheet filter and the "This Month"
- * pill. Both can be on at once, so the result is their intersection. "Past N
- * days" keeps no upper bound, as the old in-browser filter did.
+ * The invoice-date bounds for the duration filter. "Past N days" keeps no
+ * upper bound, as the old in-browser filter did.
  */
 function dateBounds(
   dateRange: DateRangeFilter,
-  thisMonth: boolean,
   now: Date,
 ): { from?: string; to?: string } {
   const year = now.getFullYear();
@@ -96,30 +170,28 @@ function dateBounds(
   const daysAgo = (n: number) =>
     toIsoDate(new Date(year, month, now.getDate() - n));
 
-  let from: string | undefined;
-  let to: string | undefined;
-  const narrow = (nextFrom?: string, nextTo?: string) => {
-    if (nextFrom && (!from || nextFrom > from)) from = nextFrom;
-    if (nextTo && (!to || nextTo < to)) to = nextTo;
-  };
-
-  if (dateRange === '3days') narrow(daysAgo(3));
-  else if (dateRange === 'week') narrow(daysAgo(7));
-  else if (dateRange === '30days') narrow(daysAgo(30));
-  else if (dateRange === 'quarter') {
-    const quarterStart = Math.floor(month / 3) * 3;
-    narrow(
-      toIsoDate(new Date(year, quarterStart, 1)),
-      toIsoDate(new Date(year, quarterStart + 3, 0)),
-    );
+  switch (dateRange) {
+    case 'month':
+      return {
+        from: toIsoDate(new Date(year, month, 1)),
+        to: toIsoDate(new Date(year, month + 1, 0)),
+      };
+    case '3days':
+      return { from: daysAgo(3) };
+    case 'week':
+      return { from: daysAgo(7) };
+    case '30days':
+      return { from: daysAgo(30) };
+    case 'quarter': {
+      const quarterStart = Math.floor(month / 3) * 3;
+      return {
+        from: toIsoDate(new Date(year, quarterStart, 1)),
+        to: toIsoDate(new Date(year, quarterStart + 3, 0)),
+      };
+    }
+    default:
+      return {};
   }
-  if (thisMonth) {
-    narrow(
-      toIsoDate(new Date(year, month, 1)),
-      toIsoDate(new Date(year, month + 1, 0)),
-    );
-  }
-  return { from, to };
 }
 
 async function getAuthToken(): Promise<string | null> {
@@ -201,20 +273,24 @@ function ClientTransactionsContent() {
   // skeleton would unmount the search box mid-typing.
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [listError, setListError] = useState("");
-  // The rows loaded so far for the active tab and filters: page one plus any
-  // pages appended by "Load more".
+  // The current page of the active tab and filters.
   const [transactions, setTransactions] = useState<ClientListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  // A short page is the last one, whatever the count said. Without this a row
-  // deleted elsewhere since page one would leave "Load more" up for good.
-  const [reachedEnd, setReachedEnd] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // Bumped after a delete so the current page refetches and backfills.
+  const [listVersion, setListVersion] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
-  const [clientId, setClientId] = useState<string | null>(null);
-  // Bumped after an edit or delete so the month-to-date cards and the
-  // "To Be Reviewed" badge re-read; the list itself is patched in place.
+  // The Income / Expense cards: totals for the listed set (null shows "—").
+  const [totals, setTotals] = useState<{
+    key: string;
+    data: CoreTransactionTotals | null;
+  } | null>(null);
+  // Bumped after an edit or delete so the cards and the "To Be Reviewed"
+  // badge re-read; an edited row is patched in place.
   const [statsVersion, setStatsVersion] = useState(0);
+  const listTopRef = useRef<HTMLDivElement>(null);
   const [entityOptions, setEntityOptions] = useState<FilterOption[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<FilterOption[]>([]);
   const [openTxn, setOpenTxn] = useState<{ id: string; row?: ClientListItem } | null>(null);
@@ -223,13 +299,16 @@ function ClientTransactionsContent() {
   // The input is searchQuery; the query string only sees this debounced copy,
   // so a typing burst is one request rather than one per keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<QuickFilter>('all');
   const [activeTab, setActiveTab] = useState<ListTab>('reviewed');
 
   // Filter bottom sheet state variables
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>('all');
+  // This month by default; the property page's "View all" (?propertyId=)
+  // means all of that property's transactions, so it opens on All time.
+  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>(
+    () => (propertyIdParam ? 'all' : DEFAULT_DATE_RANGE),
+  );
   // Entity and property filters hold ids, not names: they are sent to the API
   // as entity_id / property_id.
   const [entityFilter, setEntityFilter] = useState<string>('all');
@@ -239,7 +318,7 @@ function ClientTransactionsContent() {
 
   // Temp selection draft variables
   const [tempType, setTempType] = useState<TypeFilter>('all');
-  const [tempDateRange, setTempDateRange] = useState<DateRangeFilter>('all');
+  const [tempDateRange, setTempDateRange] = useState<DateRangeFilter>(DEFAULT_DATE_RANGE);
   const [tempEntity, setTempEntity] = useState<string>('all');
   const [tempProperty, setTempProperty] = useState<string>('all');
 
@@ -316,48 +395,55 @@ function ClientTransactionsContent() {
     };
   }, []);
 
-  // Every filter on the page, as API query params. Shared by the list and the
-  // "To Be Reviewed" badge so both describe the same set of transactions.
-  const filterQuery = useMemo(() => {
+  // Every filter except type, as API query params: search, duration, entity
+  // and property. The Income / Expense cards read this set — they are the
+  // type split themselves, so the type pill must not zero one of them.
+  const scopeQuery = useMemo(() => {
     const sp = new URLSearchParams();
     const search = debouncedSearch.trim();
     if (search) sp.set("search", search);
 
-    // The pills and the sheet's Type are kept in step, but the pill wins if
-    // they ever disagree since it is what the user can see.
-    const type =
-      activeFilter === 'income' || activeFilter === 'expense' ? activeFilter : typeFilter;
-    if (type === 'income') sp.set("type", "revenue");
-    else if (type === 'expense') sp.set("type", "expense");
-
-    const { from, to } = dateBounds(dateRangeFilter, activeFilter === 'month', new Date());
+    const { from, to } = dateBounds(dateRangeFilter, new Date());
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
 
     if (entityFilter !== 'all') sp.set("entity_id", entityFilter);
     if (propertyFilter !== 'all') sp.set("property_id", propertyFilter);
     return sp.toString();
-  }, [debouncedSearch, activeFilter, typeFilter, dateRangeFilter, entityFilter, propertyFilter]);
+  }, [debouncedSearch, dateRangeFilter, entityFilter, propertyFilter]);
 
-  // The list's query minus the offset. "unreviewed" rows are the ones sent to
-  // the accountant via "Submit to accountant"; they live in the "To Be
-  // Reviewed" tab (newest submission first), so the main tab is the ledger
-  // bucket — everything else.
+  // Every filter on the page. Shared by the list and the "To Be Reviewed"
+  // badge so both describe the same set of transactions. Income and Expense
+  // are strict types (revenue / expense); contra, personal and cost base
+  // show only under All.
+  const filterQuery = useMemo(() => {
+    const sp = new URLSearchParams(scopeQuery);
+    if (typeFilter === 'income') sp.set("type", "revenue");
+    else if (typeFilter === 'expense') sp.set("type", "expense");
+    return sp.toString();
+  }, [scopeQuery, typeFilter]);
+
+  // Any change to the filters, the tab or the page size goes back to page
+  // one. Adjusted during render (React's pattern for state derived from
+  // other state), so the stale page is never requested first.
+  const pageResetKey = `${filterQuery}|${activeTab}|${pageSize}`;
+  const [lastPageResetKey, setLastPageResetKey] = useState(pageResetKey);
+  if (lastPageResetKey !== pageResetKey) {
+    setLastPageResetKey(pageResetKey);
+    setCurrentPage(1);
+  }
+
   const listQuery = useMemo(() => {
     const sp = new URLSearchParams(filterQuery);
-    if (activeTab === 'pending') {
-      sp.set("review_status", "unreviewed");
-      sp.set("sort", "created");
-    } else {
-      sp.set("review_bucket", "ledger");
-      sp.set("sort", "date");
-    }
-    sp.set("dir", "desc");
-    sp.set("limit", String(PAGE_SIZE));
+    applyTab(sp, activeTab);
+    sp.set("limit", String(pageSize));
     return sp.toString();
-  }, [filterQuery, activeTab]);
+  }, [filterQuery, activeTab, pageSize]);
 
-  // Any change to the query starts again from the first page.
+  const pageOffset = (currentPage - 1) * pageSize;
+
+  // One page per request: refetched when the query, the page or (after a
+  // delete) listVersion changes.
   useEffect(() => {
     const seq = ++requestSeq.current;
     const controller = new AbortController();
@@ -372,11 +458,10 @@ function ClientTransactionsContent() {
           router.replace("/login/user");
           return;
         }
-        const page = await fetchTransactionPage(token, listQuery, 0, controller.signal);
+        const page = await fetchTransactionPage(token, listQuery, pageOffset, controller.signal);
         if (seq !== requestSeq.current) return;
         setTransactions(page.items);
         setTotalCount(page.total);
-        setReachedEnd(page.items.length < PAGE_SIZE);
       } catch (err) {
         if (controller.signal.aborted || seq !== requestSeq.current) return;
         console.error("Failed to fetch transactions:", err);
@@ -386,14 +471,20 @@ function ClientTransactionsContent() {
       } finally {
         if (seq === requestSeq.current) {
           setIsRefreshing(false);
-          setIsLoadingMore(false);
           setIsLoading(false);
         }
       }
     })();
 
     return () => controller.abort();
-  }, [listQuery, router]);
+  }, [listQuery, pageOffset, listVersion, router]);
+
+  // A delete (here or elsewhere) can leave the page past the end: step back
+  // to the last page that exists rather than show an empty one.
+  const totalPages = Math.max(Math.ceil(totalCount / pageSize), 1);
+  if (!isRefreshing && currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
 
   // The badge counts the queue under the same filters as the list, whichever
   // tab is showing. limit=1: only the total is wanted.
@@ -416,68 +507,49 @@ function ClientTransactionsContent() {
     return () => controller.abort();
   }, [filterQuery, statsVersion]);
 
-  // Month-to-date cards: this month from the Portfolio Summary — the same
-  // figures as the home page's "this month" cards (gross, each property's
-  // share, unreviewed rows excluded). They used to be summed in the browser
-  // from a capped page of rows. Deliberately unfiltered, so searching or
-  // switching tabs never moves them; an edit or delete (statsVersion) reloads.
+  // Income / Expense cards: server totals for exactly the listed set — same
+  // duration, search, entity, property and tab, at the list's grain and with
+  // the amount each row shows — minus the type pill. They used to be this
+  // month's Portfolio Summary whatever the list showed, so they read A$0
+  // above a list of rows. "—" while loading or if the totals endpoint is not
+  // deployed yet; never a stale figure for a different filter.
+  const totalsQuery = useMemo(() => {
+    const sp = new URLSearchParams(scopeQuery);
+    applyTab(sp, activeTab);
+    return sp.toString();
+  }, [scopeQuery, activeTab]);
+
+  // Keyed by the query that produced them, so a figure for the previous
+  // filter is never shown under the new one while it loads.
+  const totalsKey = `${totalsQuery}|${statsVersion}`;
+  const shownTotals = totals?.key === totalsKey ? totals.data : null;
+
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     (async () => {
       try {
         const token = await getAuthToken();
-        if (!token || cancelled) return;
-        const me = await fetchCurrentUser(token);
-        if (!cancelled) setClientId(me.id || null);
+        if (!token || controller.signal.aborted) return;
+        const res = await fetch(`/api/transactions/totals?${totalsQuery}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`totals request failed (${res.status})`);
+        const data = (await res.json()) as CoreTransactionTotals;
+        if (!controller.signal.aborted) setTotals({ key: totalsKey, data });
       } catch (err) {
-        if (!cancelled) console.error("Failed to identify the client for the MTD cards:", err);
+        if (controller.signal.aborted) return;
+        console.error("Failed to load income and expense totals:", err);
+        setTotals({ key: totalsKey, data: null });
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const mtdRegion = usePortfolioSummary(clientId, currentFinancialYear());
-  const reloadMtd = mtdRegion.reload;
-  useEffect(() => {
-    if (statsVersion > 0) reloadMtd();
-  }, [statsVersion, reloadMtd]);
+    return () => controller.abort();
+  }, [totalsQuery, totalsKey]);
 
-  const hasMore = !reachedEnd && transactions.length < totalCount;
-  const displayTotal = reachedEnd
-    ? transactions.length
-    : Math.max(totalCount, transactions.length);
-
-  async function handleLoadMore() {
-    if (isLoadingMore || isRefreshing) return;
-    const seq = ++requestSeq.current;
-    const offset = transactions.length;
-    setIsLoadingMore(true);
-    setListError("");
-    try {
-      const token = await getAuthToken();
-      if (seq !== requestSeq.current) return;
-      if (!token) {
-        router.replace("/login/user");
-        return;
-      }
-      const page = await fetchTransactionPage(token, listQuery, offset);
-      if (seq !== requestSeq.current) return;
-      // Offset paging can repeat a row if something was added since page one
-      // loaded; skip ids already on screen rather than render a duplicate.
-      setTransactions((current) => {
-        const seen = new Set(current.map((tx) => tx.id));
-        return [...current, ...page.items.filter((tx) => !seen.has(tx.id))];
-      });
-      setTotalCount(page.total);
-      setReachedEnd(page.items.length < PAGE_SIZE);
-    } catch (err) {
-      if (seq !== requestSeq.current) return;
-      console.error("Failed to load more transactions:", err);
-      setListError(err instanceof Error ? err.message : "Failed to load more transactions.");
-    } finally {
-      if (seq === requestSeq.current) setIsLoadingMore(false);
-    }
+  function goToPage(page: number) {
+    setCurrentPage(page);
+    listTopRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
 
   function replaceQuery(mutate: (sp: URLSearchParams) => void) {
@@ -499,6 +571,20 @@ function ClientTransactionsContent() {
     }
   }
 
+  // Add Transaction's Back returns here, with the same query (minus a
+  // ?txn= deep link, which would reopen the popup). Passed explicitly so it
+  // never depends on the layout's path history.
+  const addTransactionHref = (() => {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.delete("txn");
+    const qs = sp.toString();
+    const back = qs ? `${pathname}?${qs}` : pathname;
+    return `/dashboard/client/transactions/new?${new URLSearchParams({
+      backHref: back,
+      backLabel: "Transactions",
+    })}`;
+  })();
+
   function openTransaction(id: string) {
     setOpenTxn({ id, row: transactions.find((tx) => tx.id === id) });
   }
@@ -514,13 +600,12 @@ function ClientTransactionsContent() {
     detail: CoreTransactionDetail | null,
   ) {
     if (change === "deleted") {
-      if (transactions.some((tx) => tx.id === id)) {
-        setTransactions((current) => current.filter((tx) => tx.id !== id));
-        setTotalCount((count) => Math.max(0, count - 1));
-      }
+      // Refetch the page so the next row moves up into the gap (and the
+      // pager's count is the server's).
+      setListVersion((version) => version + 1);
     } else if (detail) {
-      // Patched in place rather than refetched, so the pages already loaded
-      // and the scroll position survive an edit.
+      // Patched in place rather than refetched, so the page and the scroll
+      // position survive an edit.
       setTransactions((current) =>
         current.map((tx) => (tx.id === detail.id ? transactionDetailToRow(detail, tx) : tx)),
       );
@@ -571,12 +656,11 @@ function ClientTransactionsContent() {
     return [...propertyOptions, { id: propertyFilter, name }];
   }, [propertyFilter, propertyOptions, transactions]);
 
-  // This month's figures; null ("—") until the summary arrives.
-  const mtdMonth = mtdRegion.data
-    ? monthAt(monthIndex(mtdRegion.data), monthKey(today))
-    : null;
-  const displayIncomeMtd = mtdMonth ? mtdMonth.income : null;
-  const displayExpenseMtd = mtdMonth ? mtdMonth.expenses : null;
+  // The cards' figures; null shows "—" (loading, failed, or the totals
+  // endpoint not deployed yet). The label names the duration they cover.
+  const displayIncomeTotal = shownTotals ? shownTotals.income : null;
+  const displayExpenseTotal = shownTotals ? shownTotals.expense : null;
+  const durationLabel = dateRangeLabel(dateRangeFilter);
 
   // Group transactions by date
   const groupTransactionsByDate = (itemsList: ListRow[]) => {
@@ -584,8 +668,9 @@ function ClientTransactionsContent() {
     const sorted = [...itemsList].sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate));
 
     sorted.forEach(item => {
-      if (!item.invoiceDate) return;
-      const dateLabel = formatDateGroupHeader(item.invoiceDate);
+      // Undated rows sort last and get their own group; they used to be
+      // dropped, so a row counted in "of N" never appeared.
+      const dateLabel = item.invoiceDate ? formatDateGroupHeader(item.invoiceDate) : "No date";
       if (!groups[dateLabel]) {
         groups[dateLabel] = [];
       }
@@ -630,16 +715,6 @@ function ClientTransactionsContent() {
     setDateRangeFilter(tempDateRange);
     setEntityFilter(tempEntity);
     applyPropertyFilter(tempProperty);
-
-    // Sync main page pills
-    if (tempType === 'income') {
-      setActiveFilter('income');
-    } else if (tempType === 'expense') {
-      setActiveFilter('expense');
-    } else {
-      setActiveFilter('all');
-    }
-
     setIsFilterSheetOpen(false);
   };
 
@@ -654,23 +729,55 @@ function ClientTransactionsContent() {
     setTempProperty('all');
   };
 
-  const handleQuickFilterChange = (filter: QuickFilter) => {
-    setActiveFilter(filter);
-    if (filter === 'income') {
-      setTypeFilter('income');
-    } else if (filter === 'expense') {
-      setTypeFilter('expense');
-    } else if (filter === 'all') {
-      setTypeFilter('all');
-      setDateRangeFilter('all');
-      setEntityFilter('all');
-      applyPropertyFilter('all');
-    }
-  };
+  // The pills and the visible duration control drive the same state as the
+  // sheet's Type and Date Range, so the two can never disagree. "All" is all
+  // types only; it no longer resets the duration, entity and property.
+  const renderFilterRow = (variant: 'mobile' | 'desktop') => (
+    <div
+      className={variant === 'mobile' ? 'no-scrollbar' : 'd-tx-pills-row'}
+      style={
+        variant === 'mobile'
+          ? {
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            padding: '4px 16px 16px 16px',
+            WebkitOverflowScrolling: 'touch',
+            alignItems: 'center',
+          }
+          : { alignItems: 'center' }
+      }
+    >
+      {TYPE_PILLS.map((pill) => (
+        <button
+          key={pill.id}
+          type="button"
+          onClick={() => setTypeFilter(pill.id)}
+          aria-pressed={typeFilter === pill.id}
+          className={`d-tx-pill ${typeFilter === pill.id ? 'active' : 'inactive'}`}
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          {pill.label}
+        </button>
+      ))}
+      <select
+        className="tx-duration-select"
+        aria-label="Duration"
+        value={dateRangeFilter}
+        onChange={(e) => setDateRangeFilter(e.target.value as DateRangeFilter)}
+      >
+        {DATE_RANGE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
-  // "Showing X of Y" and "Load more", under either tab's list.
+  // The pager under either tab's list.
   const renderListFooter = (variant: 'mobile' | 'desktop') => {
-    if (transactions.length === 0) return null;
+    if (totalCount === 0 && !listError) return null;
     return (
       <div
         style={{
@@ -686,33 +793,16 @@ function ClientTransactionsContent() {
             {listError}
           </div>
         ) : null}
-        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-          Showing {transactions.length} of {displayTotal}
-        </div>
-        {hasMore ? (
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={isLoadingMore || isRefreshing}
-            style={{
-              width: variant === 'mobile' ? '100%' : 'auto',
-              minWidth: '160px',
-              padding: '10px 20px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-1)',
-              color: 'var(--text-primary)',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: isLoadingMore || isRefreshing ? 'default' : 'pointer',
-              opacity: isLoadingMore ? 0.7 : 1,
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-              outline: 'none',
-              transition: 'all 0.2s'
-            }}
-          >
-            {isLoadingMore ? 'Loading…' : 'Load more'}
-          </button>
+        {totalCount > 0 ? (
+          <ClientPagination
+            page={currentPage}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            onPageChange={goToPage}
+            onPageSizeChange={variant === 'desktop' ? setPageSize : undefined}
+            disabled={isRefreshing}
+            compact={variant === 'mobile'}
+          />
         ) : null}
       </div>
     );
@@ -773,7 +863,8 @@ function ClientTransactionsContent() {
           }}>
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
             <Link
-              href="/dashboard/client/transactions/new"
+              href={addTransactionHref}
+              aria-label="Add transaction"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -860,7 +951,7 @@ function ClientTransactionsContent() {
             </div>
           </div>
 
-          {/* MTD Card */}
+          {/* Income / Expense for the listed set */}
           <div style={{ padding: '0 16px 16px 16px' }}>
             <div style={{ 
               display: 'grid', 
@@ -871,16 +962,18 @@ function ClientTransactionsContent() {
               border: '1px solid var(--border)', 
               boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' 
             }}>
-              <div style={{ paddingRight: '12px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Income (MTD)</span>
+              <div style={{ paddingRight: '12px', minWidth: 0 }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Income</span>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>{durationLabel}</span>
                 <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--success)', marginTop: '4px' }}>
-                  {displayIncomeMtd != null ? formatClientCurrency(displayIncomeMtd, { showPlus: true }) : "—"}
+                  {displayIncomeTotal != null ? formatClientCurrency(displayIncomeTotal, { showPlus: true }) : "—"}
                 </div>
               </div>
-              <div style={{ paddingLeft: '20px', borderLeft: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Expense (MTD)</span>
+              <div style={{ paddingLeft: '20px', borderLeft: '1px solid var(--border)', minWidth: 0 }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Expense</span>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>{durationLabel}</span>
                 <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--danger)', marginTop: '4px' }}>
-                  {displayExpenseMtd != null ? formatClientCurrency(-displayExpenseMtd, { showPlus: true }) : "—"}
+                  {displayExpenseTotal != null ? formatClientCurrency(-displayExpenseTotal, { showPlus: true }) : "—"}
                 </div>
               </div>
             </div>
@@ -933,39 +1026,12 @@ function ClientTransactionsContent() {
             </button>
           </div>
 
+          {/* Type + duration, above either tab: they filter both lists. */}
+          <div ref={listTopRef} />
+          {renderFilterRow('mobile')}
+
           {activeTab === 'reviewed' ? (
             <>
-
-              {/* Filter Pills */}
-              <div 
-                className="no-scrollbar"
-                style={{ 
-                  display: 'flex', 
-                  gap: '8px', 
-                  overflowX: 'auto', 
-                  padding: '4px 16px 16px 16px', 
-                  WebkitOverflowScrolling: 'touch' 
-                }}
-              >
-                {QUICK_FILTER_PILLS.map((pill) => {
-                  const isActive = activeFilter === pill.id;
-                  return (
-                    <button
-                      key={pill.id}
-                      type="button"
-                      onClick={() => handleQuickFilterChange(pill.id)}
-                      className={`d-tx-pill ${isActive ? 'active' : 'inactive'}`}
-                      style={{
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0
-                      }}
-                    >
-                      {pill.label}
-                    </button>
-                  );
-                })}
-              </div>
-
               {/* Grouped Transactions List */}
               {Object.keys(groupedTransactions).length === 0 ? (
                 <div style={{ margin: '0 16px', textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px', ...listBusyStyle }}>
@@ -1006,7 +1072,7 @@ function ClientTransactionsContent() {
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
                             <div 
-                              className={`m-db-activity-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}
+                              className={`m-db-activity-icon-box ${rowTone(tx.type)}`}
                               style={{
                                 width: '40px',
                                 height: '40px',
@@ -1017,23 +1083,16 @@ function ClientTransactionsContent() {
                                 flexShrink: 0
                               }}
                             >
-                              {tx.type === 'revenue' ? (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                                  <line x1="7" y1="17" x2="17" y2="7" />
-                                  <polyline points="7 7 17 7 17 17" />
-                                </svg>
-                              ) : (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                                  <line x1="17" y1="7" x2="7" y2="17" />
-                                  <polyline points="17 17 7 17 7 7" />
-                                </svg>
-                              )}
+                              <RowIcon type={tx.type} />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
                               <strong style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {tx.description}
                               </strong>
                               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block', wordBreak: 'break-word' }}>
+                                {rowTypeBadge(tx.type, tx.categoryName) ? (
+                                  <span className="tx-type-badge">{rowTypeBadge(tx.type, tx.categoryName)}</span>
+                                ) : null}
                                 {tx.categoryName} {tx.meta ? `- ${tx.meta}` : ''}
                               </span>
                             </div>
@@ -1045,10 +1104,14 @@ function ClientTransactionsContent() {
                               textAlign: 'right', 
                               flexShrink: 0, 
                               marginLeft: '12px',
-                              color: tx.type === 'revenue' ? 'var(--success)' : 'var(--danger)'
+                              color: rowTone(tx.type) === 'income'
+                                ? 'var(--success)'
+                                : rowTone(tx.type) === 'expense'
+                                  ? 'var(--danger)'
+                                  : 'var(--text-secondary)'
                             }}
                           >
-                            {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
+                            {rowAmountText(tx.type, tx.amount)}
                           </span>
                         </div>
                       ))}
@@ -1414,8 +1477,9 @@ function ClientTransactionsContent() {
         <div className="d-tx-header">
           <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Transactions</h1>
           <Link
-            href="/dashboard/client/transactions/new"
+            href={addTransactionHref}
             className="d-tx-add-btn"
+            aria-label="Add transaction"
           >
             <svg
               viewBox="0 0 24 24"
@@ -1471,18 +1535,18 @@ function ClientTransactionsContent() {
             </button>
           </div>
 
-          {/* MTD Cards Grid */}
+          {/* Income / Expense for the listed set */}
           <div className="d-tx-mtd-grid">
             <div className="d-tx-mtd-card">
-              <span className="d-tx-mtd-label">Income (MTD)</span>
+              <span className="d-tx-mtd-label">Income · {durationLabel}</span>
               <div className="d-tx-mtd-value income">
-                {displayIncomeMtd != null ? formatClientCurrency(displayIncomeMtd) : "—"}
+                {displayIncomeTotal != null ? formatClientCurrency(displayIncomeTotal) : "—"}
               </div>
             </div>
             <div className="d-tx-mtd-card">
-              <span className="d-tx-mtd-label">Expense (MTD)</span>
+              <span className="d-tx-mtd-label">Expense · {durationLabel}</span>
               <div className="d-tx-mtd-value expense">
-                {displayExpenseMtd != null ? formatClientCurrency(-displayExpenseMtd) : "—"}
+                {displayExpenseTotal != null ? formatClientCurrency(-displayExpenseTotal) : "—"}
               </div>
             </div>
           </div>
@@ -1532,41 +1596,12 @@ function ClientTransactionsContent() {
             </button>
           </div>
 
+          {/* Type + duration, above either tab: they filter both lists. */}
+          <div ref={listTopRef} />
+          {renderFilterRow('desktop')}
+
           {activeTab === 'reviewed' ? (
             <>
-
-              {/* Filter Pills */}
-              <div className="d-tx-pills-row">
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilterChange('all')}
-                  className={`d-tx-pill ${activeFilter === 'all' ? 'active' : 'inactive'}`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilterChange('income')}
-                  className={`d-tx-pill ${activeFilter === 'income' ? 'active' : 'inactive'}`}
-                >
-                  Income
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilterChange('expense')}
-                  className={`d-tx-pill ${activeFilter === 'expense' ? 'active' : 'inactive'}`}
-                >
-                  Expense
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilterChange('month')}
-                  className={`d-tx-pill ${activeFilter === 'month' ? 'active' : 'inactive'}`}
-                >
-                  This Month
-                </button>
-              </div>
-
               {/* Grouped Transactions List */}
               {Object.keys(groupedTransactions).length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '16px', fontSize: '15px', ...listBusyStyle }}>
@@ -1591,28 +1626,21 @@ function ClientTransactionsContent() {
                           style={{ cursor: 'pointer' }}
                         >
                           <div className="d-tx-left">
-                            <div className={`d-tx-icon-box ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                              {tx.type === 'revenue' ? (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                                  <line x1="7" y1="17" x2="17" y2="7" />
-                                  <polyline points="7 7 17 7 17 17" />
-                                </svg>
-                              ) : (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
-                                  <line x1="17" y1="7" x2="7" y2="17" />
-                                  <polyline points="17 17 7 17 7 7" />
-                                </svg>
-                              )}
+                            <div className={`d-tx-icon-box ${rowTone(tx.type)}`}>
+                              <RowIcon type={tx.type} />
                             </div>
                             <div className="d-tx-info">
                               <strong className="d-tx-desc">{tx.description}</strong>
                               <span className="d-tx-meta">
+                                {rowTypeBadge(tx.type, tx.categoryName) ? (
+                                  <span className="tx-type-badge">{rowTypeBadge(tx.type, tx.categoryName)}</span>
+                                ) : null}
                                 {tx.categoryName} {tx.meta ? `— ${tx.meta}` : ''}
                               </span>
                             </div>
                           </div>
-                          <span className={`d-tx-amount ${tx.type === 'revenue' ? 'income' : 'expense'}`}>
-                            {formatClientCurrency(tx.type === 'revenue' ? tx.amount : -tx.amount, { showPlus: true })}
+                          <span className={`d-tx-amount ${rowTone(tx.type)}`}>
+                            {rowAmountText(tx.type, tx.amount)}
                           </span>
                         </div>
                       ))}

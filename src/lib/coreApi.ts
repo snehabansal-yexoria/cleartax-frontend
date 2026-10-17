@@ -47,6 +47,18 @@ export type CoreOrganization = {
   name: string;
   email: string;
   tenantCode: string;
+  // Optional profile fields the organisations endpoint already returns; used by
+  // the super admin console. Absent values stay empty/null.
+  contactNumber?: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  subscriptionPlan?: string;
+  maxUsersAllowed?: number | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
 };
 
 export type EntityType =
@@ -317,6 +329,21 @@ export function normalizeCoreOrganization(raw: RawRecord): CoreOrganization {
     name: toStringValue(raw.name || raw.org_name || raw.orgName),
     email: toStringValue(raw.org_email || raw.email),
     tenantCode: toStringValue(raw.tenant_code || raw.tenantCode),
+    contactNumber: toStringValue(raw.contact_number || raw.contactNumber),
+    addressLine1: toStringValue(raw.address_line1 || raw.addressLine1),
+    city: toStringValue(raw.city),
+    state: toStringValue(raw.state),
+    postalCode: toStringValue(raw.postal_code || raw.postalCode),
+    country: toStringValue(raw.country),
+    subscriptionPlan: toStringValue(raw.subscription_plan || raw.subscriptionPlan),
+    maxUsersAllowed: toNumberValue(raw.max_users_allowed ?? raw.maxUsersAllowed),
+    isActive:
+      typeof raw.is_active === "boolean"
+        ? raw.is_active
+        : typeof raw.isActive === "boolean"
+          ? raw.isActive
+          : null,
+    createdAt: toStringValue(raw.created_at || raw.createdAt) || null,
   };
 }
 
@@ -2329,6 +2356,8 @@ export type CorePnlPeriod = {
   label: string;
   from: string;
   to: string;
+  /** An explicit from/to window, not a financial year (Portfolio Summary only). */
+  custom?: boolean;
 };
 
 /**
@@ -2396,6 +2425,7 @@ function toPnlPeriod(value: unknown): CorePnlPeriod {
     label: toStringValue(raw.label),
     from: toStringValue(raw.from),
     to: toStringValue(raw.to),
+    ...(raw.custom === true ? { custom: true } : {}),
   };
 }
 
@@ -2835,11 +2865,17 @@ export async function getCorePortfolioSummaryForClient(
   financialYear?: number,
   entityId?: string,
   propertyId?: string,
+  /** An exact window (YYYY-MM-DD, inclusive); overrides financialYear. */
+  range?: { from: string; to: string },
 ) {
   const params = new URLSearchParams();
   if (financialYear) params.set("financial_year", String(financialYear));
   if (entityId) params.set("entity_id", entityId);
   if (propertyId) params.set("property_id", propertyId);
+  if (range) {
+    params.set("from", range.from);
+    params.set("to", range.to);
+  }
   const qs = params.toString() ? `?${params.toString()}` : "";
   const payload = await coreApiRequest(
     `/clients/${encodeURIComponent(clientId)}/portfolio-summary${qs}`,
@@ -3103,6 +3139,34 @@ export async function getCoreTransactionFacets(
     types: Array.isArray(record.types)
       ? record.types.map((t) => toStringValue(t)).filter(Boolean)
       : [],
+  };
+}
+
+// GET /transactions/totals — Income and Expense totals for exactly the set a
+// list query describes (same scope, filters and review tab), minus its `type`
+// filter: the two figures are themselves the type split. Each sums the amount
+// the list rows display, so the cards above a list equal the rows below it.
+export type CoreTransactionTotals = {
+  income: number;
+  expense: number;
+  incomeCount: number;
+  expenseCount: number;
+};
+
+export async function getCoreTransactionTotals(
+  token: string,
+  query: CoreTransactionListQuery = {},
+): Promise<CoreTransactionTotals> {
+  const payload = await coreApiRequest(
+    `/transactions/totals${transactionListQueryString({ ...query, limit: undefined, offset: undefined })}`,
+    { token },
+  );
+  const record = getJsonObject(payload);
+  return {
+    income: toNumberValue(record.income) ?? 0,
+    expense: toNumberValue(record.expense) ?? 0,
+    incomeCount: toNumberValue(record.income_count ?? record.incomeCount) ?? 0,
+    expenseCount: toNumberValue(record.expense_count ?? record.expenseCount) ?? 0,
   };
 }
 

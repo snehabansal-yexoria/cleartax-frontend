@@ -45,6 +45,13 @@ export function shiftMonth(date: Date, offset: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + offset, 1);
 }
 
+/** The twelve "YYYY-MM" keys of a financial year, July to June. */
+export function fyMonthKeys(financialYear: number): string[] {
+  return Array.from({ length: 12 }, (_, i) =>
+    monthKey(new Date(financialYear - 1, 6 + i, 1)),
+  );
+}
+
 /** "Oct" for a "YYYY-MM" key. */
 export function monthShortLabel(key: string): string {
   const [y, m] = key.split("-").map(Number);

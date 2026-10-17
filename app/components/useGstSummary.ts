@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getIdToken } from "@/src/lib/authToken";
 import type {
   CoreGstOutcome,
@@ -107,11 +107,14 @@ export type UseGstSummaryResult = {
  * Loads on mount rather than on modal open, because the GST stat cards sit
  * above the fold on these pages and must be populated before any modal is
  * opened. Pass `enabled: false` to defer until an id is known.
+ *
+ * `initialQuarter` picks the opening period: the current BAS quarter by
+ * default, or GST_FULL_YEAR for the whole current financial year.
  */
 export function useGstSummary(
   level: CoreGstScopeLevel,
   id: string,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; initialQuarter?: number } = {},
 ): UseGstSummaryResult {
   const enabled = options.enabled ?? true;
 
@@ -123,10 +126,24 @@ export function useGstSummary(
   const [financialYear, setFinancialYear] = useState(() =>
     auFinancialYearOf(new Date()),
   );
-  const [quarter, setQuarter] = useState(() => auQuarterOf(new Date()));
+  const [quarter, setQuarter] = useState(
+    () => options.initialQuarter ?? auQuarterOf(new Date()),
+  );
+
+  // Every period change fires a request. Each new one aborts the last, so a
+  // slow answer for the previous period can never land after — and overwrite —
+  // the figures for the period now shown in the pickers.
+  const inFlight = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
-    if (!enabled || !id) return;
+    inFlight.current?.abort();
+    if (!enabled || !id) {
+      inFlight.current = null;
+      setIsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    inFlight.current = controller;
     setIsLoading(true);
     setError(null);
     try {
@@ -139,6 +156,7 @@ export function useGstSummary(
 
       const res = await fetch(`${endpointFor(level, id)}?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -146,8 +164,11 @@ export function useGstSummary(
           body?.message || `Could not load the GST summary (${res.status}).`,
         );
       }
-      setSummary((await res.json()) as CoreGstSummary);
+      const data = (await res.json()) as CoreGstSummary;
+      if (controller.signal.aborted) return;
+      setSummary(data);
     } catch (err) {
+      if (controller.signal.aborted) return;
       // Clear rather than keep stale figures: a wrong GST number shown
       // confidently is worse than none.
       setSummary(null);
@@ -155,12 +176,14 @@ export function useGstSummary(
         err instanceof Error ? err.message : "Could not load the GST summary.",
       );
     } finally {
-      setIsLoading(false);
+      // A superseded request leaves the loading flag to its successor.
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }, [enabled, level, id, financialYear, quarter]);
 
   useEffect(() => {
     void load();
+    return () => inFlight.current?.abort();
   }, [load]);
 
   return {

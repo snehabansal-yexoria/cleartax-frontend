@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { formatClientCurrency, formatCurrencyShort } from "./CurrencyFormatter";
+import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
+import RegionError from "@/app/components/ui/RegionError";
 
 interface CategoryItem {
   name: string;
@@ -22,6 +24,20 @@ interface CashFlowChartProps {
   incomeSources?: CategoryItem[];
   /** The window the category lists cover, e.g. "FY 2025–26". */
   detailPeriodLabel?: string;
+  /**
+   * The financial year on screen. With `onFinancialYearChange`, a year picker
+   * shows in the card header and in the View Detail overlay — both bound to
+   * this one value, so they never disagree.
+   */
+  financialYear?: number;
+  /** Years to offer, newest first. */
+  financialYearOptions?: number[];
+  onFinancialYearChange?: (year: number) => void;
+  /** The selected year is still loading: show that, not an empty chart. */
+  loading?: boolean;
+  /** The selected year failed to load. */
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export default function CashFlowChart({
@@ -36,9 +52,44 @@ export default function CashFlowChart({
   expenseCategories = [],
   incomeSources = [],
   detailPeriodLabel,
+  financialYear,
+  financialYearOptions,
+  onFinancialYearChange,
+  loading = false,
+  error = null,
+  onRetry,
 }: CashFlowChartProps) {
   const [internalView, setInternalView] = useState<'graph' | 'table'>('graph');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Which year picker is open: the card's or the overlay's (they share a value).
+  const [openPicker, setOpenPicker] = useState<'card' | 'modal' | null>(null);
+
+  useEffect(() => {
+    if (!openPicker) return;
+    const close = () => setOpenPicker(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openPicker]);
+
+  const yearPicker = (where: 'card' | 'modal') =>
+    financialYear != null && onFinancialYearChange ? (
+      <FinancialYearPicker
+        value={financialYear}
+        onChange={onFinancialYearChange}
+        isOpen={openPicker === where}
+        setIsOpen={(next) => setOpenPicker(next ? where : null)}
+        years={financialYearOptions}
+      />
+    ) : null;
+
+  // Loading or failed: say so in place of the chart, never an empty one.
+  const regionNotice = error ? (
+    <RegionError message={error} onRetry={onRetry} />
+  ) : loading ? (
+    <span className="text-sm font-semibold text-[#667085] dark:text-[#B9C0E8]">
+      Loading{detailPeriodLabel ? ` ${detailPeriodLabel}` : ""}…
+    </span>
+  ) : null;
 
   // Sync internal view state if controlled view prop changes
   useEffect(() => {
@@ -82,6 +133,7 @@ export default function CashFlowChart({
         </div>
 
         <div className="flex items-center gap-4 self-stretch sm:self-auto justify-between sm:justify-end">
+          {yearPicker('card')}
           {showViewDetail && hasData && (
             <button
               type="button"
@@ -128,7 +180,9 @@ export default function CashFlowChart({
       </div>
 
       {/* Main Content Area */}
-      {currentView === 'graph' ? (
+      {regionNotice ? (
+        <div className="flex items-center justify-center h-[200px] mt-2 w-full">{regionNotice}</div>
+      ) : currentView === 'graph' ? (
         <div className="flex flex-col w-full">
           <div className="flex gap-4 h-[200px] mt-2 relative w-full">
             {!hasData ? (
@@ -292,6 +346,7 @@ export default function CashFlowChart({
               </div>
 
               <div className="flex items-center gap-4">
+                {yearPicker('modal')}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -336,7 +391,9 @@ export default function CashFlowChart({
             </div>
 
             {/* Desktop Modal Chart Content */}
-            {currentView === 'graph' ? (
+            {regionNotice ? (
+              <div className="flex items-center justify-center min-h-[200px] w-full mb-2">{regionNotice}</div>
+            ) : currentView === 'graph' ? (
               <div className="flex flex-col w-full mb-2">
                 <div className="flex gap-4 h-[200px] mt-2 relative w-full">
                   <div className="flex flex-col justify-between text-[#98a2b3] text-[10px] font-semibold h-[180px] w-8 select-none">
@@ -454,6 +511,7 @@ export default function CashFlowChart({
               </div>
             )}
 
+            {!regionNotice && (<>
             {/* Dotted Separator */}
             <div className="w-full border-t border-dashed border-[#eaeef4] dark:border-slate-700 my-4" />
 
@@ -507,6 +565,7 @@ export default function CashFlowChart({
                 </div>
               </div>
             </div>
+            </>)}
           </div>
 
           {/* MOBILE MODAL CONTENT (Figma Image 3 style) */}
@@ -527,7 +586,13 @@ export default function CashFlowChart({
                 Hide Detail
               </button>
             </div>
+            {financialYear != null && onFinancialYearChange && (
+              <div className="flex justify-end w-full mb-3">{yearPicker('modal')}</div>
+            )}
 
+            {regionNotice ? (
+              <div className="flex items-center justify-center min-h-[160px] w-full">{regionNotice}</div>
+            ) : (<>
             {/* Stacked Chart Area (Mobile specific stacked bar design) */}
             <div className="flex flex-col w-full mb-3 px-1">
               <div className="flex justify-between items-end h-[120px] w-full gap-2 relative">
@@ -632,6 +697,7 @@ export default function CashFlowChart({
                 ))}
               </div>
             </div>
+            </>)}
           </div>
         </div>
       )}

@@ -946,6 +946,7 @@ function TransactionDetailPopup({
   onDelete,
   disabled = false,
   disabledReason,
+  editBlockedReason,
   canReview = false,
 }: {
   row: DisplayTransactionRow;
@@ -968,6 +969,13 @@ function TransactionDetailPopup({
   onDelete: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Set while Edit must wait — the full detail has not loaded. The form is
+   * built from the detail's splits and metadata; built from the list row
+   * instead it has no property splits (so Save fails) and only partial
+   * metadata (which PATCH would write back wholesale). Delete is unaffected.
+   */
+  editBlockedReason?: string;
   canReview?: boolean;
 }) {
   const [description, setDescription] = useState(row.description || "");
@@ -2460,9 +2468,9 @@ function TransactionDetailPopup({
                 type="button"
                 className="transaction-detail-edit-button"
                 onClick={onEdit}
-                disabled={disabled}
-                title={disabled ? disabledReason : undefined}
-                style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                disabled={disabled || Boolean(editBlockedReason)}
+                title={disabled ? disabledReason : editBlockedReason}
+                style={disabled || editBlockedReason ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9" />
@@ -2998,6 +3006,13 @@ export function TransactionDetailController({
           onDelete={() => setIsConfirmingDelete(true)}
           disabled={disabled}
           disabledReason={disabledReason}
+          editBlockedReason={
+            detail
+              ? undefined
+              : isLoading
+                ? "Loading full details…"
+                : "Full details couldn't be loaded, so this transaction can't be edited here. Close it and try again."
+          }
           canReview={canReview}
         />
       ) : (

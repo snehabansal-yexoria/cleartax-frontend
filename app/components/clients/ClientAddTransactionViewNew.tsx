@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useState, useRef } from "react";
 import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
+import { resolveBackTarget } from "./backTarget";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import type {
@@ -1355,38 +1356,12 @@ export default function ClientAddTransactionViewNew({
     setBackHref(defaultBackHref);
     setBackLabel(defaultBackLabel);
 
+    // Explicit props win; otherwise go back to the page the user came from.
     if (!propBackHref || !propBackLabel) {
-      if (typeof window !== "undefined" && window.sessionStorage) {
-        const prevPath = sessionStorage.getItem("prevDashboardPath");
-        if (prevPath) {
-          const normalized = prevPath.split("?")[0].split("#")[0];
-          if (!propBackHref) {
-            if (normalized.startsWith("/dashboard/client")) {
-              setBackHref(prevPath);
-            }
-          }
-          if (!propBackLabel) {
-            if (normalized === "/dashboard/client" || normalized === "/dashboard/client/summary" || normalized === "/dashboard/client/detailed") {
-              setBackLabel("Dashboard");
-            } else if (normalized === "/dashboard/client/properties") {
-              setBackLabel("Properties");
-            } else if (normalized === "/dashboard/client/entities") {
-              setBackLabel("Entities");
-            } else if (normalized.match(/^\/dashboard\/client\/entities\/[^/]+$/)) {
-              setBackLabel("Entity");
-            } else if (normalized.match(/^\/dashboard\/client\/properties\/[^/]+$/)) {
-              setBackLabel("Property");
-            } else if (normalized === "/dashboard/client/transactions") {
-              setBackLabel("Transactions");
-            } else if (normalized === "/dashboard/client/insights") {
-              setBackLabel("Insights");
-            } else if (normalized === "/dashboard/client/profile") {
-              setBackLabel("Profile");
-            } else if (normalized.startsWith("/dashboard/client")) {
-              setBackLabel("Back");
-            }
-          }
-        }
+      const target = resolveBackTarget(window.location.pathname);
+      if (target) {
+        if (!propBackHref) setBackHref(target.href);
+        if (!propBackLabel) setBackLabel(target.label);
       }
     }
   }, [propBackHref, propBackLabel, entityId]);

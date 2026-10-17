@@ -1891,6 +1891,17 @@ html.dark .client-entity-doc-icon-box {
   box-shadow: 0 6px 16px rgba(16, 24, 40, 0.04);
 }
 
+/* The card is a link on the entity page: whole-card target, no link colour. */
+a.client-entity-property-card {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.client-entity-property-card:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 html.dark .client-entity-property-card {
   background: var(--surface-1);
   border-color: var(--border);
@@ -2305,6 +2316,16 @@ html.dark .client-upload-submit-btn {
 .client-property-horizontal-row:hover {
   border-color: var(--brand);
   box-shadow: 0 4px 12px rgba(16, 24, 40, 0.02);
+}
+
+a.client-property-horizontal-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.client-property-horizontal-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 html.dark .client-property-horizontal-row {
@@ -4120,6 +4141,22 @@ html.dark .m-db-chart-bar-expense {
   background-color: var(--accent) !important;
 }
 
+/* A full financial year (12 bars, Jul–Jun) has to fit a 375px phone: the
+   default 28px pills and 8px gaps only fit six. */
+.m-db-chart-bars-wrap.is-fy {
+  gap: 4px;
+}
+
+.m-db-chart-bars-wrap.is-fy .m-db-chart-bar-pill {
+  width: 100%;
+  max-width: 16px;
+  border-radius: 5px;
+}
+
+.m-db-chart-bars-wrap.is-fy .m-db-chart-bar-label {
+  font-size: 9px;
+}
+
 /* Entity Progress Bars & Detailed List Items */
 .m-db-entity-bar-container,
 html.dark .m-db-entity-bar-container {
@@ -5062,8 +5099,7 @@ html.dark .m-db-portfolio-col.divider-left {
     grid-template-columns: 1fr 1.25fr;
     grid-template-areas:
       "cashflow income-expense"
-      "expense-breakdown top-performing"
-      "depreciation depreciation";
+      "expense-breakdown top-performing";
   }
 }
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -5072,8 +5108,7 @@ html.dark .m-db-portfolio-col.divider-left {
     grid-template-areas:
       "cashflow cashflow"
       "income-expense income-expense"
-      "expense-breakdown top-performing"
-      "depreciation depreciation";
+      "expense-breakdown top-performing";
   }
 }
 .area-cashflow { grid-area: cashflow; }
@@ -6969,4 +7004,226 @@ html.dark .trend-badge.is-negative {
       padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
     }
   }
+}
+
+/* ==========================================================================
+   Client Transactions: duration control, non-income/expense rows, pager.
+   Theme tokens only, so light and dark both follow the portal's palette.
+   ========================================================================== */
+
+/* The duration filter, always visible beside the type pills. A native select
+   (keyboard and phone pickers for free) dressed as a pill. */
+.tx-duration-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 8px 36px 8px 16px;
+  border-radius: 24px;
+  border: 1px solid var(--brand);
+  background-color: var(--surface-1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px 14px;
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+.tx-duration-select:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 25%, transparent);
+}
+html.dark .tx-duration-select {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Contra, personal, cost base and balance sheet: neither income nor expense,
+   so neither green nor red. */
+.d-tx-icon-box.neutral,
+.m-db-activity-icon-box.neutral,
+html.dark .m-db-activity-icon-box.neutral {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+.d-tx-amount.neutral {
+  color: var(--text-secondary);
+}
+.tx-type-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  vertical-align: 1px;
+}
+
+/* Pager under the transaction list. */
+.client-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  width: 100%;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.client-pager.is-compact {
+  justify-content: space-between;
+  flex-wrap: nowrap;
+}
+.client-pager-left,
+.client-pager-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.client-pager-info {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.client-pager-size,
+.client-pager-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.client-pager-size select,
+.client-pager-page input {
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+.client-pager-size select {
+  padding: 0 8px;
+}
+.client-pager-page input {
+  width: 48px;
+  text-align: center;
+}
+.client-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.client-pager-btn.is-icon {
+  padding: 0 9px;
+}
+.client-pager-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+html.dark .client-pager-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.client-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ==========================================================================
+   Insights filters: period pills, FY dropdown, custom range, scope.
+   ========================================================================== */
+.insights-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.insights-filters.is-mobile {
+  margin: 16px 0 20px 0;
+}
+.insights-filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.insights-filters-period {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.insights-custom-range {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+}
+.insights-custom-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.insights-custom-range input[type="date"] {
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 14px;
+  color-scheme: light;
+}
+html.dark .insights-custom-range input[type="date"] {
+  color-scheme: dark;
+}
+.insights-custom-apply {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+html.dark .insights-custom-apply {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #14172e;
+}
+.insights-custom-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+.insights-filters.is-mobile .insights-custom-range label {
+  flex: 1 1 140px;
+}
+.insights-filters.is-mobile .insights-custom-range input[type="date"] {
+  width: 100%;
 }

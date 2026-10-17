@@ -383,7 +383,7 @@ const adminMenuItems: PortalMenuItem[] = [
   },
   {
     id: "organisation",
-    href: "#",
+    href: "/dashboard/admin/organisation",
     label: "Organisation",
     section: "CONFIGURATION",
     icon: (
@@ -395,7 +395,7 @@ const adminMenuItems: PortalMenuItem[] = [
   },
   {
     id: "access-control",
-    href: "#",
+    href: "/dashboard/admin/access-control",
     label: "Access control",
     section: "CONFIGURATION",
     icon: (
@@ -412,6 +412,7 @@ const superAdminMenuItems: PortalMenuItem[] = [
     id: "dashboard",
     href: "/dashboard/super-admin",
     label: "Dashboard",
+    section: "Overview",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -422,34 +423,10 @@ const superAdminMenuItems: PortalMenuItem[] = [
     ),
   },
   {
-    id: "invite",
-    href: "/dashboard/super-admin/invite-admin",
-    label: "Invite Admin",
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
-        <circle cx="9.5" cy="7" r="4" />
-        <path d="M19 8v6" />
-        <path d="M16 11h6" />
-      </svg>
-    ),
-  },
-  {
-    id: "bulk-upload",
-    href: "/dashboard/super-admin/bulk-upload",
-    label: "Bulk Upload",
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 16V6" />
-        <path d="m7.5 10.5 4.5-4.5 4.5 4.5" />
-        <path d="M5 18h14" />
-      </svg>
-    ),
-  },
-  {
-    id: "organization",
-    href: "/dashboard/super-admin/create-organization",
-    label: "Organization",
+    id: "organisations",
+    href: "/dashboard/super-admin/organisations",
+    label: "Organisations",
+    section: "Organisations",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="4" y="4" width="7" height="16" rx="1.5" />
@@ -460,7 +437,139 @@ const superAdminMenuItems: PortalMenuItem[] = [
       </svg>
     ),
   },
+  {
+    id: "add-organisation",
+    href: "/dashboard/super-admin/create-organization",
+    label: "Add organisation",
+    section: "Organisations",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="3" />
+        <path d="M12 8v8" />
+        <path d="M8 12h8" />
+      </svg>
+    ),
+  },
+  {
+    id: "admins",
+    href: "/dashboard/super-admin/admins",
+    label: "Admins",
+    section: "Admins",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+        <circle cx="9.5" cy="7" r="4" />
+        <path d="M17 11l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    id: "audit-log",
+    href: "/dashboard/super-admin/audit",
+    label: "Audit log",
+    section: "Platform",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="M9 13h6" />
+        <path d="M9 17h6" />
+      </svg>
+    ),
+  },
+  {
+    id: "profile",
+    href: "/dashboard/super-admin/profile",
+    label: "My profile",
+    section: "Account",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20a8 8 0 0 1 16 0" />
+      </svg>
+    ),
+  },
 ];
+
+/** Super admin menu while working inside one organisation's workspace. */
+function superAdminWorkspaceMenuItems(orgId: string): PortalMenuItem[] {
+  const base = `/dashboard/super-admin/organisations/${encodeURIComponent(orgId)}`;
+  return [
+    {
+      id: "ws-back",
+      href: "/dashboard/super-admin/organisations",
+      label: "All organisations",
+      section: "Workspace",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-dashboard",
+      href: `${base}/workspace`,
+      label: "Dashboard",
+      section: "Organisation",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-details",
+      href: base,
+      label: "Organisation details",
+      section: "Organisation",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="4" width="7" height="16" rx="1.5" />
+          <rect x="13" y="8" width="7" height="12" rx="1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-users",
+      href: `${base}/workspace/users`,
+      label: "Users & roles",
+      section: "Control",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+          <circle cx="9.5" cy="7" r="4" />
+          <path d="M20 19v-1a4 4 0 0 0-3-3.87" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-permissions",
+      href: `${base}/workspace/permissions`,
+      label: "Permissions",
+      section: "Control",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+      ),
+    },
+    {
+      id: "ws-data",
+      href: `${base}/workspace/data-settings`,
+      label: "Data settings & rules",
+      section: "Control",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+        </svg>
+      ),
+    },
+  ];
+}
 
 const clientMenuItems: PortalMenuItem[] = [
   {
@@ -715,9 +824,17 @@ export default function DashboardLayout({
 
   const initials = getInitials(email);
 
+  // Admin and super admin share the same sidebar/topbar look.
+  const adminLook = role === "admin" || role === "super_admin";
+
+  const workspaceOrgId =
+    role === "super_admin" ? pathname.match(/^\/dashboard\/super-admin\/organisations\/([^/]+)\/workspace/)?.[1] : undefined;
+
   const portalMenuItems =
     role === "super_admin"
-      ? superAdminMenuItems
+      ? workspaceOrgId
+        ? superAdminWorkspaceMenuItems(decodeURIComponent(workspaceOrgId))
+        : superAdminMenuItems
       : role === "admin"
         ? adminMenuItems
         : role === "client" || role === "user"
@@ -990,7 +1107,10 @@ export default function DashboardLayout({
       ? hrefPath === "/dashboard/accountant" ||
         hrefPath === "/dashboard/admin" ||
         hrefPath === "/dashboard/super-admin" ||
-        hrefPath === "/dashboard/client"
+        hrefPath === "/dashboard/client" ||
+        item.id === "ws-back" ||
+        item.id === "ws-dashboard" ||
+        item.id === "ws-details"
         ? pathname === hrefPath
         : pathname.startsWith(hrefPath)
       : false;
@@ -1015,7 +1135,7 @@ export default function DashboardLayout({
             <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', }}>
               {item.label}
               {item.badge && (
-                <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
+                <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
                   {item.badge}
                 </span>
               )}
@@ -1036,10 +1156,10 @@ export default function DashboardLayout({
           }}
         >
           <span className="accountant-nav-icon">{item.icon || <div className="w-5 h-5" />}</span>
-          <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', fontWeight: role === 'admin' ? '400' : undefined }}>
+          <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', fontWeight: adminLook ? '400' : undefined }}>
             {item.label}
             {item.badge && (
-              <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
+              <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
                 {item.badge}
               </span>
             )}
@@ -1049,15 +1169,15 @@ export default function DashboardLayout({
     }
 
     // Desktop styling with Tailwind matching Figma
-    const navItemClass = `w-full h-12 px-2.5 py-2.5 rounded-xl flex items-center justify-start gap-3.5 transition-all duration-200 ${isActive
+    const navItemClass = `w-full ${adminLook ? "h-10 min-h-10 py-1" : "h-12 py-2.5"} px-2.5 rounded-xl flex items-center justify-start gap-3.5 transition-all duration-200 ${isActive
       ? "bg-white/12 text-white shadow-sm"
       : "text-white/80 hover:text-white hover:bg-white/5"
       }`;
 
-    const iconWrapperClass = `w-11 h-11 min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-white" : "text-white/80"
+    const iconWrapperClass = `${adminLook ? "w-11 h-9" : "w-11 h-11"} min-w-11 flex items-center justify-center rounded-lg transition-all duration-200 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin ${isActive ? "text-white" : "text-white/80"
       }`;
 
-    const labelClass = `${role === 'admin' ? 'font-normal' : 'font-semibold'} text-[15px] tracking-wide transition-all duration-300 ${isActive ? "text-white" : "text-white/80"
+    const labelClass = `${adminLook ? 'font-normal' : 'font-semibold'} text-[15px] tracking-wide transition-all duration-300 ${isActive ? "text-white" : "text-white/80"
       } opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap flex items-center justify-between w-full`;
 
     if (!item.href || item.href === "#") {
@@ -1073,7 +1193,7 @@ export default function DashboardLayout({
           <span className={labelClass}>
             {item.label}
             {item.badge && (
-              <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
+              <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
                 {item.badge}
               </span>
             )}
@@ -1094,7 +1214,7 @@ export default function DashboardLayout({
         <span className={labelClass}>
           {item.label}
           {item.badge && (
-            <span className={`px-1.5 py-0.5 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
+            <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
               {item.badge}
             </span>
           )}
@@ -1116,9 +1236,14 @@ export default function DashboardLayout({
   ) {
     return (
       <div className={`accountant-shell${isClientPage ? " client-dashboard-shell" : ""}`}>
-        <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30">
-          <div className="flex flex-col gap-9 w-full">
-            <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
+        <aside className={`hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30${
+          // Admin + super admin: pin the sidebar to the viewport height so it doesn't stretch
+          // with long pages. Logo and footer stay put; only the menu scrolls,
+          // and only when the window is too short to fit it.
+          adminLook ? " lg:sticky lg:top-4 lg:self-start lg:h-[calc(100vh-32px)] overflow-hidden !pt-5" : ""
+        }`}>
+          <div className={`flex flex-col w-full ${adminLook ? "gap-4 min-h-0 flex-1" : "gap-9"}`}>
+            <div className="flex items-center justify-start w-full px-1.5 h-12 shrink-0 overflow-hidden">
               <div className="flex items-center gap-3.5 w-full">
                 <div className="w-11 h-11 min-w-11 flex items-center justify-center rounded-xl bg-gradient-to-b from-[#fbb228] to-[#f4a117] text-[#24316e] shadow-lg shadow-[#f4a117]/20 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1128,13 +1253,13 @@ export default function DashboardLayout({
                     <rect x="13" y="13" width="6" height="6" rx="1.2" />
                   </svg>
                 </div>
-                <div className={`flex flex-col text-left ${role === 'admin' ? 'font-normal' : 'font-extrabold'} text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`}>
+                <div className={`flex flex-col text-left ${adminLook ? 'font-normal' : 'font-extrabold'} text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`}>
                   <span>Clear <br /> Portfolio</span>
                 </div>
               </div>
             </div>
 
-            <nav className="flex flex-col gap-2">
+            <nav className={adminLook ? "flex flex-col gap-0.5 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "flex flex-col gap-2"}>
               {(() => {
                 let currentSection = "";
                 return portalMenuItems.map((item, idx) => {
@@ -1146,7 +1271,7 @@ export default function DashboardLayout({
                     <div key={item.id || idx} className="contents">
                       {showHeader && (
                         <div
-                          className={`text-white/40 text-[10px] ${role === 'admin' ? 'font-normal' : 'font-extrabold'} tracking-wider uppercase px-3.5 mt-4 mb-1 select-none transition-all duration-300 opacity-0 max-w-0 overflow-hidden group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs`}
+                          className={`text-white/40 text-[10px] ${adminLook ? 'font-normal mt-2.5 mb-0.5' : 'font-extrabold mt-4 mb-1'} tracking-wider uppercase px-3.5 select-none transition-all duration-300 opacity-0 max-w-0 overflow-hidden group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs`}
                         >
                           {item.section}
                         </div>
@@ -1159,12 +1284,12 @@ export default function DashboardLayout({
             </nav>
           </div>
 
-          <div className="flex items-center gap-3.5 w-full justify-start px-1.5 pt-4 border-t border-white/10">
-            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>
+          <div className={`flex items-center gap-3.5 w-full justify-start px-1.5 border-t border-white/10 shrink-0 ${adminLook ? "pt-3 mt-2" : "pt-4"}`}>
+            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm" style={{ fontWeight: adminLook ? '400' : undefined }}>
               {initials}
             </div>
             <div className="flex flex-col text-left opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden min-w-0">
-              <strong className={`text-white text-sm truncate ${role === 'admin' ? 'font-normal' : 'font-semibold'}`}>
+              <strong className={`text-white text-sm truncate ${adminLook ? 'font-normal' : 'font-semibold'}`}>
                 {role === "super_admin"
                   ? "Super Admin Portal"
                   : role === "admin"
@@ -1173,7 +1298,7 @@ export default function DashboardLayout({
                       ? "Client Portal"
                       : "Accountant Portal"}
               </strong>
-              <span className="text-white/60 text-xs truncate" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{portalSubtitle}</span>
+              <span className="text-white/60 text-xs truncate" style={{ fontWeight: adminLook ? '400' : undefined }}>{portalSubtitle}</span>
             </div>
           </div>
         </aside>
@@ -1190,7 +1315,7 @@ export default function DashboardLayout({
                 </svg>
               </div>
               <div className="accountant-brand-copy">
-                <span style={{ fontWeight: role === 'admin' ? '400' : undefined }}>Clear Portfolio</span>
+                <span style={{ fontWeight: adminLook ? '400' : undefined }}>Clear Portfolio</span>
               </div>
             </div>
           </div>
@@ -1313,10 +1438,10 @@ export default function DashboardLayout({
                   aria-expanded={isAccountMenuOpen}
                 >
                   <div className="accountant-header-copy">
-                    <strong style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{portalTitle}</strong>
-                    <span style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{portalSubtitle}</span>
+                    <strong style={{ fontWeight: adminLook ? '400' : undefined }}>{portalTitle}</strong>
+                    <span style={{ fontWeight: adminLook ? '400' : undefined }}>{portalSubtitle}</span>
                   </div>
-                  <div className="accountant-avatar" style={{ fontWeight: role === 'admin' ? '400' : undefined }}>{initials}</div>
+                  <div className="accountant-avatar" style={{ fontWeight: adminLook ? '400' : undefined }}>{initials}</div>
                 </button>
 
                 {isAccountMenuOpen && (

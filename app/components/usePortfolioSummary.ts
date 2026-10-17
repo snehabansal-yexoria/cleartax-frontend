@@ -28,9 +28,17 @@ export function usePortfolioSummary(
    * entity, so pass this alone.
    */
   propertyId?: string | null,
+  /**
+   * An exact window (YYYY-MM-DD, inclusive) instead of the whole financial
+   * year — the Insights page's period filters. The server caps it at 24
+   * months.
+   */
+  range?: { from: string; to: string } | null,
 ): AsyncRegion<CorePortfolioSummary> {
+  const rangeFrom = range?.from ?? "";
+  const rangeTo = range?.to ?? "";
   const key = clientId
-    ? `${clientId}:${financialYear}:${entityId ?? ""}:${propertyId ?? ""}`
+    ? `${clientId}:${financialYear}:${entityId ?? ""}:${propertyId ?? ""}:${rangeFrom}:${rangeTo}`
     : null;
 
   const load = useCallback(
@@ -38,15 +46,20 @@ export function usePortfolioSummary(
       const params = new URLSearchParams({ financial_year: String(financialYear) });
       if (entityId) params.set("entity_id", entityId);
       if (propertyId) params.set("property_id", propertyId);
+      if (rangeFrom && rangeTo) {
+        params.set("from", rangeFrom);
+        params.set("to", rangeTo);
+      }
       const summary = await fetchJson<CorePortfolioSummary>(
         `/api/clients/${encodeURIComponent(clientId ?? "")}/portfolio-summary?${params.toString()}`,
         token,
         signal,
       );
       assertScope(summary, entityId, propertyId);
+      assertWindow(summary, rangeFrom, rangeTo);
       return summary;
     },
-    [clientId, financialYear, entityId, propertyId],
+    [clientId, financialYear, entityId, propertyId, rangeFrom, rangeTo],
   );
 
   return useAsyncRegion(key, load);
@@ -78,6 +91,18 @@ function assertScope(
     throw new Error(
       `This ${want.level} report isn't available yet. Please try again shortly.`,
     );
+  }
+}
+
+/**
+ * A backend that predates from/to ignores them and answers for the whole
+ * financial year — confident totals for the wrong dates. Refuse a summary
+ * whose window is not the one asked for, so the region shows Retry instead.
+ */
+function assertWindow(summary: CorePortfolioSummary, from: string, to: string) {
+  if (!from || !to) return;
+  if (summary?.period?.from !== from || summary?.period?.to !== to) {
+    throw new Error("This view isn't available yet. Please try again shortly.");
   }
 }
 

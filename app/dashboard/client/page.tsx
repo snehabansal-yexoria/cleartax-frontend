@@ -23,14 +23,15 @@ import {
   ReviewStatusBadge,
 } from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
-import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
 import RegionError from "@/app/components/ui/RegionError";
+import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
 import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
 import { fetchCurrentUser, type CurrentUser } from "@/app/components/currentUser";
 import {
   currentFinancialYear,
   fyLongLabel,
   fyRangeLabel,
+  fyMonthKeys,
   fyShortLabel,
   monthAt,
   monthIndex,
@@ -283,6 +284,8 @@ export default function ClientPage() {
   const [sortBy, setSortBy] = useState<string>("name-asc");
   const [pageSize, setPageSize] = useState<string>("20");
   const [cashFlowView, setCashFlowView] = useState<'graph' | 'table'>('graph');
+  const [cashFlowYear, setCashFlowYear] = useState(() => currentFinancialYear());
+  const [cashFlowPickerOpen, setCashFlowPickerOpen] = useState(false);
 
   // Mobile layout state
   const [isMobile, setIsMobile] = useState(false);
@@ -295,6 +298,19 @@ export default function ClientPage() {
   const activeMobileView = viewParam as 'home' | 'activity' | 'property' | 'entity' | 'insights';
   const activeTab = tabParam as 'summary' | 'detailed';
 
+  // The Add pages' Back link returns here, to the same phone tab. Passed
+  // explicitly so it never depends on the layout's path history.
+  const dashboardQuery = searchParams?.toString() ?? "";
+  const dashboardHref = `/dashboard/client${dashboardQuery ? `?${dashboardQuery}` : ""}`;
+  const addTransactionHref = `/dashboard/client/transactions/new?${new URLSearchParams({
+    backHref: dashboardHref,
+    backLabel: "Dashboard",
+  })}`;
+  const addPropertyHref = `/dashboard/client/properties/new?${new URLSearchParams({
+    backUrl: dashboardHref,
+    backText: "Dashboard",
+  })}`;
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -303,6 +319,15 @@ export default function ClientPage() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // The Cash Flow year picker closes on any outside click (its own button
+  // stops propagation).
+  useEffect(() => {
+    if (!cashFlowPickerOpen) return;
+    const close = () => setCashFlowPickerOpen(false);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [cashFlowPickerOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -423,10 +448,41 @@ export default function ClientPage() {
   const incomeChange = percentChange(displayIncomeThisMonth, previousMonth.income);
   const expenseChange = percentChange(displayExpenseThisMonth, previousMonth.expenses);
 
-  const chartMonthKeys = [5, 4, 3, 2, 1, 0].map((back) => monthKey(shiftMonth(now, -back)));
+  // Cash Flow: one financial year, July to June, picked on the card (and in
+  // its View Detail overlay — the same state). This year and last reuse the
+  // summaries above; only an older year fetches its own.
+  const isOlderCashFlowYear = cashFlowYear < financialYear - 1;
+  const olderYearRegion = usePortfolioSummary(
+    isOlderCashFlowYear ? clientId : null,
+    cashFlowYear,
+  );
+  const cashFlowRegion =
+    cashFlowYear === financialYear
+      ? summaryRegion
+      : cashFlowYear === financialYear - 1
+        ? lastYearRegion
+        : olderYearRegion;
+  const cashFlowSummary = cashFlowRegion.data;
+  const cashFlowLoading = cashFlowRegion.status === "loading" && !cashFlowSummary;
+  const cashFlowError =
+    cashFlowRegion.status === "error" && !cashFlowSummary
+      ? `Couldn't load ${fyLongLabel(cashFlowYear)}. ${cashFlowRegion.error ?? ""}`.trim()
+      : null;
+  // Years with data, plus this year and the one on screen, so the picker
+  // never hides the selected year (the Reports page's rule).
+  const cashFlowYearOptions = [
+    ...new Set<number>([
+      financialYear,
+      cashFlowYear,
+      ...(summary?.availableFinancialYears ?? []),
+    ]),
+  ].sort((a, b) => b - a);
+
+  const cashFlowMonthsByKey = monthIndex(cashFlowSummary);
+  const chartMonthKeys = fyMonthKeys(cashFlowYear);
   const displayMonths = chartMonthKeys.map(monthShortLabel);
-  const displayIncome = chartMonthKeys.map((key) => monthAt(monthsByKey, key).income);
-  const displayExpense = chartMonthKeys.map((key) => monthAt(monthsByKey, key).expenses);
+  const displayIncome = chartMonthKeys.map((key) => monthAt(cashFlowMonthsByKey, key).income);
+  const displayExpense = chartMonthKeys.map((key) => monthAt(cashFlowMonthsByKey, key).expenses);
   const hasChartData = displayIncome.some((v) => v > 0) || displayExpense.some((v) => v > 0);
 
   const maxMonthSum = Math.max(...displayIncome.map((inc, idx) => inc + displayExpense[idx]), 1);
@@ -438,12 +494,12 @@ export default function ClientPage() {
   const displayNetPosition = totals?.netEquity ?? 0;
   const displayLoansValue = displayOutstandingLoans;
 
-  const expenseCategories = (summary?.expensesByCategory ?? [])
+  const expenseCategories = (cashFlowSummary?.expensesByCategory ?? [])
     .filter((line) => line.amount > 0)
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5)
     .map((line) => ({ name: line.categoryName || "Uncategorised", amount: line.amount }));
-  const incomeSources = (summary?.incomeByCategory ?? [])
+  const incomeSources = (cashFlowSummary?.incomeByCategory ?? [])
     .filter((line) => line.amount > 0)
     .sort((a, b) => b.amount - a.amount)
     .map((line) => ({ name: line.categoryName || "Uncategorised", amount: line.amount }));
@@ -720,7 +776,7 @@ export default function ClientPage() {
                   <span>Create Entity</span>
                 </Link>
                 <div className="m-db-actions-row">
-                  <Link href="/dashboard/client/transactions/new" className="m-db-action-box tx">
+                  <Link href={addTransactionHref} className="m-db-action-box tx">
                     <div className="m-db-action-icon-wrap">
                       <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                         <path d="m15 4 5 4-5 4" />
@@ -733,7 +789,7 @@ export default function ClientPage() {
                   </Link>
 
                   <Link
-                    href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
+                    href={addPropertyHref}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -856,21 +912,36 @@ export default function ClientPage() {
                     <div className="m-db-chart-subtitle">
                       <span>Income vs expense</span>
                       <span className="m-db-chart-dot" />
-                      <span>6 Months</span>
+                      <span>{fyShortLabel(cashFlowYear)}</span>
                     </div>
                   </div>
-                  <div className="m-db-chart-legend">
-                    <div className="m-db-legend-item">
-                      <div className="m-db-legend-color income" />
-                      <span>Income</span>
-                    </div>
-                    <div className="m-db-legend-item">
-                      <div className="m-db-legend-color expense" />
-                      <span>Expenses</span>
+                  <div className="flex flex-col items-end gap-2">
+                    <FinancialYearPicker
+                      value={cashFlowYear}
+                      onChange={setCashFlowYear}
+                      isOpen={cashFlowPickerOpen}
+                      setIsOpen={setCashFlowPickerOpen}
+                      years={cashFlowYearOptions}
+                    />
+                    <div className="m-db-chart-legend">
+                      <div className="m-db-legend-item">
+                        <div className="m-db-legend-color income" />
+                        <span>Income</span>
+                      </div>
+                      <div className="m-db-legend-item">
+                        <div className="m-db-legend-color expense" />
+                        <span>Expenses</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                {!hasChartData ? (
+                {cashFlowError ? (
+                  <RegionError message={cashFlowError} onRetry={cashFlowRegion.reload} />
+                ) : cashFlowLoading ? (
+                  <div className="flex items-center justify-center text-sm text-[#667085]" style={{ minHeight: '150px' }}>
+                    Loading {fyLongLabel(cashFlowYear)}…
+                  </div>
+                ) : !hasChartData ? (
                   <div className="flex flex-col items-center justify-center text-center p-6 text-[#667085]" style={{ minHeight: '150px' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
                       <line x1="18" y1="20" x2="18" y2="10" />
@@ -881,7 +952,7 @@ export default function ClientPage() {
                     <span className="text-xs text-[#98a2b3] mt-1">Record transactions to view the chart.</span>
                   </div>
                 ) : (
-                  <div className="m-db-chart-bars-wrap">
+                  <div className="m-db-chart-bars-wrap is-fy">
                     {displayMonths.map((month, idx) => {
                       const incVal = displayIncome[idx];
                       const expVal = displayExpense[idx];
@@ -910,10 +981,6 @@ export default function ClientPage() {
                   </div>
                 )}
               </div>
-
-              {/* GST Summary across every entity, with personal spending.
-                  The desktop layout has the same card, after Loans & Interest. */}
-              <ClientGstSummaryCard level="client" id={clientId} scopeName={currentUser?.fullName ?? ""} />
 
               {/* Recent Activity Card */}
               <div className="m-db-activity-section">
@@ -1028,7 +1095,7 @@ export default function ClientPage() {
                   <span>Create Entity</span>
                 </Link>
                 <div className="m-db-actions-row">
-                  <Link href="/dashboard/client/transactions/new" className="m-db-action-box tx">
+                  <Link href={addTransactionHref} className="m-db-action-box tx">
                     <div className="m-db-action-icon-wrap">
                       <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                         <path d="m15 4 5 4-5 4" />
@@ -1041,7 +1108,7 @@ export default function ClientPage() {
                   </Link>
 
                   <Link
-                    href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
+                    href={addPropertyHref}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -1304,7 +1371,7 @@ export default function ClientPage() {
         {/* Quick Actions Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
-            href="/dashboard/client/transactions/new"
+            href={addTransactionHref}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
               background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
@@ -1322,7 +1389,7 @@ export default function ClientPage() {
           </Link>
 
           <Link
-            href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
+            href={addPropertyHref}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
               background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
@@ -1542,7 +1609,13 @@ export default function ClientPage() {
             onViewChange={setCashFlowView}
             expenseCategories={expenseCategories}
             incomeSources={incomeSources}
-            detailPeriodLabel={fyLongLabel(financialYear)}
+            detailPeriodLabel={fyLongLabel(cashFlowYear)}
+            financialYear={cashFlowYear}
+            financialYearOptions={cashFlowYearOptions}
+            onFinancialYearChange={setCashFlowYear}
+            loading={cashFlowLoading}
+            error={cashFlowError}
+            onRetry={cashFlowRegion.reload}
           />
         </div>
 
@@ -1588,15 +1661,6 @@ export default function ClientPage() {
             </div>
           </div>
         </div>
-
-        {/* GST Summary across every entity (client = Σ entities), with
-            personal spending. The phone Summary tab has the same card. */}
-        <ClientGstSummaryCard
-          level="client"
-          id={clientId}
-          scopeName={currentUser?.fullName ?? ""}
-          className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm"
-        />
 
         {/* Existing remaining items: Recent Activity and By Property */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

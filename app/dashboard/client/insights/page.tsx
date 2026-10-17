@@ -13,14 +13,16 @@ import {
   formatClientPercent,
   toneClass,
 } from "@/app/components/clients/CurrencyFormatter";
-import type { CoreEntity } from "@/src/lib/coreApi";
-import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
+import type { CoreEntity, CorePortfolioSummary } from "@/src/lib/coreApi";
 import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
+import type { AsyncRegion } from "@/app/components/useAsyncRegion";
+import type { ClientHoldingEntity } from "@/app/components/useClientHoldings";
 import { fetchCurrentUser, type CurrentUser } from "@/app/components/currentUser";
 import RegionError from "@/app/components/ui/RegionError";
+import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
+import ReportScopePicker from "@/app/components/reports/portfolio/ReportScopePicker";
 import {
   currentFinancialYear,
-  fyShortLabel,
   monthAt,
   monthIndex,
   monthKey,
@@ -28,6 +30,12 @@ import {
   percentChange,
   shiftMonth,
 } from "@/app/components/clients/portfolioDashboard";
+import {
+  resolveInsightsPeriod,
+  toIsoDate,
+  validateCustomRange,
+  type InsightsSelection,
+} from "@/app/components/clients/insightsPeriod";
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -37,46 +45,17 @@ function titleCase(value: string) {
     .join(" ");
 }
 
-type TimeFilter = "year" | "quarter" | "month";
-
-/** "YYYY-MM" keys from `from` to `to` inclusive (both month starts). */
-function monthKeysBetween(from: Date, to: Date): string[] {
-  const keys: string[] = [];
-  for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d = shiftMonth(d, 1)) {
-    keys.push(monthKey(d));
-  }
-  return keys;
-}
-
 /**
- * The window a period pill covers, and the window it is compared with — in
- * the Australian financial year (it used to be the calendar year).
- *
- *  year    FY to date (1 July → this month) vs the same months a year earlier
- *  quarter this FY quarter (Jul–Sep, Oct–Dec, Jan–Mar, Apr–Jun) vs the last one
- *  month   this month vs last month
+ * The latest figures for a region, kept on screen while the next period or
+ * scope loads (the cards dim instead of collapsing to the skeleton, which
+ * would also unmount the filter controls mid-edit). Never kept across an
+ * error: a failed load shows "—", not the previous period's numbers.
  */
-function periodWindows(filter: TimeFilter, now: Date) {
-  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  if (filter === "month") {
-    return {
-      current: [monthKey(thisMonth)],
-      previous: [monthKey(shiftMonth(thisMonth, -1))],
-    };
-  }
-  if (filter === "quarter") {
-    // Calendar quarters line up with FY quarters (Jul, Oct, Jan, Apr).
-    const start = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-    return {
-      current: monthKeysBetween(start, shiftMonth(start, 2)),
-      previous: monthKeysBetween(shiftMonth(start, -3), shiftMonth(start, -1)),
-    };
-  }
-  const fyStart = new Date(currentFinancialYear(now) - 1, 6, 1);
-  return {
-    current: monthKeysBetween(fyStart, thisMonth),
-    previous: monthKeysBetween(shiftMonth(fyStart, -12), shiftMonth(thisMonth, -12)),
-  };
+function useShownSummary(region: AsyncRegion<CorePortfolioSummary>): CorePortfolioSummary | null {
+  const [last, setLast] = useState<CorePortfolioSummary | null>(region.data);
+  if (region.data && region.data !== last) setLast(region.data);
+  if (region.status === "error") return null;
+  return region.data ?? last;
 }
 
 /**
@@ -103,18 +82,6 @@ function formatAxisTick(value: number): string {
   return `A$${Math.round(value)}`;
 }
 
-const PERIOD_LABEL: Record<TimeFilter, string> = {
-  year: "Financial year to date",
-  quarter: "This quarter",
-  month: "This month",
-};
-
-const COMPARISON_LABEL: Record<TimeFilter, string> = {
-  year: "vs same period last year",
-  quarter: "vs last quarter",
-  month: "vs last month",
-};
-
 export default function ClientInsightsPage() {
   const router = useRouter();
   const [properties, setProperties] = useState<any[]>([]);
@@ -123,8 +90,22 @@ export default function ClientInsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Interactive UI state
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('year');
+  // The entity / property pickers' options, from the same /api/entities
+  // read as `properties` (one request, not two).
+  const [holdings, setHoldings] = useState<ClientHoldingEntity[]>([]);
+
+  // Interactive UI state. One period selection (pill, FY dropdown or custom
+  // range) and one scope; every change is a new summary request.
+  const [selection, setSelection] = useState<InsightsSelection>({ kind: "fy-to-date" });
+  const [scope, setScope] = useState<{ entityId: string | null; propertyId: string | null }>({
+    entityId: null,
+    propertyId: null,
+  });
+  const [fyPickerOpen, setFyPickerOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [customError, setCustomError] = useState("");
   const [showForecast, setShowForecast] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -169,7 +150,30 @@ export default function ClientInsightsPage() {
         if (entitiesResult.status === "fulfilled" && entitiesResult.value.ok) {
           const data = (await entitiesResult.value.json()) as { items?: CoreEntity[] };
           if (cancelled) return;
-          setProperties((data.items || []).flatMap((entity: any) => entity.properties || []));
+          const items = data.items || [];
+          setProperties(items.flatMap((entity: any) => entity.properties || []));
+          const byName = (a: { name: string }, b: { name: string }) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+          type RawHolding = { id?: unknown; name?: unknown; enabled?: unknown };
+          const text = (value: unknown) => (typeof value === "string" ? value : "");
+          setHoldings(
+            (items as Array<RawHolding & { properties?: unknown }>)
+              .filter((entity) => text(entity.id))
+              .map((entity) => ({
+                id: text(entity.id),
+                name: text(entity.name) || "Untitled entity",
+                enabled: entity.enabled !== false,
+                properties: (Array.isArray(entity.properties) ? (entity.properties as RawHolding[]) : [])
+                  .filter((p) => text(p.id))
+                  .map((p) => ({
+                    id: text(p.id),
+                    name: text(p.name) || "Untitled property",
+                    enabled: p.enabled !== false,
+                  }))
+                  .sort(byName),
+              }))
+              .sort(byName),
+          );
         } else {
           const data =
             entitiesResult.status === "fulfilled"
@@ -227,47 +231,64 @@ export default function ClientInsightsPage() {
       : "";
 
   // ---------------------------------------------------------------------------
-  // Figures: the Portfolio Summary for this financial year and the last (the
-  // windows below can reach back before 1 July). Same aggregate as the home
-  // and Reports pages — gross, each property's share, unreviewed excluded.
+  // Figures: the Portfolio Summary for exactly the selected window and scope
+  // (?from=&to=, entity_id / property_id) — the same aggregate as the home
+  // and Reports pages: gross, each property's share, unreviewed excluded.
+  // Up to three reads: the window (every total, the breakdown, Top
+  // Performing), the comparison window (the trend badge only) and, for a
+  // window shorter than six months, the six months ending with it (the two
+  // charts). The pills used to re-slice two preloaded years in the browser,
+  // so they made no request at all.
   // ---------------------------------------------------------------------------
   const clientId = currentUser?.id || null;
   const financialYear = currentFinancialYear();
-  const summaryRegion = usePortfolioSummary(clientId, financialYear);
-  const lastYearRegion = usePortfolioSummary(clientId, financialYear - 1);
-  const summary = summaryRegion.data;
-  const lastYearSummary = lastYearRegion.data;
+  const period = useMemo(() => resolveInsightsPeriod(selection, new Date()), [selection]);
+  const { entityId, propertyId } = scope;
 
-  const monthsByKey = useMemo(() => monthIndex(lastYearSummary, summary), [lastYearSummary, summary]);
-  const windows = useMemo(() => periodWindows(timeFilter, new Date()), [timeFilter]);
+  const mainRegion = usePortfolioSummary(clientId, financialYear, entityId, propertyId, period.window);
+  const comparisonRegion = usePortfolioSummary(clientId, financialYear, entityId, propertyId, period.comparison);
+  const chartRegion = usePortfolioSummary(
+    period.chartIsContext ? clientId : null,
+    financialYear,
+    entityId,
+    propertyId,
+    period.chartWindow,
+  );
+  const summary = useShownSummary(mainRegion);
+  const comparisonSummary = useShownSummary(comparisonRegion);
+  const contextSummary = useShownSummary(chartRegion);
+  const chartSummary = period.chartIsContext ? contextSummary : summary;
 
-  const netOver = (keys: string[]) =>
-    keys.reduce((sum, key) => {
-      const m = monthAt(monthsByKey, key);
-      return sum + m.income - m.expenses;
-    }, 0);
+  // A new period or scope is in flight: the cards dim on the last figures.
+  const isRefreshing =
+    mainRegion.status === "loading" ||
+    (period.chartIsContext && chartRegion.status === "loading");
 
-  // Net Cash Flow for the selected period, and its change on the comparison
-  // period (null — no badge — when either side is zero).
+  const monthsByKey = useMemo(() => monthIndex(chartSummary), [chartSummary]);
+
+  // Net Cash Flow for the window (income − expenses, before depreciation —
+  // depreciation is no longer on this page), and its change on the
+  // comparison window (null — no badge — when either side is zero).
+  const currentNet = summary?.totals.cashFlow ?? 0;
   const displayCashFlowMetrics = {
-    currentNet: netOver(windows.current),
-    trendPercentage: percentChange(netOver(windows.current), netOver(windows.previous)),
+    currentNet,
+    trendPercentage:
+      summary && comparisonSummary
+        ? percentChange(currentNet, comparisonSummary.totals.cashFlow)
+        : null,
   };
 
-  // Line chart: monthly net across the period. A single month has no shape,
-  // so "This month" shows the six months leading up to it instead.
+  // Line chart: monthly net across the chart window, up to this month.
   const displayLineChartPoints = useMemo(() => {
-    const now = new Date();
-    const keys =
-      timeFilter === "month"
-        ? [5, 4, 3, 2, 1, 0].map((back) => monthKey(shiftMonth(now, -back)))
-        : windows.current.filter((key) => key <= monthKey(now));
-    const points = keys.map((key) => {
-      const m = monthAt(monthsByKey, key);
-      return m.income - m.expenses;
-    });
+    const thisMonth = monthKey(new Date());
+    const points = period.chartMonths
+      .filter((key) => key <= thisMonth)
+      .map((key) => {
+        const m = monthAt(monthsByKey, key);
+        return m.income - m.expenses;
+      });
     return points.length === 0 ? [0] : points;
-  }, [monthsByKey, timeFilter, windows]);
+  }, [monthsByKey, period]);
 
   const displayLineChartSvg = useMemo(() => {
     const width = 340;
@@ -300,89 +321,91 @@ export default function ClientInsightsPage() {
     return { linePath, areaPath, width, height };
   }, [displayLineChartPoints]);
 
-  // Income vs Expenses: the last six months, or a projection of the next six
-  // at their average. The projection is a flat average and says so — it used
-  // to add an invented sine-wave "seasonal variation".
+  // Income vs Expenses: the chart window's months, or a projection of the
+  // next six at their average. The projection is a flat average and says so,
+  // and is offered only when the period runs to the present — projecting
+  // forward from a past year means nothing.
+  const canForecast = period.includesCurrentMonth;
+  const forecasting = showForecast && canForecast;
   const displayBarChartData = useMemo(() => {
-    const now = new Date();
-    const history = [5, 4, 3, 2, 1, 0].map((back) => {
-      const key = monthKey(shiftMonth(now, -back));
+    const history = period.chartMonths.map((key) => {
       const m = monthAt(monthsByKey, key);
-      return { label: monthShortLabel(key), income: m.income, expense: m.expenses };
+      return { key, label: monthShortLabel(key), income: m.income, expense: m.expenses };
     });
-    if (!showForecast) return history;
+    if (!forecasting) return history;
 
-    const active = history.filter((m) => m.income > 0 || m.expense > 0);
+    const thisMonth = monthKey(new Date());
+    const active = history.filter((m) => m.key <= thisMonth && (m.income > 0 || m.expense > 0));
     const avgIncome = active.length ? active.reduce((s, m) => s + m.income, 0) / active.length : 0;
     const avgExpense = active.length ? active.reduce((s, m) => s + m.expense, 0) / active.length : 0;
-    return [1, 2, 3, 4, 5, 6].map((ahead) => ({
-      label: monthShortLabel(monthKey(shiftMonth(now, ahead))),
-      income: Math.round(avgIncome),
-      expense: Math.round(avgExpense),
-    }));
-  }, [monthsByKey, showForecast]);
+    const now = new Date();
+    return [1, 2, 3, 4, 5, 6].map((ahead) => {
+      const key = monthKey(shiftMonth(now, ahead));
+      return {
+        key,
+        label: monthShortLabel(key),
+        income: Math.round(avgIncome),
+        expense: Math.round(avgExpense),
+      };
+    });
+  }, [monthsByKey, period, forecasting]);
+  // Phones stack income on expense in narrow pills; past twelve bars they
+  // stop fitting, so a long period shows its last twelve months there.
+  const mobileBarChartData = displayBarChartData.slice(-12);
+  const barChartSubtitle = forecasting
+    ? "Next 6 months"
+    : displayBarChartData.length > 12 && isMobile
+      ? `Last 12 months · ${period.label}`
+      : period.chartLabel;
 
   // Mobile stacks income on expense, so it scales to the month's SUM; desktop
   // draws them side by side, so its axis is the larger of the two.
-  const displayMaxMonthSum = Math.max(...displayBarChartData.map((d) => d.income + d.expense), 1);
+  const displayMaxMonthSum = Math.max(...mobileBarChartData.map((d) => d.income + d.expense), 1);
   const barAxis = niceAxis(
     Math.max(...displayBarChartData.map((d) => Math.max(d.income, d.expense)), 0),
     7,
   );
 
-  // Expense breakdown for the selected period, from the category × month
-  // matrix — it used to ignore the period and sum every loaded row.
+  // Expense breakdown for exactly the window, from the summary's category
+  // lines.
   const displayExpenseBreakdown = useMemo(() => {
-    const inWindow = new Set(windows.current);
-    const byCategory = new Map<string, number>();
-    for (const cell of summary?.categoryMonths ?? []) {
-      if (cell.type !== "expense" || !inWindow.has(cell.month)) continue;
-      const name = cell.categoryName || "Uncategorised";
-      byCategory.set(name, (byCategory.get(name) ?? 0) + cell.amount);
-    }
-    if (timeFilter === "year" || timeFilter === "quarter") {
-      for (const cell of lastYearSummary?.categoryMonths ?? []) {
-        if (cell.type !== "expense" || !inWindow.has(cell.month)) continue;
-        const name = cell.categoryName || "Uncategorised";
-        byCategory.set(name, (byCategory.get(name) ?? 0) + cell.amount);
-      }
-    }
-    const total = Array.from(byCategory.values()).reduce((s, v) => s + v, 0);
-    const categoriesArray = Array.from(byCategory.entries())
-      .filter(([, amount]) => amount > 0)
-      .map(([name, amount]) => ({
-        name,
-        amount,
-        percentage: total > 0 ? Math.round((amount / total) * 100) : 0,
-      }))
+    const categoriesArray = (summary?.expensesByCategory ?? [])
+      .filter((line) => line.amount > 0)
+      .map((line) => ({ name: line.categoryName || "Uncategorised", amount: line.amount }))
       .sort((a, b) => b.amount - a.amount);
+    const total = categoriesArray.reduce((s, c) => s + c.amount, 0);
+    const withPct = categoriesArray.map((c) => ({
+      ...c,
+      percentage: total > 0 ? Math.round((c.amount / total) * 100) : 0,
+    }));
 
-    if (categoriesArray.length <= 3) {
-      return { total, items: categoriesArray };
+    if (withPct.length <= 3) {
+      return { total, items: withPct };
     }
-    const items = categoriesArray.slice(0, 3);
-    const otherAmount = categoriesArray.slice(3).reduce((sum, c) => sum + c.amount, 0);
+    const items = withPct.slice(0, 3);
+    const otherAmount = withPct.slice(3).reduce((sum, c) => sum + c.amount, 0);
     items.push({
       name: "Other",
       amount: otherAmount,
       percentage: total > 0 ? Math.round((otherAmount / total) * 100) : 0,
     });
     return { total, items };
-  }, [summary, lastYearSummary, windows, timeFilter]);
+  }, [summary]);
 
-  // Top performing: the summary has per-property totals for the financial
-  // year only (no per-property months), so this card is the FY ranking
-  // whatever pill is selected — and its label says so.
+  // Top performing: the window's per-property figures. "Net" is income −
+  // expenses, like Net Cash Flow — depreciation is annual and is no longer
+  // shown here, so it is not netted off a month or a fortnight.
   const displayTopPerformingProperties = useMemo(() => {
     const valueById = new Map(properties.map((p) => [p.id as string, Number(p.estimatedMarketValue) || 0]));
     return (summary?.properties ?? [])
       .map((row) => {
         const value = row.marketValue ?? valueById.get(row.propertyId) ?? 0;
+        const net = row.income - row.expenses;
         return {
           name: row.name,
           income: row.income,
-          net: row.netResult,
-          returnRate: value > 0 ? (row.netResult / value) * 100 : 0,
+          net,
+          returnRate: value > 0 ? (net / value) * 100 : 0,
         };
       })
       .sort((a, b) => b.income - a.income || b.returnRate - a.returnRate)
@@ -410,23 +433,162 @@ export default function ClientInsightsPage() {
     trendPercentage !== null ? formatClientPercent(trendPercentage, { showPlus: true }) : "";
   const showTrendBadge = /[1-9]/.test(trendLabel);
 
-  const periodLabel = PERIOD_LABEL[timeFilter];
+  const periodLabel = period.label;
+  const comparisonLabel = period.comparisonLabel;
 
+  const regionError = (region: AsyncRegion<CorePortfolioSummary>) =>
+    region.status === "error" ? region.error ?? "" : "";
   const figuresError =
-    summaryRegion.status === "error"
-      ? `Couldn't load your figures. ${summaryRegion.error ?? ""}`.trim()
+    regionError(mainRegion) || (period.chartIsContext ? regionError(chartRegion) : "")
+      ? `Couldn't load your figures. ${regionError(mainRegion) || regionError(chartRegion)}`.trim()
       : "";
   const retryFigures = () => {
-    summaryRegion.reload();
-    lastYearRegion.reload();
+    mainRegion.reload();
+    comparisonRegion.reload();
+    if (period.chartIsContext) chartRegion.reload();
   };
-  // Hold the skeleton until the first summary arrives (no flash of zeros).
+  // Hold the skeleton until the first summary arrives (no flash of zeros);
+  // after that a change of period or scope dims the cards instead.
   const figuresLoading =
-    isLoading || (clientId !== null && summaryRegion.status === "loading" && !summary);
-  const topPerformingLabel = `By income · ${fyShortLabel(financialYear)}`;
+    isLoading || (clientId !== null && mainRegion.status === "loading" && !summary);
+  const topPerformingLabel = `By income · ${periodLabel}`;
 
   // Check if workspace is empty
   const isWorkspaceEmpty = properties.length === 0 && (summary?.totals.transactionCount ?? 0) === 0;
+
+  // ---------------------------------------------------------------------------
+  // Period controls. The current FY in the dropdown is "This FY" (to date).
+  // ---------------------------------------------------------------------------
+  const selectedFy = selection.kind === "fy" ? selection.fy : financialYear;
+  const fyYearOptions = [
+    ...new Set<number>([financialYear, selectedFy, ...(summary?.availableFinancialYears ?? [])]),
+  ].sort((a, b) => b - a);
+
+  const choosePeriod = (next: InsightsSelection) => {
+    setSelection(next);
+    setCustomOpen(false);
+    setCustomError("");
+  };
+  const chooseFinancialYear = (fy: number) =>
+    choosePeriod(fy === financialYear ? { kind: "fy-to-date" } : { kind: "fy", fy });
+  const openCustom = () => {
+    setCustomFrom(period.window.from);
+    setCustomTo(period.window.to > toIsoDate(new Date()) ? toIsoDate(new Date()) : period.window.to);
+    setCustomError("");
+    setCustomOpen(true);
+  };
+  const applyCustom = () => {
+    const problem = validateCustomRange(customFrom, customTo);
+    if (problem) {
+      setCustomError(problem);
+      return;
+    }
+    setSelection({ kind: "custom", from: customFrom, to: customTo });
+    setCustomError("");
+    setCustomOpen(false);
+  };
+
+  // The FY picker closes on any outside click (its button stops propagation).
+  useEffect(() => {
+    if (!fyPickerOpen) return;
+    const close = () => setFyPickerOpen(false);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [fyPickerOpen]);
+
+  const PERIOD_PILLS: { label: string; kind: "fy-to-date" | "quarter" | "month" }[] = [
+    { label: "This FY", kind: "fy-to-date" },
+    { label: "This Quarter", kind: "quarter" },
+    { label: "This Month", kind: "month" },
+  ];
+
+  /** Period pills, FY dropdown, custom range and scope — both layouts. */
+  const renderFilters = (variant: "mobile" | "desktop") => (
+    <div className={`insights-filters is-${variant}`}>
+      <div className="insights-filters-row">
+        {PERIOD_PILLS.map((p) => {
+          const active = selection.kind === p.kind;
+          return (
+            <button
+              key={p.kind}
+              type="button"
+              aria-pressed={active}
+              onClick={() => choosePeriod({ kind: p.kind })}
+              className={`insights-pill ${active ? "active" : "inactive"}`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+        <FinancialYearPicker
+          value={selectedFy}
+          onChange={chooseFinancialYear}
+          isOpen={fyPickerOpen}
+          setIsOpen={setFyPickerOpen}
+          years={fyYearOptions}
+        />
+        <button
+          type="button"
+          aria-pressed={selection.kind === "custom"}
+          aria-expanded={customOpen}
+          onClick={() => (customOpen ? setCustomOpen(false) : openCustom())}
+          className={`insights-pill ${selection.kind === "custom" ? "active" : "inactive"}`}
+        >
+          {selection.kind === "custom" ? periodLabel : "Custom range"}
+        </button>
+      </div>
+
+      {customOpen && (
+        <div className="insights-custom-range" role="group" aria-label="Custom date range">
+          <label>
+            <span>From</span>
+            <input
+              type="date"
+              value={customFrom}
+              max={customTo || undefined}
+              onChange={(e) => setCustomFrom(e.target.value)}
+            />
+          </label>
+          <label>
+            <span>To</span>
+            <input
+              type="date"
+              value={customTo}
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+            />
+          </label>
+          <button type="button" className="insights-custom-apply" onClick={applyCustom}>
+            Apply
+          </button>
+          {customError && (
+            <p className="insights-custom-error" role="alert">
+              {customError}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="insights-filters-row">
+        <ReportScopePicker
+          entities={holdings}
+          entityId={entityId}
+          propertyId={propertyId}
+          onChange={setScope}
+        />
+        <span className="insights-filters-period" aria-live="polite">
+          {periodLabel}
+          {isRefreshing ? " · Updating…" : ""}
+        </span>
+      </div>
+    </div>
+  );
+
+  // The cards dim while a new period or scope loads.
+  const refreshingStyle = {
+    opacity: isRefreshing ? 0.55 : 1,
+    transition: "opacity 0.15s ease",
+  };
 
   if (isMobile) {
     return (
@@ -503,34 +665,8 @@ export default function ClientInsightsPage() {
             </div>
           )}
 
-          {/* Time Filter Pills */}
-          <div style={{ display: "flex", gap: "10px", margin: "16px 0 20px 0" }}>
-            {[
-              { label: "This FY", val: "year" },
-              { label: "This Quarter", val: "quarter" },
-              { label: "This Month", val: "month" },
-            ].map((p) => (
-              <button
-                key={p.val}
-                type="button"
-                onClick={() => setTimeFilter(p.val as any)}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: "20px",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  border: "1px solid #d0d5dd",
-                  background: timeFilter === p.val ? "#1b265c" : "#ffffff",
-                  color: timeFilter === p.val ? "#ffffff" : "#1b265c",
-                  cursor: "pointer",
-                  outline: "none",
-                  transition: "all 0.2s",
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+          {/* Period (pills, FY, custom range) and scope */}
+          {renderFilters("mobile")}
 
           {isWorkspaceEmpty ? (
             <div
@@ -584,7 +720,7 @@ export default function ClientInsightsPage() {
               </div>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", ...refreshingStyle }} aria-busy={isRefreshing}>
               {/* Card 1: Net Cash Flow */}
               <div
                 className="m-db-stat-card"
@@ -606,7 +742,7 @@ export default function ClientInsightsPage() {
                   {showTrendBadge && (
                     <span
                       className={`m-db-trend-badge ${toneClass(trendPercentage)}`}
-                      title={COMPARISON_LABEL[timeFilter]}
+                      title={comparisonLabel}
                       style={{
                         ...trendBadgeStyle,
                         padding: "2px 8px",
@@ -701,9 +837,10 @@ export default function ClientInsightsPage() {
                         gap: "6px",
                       }}
                     >
-                      <span>{showForecast ? "Next 6 months" : "Last 6 months"}</span>
+                      <span>{barChartSubtitle}</span>
                     </div>
                   </div>
+                  {canForecast && (
                   <button
                     type="button"
                     onClick={() => setShowForecast((f) => !f)}
@@ -719,20 +856,21 @@ export default function ClientInsightsPage() {
                       outline: "none",
                     }}
                   >
-                    {showForecast ? "Show last 6 months" : "Show next 6 months"}
+                    {forecasting ? "Show recorded months" : "Show next 6 months"}
                   </button>
+                  )}
                 </div>
 
-                {/* Stacked columns wrapper */}
-                <div className="m-db-chart-bars-wrap">
-                  {displayBarChartData.map((d) => {
+                {/* Stacked columns wrapper (narrow pills past six months) */}
+                <div className={`m-db-chart-bars-wrap${mobileBarChartData.length > 6 ? " is-fy" : ""}`}>
+                  {mobileBarChartData.map((d) => {
                     const total = d.income + d.expense;
                     const barHeightPct = total > 0 ? (total / displayMaxMonthSum) * 100 : 0;
                     const incPct = total > 0 ? (d.income / total) * 100 : 0;
                     const expPct = total > 0 ? (d.expense / total) * 100 : 0;
 
                     return (
-                      <div key={d.label} className="m-db-chart-bar-container">
+                      <div key={d.key} className="m-db-chart-bar-container">
                         <div
                           className="m-db-chart-bar-pill"
                           style={{
@@ -1023,23 +1161,8 @@ export default function ClientInsightsPage() {
           <h1 className="insights-title">Insights</h1>
         </div>
 
-        {/* Filter Pills row */}
-        <div className="insights-pills-row">
-          {[
-            { label: "This FY", val: "year" },
-            { label: "This Quarter", val: "quarter" },
-            { label: "This Month", val: "month" },
-          ].map((p) => (
-            <button
-              key={p.val}
-              type="button"
-              onClick={() => setTimeFilter(p.val as any)}
-              className={`insights-pill ${timeFilter === p.val ? "active" : "inactive"}`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        {/* Period (pills, FY, custom range) and scope */}
+        {renderFilters("desktop")}
 
         {errorMessage && (
           <p className="entity-wizard-error" style={{ marginBottom: "20px" }}>
@@ -1064,18 +1187,18 @@ export default function ClientInsightsPage() {
             </div>
           </div>
         ) : (
-          <div className="insights-grid">
+          <div className="insights-grid" style={refreshingStyle} aria-busy={isRefreshing}>
             {/* Card 1: Net Cash Flow */}
             <div className="insights-card area-cashflow">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>
                   <span className="insights-card-title">Net Cash Flow</span>
-                  <div className="insights-card-kicker">{periodLabel} · {COMPARISON_LABEL[timeFilter]}</div>
+                  <div className="insights-card-kicker">{periodLabel} · {comparisonLabel}</div>
                 </div>
                 {showTrendBadge && (
                   <span
                     className={`trend-badge ${toneClass(trendPercentage)}`}
-                    title={COMPARISON_LABEL[timeFilter]}
+                    title={comparisonLabel}
                     style={{
                       ...trendBadgeStyle,
                     }}
@@ -1137,16 +1260,18 @@ export default function ClientInsightsPage() {
                 <div>
                   <h3 className="insights-card-main-title">Income vs Expenses</h3>
                   <span className="insights-card-kicker">
-                    {showForecast ? "Next 6 months" : "Last 6 months"}
+                    {barChartSubtitle}
                   </span>
                 </div>
+                {canForecast && (
                 <button
                   type="button"
                   onClick={() => setShowForecast((f) => !f)}
                   className="forecast-toggle-btn"
                 >
-                  {showForecast ? "Show last 6 months" : "Show next 6 months"}
+                  {forecasting ? "Show recorded months" : "Show next 6 months"}
                 </button>
+                )}
               </div>
 
               <div className="bar-chart-outer-container">
@@ -1174,7 +1299,7 @@ export default function ClientInsightsPage() {
                       const expenseHeightPct = d.expense > 0 ? (d.expense / barAxis.top) * 100 : 0;
 
                       return (
-                        <div key={d.label} className="chart-month-column">
+                        <div key={d.key} className="chart-month-column">
                           <div className="chart-bars-container">
                             <div
                               className="bar income-bar"
@@ -1312,19 +1437,6 @@ export default function ClientInsightsPage() {
               </div>
             </div>
 
-            {/* Depreciation across the whole portfolio.
-                Full width at the foot of the grid: it is a list rather than a
-                chart, and it answers a different question from the four cards
-                above — not "how did the year go" but "what is being claimed". */}
-            {currentUser?.id && (
-              <ClientDepreciationCard
-                level="client"
-                id={currentUser.id}
-                showProperty
-                className="insights-card area-depreciation"
-                title="Depreciation"
-              />
-            )}
           </div>
         )}
       </div>
