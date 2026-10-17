@@ -68,12 +68,12 @@ export default function LandingPageFooter() {
               >
                 <img
                   src="/clear-tax-logo.svg"
-                  alt="ClearTax"
+                  alt="Clear Tax"
                   className="ct-footer-brand-logo"
                 />
               </Link>
               <p className="ct-footer-brand-desc">
-                The property investment portfolio platform from the ClearTax family. Built for disciplined Australian real estate investors and accountants.
+                The property investment portfolio platform from the Clear Tax family. Built for disciplined Australian real estate investors and accountants.
               </p>
             </div>
 
@@ -169,7 +169,7 @@ export default function LandingPageFooter() {
           {/* Desktop Bottom Row */}
           <div className="ct-footer-bottom-row">
             <p className="ct-footer-copyright">
-              © 2025 ClearPortfolio by ClearTax. All rights reserved.
+              © 2025 ClearPortfolio by Clear Tax. All rights reserved.
             </p>
             <p className="ct-footer-tagline">
               Engineered with <span className="highlight-orange">financial precision</span>.
@@ -179,7 +179,7 @@ export default function LandingPageFooter() {
 
         {/* ================= MOBILE FOOTER (<= 768px) ================= */}
         <div className="ct-footer-mobile">
-          {/* Brand Row with ClearTax Portfolio Badge */}
+          {/* Brand Row with Clear Tax Portfolio Badge */}
           <div className="ct-mobile-footer-brand">
             <Link
               href="/"
@@ -189,7 +189,7 @@ export default function LandingPageFooter() {
               <div className="ct-mobile-brand-wrapper">
                 <img
                   src="/clear-tax-logo.svg"
-                  alt="ClearTax"
+                  alt="Clear Tax"
                   className="ct-footer-brand-logo"
                 />
                 <span className="ct-brand-separator">|</span>
@@ -197,7 +197,7 @@ export default function LandingPageFooter() {
               </div>
             </Link>
             <p className="ct-mobile-brand-desc">
-              Intelligent property tracking built specifically for Australian real estate investors and ClearTax clients.
+              Intelligent property tracking built specifically for Australian real estate investors and Clear Tax clients.
             </p>
           </div>
 
@@ -299,7 +299,7 @@ export default function LandingPageFooter() {
               Disclaimer: ClearPortfolio provides general portfolio analytics and does not constitute licensed personal financial, taxation or credit advice.
             </p>
             <p className="ct-mobile-copyright-text">
-              © 2025 ClearPortfolio by ClearTax. All rights reserved.
+              © 2025 ClearPortfolio by Clear Tax. All rights reserved.
             </p>
           </div>
         </div>

@@ -88,7 +88,7 @@ export default function Home() {
       question: "What is ClearPortfolio?",
       mobileQuestion: "How does ClearPortfolio calculate property values?",
       answer:
-        "ClearPortfolio is a comprehensive real-time property intelligence and portfolio management platform built specifically for Australian property investors. It brings your loans, valuations, rental income, and tax-deductible expenses into one live, synchronized dashboard.",
+        "ClearPortfolio is a comprehensive real-time property intelligence and portfolio management platform built specifically for Australian property investors. It brings your loans, valuations, rental income, and tax-deductible expenses into one live, synchronised dashboard.",
     },
     {
       question: "Who can use ClearPortfolio?",
@@ -98,13 +98,13 @@ export default function Home() {
     },
     {
       question: "How do I get started?",
-      mobileQuestion: "Does it synchronize with my Australian bank loans?",
+      mobileQuestion: "Does it synchronise with my Australian bank loans?",
       answer:
         "Getting started takes under 2 minutes. Simply create your account, connect your property addresses, and link your banking institutions or upload your initial settlement and lease documents. Our engine automatically reconciles your current equity and cash flow.",
     },
     {
       question: "What can I track in ClearPortfolio?",
-      mobileQuestion: "How does ClearTax integration work for my tax return?",
+      mobileQuestion: "How does Clear Tax integration work for my tax return?",
       answer:
         "You can track live property valuations via CoreLogic, mortgage balances, interest rates, LVR drift, rental yields, tenant lease expiry schedules, deductible maintenance expenses, and depreciation schedules.",
     },
@@ -118,7 +118,7 @@ export default function Home() {
       question: "Does ClearPortfolio replace my accountant?",
       mobileQuestion: "Is my financial and personal data safe?",
       answer:
-        "No, ClearPortfolio is designed to empower both you and your accountant. It automates record keeping, categorizes expenses according to ATO rules, and generates one-click tax packs that save your accountant hours during tax season.",
+        "No, ClearPortfolio is designed to empower both you and your accountant. It automates record keeping, categorises expenses according to ATO rules, and generates one-click tax packs that save your accountant hours during tax season.",
     },
   ];
 
@@ -135,7 +135,7 @@ export default function Home() {
           >
             <img
               src="/clear-tax-logo.svg"
-              alt="ClearTax Accountants"
+              alt="Clear Tax Accountants"
               className="ct-brand-logo"
             />
           </Link>
@@ -234,7 +234,7 @@ export default function Home() {
           >
             <img
               src="/clear-tax-logo.svg"
-              alt="ClearTax Accountants"
+              alt="Clear Tax Accountants"
               className="ct-brand-logo"
             />
           </Link>
@@ -511,7 +511,7 @@ export default function Home() {
             </p>
             <div className="ct-challenges-divider" />
             <p className="ct-challenges-footer-note">
-              Built by ClearTax to solve real property accounting and tracking hurdles.
+              Built by Clear Tax to solve real property accounting and tracking hurdles.
             </p>
           </div>
 
@@ -834,7 +834,7 @@ export default function Home() {
                     ClearPortfolio brings your property records into a single, secure dashboard, so nothing is scattered across emails and folders again. Ready at tax time for instant sharing with your accountant.
                   </p>
                   <div className="ct-clarity-footer-note uppercase">
-                    BACKED BY CLEARTAX INFRASTRUCTURE
+                    BACKED BY CLEAR TAX INFRASTRUCTURE
                   </div>
                 </div>
               </div>
@@ -1185,10 +1185,10 @@ export default function Home() {
 
               <blockquote className="ct-testimonial-quote">
                 <span className="desktop-quote">
-                  “Before ClearPortfolio, every quarter was an agonizing scramble across five bank portals and accountant spreadsheets. Now my entire portfolio equity and cash flow are live and indisputable.”
+                  “Before ClearPortfolio, every quarter was an agonising scramble across five bank portals and accountant spreadsheets. Now my entire portfolio equity and cash flow are live and indisputable.”
                 </span>
                 <span className="mobile-quote">
-                  “Before ClearPortfolio, every quarter was an agonizing scramble across bank portals and spreadsheets. Now my entire equity and cash flow are live and indisputable.”
+                  “Before ClearPortfolio, every quarter was an agonising scramble across bank portals and spreadsheets. Now my entire equity and cash flow are live and indisputable.”
                 </span>
               </blockquote>
 

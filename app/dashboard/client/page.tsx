@@ -847,14 +847,9 @@ export default function ClientPage() {
               {/* Last Financial Year Section */}
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                      Last Financial Year
-                    </h3>
-                    <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                      NEW
-                    </span>
-                  </div>
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                    Last Financial Year
+                  </h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1130,14 +1125,9 @@ export default function ClientPage() {
               {/* Loans & Interest Section */}
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                      Loans & Interest
-                    </h3>
-                    <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                      NEW
-                    </span>
-                  </div>
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                    Loans & Interest
+                  </h3>
                   <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
                     View all
                   </Link>
@@ -1525,14 +1515,9 @@ export default function ClientPage() {
         {/* Section: Last Financial Year */}
         <div className="flex flex-col gap-3.5">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                Last Financial Year
-              </h3>
-              <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                NEW
-              </span>
-            </div>
+            <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+              Last Financial Year
+            </h3>
             <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
               {fyShortLabel(financialYear - 1)} · {fyRangeLabel(financialYear - 1)}
             </span>
