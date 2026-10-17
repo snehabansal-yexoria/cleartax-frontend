@@ -23,7 +23,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!isMobile) return;
-    if (pathname.includes('/transactions')) {
+    // Reports live inside Insights on a phone (Insights → Reports tab), so a
+    // report page keeps Insights lit rather than falling through to Home.
+    if (pathname.includes('/reports')) {
+      setActiveTab('insights');
+    } else if (pathname.includes('/transactions')) {
       setActiveTab('activity');
     } else if (pathname.includes('/properties') || pathname.includes('/property')) {
       setActiveTab('property');

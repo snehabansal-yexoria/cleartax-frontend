@@ -1330,15 +1330,15 @@ export default function ClientPage() {
                 </div>
               </div>
 
-              {/* The phone bottom nav is full, so Reports is reached from here. */}
+              {/* Reports live in Insights → Reports on a phone; a shortcut from home. */}
               <Link
-                href="/dashboard/client/reports/portfolio-summary"
+                href="/dashboard/client/insights?tab=reports"
                 className="m-db-stat-card"
                 style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', textDecoration: 'none' }}
               >
                 <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Portfolio Summary report</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>The full financial year, printable as a statement</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Reports</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Profit &amp; Loss, Depreciation, GST and Portfolio Summary, as PDFs</span>
                 </span>
                 <span aria-hidden="true" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-secondary)' }}>→</span>
               </Link>

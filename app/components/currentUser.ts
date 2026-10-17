@@ -1,6 +1,6 @@
 "use client";
 
-import { HttpError } from "./useAsyncRegion";
+import { HttpError, useAsyncRegion, type AsyncRegion } from "./useAsyncRegion";
 
 /**
  * The signed-in user, as GET /api/users/me returns it (camelCase, normalised
@@ -60,4 +60,9 @@ export function fetchCurrentUser(token: string): Promise<CurrentUser> {
 /** Drop the cached user — after the profile is edited, or on logout. */
 export function invalidateCurrentUser() {
   cached = null;
+}
+
+/** The signed-in user as a page region, sharing fetchCurrentUser's request. */
+export function useCurrentUser(): AsyncRegion<CurrentUser> {
+  return useAsyncRegion("me-profile", (token: string) => fetchCurrentUser(token));
 }

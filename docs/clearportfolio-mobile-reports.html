@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clear Portfolio Mobile Reports</title>
+<!--
+  CLEAR PORTFOLIO · CLIENT · MOBILE · REPORTS INSIDE INSIGHTS (prototype)
+  ---------------------------------------------------------------
+  - Bottom nav stays at 5 tabs. The Insights screen gets two pill tabs: Insights | Reports.
+  - Reports tab  → list of report cards → tap opens the report.
+  - Report page  → options bottom sheet opens first (Entity → Property → FY → Build report).
+                   Chips under the title reopen the sheet. Sticky "Download PDF" sits above the nav.
+  - Report content comes from the same engine as the desktop file (CP_DATA + REPORTS[key].build(scope)),
+    so desktop and mobile always show the same numbers.
+  - On a phone this fills the screen. On a desktop it shows inside a phone frame with notes.
+-->
+<style>
+:root{
+  --cp-bg:#F3F4FA; --cp-card:#FFFFFF; --cp-line:#E2E4F0; --cp-line2:#EEF0F7;
+  --cp-ink:#14183A; --cp-label:#3B4280; --cp-muted:#6E76B5; --cp-eyebrow:#7A80C0;
+  --cp-side:#2A3172; --cp-side-hi:rgba(255,255,255,.12); --cp-btn:#232A66; --cp-btn-hi:#2E3780;
+  --cp-tile:#F6A21A; --cp-lav:#EEF0FA; --cp-lav-line:#D9DCF0;
+  --cp-amber-bg:#FCEFC2; --cp-amber-line:#F3DB8A; --cp-amber-ink:#7A3D0B;
+  --cp-green:#127A42; --cp-green-bg:#E2F3E9; --cp-red:#A3221F; --cp-red-bg:#FBE8E7;
+  --cp-inc:#3A3F97; --cp-exp:#C77A12;
+  --cp-r-lg:18px; --cp-r:12px; --cp-r-sm:10px;
+  --cp-shadow:0 1px 2px rgba(20,24,58,.04),0 8px 24px rgba(42,49,114,.05);
+  color-scheme:light;
+}
+/* ---------- report (built) ---------- */
+.cp-doc{container-type:inline-size;container-name:doc;display:grid;gap:16px}
+.cp-pill{display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap;border:1px solid var(--cp-lav-line);background:var(--cp-lav);color:var(--cp-label)}
+.cp-pill--amber{background:var(--cp-amber-bg);border-color:var(--cp-amber-line);color:var(--cp-amber-ink)}
+.cp-pill--green{background:var(--cp-green-bg);border-color:#BFE3CC;color:var(--cp-green)}
+.cp-box{background:var(--cp-card);border:1px solid var(--cp-line);border-radius:var(--cp-r-lg);box-shadow:var(--cp-shadow)}
+.cp-rhead{padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cp-rhead h2{font-size:19px;font-weight:700;margin-top:3px}
+.cp-rhead .sub{font-size:13px;color:var(--cp-muted);margin-top:2px}
+.cp-pills{display:flex;flex-wrap:wrap;gap:8px}
+.cp-pdf-brand{display:none;align-items:center;gap:10px;font-weight:700;color:var(--cp-btn);font-size:16px;padding:0 4px}
+.cp-pdf-brand i{width:28px;height:28px;border-radius:8px;background:var(--cp-tile);display:inline-block}
+.cp-sec{background:var(--cp-card);border:1px solid var(--cp-line);border-radius:var(--cp-r-lg);box-shadow:var(--cp-shadow);padding:20px 22px;display:grid;gap:14px;break-inside:avoid}
+.cp-sec.cp-sec--bare{background:none;border:none;box-shadow:none;padding:0;gap:12px}
+.cp-sec-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cp-sec-h h3{font-size:17px;font-weight:700}
+.cp-sec-h span{font-size:13px;color:var(--cp-muted);font-weight:600}
+.cp-sec-h .r{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--cp-card);border:1px solid var(--cp-line);border-radius:var(--cp-r-lg);box-shadow:var(--cp-shadow);overflow:hidden}
+.cp-kpi{padding:18px 22px;display:grid;gap:4px;align-content:start;border-left:1px solid var(--cp-line)}
+.cp-kpi:first-child{border-left:none}
+.cp-kpi .l{font-size:13.5px;color:var(--cp-label);font-weight:700}
+.cp-kpi .v{font-size:25px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
+.cp-kpi .s{font-size:13px;color:var(--cp-muted)}
+.cp-pos{color:var(--cp-green)} .cp-neg{color:var(--cp-red)}
+.cp-explain{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:14px 18px;border-radius:var(--cp-r);background:#FFF8E6;border:1px solid #F6E3B0;font-size:14px;line-height:1.55;color:#3A2A10}
+.cp-explain svg{width:20px;height:20px;color:#B9750F;margin-top:1px}
+.cp-explain b{color:var(--cp-ink)}
+.cp-note{font-size:13px;color:var(--cp-muted);line-height:1.5}
+.cp-info{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:10px 14px;border-radius:var(--cp-r-sm);background:var(--cp-lav);font-size:13px;color:var(--cp-label)}
+.cp-info::before{content:"i";width:18px;height:18px;border-radius:50%;background:var(--cp-btn);color:#fff;font:700 11px/18px -apple-system,"Helvetica Neue",Arial,sans-serif;text-align:center}
+
+/* segmented Graph | Table */
+.cp-seg{display:inline-flex;border:1px solid var(--cp-line);border-radius:12px;padding:3px;background:#fff}
+.cp-seg button{border:none;background:none;height:32px;padding:0 14px;border-radius:9px;font-weight:700;font-size:13.5px;color:var(--cp-btn);cursor:pointer}
+.cp-seg button[aria-pressed="true"]{background:var(--cp-btn);color:#fff}
+
+/* tables: cards on narrow containers */
+.cp-tw{border:1px solid var(--cp-line2);border-radius:var(--cp-r);overflow:hidden}
+.cp-scroll{overflow-x:auto}
+table.cp-t{width:100%;border-collapse:collapse;font-size:14px}
+.cp-t th,.cp-t td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--cp-line2);vertical-align:top}
+.cp-t th{font-size:12px;color:var(--cp-label);font-weight:700;background:#F8F9FD;white-space:nowrap}
+.cp-t th small{color:var(--cp-muted);font-weight:600}
+.cp-t .n{text-align:right;white-space:nowrap}
+.cp-t tr:last-child td{border-bottom:none}
+.cp-t tr.tot td{font-weight:700;background:#F8F9FD;border-top:1.5px solid var(--cp-lav-line)}
+.cp-t td small{display:block;color:var(--cp-muted);font-size:12.5px}
+.cp-t--mini{font-size:13px}
+.cp-t--mini th,.cp-t--mini td{padding:8px 10px}
+.cp-t--mini th{white-space:normal;line-height:1.3}
+
+/* bars */
+.cp-bars{display:grid;gap:12px}
+.cp-bar{display:grid;grid-template-columns:minmax(120px,210px) 1fr 110px 52px;gap:12px;align-items:center;font-size:14px}
+.cp-bar .t{height:10px;background:var(--cp-line2);border-radius:5px;overflow:hidden}
+.cp-bar .t i{display:block;height:100%;background:var(--cp-inc);border-radius:5px}
+.cp-bar .t i.ex{background:var(--cp-exp)}
+.cp-bar .v{text-align:right;font-weight:700}
+.cp-bar .p{text-align:right;color:var(--cp-muted);font-size:13px}
+
+/* monthly chart */
+.cp-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--cp-label);font-weight:700}
+.cp-legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cp-graph{display:grid;grid-template-columns:40px 1fr;gap:8px}
+.cp-yax{position:relative;height:200px;font-size:11.5px;color:var(--cp-muted)}
+.cp-yax span{position:absolute;right:0;transform:translateY(50%)}
+.cp-plot{position:relative;height:200px;display:grid;grid-template-columns:repeat(12,1fr);gap:6px;align-items:end;border-bottom:1px solid var(--cp-line)}
+.cp-plot .g{position:absolute;left:0;right:0;border-top:1px solid var(--cp-line2)}
+.cp-plot .m{position:relative;height:100%;display:flex;align-items:flex-end;justify-content:center;gap:4px}
+.cp-plot .m i{display:block;width:30%;max-width:14px;border-radius:4px 4px 0 0;min-height:2px}
+.cp-plot .in{background:var(--cp-inc)} .cp-plot .ex{background:var(--cp-exp)}
+.cp-xax{grid-column:2;display:grid;grid-template-columns:repeat(12,1fr);gap:6px;font-size:12px;color:var(--cp-label);font-weight:700;text-align:center}
+[data-view="table"] .cp-v-graph{display:none}
+[data-view="graph"] .cp-v-table{display:none}
+
+.cp-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cp-prop-h{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.cp-prop-h h4{font-size:16px;font-weight:700}
+.cp-prop-h span{font-size:13px;color:var(--cp-muted);font-weight:600}
+.cp-mini-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--cp-line2);border-radius:var(--cp-r);overflow:hidden}
+.cp-mini-kpis div{padding:12px 14px;display:grid;gap:2px;border-left:1px solid var(--cp-line2)}
+.cp-mini-kpis div:first-child{border-left:none}
+.cp-mini-kpis span{font-size:12.5px;color:var(--cp-label);font-weight:700}
+.cp-mini-kpis b{font-size:17px}
+.cp-doc-foot{font-size:12.5px;color:var(--cp-muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:0 4px}
+
+@container doc (max-width: 820px){
+  .cp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cp-kpi:nth-child(3){border-left:none}
+  .cp-kpi:nth-child(n+3){border-top:1px solid var(--cp-line)}
+  .cp-two{grid-template-columns:1fr}
+  .cp-mini-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cp-mini-kpis div:nth-child(3){border-left:none}
+  .cp-mini-kpis div:nth-child(n+3){border-top:1px solid var(--cp-line2)}
+}
+@container doc (max-width: 560px){
+  .cp-sec{padding:16px}
+  .cp-rhead{padding:16px}
+  .cp-kpi{padding:14px 16px}
+  .cp-kpi .v{font-size:21px}
+  .cp-bar{grid-template-columns:1fr auto;gap:4px 12px}
+  .cp-bar .t{grid-column:1/-1;order:3}
+  .cp-bar .p{display:none}
+  .cp-graph{grid-template-columns:30px 1fr;gap:4px}
+  .cp-plot,.cp-yax{height:160px}
+  .cp-plot,.cp-xax{gap:2px} .cp-plot .m{gap:1px} .cp-plot .m i{width:40%}
+  .cp-xax{font-size:10px}
+  table.cp-stack thead{display:none}
+  table.cp-stack,table.cp-stack tbody,table.cp-stack tr,table.cp-stack td{display:block;width:100%}
+  table.cp-stack tr{border-bottom:1px solid var(--cp-line2);padding:8px 0}
+  table.cp-stack tr:last-child{border-bottom:none}
+  table.cp-stack td{border:none;padding:4px 14px;display:flex;justify-content:space-between;gap:12px;text-align:right}
+  table.cp-stack td::before{content:attr(data-label);color:var(--cp-muted);font-size:13px;font-weight:600;text-align:left;white-space:nowrap}
+  table.cp-stack td:first-child{font-weight:700;text-align:left;display:block}
+  table.cp-stack td:first-child::before{display:none}
+  table.cp-stack tr.tot{border-top:1.5px solid var(--cp-lav-line)}
+}
+
+
+/* PDF export clone: desktop layout, brand row on */
+.cp-pdf-stage{position:fixed;left:-10000px;top:0;width:900px;background:var(--cp-bg);padding:20px}
+.cp-pdf-stage .cp-pdf-brand,.cp-pdf-stage .cp-legend{display:flex}
+.cp-pdf-stage .cp-graph{display:grid}
+.cp-pdf-stage .cp-v-table{display:block}
+.cp-pdf-stage .cp-seg{display:none}
+.cp-pdf-stage .cp-sec,.cp-pdf-stage .cp-kpis,.cp-pdf-stage .cp-box{box-shadow:none}
+
+
+:root{--m-bg:#F5F6FA;--m-ink:#14183A;--m-navy:#232A66;--m-muted:#6E76B5;--m-gray:#7C829C;--m-line:#E6E8F1;--m-amber:#F5A31A}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:#E9EBF3;color:var(--m-ink);font:15px/1.45 Roboto,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;text-align:inherit}
+h1,h2,h3,h4,p{margin:0}
+
+/* desktop: phone frame + notes */
+.stage{min-height:100%;display:flex;justify-content:center;align-items:center;gap:56px;padding:32px}
+.phone{position:relative;width:390px;height:844px;border-radius:46px;background:var(--m-bg);box-shadow:0 0 0 10px #14183A,0 30px 70px rgba(20,24,58,.28);overflow:hidden;flex:none}
+.notes{width:340px;display:grid;gap:14px;align-content:start}
+.notes h2{font-size:22px}
+.notes p{color:#4A5170;font-size:14.5px}
+.notes ol{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li button{width:100%;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;background:#fff;border:1px solid var(--m-line);border-radius:14px;padding:12px;font-size:14px;color:#3B4280}
+.notes li button b{display:block;color:var(--m-ink);font-size:15px}
+.notes li button span.n{width:30px;height:30px;border-radius:50%;background:var(--m-navy);color:#fff;display:grid;place-items:center;font-weight:700}
+.notes li button.on{border-color:var(--m-navy);box-shadow:0 0 0 2px rgba(35,42,102,.15)}
+@media (max-width:820px){
+  body{background:var(--m-bg)}
+  .stage{padding:0;display:block}
+  .phone{width:100%;height:100dvh;border-radius:0;box-shadow:none}
+  .notes{display:none}
+}
+
+/* app */
+.app{position:absolute;inset:0;display:flex;flex-direction:column}
+.scroll{flex:1;overflow-y:auto;padding:22px 18px 24px;-webkit-overflow-scrolling:touch}
+.scroll.has-dl{padding-bottom:96px}
+.eb{font-size:14px;color:var(--m-gray)}
+.ttl{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:2px}
+.ttl h1{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.av{width:46px;height:46px;border-radius:50%;background:var(--m-navy);color:#fff;font-weight:700;display:grid;place-items:center;flex:none}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:15px;font-weight:700;color:#3B4280;margin-bottom:4px}
+.tabs{display:flex;gap:6px;margin:18px 0 16px;background:#ECEEF6;border-radius:16px;padding:4px}
+.tabs button{flex:1;text-align:center;height:42px;border-radius:13px;font-size:16px;color:var(--m-muted);font-weight:700}
+.tabs button[aria-selected="true"]{background:#fff;color:var(--m-ink);box-shadow:0 2px 8px rgba(20,24,58,.08)}
+.pills{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
+.pills button{flex:none;height:40px;padding:0 16px;border-radius:999px;border:1px solid #D9DCEB;background:#fff;font-weight:600;font-size:14.5px;color:var(--m-navy)}
+.pills button.on{background:var(--m-navy);color:#fff;border-color:var(--m-navy)}
+.card{background:#fff;border:1px solid var(--m-line);border-radius:22px;padding:18px;margin-bottom:12px}
+.k{font-size:15px;color:#3B4280;font-weight:600}
+.big{font-size:30px;font-weight:800;margin:8px 0 6px}
+.big.neg{color:#E5484D}.big.pos{color:#1E9E57}
+.sub2{color:var(--m-muted);font-size:14px;margin:4px 0 12px}
+.rc{width:100%;display:grid;grid-template-columns:48px 1fr 18px;gap:14px;align-items:center;background:#fff;border:1px solid var(--m-line);border-radius:20px;padding:16px;margin-bottom:10px;transition:border-color .15s}
+.rc:active{border-color:var(--m-navy)}
+.rc .ic{width:48px;height:48px;border-radius:14px;background:#EEF0FA;color:var(--m-navy);display:grid;place-items:center}
+.rc .ic svg{width:24px;height:24px}
+.rc h4{font-size:17px}
+.rc p{margin-top:2px;font-size:13.5px;color:var(--m-muted);line-height:1.35}
+.rc .chev{color:#9AA0C8;font-size:24px;line-height:1}
+.intro{margin:0 0 12px;color:var(--m-muted);font-size:14.5px}
+.tip{background:#FFF8E6;border:1px solid #F6E3B0;border-radius:16px;padding:12px 14px;font-size:13.5px;color:#3A2A10;line-height:1.45;margin-top:4px}
+.chips{display:flex;gap:8px;overflow-x:auto;margin:14px -18px 14px 0;padding-right:18px;scrollbar-width:none}
+.chips::-webkit-scrollbar,.pills::-webkit-scrollbar{display:none}
+.chips button{flex:none;height:38px;padding:0 12px 0 14px;border-radius:12px;border:1px solid #D9DCEB;background:#fff;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--m-ink);max-width:220px}
+.chips button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips button::after{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--m-ink);border-bottom:2px solid var(--m-ink);transform:rotate(45deg) translateY(-2px)}
+.empty{background:#fff;border:1.5px dashed #D9DCEB;border-radius:20px;padding:28px 18px;text-align:center;color:var(--m-muted);display:grid;gap:12px;justify-items:center}
+.empty b{color:var(--m-ink)}
+.btn{height:50px;border-radius:14px;background:var(--m-navy);color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
+.btn svg{width:20px;height:20px}
+.btn.sm{height:44px;width:auto;padding:0 20px;font-size:15px}
+.btn[disabled]{opacity:.6}
+
+/* report content inside phone */
+.rep .cp-doc{gap:12px}
+.rep .cp-doc-foot{font-size:12px}
+
+/* sticky download */
+.dl{position:absolute;left:0;right:0;bottom:78px;padding:20px 18px 12px;background:linear-gradient(rgba(245,246,250,0),var(--m-bg) 35%);z-index:5}
+.dl .btn{box-shadow:0 8px 20px rgba(35,42,102,.3)}
+
+/* bottom nav */
+.bn{height:78px;flex:none;background:#fff;border-top:1px solid var(--m-line);display:grid;grid-template-columns:repeat(5,1fr);align-items:center;padding-bottom:env(safe-area-inset-bottom);z-index:6}
+.bn button{display:grid;justify-items:center;gap:3px;font-size:12.5px;color:var(--m-gray);text-align:center}
+.bn svg{width:24px;height:24px}
+.bn button.on{color:var(--m-navy);font-weight:700}
+
+/* bottom sheet */
+.dim{position:absolute;inset:0;background:rgba(20,24,58,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:28px 28px 0 0;padding:10px 20px calc(22px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s ease;z-index:11;max-height:88%;overflow-y:auto}
+.open .dim{opacity:1;pointer-events:auto}
+.open .sheet{transform:none}
+.grab{width:44px;height:5px;border-radius:3px;background:#D5D8E6;margin:0 auto 14px}
+.sheet-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sheet h3{font-size:20px}
+.sheet .x{width:34px;height:34px;border-radius:50%;background:#F1F2F8;display:grid;place-items:center;font-size:18px;color:#3B4280}
+.sheet .sub{font-size:13.5px;color:var(--m-muted);margin:2px 0 6px}
+.lab{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7A80C0;font-weight:700;margin:14px 0 6px}
+.opt{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--m-line);border-radius:14px;margin-bottom:6px;font-size:15px;text-align:left}
+.opt small{color:var(--m-muted);font-size:12.5px}
+.opt i{width:20px;height:20px;border-radius:50%;border:2px solid #C3C7DE;flex:none;box-sizing:border-box}
+.opt[aria-checked="true"]{border-color:var(--m-navy);background:#F5F6FC}
+.opt[aria-checked="true"] i{border:6px solid var(--m-navy)}
+.fy{display:flex;gap:8px}
+.fy button{flex:1;height:44px;border-radius:12px;border:1px solid #D9DCEB;display:grid;place-items:center;font-weight:700;font-size:14.5px;text-align:center}
+.fy button[aria-checked="true"]{background:var(--m-navy);color:#fff;border-color:var(--m-navy)}
+.sheet .btn{margin-top:18px}
+.toast{position:absolute;left:50%;bottom:170px;transform:translate(-50%,20px);background:#14183A;color:#fff;font-size:14px;padding:10px 16px;border-radius:12px;opacity:0;transition:.2s;z-index:20;white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+:focus-visible{outline:3px solid #A9B0EE;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone"><div class="app" id="app">
+    <div class="scroll" id="scroll"></div>
+    <div class="dl" id="dl" hidden><button class="btn" id="dl-btn" type="button"></button></div>
+    <nav class="bn" id="bn" aria-label="Main"></nav>
+    <div class="dim" id="dim"></div>
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"></section>
+    <div class="toast" id="toast" role="status"></div>
+  </div></div>
+  <aside class="notes">
+    <h2>Reports inside Insights</h2>
+    <p>Tap through the phone, or jump to a step. The bottom nav stays at 5 tabs.</p>
+    <ol id="steps"></ol>
+    <p style="font-size:13px">Desktop: the sidebar "Reports" button opens this same Reports list. Property and Entity detail pages can open a report with that item already selected.</p>
+  </aside>
+</div>
+<div class="cp-pdf-stage" id="cp-pdf-stage" aria-hidden="true"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+<script>
+const CP_DATA = {
+  client:{ name:"Sarah Johnson", email:"sarah.johnson@example.com", initials:"SJ", accountant:"Michael Chen", firm:"Sunrise Accounting Co." },
+  fys:[
+    { id:2026, label:"FY 2025–26", short:"FY 2025-26", start:"2025-07-01", end:"2026-06-30", reviewedOn:"14 Aug 2026" },
+    { id:2025, label:"FY 2024–25", short:"FY 2024-25", start:"2024-07-01", end:"2025-06-30", reviewedOn:"19 Aug 2025" }
+  ],
+  entities:[
+    { id:"e1", name:"Sarah Johnson", type:"Individual", gst:false },
+    { id:"e2", name:"Johnson Family Trust", type:"Trust", gst:false },
+    { id:"e3", name:"Johnson Holdings Pty Ltd", type:"Company", gst:true, gstBasis:"Cash", basPeriod:"Quarterly" }
+  ],
+  properties:[
+    { id:"p1", name:"24 Darling St", suburb:"Balmain NSW", use:"Residential", owners:{e1:100}, noSecondHand:true,
+      building:{ cost:194000, rate:2.5, constructed:"2004-06-01", ownedFrom:"2019-08-16" },
+      assets:[ {name:"Carpet (replaced)",cost:6200,life:8,from:"2022-09-12"},
+               {name:"Hot water system",cost:2400,life:12,from:"2023-05-03"},
+               {name:"Dishwasher",cost:1150,life:8,from:"2024-11-20"},
+               {name:"Ceiling fans (2)",cost:658,life:5,from:"2025-09-15"} ] },
+    { id:"p2", name:"12 Church Ave", suburb:"Parramatta NSW", use:"Residential", owners:{e2:100}, noSecondHand:false,
+      building:{ cost:139200, rate:2.5, constructed:"2021-03-22", ownedFrom:"2021-03-22" },
+      assets:[ {name:"Carpets",cost:8540,life:10,from:"2021-03-22"},
+               {name:"Blinds",cost:4100,life:10,from:"2021-03-22"},
+               {name:"Split-system air conditioner",cost:4900,life:10,from:"2021-03-22"},
+               {name:"Oven and cooktop",cost:3600,life:12,from:"2021-03-22"},
+               {name:"Hot water system",cost:3440,life:12,from:"2021-03-22"},
+               {name:"Dishwasher",cost:1750,life:8,from:"2021-03-22"},
+               {name:"Rangehood",cost:1100,life:12,from:"2021-03-22"} ] },
+    { id:"p3", name:"8 Harbour Rd", suburb:"Newcastle NSW", use:"Residential", owners:{e1:50,e2:50}, noSecondHand:true,
+      building:{ cost:310000, rate:2.5, constructed:"2015-07-01", ownedFrom:"2023-11-15" },
+      assets:[ {name:"Split-system air conditioner (new)",cost:2850,life:10,from:"2026-02-01"} ] },
+    { id:"p4", name:"Shop 3, 45 George St", suburb:"Parramatta NSW", use:"Commercial", owners:{e3:100}, noSecondHand:false,
+      building:{ cost:420000, rate:2.5, constructed:"2010-03-01", ownedFrom:"2022-07-01" },
+      assets:[ {name:"Ducted air conditioning",cost:9800,life:15,from:"2022-07-01"},
+               {name:"Shop lighting",cost:3200,life:10,from:"2022-07-01"},
+               {name:"Security system",cost:1800,life:7,from:"2025-03-10"} ] }
+  ],
+  categories:{
+    rent:{label:"Rent", type:"income"},
+    outgoings:{label:"Outgoings recovered from tenant", type:"income"},
+    interest:{label:"Loan interest", type:"expense", hint:"Interest on your property loans"},
+    agent:{label:"Property management fees", type:"expense", hint:"Paid to your property manager"},
+    repairs:{label:"Repairs and maintenance", type:"expense"},
+    rates:{label:"Council rates", type:"expense"},
+    water:{label:"Water", type:"expense"},
+    strata:{label:"Strata / body corporate", type:"expense"},
+    insurance:{label:"Insurance", type:"expense"},
+    landtax:{label:"Land tax", type:"expense"},
+    other:{label:"Other (gardening, pest control)", type:"expense"},
+    asset:{label:"New items bought for the property", type:"expense", hint:"Also claimed over time in your Depreciation report"},
+    principal:{label:"Loan principal repaid", type:"principal"}
+  },
+  tx: [[2026,"p1",0,"rent",4550,0],[2026,"p1",1,"rent",4550,0],[2026,"p1",2,"rent",4550,0],[2026,"p1",3,"rent",4550,0],[2026,"p1",4,"rent",4550,0],[2026,"p1",5,"rent",4550,0],[2026,"p1",6,"rent",4550,0],[2026,"p1",7,"rent",4550,0],[2026,"p1",8,"rent",4550,0],[2026,"p1",9,"rent",4550,0],[2026,"p1",10,"rent",4550,0],[2026,"p1",11,"rent",4550,0],[2026,"p1",0,"interest",3546,0],[2026,"p1",1,"interest",3546,0],[2026,"p1",2,"interest",3432,0],[2026,"p1",3,"interest",3546,0],[2026,"p1",4,"interest",3432,0],[2026,"p1",5,"interest",3546,0],[2026,"p1",6,"interest",3546,0],[2026,"p1",7,"interest",3203,0],[2026,"p1",8,"interest",3546,0],[2026,"p1",9,"interest",3432,0],[2026,"p1",10,"interest",3546,0],[2026,"p1",11,"interest",3429,0],[2026,"p1",0,"agent",301,27.36],[2026,"p1",1,"agent",301,27.36],[2026,"p1",2,"agent",301,27.36],[2026,"p1",3,"agent",301,27.36],[2026,"p1",4,"agent",300,27.27],[2026,"p1",5,"agent",300,27.27],[2026,"p1",6,"agent",300,27.27],[2026,"p1",7,"agent",300,27.27],[2026,"p1",8,"agent",300,27.27],[2026,"p1",9,"agent",300,27.27],[2026,"p1",10,"agent",300,27.27],[2026,"p1",11,"agent",300,27.27],[2026,"p1",1,"rates",545,0],[2026,"p1",4,"rates",545,0],[2026,"p1",7,"rates",545,0],[2026,"p1",10,"rates",545,0],[2026,"p1",2,"water",312,0],[2026,"p1",5,"water",312,0],[2026,"p1",8,"water",312,0],[2026,"p1",11,"water",312,0],[2026,"p1",3,"insurance",1860,169.09],[2026,"p1",8,"repairs",2300,209.09],[2026,"p1",8,"repairs",640,58.18],[2026,"p1",0,"other",310,28.18],[2026,"p2",0,"rent",3293,0],[2026,"p2",1,"rent",3293,0],[2026,"p2",2,"rent",3293,0],[2026,"p2",3,"rent",3293,0],[2026,"p2",4,"rent",3293,0],[2026,"p2",5,"rent",3293,0],[2026,"p2",6,"rent",1777,0],[2026,"p2",7,"rent",3293,0],[2026,"p2",8,"rent",3293,0],[2026,"p2",9,"rent",3293,0],[2026,"p2",10,"rent",3293,0],[2026,"p2",11,"rent",3293,0],[2026,"p2",0,"interest",2621,0],[2026,"p2",1,"interest",2621,0],[2026,"p2",2,"interest",2536,0],[2026,"p2",3,"interest",2621,0],[2026,"p2",4,"interest",2536,0],[2026,"p2",5,"interest",2621,0],[2026,"p2",6,"interest",2621,0],[2026,"p2",7,"interest",2367,0],[2026,"p2",8,"interest",2621,0],[2026,"p2",9,"interest",2536,0],[2026,"p2",10,"interest",2621,0],[2026,"p2",11,"interest",2538,0],[2026,"p2",0,"agent",209,19.0],[2026,"p2",1,"agent",209,19.0],[2026,"p2",2,"agent",209,19.0],[2026,"p2",3,"agent",209,19.0],[2026,"p2",4,"agent",209,19.0],[2026,"p2",5,"agent",209,19.0],[2026,"p2",6,"agent",209,19.0],[2026,"p2",7,"agent",209,19.0],[2026,"p2",8,"agent",209,19.0],[2026,"p2",9,"agent",209,19.0],[2026,"p2",10,"agent",209,19.0],[2026,"p2",11,"agent",209,19.0],[2026,"p2",1,"rates",380,0],[2026,"p2",4,"rates",380,0],[2026,"p2",7,"rates",380,0],[2026,"p2",10,"rates",380,0],[2026,"p2",2,"water",245,0],[2026,"p2",5,"water",245,0],[2026,"p2",8,"water",245,0],[2026,"p2",11,"water",245,0],[2026,"p2",0,"insurance",640,58.18],[2026,"p2",0,"strata",1090,99.09],[2026,"p2",3,"strata",1090,99.09],[2026,"p2",6,"strata",1090,99.09],[2026,"p2",9,"strata",1090,99.09],[2026,"p2",6,"landtax",1960,0],[2026,"p2",2,"repairs",1150,104.55],[2026,"p2",0,"principal",698,0],[2026,"p2",1,"principal",698,0],[2026,"p2",2,"principal",698,0],[2026,"p2",3,"principal",698,0],[2026,"p2",4,"principal",697,0],[2026,"p2",5,"principal",697,0],[2026,"p2",6,"principal",697,0],[2026,"p2",7,"principal",697,0],[2026,"p2",8,"principal",697,0],[2026,"p2",9,"principal",697,0],[2026,"p2",10,"principal",697,0],[2026,"p2",11,"principal",697,0],[2026,"p3",0,"rent",2947,0],[2026,"p3",1,"rent",2947,0],[2026,"p3",2,"rent",2947,0],[2026,"p3",3,"rent",2947,0],[2026,"p3",4,"rent",2947,0],[2026,"p3",5,"rent",2947,0],[2026,"p3",6,"rent",2947,0],[2026,"p3",7,"rent",2947,0],[2026,"p3",8,"rent",2946,0],[2026,"p3",9,"rent",2946,0],[2026,"p3",10,"rent",2946,0],[2026,"p3",11,"rent",2946,0],[2026,"p3",0,"interest",2756,0],[2026,"p3",1,"interest",2756,0],[2026,"p3",2,"interest",2667,0],[2026,"p3",3,"interest",2756,0],[2026,"p3",4,"interest",2667,0],[2026,"p3",5,"interest",2756,0],[2026,"p3",6,"interest",2756,0],[2026,"p3",7,"interest",2489,0],[2026,"p3",8,"interest",2756,0],[2026,"p3",9,"interest",2667,0],[2026,"p3",10,"interest",2756,0],[2026,"p3",11,"interest",2668,0],[2026,"p3",0,"agent",195,17.73],[2026,"p3",1,"agent",195,17.73],[2026,"p3",2,"agent",195,17.73],[2026,"p3",3,"agent",195,17.73],[2026,"p3",4,"agent",195,17.73],[2026,"p3",5,"agent",195,17.73],[2026,"p3",6,"agent",194,17.64],[2026,"p3",7,"agent",194,17.64],[2026,"p3",8,"agent",194,17.64],[2026,"p3",9,"agent",194,17.64],[2026,"p3",10,"agent",194,17.64],[2026,"p3",11,"agent",194,17.64],[2026,"p3",1,"rates",472,0],[2026,"p3",4,"rates",472,0],[2026,"p3",7,"rates",472,0],[2026,"p3",10,"rates",474,0],[2026,"p3",2,"water",255,0],[2026,"p3",5,"water",255,0],[2026,"p3",8,"water",255,0],[2026,"p3",11,"water",255,0],[2026,"p3",4,"insurance",1540,140.0],[2026,"p3",4,"repairs",1920,174.55],[2026,"p3",7,"other",420,38.18],[2026,"p3",7,"asset",2850,259.09],[2025,"p1",0,"rent",4400,0],[2025,"p1",1,"rent",4400,0],[2025,"p1",2,"rent",4400,0],[2025,"p1",3,"rent",4400,0],[2025,"p1",4,"rent",4400,0],[2025,"p1",5,"rent",4400,0],[2025,"p1",6,"rent",4400,0],[2025,"p1",7,"rent",4400,0],[2025,"p1",8,"rent",4400,0],[2025,"p1",9,"rent",4400,0],[2025,"p1",10,"rent",4400,0],[2025,"p1",11,"rent",4400,0],[2025,"p1",0,"interest",3752,0],[2025,"p1",1,"interest",3752,0],[2025,"p1",2,"interest",3631,0],[2025,"p1",3,"interest",3752,0],[2025,"p1",4,"interest",3631,0],[2025,"p1",5,"interest",3752,0],[2025,"p1",6,"interest",3752,0],[2025,"p1",7,"interest",3389,0],[2025,"p1",8,"interest",3752,0],[2025,"p1",9,"interest",3631,0],[2025,"p1",10,"interest",3752,0],[2025,"p1",11,"interest",3634,0],[2025,"p1",0,"agent",291,26.45],[2025,"p1",1,"agent",291,26.45],[2025,"p1",2,"agent",291,26.45],[2025,"p1",3,"agent",291,26.45],[2025,"p1",4,"agent",290,26.36],[2025,"p1",5,"agent",290,26.36],[2025,"p1",6,"agent",290,26.36],[2025,"p1",7,"agent",290,26.36],[2025,"p1",8,"agent",290,26.36],[2025,"p1",9,"agent",290,26.36],[2025,"p1",10,"agent",290,26.36],[2025,"p1",11,"agent",290,26.36],[2025,"p1",1,"rates",524,0],[2025,"p1",4,"rates",524,0],[2025,"p1",7,"rates",524,0],[2025,"p1",10,"rates",524,0],[2025,"p1",2,"water",299,0],[2025,"p1",5,"water",299,0],[2025,"p1",8,"water",299,0],[2025,"p1",11,"water",299,0],[2025,"p1",3,"insurance",1790,162.73],[2025,"p1",5,"repairs",1380,125.45],[2025,"p1",0,"other",295,26.82],[2025,"p2",0,"rent",3180,0],[2025,"p2",1,"rent",3180,0],[2025,"p2",2,"rent",3180,0],[2025,"p2",3,"rent",3180,0],[2025,"p2",4,"rent",3180,0],[2025,"p2",5,"rent",3180,0],[2025,"p2",6,"rent",3180,0],[2025,"p2",7,"rent",3180,0],[2025,"p2",8,"rent",3180,0],[2025,"p2",9,"rent",3180,0],[2025,"p2",10,"rent",3180,0],[2025,"p2",11,"rent",3180,0],[2025,"p2",0,"interest",2842,0],[2025,"p2",1,"interest",2842,0],[2025,"p2",2,"interest",2750,0],[2025,"p2",3,"interest",2842,0],[2025,"p2",4,"interest",2750,0],[2025,"p2",5,"interest",2842,0],[2025,"p2",6,"interest",2842,0],[2025,"p2",7,"interest",2567,0],[2025,"p2",8,"interest",2842,0],[2025,"p2",9,"interest",2750,0],[2025,"p2",10,"interest",2842,0],[2025,"p2",11,"interest",2749,0],[2025,"p2",0,"agent",202,18.36],[2025,"p2",1,"agent",202,18.36],[2025,"p2",2,"agent",202,18.36],[2025,"p2",3,"agent",202,18.36],[2025,"p2",4,"agent",202,18.36],[2025,"p2",5,"agent",202,18.36],[2025,"p2",6,"agent",202,18.36],[2025,"p2",7,"agent",202,18.36],[2025,"p2",8,"agent",202,18.36],[2025,"p2",9,"agent",202,18.36],[2025,"p2",10,"agent",201,18.27],[2025,"p2",11,"agent",201,18.27],[2025,"p2",1,"rates",365,0],[2025,"p2",4,"rates",365,0],[2025,"p2",7,"rates",365,0],[2025,"p2",10,"rates",367,0],[2025,"p2",2,"water",235,0],[2025,"p2",5,"water",235,0],[2025,"p2",8,"water",235,0],[2025,"p2",11,"water",235,0],[2025,"p2",0,"insurance",615,55.91],[2025,"p2",0,"strata",1045,95.0],[2025,"p2",3,"strata",1045,95.0],[2025,"p2",6,"strata",1045,95.0],[2025,"p2",9,"strata",1045,95.0],[2025,"p2",6,"landtax",1880,0],[2025,"p2",9,"repairs",760,69.09],[2025,"p2",2,"repairs",420,38.18],[2025,"p2",0,"principal",641,0],[2025,"p2",1,"principal",641,0],[2025,"p2",2,"principal",641,0],[2025,"p2",3,"principal",641,0],[2025,"p2",4,"principal",641,0],[2025,"p2",5,"principal",641,0],[2025,"p2",6,"principal",641,0],[2025,"p2",7,"principal",641,0],[2025,"p2",8,"principal",641,0],[2025,"p2",9,"principal",641,0],[2025,"p2",10,"principal",640,0],[2025,"p2",11,"principal",640,0],[2025,"p3",0,"rent",2850,0],[2025,"p3",1,"rent",2850,0],[2025,"p3",2,"rent",2850,0],[2025,"p3",3,"rent",2850,0],[2025,"p3",4,"rent",2850,0],[2025,"p3",5,"rent",2850,0],[2025,"p3",6,"rent",2850,0],[2025,"p3",7,"rent",2850,0],[2025,"p3",8,"rent",2850,0],[2025,"p3",9,"rent",2850,0],[2025,"p3",10,"rent",2850,0],[2025,"p3",11,"rent",2850,0],[2025,"p3",0,"interest",2921,0],[2025,"p3",1,"interest",2921,0],[2025,"p3",2,"interest",2827,0],[2025,"p3",3,"interest",2921,0],[2025,"p3",4,"interest",2827,0],[2025,"p3",5,"interest",2921,0],[2025,"p3",6,"interest",2921,0],[2025,"p3",7,"interest",2638,0],[2025,"p3",8,"interest",2921,0],[2025,"p3",9,"interest",2827,0],[2025,"p3",10,"interest",2921,0],[2025,"p3",11,"interest",2824,0],[2025,"p3",0,"agent",188,17.09],[2025,"p3",1,"agent",188,17.09],[2025,"p3",2,"agent",188,17.09],[2025,"p3",3,"agent",188,17.09],[2025,"p3",4,"agent",188,17.09],[2025,"p3",5,"agent",188,17.09],[2025,"p3",6,"agent",188,17.09],[2025,"p3",7,"agent",188,17.09],[2025,"p3",8,"agent",188,17.09],[2025,"p3",9,"agent",188,17.09],[2025,"p3",10,"agent",188,17.09],[2025,"p3",11,"agent",188,17.09],[2025,"p3",1,"rates",454,0],[2025,"p3",4,"rates",454,0],[2025,"p3",7,"rates",454,0],[2025,"p3",10,"rates",454,0],[2025,"p3",2,"water",245,0],[2025,"p3",5,"water",245,0],[2025,"p3",8,"water",245,0],[2025,"p3",11,"water",245,0],[2025,"p3",4,"insurance",1480,134.55],[2025,"p3",8,"repairs",690,62.73],[2025,"p3",7,"other",400,36.36],[2026,"p4",0,"rent",5500,500.0],[2026,"p4",0,"outgoings",330,30.0],[2026,"p4",0,"agent",385,35],[2026,"p4",1,"rent",5500,500.0],[2026,"p4",1,"outgoings",330,30.0],[2026,"p4",1,"agent",385,35],[2026,"p4",2,"rent",5500,500.0],[2026,"p4",2,"outgoings",330,30.0],[2026,"p4",2,"agent",385,35],[2026,"p4",3,"rent",5500,500.0],[2026,"p4",3,"outgoings",330,30.0],[2026,"p4",3,"agent",385,35],[2026,"p4",4,"rent",5500,500.0],[2026,"p4",4,"outgoings",330,30.0],[2026,"p4",4,"agent",385,35],[2026,"p4",5,"rent",5500,500.0],[2026,"p4",5,"outgoings",330,30.0],[2026,"p4",5,"agent",385,35],[2026,"p4",6,"rent",5500,500.0],[2026,"p4",6,"outgoings",330,30.0],[2026,"p4",6,"agent",385,35],[2026,"p4",7,"rent",5500,500.0],[2026,"p4",7,"outgoings",330,30.0],[2026,"p4",7,"agent",385,35],[2026,"p4",8,"rent",5500,500.0],[2026,"p4",8,"outgoings",330,30.0],[2026,"p4",8,"agent",385,35],[2026,"p4",9,"rent",5500,500.0],[2026,"p4",9,"outgoings",330,30.0],[2026,"p4",9,"agent",385,35],[2026,"p4",10,"rent",5500,500.0],[2026,"p4",10,"outgoings",330,30.0],[2026,"p4",10,"agent",385,35],[2026,"p4",11,"rent",5500,500.0],[2026,"p4",11,"outgoings",330,30.0],[2026,"p4",11,"agent",385,35],[2026,"p4",0,"strata",1650,150],[2026,"p4",3,"strata",1650,150],[2026,"p4",6,"strata",1650,150],[2026,"p4",9,"strata",1650,150],[2026,"p4",4,"insurance",3300,300],[2026,"p4",1,"repairs",440,40.0],[2026,"p4",7,"repairs",1980,180.0],[2026,"p4",10,"repairs",286,26.0],[2026,"p4",1,"rates",1100,0],[2026,"p4",4,"rates",1100,0],[2026,"p4",7,"rates",1100,0],[2026,"p4",10,"rates",1100,0],[2026,"p4",6,"landtax",2400,0],[2026,"p4",0,"interest",3210,0],[2026,"p4",1,"interest",3210,0],[2026,"p4",2,"interest",3107,0],[2026,"p4",3,"interest",3210,0],[2026,"p4",4,"interest",3107,0],[2026,"p4",5,"interest",3210,0],[2026,"p4",6,"interest",3210,0],[2026,"p4",7,"interest",2900,0],[2026,"p4",8,"interest",3210,0],[2026,"p4",9,"interest",3107,0],[2026,"p4",10,"interest",3210,0],[2026,"p4",11,"interest",3109,0],[2025,"p4",0,"rent",5335,485.0],[2025,"p4",0,"outgoings",330,30.0],[2025,"p4",0,"agent",385,35],[2025,"p4",1,"rent",5335,485.0],[2025,"p4",1,"outgoings",330,30.0],[2025,"p4",1,"agent",385,35],[2025,"p4",2,"rent",5335,485.0],[2025,"p4",2,"outgoings",330,30.0],[2025,"p4",2,"agent",385,35],[2025,"p4",3,"rent",5335,485.0],[2025,"p4",3,"outgoings",330,30.0],[2025,"p4",3,"agent",385,35],[2025,"p4",4,"rent",5335,485.0],[2025,"p4",4,"outgoings",330,30.0],[2025,"p4",4,"agent",385,35],[2025,"p4",5,"rent",5335,485.0],[2025,"p4",5,"outgoings",330,30.0],[2025,"p4",5,"agent",385,35],[2025,"p4",6,"rent",5335,485.0],[2025,"p4",6,"outgoings",330,30.0],[2025,"p4",6,"agent",385,35],[2025,"p4",7,"rent",5335,485.0],[2025,"p4",7,"outgoings",330,30.0],[2025,"p4",7,"agent",385,35],[2025,"p4",8,"rent",5335,485.0],[2025,"p4",8,"outgoings",330,30.0],[2025,"p4",8,"agent",385,35],[2025,"p4",9,"rent",5335,485.0],[2025,"p4",9,"outgoings",330,30.0],[2025,"p4",9,"agent",385,35],[2025,"p4",10,"rent",5335,485.0],[2025,"p4",10,"outgoings",330,30.0],[2025,"p4",10,"agent",385,35],[2025,"p4",11,"rent",5335,485.0],[2025,"p4",11,"outgoings",330,30.0],[2025,"p4",11,"agent",385,35],[2025,"p4",0,"strata",1650,150],[2025,"p4",3,"strata",1650,150],[2025,"p4",6,"strata",1650,150],[2025,"p4",9,"strata",1650,150],[2025,"p4",4,"insurance",3300,300],[2025,"p4",3,"repairs",620,56.36],[2025,"p4",9,"repairs",330,30.0],[2025,"p4",1,"rates",1100,0],[2025,"p4",4,"rates",1100,0],[2025,"p4",7,"rates",1100,0],[2025,"p4",10,"rates",1100,0],[2025,"p4",6,"landtax",2310,0],[2025,"p4",0,"interest",3418,0],[2025,"p4",1,"interest",3418,0],[2025,"p4",2,"interest",3308,0],[2025,"p4",3,"interest",3418,0],[2025,"p4",4,"interest",3308,0],[2025,"p4",5,"interest",3418,0],[2025,"p4",6,"interest",3418,0],[2025,"p4",7,"interest",3088,0],[2025,"p4",8,"interest",3418,0],[2025,"p4",9,"interest",3308,0],[2025,"p4",10,"interest",3418,0],[2025,"p4",11,"interest",3312,0]],
+  pending: {"2026":{"p1":[2,186]},"2025":{}},
+  bas:{ 2026:{ e3:["Lodged & paid","Lodged & paid","Lodged & paid","Lodged & paid"] },
+        2025:{ e3:["Lodged & paid","Lodged & paid","Lodged & paid","Lodged & paid"] } }
+};
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const MONTHS = ["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = (n, opts={}) => {
+  const r = Math.round(n);
+  const s = Math.abs(r).toLocaleString("en-AU");
+  return "A$ " + (r < 0 ? "−" : opts.sign && r > 0 ? "+" : "") + s;
+};
+/* Portal-style compact amounts for KPI cards: A$ 121.2K, A$ 1.3M */
+const compact = n => {
+  const a = Math.abs(n), sg = n < 0 ? "−" : "";
+  const f = (v, u) => (Math.round(v*10)/10).toLocaleString("en-AU",{maximumFractionDigits:1}) + u;
+  return "A$ " + sg + (a >= 1e6 ? f(a/1e6,"M") : a >= 1e3 ? f(a/1e3,"K") : Math.round(a).toLocaleString("en-AU"));
+};
+const cents = n => "A$ " + (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (a,b) => b ? (a/b*100) : 0;
+const fyOf = id => CP_DATA.fys.find(f => f.id === id);
+const ent = id => CP_DATA.entities.find(e => e.id === id);
+const prop = id => CP_DATA.properties.find(p => p.id === id);
+const d = s => new Date(s + "T00:00:00");
+const dateLabel = s => d(s).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+const tone = n => n < 0 ? "cp-neg" : n > 0 ? "cp-pos" : "";
+
+/* Scope → list of [property, share 0..1, entityId-or-null] */
+function scopeRows(scope){
+  return CP_DATA.properties.flatMap(p => {
+    if (scope.propertyId && p.id !== scope.propertyId) return [];
+    if (scope.entityId){
+      const s = p.owners[scope.entityId];
+      return s ? [{p, share:s/100}] : [];
+    }
+    return [{p, share:1}];
+  });
+}
+function scopeText(scope){
+  const e = scope.entityId ? ent(scope.entityId).name : "All entities";
+  if (!scope.propertyId){
+    const n = scopeRows(scope).length;
+    return { who:e, what:`All properties (${n})` };
+  }
+  const p = prop(scope.propertyId), sh = scope.entityId ? p.owners[scope.entityId] : 100;
+  return { who:e, what:`${p.name}, ${p.suburb}` + (sh < 100 ? ` · ${sh}% share` : "") };
+}
+const gstEntityOf = p => Object.keys(p.owners).some(id => ent(id).gst);
+/* Ledger amount used for P&L: GST-registered owners report GST-exclusive amounts */
+const plAmount = (t, p) => gstEntityOf(p) ? t[4] - t[5] : t[4];
+
+/* =====================================================================
+   DEPRECIATION ENGINE (diminishing value for Div 40, 2.5% prime cost for Div 43)
+   ===================================================================== */
+function fyBounds(y){ return [new Date(y-1,6,1), new Date(y,5,30)]; }
+const dayDiff = (a,b) => Math.round((b - a)/86400000) + 1;
+function assetFY(a, fy){
+  const start = d(a.from), rate = 2 / a.life;
+  let y = start.getMonth() >= 6 ? start.getFullYear() + 1 : start.getFullYear();
+  if (fy < y) return null;
+  let base = a.cost;
+  for (;;){
+    const [fs, fe] = fyBounds(y);
+    const s = start > fs ? start : fs;
+    const amt = Math.round(base * rate * dayDiff(s, fe) / dayDiff(fs, fe));
+    if (y === fy) return { open:Math.round(base), amt, close:Math.round(base - amt) };
+    base -= amt; y++;
+  }
+}
+function buildingFY(b, fy){
+  const own = d(b.ownedFrom), annual = b.cost * b.rate / 100;
+  const [fs, fe] = fyBounds(fy);
+  if (own > fe) return null;
+  const s = own > fs ? own : fs;
+  const amt = Math.round(annual * dayDiff(s, fe) / dayDiff(fs, fe));
+  // claimed by you before this FY
+  let before = 0, y = own.getMonth() >= 6 ? own.getFullYear() + 1 : own.getFullYear();
+  for (; y < fy; y++){
+    const [a, e] = fyBounds(y); const st = own > a ? own : a;
+    before += Math.round(annual * dayDiff(st, e) / dayDiff(a, e));
+  }
+  const yearsUsed = (fe - d(b.constructed)) / (365.25*86400000);
+  const left = Math.max(0, Math.round(b.cost - annual * yearsUsed));
+  const endYear = d(b.constructed).getFullYear() + Math.round(100 / b.rate);
+  return { annual:Math.round(annual), amt, before, left, endYear };
+}
+
+/* =====================================================================
+   REPORT BUILDERS — each returns an HTML string for the document
+   ===================================================================== */
+function pendingInfo(scope){
+  const p = CP_DATA.pending[scope.fy] || {}; let n = 0, a = 0;
+  scopeRows(scope).forEach(({p:pp}) => { if (p[pp.id]) { n += p[pp.id][0]; a += p[pp.id][1]; } });
+  return {n, a};
+}
+function docShell(key, scope, body){
+  const r = REPORTS[key], f = fyOf(scope.fy), st = scopeText(scope), pend = pendingInfo(scope);
+  const today = new Date().toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+  const range = `${f.label} · ${d(f.start).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})} – ${d(f.end).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}`;
+  return `
+  <article class="cp-doc" data-report="${key}">
+    <div class="cp-pdf-brand"><i aria-hidden="true"></i>ClearPortfolio · ${r.title}</div>
+    <header class="cp-box cp-rhead">
+      <div>
+        <div class="cp-eyebrow">${r.title}</div>
+        <h2>${scope.entityId ? esc(st.who) + " · " + ent(scope.entityId).type : esc(CP_DATA.client.name) + " · All entities"}</h2>
+        <div class="sub">${esc(st.what)}</div>
+      </div>
+      <div class="cp-pills">
+        <span class="cp-pill">${range}</span>
+        <span class="cp-pill cp-pill--green">Reviewed ${esc(f.reviewedOn)}</span>
+        ${pend.n ? `<span class="cp-pill cp-pill--amber" title="${money(pend.a)} not included yet">${pend.n} to be reviewed (excluded)</span>` : ""}
+      </div>
+    </header>
+    ${body}
+    <footer class="cp-doc-foot">
+      <span>Prepared from records reviewed by ${esc(CP_DATA.client.accountant)}, ${esc(CP_DATA.client.firm)}. A summary for your information, not tax advice or a tax return.</span>
+      <span>Generated ${today}</span>
+    </footer>
+  </article>`;
+}
+const explain = html => `<div class="cp-explain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>${html}</div></div>`;
+const kpi = (l, v, s, cls="") => `<div class="cp-kpi"><span class="l">${l}</span><span class="v ${cls}">${v}</span>${s?`<span class="s">${s}</span>`:""}</div>`;
+const bars = (rows, total, cls="") => {
+  const max = Math.max(...rows.map(r => r.v), 1);
+  return `<div class="cp-bars">${rows.map(r => `<div class="cp-bar"><span>${esc(r.l)}</span><div class="t"><i class="${cls}" style="width:${(r.v/max*100).toFixed(1)}%"></i></div><span class="v cp-num">${money(r.v)}</span><span class="p">${pct(r.v,total).toFixed(1)}%</span></div>`).join("")}</div>`;
+};
+const table = (head, rows, opts={}) => {
+  const cls = `cp-t${opts.stack!==false?" cp-stack":""}${opts.mini?" cp-t--mini":""}`;
+  const th = head.map(h => `<th${h.n?' class="n"':""} scope="col">${h.l}</th>`).join("");
+  const tr = rows.map(r => `<tr${r.tot?' class="tot"':""}>${r.c.map((c,i) => `<td${head[i].n?' class="n"':""} data-label="${esc(head[i].l.replace(/<[^>]+>/g," "))}">${c}</td>`).join("")}</tr>`).join("");
+  return `<div class="cp-tw${opts.scroll?" cp-scroll":""}"><table class="${cls}"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
+};
+const pendingFor = () => "";
+
+/* ---------- P&L ---------- */
+function plData(scope){
+  const rows = scopeRows(scope);
+  const out = { inc:Array(12).fill(0), exp:Array(12).fill(0), cats:{}, byProp:{}, byOwner:{}, principal:0 };
+  rows.forEach(({p, share}) => {
+    out.byProp[p.id] = { inc:0, exp:0, share };
+    CP_DATA.tx.forEach(t => {
+      if (t[0] !== scope.fy || t[1] !== p.id) return;
+      const c = CP_DATA.categories[t[3]], a = plAmount(t, p) * share;
+      if (c.type === "principal"){ out.principal += a; return; }
+      const k = c.type === "income" ? "inc" : "exp";
+      out[k][t[2]] += a; out.cats[t[3]] = (out.cats[t[3]] || 0) + a; out.byProp[p.id][k] += a;
+      if (!scope.entityId){
+        Object.entries(p.owners).forEach(([eid, s]) => {
+          out.byOwner[eid] = out.byOwner[eid] || { inc:0, exp:0 };
+          out.byOwner[eid][k] += a * s / 100;
+        });
+      }
+    });
+  });
+  out.income = out.inc.reduce((a,b)=>a+b,0); out.expenses = out.exp.reduce((a,b)=>a+b,0);
+  out.net = out.income - out.expenses; out.count = rows.length;
+  return out;
+}
+function buildPL(scope){
+  const D = plData(scope), prevFy = fyOf(scope.fy - 1) ? plData({...scope, fy:scope.fy-1}) : null;
+  if (!D.count) return null;
+  const delta = (cur, prev) => prev == null ? "" : `${cur >= prev ? "Up" : "Down"} ${money(Math.abs(cur-prev))} on ${fyOf(scope.fy-1).label}`;
+  const st = scopeText(scope);
+  const gstNote = scopeRows(scope).some(r => gstEntityOf(r.p)) ? `<p class="cp-note">Amounts for GST-registered owners are shown without GST. GST is covered in your GST report.</p>` : "";
+  const raw = Math.max(...D.inc, ...D.exp, 1), step = Math.pow(10, Math.floor(Math.log10(raw)));
+  const max = Math.ceil(raw / step) * step, ticks = [0, max/2, max];
+  const plot = `
+    <div class="cp-graph cp-v-graph" role="img" aria-label="Monthly income and expenses chart">
+      <div class="cp-yax">${ticks.map(t => `<span style="bottom:${t/max*100}%">${t >= 1000 ? (t/1000).toLocaleString("en-AU",{maximumFractionDigits:1}) + "K" : t}</span>`).join("")}</div>
+      <div class="cp-plot">${ticks.slice(1).map(t => `<span class="g" style="bottom:${t/max*100}%"></span>`).join("")}${MONTHS.map((m,i) => `<div class="m" title="${m}: income ${money(D.inc[i])}, expenses ${money(D.exp[i])}"><i class="in" style="height:${(D.inc[i]/max*100).toFixed(1)}%"></i><i class="ex" style="height:${(D.exp[i]/max*100).toFixed(1)}%"></i></div>`).join("")}</div>
+      <div class="cp-xax">${MONTHS.map(m => `<span>${m}</span>`).join("")}</div>
+    </div>`;
+  const monthTable = table(
+    [{l:"Month"},{l:"Income",n:1},{l:"Expenses",n:1},{l:"Net",n:1}],
+    [...MONTHS.map((m,i) => ({c:[m, money(D.inc[i]), money(D.exp[i]), `<span class="${tone(D.inc[i]-D.exp[i])}">${money(D.inc[i]-D.exp[i],{sign:1})}</span>`]})),
+     {tot:1, c:["Year", money(D.income), money(D.expenses), `<span class="${tone(D.net)}">${money(D.net,{sign:1})}</span>`]}],
+    {mini:1, stack:false}).replace('class="cp-tw','class="cp-v-table cp-tw');
+  const incRows = Object.entries(D.cats).filter(([k]) => CP_DATA.categories[k].type==="income").map(([k,v]) => ({l:CP_DATA.categories[k].label, v})).sort((a,b)=>b.v-a.v);
+  const expRows = Object.entries(D.cats).filter(([k]) => CP_DATA.categories[k].type==="expense").map(([k,v]) => ({l:CP_DATA.categories[k].label, v})).sort((a,b)=>b.v-a.v);
+  const top = expRows[0];
+  const verdict = D.net < 0
+    ? `Your ${D.count>1?"properties":"property"} cost <b>${money(-D.net)}</b> more to hold than ${D.count>1?"they":"it"} earned this year. That's about <b>${money(-D.net/12)} a month</b> from your own pocket.`
+    : `Your ${D.count>1?"properties":"property"} earned <b>${money(D.net)}</b> more than ${D.count>1?"they":"it"} cost this year, about <b>${money(D.net/12)} a month</b>.`;
+  const why = top ? ` The biggest cost was ${top.l.toLowerCase()} (${pct(top.v, D.expenses).toFixed(0)}% of everything you spent).` : "";
+  let body = `
+    <section class="cp-sec cp-sec--bare">
+      <div class="cp-kpis">
+        ${kpi("Income (FY)", compact(D.income), delta(D.income, prevFy && prevFy.income), "cp-pos")}
+        ${kpi("Expenses (FY)", compact(D.expenses), delta(D.expenses, prevFy && prevFy.expenses), "cp-neg")}
+        ${kpi(D.net < 0 ? "Net loss (FY)" : "Net profit (FY)", compact(D.net), "Income − Expenses, before depreciation", tone(D.net))}
+        ${kpi("Principal repaid (FY)", compact(D.principal), "Not a cost: it lowers what you owe")}
+      </div>
+      ${explain(`<b>In short:</b> ${verdict}${why}`)}
+      ${pendingFor(scope)}
+    </section>
+    <section class="cp-sec" data-view="graph">
+      <div class="cp-sec-h"><h3>Cash Flow · Income vs Expenses</h3>
+        <div class="r"><span>Monthly, ${fyOf(scope.fy).label}</span>
+          <div class="cp-seg" role="group" aria-label="View as"><button type="button" aria-pressed="true" data-seg="graph">Graph</button><button type="button" aria-pressed="false" data-seg="table">Table</button></div></div></div>
+      <div class="cp-legend cp-v-graph"><span><b style="background:var(--cp-inc)"></b>Income</span><span><b style="background:var(--cp-exp)"></b>Expenses</span></div>
+      ${plot}
+      ${monthTable}
+      <p class="cp-note">Excludes depreciation, which is claimed for the year rather than by month. See your Depreciation report.</p>
+    </section>
+    <section class="cp-sec">
+      <div class="cp-sec-h"><h3>Income by category</h3><span>${money(D.income)}</span></div>
+      ${bars(incRows, D.income)}
+    </section>
+    <section class="cp-sec">
+      <div class="cp-sec-h"><h3>Expenses by category</h3><span>${money(D.expenses)}</span></div>
+      ${bars(expRows, D.expenses, "ex")}
+    </section>`;
+  if (!scope.propertyId && D.count > 1){
+    body += `<section class="cp-sec"><div class="cp-sec-h"><h3>By property</h3><span>${scope.entityId ? "Your share of each property" : "Whole property (100%)"}</span></div>${
+      table([{l:"Property"},{l:"Income",n:1},{l:"Expenses",n:1},{l:"Net",n:1}],
+        [...Object.entries(D.byProp).map(([id,v]) => { const p = prop(id); return {c:[`${esc(p.name)}<small>${esc(p.suburb)}${v.share<1?` · ${v.share*100}% share`:""}</small>`, money(v.inc), money(v.exp), `<span class="${tone(v.inc-v.exp)}">${money(v.inc-v.exp,{sign:1})}</span>`]}; }),
+         {tot:1, c:["Total", money(D.income), money(D.expenses), `<span class="${tone(D.net)}">${money(D.net,{sign:1})}</span>`]}])}</section>`;
+  }
+  if (!scope.entityId && Object.keys(D.byOwner).length > 1){
+    body += `<section class="cp-sec"><div class="cp-sec-h"><h3>By owner</h3><span>Each owner's share, based on ownership %</span></div>${
+      table([{l:"Owner"},{l:"Income",n:1},{l:"Expenses",n:1},{l:"Net",n:1}],
+        Object.entries(D.byOwner).map(([eid,v]) => ({c:[`${esc(ent(eid).name)}<small>${ent(eid).type}</small>`, money(v.inc), money(v.exp), `<span class="${tone(v.inc-v.exp)}">${money(v.inc-v.exp,{sign:1})}</span>`]})))}</section>`;
+  }
+  body += `<section class="cp-sec cp-sec--bare"><p class="cp-note">This report shows money that came in and went out. It doesn't include depreciation, which is a tax deduction rather than a payment (see your Depreciation report), and it doesn't include loan principal, which reduces your loan instead of being a cost.</p>${gstNote}</section>`;
+  return docShell("pl", scope, body);
+}
+
+/* ---------- Depreciation ---------- */
+function deprProp(p, fy){
+  const b = buildingFY(p.building, fy);
+  const assets = p.assets.map(a => ({a, r:assetFY(a, fy)})).filter(x => x.r);
+  return { b, assets, div40:assets.reduce((s,x)=>s+x.r.amt,0), div43:b ? b.amt : 0 };
+}
+function buildDepr(scope){
+  const rows = scopeRows(scope); if (!rows.length) return null;
+  const list = rows.map(({p,share}) => ({p, share, ...deprProp(p, scope.fy)}));
+  const t43 = list.reduce((s,x)=>s+x.div43*x.share,0), t40 = list.reduce((s,x)=>s+x.div40*x.share,0);
+  const shareTxt = x => x.share < 1 ? ` · your share ${x.share*100}%` : "";
+  const future = [1,2,3,4,5].map(k => ({fy:scope.fy+k, v:rows.reduce((s,{p,share}) => { const r = deprProp(p, scope.fy+k); return s + (r.div43 + r.div40) * share; }, 0)}));
+  const fyLabel = y => `FY ${y-1}–${String(y).slice(2)}`;
+  let body = `
+    <section class="cp-sec cp-sec--bare">
+      <div class="cp-kpis">
+        ${kpi("Total depreciation (FY)", compact(t43+t40), "Deduction for this year")}
+        ${kpi("Building", compact(t43), "Capital works (Div 43)")}
+        ${kpi("Fixtures and fittings", compact(t40), "Plant and equipment (Div 40)")}
+        ${kpi("Properties", String(rows.length), scope.entityId ? "Your share applied" : "Whole property values")}
+      </div>
+      ${explain(`<b>What is depreciation?</b> Buildings and the items inside them wear out over time. The tax rules let you claim that wear as a deduction each year, even though no money leaves your account. This year that's <b>${money(t43+t40)}</b> you can claim against your rent.`)}
+    </section>`;
+  list.forEach(x => {
+    const share = x.share, sh = v => money(v*share);
+    body += `<section class="cp-sec">
+      <div class="cp-prop-h"><h4>${esc(x.p.name)}, ${esc(x.p.suburb)}</h4><span>${x.p.use}${shareTxt(x)}</span></div>
+      <div class="cp-mini-kpis">
+        <div><span>Building</span><b>${sh(x.div43)}</b></div>
+        <div><span>Fixtures and fittings</span><b>${sh(x.div40)}</b></div>
+        <div><span>This year in total</span><b>${sh(x.div43+x.div40)}</b></div>
+        <div><span>Building left to claim</span><b>${x.b ? "≈ " + sh(x.b.left) : "—"}</b></div>
+      </div>
+      ${x.b ? `<p class="cp-note">Building: ${money(x.p.building.cost)} construction cost, claimed at ${x.p.building.rate}% a year until about ${x.b.endYear}. You've claimed ${sh(x.b.before)} in earlier years${share<1?" (your share)":""}.</p>` : ""}
+      ${x.assets.length ? table(
+        [{l:"Item"},{l:"Bought"},{l:"Cost",n:1},{l:"Life"},{l:"Value at 1 Jul",n:1},{l:"Claim this year",n:1},{l:"Value at 30 Jun",n:1}],
+        [...x.assets.map(({a,r}) => ({c:[esc(a.name), d(a.from).toLocaleDateString("en-AU",{month:"short",year:"numeric"}), money(a.cost*share), `${a.life} yrs`, money((r.open)*share), money(r.amt*share), money(r.close*share)]})),
+         {tot:1, c:["Total","", "", "", "", sh(x.div40), ""]}], {mini:1}) : `<p class="cp-note">No fixtures or fittings to claim for this property this year.</p>`}
+      ${x.p.noSecondHand ? `<div class="cp-info"><span>Items that were already in the property when it was bought can't be claimed, because it's a second-hand residential property. Only items bought new after you owned it are listed.</span></div>` : ""}
+    </section>`;
+  });
+  if (!scope.entityId && rows.some(r => Object.keys(r.p.owners).length > 1 || rows.length > 1)){
+    const owners = {};
+    list.forEach(x => Object.entries(x.p.owners).forEach(([eid,s]) => { owners[eid] = owners[eid] || {b:0,f:0}; owners[eid].b += x.div43*s/100; owners[eid].f += x.div40*s/100; }));
+    body += `<section class="cp-sec"><div class="cp-sec-h"><h3>Who claims what</h3><span>Split by ownership %</span></div>${
+      table([{l:"Owner"},{l:"Building",n:1},{l:"Fixtures and fittings",n:1},{l:"Total",n:1}],
+        [...Object.entries(owners).map(([eid,v]) => ({c:[`${esc(ent(eid).name)}<small>${ent(eid).type}</small>`, money(v.b), money(v.f), money(v.b+v.f)]})),
+         {tot:1, c:["Total", money(t43), money(t40), money(t43+t40)]}])}</section>`;
+  }
+  const fmax = Math.max(...future.map(f=>f.v),1);
+  body += `<section class="cp-sec"><div class="cp-sec-h"><h3>Next five years</h3><span>Estimate, if no new items are bought</span></div>
+    <div class="cp-bars">${future.map(f => `<div class="cp-bar"><span>${fyLabel(f.fy)}</span><div class="t"><i style="width:${(f.v/fmax*100).toFixed(1)}%;background:var(--cp-amber)"></i></div><span class="v cp-num">${money(f.v)}</span><span class="p"></span></div>`).join("")}</div>
+    <p class="cp-note">The building amount stays about the same each year. Fixtures and fittings are claimed on the diminishing value method, so the amount gets smaller each year.</p></section>`;
+  return docShell("depr", scope, body);
+}
+
+/* ---------- GST ---------- */
+function buildGST(scope){
+  const rows = scopeRows(scope); if (!rows.length) return null;
+  const reg = rows.filter(r => gstEntityOf(r.p)), resi = rows.filter(r => !gstEntityOf(r.p));
+  const fy = fyOf(scope.fy), y = scope.fy;
+  const qLabel = ["Jul – Sep " + (y-1), "Oct – Dec " + (y-1), "Jan – Mar " + y, "Apr – Jun " + y];
+  const qDue = [`28 Oct ${y-1}`, `28 Feb ${y}`, `28 Apr ${y}`, `28 Jul ${y}`];
+  let collected = 0, credits = 0, hidden = 0, body = "";
+  const Q = [0,1,2,3].map(() => ({sales:0, gstS:0, purch:0, gstP:0}));
+  reg.forEach(({p, share}) => CP_DATA.tx.forEach(t => {
+    if (t[0] !== y || t[1] !== p.id) return;
+    const c = CP_DATA.categories[t[3]], q = Q[Math.floor(t[2]/3)];
+    if (c.type === "income"){ q.sales += t[4]*share; q.gstS += t[5]*share; }
+    else if (c.type === "expense"){ q.purch += t[4]*share; q.gstP += t[5]*share; }
+  }));
+  Q.forEach(q => { collected += q.gstS; credits += q.gstP; });
+  const resiCats = {}, freeCats = {};
+  resi.forEach(({p, share}) => CP_DATA.tx.forEach(t => {
+    if (t[0] !== y || t[1] !== p.id || CP_DATA.categories[t[3]].type !== "expense") return;
+    const box = t[5] > 0 ? resiCats : freeCats;
+    box[t[3]] = box[t[3]] || {a:0, g:0}; box[t[3]].a += t[4]*share; box[t[3]].g += t[5]*share;
+  }));
+  Object.values(resiCats).forEach(v => hidden += v.g);
+  const net = collected - credits;
+  body += `<section class="cp-sec cp-sec--bare"><div class="cp-kpis">
+      ${kpi("GST you collected", reg.length ? cents(collected) : "—", reg.length ? "Charged on commercial rent" : "No GST-registered owner")}
+      ${kpi("GST you claimed back", reg.length ? cents(credits) : "—", reg.length ? "GST credits on costs" : "")}
+      ${kpi("Net GST paid to the ATO", reg.length ? cents(net) : "A$ 0.00", reg.length ? "Collected minus claimed" : "Nothing to pay")}
+      ${kpi("GST inside residential costs", resi.length ? cents(hidden) : "—", resi.length ? "Can't be claimed back" : "")}
+    </div>
+    ${explain(reg.length && resi.length
+      ? `<b>In short:</b> your commercial property is registered for GST, so you add GST to its rent and claim back GST on its costs. This year you passed <b>${cents(net)}</b> to the ATO. Your residential properties don't use GST at all; the GST in their bills is simply part of the cost.`
+      : reg.length
+      ? `<b>In short:</b> you add 10% GST to the rent and claim back the GST on costs. The difference, <b>${cents(net)}</b> this year, was paid to the ATO through your BAS each quarter.`
+      : `<b>In short:</b> there's no GST to pay or claim. Rent from a home is "input-taxed": you don't add GST to it, and you can't claim back the GST in your bills. The <b>${cents(hidden)}</b> of GST inside your costs is already counted as part of each expense.`)}
+    </section>`;
+  if (reg.length){
+    const e = ent(Object.keys(reg[0].p.owners).find(id => ent(id).gst));
+    const st = (CP_DATA.bas[y] || {})[e.id] || [];
+    body += `<section class="cp-sec"><div class="cp-sec-h"><h3>Your BAS, quarter by quarter</h3><span>${esc(e.name)} · ${e.basPeriod} · ${e.gstBasis} basis</span></div>${
+      table([{l:"Quarter"},{l:"Sales incl. GST <small>G1</small>",n:1},{l:"GST collected <small>1A</small>",n:1},{l:"GST claimed <small>1B</small>",n:1},{l:"Net GST",n:1},{l:"Due"},{l:"Status"}],
+        [...Q.map((q,i) => ({c:[qLabel[i], money(q.sales), cents(q.gstS), cents(q.gstP), `<b>${cents(q.gstS-q.gstP)}</b>`, qDue[i], st[i] ? `<span class="cp-pill cp-pill--green" style="height:26px;padding:0 10px;font-size:12px">${st[i]}</span>` : `<span class="cp-pill cp-pill--amber" style="height:26px;padding:0 10px;font-size:12px">To lodge</span>`]})),
+         {tot:1, c:["Year", money(Q.reduce((s,q)=>s+q.sales,0)), cents(collected), cents(credits), cents(net), "", ""]}], {mini:1})}
+      <p class="cp-note">G1, 1A and 1B are the boxes on your Business Activity Statement. Due dates are the standard quarterly dates; your accountant may have later dates through their lodgement program.</p></section>`;
+    const regCats = {};
+    reg.forEach(({p, share}) => CP_DATA.tx.forEach(t => {
+      if (t[0] !== y || t[1] !== p.id || CP_DATA.categories[t[3]].type !== "expense") return;
+      regCats[t[3]] = regCats[t[3]] || {a:0, g:0}; regCats[t[3]].a += t[4]*share; regCats[t[3]].g += t[5]*share;
+    }));
+    body += `<section class="cp-sec"><div class="cp-sec-h"><h3>GST claimed back, by cost</h3><span>Commercial property</span></div>${
+      table([{l:"Cost"},{l:"Paid incl. GST",n:1},{l:"GST claimed",n:1}],
+        Object.entries(regCats).sort((a,b)=>b[1].a-a[1].a).map(([k,v]) => ({c:[`${CP_DATA.categories[k].label}${v.g?"":"<small>No GST on this cost</small>"}`, money(v.a), v.g ? cents(v.g) : "—"]})))}</section>`;
+  }
+  if (resi.length){
+    const tot = Object.values(resiCats).reduce((s,v)=>s+v.a,0);
+    body += `<section class="cp-sec"><div class="cp-sec-h"><h3>GST inside your residential costs</h3><span>Not claimable</span></div>${
+      Object.keys(resiCats).length ? table([{l:"Cost"},{l:"You paid",n:1},{l:"GST included",n:1}],
+        [...Object.entries(resiCats).sort((a,b)=>b[1].a-a[1].a).map(([k,v]) => ({c:[CP_DATA.categories[k].label, money(v.a), cents(v.g)]})),
+         {tot:1, c:["Total", money(tot), cents(hidden)]}]) : `<p class="cp-note">No costs with GST in this period.</p>`}
+      ${Object.keys(freeCats).length ? `<p class="cp-note">No GST is charged on ${Object.keys(freeCats).map(k => CP_DATA.categories[k].label.toLowerCase()).join(", ")}.</p>` : ""}
+      <div class="cp-info"><span>Renting out homes doesn't require GST registration, so these properties never appear on a BAS.</span></div></section>`;
+  }
+  return docShell("gst", scope, body);
+}
+
+/* =====================================================================
+   REPORT REGISTRY — add a report here and it appears in the hub
+   ===================================================================== */
+const ICONS = {
+  pl:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>`,
+  depr:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/><path d="M16 4v3"/></svg>`,
+  gst:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2"/></svg>`,
+  dl:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>`,
+  pr:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7"/></svg>`
+};
+const REPORTS = {
+  pl:{ title:"Profit &amp; Loss", short:"Profit & Loss", fileName:"Profit-and-Loss",
+       subtitle:"Money that came in and went out for your properties, and what was left.",
+       blurb:"See what your properties earned, what they cost and the result.",
+       shows:["Money in, money out and net result","Month-by-month chart","Costs by category and by property"], build:buildPL },
+  depr:{ title:"Depreciation", short:"Depreciation", fileName:"Depreciation",
+       subtitle:"What you can claim this year for wear and tear on your buildings and the items in them.",
+       blurb:"See this year's claim for buildings and fixtures, item by item.",
+       shows:["Building and fixtures claim","Item list with values","Five-year outlook"], build:buildDepr },
+  gst:{ title:"GST", short:"GST", fileName:"GST",
+       subtitle:"GST collected and claimed on your properties, and the GST inside your costs.",
+       blurb:"See your BAS figures by quarter, or why no GST applies.",
+       shows:["GST collected and claimed","Quarterly BAS summary","GST inside residential costs"], build:buildGST }
+};
+
+/* =====================================================================
+   VIEWS
+   ===================================================================== */
+
+/* ============ MOBILE UI ============ */
+const M = { tab:"insights", period:"year", report:null, built:false, scope:{fy:CP_DATA.fys[0].id, entityId:null, propertyId:null}, draft:null };
+const $$ = s => document.querySelector(s);
+const NAV = [["Home",'<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z"/>'],["Activity",'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/>'],["Property",'<path d="M4 11l8-7 8 7v9H4z"/>'],["Entity",'<circle cx="12" cy="8" r="4"/><path d="M5 20c1-4 4-5 7-5s6 1 7 5"/>'],["Insights",'<path d="M6 19v-6M12 19V6M18 19v-9"/>']];
+$$("#bn").innerHTML = NAV.map(([l,p]) => `<button type="button" class="${l==="Insights"?"on":""}" ${l==="Insights"?'aria-current="page"':""} data-nav="${l}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>${l}</button>`).join("");
+document.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => { if (b.dataset.nav === "Insights") { M.report = null; render(); } else toast(`${b.dataset.nav} is outside this prototype`); });
+
+function toast(t){ const el = $$("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 1800); }
+
+function insightsHTML(){
+  const D = plData({fy:2026, entityId:null, propertyId:null});
+  const idx = M.period === "year" ? [...Array(12).keys()] : M.period === "quarter" ? [9,10,11] : [11];
+  const inc = idx.reduce((s,i)=>s+D.inc[i],0), exp = idx.reduce((s,i)=>s+D.exp[i],0), net = inc - exp;
+  const nets = D.inc.map((v,i)=>v-D.exp[i]), mn = Math.min(...nets), mx = Math.max(...nets);
+  const pts = nets.map((v,i)=>`${10+i*31},${15+(mx-v)/(mx-mn||1)*100}`).join(" ");
+  const last6 = [6,7,8,9,10,11], bmax = Math.max(...last6.flatMap(i=>[D.inc[i],D.exp[i]]));
+  return `
+    <div class="pills" role="group" aria-label="Period">${[["year","This Year"],["quarter","This Quarter"],["month","This Month"]].map(([k,l])=>`<button type="button" class="${M.period===k?"on":""}" data-period="${k}">${l}</button>`).join("")}</div>
+    <div class="card"><span class="k">Net Cash Flow</span><div class="big ${net<0?"neg":"pos"}">${money(net)}</div>
+      <svg viewBox="0 0 360 125" width="100%" aria-hidden="true"><polyline points="${pts} 351,125 10,125" fill="#E6F6EC"/><polyline points="${pts}" fill="none" stroke="#22B35E" stroke-width="3" stroke-linejoin="round"/></svg></div>
+    <div class="card"><b style="font-size:18px">Income vs Expenses</b><div class="sub2">Last 6 months</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-around;height:130px">${last6.map(i=>`<div style="display:grid;justify-items:center;gap:6px"><div style="display:flex;gap:3px;align-items:flex-end;height:110px"><i style="width:12px;height:${D.inc[i]/bmax*110}px;background:var(--m-navy);border-radius:4px"></i><i style="width:12px;height:${D.exp[i]/bmax*110}px;background:var(--m-amber);border-radius:4px"></i></div><span style="font-size:13px;color:var(--m-muted)">${MONTHS[i]}</span></div>`).join("")}</div></div>`;
+}
+function reportsHTML(){
+  return `<p class="intro">Choose a report, set the entity, property and year, then download it as a PDF.</p>
+    ${Object.entries(REPORTS).map(([k,r])=>`<button type="button" class="rc" data-report="${k}"><span class="ic">${ICONS[k]}</span><span><h4>${r.title}</h4><p>${r.blurb}</p></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}
+    <div class="tip">💡 Need one property only? Open it from <b>Property</b> and tap <b>Reports</b>. It opens with that property already selected.</div>`;
+}
+function chipText(){
+  const s = M.scope;
+  return [ s.entityId ? ent(s.entityId).name : "All entities",
+           s.propertyId ? prop(s.propertyId).name : "All properties",
+           fyOf(s.fy).short ];
+}
+function reportHTML(){
+  const r = REPORTS[M.report];
+  const chips = chipText().map((t,i)=>`<button type="button" data-chip="${i}"><span>${esc(t)}</span></button>`).join("");
+  const body = M.built ? (r.build(M.scope) || `<div class="empty">Nothing to show for this selection.</div>`)
+    : `<div class="empty"><span>Choose the <b>entity</b>, <b>property</b> and <b>financial year</b> for this report.</span><button class="btn sm" type="button" id="open-sheet">Choose options</button></div>`;
+  return `<button class="back" type="button" id="back">← Reports</button>
+    <div class="ttl"><h1 style="font-size:30px">${r.title}</h1></div>
+    <div class="chips">${chips}</div>
+    <div class="rep">${body}</div>`;
+}
+function render(){
+  const sc = $$("#scroll");
+  if (M.report){
+    sc.innerHTML = reportHTML();
+    $$("#back").onclick = () => { M.report = null; render(); };
+    document.querySelectorAll("[data-chip]").forEach(b => b.onclick = openSheet);
+    if ($$("#open-sheet")) $$("#open-sheet").onclick = openSheet;
+    document.querySelectorAll("[data-seg]").forEach(btn => btn.onclick = () => {
+      const sec = btn.closest("[data-view]"); sec.dataset.view = btn.dataset.seg;
+      sec.querySelectorAll("[data-seg]").forEach(x => x.setAttribute("aria-pressed", String(x === btn)));
+    });
+  } else {
+    sc.innerHTML = `<div class="eb">Portfolio analytics</div><div class="ttl"><h1>Insights</h1><span class="av">SA</span></div>
+      <div class="tabs" role="tablist"><button type="button" role="tab" aria-selected="${M.tab==="insights"}" data-tab="insights">Insights</button><button type="button" role="tab" aria-selected="${M.tab==="reports"}" data-tab="reports">Reports</button></div>
+      ${M.tab === "insights" ? insightsHTML() : reportsHTML()}`;
+    document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { M.tab = b.dataset.tab; render(); });
+    document.querySelectorAll("[data-period]").forEach(b => b.onclick = () => { M.period = b.dataset.period; render(); });
+    document.querySelectorAll("[data-report]").forEach(b => b.onclick = () => openReport(b.dataset.report));
+  }
+  const showDl = !!(M.report && M.built);
+  $$("#dl").hidden = !showDl; sc.classList.toggle("has-dl", showDl);
+  $$("#dl-btn").innerHTML = `${ICONS.dl}Download PDF`;
+  syncSteps();
+}
+function openReport(k){ M.report = k; M.built = false; render(); $$("#scroll").scrollTop = 0; setTimeout(openSheet, 150); }
+
+/* ---- bottom sheet ---- */
+function openSheet(){ M.draft = {...M.scope}; renderSheet(); $$("#app").classList.add("open"); setTimeout(() => { const f = $$("#sheet button.opt"); f && f.focus(); }, 260); }
+function closeSheet(){ $$("#app").classList.remove("open"); }
+function renderSheet(){
+  const d = M.draft, props = CP_DATA.properties.filter(p => !d.entityId || p.owners[d.entityId]);
+  if (d.propertyId && !props.find(p => p.id === d.propertyId)) d.propertyId = null;
+  const opt = (on, attr, label, sub="") => `<button type="button" class="opt" role="radio" aria-checked="${on}" ${attr}><span>${label}${sub?` <small>· ${sub}</small>`:""}</span><i aria-hidden="true"></i></button>`;
+  $$("#sheet").innerHTML = `<div class="grab" aria-hidden="true"></div>
+    <div class="sheet-h"><div><h3 id="sh-t">Report options</h3><p class="sub">${REPORTS[M.report].title}: pick what the report should cover</p></div><button type="button" class="x" id="sh-x" aria-label="Close">✕</button></div>
+    <div class="lab">1 · Entity</div>
+    <div role="radiogroup" aria-label="Entity">${opt(!d.entityId,'data-ent=""',"All entities")}${CP_DATA.entities.map(e => opt(d.entityId===e.id,`data-ent="${e.id}"`,esc(e.name),e.type)).join("")}</div>
+    <div class="lab">2 · Property</div>
+    <div role="radiogroup" aria-label="Property">${opt(!d.propertyId,'data-prop=""',`All properties${d.entityId?" of this entity":""}`,`${props.length}`)}${props.map(p => opt(d.propertyId===p.id,`data-prop="${p.id}"`,esc(p.name), d.entityId ? p.owners[d.entityId]+"%" : esc(p.suburb))).join("")}</div>
+    <div class="lab">3 · Financial year</div>
+    <div class="fy" role="radiogroup" aria-label="Financial year">${CP_DATA.fys.map(f => `<button type="button" role="radio" aria-checked="${d.fy===f.id}" data-fy="${f.id}">${f.short}</button>`).join("")}</div>
+    <button class="btn" type="button" id="sh-go">${M.built ? "Update report" : "Build report"}</button>`;
+  $$("#sh-x").onclick = closeSheet;
+  document.querySelectorAll("[data-ent]").forEach(b => b.onclick = () => { d.entityId = b.dataset.ent || null; d.propertyId = null; renderSheet(); });
+  document.querySelectorAll("[data-prop]").forEach(b => b.onclick = () => { d.propertyId = b.dataset.prop || null; renderSheet(); });
+  document.querySelectorAll("[data-fy]").forEach(b => b.onclick = () => { d.fy = +b.dataset.fy; renderSheet(); });
+  $$("#sh-go").onclick = () => { M.scope = {...d}; M.built = true; closeSheet(); render(); $$("#scroll").scrollTop = 0; };
+}
+$$("#dim").onclick = closeSheet;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+/* ---- PDF (full A4 desktop layout) ---- */
+$$("#dl-btn").onclick = () => {
+  const btn = $$("#dl-btn"), r = REPORTS[M.report], s = M.scope;
+  const part = (s.propertyId ? prop(s.propertyId).name : s.entityId ? ent(s.entityId).name : "All-entities").replace(/[^A-Za-z0-9]+/g,"-");
+  const file = `ClearPortfolio_${r.fileName}_${part}_${fyOf(s.fy).short.replace(/\s/g,"")}.pdf`;
+  if (!window.html2pdf){ window.print(); return; }
+  btn.disabled = true; btn.textContent = "Preparing PDF…";
+  const stage = $$("#cp-pdf-stage"); stage.innerHTML = r.build(s);
+  html2pdf().set({ margin:[8,8,10,8], filename:file, image:{type:"jpeg",quality:0.96},
+    html2canvas:{scale:2,useCORS:true,windowWidth:900,backgroundColor:"#F3F4FA"},
+    jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+    pagebreak:{mode:["css","legacy"],avoid:[".cp-sec",".cp-kpis",".cp-rhead","tr",".cp-explain"]}
+  }).from(stage).save().then(() => toast("PDF downloaded")).catch(() => window.print())
+    .finally(() => { stage.innerHTML = ""; btn.disabled = false; btn.innerHTML = `${ICONS.dl}Download PDF`; });
+};
+
+/* ---- desktop step jumper ---- */
+const STEPS = [
+  ["Insights tab","Existing screen, with new Insights | Reports tabs", () => { M.report=null; M.tab="insights"; closeSheet(); render(); }],
+  ["Reports tab","One card per report", () => { M.report=null; M.tab="reports"; closeSheet(); render(); }],
+  ["Report options","Bottom sheet: Entity → Property → FY", () => { if(!M.report){ M.report="pl"; M.built=false; render(); } openSheet(); }],
+  ["Built report","Read-only report + sticky Download PDF", () => { if(!M.report) M.report="pl"; if(!M.built){ M.scope={fy:2026,entityId:"e1",propertyId:null}; M.built=true; } closeSheet(); render(); }]
+];
+$$("#steps").innerHTML = STEPS.map(([t,s],i)=>`<li><button type="button" data-step="${i}"><span class="n">${i+1}</span><span><b>${t}</b>${s}</span></button></li>`).join("");
+document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => STEPS[+b.dataset.step][2]());
+function syncSteps(){
+  const i = !M.report ? (M.tab==="insights"?0:1) : M.built ? 3 : 2;
+  document.querySelectorAll("[data-step]").forEach(b => b.classList.toggle("on", +b.dataset.step === i));
+}
+render();
+</script>
+</body>
+</html>

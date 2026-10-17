@@ -12,17 +12,7 @@ import type { CoreProperty, CoreEntity, CorePropertyTransactionRow } from "@/src
 import PropertyTrendChart from "@/app/components/clients/PropertyTrendChart";
 import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
 import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
-import ClientSegmentedTabs, {
-  SegmentedTabPanel,
-  segmentedPanelProps,
-} from "@/app/components/clients/ClientSegmentedTabs";
-import { currentFinancialYear } from "@/app/components/clients/portfolioDashboard";
-import ClientScopedReport from "@/app/components/reports/portfolio/ClientScopedReport";
-import {
-  clientReportHref,
-  useReportSearchParams,
-  type ReportTab,
-} from "@/app/components/reports/portfolio/useReportSearchParams";
+import { clientReportsHubHref } from "@/app/components/reports/client/reportLinks";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -121,18 +111,9 @@ export default function ClientPropertyDetailPage() {
   const propertyId = params?.propertyid ?? "";
 
   const [isMobile, setIsMobile] = useState(false);
-  // Phones: Overview | Reporting inside the page (`?tab=reporting`, `?fy=`).
-  // Desktop links to the Reports page instead and ignores the tab.
-  const {
-    tab: reportTab,
-    financialYear: reportYear,
-    setTab: setReportTab,
-    setFinancialYear: setReportYear,
-  } = useReportSearchParams();
-  const switchTab = (next: ReportTab) => {
-    setReportTab(next);
-    window.scrollTo({ top: 0 });
-  };
+  // Reports for this property: the report list with it preselected — the
+  // sidebar's Reports page on desktop, Insights → Reports on a phone.
+  const reportsHref = clientReportsHubHref({ propertyId }, { mobile: isMobile });
   const [isLoading, setIsLoading] = useState(true);
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [entity, setEntity] = useState<CoreEntity | null>(null);
@@ -504,41 +485,26 @@ export default function ClientPropertyDetailPage() {
             <span>Detail</span>
           </div>
 
-          {/* Edit button */}
-          <Link
-            href={`/dashboard/client/properties/${property.id}/edit`}
-            className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
-          >
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* Reports, with this property preselected */}
+            <Link
+              href={reportsHref}
+              className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
+            >
+              Reports
+            </Link>
+            {/* Edit button */}
+            <Link
+              href={`/dashboard/client/properties/${property.id}/edit`}
+              className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
+            >
+              Edit
+            </Link>
+          </div>
         </div>
 
-        <div className="px-4 pt-4">
-          <ClientSegmentedTabs
-            idBase="property-detail"
-            label="Property sections"
-            tabs={[
-              { id: "overview", label: "Overview" },
-              { id: "reporting", label: "Reporting" },
-            ]}
-            value={reportTab}
-            onChange={switchTab}
-          />
-        </div>
-
-        {reportTab === "reporting" ? (
-          <SegmentedTabPanel idBase="property-detail" tabId="reporting" className="p-4 pb-28">
-            {/* Mounted only while open — the page's one portfolio request. */}
-            <ClientScopedReport
-              propertyId={propertyId}
-              variant="embedded"
-              financialYear={reportYear ?? currentFinancialYear()}
-              onFinancialYearChange={setReportYear}
-            />
-          </SegmentedTabPanel>
-        ) : (
-        /* Content Area */
-        <div className="p-4 flex flex-col gap-4 pb-28" {...segmentedPanelProps("property-detail", "overview")}>
+        {/* Content Area */}
+        <div className="p-4 flex flex-col gap-4 pb-28">
           {/* Hero Blue Card */}
           <div
             className="rounded-3xl p-5 text-white flex flex-col gap-5 shadow-lg relative overflow-hidden"
@@ -860,7 +826,6 @@ export default function ClientPropertyDetailPage() {
             </div>
           </div>
         </div>
-        )}
       </div>
     );
   };
@@ -899,9 +864,9 @@ export default function ClientPropertyDetailPage() {
             </div>
 
             <div className="self-start flex items-center gap-2">
-            {/* Reports: this property's Portfolio Summary on the Reports page */}
+            {/* Reports, with this property preselected */}
             <Link
-              href={clientReportHref({ entityId: property.entityId, propertyId: property.id })}
+              href={reportsHref}
               className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
             >
               <svg

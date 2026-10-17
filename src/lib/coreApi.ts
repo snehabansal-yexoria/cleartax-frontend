@@ -108,12 +108,39 @@ export type CoreEntity = {
   propertiesCount: number;
   transactionsCount: number;
   /**
+   * GST registration (migration 0054). "unknown" until an accountant records
+   * it — and the reports treat unknown exactly as they did before the field
+   * existed (the BAS view), so nothing changes for an entity nobody has set.
+   */
+  gstStatus: CoreGstRegistrationStatus;
+  gstBasis: CoreGstBasis | null;
+  basFrequency: CoreBasFrequency | null;
+  /**
    * Present only on responses from the entity BFF (`GET/PATCH
    * /api/entities/{id}`); `null` there means nobody is assigned. Absent on
    * everything that comes straight from the core API.
    */
   regionalManager?: CoreRegionalManager | null;
 };
+
+export type CoreGstRegistrationStatus = "registered" | "not_registered" | "unknown";
+export type CoreGstBasis = "cash" | "accruals";
+export type CoreBasFrequency = "monthly" | "quarterly" | "annually";
+
+export function toGstRegistrationStatus(value: unknown): CoreGstRegistrationStatus {
+  const s = toStringValue(value);
+  return s === "registered" || s === "not_registered" ? s : "unknown";
+}
+
+function toGstBasis(value: unknown): CoreGstBasis | null {
+  const s = toStringValue(value);
+  return s === "cash" || s === "accruals" ? s : null;
+}
+
+function toBasFrequency(value: unknown): CoreBasFrequency | null {
+  const s = toStringValue(value);
+  return s === "monthly" || s === "quarterly" || s === "annually" ? s : null;
+}
 
 export type CorePropertyOwner = {
   id?: number;
@@ -844,6 +871,10 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
     trustType: raw.trust_type != null ? toStringValue(raw.trust_type) : undefined,
     propertiesCount: toNumberValue(raw.properties_count ?? raw.propertiesCount) ?? 0,
     transactionsCount: toNumberValue(raw.transactions_count ?? raw.transactionsCount) ?? 0,
+    // A backend that predates 0054 sends none of these: unknown / null.
+    gstStatus: toGstRegistrationStatus(raw.gst_status ?? raw.gstStatus),
+    gstBasis: toGstBasis(raw.gst_basis ?? raw.gstBasis),
+    basFrequency: toBasFrequency(raw.bas_frequency ?? raw.basFrequency),
   };
 }
 
@@ -2190,6 +2221,48 @@ export type CoreGstSummary = {
    * than claiming "0 awaiting review".
    */
   unreviewedCount: number | null;
+
+  /**
+   * `detail` requests only (`?detail=1`). null when not asked for — or when
+   * the backend predates them, which callers that asked must treat as "not
+   * available yet" rather than as an empty breakdown.
+   *
+   * `quarters` is present for a whole-financial-year window only.
+   * `registration` is present at property and entity scope only.
+   */
+  registration: CoreGstRegistration | null;
+  quarters: CoreGstQuarter[] | null;
+  salesByCategory: CoreGstCategory[] | null;
+  purchasesByCategory: CoreGstCategory[] | null;
+};
+
+export type CoreGstRegistration = {
+  status: CoreGstRegistrationStatus;
+  basis: CoreGstBasis | null;
+  basFrequency: CoreBasFrequency | null;
+};
+
+/** One BAS quarter; the four sum to the year's figures. */
+export type CoreGstQuarter = {
+  quarter: number;
+  label: string;
+  from: string;
+  to: string;
+  g1TotalSales: number;
+  gstOnSales: number;
+  gstOnPurchases: number;
+  netGst: number;
+  purchasesTotal: number;
+};
+
+/** One category's sales (1A) or purchases (1B). gross is GST-inclusive. */
+export type CoreGstCategory = {
+  categoryId: number;
+  categoryName: string;
+  gross: number;
+  gst: number;
+  net: number;
+  count: number;
 };
 
 export type CoreGstQuery = {
@@ -2199,6 +2272,8 @@ export type CoreGstQuery = {
   quarter?: number;
   from?: string;
   to?: string;
+  /** Adds quarters / by-category / registration (see CoreGstSummary). */
+  detail?: boolean;
 };
 
 /**
@@ -2214,6 +2289,7 @@ export function gstQueryString(query: CoreGstQuery = {}): string {
   if (query.quarter) params.set("quarter", String(query.quarter));
   if (query.from) params.set("from", query.from);
   if (query.to) params.set("to", query.to);
+  if (query.detail) params.set("detail", "1");
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -2232,6 +2308,8 @@ export function toCoreGstQuery(params: URLSearchParams): CoreGstQuery {
   if (from) query.from = from;
   const to = params.get("to");
   if (to) query.to = to;
+  const detail = params.get("detail");
+  if (detail === "1" || detail === "true") query.detail = true;
   return query;
 }
 
@@ -2277,7 +2355,56 @@ export function normalizeCoreGstSummary(raw: RawRecord): CoreGstSummary {
     purchasesCount:
       toNumberValue(raw.purchases_count ?? raw.purchasesCount) ?? 0,
     unreviewedCount: toNumberValue(raw.unreviewed_count ?? raw.unreviewedCount),
+    registration: normalizeGstRegistration(raw.registration),
+    quarters: Array.isArray(raw.quarters)
+      ? raw.quarters.map((q) => normalizeGstQuarter(getJsonObject(q)))
+      : null,
+    salesByCategory: normalizeGstCategories(
+      raw.sales_by_category ?? raw.salesByCategory,
+    ),
+    purchasesByCategory: normalizeGstCategories(
+      raw.purchases_by_category ?? raw.purchasesByCategory,
+    ),
   };
+}
+
+function normalizeGstRegistration(raw: unknown): CoreGstRegistration | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as RawRecord;
+  return {
+    status: toGstRegistrationStatus(r.status),
+    basis: toGstBasis(r.basis),
+    basFrequency: toBasFrequency(r.bas_frequency ?? r.basFrequency),
+  };
+}
+
+function normalizeGstQuarter(raw: RawRecord): CoreGstQuarter {
+  return {
+    quarter: toNumberValue(raw.quarter) ?? 0,
+    label: toStringValue(raw.label),
+    from: toStringValue(raw.from),
+    to: toStringValue(raw.to),
+    g1TotalSales: toFloatValue(raw.g1_total_sales ?? raw.g1TotalSales),
+    gstOnSales: toFloatValue(raw.gst_on_sales ?? raw.gstOnSales),
+    gstOnPurchases: toFloatValue(raw.gst_on_purchases ?? raw.gstOnPurchases),
+    netGst: toFloatValue(raw.net_gst ?? raw.netGst),
+    purchasesTotal: toFloatValue(raw.purchases_total ?? raw.purchasesTotal),
+  };
+}
+
+function normalizeGstCategories(raw: unknown): CoreGstCategory[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.map((item) => {
+    const c = getJsonObject(item);
+    return {
+      categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+      categoryName: toStringValue(c.category_name ?? c.categoryName),
+      gross: toFloatValue(c.gross),
+      gst: toFloatValue(c.gst),
+      net: toFloatValue(c.net),
+      count: toNumberValue(c.count) ?? 0,
+    };
+  });
 }
 
 export async function getCoreGstSummaryByProperty(
@@ -4337,6 +4464,19 @@ export type CoreDepreciationSchedule = {
   documentName: string;
   generatedAt: string;
 
+  /**
+   * The requested `fy` in context (client Depreciation report). Opening and
+   * closing are null without `fy`, and ALSO null when the schedule has no row
+   * for that year (bought later, or already written off) — the signal to
+   * leave the asset out of that year's list. claimedBeforeFy is null without
+   * `fy`. lastFyStartYear is the schedule's final year, whatever was asked.
+   * All null from a backend that predates them.
+   */
+  fyOpeningValue: number | null;
+  fyClosingValue: number | null;
+  claimedBeforeFy: number | null;
+  lastFyStartYear: number | null;
+
   /** Populated by the per-transaction and single-schedule endpoints only. */
   years: CoreDepreciationYear[];
 };
@@ -4370,12 +4510,26 @@ export type CoreDepreciationTotals = {
   firstYearDepreciation: number;
 };
 
+/** One future year of a scope's claim (Div 43 / Div 40). */
+export type CoreDepreciationProjectionYear = {
+  fyStartYear: number;
+  fyLabel: string;
+  capitalWorks: number;
+  capitalAllowances: number;
+  depreciation: number;
+};
+
 export type CoreDepreciationList = {
   scope: { level: string; id: string; name: string };
   fyStartYear: number | null;
   fyLabel: string;
   totals: CoreDepreciationTotals;
   items: CoreDepreciationSchedule[];
+  /**
+   * The five years after `fy`, assuming nothing new is bought. null without
+   * `fy`, or from a backend that predates it.
+   */
+  projection: CoreDepreciationProjectionYear[] | null;
 };
 
 function toDepreciationMethod(value: unknown): CoreDepreciationMethod {
@@ -4457,6 +4611,11 @@ function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule
     documentName: toStringValue(raw.document_name ?? raw.documentName),
     generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
 
+    fyOpeningValue: toNullableFloatValue(raw.fy_opening_value ?? raw.fyOpeningValue),
+    fyClosingValue: toNullableFloatValue(raw.fy_closing_value ?? raw.fyClosingValue),
+    claimedBeforeFy: toNullableFloatValue(raw.claimed_before_fy ?? raw.claimedBeforeFy),
+    lastFyStartYear: toNumberValue(raw.last_fy_start_year ?? raw.lastFyStartYear),
+
     years: Array.isArray(raw.years)
       ? raw.years.map((y) => normalizeDepreciationYear(getJsonObject(y)))
       : [],
@@ -4532,6 +4691,20 @@ function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
       ),
     },
     items,
+    projection: Array.isArray(record.projection)
+      ? record.projection.map((p) => {
+          const y = getJsonObject(p);
+          return {
+            fyStartYear: toNumberValue(y.fy_start_year ?? y.fyStartYear) ?? 0,
+            fyLabel: toStringValue(y.fy_label ?? y.fyLabel),
+            capitalWorks: toFloatValue(y.capital_works ?? y.capitalWorks),
+            capitalAllowances: toFloatValue(
+              y.capital_allowances ?? y.capitalAllowances,
+            ),
+            depreciation: toFloatValue(y.depreciation),
+          };
+        })
+      : null,
   };
 }
 
