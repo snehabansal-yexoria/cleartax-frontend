@@ -84,6 +84,34 @@ function endpointFor(level: CoreGstScopeLevel, id: string): string {
   }
 }
 
+/**
+ * The figures must be for the scope and period the pickers show. An answer
+ * for another one — a backend that ignored a parameter, say — would print
+ * confident numbers under the wrong heading, so it is refused and the card
+ * shows Retry instead, as usePortfolioSummary's assertScope does.
+ */
+function assertGstAnswer(
+  summary: CoreGstSummary,
+  level: CoreGstScopeLevel,
+  id: string,
+  financialYear: number,
+  quarter: number,
+) {
+  const scope = summary?.scope;
+  const period = summary?.period;
+  const wantQuarter = quarter === GST_FULL_YEAR ? 0 : quarter;
+  if (
+    !scope ||
+    !period ||
+    scope.level !== level ||
+    scope.id.trim().toLowerCase() !== id.trim().toLowerCase() ||
+    period.financialYear !== financialYear ||
+    period.quarter !== wantQuarter
+  ) {
+    throw new Error("These GST figures aren't available yet. Please try again shortly.");
+  }
+}
+
 export type UseGstSummaryResult = {
   summary: CoreGstSummary | null;
   isLoading: boolean;
@@ -166,6 +194,7 @@ export function useGstSummary(
       }
       const data = (await res.json()) as CoreGstSummary;
       if (controller.signal.aborted) return;
+      assertGstAnswer(data, level, id, financialYear, quarter);
       setSummary(data);
     } catch (err) {
       if (controller.signal.aborted) return;

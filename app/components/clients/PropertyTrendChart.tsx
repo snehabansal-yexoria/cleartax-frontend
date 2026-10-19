@@ -1,58 +1,36 @@
 "use client";
 
-import { useMemo } from "react";
 import { formatClientCurrency } from "./CurrencyFormatter";
-import { affectsPnl } from "@/src/lib/transactionTypes";
-import type { CorePropertyTransactionRow } from "@/src/lib/coreApi";
+
+/** One month of the chart: income and expenses as positive magnitudes. */
+export type PropertyTrendRow = {
+  key: string;
+  label: string;
+  income: number;
+  expense: number;
+};
 
 interface PropertyTrendChartProps {
-  transactions: CorePropertyTransactionRow[];
+  /**
+   * The months to plot, oldest first, from the Portfolio Summary — the same
+   * aggregate as the hero's Cash Flow, so this month's bars and that figure
+   * cannot disagree. null while it loads.
+   */
+  rows: PropertyTrendRow[] | null;
 }
 
-export default function PropertyTrendChart({ transactions }: PropertyTrendChartProps) {
-  // Generate the last 6 calendar months ending at the current calendar month
-  const trendRows = useMemo(() => {
-    const months = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: d.toLocaleDateString("en-US", { month: "short" }),
-        income: 0,
-        expense: 0,
-      });
-    }
+export default function PropertyTrendChart({ rows }: PropertyTrendChartProps) {
+  const trendRows = rows ?? [];
 
-    for (const row of transactions) {
-      const date = new Date(row.invoiceDate);
-      if (Number.isNaN(date.getTime())) continue;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const monthObj = months.find((m) => m.key === key);
-      if (monthObj) {
-        const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount || 0);
-        // Personal, cost base and contra are excluded: none of them is income
-        // or an expense, and the else branch used to count all three as
-        // expenses.
-        if (!affectsPnl(row.transactionType)) {
-          // nothing to plot
-        } else if (row.transactionType === "revenue") {
-          monthObj.income += amount;
-        } else {
-          monthObj.expense += amount;
-        }
-      }
-    }
-    return months;
-  }, [transactions]);
-
-  const maxTrendAmount = useMemo(() => {
-    return Math.max(1, ...trendRows.flatMap((row) => [row.income, row.expense]));
-  }, [trendRows]);
+  const maxTrendAmount = Math.max(1, ...trendRows.flatMap((row) => [row.income, row.expense]));
 
   const formatCurrency = (val: number) => {
     return formatClientCurrency(val, { short: true, decimals: 0 });
   };
+
+  if (rows === null) {
+    return <div className="h-48 w-full mt-2 rounded-xl bg-[var(--surface-2)] animate-pulse" aria-hidden="true" />;
+  }
 
   if (trendRows.length === 0) {
     return (
