@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import ClientInsightsSkeleton from "@/app/components/clients/ClientInsightsSkeleton";
 import { logout } from "@/src/lib/logout";
@@ -16,11 +16,17 @@ import {
 import type { CoreEntity, CorePortfolioSummary } from "@/src/lib/coreApi";
 import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
 import type { AsyncRegion } from "@/app/components/useAsyncRegion";
-import type { ClientHoldingEntity } from "@/app/components/useClientHoldings";
+import { toClientHoldings, type ClientHoldingEntity } from "@/app/components/useClientHoldings";
 import { fetchCurrentUser, type CurrentUser } from "@/app/components/currentUser";
 import RegionError from "@/app/components/ui/RegionError";
 import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
 import ReportScopePicker from "@/app/components/reports/portfolio/ReportScopePicker";
+import ClientSegmentedTabs, {
+  SegmentedTabPanel,
+  segmentedPanelProps,
+} from "@/app/components/clients/ClientSegmentedTabs";
+import ReportHub from "@/app/components/reports/client/ReportHub";
+import { parseUuid } from "@/app/components/reports/portfolio/useReportSearchParams";
 import {
   currentFinancialYear,
   monthAt,
@@ -109,6 +115,27 @@ export default function ClientInsightsPage() {
   const [showForecast, setShowForecast] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Phones: Insights | Reports (`?tab=reports`). The entity and property
+  // pages' Reports buttons land on the Reports tab with `?entity=` /
+  // `?property=` preselected for whichever report is opened.
+  const searchParams = useSearchParams();
+  const insightsTab: "insights" | "reports" =
+    searchParams.get("tab") === "reports" ? "reports" : "insights";
+  const reportsScope = {
+    entityId: parseUuid(searchParams.get("entity")),
+    propertyId: parseUuid(searchParams.get("property")),
+  };
+  const switchInsightsTab = (next: "insights" | "reports") => {
+    router.replace(next === "reports" ? "/dashboard/client/insights?tab=reports" : "/dashboard/client/insights", {
+      scroll: false,
+    });
+  };
+  const reportsScopeName = reportsScope.propertyId
+    ? holdings.flatMap((e) => e.properties).find((p) => p.id === reportsScope.propertyId)?.name ?? null
+    : reportsScope.entityId
+      ? holdings.find((e) => e.id === reportsScope.entityId)?.name ?? null
+      : null;
+
   // Responsive design listener
   useEffect(() => {
     const handleResize = () => {
@@ -152,28 +179,7 @@ export default function ClientInsightsPage() {
           if (cancelled) return;
           const items = data.items || [];
           setProperties(items.flatMap((entity: any) => entity.properties || []));
-          const byName = (a: { name: string }, b: { name: string }) =>
-            a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-          type RawHolding = { id?: unknown; name?: unknown; enabled?: unknown };
-          const text = (value: unknown) => (typeof value === "string" ? value : "");
-          setHoldings(
-            (items as Array<RawHolding & { properties?: unknown }>)
-              .filter((entity) => text(entity.id))
-              .map((entity) => ({
-                id: text(entity.id),
-                name: text(entity.name) || "Untitled entity",
-                enabled: entity.enabled !== false,
-                properties: (Array.isArray(entity.properties) ? (entity.properties as RawHolding[]) : [])
-                  .filter((p) => text(p.id))
-                  .map((p) => ({
-                    id: text(p.id),
-                    name: text(p.name) || "Untitled property",
-                    enabled: p.enabled !== false,
-                  }))
-                  .sort(byName),
-              }))
-              .sort(byName),
-          );
+          setHoldings(toClientHoldings(items));
         } else {
           const data =
             entitiesResult.status === "fulfilled"
@@ -591,557 +597,591 @@ export default function ClientInsightsPage() {
   };
 
   if (isMobile) {
+    const mobileShellStyle = {
+      padding: "0 16px 90px 16px",
+      background: "var(--surface-0)",
+      minHeight: "100vh",
+      fontFamily: "Inter, -apple-system, sans-serif",
+    } as const;
+    const mobileHeader = (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "24px 0 16px 0",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "#8c9ba5",
+              margin: 0,
+            }}
+          >
+            Portfolio analytics
+          </p>
+          <h1
+            style={{
+              fontSize: "28px",
+              fontWeight: 700,
+              color: "#101828",
+              margin: "4px 0 0 0",
+            }}
+          >
+            Insights
+          </h1>
+        </div>
+        <Link
+          href="/dashboard/client/profile"
+          className="m-db-avatar-circle"
+          style={{
+            backgroundColor: "#1d2d5c",
+            color: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 600,
+            fontSize: "14px",
+            width: "40px",
+            height: "40px",
+            borderRadius: "50%",
+            border: "2px solid #eaeef4",
+            textDecoration: "none",
+          }}
+        >
+          {userInitials}
+        </Link>
+      </div>
+    );
+    // The bottom nav stays at five tabs, so Reports lives inside Insights.
+    const mobileTabs = (
+      <ClientSegmentedTabs
+        idBase="insights"
+        label="Insights sections"
+        tabs={[
+          { id: "insights", label: "Insights" },
+          { id: "reports", label: "Reports" },
+        ]}
+        value={insightsTab}
+        onChange={switchInsightsTab}
+        className="mb-4"
+      />
+    );
+
+    if (insightsTab === "reports") {
+      return (
+        <div className="mobile-client-dashboard" style={mobileShellStyle}>
+          {mobileHeader}
+          {mobileTabs}
+          <SegmentedTabPanel idBase="insights" tabId="reports" className="cp-report">
+            <ReportHub
+              variant="list"
+              scope={reportsScope}
+              scopeName={reportsScopeName}
+              clearHref="/dashboard/client/insights?tab=reports"
+            />
+          </SegmentedTabPanel>
+        </div>
+      );
+    }
+
     return (
       <Skeleton
         name="client-insights-mobile"
         loading={figuresLoading}
         fallback={<ClientInsightsSkeleton />}
       >
-        <div
-          className="mobile-client-dashboard"
-          style={{
-            padding: "0 16px 90px 16px",
-            background: "var(--surface-0)",
-            minHeight: "100vh",
-            fontFamily: "Inter, -apple-system, sans-serif",
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "24px 0 16px 0",
-            }}
-          >
-            <div>
-              <p
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: "#8c9ba5",
-                  margin: 0,
-                }}
-              >
-                Portfolio analytics
-              </p>
-              <h1
-                style={{
-                  fontSize: "28px",
-                  fontWeight: 700,
-                  color: "#101828",
-                  margin: "4px 0 0 0",
-                }}
-              >
-                Insights
-              </h1>
-            </div>
-            <Link
-              href="/dashboard/client/profile"
-              className="m-db-avatar-circle"
-              style={{
-                backgroundColor: "#1d2d5c",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 600,
-                fontSize: "14px",
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: "2px solid #eaeef4",
-                textDecoration: "none",
-              }}
-            >
-              {userInitials}
-            </Link>
-          </div>
-
-          {figuresError && (
-            <div style={{ marginTop: "12px" }}>
-              <RegionError message={figuresError} onRetry={retryFigures} />
-            </div>
-          )}
-
-          {/* Period (pills, FY, custom range) and scope */}
-          {renderFilters("mobile")}
-
-          {isWorkspaceEmpty ? (
-            <div
-              style={{
-                background: "var(--surface-1)",
-                border: "1px solid var(--border)",
-                borderRadius: "18px",
-                padding: "32px 24px",
-                textAlign: "center",
-                boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
-              }}
-            >
-              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px 0" }}>
-                No Analytics Data
-              </h3>
-              <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 24px 0" }}>
-                We could not find any properties or transactions associated with your account. Add them to view your net cash flow, historical trends, and expense breakdown.
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <Link
-                  href="/dashboard/client/entities"
-                  style={{
-                    display: "block",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    background: "#1b265c",
-                    color: "#ffffff",
-                    textDecoration: "none",
-                    fontWeight: 600,
-                    fontSize: "14px",
-                  }}
-                >
-                  Go to Entities
-                </Link>
-                <Link
-                  href="/dashboard/client/transactions"
-                  style={{
-                    display: "block",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    border: "1px solid var(--border)",
-                    background: "var(--surface-1)",
-                    color: "var(--text-secondary)",
-                    textDecoration: "none",
-                    fontWeight: 600,
-                    fontSize: "14px",
-                  }}
-                >
-                  View Transactions
-                </Link>
+        <div className="mobile-client-dashboard" style={mobileShellStyle}>
+          {mobileHeader}
+          {mobileTabs}
+          <div {...segmentedPanelProps("insights", "insights")}>
+            {figuresError && (
+              <div style={{ marginTop: "12px" }}>
+                <RegionError message={figuresError} onRetry={retryFigures} />
               </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", ...refreshingStyle }} aria-busy={isRefreshing}>
-              {/* Card 1: Net Cash Flow */}
+            )}
+
+            {/* Period (pills, FY, custom range) and scope */}
+            {renderFilters("mobile")}
+
+            {isWorkspaceEmpty ? (
               <div
-                className="m-db-stat-card"
                 style={{
                   background: "var(--surface-1)",
                   border: "1px solid var(--border)",
                   borderRadius: "18px",
-                  padding: "20px 20px 12px 20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0",
+                  padding: "32px 24px",
+                  textAlign: "center",
                   boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-secondary)" }}>
-                    Net Cash Flow
-                  </span>
-                  {showTrendBadge && (
-                    <span
-                      className={`m-db-trend-badge ${toneClass(trendPercentage)}`}
-                      title={comparisonLabel}
-                      style={{
-                        ...trendBadgeStyle,
-                        padding: "2px 8px",
-                        borderRadius: "20px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {trendLabel}
-                    </span>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: "28px",
-                    fontWeight: 700,
-                    color: displayCashFlowMetrics.currentNet >= 0 ? "#12b76a" : "#f04438",
-                    margin: "8px 0 12px 0",
-                  }}
-                >
-                  {formatCurrency(displayCashFlowMetrics.currentNet)}
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "-8px", marginBottom: "8px" }}>
-                  {periodLabel}
-                </div>
-
-                {/* SVG Trend Line Chart */}
-                <div style={{ width: "100%", height: "90px", marginTop: "4px" }}>
-                  <svg
-                    viewBox={`0 0 ${displayLineChartSvg.width} ${displayLineChartSvg.height}`}
-                    width="100%"
-                    height="100%"
-                    preserveAspectRatio="none"
-                  >
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#12b76a" stopOpacity="0.15" />
-                        <stop offset="100%" stopColor="#12b76a" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    {displayLineChartSvg.areaPath && (
-                      <path d={displayLineChartSvg.areaPath} fill="url(#areaGradient)" />
-                    )}
-                    {displayLineChartSvg.linePath && (
-                      <path
-                        d={displayLineChartSvg.linePath}
-                        fill="none"
-                        stroke="#12b76a"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    )}
-                  </svg>
-                </div>
-              </div>
-
-              {/* Card 2: Income vs Expenses */}
-              <div
-                className="m-db-chart-card"
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "18px",
-                  padding: "20px",
-                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px",
-                }}
-              >
-                <div
-                  className="m-db-chart-header"
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <div>
-                    <h3 className="m-db-chart-title" style={{ fontSize: "16px", fontWeight: 700 }}>
-                      Income vs Expenses
-                    </h3>
-                    <div
-                      className="m-db-chart-subtitle"
-                      style={{
-                        fontSize: "12px",
-                        color: "var(--text-muted)",
-                        marginTop: "4px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <span>{barChartSubtitle}</span>
-                    </div>
-                  </div>
-                  {canForecast && (
-                  <button
-                    type="button"
-                    onClick={() => setShowForecast((f) => !f)}
+                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px 0" }}>
+                  No Analytics Data
+                </h3>
+                <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 24px 0" }}>
+                  We could not find any properties or transactions associated with your account. Add them to view your net cash flow, historical trends, and expense breakdown.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <Link
+                    href="/dashboard/client/entities"
                     style={{
-                      border: "none",
-                      background: "none",
-                      color: "var(--text-secondary)",
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      textDecoration: "underline",
-                      cursor: "pointer",
-                      padding: 0,
-                      outline: "none",
+                      display: "block",
+                      padding: "12px",
+                      borderRadius: "12px",
+                      background: "#1b265c",
+                      color: "#ffffff",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      fontSize: "14px",
                     }}
                   >
-                    {forecasting ? "Show recorded months" : "Show next 6 months"}
-                  </button>
-                  )}
-                </div>
-
-                {/* Stacked columns wrapper (narrow pills past six months) */}
-                <div className={`m-db-chart-bars-wrap${mobileBarChartData.length > 6 ? " is-fy" : ""}`}>
-                  {mobileBarChartData.map((d) => {
-                    const total = d.income + d.expense;
-                    const barHeightPct = total > 0 ? (total / displayMaxMonthSum) * 100 : 0;
-                    const incPct = total > 0 ? (d.income / total) * 100 : 0;
-                    const expPct = total > 0 ? (d.expense / total) * 100 : 0;
-
-                    return (
-                      <div key={d.key} className="m-db-chart-bar-container">
-                        <div
-                          className="m-db-chart-bar-pill"
-                          style={{
-                            height: `${Math.max(barHeightPct, 4)}%`,
-                            minHeight: "16px",
-                            display: "flex",
-                            flexDirection: "column-reverse",
-                          }}
-                        >
-                          <div
-                            className="m-db-chart-bar-income"
-                            style={{
-                              height: `${incPct}%`,
-                              backgroundColor: "var(--brand)",
-                            }}
-                            title={`Income: ${formatCurrency(d.income)}`}
-                          />
-                          <div
-                            className="m-db-chart-bar-expense"
-                            style={{
-                              height: `${expPct}%`,
-                              backgroundColor: "var(--accent)",
-                            }}
-                            title={`Expense: ${formatCurrency(d.expense)}`}
-                          />
-                        </div>
-                        <span className="m-db-chart-bar-label">{d.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div
-                  style={{
-                    height: "1px",
-                    background: "var(--border, #eaeef4)",
-                    margin: "4px 0",
-                  }}
-                />
-
-                <div
-                  className="m-db-chart-legend"
-                  style={{ display: "flex", gap: "16px", fontSize: "12px" }}
-                >
-                  <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div
-                      className="m-db-legend-color income"
-                      style={{
-                        width: "12px",
-                        height: "12px",
-                        borderRadius: "3px",
-                        backgroundColor: "var(--brand)",
-                      }}
-                    />
-                    <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Income</span>
-                  </div>
-                  <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div
-                      className="m-db-legend-color expense"
-                      style={{
-                        width: "12px",
-                        height: "12px",
-                        borderRadius: "3px",
-                        backgroundColor: "var(--accent)",
-                      }}
-                    />
-                    <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Expenses</span>
-                  </div>
+                    Go to Entities
+                  </Link>
+                  <Link
+                    href="/dashboard/client/transactions"
+                    style={{
+                      display: "block",
+                      padding: "12px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--border)",
+                      background: "var(--surface-1)",
+                      color: "var(--text-secondary)",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      fontSize: "14px",
+                    }}
+                  >
+                    View Transactions
+                  </Link>
                 </div>
               </div>
-
-              {/* Card 3: Expense breakdown */}
-              <div
-                className="m-db-stat-card"
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "18px",
-                  padding: "20px",
-                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px",
-                }}
-              >
-                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                  Expense breakdown
-                </h3>
-
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", ...refreshingStyle }} aria-busy={isRefreshing}>
+                {/* Card 1: Net Cash Flow */}
                 <div
+                  className="m-db-stat-card"
                   style={{
+                    background: "var(--surface-1)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "18px",
+                    padding: "20px 20px 12px 20px",
                     display: "flex",
-                    alignItems: "center",
-                    gap: "24px",
+                    flexDirection: "column",
+                    gap: "0",
+                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
                   }}
                 >
-                  {/* Doughnut SVG */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-secondary)" }}>
+                      Net Cash Flow
+                    </span>
+                    {showTrendBadge && (
+                      <span
+                        className={`m-db-trend-badge ${toneClass(trendPercentage)}`}
+                        title={comparisonLabel}
+                        style={{
+                          ...trendBadgeStyle,
+                          padding: "2px 8px",
+                          borderRadius: "20px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {trendLabel}
+                      </span>
+                    )}
+                  </div>
                   <div
                     style={{
-                      width: "110px",
-                      height: "110px",
-                      position: "relative",
-                      flexShrink: 0,
+                      fontSize: "28px",
+                      fontWeight: 700,
+                      color: displayCashFlowMetrics.currentNet >= 0 ? "#12b76a" : "#f04438",
+                      margin: "8px 0 12px 0",
                     }}
                   >
-                    <svg viewBox="0 0 100 100" width="100%" height="100%">
-                      {displayExpenseBreakdown.total === 0 ? (
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
+                    {formatCurrency(displayCashFlowMetrics.currentNet)}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "-8px", marginBottom: "8px" }}>
+                    {periodLabel}
+                  </div>
+
+                  {/* SVG Trend Line Chart */}
+                  <div style={{ width: "100%", height: "90px", marginTop: "4px" }}>
+                    <svg
+                      viewBox={`0 0 ${displayLineChartSvg.width} ${displayLineChartSvg.height}`}
+                      width="100%"
+                      height="100%"
+                      preserveAspectRatio="none"
+                    >
+                      <defs>
+                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#12b76a" stopOpacity="0.15" />
+                          <stop offset="100%" stopColor="#12b76a" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+                      {displayLineChartSvg.areaPath && (
+                        <path d={displayLineChartSvg.areaPath} fill="url(#areaGradient)" />
+                      )}
+                      {displayLineChartSvg.linePath && (
+                        <path
+                          d={displayLineChartSvg.linePath}
                           fill="none"
-                          stroke="#f2f4f7"
-                          strokeWidth="10"
+                          stroke="#12b76a"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         />
-                      ) : (
-                        (() => {
-                          let accumulatedPercentage = 0;
-                          return displayExpenseBreakdown.items.map((item, idx) => {
-                            const offset =
-                              (accumulatedPercentage / 100) * doughnutCircumference;
-                            accumulatedPercentage += item.percentage;
-                            return (
-                              <circle
-                                key={item.name}
-                                cx="50"
-                                cy="50"
-                                r="45"
-                                fill="none"
-                                stroke={categoryColors[idx % categoryColors.length]}
-                                strokeWidth="10"
-                                strokeDasharray={`${((item.percentage / 100) * doughnutCircumference).toFixed(2)} ${doughnutCircumference}`}
-                                strokeDashoffset={-offset}
-                                transform="rotate(-90 50 50)"
-                              />
-                            );
-                          });
-                        })()
                       )}
                     </svg>
                   </div>
+                </div>
 
-                  {/* Legend list */}
+                {/* Card 2: Income vs Expenses */}
+                <div
+                  className="m-db-chart-card"
+                  style={{
+                    background: "var(--surface-1)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "18px",
+                    padding: "20px",
+                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                  }}
+                >
+                  <div
+                    className="m-db-chart-header"
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <h3 className="m-db-chart-title" style={{ fontSize: "16px", fontWeight: 700 }}>
+                        Income vs Expenses
+                      </h3>
+                      <div
+                        className="m-db-chart-subtitle"
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--text-muted)",
+                          marginTop: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <span>{barChartSubtitle}</span>
+                      </div>
+                    </div>
+                    {canForecast && (
+                    <button
+                      type="button"
+                      onClick={() => setShowForecast((f) => !f)}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        color: "var(--text-secondary)",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                        padding: 0,
+                        outline: "none",
+                      }}
+                    >
+                      {forecasting ? "Show recorded months" : "Show next 6 months"}
+                    </button>
+                    )}
+                  </div>
+
+                  {/* Stacked columns wrapper (narrow pills past six months) */}
+                  <div className={`m-db-chart-bars-wrap${mobileBarChartData.length > 6 ? " is-fy" : ""}`}>
+                    {mobileBarChartData.map((d) => {
+                      const total = d.income + d.expense;
+                      const barHeightPct = total > 0 ? (total / displayMaxMonthSum) * 100 : 0;
+                      const incPct = total > 0 ? (d.income / total) * 100 : 0;
+                      const expPct = total > 0 ? (d.expense / total) * 100 : 0;
+
+                      return (
+                        <div key={d.key} className="m-db-chart-bar-container">
+                          <div
+                            className="m-db-chart-bar-pill"
+                            style={{
+                              height: `${Math.max(barHeightPct, 4)}%`,
+                              minHeight: "16px",
+                              display: "flex",
+                              flexDirection: "column-reverse",
+                            }}
+                          >
+                            <div
+                              className="m-db-chart-bar-income"
+                              style={{
+                                height: `${incPct}%`,
+                                backgroundColor: "var(--brand)",
+                              }}
+                              title={`Income: ${formatCurrency(d.income)}`}
+                            />
+                            <div
+                              className="m-db-chart-bar-expense"
+                              style={{
+                                height: `${expPct}%`,
+                                backgroundColor: "var(--accent)",
+                              }}
+                              title={`Expense: ${formatCurrency(d.expense)}`}
+                            />
+                          </div>
+                          <span className="m-db-chart-bar-label">{d.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div
+                    style={{
+                      height: "1px",
+                      background: "var(--border, #eaeef4)",
+                      margin: "4px 0",
+                    }}
+                  />
+
+                  <div
+                    className="m-db-chart-legend"
+                    style={{ display: "flex", gap: "16px", fontSize: "12px" }}
+                  >
+                    <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        className="m-db-legend-color income"
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "3px",
+                          backgroundColor: "var(--brand)",
+                        }}
+                      />
+                      <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Income</span>
+                    </div>
+                    <div className="m-db-legend-item" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        className="m-db-legend-color expense"
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "3px",
+                          backgroundColor: "var(--accent)",
+                        }}
+                      />
+                      <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Expenses</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Expense breakdown */}
+                <div
+                  className="m-db-stat-card"
+                  style={{
+                    background: "var(--surface-1)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "18px",
+                    padding: "20px",
+                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                  }}
+                >
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    Expense breakdown
+                  </h3>
+
                   <div
                     style={{
                       display: "flex",
-                      flexDirection: "column",
-                      gap: "10px",
-                      flexGrow: 1,
+                      alignItems: "center",
+                      gap: "24px",
                     }}
                   >
-                    {displayExpenseBreakdown.total === 0 ? (
+                    {/* Doughnut SVG */}
+                    <div
+                      style={{
+                        width: "110px",
+                        height: "110px",
+                        position: "relative",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg viewBox="0 0 100 100" width="100%" height="100%">
+                        {displayExpenseBreakdown.total === 0 ? (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#f2f4f7"
+                            strokeWidth="10"
+                          />
+                        ) : (
+                          (() => {
+                            let accumulatedPercentage = 0;
+                            return displayExpenseBreakdown.items.map((item, idx) => {
+                              const offset =
+                                (accumulatedPercentage / 100) * doughnutCircumference;
+                              accumulatedPercentage += item.percentage;
+                              return (
+                                <circle
+                                  key={item.name}
+                                  cx="50"
+                                  cy="50"
+                                  r="45"
+                                  fill="none"
+                                  stroke={categoryColors[idx % categoryColors.length]}
+                                  strokeWidth="10"
+                                  strokeDasharray={`${((item.percentage / 100) * doughnutCircumference).toFixed(2)} ${doughnutCircumference}`}
+                                  strokeDashoffset={-offset}
+                                  transform="rotate(-90 50 50)"
+                                />
+                              );
+                            });
+                          })()
+                        )}
+                      </svg>
+                    </div>
+
+                    {/* Legend list */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
+                        flexGrow: 1,
+                      }}
+                    >
+                      {displayExpenseBreakdown.total === 0 ? (
+                        <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+                          No expense items recorded.
+                        </span>
+                      ) : (
+                        displayExpenseBreakdown.items.map((item, idx) => (
+                          <div
+                            key={item.name}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              fontSize: "13px",
+                              fontWeight: 500,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div
+                                style={{
+                                  width: "10px",
+                                  height: "10px",
+                                  borderRadius: "2px",
+                                  backgroundColor:
+                                    categoryColors[idx % categoryColors.length],
+                                }}
+                              />
+                              <span style={{ color: "var(--text-secondary)" }}>{item.name}</span>
+                            </div>
+                            <strong style={{ color: "var(--text-primary)" }}>{item.percentage}%</strong>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: Top performing */}
+                <div
+                  className="m-db-stat-card"
+                  style={{
+                    background: "var(--surface-1)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "18px",
+                    padding: "20px",
+                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                      Top performing
+                    </h3>
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>
+                      {topPerformingLabel}
+                    </p>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "4px" }}>
+                    {displayTopPerformingProperties.length === 0 ? (
                       <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                        No expense items recorded.
+                        No properties found.
                       </span>
                     ) : (
-                      displayExpenseBreakdown.items.map((item, idx) => (
+                      displayTopPerformingProperties.map((item, idx) => (
                         <div
                           key={item.name}
                           style={{
                             display: "flex",
-                            justifyContent: "space-between",
                             alignItems: "center",
-                            fontSize: "13px",
-                            fontWeight: 500,
+                            justifyContent: "space-between",
+                            paddingBottom: idx < displayTopPerformingProperties.length - 1 ? "12px" : "0",
+                            borderBottom: idx < displayTopPerformingProperties.length - 1 ? "1px solid var(--border)" : "none",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            {/* Rank Circle */}
                             <div
                               style={{
-                                width: "10px",
-                                height: "10px",
-                                borderRadius: "2px",
-                                backgroundColor:
-                                  categoryColors[idx % categoryColors.length],
+                                width: "24px",
+                                height: "24px",
+                                borderRadius: "50%",
+                                backgroundColor: "#1b265c",
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "12px",
+                                fontWeight: 700,
                               }}
-                            />
-                            <span style={{ color: "var(--text-secondary)" }}>{item.name}</span>
+                            >
+                              {idx + 1}
+                            </div>
+                            <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                              {item.name}
+                            </span>
                           </div>
-                          <strong style={{ color: "var(--text-primary)" }}>{item.percentage}%</strong>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                            <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                              {formatClientPercent(item.returnRate)}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: 700,
+                                color: item.net >= 0 ? "#12b76a" : "#f04438",
+                              }}
+                            >
+                              {formatKCurrency(item.net)}
+                            </span>
+                          </div>
                         </div>
                       ))
                     )}
                   </div>
                 </div>
               </div>
-
-              {/* Card 4: Top performing */}
-              <div
-                className="m-db-stat-card"
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "18px",
-                  padding: "20px",
-                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                <div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                    Top performing
-                  </h3>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>
-                    {topPerformingLabel}
-                  </p>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "4px" }}>
-                  {displayTopPerformingProperties.length === 0 ? (
-                    <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                      No properties found.
-                    </span>
-                  ) : (
-                    displayTopPerformingProperties.map((item, idx) => (
-                      <div
-                        key={item.name}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          paddingBottom: idx < displayTopPerformingProperties.length - 1 ? "12px" : "0",
-                          borderBottom: idx < displayTopPerformingProperties.length - 1 ? "1px solid var(--border)" : "none",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          {/* Rank Circle */}
-                          <div
-                            style={{
-                              width: "24px",
-                              height: "24px",
-                              borderRadius: "50%",
-                              backgroundColor: "#1b265c",
-                              color: "#ffffff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {idx + 1}
-                          </div>
-                          <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                            {item.name}
-                          </span>
-                        </div>
-
-                        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                          <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>
-                            {formatClientPercent(item.returnRate)}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "14px",
-                              fontWeight: 700,
-                              color: item.net >= 0 ? "#12b76a" : "#f04438",
-                            }}
-                          >
-                            {formatKCurrency(item.net)}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </Skeleton>
     );

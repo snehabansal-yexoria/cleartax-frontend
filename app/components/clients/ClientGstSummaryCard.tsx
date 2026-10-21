@@ -103,6 +103,12 @@ export default function ClientGstSummaryCard({
   // an empty quarter is indistinguishable from figures that failed to bind.
   const periodEmpty =
     !loading && !!summary && summary.salesCount === 0 && summary.purchasesCount === 0;
+  // The bills behind each GST figure, with their total. Bills can carry no
+  // GST at all — residential rent is input-taxed, and a GST-free purchase
+  // records 0 — so 1A/1B alone read A$ 0.00 while the response holds real
+  // sales and purchases; the totals say what the zero was computed over.
+  const billsLine = (count: number, total: number, noun: string) =>
+    `${count} ${noun}${count === 1 ? "" : "s"}${count > 0 ? ` totalling ${gstMoney(total)}` : ""}`;
   const idBase = `gst-${level}`;
 
   return (
@@ -159,13 +165,13 @@ export default function ClientGstSummaryCard({
             <Tile
               label="GST on sales (1A)"
               value={gstMoney(summary?.gstOnSales ?? 0)}
-              sub={summary ? `${summary.salesCount} sale${summary.salesCount === 1 ? "" : "s"}` : undefined}
+              sub={summary ? billsLine(summary.salesCount, summary.g1TotalSales, "sale") : undefined}
               loading={loading}
             />
             <Tile
               label="GST on purchases (1B)"
               value={gstMoney(summary?.gstOnPurchases ?? 0)}
-              sub={summary ? `${summary.purchasesCount} purchase${summary.purchasesCount === 1 ? "" : "s"}` : undefined}
+              sub={summary ? billsLine(summary.purchasesCount, summary.purchasesTotal, "purchase") : undefined}
               loading={loading}
             />
             <Tile

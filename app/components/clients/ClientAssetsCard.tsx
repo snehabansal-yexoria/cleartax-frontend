@@ -60,6 +60,10 @@ export default function ClientAssetsCard({
   const assets = useAssetTransactions(level, id, { enabled: !!id });
   const rows = assets.rows;
   const titleId = `assets-${level}-title`;
+  // On a property's own page every row is that property, so the column (and
+  // the list's property line) would only repeat the page title — the
+  // accountant's property asset panel leaves it out too.
+  const showProperty = level !== "property";
   const href = (transactionId: string) => `${assetHrefBase}/${encodeURIComponent(transactionId)}`;
 
   let body: React.ReactNode;
@@ -94,7 +98,9 @@ export default function ClientAssetsCard({
                 <span className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-sm font-bold text-[var(--text-primary)] truncate">{name}</span>
                   <span className="text-[11px] font-semibold text-[var(--text-muted)] truncate">
-                    {t.propertyNames?.[0] || "No property"} · {formatDateAU(t.invoiceDate)}
+                    {showProperty
+                      ? `${t.propertyNames?.[0] || "No property"} · ${formatDateAU(t.invoiceDate)}`
+                      : formatDateAU(t.invoiceDate)}
                   </span>
                 </span>
                 <span className="flex items-center gap-1.5 shrink-0 text-[var(--text-muted)]">
@@ -117,7 +123,7 @@ export default function ClientAssetsCard({
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th scope="col" className={th}>Property</th>
+              {showProperty && <th scope="col" className={th}>Property</th>}
               <th scope="col" className={th}>Asset name</th>
               <th scope="col" className={th}>Date</th>
               <th scope="col" className={`${th} text-right`}>Amount</th>
@@ -141,9 +147,11 @@ export default function ClientAssetsCard({
                     router.push(to);
                   }}
                 >
-                  <td className={`${td} text-[var(--text-secondary)] font-semibold`}>
-                    {t.propertyNames?.[0] || "—"}
-                  </td>
+                  {showProperty && (
+                    <td className={`${td} text-[var(--text-secondary)] font-semibold`}>
+                      {t.propertyNames?.[0] || "—"}
+                    </td>
+                  )}
                   <td className={`${td} font-bold`}>
                     <Link href={to} className="hover:underline" style={{ textDecoration: "none" }}>
                       {name}

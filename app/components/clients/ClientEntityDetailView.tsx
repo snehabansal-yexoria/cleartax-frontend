@@ -30,16 +30,7 @@ import { propertyImageSrc } from "@/src/lib/propertyImage";
 import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
 import ClientPersonalTransactionsCard from "@/app/components/clients/ClientPersonalTransactionsCard";
 import ClientAssetsCard from "@/app/components/clients/ClientAssetsCard";
-import ClientSegmentedTabs, {
-  SegmentedTabPanel,
-  segmentedPanelProps,
-} from "@/app/components/clients/ClientSegmentedTabs";
-import ClientScopedReport from "@/app/components/reports/portfolio/ClientScopedReport";
-import {
-  clientReportHref,
-  useReportSearchParams,
-  type ReportTab,
-} from "@/app/components/reports/portfolio/useReportSearchParams";
+import { clientReportsHubHref } from "@/app/components/reports/client/reportLinks";
 
 type DocumentListItem = {
   id: string;
@@ -256,19 +247,9 @@ export default function ClientEntityDetailView({
   const summaryRegion = usePortfolioSummary(clientId, financialYear, entityId);
   const lastYearRegion = usePortfolioSummary(clientId, financialYear - 1, entityId);
 
-  // Phones: Overview | Reporting inside the page (`?tab=reporting`, `?fy=`).
-  // Desktop links to the Reports page instead and ignores the tab.
-  const {
-    tab: reportTab,
-    financialYear: reportYear,
-    setTab: setReportTab,
-    setFinancialYear: setReportYear,
-  } = useReportSearchParams();
-  const showReport = isMobile && reportTab === "reporting";
-  const switchTab = (next: ReportTab) => {
-    setReportTab(next);
-    window.scrollTo({ top: 0 });
-  };
+  // Reports for this entity: the report list with the entity preselected —
+  // the sidebar's Reports page on desktop, Insights → Reports on a phone.
+  const reportsHref = clientReportsHubHref({ entityId }, { mobile: isMobile });
   const summary = summaryRegion.data;
   const lastYearSummary = lastYearRegion.data;
   const totals = summary?.totals ?? null;
@@ -522,39 +503,18 @@ export default function ClientEntityDetailView({
             <span>Back</span>
           </Link>
           <h2 className="text-base font-extrabold text-slate-800 dark:text-slate-100">Entity Detail</h2>
-          <Link href={editEntityHref} className="text-[#28336e] dark:text-[#f4a117] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href={reportsHref} className="text-[#28336e] dark:text-[#f4a117] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
+              Reports
+            </Link>
+            <Link href={editEntityHref} className="text-[#28336e] dark:text-[#f4a117] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
+              Edit
+            </Link>
+          </div>
         </div>
       )}
 
-      {isMobile && (
-        <ClientSegmentedTabs
-          idBase="entity-detail"
-          label="Entity sections"
-          tabs={[
-            { id: "overview", label: "Overview" },
-            { id: "reporting", label: "Reporting" },
-          ]}
-          value={reportTab}
-          onChange={switchTab}
-        />
-      )}
-
-      {showReport ? (
-        <SegmentedTabPanel idBase="entity-detail" tabId="reporting" className="pb-24">
-          {/* Mounted only while open. At the current year it reuses this
-              page's own summary request rather than making a second. */}
-          <ClientScopedReport
-            entityId={entityId}
-            variant="embedded"
-            financialYear={reportYear ?? financialYear}
-            onFinancialYearChange={setReportYear}
-            seed={{ financialYear, region: summaryRegion }}
-          />
-        </SegmentedTabPanel>
-      ) : (
-      <div className="flex flex-col gap-6" {...(isMobile ? segmentedPanelProps("entity-detail", "overview") : {})}>
+      <div className="flex flex-col gap-6">
       {/* 1. TOP HEADER STATS CARD */}
       <div className="client-entity-header-card">
         <span className="client-entity-kicker">
@@ -571,7 +531,7 @@ export default function ClientEntityDetailView({
           {!isMobile && (
             <div className="flex items-center gap-2">
               <Link
-                href={clientReportHref({ entityId })}
+                href={reportsHref}
                 className="client-entity-edit-btn"
                 style={{ textDecoration: 'none' }}
               >
@@ -1239,7 +1199,6 @@ export default function ClientEntityDetailView({
         </div>
       )}
       </div>
-      )}
 
       {/* ==========================================================================
          UPLOAD DOCUMENT MODAL DIALOG POPUP
