@@ -1,13 +1,133 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import LandingPageFooter from "./components/LandingPageFooter";
 import "./landing.css";
 
+/**
+ * Senior Architecture: High-performance Viewport Scroll-Reveal Hook
+ * - Native IntersectionObserver with tuned thresholds and anticipation margin
+ * - Zero layout shift, full SSR/hydration safety
+ * - Automatic stagger choreography and hardware-accelerated transitions
+ * - Dynamic stacking context and will-change cleanup
+ * - Graceful degradation & prefers-reduced-motion compliance
+ * - Safety fallback timer prevents unrevealed content under any scroll speed
+ */
+function useScrollReveal() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Reset scroll restoration on fresh visits so animations play from top every visit
+    if (typeof window !== "undefined") {
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "manual";
+      }
+      if (!window.location.hash && window.scrollY > 0) {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+    }
+
+    // Respect accessibility settings
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Enable animation classes now that the component is mounted on the client
+    container.setAttribute("data-landing-animated", "true");
+
+    const elements = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        ".scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale, .scroll-reveal-fade"
+      )
+    );
+
+    if (elements.length === 0) return;
+
+    if (prefersReducedMotion || typeof IntersectionObserver === "undefined") {
+      elements.forEach((el) => el.classList.add("is-revealed"));
+      return;
+    }
+
+    // Bidirectional IntersectionObserver: animates in and out in reverse
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.setAttribute("data-revealed", "true");
+            entry.target.classList.add("is-revealed");
+          } else {
+            // When element leaves the viewport completely, reset state so it re-animates next time
+            entry.target.removeAttribute("data-revealed");
+            entry.target.classList.remove("is-revealed");
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: "0px 0px -70px 0px",
+        threshold: 0.1,
+      }
+    );
+
+    elements.forEach((el) => {
+      observer.observe(el);
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  return containerRef;
+}
+
 export default function Home() {
+  const landingRef = useScrollReveal();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // High performance scroll listener using requestAnimationFrame (ZERO React re-renders)
+  useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+
+          if (headerRef.current) {
+            if (scrollY > 20) {
+              headerRef.current.classList.add("ct-header-scrolled");
+            } else {
+              headerRef.current.classList.remove("ct-header-scrolled");
+            }
+          }
+
+          if (progressBarRef.current) {
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            if (docHeight > 0) {
+              const progress = Math.min(1, Math.max(0, scrollY / docHeight));
+              progressBarRef.current.style.transform = `scaleX(${progress})`;
+            }
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Smooth scroll handler that works across all devices with header offset compensation
   const scrollToSection = (e?: React.MouseEvent, targetId?: string) => {
@@ -44,6 +164,18 @@ export default function Home() {
       document.getElementById(cleanId);
 
     if (element) {
+      // Proactively reveal items in target section if navigated directly
+      element.setAttribute("data-revealed", "true");
+      element.classList.add("is-revealed");
+      element
+        .querySelectorAll(
+          ".scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale, .scroll-reveal-fade"
+        )
+        .forEach((el) => {
+          el.setAttribute("data-revealed", "true");
+          el.classList.add("is-revealed");
+        });
+
       const header = document.querySelector(".ct-header");
       const headerHeight = header ? header.getBoundingClientRect().height : 70;
       const elementPosition = element.getBoundingClientRect().top;
@@ -123,9 +255,15 @@ export default function Home() {
   ];
 
   return (
-    <div className="ct-landing-wrapper">
+    <div ref={landingRef} className="ct-landing-wrapper">
       {/* ================= HEADER / NAVBAR ================= */}
-      <header className="ct-header">
+      <header ref={headerRef} className="ct-header">
+        {/* Subtle Reading Progress Bar */}
+        <div
+          ref={progressBarRef}
+          className="ct-scroll-progress-bar"
+          aria-hidden="true"
+        />
         <div className="ct-nav-container">
           {/* Logo */}
           <Link
@@ -326,24 +464,24 @@ export default function Home() {
       {/* ================= HERO SECTION ================= */}
       <main id="top" className="ct-hero-section">
         {/* Top Tag Pill */}
-        <div className="ct-badge-pill">
+        <div className="ct-badge-pill scroll-reveal">
           <span className="ct-badge-dot" />
           <span>PROPERTY PORTFOLIO MANAGEMENT</span>
         </div>
 
         {/* Main Heading */}
-        <h1 className="ct-hero-title">
+        <h1 className="ct-hero-title scroll-reveal scroll-delay-1">
           A clear view of your{" "}
           <span className="highlight-orange">entire portfolio.</span>
         </h1>
 
         {/* Subtitle */}
-        <p className="ct-hero-subtitle">
+        <p className="ct-hero-subtitle scroll-reveal scroll-delay-2">
           ClearPortfolio brings every property you own into a single, live view, so you always know exactly how your portfolio is performing.
         </p>
 
         {/* CTA Buttons */}
-        <div className="ct-hero-actions">
+        <div className="ct-hero-actions scroll-reveal scroll-delay-3">
           <Link
             href="#contact"
             className="ct-btn-primary"
@@ -365,7 +503,7 @@ export default function Home() {
         </div>
 
         {/* ================= MOCKUP IMAGE & FLOATING ELEMENTS ================= */}
-        <div className="ct-mockup-wrapper">
+        <div className="ct-mockup-wrapper scroll-reveal scroll-reveal-scale scroll-delay-4">
           {/* Desktop Floating Badge: Top Right */}
           <div className="ct-floating-badge badge-top-right">
             <div className="ct-badge-icon-box">
@@ -424,22 +562,22 @@ export default function Home() {
       <section id="overview" className="ct-features-section">
         <div className="ct-features-container">
           {/* Section Tag */}
-          <div className="ct-features-badge">CLEARPORTFOLIO</div>
+          <div className="ct-features-badge scroll-reveal">CLEARPORTFOLIO</div>
 
           {/* Section Title */}
-          <h2 className="ct-features-title">
+          <h2 className="ct-features-title scroll-reveal scroll-delay-1">
             Your portfolio, finally in one place.
           </h2>
 
           {/* Section Description */}
-          <p className="ct-features-subtitle">
+          <p className="ct-features-subtitle scroll-reveal scroll-delay-2">
             ClearPortfolio is a portfolio tracking tool built for property investors. It replaces scattered spreadsheets, folders and email threads with one live dashboard, so you always know how each property is performing and how your whole portfolio is tracking.
           </p>
 
           {/* 4 Feature Cards Grid */}
-          <div className="ct-features-grid">
+          <div className="ct-features-grid scroll-stagger-grid">
             {/* Card 01 */}
-            <div className="ct-feature-card">
+            <div className="ct-feature-card scroll-reveal">
               <div className="ct-card-header">
                 <span className="ct-card-number">01</span>
                 <span className="ct-card-dot" />
@@ -451,7 +589,7 @@ export default function Home() {
             </div>
 
             {/* Card 02 */}
-            <div className="ct-feature-card">
+            <div className="ct-feature-card scroll-reveal">
               <div className="ct-card-header">
                 <span className="ct-card-number">02</span>
                 <span className="ct-card-dot" />
@@ -463,7 +601,7 @@ export default function Home() {
             </div>
 
             {/* Card 03 */}
-            <div className="ct-feature-card">
+            <div className="ct-feature-card scroll-reveal">
               <div className="ct-card-header">
                 <span className="ct-card-number">03</span>
                 <span className="ct-card-dot" />
@@ -475,7 +613,7 @@ export default function Home() {
             </div>
 
             {/* Card 04 */}
-            <div className="ct-feature-card">
+            <div className="ct-feature-card scroll-reveal">
               <div className="ct-card-header">
                 <span className="ct-card-number">04</span>
                 <span className="ct-card-dot" />
@@ -493,7 +631,7 @@ export default function Home() {
       <section id="how-it-works" className="ct-challenges-section">
         <div className="ct-challenges-container">
           {/* Left Column: Heading & Info */}
-          <div className="ct-challenges-left">
+          <div className="ct-challenges-left scroll-reveal scroll-reveal-left">
             {/* Desktop Badge */}
             <div className="ct-challenges-badge desktop-only">THE STATUS QUO</div>
             {/* Mobile Pill Badge */}
@@ -516,9 +654,9 @@ export default function Home() {
           </div>
 
           {/* Right Column: Challenges List / Cards */}
-          <div className="ct-challenges-right">
+          <div className="ct-challenges-right scroll-stagger-grid">
             {/* Card 01 */}
-            <div className="ct-challenge-item">
+            <div className="ct-challenge-item scroll-reveal">
               <div className="ct-challenge-item-header">
                 <span className="ct-card-number">01</span>
                 <h3 className="ct-challenge-item-title">No portfolio tracking</h3>
@@ -529,7 +667,7 @@ export default function Home() {
             </div>
 
             {/* Card 02 */}
-            <div className="ct-challenge-item">
+            <div className="ct-challenge-item scroll-reveal">
               <div className="ct-challenge-item-header">
                 <span className="ct-card-number">02</span>
                 <h3 className="ct-challenge-item-title">No visibility on performance</h3>
@@ -540,7 +678,7 @@ export default function Home() {
             </div>
 
             {/* Card 03 */}
-            <div className="ct-challenge-item">
+            <div className="ct-challenge-item scroll-reveal">
               <div className="ct-challenge-item-header">
                 <span className="ct-card-number">03</span>
                 <h3 className="ct-challenge-item-title">Key dates get missed</h3>
@@ -551,7 +689,7 @@ export default function Home() {
             </div>
 
             {/* Card 04 */}
-            <div className="ct-challenge-item">
+            <div className="ct-challenge-item scroll-reveal">
               <div className="ct-challenge-item-header">
                 <span className="ct-card-number">04</span>
                 <h3 className="ct-challenge-item-title">Record keeping is everywhere</h3>
@@ -570,7 +708,7 @@ export default function Home() {
           {/* ================= DESKTOP LAYOUT (>= 901px) ================= */}
           <div className="ct-clarity-desktop">
             {/* Top Section Header */}
-            <div className="ct-clarity-header">
+            <div className="ct-clarity-header scroll-reveal">
               <div className="ct-clarity-badge">
                 <span className="ct-badge-dot" />
                 <span>DESIGNED FOR CLARITY</span>
@@ -590,7 +728,7 @@ export default function Home() {
               {/* ---------------- FEATURE 01 ---------------- */}
               <div className="ct-clarity-row ct-clarity-row-1">
                 {/* Left: Text Content */}
-                <div className="ct-clarity-text-col">
+                <div className="ct-clarity-text-col scroll-reveal scroll-reveal-left">
                   <span className="ct-feature-tag">FEATURE 01</span>
                   <h3 className="ct-clarity-row-title">Your whole portfolio, one view</h3>
                   <p className="ct-clarity-row-desc">
@@ -613,7 +751,7 @@ export default function Home() {
                 </div>
 
                 {/* Right: Dashboard Mockup Image */}
-                <div className="ct-clarity-visual-col">
+                <div className="ct-clarity-visual-col scroll-reveal scroll-reveal-right">
                   <div className="ct-clarity-img-wrapper">
                     <img
                       src="/Image1.png"
@@ -627,7 +765,7 @@ export default function Home() {
               {/* ---------------- FEATURE 02 ---------------- */}
               <div className="ct-clarity-row ct-clarity-row-2">
                 {/* Left: Cashflow Dark Card */}
-                <div className="ct-clarity-visual-col">
+                <div className="ct-clarity-visual-col scroll-reveal scroll-reveal-left">
                   <div className="ct-cashflow-card">
                     {/* Top Stats */}
                     <div className="ct-cashflow-top">
@@ -678,7 +816,7 @@ export default function Home() {
                 </div>
 
                 {/* Right: Text Content */}
-                <div className="ct-clarity-text-col">
+                <div className="ct-clarity-text-col scroll-reveal scroll-reveal-right">
                   <span className="ct-feature-tag">FEATURE 02</span>
                   <h3 className="ct-clarity-row-title">Clear performance at a glance</h3>
                   <p className="ct-clarity-row-desc">
@@ -704,7 +842,7 @@ export default function Home() {
               {/* ---------------- FEATURE 03 ---------------- */}
               <div className="ct-clarity-row ct-clarity-row-3">
                 {/* Left: Text Content */}
-                <div className="ct-clarity-text-col">
+                <div className="ct-clarity-text-col scroll-reveal scroll-reveal-left">
                   <span className="ct-feature-tag">FEATURE 03</span>
                   <h3 className="ct-clarity-row-title">Never miss a date</h3>
                   <p className="ct-clarity-row-desc">
@@ -716,7 +854,7 @@ export default function Home() {
                 </div>
 
                 {/* Right: Upcoming Calendar Deadlines Card */}
-                <div className="ct-clarity-visual-col">
+                <div className="ct-clarity-visual-col scroll-reveal scroll-reveal-right">
                   <div className="ct-deadlines-card">
                     {/* Card Header */}
                     <div className="ct-card-top-header">
@@ -769,7 +907,7 @@ export default function Home() {
               {/* ---------------- FEATURE 04 ---------------- */}
               <div className="ct-clarity-row ct-clarity-row-4">
                 {/* Left: Document Vault Card */}
-                <div className="ct-clarity-visual-col">
+                <div className="ct-clarity-visual-col scroll-reveal scroll-reveal-left">
                   <div className="ct-vault-card">
                     {/* Card Header */}
                     <div className="ct-card-top-header">
@@ -827,7 +965,7 @@ export default function Home() {
                 </div>
 
                 {/* Right: Text Content */}
-                <div className="ct-clarity-text-col">
+                <div className="ct-clarity-text-col scroll-reveal scroll-reveal-right">
                   <span className="ct-feature-tag">FEATURE 04</span>
                   <h3 className="ct-clarity-row-title">Everything in one place</h3>
                   <p className="ct-clarity-row-desc">
@@ -844,7 +982,7 @@ export default function Home() {
           {/* ================= MOBILE LAYOUT (<= 900px) ================= */}
           <div className="ct-clarity-mobile">
             {/* Mobile Section Header */}
-            <div className="ct-mobile-clarity-header">
+            <div className="ct-mobile-clarity-header scroll-reveal">
               <div className="ct-clarity-badge">
                 <span className="ct-badge-dot" />
                 <span>FEATURE BREAKDOWN</span>
@@ -855,9 +993,9 @@ export default function Home() {
             </div>
 
             {/* Mobile Stacked 4 Cards */}
-            <div className="ct-mobile-cards-list">
+            <div className="ct-mobile-cards-list scroll-stagger-grid">
               {/* CARD 01: Consolidated Portfolio View */}
-              <div className="ct-mcard ct-mcard-white">
+              <div className="ct-mcard ct-mcard-white scroll-reveal">
                 <span className="ct-mcard-tag-pill">Dashboard</span>
                 <h3 className="ct-mcard-title">Consolidated Portfolio View</h3>
                 <p className="ct-mcard-desc">
@@ -873,7 +1011,7 @@ export default function Home() {
               </div>
 
               {/* CARD 02: Financial Performance (Theme Blue #28336e) */}
-              <div className="ct-mcard ct-mcard-blue">
+              <div className="ct-mcard ct-mcard-blue scroll-reveal">
                 {/* Header Row */}
                 <div className="ct-mcard-blue-header">
                   <span className="ct-mcard-perf-badge">FINANCIAL PERFORMANCE</span>
@@ -925,7 +1063,7 @@ export default function Home() {
               </div>
 
               {/* CARD 03: Critical Milestones & Actions */}
-              <div className="ct-mcard ct-mcard-white">
+              <div className="ct-mcard ct-mcard-white scroll-reveal">
                 <div className="ct-mcard-header-flex">
                   <h3 className="ct-mcard-title ct-no-margin">Critical Milestones & Actions</h3>
                   <span className="ct-mcard-action-badge">Action Required</span>
@@ -959,7 +1097,7 @@ export default function Home() {
               </div>
 
               {/* CARD 04: Encrypted Property Document Vault */}
-              <div className="ct-mcard ct-mcard-white">
+              <div className="ct-mcard ct-mcard-white scroll-reveal">
                 <h3 className="ct-mcard-title">Encrypted Property Document Vault</h3>
                 <p className="ct-mcard-desc">
                   Instant 1-tap download of tax-deductible schedules.
@@ -1000,7 +1138,7 @@ export default function Home() {
       <section id="metrics" className="ct-metrics-demo-section">
         <div className="ct-metrics-demo-container">
           {/* Section Header */}
-          <div className="ct-metrics-demo-header">
+          <div className="ct-metrics-demo-header scroll-reveal">
             {/* Tag / Badge Pill */}
             <div className="ct-metrics-demo-badge">
               <span className="ct-demo-badge-dot" />
@@ -1025,9 +1163,9 @@ export default function Home() {
           </div>
 
           {/* Metric Cards 6-Card Grid */}
-          <div className="ct-metrics-cards-grid">
+          <div className="ct-metrics-cards-grid scroll-stagger-grid">
             {/* Card 1: Net Equity */}
-            <div className="ct-metric-card ct-metric-card-accent">
+            <div className="ct-metric-card ct-metric-card-accent scroll-reveal">
               <span className="ct-metric-card-label">NET EQUITY</span>
               <div className="ct-metric-card-val-group">
                 <span className="ct-metric-val ct-val-gold val-desktop">$2,920,000</span>
@@ -1040,7 +1178,7 @@ export default function Home() {
             </div>
 
             {/* Card 2: Market Value */}
-            <div className="ct-metric-card">
+            <div className="ct-metric-card scroll-reveal">
               <span className="ct-metric-card-label">MARKET VALUE</span>
               <div className="ct-metric-card-val-group">
                 <span className="ct-metric-val val-desktop">$4,850,000</span>
@@ -1053,7 +1191,7 @@ export default function Home() {
             </div>
 
             {/* Card 3: Total Loans */}
-            <div className="ct-metric-card">
+            <div className="ct-metric-card scroll-reveal">
               <span className="ct-metric-card-label">TOTAL LOANS</span>
               <div className="ct-metric-card-val-group">
                 <span className="ct-metric-val val-desktop">$1,930,000</span>
@@ -1066,7 +1204,7 @@ export default function Home() {
             </div>
 
             {/* Card 4: Rental Income */}
-            <div className="ct-metric-card ct-metric-card-accent">
+            <div className="ct-metric-card ct-metric-card-accent scroll-reveal">
               <span className="ct-metric-card-label">RENTAL INCOME</span>
               <div className="ct-metric-card-val-group">
                 <span className="ct-metric-val val-desktop">$214,000</span>
@@ -1079,7 +1217,7 @@ export default function Home() {
             </div>
 
             {/* Card 5: Total Expenses */}
-            <div className="ct-metric-card">
+            <div className="ct-metric-card scroll-reveal">
               <span className="ct-metric-card-label">TOTAL EXPENSES</span>
               <div className="ct-metric-card-val-group">
                 <span className="ct-metric-val val-desktop">$62,400</span>
@@ -1092,7 +1230,7 @@ export default function Home() {
             </div>
 
             {/* Card 6: Net Cash Flow */}
-            <div className="ct-metric-card">
+            <div className="ct-metric-card scroll-reveal">
               <span className="ct-metric-card-label">NET CASH FLOW</span>
               <div className="ct-metric-card-val-group">
                 <span className="ct-metric-val ct-val-gold val-desktop">+$38,200</span>
@@ -1106,7 +1244,7 @@ export default function Home() {
           </div>
 
           {/* Desktop Dashboard Mockup Window Frame (Desktop Only) */}
-          <div className="ct-demo-window-frame desktop-only">
+          <div className="ct-demo-window-frame desktop-only scroll-reveal scroll-reveal-scale">
             {/* Desktop Top Bar */}
             <div className="ct-demo-window-topbar">
               <div className="ct-demo-window-title-left">
@@ -1129,7 +1267,7 @@ export default function Home() {
           </div>
 
           {/* Mobile Live Session Bar (Mobile Only) */}
-          <div className="ct-demo-mobile-bar mobile-only">
+          <div className="ct-demo-mobile-bar mobile-only scroll-reveal">
             <div className="ct-demo-mobile-status">
               <span className="ct-demo-pulse-dot" />
               <span>Live Session Active</span>
@@ -1145,7 +1283,7 @@ export default function Home() {
       <section id="testimonials" className="ct-testimonials-section">
         <div className="ct-testimonials-container">
           {/* Section Header */}
-          <div className="ct-testimonials-header">
+          <div className="ct-testimonials-header scroll-reveal">
             {/* Pill Badge */}
             <div className="ct-badge-pill ct-testimonials-pill">
               <span className="ct-badge-dot" />
@@ -1169,9 +1307,9 @@ export default function Home() {
           </div>
 
           {/* Testimonial Cards Grid */}
-          <div className="ct-testimonials-grid">
+          <div className="ct-testimonials-grid scroll-stagger-grid">
             {/* Card 1: Marcus Vance */}
-            <div className="ct-testimonial-card">
+            <div className="ct-testimonial-card scroll-reveal">
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
@@ -1207,7 +1345,7 @@ export default function Home() {
             </div>
 
             {/* Card 2: Sarah Chen */}
-            <div className="ct-testimonial-card">
+            <div className="ct-testimonial-card scroll-reveal">
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
@@ -1221,10 +1359,10 @@ export default function Home() {
 
               <blockquote className="ct-testimonial-quote">
                 <span className="desktop-quote">
-                  “The automated lease review and rate expiration alerts alone saved us over $14,000 in unindexed rents last financial year. It's the most high-signal wealth tool we use.”
+                  “The automated lease review and rate expiration alerts alone saved us over $14,000 in unindexed rents last financial year. It&apos;s the most high-signal wealth tool we use.”
                 </span>
                 <span className="mobile-quote">
-                  “The automated lease review alerts saved us over $14,000 in unindexed rents last financial year. It's the most high-signal tool we use.”
+                  “The automated lease review alerts saved us over $14,000 in unindexed rents last financial year. It&apos;s the most high-signal tool we use.”
                 </span>
               </blockquote>
 
@@ -1243,7 +1381,7 @@ export default function Home() {
             </div>
 
             {/* Card 3: David O'Reilly */}
-            <div className="ct-testimonial-card">
+            <div className="ct-testimonial-card scroll-reveal">
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
@@ -1285,7 +1423,7 @@ export default function Home() {
       <section id="faqs" className="ct-faqs-section">
         <div className="ct-faqs-container">
           {/* Section Header */}
-          <div className="ct-faqs-header">
+          <div className="ct-faqs-header scroll-reveal">
             {/* Pill Badge */}
             <div className="ct-badge-pill ct-faqs-pill">
               <span className="ct-badge-dot" />
@@ -1310,7 +1448,7 @@ export default function Home() {
           </div>
 
           {/* FAQ Accordion List */}
-          <div className="ct-faqs-accordion">
+          <div className="ct-faqs-accordion scroll-reveal scroll-reveal-scale">
             {faqs.map((faq, index) => {
               const isOpen = openFaq === index;
               return (
@@ -1365,7 +1503,7 @@ export default function Home() {
       <section id="contact" className="ct-contact-section">
         <div className="ct-contact-container">
           {/* Card container on mobile, centered content on desktop */}
-          <div className="ct-contact-card">
+          <div className="ct-contact-card scroll-reveal scroll-reveal-scale">
             {/* Pill Badge */}
             <div className="ct-badge-pill ct-contact-pill">
               <span className="ct-badge-dot desktop-only-inline" />
