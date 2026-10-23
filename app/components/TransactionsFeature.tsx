@@ -55,6 +55,8 @@ import {
   type MatchedRule,
 } from "@/app/components/DocumentDropZone";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
+import { fetchInboxDocument } from "@/app/components/documentInbox/inboxClient";
+import type { CoreInboxDocument } from "@/src/lib/coreApi";
 import AssetBuilder, {
   AssetSummaryChip,
   assetRequestFields,
@@ -6348,6 +6350,14 @@ export function AddTransactionView({
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
 
+  // Filing an emailed document (?inboxDocumentId=): the document and its client
+  // are fixed, extraction waits for the entity (the prompt is anchored to the
+  // entity's name), and saving creates the transaction then approves it. The
+  // create is what moves the document out of the inbox, server-side.
+  const [inboxDoc, setInboxDoc] = useState<CoreInboxDocument | null>(null);
+  const [inboxError, setInboxError] = useState("");
+  const inboxExtractedRef = useRef("");
+
   // Resolve the bearer token once on mount.
   useEffect(() => {
     let cancelled = false;
@@ -6600,6 +6610,65 @@ export function AddTransactionView({
       cancelled = true;
     };
   }, [tokenLoaded, token]);
+
+  useEffect(() => {
+    if (!tokenLoaded || !token) return;
+    const inboxId = new URLSearchParams(window.location.search).get("inboxDocumentId");
+    if (!inboxId) return;
+    let cancelled = false;
+    fetchInboxDocument(inboxId)
+      .then((doc) => {
+        if (cancelled) return;
+        if (doc.status !== "pending") {
+          setInboxError(`This emailed document was already ${doc.status}.`);
+          return;
+        }
+        setInboxDoc(doc);
+        setDocumentId(doc.id);
+        setUploadedFilename(doc.fileName);
+        setActiveClientId(doc.clientId);
+        setActiveEntityId("");
+        setIsEditingEntity(true);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setInboxError(err instanceof Error ? err.message : "Could not load the emailed document.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenLoaded, token]);
+
+  useEffect(() => {
+    if (!inboxDoc || !token || !activeEntityId) return;
+    if (inboxExtractedRef.current === inboxDoc.id) return;
+    inboxExtractedRef.current = inboxDoc.id;
+    const doc = inboxDoc;
+    (async () => {
+      try {
+        const res = await fetch("/api/documents/extract", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ s3_key: doc.s3Key, entity_id: activeEntityId }),
+        });
+        if (!res.ok) return;
+        const result = (await res.json()) as {
+          data?: ExtractedDocumentData;
+          matched_rule?: MatchedRule | null;
+        };
+        handleExtracted(result.data ?? {}, doc.id, {
+          filename: doc.fileName,
+          jobId: "",
+          matchedRule: result.matched_rule ?? null,
+        });
+      } catch (extractError) {
+        // Non-blocking, as on review: the accountant can read the preview.
+        console.error("Extraction of emailed document failed:", extractError);
+      }
+    })();
+    // handleExtracted is re-created every render; the ref makes this run once.
+  }, [inboxDoc, token, activeEntityId]);
 
   useEffect(() => {
     setActiveClientId(clientId ?? "");
@@ -8056,6 +8125,25 @@ export function AddTransactionView({
       if (reviewingId) {
         PROCESSED_DUMMY_IDS.add(reviewingId);
       }
+      if (inboxDoc && !reviewingId) {
+        // The accountant filing it is the sign-off. Not fatal: the create has
+        // already filed the document, so a failed approve leaves an active
+        // transaction to approve from the grid, not a lost document.
+        const created = (await res.json().catch(() => null)) as { id?: string } | null;
+        if (created?.id) {
+          const approve = await fetch(
+            `/api/transactions/${encodeURIComponent(created.id)}/review`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ action: "approve" }),
+            },
+          ).catch(() => null);
+          if (!approve?.ok) {
+            console.error("Filed emailed document, but approving its transaction failed", approve?.status);
+          }
+        }
+      }
       setIsMarked(true);
     } catch (error) {
       console.error("Failed to save transaction:", error);
@@ -8115,7 +8203,7 @@ export function AddTransactionView({
               </svg>
             </div>
             <span className="entity-success-body">
-              {isReviewing ? "Transaction Saved" : "Transaction Added"}
+              {inboxDoc ? "Document Filed" : isReviewing ? "Transaction Saved" : "Transaction Added"}
             </span>
             <div className="entity-success-body">
               <strong>
@@ -8203,13 +8291,27 @@ export function AddTransactionView({
         <div className="figma-add-tx-panes">
           {/* Attach Invoice section */}
           <div className="figma-uploader-section">
-            <span className="figma-uploader-label">Attach Invoice (optional)</span>
+            <span className="figma-uploader-label">
+              {inboxDoc ? "Emailed document" : "Attach Invoice (optional)"}
+            </span>
+            {inboxDoc && (
+              <p className="transaction-field-hint" style={{ margin: "0 0 8px", fontSize: "13px" }}>
+                From {inboxDoc.emailFrom || inboxDoc.clientName}
+                {inboxDoc.emailSubject ? ` · “${inboxDoc.emailSubject}”` : ""}
+                {inboxDoc.duplicate ? " · possible duplicate of an earlier email" : ""}
+              </p>
+            )}
+            {inboxError && (
+              <p className="transaction-field-error" style={{ margin: "0 0 8px", color: "#da3838", fontSize: "13px" }}>
+                {inboxError}
+              </p>
+            )}
             {documentId && uploadedFilename && token ? (
               <DocumentPreviewPanel
                 documentId={documentId}
                 filename={uploadedFilename}
                 token={token}
-                onReset={() => {
+                onReset={inboxDoc ? undefined : () => {
                   setDocumentId(null);
                   setUploadedFilename(null);
                   appliedRuleIdRef.current = null;
@@ -8239,7 +8341,21 @@ export function AddTransactionView({
           </div>
 
           <form onSubmit={handleSubmit} noValidate>
-            {requireClientSelection && (
+            {inboxDoc && (
+              <div className="figma-form-row">
+                <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                  <StaticSelect
+                    label="Client"
+                    required
+                    value={inboxDoc.clientId}
+                    options={[{ label: inboxDoc.clientName || "Client", value: inboxDoc.clientId }]}
+                    onChange={() => undefined}
+                    disabled
+                  />
+                </div>
+              </div>
+            )}
+            {requireClientSelection && !inboxDoc && (
               <div className="figma-form-row">
                 <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
                   <StaticSelect

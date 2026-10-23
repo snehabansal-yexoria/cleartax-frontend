@@ -744,6 +744,140 @@ export async function markCoreNotificationsRead(
   };
 }
 
+// Emailed documents (migration 0055). Clients email files to the documents
+// address; each attachment waits in the client's inbox, with no transaction,
+// until their accountant files it (a transaction create carrying the
+// document_id), rejects it with a note, or discards it. All org-scoped.
+export type CoreInboxStatus = "pending" | "filed" | "rejected" | "discarded";
+
+export type CoreInboxDocument = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  assignedAccountantName: string;
+  clientUnassigned: boolean;
+  fileName: string;
+  mimeType: string;
+  fileSize: number | null;
+  s3Key: string;
+  status: CoreInboxStatus;
+  note: string;
+  actionedByName: string;
+  actionedAt: string | null;
+  processingStatus: string;
+  createdAt: string;
+  emailFrom: string;
+  emailSubject: string;
+  receivedAt: string | null;
+  duplicate: boolean;
+  transactionId: string | null;
+  transactionEntityId: string | null;
+  viewUrl: string | null;
+};
+
+export type CoreInboxPage = {
+  items: CoreInboxDocument[];
+  nextCursor: string | null;
+  pendingCount: number;
+};
+
+const INBOX_STATUSES: CoreInboxStatus[] = ["pending", "filed", "rejected", "discarded"];
+
+function normalizeCoreInboxDocument(raw: RawRecord): CoreInboxDocument {
+  const status = toStringValue(raw.inbox_status) as CoreInboxStatus;
+  return {
+    id: toStringValue(raw.id),
+    clientId: toStringValue(raw.client_id),
+    clientName: toStringValue(raw.client_name),
+    assignedAccountantName: toStringValue(raw.assigned_accountant_name),
+    clientUnassigned: raw.client_unassigned === true,
+    fileName: toStringValue(raw.file_name),
+    mimeType: toStringValue(raw.mime_type),
+    fileSize: toNumberValue(raw.file_size),
+    s3Key: toStringValue(raw.s3_key),
+    status: INBOX_STATUSES.includes(status) ? status : "pending",
+    note: toStringValue(raw.inbox_note),
+    actionedByName: toStringValue(raw.inbox_actioned_by_name),
+    actionedAt: toStringValue(raw.inbox_actioned_at) || null,
+    processingStatus: toStringValue(raw.processing_status),
+    createdAt: toStringValue(raw.created_at),
+    emailFrom: toStringValue(raw.email_from),
+    emailSubject: toStringValue(raw.email_subject),
+    receivedAt: toStringValue(raw.received_at) || null,
+    duplicate: raw.duplicate === true,
+    transactionId: toStringValue(raw.transaction_id) || null,
+    transactionEntityId: toStringValue(raw.transaction_entity_id) || null,
+    viewUrl: toStringValue(raw.view_url) || null,
+  };
+}
+
+function inboxPath(orgId: string, suffix = "") {
+  return `/orgs/${encodeURIComponent(orgId)}/document-inbox${suffix}`;
+}
+
+export async function listCoreInboxDocuments(
+  token: string,
+  orgId: string,
+  params?: { status?: CoreInboxStatus | "all"; clientId?: string; limit?: number; cursor?: string },
+): Promise<CoreInboxPage> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.clientId) query.set("client_id", params.clientId);
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.cursor) query.set("cursor", params.cursor);
+  const qs = query.toString();
+  const raw = getJsonObject(
+    await coreApiRequest(inboxPath(orgId, qs ? `?${qs}` : ""), { token }),
+  );
+  return {
+    items: getJsonArray(raw.items).map(normalizeCoreInboxDocument),
+    nextCursor: toStringValue(raw.next_cursor) || null,
+    pendingCount: toNumberValue(raw.pending_count) ?? 0,
+  };
+}
+
+export async function getCoreInboxDocument(
+  token: string,
+  orgId: string,
+  docId: string,
+): Promise<CoreInboxDocument> {
+  const raw = getJsonObject(
+    await coreApiRequest(inboxPath(orgId, `/${encodeURIComponent(docId)}`), {
+      token,
+      timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS,
+    }),
+  );
+  return normalizeCoreInboxDocument(raw);
+}
+
+// Reject (note required; the client sees it) or discard (silent) one pending
+// emailed document. Accountant/admin only — the backend 403s clients.
+export async function actionCoreInboxDocument(
+  token: string,
+  orgId: string,
+  docId: string,
+  action: "reject" | "discard",
+  note?: string,
+): Promise<CoreInboxDocument> {
+  const body = action === "reject" ? { note: note ?? "" } : { reason: note ?? "" };
+  const raw = getJsonObject(
+    await coreApiRequest(inboxPath(orgId, `/${encodeURIComponent(docId)}/${action}`), {
+      method: "POST",
+      token,
+      body,
+    }),
+  );
+  return normalizeCoreInboxDocument(raw);
+}
+
+export async function getCoreInboxAddress(
+  token: string,
+  orgId: string,
+): Promise<{ address: string; enabled: boolean }> {
+  const raw = getJsonObject(await coreApiRequest(inboxPath(orgId, "/address"), { token }));
+  return { address: toStringValue(raw.address), enabled: raw.enabled === true };
+}
+
 // Client ↔ accountant assignment. The backend writes the change and its
 // accountant.assigned / accountant.reassigned audit row in one transaction,
 // which is what creates the client's and new accountant's notifications.

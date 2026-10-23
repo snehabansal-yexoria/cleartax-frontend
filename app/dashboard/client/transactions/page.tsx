@@ -15,6 +15,7 @@ import { getSession } from "@/src/lib/session";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
 import ClientPagination from "@/app/components/clients/ClientPagination";
+import ClientEmailedDocuments, { EmailDocumentsHint } from "@/app/components/documentInbox/ClientEmailedDocuments";
 import type {
   CoreTransactionDetail,
   CoreTransactionListItem,
@@ -833,9 +834,16 @@ function ClientTransactionsContent() {
     />
   ) : null;
 
+  // Emailed documents sit under the list: the "couldn't use a document you
+  // emailed" notification links to #emailed-documents. The list renders
+  // nothing for a client who has never emailed one.
   const withDetailController = (page: ReactNode) => (
     <>
       {page}
+      <div id="emailed-documents" style={{ padding: isMobile ? '0 16px 96px' : '0 0 24px' }}>
+        <EmailDocumentsHint compact />
+        <ClientEmailedDocuments />
+      </div>
       {detailController}
     </>
   );
