@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  coreApiRequest,
   getCoreApiBearerFromRequest,
 } from "@/src/lib/coreApi";
 import {
@@ -25,6 +26,15 @@ export async function GET(req: Request) {
         { error: "Invalid or expired token" },
         { status: 401 },
       );
+    }
+
+    // The caller's own org, straight from GET /users/me (looked up by the
+    // token's email). The directory search below lists GET /users, which the
+    // backend caps at 50 rows, so in a firm with more users the caller could
+    // be missing from it and this route answered "User not found".
+    const me = await readOwnOrganization(apiToken);
+    if (me) {
+      return NextResponse.json({ organization: me });
     }
 
     const currentUser = await findApiDirectoryUserByIdentity(apiToken, {
@@ -57,5 +67,23 @@ export async function GET(req: Request) {
       { error: "Failed to fetch organization" },
       { status: 500 },
     );
+  }
+}
+
+async function readOwnOrganization(
+  token: string,
+): Promise<{ id: string; name: string } | null> {
+  try {
+    const me = (await coreApiRequest("/users/me", { token })) as {
+      org_id?: string | null;
+      org_name?: string | null;
+    } | null;
+    const id = typeof me?.org_id === "string" ? me.org_id : "";
+    if (!id) return null;
+    return { id, name: typeof me?.org_name === "string" ? me.org_name : "" };
+  } catch (error) {
+    // Fall back to the directory lookup rather than failing the page.
+    console.error("GET /users/me for organization failed:", error);
+    return null;
   }
 }
