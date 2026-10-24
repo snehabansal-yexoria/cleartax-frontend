@@ -252,7 +252,7 @@ export default function ClientGstSummaryModal({ scopeName, gst, personal, onClos
 
         <footer className="mt-5 flex flex-col gap-3">
           <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            {RECONCILIATION[level]} Accruals basis — dated by invoice date. Includes bills awaiting review; excludes
+            {RECONCILIATION[level]} Accruals basis — dated by invoice date. Excludes bills awaiting review and
             rejected ones.
           </div>
           <div className="flex items-center justify-end gap-2">

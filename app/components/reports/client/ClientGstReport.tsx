@@ -29,8 +29,9 @@ import type { ReportContext } from "./reportScope";
  * registration. An entity whose registration nobody has recorded yet is shown
  * the BAS view — what every entity showed before registration existed.
  *
- * The figures are the accountant's own GST maths: transactions still awaiting
- * review ARE included, and the header says how many.
+ * The accountant's GST maths, except that for a client caller the API leaves
+ * out transactions still awaiting review (as the Portfolio Summary does), so
+ * the "awaiting review included" pill stays hidden at 0.
  */
 
 type GstPart = { entityId: string; entityName: string; summary: CoreGstSummary };

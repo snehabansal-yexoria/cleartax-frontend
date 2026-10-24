@@ -309,9 +309,10 @@ export default function ClientEntityDetailView({
     });
   }, [properties, summary, entity]);
 
-  // Recent transactions list. Anything the client sent to their accountant is
-  // surfaced here rather than only on the transactions page — at entity level
-  // you should be able to see what is still waiting on sign-off.
+  // Recent transactions list. The API returns a client only reviewed rows
+  // (bills awaiting sign-off live in the Transactions page's To Be Reviewed
+  // tab), so these match the figures above and the awaiting-review badge
+  // below no longer fires for a client.
   const recentTransactions = useMemo(() => {
     return transactions.slice(0, 5).map((tx) => ({
       id: tx.id,

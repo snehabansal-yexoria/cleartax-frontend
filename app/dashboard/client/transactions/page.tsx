@@ -137,8 +137,8 @@ function RowIcon({ type }: { type: string }) {
  * Sets the review-tab predicates on a query. "unreviewed" rows are the ones
  * sent to the accountant via "Submit to accountant"; they live in the "To Be
  * Reviewed" tab (newest submission first), so the main tab is the ledger
- * bucket — everything else. Shared by the list and the totals cards so both
- * describe the same set.
+ * bucket — everything else. The API also hides rejected rows from a client.
+ * The totals cards always use the main tab's set (see totalsQuery).
  */
 function applyTab(sp: URLSearchParams, tab: ListTab) {
   if (tab === 'pending') {
@@ -514,11 +514,15 @@ function ClientTransactionsContent() {
   // month's Portfolio Summary whatever the list showed, so they read A$0
   // above a list of rows. "—" while loading or if the totals endpoint is not
   // deployed yet; never a stale figure for a different filter.
+  //
+  // Always the main tab's set, whichever tab is showing: bills awaiting review
+  // never feed a money figure in the client portal (the API enforces it for a
+  // client anyway), so the cards don't change when "To Be Reviewed" is opened.
   const totalsQuery = useMemo(() => {
     const sp = new URLSearchParams(scopeQuery);
-    applyTab(sp, activeTab);
+    applyTab(sp, 'reviewed');
     return sp.toString();
-  }, [scopeQuery, activeTab]);
+  }, [scopeQuery]);
 
   // Keyed by the query that produced them, so a figure for the previous
   // filter is never shown under the new one while it loads.

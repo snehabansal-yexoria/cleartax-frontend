@@ -19,9 +19,10 @@ import ClientGstSummaryModal, { gstMoney } from "./ClientGstSummaryModal";
  * spending — with the full BAS breakdown and the personal categories one click
  * away.
  *
- * The same server aggregate and rules as the accountant's GST Summary
- * (useGstSummary): accruals basis, rejected excluded, bills awaiting review
- * INCLUDED — unlike the rest of the client portal, so the card says how many.
+ * The same server aggregate as the accountant's GST Summary (useGstSummary),
+ * accruals basis, but for a client caller the API leaves out bills awaiting
+ * review as well as rejected ones — the same rows as the Portfolio Summary and
+ * the rest of the client portal, so the figures agree from page to page.
  * Property scope sums each property's share of a split bill; entity and client
  * scope sum whole bills, so an entity is its properties plus anything not
  * allocated to one, and a client is the sum of their entities.

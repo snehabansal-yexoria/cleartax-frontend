@@ -14,8 +14,9 @@ import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter
  *
  * Same server aggregate, same rules — private spending totalled by category at
  * money grain (so the private slice of a part-private bill is counted), rejected
- * rows excluded, all time — so a client and their accountant read the same
- * figures for the same entity. Not the GST card's personal tile, which narrows
+ * rows excluded, all time. For a client the API also leaves out bills awaiting
+ * review, so this can read lower than the accountant's panel until they sign
+ * them off. Not the GST card's personal tile, which narrows
  * to the BAS period picked there.
  */
 
