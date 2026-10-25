@@ -9,8 +9,7 @@ import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
 import { getIdToken } from "@/src/lib/authToken";
 import {
-  formatCurrencyShort,
-  formatClientCurrency,
+  formatExactCurrency,
   formatClientPercent,
   signedTone,
   toneClass,
@@ -424,9 +423,9 @@ export default function ClientPage() {
   const lastYear = lastYearRegion.data;
   const totals = summary?.totals ?? null;
   const hasSummary = summary !== null;
-  /** Short money, or "—" while the summary is missing (never a fake zero). */
-  const moneyShort = (value: number | null | undefined) =>
-    hasSummary && value != null ? formatCurrencyShort(value) : "—";
+  /** Exact money (to the cent, never "12.3K"), or "—" while the summary is missing (never a fake zero). */
+  const money = (value: number | null | undefined) =>
+    hasSummary && value != null ? formatExactCurrency(value) : "—";
 
   const now = new Date();
   const monthsByKey = monthIndex(lastYear, summary);
@@ -744,16 +743,16 @@ export default function ClientPage() {
                   <span className="m-db-net-label">Net Position</span>
                   <span className="m-db-net-date-badge">As of {ordinalDate}</span>
                 </div>
-                <div className="m-db-net-value">{moneyShort(displayNetPosition)}</div>
+                <div className="m-db-net-value">{money(displayNetPosition)}</div>
                 <div className="m-db-net-divider" />
                 <div className="m-db-net-stats-row">
                   <div className="m-db-net-stat-col">
                     <span className="m-db-net-stat-label">Market Value</span>
-                    <span className="m-db-net-stat-value">{moneyShort(displayMarketValue)}</span>
+                    <span className="m-db-net-stat-value">{money(displayMarketValue)}</span>
                   </div>
                   <div className="m-db-net-stat-col">
                     <span className="m-db-net-stat-label">Outstanding Loans</span>
-                    <span className="m-db-net-stat-value">{moneyShort(displayOutstandingLoans)}</span>
+                    <span className="m-db-net-stat-value">{money(displayOutstandingLoans)}</span>
                   </div>
                 </div>
               </div>
@@ -821,7 +820,7 @@ export default function ClientPage() {
                   </div>
                   <div className="m-db-stat-body">
                     <span className="m-db-stat-label">Cash Flow (This Month)</span>
-                    <span className="m-db-stat-value" style={hasSummary ? { color: signedTone(displayCashFlow) } : undefined}>{moneyShort(displayCashFlow)}</span>
+                    <span className="m-db-stat-value" style={hasSummary ? { color: signedTone(displayCashFlow) } : undefined}>{money(displayCashFlow)}</span>
                   </div>
                 </div>
 
@@ -839,7 +838,7 @@ export default function ClientPage() {
                   </div>
                   <div className="m-db-stat-body">
                     <span className="m-db-stat-label">Loans</span>
-                    <span className="m-db-stat-value">{moneyShort(displayLoansValue)}</span>
+                    <span className="m-db-stat-value">{money(displayLoansValue)}</span>
                   </div>
                 </div>
               </div>
@@ -868,7 +867,7 @@ export default function ClientPage() {
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Income (Last FY)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatCurrencyShort(lastYearTotals.netIncomeTotal) : "—"}</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
                       <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
                         {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
                       </span>
@@ -890,7 +889,7 @@ export default function ClientPage() {
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Loss (Last FY)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatCurrencyShort(lastYearTotals.netLossTotal) : "—"}</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
                       <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
                         {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
                       </span>
@@ -966,8 +965,8 @@ export default function ClientPage() {
                               minHeight: '16px'
                             }}
                           >
-                            <div className="m-db-chart-bar-income" style={{ height: `${incPct}%` }} title={`Income: ${formatCurrencyShort(incVal)}`} />
-                            <div className="m-db-chart-bar-expense" style={{ height: `${expPct}%` }} title={`Expense: ${formatCurrencyShort(expVal)}`} />
+                            <div className="m-db-chart-bar-income" style={{ height: `${incPct}%` }} title={`Income: ${formatExactCurrency(incVal)}`} />
+                            <div className="m-db-chart-bar-expense" style={{ height: `${expPct}%` }} title={`Expense: ${formatExactCurrency(expVal)}`} />
                           </div>
                           <span className="m-db-chart-bar-label">{month}</span>
                         </div>
@@ -1035,7 +1034,7 @@ export default function ClientPage() {
                           </div>
                         </div>
                         <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                          {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                         </span>
                       </div>
                     ))
@@ -1054,20 +1053,20 @@ export default function ClientPage() {
                   <span className="m-db-net-label">Net Position</span>
                   <span className="m-db-net-date-badge">As of {ordinalDate}</span>
                 </div>
-                <div className="m-db-net-value">{moneyShort(displayNetPosition)}</div>
+                <div className="m-db-net-value">{money(displayNetPosition)}</div>
                 <div className="m-db-net-divider" />
                 <div className="m-db-net-stats-row" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.1fr 1.2fr', gap: '4px' }}>
                   <div className="m-db-net-stat-col" style={{ paddingLeft: 0 }}>
                     <span className="m-db-net-stat-label">Market Value</span>
-                    <span className="m-db-net-stat-value">{moneyShort(displayMarketValue)}</span>
+                    <span className="m-db-net-stat-value">{money(displayMarketValue)}</span>
                   </div>
                   <div className="m-db-net-stat-col" style={{ paddingLeft: '8px' }}>
                     <span className="m-db-net-stat-label">Outstanding Loan</span>
-                    <span className="m-db-net-stat-value">{moneyShort(displayOutstandingLoans)}</span>
+                    <span className="m-db-net-stat-value">{money(displayOutstandingLoans)}</span>
                   </div>
                   <div className="m-db-net-stat-col" style={{ paddingLeft: '8px' }}>
                     <span className="m-db-net-stat-label">Interest (MTD)</span>
-                    <span className="m-db-net-stat-value">{moneyShort(displayInterestThisMonth)}</span>
+                    <span className="m-db-net-stat-value">{money(displayInterestThisMonth)}</span>
                   </div>
                 </div>
               </div>
@@ -1147,7 +1146,7 @@ export default function ClientPage() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Interest ({fyShortLabel(financialYear)})</span>
-                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{moneyShort(totals?.interest)}</span>
+                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(totals?.interest)}</span>
                         </div>
                       </div>
                       <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
@@ -1157,7 +1156,7 @@ export default function ClientPage() {
                     {/* Rates, fixed/variable splits and redraw are not recorded
                         anywhere, so they are not shown (they were hardcoded). */}
                     <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
-                      Loan interest recorded this financial year · {moneyShort(displayOutstandingLoans)} outstanding
+                      Loan interest recorded this financial year · {money(displayOutstandingLoans)} outstanding
                     </span>
                   </div>
                 </div>
@@ -1204,7 +1203,7 @@ export default function ClientPage() {
                             {item.name}
                           </Link>
                           <span className={`m-db-entity-net ${toneClass(item.netPosition)}`}>
-                            {moneyShort(item.netPosition)}
+                            {money(item.netPosition)}
                           </span>
                         </div>
 
@@ -1220,8 +1219,8 @@ export default function ClientPage() {
                         </div>
 
                         <div className="m-db-entity-label-row">
-                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{moneyShort(item.marketValue)}</strong></span>
-                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{moneyShort(item.outstandingLoans)}</strong></span>
+                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{money(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{money(item.outstandingLoans)}</strong></span>
                         </div>
                       </div>
                     ))
@@ -1292,17 +1291,17 @@ export default function ClientPage() {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{moneyShort(item.marketValue)}</strong></span>
-                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{moneyShort(item.outstandingLoans)}</strong></span>
+                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{money(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{money(item.outstandingLoans)}</strong></span>
                         </div>
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '16px', rowGap: '4px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>Income <strong style={{ color: 'var(--success)' }}>{item.income != null ? formatClientCurrency(item.income, { short: true, showPlus: true }) : "—"}</strong></span>
-                          <span style={{ color: 'var(--text-secondary)' }}>Expense <strong style={{ color: 'var(--text-primary)' }}>{item.expense != null ? formatClientCurrency(-item.expense, { short: true }) : "—"}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Income <strong style={{ color: 'var(--success)' }}>{item.income != null ? formatExactCurrency(item.income, { showPlus: true }) : "—"}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Expense <strong style={{ color: 'var(--text-primary)' }}>{item.expense != null ? formatExactCurrency(-item.expense) : "—"}</strong></span>
                           {item.depreciation > 0 && (
-                            <span style={{ color: 'var(--text-secondary)' }}>Depreciation <strong style={{ color: 'var(--text-primary)' }}>{formatClientCurrency(-item.depreciation, { short: true })}</strong></span>
+                            <span style={{ color: 'var(--text-secondary)' }}>Depreciation <strong style={{ color: 'var(--text-primary)' }}>{formatExactCurrency(-item.depreciation)}</strong></span>
                           )}
-                          <span style={{ color: 'var(--text-secondary)' }}>Net <strong style={{ color: item.net != null ? signedTone(item.net) : 'var(--text-primary)' }}>{item.net != null ? formatClientCurrency(item.net, { short: true, showPlus: true }) : "—"}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Net <strong style={{ color: item.net != null ? signedTone(item.net) : 'var(--text-primary)' }}>{item.net != null ? formatExactCurrency(item.net, { showPlus: true }) : "—"}</strong></span>
                         </div>
                       </div>
                     ))
@@ -1430,32 +1429,32 @@ export default function ClientPage() {
             <span className="m-db-net-date-badge">As of {ordinalDate}</span>
           </div>
           <div className="m-db-net-value" style={{ fontSize: '42px', fontWeight: 800 }}>
-            {moneyShort(displayNetPosition)}
+            {money(displayNetPosition)}
           </div>
           <div className="m-db-net-divider" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="m-db-net-stat-col" style={{ borderLeft: 'none', paddingLeft: 0 }}>
               <span className="m-db-net-stat-label">Market Value</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {moneyShort(displayMarketValue)}
+                {money(displayMarketValue)}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Outstanding Loans</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {hasSummary ? formatClientCurrency(-displayOutstandingLoans, { short: true }) : "—"}
+                {hasSummary ? formatExactCurrency(-displayOutstandingLoans) : "—"}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Interest (This Month)</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {moneyShort(displayInterestThisMonth)}
+                {money(displayInterestThisMonth)}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Cash Flow (This Month)</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {hasSummary ? formatClientCurrency(displayCashFlow, { short: true, showPlus: true }) : "—"}
+                {hasSummary ? formatExactCurrency(displayCashFlow, { showPlus: true }) : "—"}
               </span>
             </div>
           </div>
@@ -1474,7 +1473,7 @@ export default function ClientPage() {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Cash Flow (this month)</span>
-              <span className="text-xl font-bold" style={{ color: hasSummary ? signedTone(displayCashFlow) : 'var(--text-primary)' }}>{moneyShort(displayCashFlow)}</span>
+              <span className="text-xl font-bold" style={{ color: hasSummary ? signedTone(displayCashFlow) : 'var(--text-primary)' }}>{money(displayCashFlow)}</span>
             </div>
           </div>
 
@@ -1487,7 +1486,7 @@ export default function ClientPage() {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Income (this month)</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{moneyShort(displayIncomeThisMonth)}</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayIncomeThisMonth)}</span>
             </div>
           </div>
 
@@ -1502,7 +1501,7 @@ export default function ClientPage() {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Expenses (this month)</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{moneyShort(displayExpenseThisMonth)}</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayExpenseThisMonth)}</span>
               {summary && summary.excludedUnreviewedCount > 0 && (
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
                   Excludes {summary.excludedUnreviewedCount} awaiting review
@@ -1539,7 +1538,7 @@ export default function ClientPage() {
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Income (Last FY)</span>
-                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatCurrencyShort(lastYearTotals.netIncomeTotal) : "—"}</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
                   {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
                 </span>
@@ -1567,7 +1566,7 @@ export default function ClientPage() {
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Loss (Last FY)</span>
-                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatCurrencyShort(lastYearTotals.netLossTotal) : "—"}</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
                   {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
                 </span>
@@ -1622,16 +1621,16 @@ export default function ClientPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Outstanding loans</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{moneyShort(displayOutstandingLoans)}</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{money(displayOutstandingLoans)}</span>
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs">
                 {totals ? `${totals.loanCount} loan${totals.loanCount === 1 ? "" : "s"} recorded` : " "}
               </span>
             </div>
             <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Interest ({fyShortLabel(financialYear)})</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{moneyShort(totals?.interest)}</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{money(totals?.interest)}</span>
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs">
-                {hasSummary ? `${moneyShort(displayInterestThisMonth)} this month` : " "}
+                {hasSummary ? `${money(displayInterestThisMonth)} this month` : " "}
               </span>
             </div>
             <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-2">
@@ -1699,7 +1698,7 @@ export default function ClientPage() {
                       </div>
                     </div>
                     <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
-                      {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                      {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                     </span>
                   </div>
                 ))
@@ -1765,17 +1764,17 @@ export default function ClientPage() {
                         style={{ color: item.net != null ? signedTone(item.net) : 'var(--text-primary)' }}
                         title={`Net result, ${fyShortLabel(financialYear)}`}
                       >
-                        Net {item.net != null ? formatClientCurrency(item.net, { short: true, showPlus: true, decimals: 1 }) : "—"}
+                        Net {item.net != null ? formatExactCurrency(item.net, { showPlus: true }) : "—"}
                       </span>
                     </div>
 
                     <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] dark:text-[var(--text-secondary)] mt-1">
-                      <span>Value <strong className="text-[#101828] dark:text-[var(--text-primary)]">{moneyShort(item.marketValue)}</strong></span>
-                      <span>Loan <strong className="text-[#101828] dark:text-[var(--text-primary)]">{moneyShort(item.outstandingLoans)}</strong></span>
-                      <span>Income <strong className="text-[#12b76a]">{item.income != null ? formatClientCurrency(item.income, { short: true, showPlus: true }) : "—"}</strong></span>
-                      <span>Expenses <strong className="text-[#f04438]">{item.expense != null ? formatClientCurrency(-item.expense, { short: true }) : "—"}</strong></span>
+                      <span>Value <strong className="text-[#101828] dark:text-[var(--text-primary)]">{money(item.marketValue)}</strong></span>
+                      <span>Loan <strong className="text-[#101828] dark:text-[var(--text-primary)]">{money(item.outstandingLoans)}</strong></span>
+                      <span>Income <strong className="text-[#12b76a]">{item.income != null ? formatExactCurrency(item.income, { showPlus: true }) : "—"}</strong></span>
+                      <span>Expenses <strong className="text-[#f04438]">{item.expense != null ? formatExactCurrency(-item.expense) : "—"}</strong></span>
                       {item.depreciation > 0 && (
-                        <span>Depreciation <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatClientCurrency(-item.depreciation, { short: true })}</strong></span>
+                        <span>Depreciation <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatExactCurrency(-item.depreciation)}</strong></span>
                       )}
                     </div>
                   </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { formatClientCurrency, formatCurrencyShort } from "./CurrencyFormatter";
+import { formatExactCurrency } from "./CurrencyFormatter";
 import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
 import RegionError from "@/app/components/ui/RegionError";
 
@@ -232,7 +232,7 @@ export default function CashFlowChart({
                             style={{
                               height: `${Math.max(expHeightPct, 6)}%`,
                             }}
-                            title={`Expenses: ${formatCurrencyShort(expVal)}`}
+                            title={`Expenses: ${formatExactCurrency(expVal)}`}
                           />
                           {/* Income (Navy/Brand) - Rounded top only */}
                           <div
@@ -240,7 +240,7 @@ export default function CashFlowChart({
                             style={{
                               height: `${Math.max(incHeightPct, 6)}%`,
                             }}
-                            title={`Income: ${formatCurrencyShort(incVal)}`}
+                            title={`Income: ${formatExactCurrency(incVal)}`}
                           />
                         </div>
                         <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-bold mt-2.5">{month}</span>
@@ -298,13 +298,13 @@ export default function CashFlowChart({
                     <tr key={month}>
                       <td style={{ padding: '8px 12px', fontSize: '13px' }}>{month}</td>
                       <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                        <span className="dot">●</span> {formatClientCurrency(inc)}
+                        <span className="dot">●</span> {formatExactCurrency(inc)}
                       </td>
                       <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                        <span className="dot">●</span> {formatClientCurrency(exp)}
+                        <span className="dot">●</span> {formatExactCurrency(exp)}
                       </td>
                       <td className={isPositive ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                        {formatClientCurrency(net, { showPlus: true })}
+                        {formatExactCurrency(net, { showPlus: true })}
                       </td>
                     </tr>
                   );
@@ -316,10 +316,10 @@ export default function CashFlowChart({
                   return (
                     <tr className="total-row">
                       <td style={{ padding: '8px 12px', fontSize: '13px' }}>Total</td>
-                      <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalIncome)}</td>
-                      <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalExpense)}</td>
+                      <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalIncome)}</td>
+                      <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalExpense)}</td>
                       <td className={netTotal >= 0 ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                        {formatClientCurrency(netTotal, { showPlus: true })}
+                        {formatExactCurrency(netTotal, { showPlus: true })}
                       </td>
                     </tr>
                   );
@@ -429,7 +429,7 @@ export default function CashFlowChart({
                               style={{
                                 height: `${Math.max(expHeightPct, 6)}%`,
                               }}
-                              title={`Expenses: ${formatCurrencyShort(expVal)}`}
+                              title={`Expenses: ${formatExactCurrency(expVal)}`}
                             />
                             {/* Income (Navy/Brand) - Rounded top only */}
                             <div
@@ -437,7 +437,7 @@ export default function CashFlowChart({
                               style={{
                                 height: `${Math.max(incHeightPct, 6)}%`,
                               }}
-                              title={`Income: ${formatCurrencyShort(incVal)}`}
+                              title={`Income: ${formatExactCurrency(incVal)}`}
                             />
                           </div>
                           <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-bold mt-2.5">{month}</span>
@@ -480,13 +480,13 @@ export default function CashFlowChart({
                         <tr key={month}>
                           <td style={{ padding: '8px 12px', fontSize: '13px' }}>{month}</td>
                           <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                            <span className="dot">●</span> {formatClientCurrency(inc)}
+                            <span className="dot">●</span> {formatExactCurrency(inc)}
                           </td>
                           <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                            <span className="dot">●</span> {formatClientCurrency(exp)}
+                            <span className="dot">●</span> {formatExactCurrency(exp)}
                           </td>
                           <td className={isPositive ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                            {formatClientCurrency(net, { showPlus: true })}
+                            {formatExactCurrency(net, { showPlus: true })}
                           </td>
                         </tr>
                       );
@@ -498,10 +498,10 @@ export default function CashFlowChart({
                       return (
                         <tr className="total-row">
                           <td style={{ padding: '8px 12px', fontSize: '13px' }}>Total</td>
-                          <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalIncome)}</td>
-                          <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalExpense)}</td>
+                          <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalIncome)}</td>
+                          <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalExpense)}</td>
                           <td className={netTotal >= 0 ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                            {formatClientCurrency(netTotal, { showPlus: true })}
+                            {formatExactCurrency(netTotal, { showPlus: true })}
                           </td>
                         </tr>
                       );
@@ -537,7 +537,7 @@ export default function CashFlowChart({
                           </span>
                           <span className="text-[#101828] dark:text-slate-200 font-bold">{item.name}</span>
                         </div>
-                        <span className="text-[#101828] dark:text-white font-bold">{formatClientCurrency(item.amount)}</span>
+                        <span className="text-[#101828] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -558,7 +558,7 @@ export default function CashFlowChart({
                           </span>
                           <span className="text-[#101828] dark:text-slate-200 font-bold">{item.name}</span>
                         </div>
-                        <span className="text-[#101828] dark:text-white font-bold">{formatClientCurrency(item.amount)}</span>
+                        <span className="text-[#101828] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -619,13 +619,13 @@ export default function CashFlowChart({
                           <div
                             style={{ height: `${expPct}%` }}
                             className="w-full cashflow-bar is-expense"
-                            title={`Expenses: ${formatCurrencyShort(expVal)}`}
+                            title={`Expenses: ${formatExactCurrency(expVal)}`}
                           />
                           {/* Income (Navy/Brand) - top */}
                           <div
                             style={{ height: `${incPct}%` }}
                             className="w-full cashflow-bar is-income"
-                            title={`Income: ${formatCurrencyShort(incVal)}`}
+                            title={`Income: ${formatExactCurrency(incVal)}`}
                           />
                         </div>
                       ) : (
@@ -673,7 +673,7 @@ export default function CashFlowChart({
                       </span>
                       <span className="text-[#101828] dark:text-slate-200 font-bold text-xs">{item.name}</span>
                     </div>
-                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatClientCurrency(item.amount)}</span>
+                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -692,7 +692,7 @@ export default function CashFlowChart({
                       </span>
                       <span className="text-[#101828] dark:text-slate-200 font-bold text-xs">{item.name}</span>
                     </div>
-                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatClientCurrency(item.amount)}</span>
+                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
                   </div>
                 ))}
               </div>

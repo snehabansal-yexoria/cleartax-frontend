@@ -109,6 +109,17 @@ export function formatCurrency(
   return formatClientCurrency(value, { decimals: options.decimals ?? 2 });
 }
 
+/**
+ * The exact amount, to the cent and never abbreviated: "A$ 12,345.67", not
+ * "A$ 12.3K". For figures a client checks against their own records.
+ */
+export function formatExactCurrency(
+  value: number | string,
+  options: { showPlus?: boolean } = {},
+): string {
+  return formatClientCurrency(value, { decimals: 2, showPlus: options.showPlus });
+}
+
 export function formatCurrencyShort(value: number | string): string {
   return formatClientCurrency(value, { short: true });
 }
