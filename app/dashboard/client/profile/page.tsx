@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { EmailDocumentsHint } from "@/app/components/documentInbox/ClientEmailedDocuments";
 import { useEffect, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
@@ -683,6 +684,8 @@ export default function ClientProfilePage() {
               </div>
             )}
 
+            <EmailDocumentsHint />
+
             {/* Personal Details */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Personal Details</h3>
@@ -796,6 +799,8 @@ export default function ClientProfilePage() {
 
             {/* Right Column */}
             <div className="profile-grid-column">
+              <EmailDocumentsHint />
+
               {/* Personal Details */}
               <div className="profile-section-container">
                 <div className="profile-section-title">Personal Details</div>

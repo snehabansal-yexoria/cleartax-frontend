@@ -50,7 +50,9 @@ export function notificationsPagePath(role: NotificationViewerRole) {
 }
 
 // Where a notification takes its reader. Deleted records link to the list they
-// were in; documents have no page yet, so they are not clickable. Accountants
+// were in. Documents have no page yet, so they are not clickable, except
+// emailed ones: those open the emailed-documents inbox (accountant) or the
+// client's emailed-documents list on their transactions page. Accountants
 // land on the client's workspace, since the audit row carries no entity id for
 // a property or transaction.
 export function notificationHref(
@@ -63,11 +65,16 @@ export function notificationHref(
   if (role === "accountant") {
     if (!n.clientId) return null;
     const clientHome = `/dashboard/accountant/clients/${enc(n.clientId)}`;
+    if (n.eventType === "document.emailed") return `${clientHome}?tab=emailed`;
     if (n.category === "document") return null;
     if (n.recordType === "entity" && n.recordId && !deleted) {
       return `${clientHome}/entities/${enc(n.recordId)}`;
     }
     return clientHome;
+  }
+
+  if (n.eventType === "document.email_rejected") {
+    return "/dashboard/client/transactions#emailed-documents";
   }
 
   switch (n.category) {

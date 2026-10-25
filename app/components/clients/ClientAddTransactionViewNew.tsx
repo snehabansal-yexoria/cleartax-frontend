@@ -32,6 +32,7 @@ import {
   type ExtractedMeta,
   type MatchedRule,
 } from "@/app/components/DocumentDropZone";
+import { EmailDocumentsHint } from "@/app/components/documentInbox/ClientEmailedDocuments";
 import { DocumentPreviewPanel } from "@/app/components/DocumentPreviewPanel";
 import {
   announceDropdownOpen,
@@ -3291,6 +3292,7 @@ export default function ClientAddTransactionViewNew({
           width: '100%',
           boxSizing: 'border-box',
         }}>
+          <EmailDocumentsHint compact />
           {/* Dashed Dropzone */}
           <div style={{ width: '100%' }}>
             <DocumentDropZone
