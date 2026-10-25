@@ -6,7 +6,7 @@ import { useEffect, useState, useId, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
-import { logout } from "@/src/lib/logout";
+import { triggerClientLogout } from "./ClientLogoutAnimation";
 import { getIdToken } from "@/src/lib/authToken";
 import {
   formatExactCurrency,
@@ -401,8 +401,7 @@ export default function ClientPage() {
   }, [router]);
 
   function handleLogout() {
-    logout();
-    router.replace("/login");
+    triggerClientLogout();
   }
 
   // ---------------------------------------------------------------------------

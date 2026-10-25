@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
+import { useClientLogout } from "../ClientLogoutAnimation";
 import { getIdToken } from "@/src/lib/authToken";
 import {
   fetchCurrentUser,
@@ -541,6 +542,7 @@ function EditProfileModal({
 
 export default function ClientProfilePage() {
   const router = useRouter();
+  const { triggerLogout, isLoggingOut } = useClientLogout();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -585,8 +587,7 @@ export default function ClientProfilePage() {
   }, [router]);
 
   function handleLogout() {
-    logout();
-    router.replace("/login");
+    triggerLogout();
   }
 
   // Real values only. The demo fallbacks ("Sarah Johnson", a sample email,
@@ -717,8 +718,18 @@ export default function ClientProfilePage() {
                 hidden until there is one. */}
 
             {/* Sign Out */}
-            <button type="button" className="mobile-profile-signout-btn" style={inlineStyles.signOutBtn} onClick={handleLogout}>
-              Sign Out
+            <button
+              type="button"
+              className="mobile-profile-signout-btn"
+              style={{
+                ...inlineStyles.signOutBtn,
+                opacity: isLoggingOut ? 0.7 : 1,
+                cursor: isLoggingOut ? "wait" : "pointer",
+              }}
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? "Signing Out..." : "Sign Out"}
             </button>
           </div>
         </div>
@@ -825,8 +836,17 @@ export default function ClientProfilePage() {
                   are hidden until there is one. */}
 
               {/* Sign out */}
-              <button type="button" className="profile-signout-btn" onClick={handleLogout}>
-                Sign out
+              <button
+                type="button"
+                className="profile-signout-btn"
+                style={{
+                  opacity: isLoggingOut ? 0.7 : 1,
+                  cursor: isLoggingOut ? "wait" : "pointer",
+                }}
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Signing out..." : "Sign out"}
               </button>
             </div>
           </div>

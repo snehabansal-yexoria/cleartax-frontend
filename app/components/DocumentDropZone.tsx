@@ -86,6 +86,7 @@ export function DocumentDropZone({
   smallStyle,
   hideIconOnIdle = false,
   customIcon,
+  chooseBtnStyle,
 }: {
   token: string | null;
   onExtracted: (
@@ -114,6 +115,7 @@ export function DocumentDropZone({
   style?: React.CSSProperties;
   strongStyle?: React.CSSProperties;
   smallStyle?: React.CSSProperties;
+  chooseBtnStyle?: React.CSSProperties;
   hideIconOnIdle?: boolean;
   customIcon?: React.ReactNode;
 }) {
@@ -511,7 +513,9 @@ export function DocumentDropZone({
         ) : activeStatus === "error" ? (
           <div className="transaction-document-drop__status-badge is-error">Retry</div>
         ) : (
-          <div className="transaction-document-drop__choose-btn">Choose File</div>
+          <div className="transaction-document-drop__choose-btn" style={chooseBtnStyle}>
+            Choose File
+          </div>
         )}
 
         {/* Thin bottom progress bar during loading */}

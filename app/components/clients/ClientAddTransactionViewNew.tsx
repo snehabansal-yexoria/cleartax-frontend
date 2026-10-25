@@ -3249,6 +3249,42 @@ export default function ClientAddTransactionViewNew({
 
     return (
       <section className="client-tx-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+        <style>{`
+          .client-tx-container .transaction-document-drop__choose-btn,
+          .client-tx-dropzone-wrapper .transaction-document-drop__choose-btn {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            margin-top: 18px !important;
+            align-self: center !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 9px 22px !important;
+            font-size: 13.5px !important;
+            font-weight: 600 !important;
+            border-radius: 10px !important;
+            box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          }
+          .client-tx-container .transaction-document-drop:hover .transaction-document-drop__choose-btn,
+          .client-tx-dropzone-wrapper .transaction-document-drop:hover .transaction-document-drop__choose-btn {
+            transform: translateY(-1px) scale(1.02) !important;
+            box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08) !important;
+          }
+          .client-tx-container .transaction-document-drop__progress-badge,
+          .client-tx-container .transaction-document-drop__status-badge,
+          .client-tx-dropzone-wrapper .transaction-document-drop__progress-badge,
+          .client-tx-dropzone-wrapper .transaction-document-drop__status-badge {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            margin-top: 14px !important;
+            align-self: center !important;
+          }
+          .client-tx-container .transaction-document-drop__text-container,
+          .client-tx-dropzone-wrapper .transaction-document-drop__text-container {
+            flex: 0 0 auto !important;
+          }
+        `}</style>
         {/* Header */}
         <div className="client-tx-header-bar" style={{ marginBottom: '32px' }}>
           <button
@@ -3294,9 +3330,15 @@ export default function ClientAddTransactionViewNew({
         }}>
           <EmailDocumentsHint compact />
           {/* Dashed Dropzone */}
-          <div style={{ width: '100%' }}>
+          <div className="client-tx-dropzone-wrapper" style={{ width: '100%', marginBottom: 0 }}>
             <DocumentDropZone
               token={token}
+              chooseBtnStyle={{
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                marginTop: '18px',
+                alignSelf: 'center',
+              }}
               // Upload only. Which of the two options the client picks on step
               // 3 decides whether extraction ever runs, so paying for it here
               // would waste a Bedrock call on every "Submit to accountant".
@@ -3594,6 +3636,42 @@ export default function ClientAddTransactionViewNew({
       fontFamily: "'Inter', sans-serif",
       background: isDark ? 'var(--surface-0)' : '#ffffff',
     }}>
+      <style>{`
+        .client-tx-container .transaction-document-drop__choose-btn,
+        .client-tx-dropzone-wrapper .transaction-document-drop__choose-btn {
+          margin-left: auto !important;
+          margin-right: auto !important;
+          margin-top: 18px !important;
+          align-self: center !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 9px 22px !important;
+          font-size: 13.5px !important;
+          font-weight: 600 !important;
+          border-radius: 10px !important;
+          box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05) !important;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .client-tx-container .transaction-document-drop:hover .transaction-document-drop__choose-btn,
+        .client-tx-dropzone-wrapper .transaction-document-drop:hover .transaction-document-drop__choose-btn {
+          transform: translateY(-1px) scale(1.02) !important;
+          box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08) !important;
+        }
+        .client-tx-container .transaction-document-drop__progress-badge,
+        .client-tx-container .transaction-document-drop__status-badge,
+        .client-tx-dropzone-wrapper .transaction-document-drop__progress-badge,
+        .client-tx-dropzone-wrapper .transaction-document-drop__status-badge {
+          margin-left: auto !important;
+          margin-right: auto !important;
+          margin-top: 14px !important;
+          align-self: center !important;
+        }
+        .client-tx-container .transaction-document-drop__text-container,
+        .client-tx-dropzone-wrapper .transaction-document-drop__text-container {
+          flex: 0 0 auto !important;
+        }
+      `}</style>
       {isMobile ? (
         <>
           {/* Mobile Header */}
@@ -3740,6 +3818,12 @@ export default function ClientAddTransactionViewNew({
                   primaryLabelText="Upload invoice or receipt"
                   secondaryLabelText="PDF, JPG, PNG · Max 10 MB"
                   hideIconOnIdle={true}
+                  chooseBtnStyle={{
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    marginTop: '16px',
+                    alignSelf: 'center',
+                  }}
                   style={{
                     border: '1.5px dashed #c4ccd8',
                     background: 'transparent',

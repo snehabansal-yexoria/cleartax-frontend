@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import ClientInsightsSkeleton from "@/app/components/clients/ClientInsightsSkeleton";
-import { logout } from "@/src/lib/logout";
+import { triggerClientLogout } from "../ClientLogoutAnimation";
 import { getIdToken } from "@/src/lib/authToken";
 import {
   formatCurrency as globalFormatCurrency,
@@ -205,8 +205,7 @@ export default function ClientInsightsPage() {
   }, [router]);
 
   function handleLogout() {
-    logout();
-    router.replace("/login");
+    triggerClientLogout();
   }
 
   // Formatting helpers

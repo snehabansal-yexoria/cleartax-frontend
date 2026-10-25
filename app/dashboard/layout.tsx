@@ -47,6 +47,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "../../src/lib/session";
 import { getAuthSession } from "../../src/lib/authToken";
 import { logout } from "../../src/lib/logout";
+import { triggerClientLogout } from "./client/ClientLogoutAnimation";
 import { normalizeRoleName } from "../../src/lib/roleNames";
 import {
   readSessionBootstrap,
@@ -196,17 +197,6 @@ const accountantMenuItems: PortalMenuItem[] = [
         <path d="M8 12h8" />
         <path d="M10.5 16h3" />
         <path d="M12 6v12" />
-      </svg>
-    ),
-  },
-  {
-    id: "inbox",
-    href: "/dashboard/accountant/inbox",
-    label: "Emailed Docs",
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="5" width="18" height="14" rx="2" />
-        <path d="m3 7 9 6 9-6" />
       </svg>
     ),
   },
@@ -812,6 +802,13 @@ export default function DashboardLayout({
   }, [router]);
 
   function handleLogout() {
+    setIsAccountMenuOpen(false);
+
+    if (isClientPage) {
+      triggerClientLogout();
+      return;
+    }
+
     logout();
 
     router.replace("/login");
@@ -1252,7 +1249,7 @@ export default function DashboardLayout({
           // with long pages. Logo and footer stay put; only the menu scrolls,
           // and only when the window is too short to fit it.
           adminLook ? " lg:sticky lg:top-4 lg:self-start lg:h-[calc(100vh-32px)] overflow-hidden !pt-5" : ""
-        }`}>
+          }`}>
           <div className={`flex flex-col w-full ${adminLook ? "gap-4 min-h-0 flex-1" : "gap-9"}`}>
             <div className="flex items-center justify-start w-full px-1.5 h-12 shrink-0 overflow-hidden">
               <div className="flex items-center gap-3.5 w-full">
@@ -1587,6 +1584,35 @@ export default function DashboardLayout({
                       <span className="client-drawer-user-role">Client Portal</span>
                       <span className="client-drawer-user-email">{email}</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        handleLogout();
+                      }}
+                      className="client-drawer-logout-btn"
+                      title="Log Out"
+                      aria-label="Log Out"
+                      style={{
+                        marginLeft: "auto",
+                        background: "rgba(239, 68, 68, 0.12)",
+                        border: "1px solid rgba(239, 68, 68, 0.2)",
+                        color: "#ef4444",
+                        borderRadius: "10px",
+                        padding: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                    </button>
                   </div>
                 </>
               ) : (
