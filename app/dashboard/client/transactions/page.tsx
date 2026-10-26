@@ -13,7 +13,7 @@ import {
 } from "@/app/components/TransactionsFeature";
 import { getSession } from "@/src/lib/session";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
-import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { formatClientCurrency, formatExactCurrency } from "@/app/components/clients/CurrencyFormatter";
 import ClientPagination from "@/app/components/clients/ClientPagination";
 import ClientEmailedDocuments, { EmailDocumentsHint } from "@/app/components/documentInbox/ClientEmailedDocuments";
 import type {
@@ -92,9 +92,9 @@ function rowTone(type: string): 'income' | 'expense' | 'neutral' {
 
 function rowAmountText(type: string, amount: number): string {
   const tone = rowTone(type);
-  if (tone === 'income') return formatClientCurrency(amount, { showPlus: true });
-  if (tone === 'expense') return formatClientCurrency(-amount, { showPlus: true });
-  return formatClientCurrency(amount);
+  if (tone === 'income') return formatExactCurrency(amount, { showPlus: true });
+  if (tone === 'expense') return formatExactCurrency(-amount, { showPlus: true });
+  return formatExactCurrency(amount);
 }
 
 /** The type badge for a neutral row, unless its category already says it. */
@@ -978,14 +978,14 @@ function ClientTransactionsContent() {
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Income</span>
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>{durationLabel}</span>
                 <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--success)', marginTop: '4px' }}>
-                  {displayIncomeTotal != null ? formatClientCurrency(displayIncomeTotal, { showPlus: true }) : "—"}
+                  {displayIncomeTotal != null ? formatExactCurrency(displayIncomeTotal, { showPlus: true }) : "—"}
                 </div>
               </div>
               <div style={{ paddingLeft: '20px', borderLeft: '1px solid var(--border)', minWidth: 0 }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Expense</span>
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>{durationLabel}</span>
                 <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--danger)', marginTop: '4px' }}>
-                  {displayExpenseTotal != null ? formatClientCurrency(-displayExpenseTotal, { showPlus: true }) : "—"}
+                  {displayExpenseTotal != null ? formatExactCurrency(-displayExpenseTotal, { showPlus: true }) : "—"}
                 </div>
               </div>
             </div>
@@ -1552,13 +1552,13 @@ function ClientTransactionsContent() {
             <div className="d-tx-mtd-card">
               <span className="d-tx-mtd-label">Income · {durationLabel}</span>
               <div className="d-tx-mtd-value income">
-                {displayIncomeTotal != null ? formatClientCurrency(displayIncomeTotal) : "—"}
+                {displayIncomeTotal != null ? formatExactCurrency(displayIncomeTotal) : "—"}
               </div>
             </div>
             <div className="d-tx-mtd-card">
               <span className="d-tx-mtd-label">Expense · {durationLabel}</span>
               <div className="d-tx-mtd-value expense">
-                {displayExpenseTotal != null ? formatClientCurrency(-displayExpenseTotal) : "—"}
+                {displayExpenseTotal != null ? formatExactCurrency(-displayExpenseTotal) : "—"}
               </div>
             </div>
           </div>

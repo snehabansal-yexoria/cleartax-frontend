@@ -1,6 +1,6 @@
 "use client";
 
-import { formatClientCurrency } from "./CurrencyFormatter";
+import { formatClientCurrency, formatExactCurrency } from "./CurrencyFormatter";
 
 /** One month of the chart: income and expenses as positive magnitudes. */
 export type PropertyTrendRow = {
@@ -64,7 +64,7 @@ export default function PropertyTrendChart({ rows }: PropertyTrendChartProps) {
                       (item.income / maxTrendAmount) * 100
                     )}%`,
                   }}
-                  title={`Income: ${formatClientCurrency(item.income)}`}
+                  title={`Income: ${formatExactCurrency(item.income)}`}
                 />
                 {/* Expense Bar (Right) */}
                 <span
@@ -75,7 +75,7 @@ export default function PropertyTrendChart({ rows }: PropertyTrendChartProps) {
                       (item.expense / maxTrendAmount) * 100
                     )}%`,
                   }}
-                  title={`Expense: ${formatClientCurrency(item.expense)}`}
+                  title={`Expense: ${formatExactCurrency(item.expense)}`}
                 />
               </div>
               <span className="uppercase tracking-wider">{item.label}</span>

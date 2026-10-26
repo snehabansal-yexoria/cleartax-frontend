@@ -13,7 +13,7 @@ import {
   ReviewStatusBadge,
 } from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
-import { formatClientCurrency, signedTone } from "@/app/components/clients/CurrencyFormatter";
+import { formatClientCurrency, formatExactCurrency, signedTone } from "@/app/components/clients/CurrencyFormatter";
 import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
 import { fetchCurrentUser } from "@/app/components/currentUser";
 import RegionError from "@/app/components/ui/RegionError";
@@ -84,9 +84,7 @@ function formatDocDate(value: string) {
 // of prefixing "+"/"-" themselves — that is what printed "+-$1,230".
 function formatMoney(val: number | null | undefined, showPlus = false) {
   if (val == null || !Number.isFinite(val)) return "—";
-  return Math.abs(val) >= 1000000
-    ? formatClientCurrency(val, { short: true, decimals: 2, showPlus })
-    : formatClientCurrency(val, { showPlus });
+  return formatExactCurrency(val, { showPlus });
 }
 
 

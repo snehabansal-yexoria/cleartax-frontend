@@ -1915,8 +1915,8 @@ export default function ClientAddTransactionViewNew({
   // the API rejects that pair ("subcategory does not belong to category").
   const loadedSubcategoryId =
     subcategoriesReady &&
-    subcategoryId != null &&
-    subcategories.some((s) => s.id === subcategoryId)
+      subcategoryId != null &&
+      subcategories.some((s) => s.id === subcategoryId)
       ? subcategoryId
       : null;
 
@@ -3540,7 +3540,7 @@ export default function ClientAddTransactionViewNew({
               color: isDark ? 'var(--accent)' : '#1e3a7a',
               flexShrink: 0,
             }}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2, transform: "rotate(15deg)" }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "24px", height: "24px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
               </svg>
             </div>
@@ -4080,50 +4080,50 @@ export default function ClientAddTransactionViewNew({
             {/* Split Toggle Switch — a personal transaction or a cost-base
                 entry belongs to one property, so it is not split. */}
             {allowsBusinessExtras(type) && (
-            <div className="client-tx-split-toggle-container" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '24px 0 20px 0',
-              marginTop: '24px',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            }}>
-              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate the amount across multiple properties.</span>
+              <div className="client-tx-split-toggle-container" style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '24px 0 20px 0',
+                marginTop: '24px',
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              }}>
+                <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
+                  <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate the amount across multiple properties.</span>
+                </div>
+                <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isSplit}
+                    onChange={(e) => handleSplitToggle(e.target.checked)}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span className="client-tx-slider" style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: isSplit ? '#1d2452' : '#eaeef4',
+                    transition: '.2s',
+                    borderRadius: '24px',
+                  }} />
+                  <span style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: isSplit ? '24px' : '4px',
+                    bottom: '3px',
+                    backgroundColor: 'white',
+                    transition: '.2s',
+                    borderRadius: '50%',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                    pointerEvents: 'none',
+                  }} />
+                </label>
               </div>
-              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={isSplit}
-                  onChange={(e) => handleSplitToggle(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                />
-                <span className="client-tx-slider" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: isSplit ? '#1d2452' : '#eaeef4',
-                  transition: '.2s',
-                  borderRadius: '24px',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: isSplit ? '24px' : '4px',
-                  bottom: '3px',
-                  backgroundColor: 'white',
-                  transition: '.2s',
-                  borderRadius: '50%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                  pointerEvents: 'none',
-                }} />
-              </label>
-            </div>
             )}
 
             {!isSplit && submitError && submitError.toLowerCase().includes("split") && (

@@ -7,7 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPropertiesSkeleton } from "@/app/components/PortalSkeletons";
 import { getIdToken } from "@/src/lib/authToken";
 import {
-  formatCurrencyShort,
+  formatExactCurrency,
   formatClientCurrency,
   formatClientPercent,
   toneClass,
@@ -294,7 +294,7 @@ export default function ClientPropertyPage() {
             <div className="m-db-portfolio-summary-card">
               <div className="m-db-portfolio-col">
                 <span className="m-db-portfolio-label">Portfolio Value</span>
-                <span className="m-db-portfolio-value">{formatCurrencyShort(portfolioValueSum)}</span>
+                <span className="m-db-portfolio-value">{formatExactCurrency(portfolioValueSum)}</span>
               </div>
               <div className="m-db-portfolio-col divider-left" title={`Net result ${fyShortLabel(financialYear)} ÷ portfolio value`}>
                 <span className="m-db-portfolio-label">Avg. Return</span>
@@ -317,7 +317,7 @@ export default function ClientPropertyPage() {
             ) : (
               <div className="property-cards-container">
                 {filteredProperties.map((prop, idx) => {
-                  const formattedExpense = prop.expense != null ? formatClientCurrency(-prop.expense, { short: true }) : "—";
+                  const formattedExpense = prop.expense != null ? formatExactCurrency(-prop.expense) : "—";
                   const isImageBroken = brokenImages[prop.id];
                   const imgTargetSrc = propertyImageSrc(prop.imageUrl);
                   const hasImageUrl = imgTargetSrc !== null;
@@ -364,7 +364,7 @@ export default function ClientPropertyPage() {
                           <div>
                             <span className="m-db-property-stat-label">Income </span>
                             <span className="m-db-property-stat-value income">
-                              {prop.income != null ? formatClientCurrency(prop.income, { short: true, showPlus: true }) : "—"}
+                              {prop.income != null ? formatExactCurrency(prop.income, { showPlus: true }) : "—"}
                             </span>
                           </div>
                           <div>
@@ -383,7 +383,7 @@ export default function ClientPropertyPage() {
                             className={`m-db-property-net ${toneClass(prop.net)}`}
                             title={`Net result, ${fyShortLabel(financialYear)}`}
                           >
-                            Net <span style={{ fontWeight: 700 }}>{prop.net != null ? formatClientCurrency(prop.net, { short: true, showPlus: true }) : "—"}</span>
+                            Net <span style={{ fontWeight: 700 }}>{prop.net != null ? formatExactCurrency(prop.net, { showPlus: true }) : "—"}</span>
                           </span>
                         </div>
                       </div>

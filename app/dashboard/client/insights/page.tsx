@@ -10,6 +10,7 @@ import { getIdToken } from "@/src/lib/authToken";
 import {
   formatCurrency as globalFormatCurrency,
   formatClientCurrency,
+  formatExactCurrency,
   formatClientPercent,
   toneClass,
 } from "@/app/components/clients/CurrencyFormatter";
@@ -418,7 +419,7 @@ export default function ClientInsightsPage() {
   }, [summary, properties]);
 
   const formatKCurrency = (val: number) => {
-    return formatClientCurrency(val, { short: true, showPlus: true, decimals: 1 });
+    return formatExactCurrency(val, { showPlus: true });
   };
 
   // Doughnut Chart circle properties
@@ -426,7 +427,7 @@ export default function ClientInsightsPage() {
   const categoryColors = ["#1b265c", "#f7a61a", "#12b76a", "#475467"];
 
   const formatCurrency = (val: number) => {
-    return globalFormatCurrency(val, { decimals: 0 });
+    return formatExactCurrency(val);
   };
 
   const trendPercentage = displayCashFlowMetrics.trendPercentage;
@@ -582,6 +583,7 @@ export default function ClientInsightsPage() {
           onChange={setScope}
         />
         <span className="insights-filters-period" aria-live="polite">
+          <span className="insights-filters-period-dot" aria-hidden="true" />
           {periodLabel}
           {isRefreshing ? " · Updating…" : ""}
         </span>

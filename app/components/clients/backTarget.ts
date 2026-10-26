@@ -30,7 +30,7 @@ export function backLabelFor(path: string): string {
   if (p === "/dashboard/client" || p === "/dashboard/client/summary" || p === "/dashboard/client/detailed") {
     return "Dashboard";
   }
-  if (p === "/dashboard/client/properties") return "Properties";
+  if (p === "/dashboard/client/properties" || p === "/dashboard/client/property") return "Properties";
   if (p === "/dashboard/client/entities") return "Entities";
   // `new` is the Add Entity page, not an entity.
   if (/^\/dashboard\/client\/entities\/(?!new$)[^/]+$/.test(p)) return "Entity";
@@ -38,6 +38,8 @@ export function backLabelFor(path: string): string {
   if (p === "/dashboard/client/transactions") return "Transactions";
   if (p === "/dashboard/client/insights") return "Insights";
   if (p === "/dashboard/client/profile") return "Profile";
+  if (p.startsWith("/dashboard/client/reports")) return "Reports";
+  if (p === "/dashboard/client/alerts") return "Alerts";
   return "Back";
 }
 
@@ -57,8 +59,10 @@ export function resolveBackTarget(ownPathname: string): BackTarget | null {
   }
 
   const own = ownPathname.split("?")[0].split("#")[0];
-  const from = current && current !== own ? current : previous;
-  if (!from || from === own || !isSafeInternalHref(from)) return null;
+  const currentClean = current ? current.split("?")[0].split("#")[0] : null;
+  const from = current && currentClean !== own ? current : previous;
+  const fromClean = from ? from.split("?")[0].split("#")[0] : null;
+  if (!from || fromClean === own || !isSafeInternalHref(from)) return null;
   if (!from.startsWith("/dashboard/client")) return null;
   return { href: from, label: backLabelFor(from) };
 }
