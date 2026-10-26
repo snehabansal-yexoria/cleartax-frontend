@@ -30,7 +30,9 @@ export function DocumentPreviewPanel({
   documentId: string;
   filename: string;
   token: string;
-  onReset: () => void;
+  // Omitted when the document is fixed (an emailed document being filed):
+  // the "Upload another" button is then hidden.
+  onReset?: () => void;
 }) {
   const [state, setState] = useState<PreviewState>({ kind: "loading" });
   const urlRef = useRef<string | null>(null);
@@ -115,6 +117,7 @@ export function DocumentPreviewPanel({
               Open
             </button>
           )}
+          {onReset && (
           <button
             type="button"
             className="doc-preview-reset-btn"
@@ -128,6 +131,7 @@ export function DocumentPreviewPanel({
             </svg>
             Upload another
           </button>
+          )}
         </div>
       </div>
 

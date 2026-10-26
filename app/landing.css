@@ -1,4 +1,4 @@
-/* ClearTax Landing Page Styles - Responsive Single Codebase */
+/* Clear Tax Landing Page Styles - Responsive Single Codebase */
 @import url('https://fonts.googleapis.com/css2?family=Liberation+Mono:wght@400;700&display=swap');
 
 :root {
@@ -3485,6 +3485,189 @@ html {
 
   .ct-mobile-link {
     font-size: 0.9rem;
+  }
+}
+
+/* ==========================================================================
+   EXECUTIVE-GRADE SCROLL-REVEAL & VIEWPORT ANIMATIONS
+   Created with 10+ years experience standard for enterprise SaaS & Fintech.
+   60-120fps hardware-accelerated, zero-layout-shift, hydration-safe.
+   ========================================================================== */
+
+/* Header Scroll Transition & Elevation */
+.ct-header {
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              backdrop-filter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ct-header.ct-header-scrolled {
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom-color: rgba(226, 232, 240, 0.95) !important;
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Subtle Reading Progress Indicator Bar */
+.ct-scroll-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #d97706 100%);
+  transform-origin: 0% 50%;
+  transform: scaleX(0);
+  pointer-events: none;
+  z-index: 60;
+  transition: transform 0.08s ease-out;
+}
+
+/* Base Scroll Reveal: Vertical Glide & Depth with Snappy Apple/Linear Easing */
+[data-landing-animated="true"] .scroll-reveal {
+  opacity: 0;
+  transform: translateY(45px) scale(0.98);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Directional Variant: Slide in from Left */
+[data-landing-animated="true"] .scroll-reveal-left {
+  opacity: 0;
+  transform: translateX(-45px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Directional Variant: Slide in from Right */
+[data-landing-animated="true"] .scroll-reveal-right {
+  opacity: 0;
+  transform: translateX(45px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Elevation / Scale Variant: Soft lift & scale into place */
+[data-landing-animated="true"] .scroll-reveal-scale {
+  opacity: 0;
+  transform: translateY(48px) scale(0.96);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Subtle Fade Variant: Opacity only */
+[data-landing-animated="true"] .scroll-reveal-fade {
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+/* ================= Revealed State (Active in Viewport) ================= */
+[data-landing-animated="true"] .scroll-reveal[data-revealed="true"],
+[data-landing-animated="true"] .scroll-reveal-left[data-revealed="true"],
+[data-landing-animated="true"] .scroll-reveal-right[data-revealed="true"],
+[data-landing-animated="true"] .scroll-reveal-scale[data-revealed="true"],
+[data-landing-animated="true"] .scroll-reveal-fade[data-revealed="true"],
+[data-landing-animated="true"] .scroll-reveal.is-revealed,
+[data-landing-animated="true"] .scroll-reveal-left.is-revealed,
+[data-landing-animated="true"] .scroll-reveal-right.is-revealed,
+[data-landing-animated="true"] .scroll-reveal-scale.is-revealed,
+[data-landing-animated="true"] .scroll-reveal-fade.is-revealed {
+  opacity: 1 !important;
+  transform: translateY(0) translateX(0) scale(1) !important;
+  will-change: auto !important;
+}
+
+/* Ensure subsequent hover transitions remain buttery smooth without transform conflict */
+[data-landing-animated="true"] .ct-feature-card.scroll-reveal[data-revealed="true"],
+[data-landing-animated="true"] .ct-metric-card.scroll-reveal[data-revealed="true"],
+[data-landing-animated="true"] .ct-testimonial-card.scroll-reveal[data-revealed="true"],
+[data-landing-animated="true"] .ct-challenge-item.scroll-reveal[data-revealed="true"],
+[data-landing-animated="true"] .ct-feature-card.scroll-reveal.is-revealed,
+[data-landing-animated="true"] .ct-metric-card.scroll-reveal.is-revealed,
+[data-landing-animated="true"] .ct-testimonial-card.scroll-reveal.is-revealed,
+[data-landing-animated="true"] .ct-challenge-item.scroll-reveal.is-revealed {
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.25s ease,
+              box-shadow 0.25s ease,
+              border-color 0.25s ease !important;
+}
+
+/* ================= Explicit Stagger Delays ================= */
+[data-landing-animated="true"] .scroll-delay-1 {
+  transition-delay: 90ms;
+}
+[data-landing-animated="true"] .scroll-delay-2 {
+  transition-delay: 180ms;
+}
+[data-landing-animated="true"] .scroll-delay-3 {
+  transition-delay: 270ms;
+}
+[data-landing-animated="true"] .scroll-delay-4 {
+  transition-delay: 360ms;
+}
+[data-landing-animated="true"] .scroll-delay-5 {
+  transition-delay: 450ms;
+}
+[data-landing-animated="true"] .scroll-delay-6 {
+  transition-delay: 540ms;
+}
+
+/* ================= Container-Level Automatic Stagger ================= */
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(1) {
+  transition-delay: 0ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(2) {
+  transition-delay: 90ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(3) {
+  transition-delay: 180ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(4) {
+  transition-delay: 270ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(5) {
+  transition-delay: 360ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(6) {
+  transition-delay: 450ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(7) {
+  transition-delay: 540ms;
+}
+[data-landing-animated="true"] .scroll-stagger-grid > .scroll-reveal:nth-child(8) {
+  transition-delay: 630ms;
+}
+
+/* Mobile Responsiveness Adjustment for Directional Reveals */
+@media (max-width: 900px) {
+  [data-landing-animated="true"] .scroll-reveal-left,
+  [data-landing-animated="true"] .scroll-reveal-right {
+    transform: translateY(28px) scale(0.98);
+  }
+}
+
+/* Accessibility: Strict Reduced Motion Compliance */
+@media (prefers-reduced-motion: reduce) {
+  [data-landing-animated="true"] .scroll-reveal,
+  [data-landing-animated="true"] .scroll-reveal-left,
+  [data-landing-animated="true"] .scroll-reveal-right,
+  [data-landing-animated="true"] .scroll-reveal-scale,
+  [data-landing-animated="true"] .scroll-reveal-fade {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    transition-delay: 0ms !important;
+  }
+  .ct-scroll-progress-bar {
+    display: none !important;
   }
 }
 

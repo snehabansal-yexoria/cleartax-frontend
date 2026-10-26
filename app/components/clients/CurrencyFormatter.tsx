@@ -50,9 +50,51 @@ export function formatClientCurrency(
     });
   }
 
-  const sign = isNegative ? '-' : (options.showPlus ? '+' : '');
+  // The sign follows the ROUNDED value: -0.3 prints "A$ 0", never "A$ -0", and
+  // a zero never gets a "+".
+  const roundsToZero = !/[1-9]/.test(formattedValue);
+  const sign = roundsToZero ? '' : isNegative ? '-' : (options.showPlus ? '+' : '');
 
   return `${CURRENCY_PREFIX}${CURRENCY_SPACER}${sign}${formattedValue}`;
+}
+
+/**
+ * A signed percentage with the same rule as formatClientCurrency: the sign is
+ * decided after rounding, so a tiny negative prints "0.0%", not "-0.0%".
+ */
+export function formatClientPercent(
+  value: number,
+  options: { decimals?: number; showPlus?: boolean } = {},
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '';
+  const formatted = Math.abs(value).toFixed(options.decimals ?? 1);
+  const roundsToZero = !/[1-9]/.test(formatted);
+  const sign = roundsToZero ? '' : value < 0 ? '-' : (options.showPlus ? '+' : '');
+  return `${sign}${formatted}%`;
+}
+
+/**
+ * Colour for a signed money figure: green when it is positive, red when it is
+ * negative, neutral at zero. Returns a CSS custom property, so it follows the
+ * client theme in light and dark mode.
+ */
+export function signedTone(value: number): string {
+  if (value > 0) return 'var(--success)';
+  if (value < 0) return 'var(--danger)';
+  return 'var(--text-primary)';
+}
+
+/**
+ * The class form of signedTone, for elements whose stylesheet colour is
+ * `!important` green (.m-db-portfolio-value, .m-db-property-net,
+ * .m-db-entity-net, .return-value) — an inline colour cannot beat those; the
+ * .is-positive / .is-negative rules in client.css do.
+ */
+export function toneClass(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '';
+  if (value > 0) return 'is-positive';
+  if (value < 0) return 'is-negative';
+  return '';
 }
 
 export function getCurrencyPrefix(): string {
@@ -65,6 +107,17 @@ export function formatCurrency(
 ): string {
   // If the original formatCurrency gets decimals, we pass it, otherwise default to 2 for compatibility
   return formatClientCurrency(value, { decimals: options.decimals ?? 2 });
+}
+
+/**
+ * The exact amount, to the cent and never abbreviated: "A$ 12,345.67", not
+ * "A$ 12.3K". For figures a client checks against their own records.
+ */
+export function formatExactCurrency(
+  value: number | string,
+  options: { showPlus?: boolean } = {},
+): string {
+  return formatClientCurrency(value, { decimals: 2, showPlus: options.showPlus });
 }
 
 export function formatCurrencyShort(value: number | string): string {

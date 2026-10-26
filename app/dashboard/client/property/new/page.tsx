@@ -48,6 +48,9 @@ const demoEntities: CoreEntity[] = [
     enabled: true,
     propertiesCount: 2,
     transactionsCount: 0,
+    gstStatus: "unknown",
+    gstBasis: null,
+    basFrequency: null,
     beneficiaries: [
       { id: 1, name: "Sarah Johnson", ownershipPercentage: 60 },
       { id: 2, name: "Michael Johnson", ownershipPercentage: 40 }
@@ -68,6 +71,9 @@ const demoEntities: CoreEntity[] = [
     enabled: true,
     propertiesCount: 1,
     transactionsCount: 0,
+    gstStatus: "unknown",
+    gstBasis: null,
+    basFrequency: null,
     beneficiaries: [
       { id: 3, name: "Sarah Johnson", ownershipPercentage: 100 }
     ]
@@ -87,6 +93,9 @@ const demoEntities: CoreEntity[] = [
     enabled: true,
     propertiesCount: 0,
     transactionsCount: 0,
+    gstStatus: "unknown",
+    gstBasis: null,
+    basFrequency: null,
     beneficiaries: [
       { id: 4, name: "Sarah Johnson", ownershipPercentage: 100 }
     ]

@@ -350,6 +350,14 @@ export default function AddEntityWizard({
         body.trust_type = trustType;
       }
 
+      // Staff only: preserve existing GST fields on edit if present
+      if (role === "accountant" && initialEntity?.gstStatus) {
+        const registered = initialEntity.gstStatus === "registered";
+        body.gst_status = initialEntity.gstStatus;
+        body.gst_basis = registered ? (initialEntity.gstBasis ?? "") : "";
+        body.bas_frequency = registered ? (initialEntity.basFrequency ?? "") : "";
+      }
+
       const primaryBeneficiary = initialEntity?.beneficiaries[0];
 
       body.beneficiaries = needsBeneficiaries
@@ -659,6 +667,7 @@ export default function AddEntityWizard({
             <div className="entity-wizard-selected-chip">
               Selected Type: <strong>{selectedTypeLabel}</strong>
             </div>
+
 
             {errorMessage && (
               <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">

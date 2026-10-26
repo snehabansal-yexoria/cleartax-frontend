@@ -7,6 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
 import { AllTransactionsView } from "@/app/components/TransactionsFeature";
 import DocumentsListView from "@/app/components/DocumentsListView";
+import DocumentInboxView from "@/app/components/documentInbox/DocumentInboxView";
 import {
   assetItemName,
   personalCategoryLabel,
@@ -52,13 +53,14 @@ interface AccountantRecord {
   email: string;
 }
 
-type ClientTab = "entities" | "banking" | "transactions" | "documents";
+type ClientTab = "entities" | "banking" | "transactions" | "documents" | "emailed";
 
 const clientTabs: { id: ClientTab; label: string }[] = [
   { id: "entities", label: "Entities & Ownership" },
   { id: "banking", label: "Bank Accounts & Lending" },
   { id: "transactions", label: "All Transactions" },
   { id: "documents", label: "Document Vault" },
+  { id: "emailed", label: "Emailed Docs" },
 ];
 
 function titleCase(value: string) {
@@ -374,6 +376,8 @@ function ClientDetailPageContent() {
       setCurrentTab("banking");
     } else if (tab === "documents") {
       setCurrentTab("documents");
+    } else if (tab === "emailed") {
+      setCurrentTab("emailed");
     } else if (tab === "entities") {
       setCurrentTab("entities");
     }
@@ -1263,6 +1267,16 @@ function ClientDetailPageContent() {
             <DocumentsListView
               context={{ kind: "client", clientId }}
               token={sessionToken}
+            />
+          </div>
+        )}
+
+        {currentTab === "emailed" && (
+          <div className="client-portfolio-tab-body">
+            <DocumentInboxView
+              clientId={clientId}
+              returnTo={`/dashboard/accountant/clients/${clientId}?tab=emailed`}
+              compact
             />
           </div>
         )}

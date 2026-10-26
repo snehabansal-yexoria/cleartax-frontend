@@ -7,6 +7,7 @@ import { getSession } from "@/src/lib/session";
 import type { CoreEntity, CoreProperty, PropertyType } from "@/src/lib/coreApi";
 import { useTheme } from "next-themes";
 import { CURRENCY_PREFIX, CURRENCY_SPACER } from "./CurrencyFormatter";
+import { resolveBackTarget } from "./backTarget";
 
 
 interface SessionWithIdToken {
@@ -265,12 +266,14 @@ export default function ClientAddPropertyView({
   entityId,
   onSuccessUrl = "/dashboard/client/properties",
 }: ClientAddPropertyViewProps = {}) {
-  const { theme } = useTheme();
+  // resolvedTheme, not theme: under "system" the class on <html> can be dark
+  // while theme reads "system", which left inputs white-on-white.
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
-  const isDark = mounted && theme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
 
   const router = useRouter();
@@ -285,38 +288,12 @@ export default function ClientAddPropertyView({
       setBackText(propBackText);
     }
 
+    // Explicit props win; otherwise go back to the page the user came from.
     if (!propBackUrl || !propBackText) {
-      if (typeof window !== "undefined" && window.sessionStorage) {
-        const prevPath = sessionStorage.getItem("prevDashboardPath");
-        if (prevPath) {
-          const normalized = prevPath.split("?")[0].split("#")[0];
-          if (!propBackUrl) {
-            if (normalized.startsWith("/dashboard/client")) {
-              setBackUrl(prevPath);
-            }
-          }
-          if (!propBackText) {
-            if (normalized === "/dashboard/client" || normalized === "/dashboard/client/summary" || normalized === "/dashboard/client/detailed") {
-              setBackText("Dashboard");
-            } else if (normalized === "/dashboard/client/properties") {
-              setBackText("Properties");
-            } else if (normalized === "/dashboard/client/entities") {
-              setBackText("Entities");
-            } else if (normalized.match(/^\/dashboard\/client\/entities\/[^/]+$/)) {
-              setBackText("Entity");
-            } else if (normalized.match(/^\/dashboard\/client\/properties\/[^/]+$/)) {
-              setBackText("Property");
-            } else if (normalized === "/dashboard/client/transactions") {
-              setBackText("Transactions");
-            } else if (normalized === "/dashboard/client/insights") {
-              setBackText("Insights");
-            } else if (normalized === "/dashboard/client/profile") {
-              setBackText("Profile");
-            } else if (normalized.startsWith("/dashboard/client")) {
-              setBackText("Back");
-            }
-          }
-        }
+      const target = resolveBackTarget(window.location.pathname);
+      if (target) {
+        if (!propBackUrl) setBackUrl(target.href);
+        if (!propBackText) setBackText(target.label);
       }
     }
   }, [propBackUrl, propBackText]);

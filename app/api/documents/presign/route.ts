@@ -26,11 +26,15 @@ export async function GET(req: Request) {
   const documentType = url.searchParams.get("document_type") ?? "";
   const entityId = url.searchParams.get("entity_id") ?? "";
   const propertyId = url.searchParams.get("property_id") ?? "";
+  // Bytes, as the browser reports them. Optional — without it the document's
+  // file_size stays NULL and lists show 0.
+  const fileSize = url.searchParams.get("file_size") ?? "";
 
   const qs = new URLSearchParams({ filename });
   if (documentType) qs.set("document_type", documentType);
   if (entityId) qs.set("entity_id", entityId);
   if (propertyId) qs.set("property_id", propertyId);
+  if (/^\d+$/.test(fileSize)) qs.set("file_size", fileSize);
 
   try {
     const payload = await coreApiRequest<PresignResponse>(

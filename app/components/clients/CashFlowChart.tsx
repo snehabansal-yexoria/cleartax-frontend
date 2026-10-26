@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { formatClientCurrency, formatCurrencyShort } from "./CurrencyFormatter";
+import { formatExactCurrency } from "./CurrencyFormatter";
+import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
+import RegionError from "@/app/components/ui/RegionError";
 
 interface CategoryItem {
   name: string;
@@ -17,22 +19,26 @@ interface CashFlowChartProps {
   title?: string;
   subtitle?: string;
   showViewDetail?: boolean;
+  /** Real category totals for the detail modal; empty shows "Nothing recorded yet". */
   expenseCategories?: CategoryItem[];
   incomeSources?: CategoryItem[];
+  /** The window the category lists cover, e.g. "FY 2025–26". */
+  detailPeriodLabel?: string;
+  /**
+   * The financial year on screen. With `onFinancialYearChange`, a year picker
+   * shows in the card header and in the View Detail overlay — both bound to
+   * this one value, so they never disagree.
+   */
+  financialYear?: number;
+  /** Years to offer, newest first. */
+  financialYearOptions?: number[];
+  onFinancialYearChange?: (year: number) => void;
+  /** The selected year is still loading: show that, not an empty chart. */
+  loading?: boolean;
+  /** The selected year failed to load. */
+  error?: string | null;
+  onRetry?: () => void;
 }
-
-const DEFAULT_EXPENSE_CATEGORIES: CategoryItem[] = [
-  { name: "Loan Interest", amount: 2180 },
-  { name: "Maintenance", amount: 1340 },
-  { name: "Council Rates", amount: 960 },
-  { name: "Insurance", amount: 640 },
-  { name: "Water & Utilities", amount: 260 },
-];
-
-const DEFAULT_INCOME_SOURCES: CategoryItem[] = [
-  { name: "Rental Income", amount: 4200 },
-  { name: "Other Rental Income", amount: 3800 },
-];
 
 export default function CashFlowChart({
   months,
@@ -43,11 +49,47 @@ export default function CashFlowChart({
   title = "Cash Flow",
   subtitle = "Income vs expense",
   showViewDetail = true,
-  expenseCategories = DEFAULT_EXPENSE_CATEGORIES,
-  incomeSources = DEFAULT_INCOME_SOURCES,
+  expenseCategories = [],
+  incomeSources = [],
+  detailPeriodLabel,
+  financialYear,
+  financialYearOptions,
+  onFinancialYearChange,
+  loading = false,
+  error = null,
+  onRetry,
 }: CashFlowChartProps) {
   const [internalView, setInternalView] = useState<'graph' | 'table'>('graph');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Which year picker is open: the card's or the overlay's (they share a value).
+  const [openPicker, setOpenPicker] = useState<'card' | 'modal' | null>(null);
+
+  useEffect(() => {
+    if (!openPicker) return;
+    const close = () => setOpenPicker(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openPicker]);
+
+  const yearPicker = (where: 'card' | 'modal') =>
+    financialYear != null && onFinancialYearChange ? (
+      <FinancialYearPicker
+        value={financialYear}
+        onChange={onFinancialYearChange}
+        isOpen={openPicker === where}
+        setIsOpen={(next) => setOpenPicker(next ? where : null)}
+        years={financialYearOptions}
+      />
+    ) : null;
+
+  // Loading or failed: say so in place of the chart, never an empty one.
+  const regionNotice = error ? (
+    <RegionError message={error} onRetry={onRetry} />
+  ) : loading ? (
+    <span className="text-sm font-semibold text-[#667085] dark:text-[#B9C0E8]">
+      Loading{detailPeriodLabel ? ` ${detailPeriodLabel}` : ""}…
+    </span>
+  ) : null;
 
   // Sync internal view state if controlled view prop changes
   useEffect(() => {
@@ -71,8 +113,8 @@ export default function CashFlowChart({
   const dataMax = Math.max(...income, ...expenses, 1);
 
   const formatYLabel = (val: number) => {
-    if (val >= 1000) return `$${(val / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-    return `$${val}`;
+    if (val >= 1000) return `A$${(val / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return `A$${val}`;
   };
 
   // Stacked chart calculation for mobile
@@ -91,6 +133,7 @@ export default function CashFlowChart({
         </div>
 
         <div className="flex items-center gap-4 self-stretch sm:self-auto justify-between sm:justify-end">
+          {yearPicker('card')}
           {showViewDetail && hasData && (
             <button
               type="button"
@@ -137,7 +180,9 @@ export default function CashFlowChart({
       </div>
 
       {/* Main Content Area */}
-      {currentView === 'graph' ? (
+      {regionNotice ? (
+        <div className="flex items-center justify-center h-[200px] mt-2 w-full">{regionNotice}</div>
+      ) : currentView === 'graph' ? (
         <div className="flex flex-col w-full">
           <div className="flex gap-4 h-[200px] mt-2 relative w-full">
             {!hasData ? (
@@ -187,7 +232,7 @@ export default function CashFlowChart({
                             style={{
                               height: `${Math.max(expHeightPct, 6)}%`,
                             }}
-                            title={`Expenses: ${formatCurrencyShort(expVal)}`}
+                            title={`Expenses: ${formatExactCurrency(expVal)}`}
                           />
                           {/* Income (Navy/Brand) - Rounded top only */}
                           <div
@@ -195,7 +240,7 @@ export default function CashFlowChart({
                             style={{
                               height: `${Math.max(incHeightPct, 6)}%`,
                             }}
-                            title={`Income: ${formatCurrencyShort(incVal)}`}
+                            title={`Income: ${formatExactCurrency(incVal)}`}
                           />
                         </div>
                         <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-bold mt-2.5">{month}</span>
@@ -253,13 +298,13 @@ export default function CashFlowChart({
                     <tr key={month}>
                       <td style={{ padding: '8px 12px', fontSize: '13px' }}>{month}</td>
                       <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                        <span className="dot">●</span> {formatClientCurrency(inc)}
+                        <span className="dot">●</span> {formatExactCurrency(inc)}
                       </td>
                       <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                        <span className="dot">●</span> {formatClientCurrency(exp)}
+                        <span className="dot">●</span> {formatExactCurrency(exp)}
                       </td>
                       <td className={isPositive ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                        {isPositive ? "+" : "-"}{formatClientCurrency(Math.abs(net))}
+                        {formatExactCurrency(net, { showPlus: true })}
                       </td>
                     </tr>
                   );
@@ -271,10 +316,10 @@ export default function CashFlowChart({
                   return (
                     <tr className="total-row">
                       <td style={{ padding: '8px 12px', fontSize: '13px' }}>Total</td>
-                      <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalIncome)}</td>
-                      <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalExpense)}</td>
+                      <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalIncome)}</td>
+                      <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalExpense)}</td>
                       <td className={netTotal >= 0 ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                        {netTotal >= 0 ? "+" : "-"}{formatClientCurrency(Math.abs(netTotal))}
+                        {formatExactCurrency(netTotal, { showPlus: true })}
                       </td>
                     </tr>
                   );
@@ -301,6 +346,7 @@ export default function CashFlowChart({
               </div>
 
               <div className="flex items-center gap-4">
+                {yearPicker('modal')}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -345,7 +391,9 @@ export default function CashFlowChart({
             </div>
 
             {/* Desktop Modal Chart Content */}
-            {currentView === 'graph' ? (
+            {regionNotice ? (
+              <div className="flex items-center justify-center min-h-[200px] w-full mb-2">{regionNotice}</div>
+            ) : currentView === 'graph' ? (
               <div className="flex flex-col w-full mb-2">
                 <div className="flex gap-4 h-[200px] mt-2 relative w-full">
                   <div className="flex flex-col justify-between text-[#98a2b3] text-[10px] font-semibold h-[180px] w-8 select-none">
@@ -381,7 +429,7 @@ export default function CashFlowChart({
                               style={{
                                 height: `${Math.max(expHeightPct, 6)}%`,
                               }}
-                              title={`Expenses: ${formatCurrencyShort(expVal)}`}
+                              title={`Expenses: ${formatExactCurrency(expVal)}`}
                             />
                             {/* Income (Navy/Brand) - Rounded top only */}
                             <div
@@ -389,7 +437,7 @@ export default function CashFlowChart({
                               style={{
                                 height: `${Math.max(incHeightPct, 6)}%`,
                               }}
-                              title={`Income: ${formatCurrencyShort(incVal)}`}
+                              title={`Income: ${formatExactCurrency(incVal)}`}
                             />
                           </div>
                           <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-bold mt-2.5">{month}</span>
@@ -432,13 +480,13 @@ export default function CashFlowChart({
                         <tr key={month}>
                           <td style={{ padding: '8px 12px', fontSize: '13px' }}>{month}</td>
                           <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                            <span className="dot">●</span> {formatClientCurrency(inc)}
+                            <span className="dot">●</span> {formatExactCurrency(inc)}
                           </td>
                           <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>
-                            <span className="dot">●</span> {formatClientCurrency(exp)}
+                            <span className="dot">●</span> {formatExactCurrency(exp)}
                           </td>
                           <td className={isPositive ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                            {isPositive ? "+" : "-"}{formatClientCurrency(Math.abs(net))}
+                            {formatExactCurrency(net, { showPlus: true })}
                           </td>
                         </tr>
                       );
@@ -450,10 +498,10 @@ export default function CashFlowChart({
                       return (
                         <tr className="total-row">
                           <td style={{ padding: '8px 12px', fontSize: '13px' }}>Total</td>
-                          <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalIncome)}</td>
-                          <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatClientCurrency(totalExpense)}</td>
+                          <td className="income-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalIncome)}</td>
+                          <td className="expense-col" style={{ padding: '8px 12px', fontSize: '13px' }}>{formatExactCurrency(totalExpense)}</td>
                           <td className={netTotal >= 0 ? "income-col" : "expense-col"} style={{ padding: '8px 12px', fontSize: '13px', textAlign: 'right' }}>
-                            {netTotal >= 0 ? "+" : "-"}{formatClientCurrency(Math.abs(netTotal))}
+                            {formatExactCurrency(netTotal, { showPlus: true })}
                           </td>
                         </tr>
                       );
@@ -463,13 +511,14 @@ export default function CashFlowChart({
               </div>
             )}
 
+            {!regionNotice && (<>
             {/* Dotted Separator */}
             <div className="w-full border-t border-dashed border-[#eaeef4] dark:border-slate-700 my-4" />
 
             {/* Details Lists (Desktop: Side-by-Side 2-Columns) */}
             <div className="flex flex-col gap-4 text-left w-full select-none">
               <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-xs font-semibold">
-                Top categories driving this month's activity across your whole portfolio.
+                {detailPeriodLabel ? `Top categories for ${detailPeriodLabel} across your whole portfolio.` : "Top categories across your whole portfolio."}
               </span>
 
               <div className="flex flex-row gap-8 w-full mt-2">
@@ -479,6 +528,7 @@ export default function CashFlowChart({
                     TOP 5 EXPENSE CATEGORIES
                   </span>
                   <div className="flex flex-col gap-2">
+                    {expenseCategories.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {expenseCategories.map((item, idx) => (
                       <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#14172E] dark:text-white py-1">
                         <div className="flex items-center gap-3">
@@ -487,7 +537,7 @@ export default function CashFlowChart({
                           </span>
                           <span className="text-[#101828] dark:text-slate-200 font-bold">{item.name}</span>
                         </div>
-                        <span className="text-[#101828] dark:text-white font-bold">{formatClientCurrency(item.amount)}</span>
+                        <span className="text-[#101828] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -499,6 +549,7 @@ export default function CashFlowChart({
                     TOP INCOME SOURCES
                   </span>
                   <div className="flex flex-col gap-2">
+                    {incomeSources.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {incomeSources.map((item, idx) => (
                       <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#14172E] dark:text-white py-1">
                         <div className="flex items-center gap-3">
@@ -507,13 +558,14 @@ export default function CashFlowChart({
                           </span>
                           <span className="text-[#101828] dark:text-slate-200 font-bold">{item.name}</span>
                         </div>
-                        <span className="text-[#101828] dark:text-white font-bold">{formatClientCurrency(item.amount)}</span>
+                        <span className="text-[#101828] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
+            </>)}
           </div>
 
           {/* MOBILE MODAL CONTENT (Figma Image 3 style) */}
@@ -534,7 +586,13 @@ export default function CashFlowChart({
                 Hide Detail
               </button>
             </div>
+            {financialYear != null && onFinancialYearChange && (
+              <div className="flex justify-end w-full mb-3">{yearPicker('modal')}</div>
+            )}
 
+            {regionNotice ? (
+              <div className="flex items-center justify-center min-h-[160px] w-full">{regionNotice}</div>
+            ) : (<>
             {/* Stacked Chart Area (Mobile specific stacked bar design) */}
             <div className="flex flex-col w-full mb-3 px-1">
               <div className="flex justify-between items-end h-[120px] w-full gap-2 relative">
@@ -561,13 +619,13 @@ export default function CashFlowChart({
                           <div
                             style={{ height: `${expPct}%` }}
                             className="w-full cashflow-bar is-expense"
-                            title={`Expenses: ${formatCurrencyShort(expVal)}`}
+                            title={`Expenses: ${formatExactCurrency(expVal)}`}
                           />
                           {/* Income (Navy/Brand) - top */}
                           <div
                             style={{ height: `${incPct}%` }}
                             className="w-full cashflow-bar is-income"
-                            title={`Income: ${formatCurrencyShort(incVal)}`}
+                            title={`Income: ${formatExactCurrency(incVal)}`}
                           />
                         </div>
                       ) : (
@@ -598,7 +656,7 @@ export default function CashFlowChart({
             {/* Mobile Categories lists stacked vertically */}
             <div className="flex flex-col gap-4 text-left w-full select-none max-h-[220px] overflow-y-auto pr-1">
               <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[10px] font-semibold">
-                Top categories driving this month's activity across your whole portfolio.
+                {detailPeriodLabel ? `Top categories for ${detailPeriodLabel} across your whole portfolio.` : "Top categories across your whole portfolio."}
               </span>
 
               {/* Expense Categories */}
@@ -606,7 +664,8 @@ export default function CashFlowChart({
                 <span className="text-[9px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                   TOP 5 EXPENSE CATEGORIES
                 </span>
-                {expenseCategories.map((item, idx) => (
+                {expenseCategories.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
+                    {expenseCategories.map((item, idx) => (
                   <div key={`mob-exp-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#14172E] dark:text-white py-0.5">
                     <div className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
@@ -614,7 +673,7 @@ export default function CashFlowChart({
                       </span>
                       <span className="text-[#101828] dark:text-slate-200 font-bold text-xs">{item.name}</span>
                     </div>
-                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatClientCurrency(item.amount)}</span>
+                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -624,7 +683,8 @@ export default function CashFlowChart({
                 <span className="text-[9px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                   TOP INCOME SOURCES
                 </span>
-                {incomeSources.map((item, idx) => (
+                {incomeSources.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
+                    {incomeSources.map((item, idx) => (
                   <div key={`mob-inc-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#14172E] dark:text-white py-0.5">
                     <div className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
@@ -632,11 +692,12 @@ export default function CashFlowChart({
                       </span>
                       <span className="text-[#101828] dark:text-slate-200 font-bold text-xs">{item.name}</span>
                     </div>
-                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatClientCurrency(item.amount)}</span>
+                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
                   </div>
                 ))}
               </div>
             </div>
+            </>)}
           </div>
         </div>
       )}

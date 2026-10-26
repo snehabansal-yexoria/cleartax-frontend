@@ -61,24 +61,36 @@ export async function GET(req: Request) {
       });
     }
 
-    const decoded = token
-      ? ((await verifyToken(token)) as VerifiedTokenLike | null)
-      : null;
+    // Directory enrichment fills gaps in older backends (no role name, no
+    // full name, no phone_number field). It costs a token verification plus a
+    // direct DB round-trip on every call — and this route runs on every page
+    // load — so it is skipped once the backend already sends all three.
+    const needsDirectory =
+      !(data?.role_name || data?.role) ||
+      !(data?.full_name || data?.fullName) ||
+      !(data && "phone_number" in data);
 
-    // Directory enrichment is best-effort. If the direct DB lookup fails (e.g.
-    // the DB isn't reachable from this host), degrade to the backend's data
-    // instead of failing the whole request.
+    const decoded =
+      token && needsDirectory
+        ? ((await verifyToken(token)) as VerifiedTokenLike | null)
+        : null;
+
+    // Best-effort. If the direct DB lookup fails (e.g. the DB isn't reachable
+    // from this host), degrade to the backend's data instead of failing the
+    // whole request.
     let directoryUser: DirectoryUser | null = null;
-    try {
-      directoryUser = await findDirectoryUserByIdentity({
-        id: decoded?.sub || data?.id,
-        email: decoded?.email || data?.email,
-      });
-    } catch (dirErr) {
-      console.error(
-        "Directory lookup failed; using backend data only:",
-        dirErr,
-      );
+    if (needsDirectory) {
+      try {
+        directoryUser = await findDirectoryUserByIdentity({
+          id: decoded?.sub || data?.id,
+          email: decoded?.email || data?.email,
+        });
+      } catch (dirErr) {
+        console.error(
+          "Directory lookup failed; using backend data only:",
+          dirErr,
+        );
+      }
     }
     const role = normalizeRoleName(
       data.role_name || data.role || directoryUser?.role,
@@ -106,6 +118,11 @@ export async function GET(req: Request) {
         data.phoneNumber ||
         directoryUser?.phoneNumber ||
         "",
+      // Go /users/me already returns these; the client profile shows the
+      // assigned accountant from them instead of a hardcoded name.
+      assignedAccountantId: data.assigned_accountant_id || "",
+      assignedAccountantName: data.assigned_accountant_name || "",
+      assignedAccountantEmail: data.assigned_accountant_email || "",
     });
   } catch (error) {
     console.error("Proxy /users/me error:", error);

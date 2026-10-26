@@ -6,11 +6,25 @@ import Link from "next/link";
 import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
-import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
-import { affectsPnl } from "@/src/lib/transactionTypes";
+import { getIdToken } from "@/src/lib/authToken";
+import { formatClientCurrency, formatExactCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreProperty, CoreEntity, CorePropertyTransactionRow } from "@/src/lib/coreApi";
-import PropertyTrendChart from "@/app/components/clients/PropertyTrendChart";
-import ClientDepreciationCard from "@/app/components/clients/ClientDepreciationCard";
+import PropertyTrendChart, { type PropertyTrendRow } from "@/app/components/clients/PropertyTrendChart";
+import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
+import ClientPersonalTransactionsCard from "@/app/components/clients/ClientPersonalTransactionsCard";
+import ClientAssetsCard from "@/app/components/clients/ClientAssetsCard";
+import RegionError from "@/app/components/ui/RegionError";
+import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
+import { fetchCurrentUser } from "@/app/components/currentUser";
+import {
+  currentFinancialYear,
+  monthAt,
+  monthIndex,
+  monthKey,
+  monthShortLabel,
+  shiftMonth,
+} from "@/app/components/clients/portfolioDashboard";
+import { clientReportsHubHref } from "@/app/components/reports/client/reportLinks";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -98,9 +112,105 @@ function formatDocDate(value: string) {
   });
 }
 
-// Currency formatter using the standard formatClientCurrency but ensuring nice styling
+// Currency formatter using the standard formatExactCurrency for exact 2-decimal display
 function formatCurrency(val: number, showPlus = false) {
-  return formatClientCurrency(val, { decimals: 0, showPlus });
+  return formatExactCurrency(val, { showPlus });
+}
+
+// A figure that may not have loaded: "—" rather than a confident A$ 0.
+function formatFigure(val: number | null | undefined, showPlus = false) {
+  if (val == null || !Number.isFinite(val)) return "—";
+  return formatCurrency(val, showPlus);
+}
+
+// Hero colour for a signed figure; white while it is still "—".
+function figureTone(val: number | null) {
+  if (val == null) return "text-white";
+  return val >= 0 ? "text-[#4ade80]" : "text-[#fb923c]";
+}
+
+// The loan inside property.loan_details. That JSONB also holds unrelated keys
+// (property_status_details, depreciation_schedule_*), so "has a loan" means one
+// of these is set, not that the object exists. The first key of each list is
+// what the add-property form writes; the rest are older spellings, read in the
+// order the Go report reads them (portfolio_loan.go).
+const LOAN_KEYS = {
+  bank: ["bank_name", "bankName"],
+  bsb: ["bsb_number", "bsbNumber"],
+  account: ["loan_account_number", "loanAccountNumber"],
+  amount: ["loan_amount", "loanAmount", "amount"],
+  allocation: ["loan_allocation_percentage", "loanAllocationPercentage"],
+} as const;
+
+type RecordedLoan = {
+  bankName: string;
+  bsbNumber: string;
+  accountNumber: string;
+  amount: number | null;
+  /** Share of the loan on this property, when it is not the whole loan. */
+  allocationPercent: number | null;
+};
+
+function loanValue(details: Record<string, unknown> | null, keys: readonly string[]): unknown {
+  for (const key of keys) {
+    const value = details?.[key];
+    if (value != null && !(typeof value === "string" && value.trim() === "")) return value;
+  }
+  return undefined;
+}
+
+function loanNumber(value: unknown): number | null {
+  if (value === undefined) return null;
+  const n =
+    typeof value === "number" ? value : Number.parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function readLoan(details: Record<string, unknown> | null): RecordedLoan | null {
+  const bank = loanValue(details, LOAN_KEYS.bank);
+  const bsb = loanValue(details, LOAN_KEYS.bsb);
+  const account = loanValue(details, LOAN_KEYS.account);
+  const amount = loanValue(details, LOAN_KEYS.amount);
+  if (bank === undefined && bsb === undefined && account === undefined && amount === undefined) {
+    return null;
+  }
+  const allocation = loanNumber(loanValue(details, LOAN_KEYS.allocation));
+  return {
+    bankName: bank === undefined ? "" : String(bank),
+    bsbNumber: bsb === undefined ? "" : String(bsb),
+    accountNumber: account === undefined ? "" : String(account),
+    amount: loanNumber(amount),
+    allocationPercent: allocation != null && allocation > 0 && allocation < 100 ? allocation : null,
+  };
+}
+
+/**
+ * loan_details with the loan fields replaced (or, with null, removed) and every
+ * other key kept. A value goes to the canonical key, and to an older spelling
+ * only where the record already has one — so no reader is left on a stale
+ * alias, and none is invented.
+ */
+function withLoan(
+  details: Record<string, unknown> | null,
+  loan: { bankName: string; bsbNumber: string; accountNumber: string; amount: number | null } | null,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...(details ?? {}) };
+  const put = (keys: readonly string[], value: string | number | null) => {
+    keys.forEach((key, i) => {
+      if (i > 0 && !(key in next)) return;
+      if (value === null || value === "") delete next[key];
+      else next[key] = value;
+    });
+  };
+  if (!loan) {
+    for (const keys of Object.values(LOAN_KEYS)) put(keys, null);
+    return next;
+  }
+  put(LOAN_KEYS.bank, loan.bankName.trim());
+  put(LOAN_KEYS.bsb, loan.bsbNumber.replace(/\D/g, ""));
+  put(LOAN_KEYS.account, loan.accountNumber.trim());
+  put(LOAN_KEYS.amount, loan.amount);
+  return next;
 }
 
 export default function ClientPropertyDetailPage() {
@@ -109,6 +219,9 @@ export default function ClientPropertyDetailPage() {
   const propertyId = params?.propertyid ?? "";
 
   const [isMobile, setIsMobile] = useState(false);
+  // Reports for this property: the report list with it preselected — the
+  // sidebar's Reports page on desktop, Insights → Reports on a phone.
+  const reportsHref = clientReportsHubHref({ propertyId }, { mobile: isMobile });
   const [isLoading, setIsLoading] = useState(true);
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [entity, setEntity] = useState<CoreEntity | null>(null);
@@ -116,27 +229,35 @@ export default function ClientPropertyDetailPage() {
   const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [sessionToken, setSessionToken] = useState("");
+  const [clientId, setClientId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Custom Loan Details State
-  const [customLoanDetails, setCustomLoanDetails] = useState<any>(null);
+  // Loan Details modal. It saves to the property's loan_details, so the Loan
+  // Summary, the hero's Loan Balance and its Net Position all move together.
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [formBankName, setFormBankName] = useState("");
   const [formBsbNumber, setFormBsbNumber] = useState("");
   const [formAccountNumber, setFormAccountNumber] = useState("");
   const [formLoanAmount, setFormLoanAmount] = useState("");
+  const [loanSaving, setLoanSaving] = useState(false);
+  const [loanError, setLoanError] = useState<string | null>(null);
 
-  // Reset custom loan details on property change
-  useEffect(() => {
-    setCustomLoanDetails(null);
-  }, [propertyId]);
+  const loan = useMemo(() => readLoan(property?.loanDetails ?? null), [property]);
 
-  const resolvedLoanDetails = useMemo(() => {
-    if (customLoanDetails?.isCleared) {
-      return null;
-    }
-    return customLoanDetails || property?.loanDetails || null;
-  }, [customLoanDetails, property]);
+  // ---------------------------------------------------------------------------
+  // Money: the Portfolio Summary narrowed to this property, as the entity page
+  // does for an entity — the same aggregate as the Properties list and the
+  // Reports page (gross, this property's share of a split bill, unreviewed and
+  // rejected rows excluded). Cash Flow used to be summed in the browser from
+  // one page of transactions, rejected rows included; Net Position took the
+  // whole loan even when only part of it sits on this property.
+  // ---------------------------------------------------------------------------
+  const financialYear = currentFinancialYear();
+  const summaryRegion = usePortfolioSummary(clientId, financialYear, null, propertyId);
+  // The six-month trend crosses 1 July for half the year.
+  const lastYearRegion = usePortfolioSummary(clientId, financialYear - 1, null, propertyId);
+  const summary = summaryRegion.data;
+  const totals = summary?.totals ?? null;
 
   const handleBsbChange = (val: string) => {
     const clean = val.replace(/\D/g, "").slice(0, 6);
@@ -146,28 +267,61 @@ export default function ClientPropertyDetailPage() {
     return clean;
   };
 
+  const openLoanModal = () => {
+    setFormBankName(loan?.bankName ?? "");
+    setFormBsbNumber(loan?.bsbNumber ? formatBsb(loan.bsbNumber) : "");
+    setFormAccountNumber(loan?.accountNumber ?? "");
+    setFormLoanAmount(loan?.amount != null ? String(loan.amount) : "");
+    setLoanError(null);
+    setIsLoanModalOpen(true);
+  };
+
+  // PATCHes the whole loan_details object (the API replaces it), built from
+  // the stored one so the keys this modal does not edit survive.
+  const saveLoanDetails = async (nextLoan: Parameters<typeof withLoan>[1]) => {
+    if (!property) return;
+    setLoanSaving(true);
+    setLoanError(null);
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/properties/${encodeURIComponent(property.id)}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ loan_details: withLoan(property.loanDetails, nextLoan) }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || body?.error || `Couldn't save the loan (${res.status}).`);
+      }
+      setProperty((await res.json()) as CoreProperty);
+      setIsLoanModalOpen(false);
+      // Loan Balance and Net Position are the server's, so ask it again.
+      summaryRegion.reload();
+    } catch (err) {
+      setLoanError(err instanceof Error ? err.message : "Couldn't save the loan.");
+    } finally {
+      setLoanSaving(false);
+    }
+  };
+
   const handleSaveLoanDetails = () => {
-    const amount = Number.parseFloat(formLoanAmount);
-    const details = {
-      bank_name: formBankName,
-      bsb_number: formBsbNumber,
-      loan_account_number: formAccountNumber,
-      loan_amount: Number.isFinite(amount) ? amount : 0,
-    };
-    setCustomLoanDetails(details);
-    setIsLoanModalOpen(false);
+    const amountText = formLoanAmount.trim();
+    const amount = amountText === "" ? null : Number.parseFloat(amountText);
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      setLoanError("Enter the loan amount as a number, or leave it blank.");
+      return;
+    }
+    void saveLoanDetails({
+      bankName: formBankName,
+      bsbNumber: formBsbNumber,
+      accountNumber: formAccountNumber,
+      amount,
+    });
   };
 
   const handleClearLoanDetails = () => {
-    const details = {
-      bank_name: "",
-      bsb_number: "",
-      loan_account_number: "",
-      loan_amount: 0,
-      isCleared: true,
-    };
-    setCustomLoanDetails(details);
-    setIsLoanModalOpen(false);
+    if (!window.confirm("Remove this property's loan details?")) return;
+    void saveLoanDetails(null);
   };
 
   // Detect mobile width dynamically
@@ -193,6 +347,14 @@ export default function ClientPropertyDetailPage() {
         }
         const token = session.getIdToken().getJwtToken();
         if (!cancelled) setSessionToken(token);
+
+        // The client id the Portfolio Summary is read under. Shares the
+        // layout's in-flight /api/users/me; on failure the hero stays "—".
+        fetchCurrentUser(token)
+          .then((me) => {
+            if (!cancelled) setClientId(me.id || null);
+          })
+          .catch((err) => console.error("Failed to load the current user:", err));
 
         // Fetch property details, transactions, and documents in parallel
         const [propertyRes, transactionsRes, documentsRes] = await Promise.all([
@@ -250,101 +412,36 @@ export default function ClientPropertyDetailPage() {
     };
   }, [propertyId, router]);
 
-  // Derived Values
-  const loanBalance = useMemo(() => {
-    if (!resolvedLoanDetails) return 0;
-    const raw =
-      resolvedLoanDetails.loan_amount ??
-      resolvedLoanDetails.loanAmount ??
-      resolvedLoanDetails.amount;
-    const value = typeof raw === "number" ? raw : Number.parseFloat(String(raw ?? ""));
-    return Number.isFinite(value) ? value : 0;
-  }, [resolvedLoanDetails]);
+  // Derived Values — all from the summary, "—" until it lands.
+  // Loan Balance is this property's share of its loan (amount × allocation),
+  // and Net Position is market value less that share: the server's
+  // net_equity, so it matches the Properties list and the Reports page.
+  const loanBalance = totals ? totals.loanBalance : null;
+  const netPosition = totals ? totals.netEquity : null;
 
-  const netPosition = useMemo(() => {
-    const marketVal = property?.estimatedMarketValue || 0;
-    return marketVal - loanBalance;
-  }, [property, loanBalance]);
+  const monthsByKey = monthIndex(lastYearRegion.data, summary);
+  const now = new Date();
+  const thisMonth = monthAt(monthsByKey, monthKey(now));
+  const cashFlowThisMonth = summary ? thisMonth.income - thisMonth.expenses : null;
 
-  const cashFlowThisMonth = useMemo(() => {
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth();
+  // Last 6 months, ending this month. Waits for both years so the months
+  // before 1 July don't flash as zeros while last year's summary loads.
+  const trendRows: PropertyTrendRow[] | null =
+    summary && lastYearRegion.data
+      ? [5, 4, 3, 2, 1, 0].map((back) => {
+          const key = monthKey(shiftMonth(now, -back));
+          const month = monthAt(monthsByKey, key);
+          return { key, label: monthShortLabel(key), income: month.income, expense: month.expenses };
+        })
+      : null;
 
-    return transactions
-      .filter((t) => {
-        const txDate = new Date(t.invoiceDate);
-        return (
-          !Number.isNaN(txDate.getTime()) &&
-          txDate.getFullYear() === curYear &&
-          txDate.getMonth() === curMonth
-        );
-      })
-      .reduce((sum, t) => {
-        const amt = Math.abs(t.splitGrossAmount || t.transactionGrossAmount || 0);
-        // Only revenue and expense move net position. The ternary used to
-        // subtract everything that was not revenue, so a contra transfer — and
-        // personal spending, and capitalised cost base — all reduced it.
-        if (!affectsPnl(t.transactionType)) return sum;
-        return t.transactionType === "revenue" ? sum + amt : sum - amt;
-      }, 0);
-  }, [transactions]);
-
-  // Trend graph calculation (last 6 months ending in current month)
-  const trendRows = useMemo(() => {
-    const months = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: d.toLocaleDateString("en-US", { month: "short" }),
-        income: 0,
-        expense: 0,
-      });
-    }
-
-    for (const row of transactions) {
-      const date = new Date(row.invoiceDate);
-      if (Number.isNaN(date.getTime())) continue;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const monthObj = months.find((m) => m.key === key);
-      if (monthObj) {
-        const amount = Math.abs(row.splitGrossAmount || row.transactionGrossAmount || 0);
-        if (!affectsPnl(row.transactionType)) {
-          // Not income and not an expense — a contra transfer, private
-          // spending or a capitalised cost. None of them belongs on this chart.
-        } else if (row.transactionType === "revenue") {
-          monthObj.income += amount;
-        } else {
-          monthObj.expense += amount;
-        }
-      }
-    }
-    return months;
-  }, [transactions]);
-
-  const maxTrendAmount = useMemo(() => {
-    return Math.max(1, ...trendRows.flatMap((row) => [row.income, row.expense]));
-  }, [trendRows]);
-
-  const yAxisTicks = useMemo(() => {
-    return [
-      maxTrendAmount,
-      maxTrendAmount * 0.78,
-      maxTrendAmount * 0.56,
-      maxTrendAmount * 0.33,
-      maxTrendAmount * 0.11,
-      0,
-    ];
-  }, [maxTrendAmount]);
-
-  const formatYAxisTick = (val: number) => {
-    if (val === 0) return "$0k";
-    if (val >= 1000) {
-      return `$${(val / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-    }
-    return `$${Math.round(val)}`;
+  const figuresError =
+    summaryRegion.status === "error" || lastYearRegion.status === "error"
+      ? summaryRegion.error ?? lastYearRegion.error ?? ""
+      : null;
+  const retryFigures = () => {
+    summaryRegion.reload();
+    lastYearRegion.reload();
   };
 
   // Recent transactions (top 3)
@@ -480,13 +577,22 @@ export default function ClientPropertyDetailPage() {
             <span>Detail</span>
           </div>
 
-          {/* Edit button */}
-          <Link
-            href={`/dashboard/client/entities/${property.entityId}/properties/${property.id}/edit`}
-            className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
-          >
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* Reports, with this property preselected */}
+            <Link
+              href={reportsHref}
+              className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
+            >
+              Reports
+            </Link>
+            {/* Edit button */}
+            <Link
+              href={`/dashboard/client/properties/${property.id}/edit`}
+              className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
+            >
+              Edit
+            </Link>
+          </div>
         </div>
 
         {/* Content Area */}
@@ -521,84 +627,85 @@ export default function ClientPropertyDetailPage() {
               {/* Net Position */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-1">
                 <span className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Net Position</span>
-                <span className={`text-lg font-extrabold ${netPosition >= 0 ? "text-[#4ade80]" : "text-[#fb923c]"}`}>
-                  {formatCurrency(netPosition)}
+                <span className={`text-lg font-extrabold ${figureTone(netPosition)}`}>
+                  {formatFigure(netPosition)}
                 </span>
               </div>
               {/* Loan Balance */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-1">
                 <span className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Loan Balance</span>
                 <span className="text-lg font-extrabold text-[#fb923c]">
-                  {formatCurrency(loanBalance)}
+                  {formatFigure(loanBalance)}
                 </span>
               </div>
               {/* Cash Flow (This Month) */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-1">
                 <span className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Cash Flow</span>
-                <span className={`text-lg font-extrabold ${cashFlowThisMonth >= 0 ? "text-[#4ade80]" : "text-[#fb923c]"}`}>
-                  {formatCurrency(cashFlowThisMonth, true)}
+                <span className={`text-lg font-extrabold ${figureTone(cashFlowThisMonth)}`}>
+                  {formatFigure(cashFlowThisMonth, true)}
                 </span>
               </div>
             </div>
           </div>
 
+          {figuresError !== null && (
+            <RegionError
+              message={`Couldn't load this property's figures. ${figuresError}`.trim()}
+              onRetry={retryFigures}
+            />
+          )}
+
           {/* Loan Summary Card */}
           <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-[#101828]">Loan Summary</h2>
-              {resolvedLoanDetails && (
+              {loan && (
                 <button
-                  onClick={() => {
-                    setFormBankName(resolvedLoanDetails.bank_name || resolvedLoanDetails.bankName || "");
-                    setFormBsbNumber(formatBsb(resolvedLoanDetails.bsb_number || resolvedLoanDetails.bsbNumber || ""));
-                    setFormAccountNumber(resolvedLoanDetails.loan_account_number || resolvedLoanDetails.loanAccountNumber || "");
-                    setFormLoanAmount(String(loanBalance));
-                    setIsLoanModalOpen(true);
-                  }}
+                  onClick={openLoanModal}
                   className="text-xs font-bold text-[#1b2559] hover:underline cursor-pointer"
                 >
                   Edit
                 </button>
               )}
             </div>
-            {resolvedLoanDetails ? (
+            {loan ? (
               <div className="flex flex-col text-sm">
                 <div className="flex justify-between items-center py-2.5 border-b border-[#eaeef4]">
                   <span className="text-[#667085] font-medium">Bank</span>
                   <span className="font-bold text-[#101828]">
-                    {formatBankName(resolvedLoanDetails.bank_name || resolvedLoanDetails.bankName)}
+                    {formatBankName(loan.bankName)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2.5 border-b border-[#eaeef4]">
                   <span className="text-[#667085] font-medium">BSB Number</span>
                   <span className="font-bold text-[#101828]">
-                    {formatBsb(resolvedLoanDetails.bsb_number || resolvedLoanDetails.bsbNumber)}
+                    {formatBsb(loan.bsbNumber)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2.5 border-b border-[#eaeef4]">
                   <span className="text-[#667085] font-medium">Loan Account</span>
                   <span className="font-bold text-[#101828]">
-                    {formatLoanAccount(resolvedLoanDetails.loan_account_number || resolvedLoanDetails.loanAccountNumber)}
+                    {formatLoanAccount(loan.accountNumber)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2.5">
+                <div className={`flex justify-between items-center py-2.5 ${loan.allocationPercent != null ? "border-b border-[#eaeef4]" : ""}`}>
                   <span className="text-[#667085] font-medium">Loan Amount</span>
                   <span className="font-bold text-[#101828]">
-                    {formatCurrency(loanBalance)}
+                    {formatFigure(loan.amount)}
                   </span>
                 </div>
+                {loan.allocationPercent != null && (
+                  <div className="flex justify-between items-center py-2.5">
+                    <span className="text-[#667085] font-medium">On this property</span>
+                    <span className="font-bold text-[#101828]">{loan.allocationPercent}%</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-6 text-center flex flex-col items-center gap-2">
                 <p className="text-xs text-[#667085]">No loan details configured for this property.</p>
                 <button
-                  onClick={() => {
-                    setFormBankName("");
-                    setFormBsbNumber("");
-                    setFormAccountNumber("");
-                    setFormLoanAmount("");
-                    setIsLoanModalOpen(true);
-                  }}
+                  onClick={openLoanModal}
                   className="px-3.5 py-1.5 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
                 >
                   Add Loan
@@ -613,7 +720,7 @@ export default function ClientPropertyDetailPage() {
               <h2 className="text-base font-bold text-[#101828]">Profit & Loss Trend</h2>
               <p className="text-[10px] text-[#667085] font-medium">Income vs expenses · last 6 months</p>
             </div>
-            <PropertyTrendChart transactions={transactions} />
+            <PropertyTrendChart rows={trendRows} />
           </div>
 
           {/* Add Transaction Banner Button */}
@@ -701,7 +808,7 @@ export default function ClientPropertyDetailPage() {
                         </div>
                       </div>
                       <span className={`text-xs font-extrabold ${isIncome ? "text-[#16a34a]" : "text-[#e53e3e]"}`}>
-                        {isIncome ? "+" : "-"}{formatCurrency(amount)}
+                        {formatCurrency(isIncome ? amount : -amount, true)}
                       </span>
                     </div>
                   );
@@ -714,14 +821,20 @@ export default function ClientPropertyDetailPage() {
             )}
           </div>
 
-          {/* Depreciation.
-              Above Documents on purpose: the generated schedules also appear in
-              Documents as PDFs, and a client who has just read the year's
-              deduction here knows what the file in that list is. */}
-          <ClientDepreciationCard
+          {/* GST Summary: this property's share of each bill, with personal
+              spending. Desktop has the same card — keep the two in step. */}
+          <ClientGstSummaryCard level="property" id={propertyId} scopeName={property.name} />
+
+          {/* Personal Transactions and Assets: the entity page's two cards at
+              property scope, same requests. Asset rows open this property's
+              asset page. Desktop has the same pair, so keep the two in step. */}
+          <ClientPersonalTransactionsCard level="property" id={propertyId} />
+
+          <ClientAssetsCard
             level="property"
             id={propertyId}
             assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
+            layout="list"
           />
 
           {/* Documents Card */}
@@ -762,7 +875,7 @@ export default function ClientPropertyDetailPage() {
                     <div
                       key={doc.id}
                       onClick={() => handleDownload(doc.id, doc.original_file_name)}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
+                      className="client-doc-row flex items-center justify-between p-2.5 rounded-xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-[#eaeef4]/60 text-[#1b2559] flex items-center justify-center shrink-0">
@@ -845,10 +958,31 @@ export default function ClientPropertyDetailPage() {
               <p className="text-white/80 text-base font-medium">{entity?.name || "Individual"}</p>
             </div>
 
+            <div className="self-start flex items-center gap-2">
+            {/* Reports, with this property preselected */}
+            <Link
+              href={reportsHref}
+              className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4"
+                aria-hidden="true"
+              >
+                <path d="M3 3v18h18" />
+                <path d="M7 15l4-4 3 3 5-6" />
+              </svg>
+              Reports
+            </Link>
             {/* Edit button */}
             <Link
-              href={`/dashboard/client/entities/${property.entityId}/properties/${property.id}/edit`}
-              className="self-start flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
+              href={`/dashboard/client/properties/${property.id}/edit`}
+              className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 rounded-xl transition-all font-semibold text-sm cursor-pointer"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -864,6 +998,7 @@ export default function ClientPropertyDetailPage() {
               </svg>
               Edit
             </Link>
+            </div>
           </div>
 
           {/* Metric Cards Overlay */}
@@ -879,8 +1014,8 @@ export default function ClientPropertyDetailPage() {
             {/* Net Position */}
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col gap-1.5 shadow-sm">
               <span className="text-white/60 text-xs font-semibold uppercase tracking-wider">Net Position</span>
-              <span className={`text-2xl lg:text-3xl font-bold ${netPosition >= 0 ? "text-[#4ade80]" : "text-[#fb923c]"}`}>
-                {formatCurrency(netPosition)}
+              <span className={`text-2xl lg:text-3xl font-bold ${figureTone(netPosition)}`}>
+                {formatFigure(netPosition)}
               </span>
             </div>
 
@@ -888,19 +1023,26 @@ export default function ClientPropertyDetailPage() {
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col gap-1.5 shadow-sm">
               <span className="text-white/60 text-xs font-semibold uppercase tracking-wider">Loan Balance</span>
               <span className="text-2xl lg:text-3xl font-bold text-[#fb923c]">
-                {formatCurrency(loanBalance)}
+                {formatFigure(loanBalance)}
               </span>
             </div>
 
             {/* Cash Flow (This Month) */}
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col gap-1.5 shadow-sm">
               <span className="text-white/60 text-xs font-semibold uppercase tracking-wider">Cash Flow (This Month)</span>
-              <span className={`text-2xl lg:text-3xl font-bold ${cashFlowThisMonth >= 0 ? "text-[#4ade80]" : "text-[#fb923c]"}`}>
-                {formatCurrency(cashFlowThisMonth, true)}
+              <span className={`text-2xl lg:text-3xl font-bold ${figureTone(cashFlowThisMonth)}`}>
+                {formatFigure(cashFlowThisMonth, true)}
               </span>
             </div>
           </div>
         </div>
+
+        {figuresError !== null && (
+          <RegionError
+            message={`Couldn't load this property's figures. ${figuresError}`.trim()}
+            onRetry={retryFigures}
+          />
+        )}
 
         {/* Add Transaction Banner */}
         <Link
@@ -930,59 +1072,53 @@ export default function ClientPropertyDetailPage() {
           <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-[#101828]">Loan Summary</h2>
-              {resolvedLoanDetails && (
+              {loan && (
                 <button
-                  onClick={() => {
-                    setFormBankName(resolvedLoanDetails.bank_name || resolvedLoanDetails.bankName || "");
-                    setFormBsbNumber(formatBsb(resolvedLoanDetails.bsb_number || resolvedLoanDetails.bsbNumber || ""));
-                    setFormAccountNumber(resolvedLoanDetails.loan_account_number || resolvedLoanDetails.loanAccountNumber || "");
-                    setFormLoanAmount(String(loanBalance));
-                    setIsLoanModalOpen(true);
-                  }}
+                  onClick={openLoanModal}
                   className="text-sm font-semibold text-[#1b2559] hover:underline cursor-pointer"
                 >
                   Edit
                 </button>
               )}
             </div>
-            {resolvedLoanDetails ? (
+            {loan ? (
               <div className="flex flex-col">
                 <div className="flex justify-between items-center py-3.5 border-b border-[#eaeef4]">
                   <span className="text-sm text-[#667085] font-medium">Bank</span>
                   <span className="text-sm font-bold text-[#101828]">
-                    {formatBankName(resolvedLoanDetails.bank_name || resolvedLoanDetails.bankName)}
+                    {formatBankName(loan.bankName)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-3.5 border-b border-[#eaeef4]">
                   <span className="text-sm text-[#667085] font-medium">BSB Number</span>
                   <span className="text-sm font-bold text-[#101828]">
-                    {formatBsb(resolvedLoanDetails.bsb_number || resolvedLoanDetails.bsbNumber)}
+                    {formatBsb(loan.bsbNumber)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-3.5 border-b border-[#eaeef4]">
                   <span className="text-sm text-[#667085] font-medium">Loan Account</span>
                   <span className="text-sm font-bold text-[#101828]">
-                    {formatLoanAccount(resolvedLoanDetails.loan_account_number || resolvedLoanDetails.loanAccountNumber)}
+                    {formatLoanAccount(loan.accountNumber)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-3.5">
+                <div className={`flex justify-between items-center py-3.5 ${loan.allocationPercent != null ? "border-b border-[#eaeef4]" : ""}`}>
                   <span className="text-sm text-[#667085] font-medium">Loan Amount</span>
                   <span className="text-sm font-bold text-[#101828]">
-                    {formatCurrency(loanBalance)}
+                    {formatFigure(loan.amount)}
                   </span>
                 </div>
+                {loan.allocationPercent != null && (
+                  <div className="flex justify-between items-center py-3.5">
+                    <span className="text-sm text-[#667085] font-medium">On this property</span>
+                    <span className="text-sm font-bold text-[#101828]">{loan.allocationPercent}%</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-8 text-center flex flex-col items-center gap-3">
                 <p className="text-sm text-[#667085]">No loan details configured for this property.</p>
                 <button
-                  onClick={() => {
-                    setFormBankName("");
-                    setFormBsbNumber("");
-                    setFormAccountNumber("");
-                    setFormLoanAmount("");
-                    setIsLoanModalOpen(true);
-                  }}
+                  onClick={openLoanModal}
                   className="px-4 py-2 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm animate-fade-in"
                 >
                   Add Loan Details
@@ -997,7 +1133,7 @@ export default function ClientPropertyDetailPage() {
               <h2 className="text-lg font-bold text-[#101828]">Profit & Loss Trend</h2>
               <p className="text-xs text-[#667085] font-medium">Income vs expenses · last 6 months</p>
             </div>
-            <PropertyTrendChart transactions={transactions} />
+            <PropertyTrendChart rows={trendRows} />
           </div>
 
           {/* Row 2, Col 1: Recent Transactions */}
@@ -1046,7 +1182,7 @@ export default function ClientPropertyDetailPage() {
                         </div>
                       </div>
                       <span className={`text-sm font-extrabold ${isIncome ? "text-[#16a34a]" : "text-[#e53e3e]"}`}>
-                        {isIncome ? "+" : "-"}{formatCurrency(amount)}
+                        {formatCurrency(isIncome ? amount : -amount, true)}
                       </span>
                     </div>
                   );
@@ -1059,15 +1195,25 @@ export default function ClientPropertyDetailPage() {
             )}
           </div>
 
-          {/* Row 3, Col 1: Depreciation */}
-          <ClientDepreciationCard
-            level="property"
-            id={propertyId}
-            assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
-          />
+          {/* Row 2, Col 2: GST Summary — this property's share of each bill,
+              with personal spending. The mobile view has the same card. */}
+          <ClientGstSummaryCard level="property" id={propertyId} scopeName={property.name} />
 
-          {/* Row 2, Col 2: Documents */}
-          <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
+          {/* Row 3: Personal Transactions | Assets, the entity page's two
+              cards at property scope, same requests. The mobile view has the
+              same pair. */}
+          <ClientPersonalTransactionsCard level="property" id={propertyId} />
+          <div className="min-w-0">
+            <ClientAssetsCard
+              level="property"
+              id={propertyId}
+              assetHrefBase={`/dashboard/client/properties/${propertyId}/assets`}
+              className="bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-5 shadow-sm h-full"
+            />
+          </div>
+
+          {/* Row 4: Documents, full width (as on the entity page) */}
+          <div className="xl:col-span-2 bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-[#101828]">Documents</h2>
               <button
@@ -1111,7 +1257,7 @@ export default function ClientPropertyDetailPage() {
                     <div
                       key={doc.id}
                       onClick={() => handleDownload(doc.id, doc.original_file_name)}
-                      className="flex items-center justify-between p-3 rounded-2xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
+                      className="client-doc-row flex items-center justify-between p-3 rounded-2xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-[#eaeef4]/60 text-[#1b2559] flex items-center justify-center shrink-0">
@@ -1218,26 +1364,36 @@ export default function ClientPropertyDetailPage() {
               </div>
             </div>
 
+            {/* A div, not a <p>: globals.css styles bare p unlayered. */}
+            {loanError && (
+              <div role="alert" className="text-xs font-semibold text-red-600">
+                {loanError}
+              </div>
+            )}
+
             <div className="flex items-center gap-2 mt-2">
-              {customLoanDetails && (
+              {loan && (
                 <button
                   onClick={handleClearLoanDetails}
-                  className="px-4 py-2.5 border border-red-200 hover:bg-red-50 text-xs font-bold text-red-500 rounded-xl transition-all cursor-pointer mr-auto"
+                  disabled={loanSaving}
+                  className="px-4 py-2.5 border border-red-200 hover:bg-red-50 text-xs font-bold text-red-500 rounded-xl transition-all cursor-pointer mr-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Delete
                 </button>
               )}
               <button
                 onClick={() => setIsLoanModalOpen(false)}
-                className="px-4 py-2.5 border border-[#eaeef4] hover:bg-gray-50 text-xs font-bold text-[#667085] rounded-xl transition-all cursor-pointer"
+                disabled={loanSaving}
+                className="px-4 py-2.5 border border-[#eaeef4] hover:bg-gray-50 text-xs font-bold text-[#667085] rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveLoanDetails}
-                className="px-5 py-2.5 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md"
+                disabled={loanSaving}
+                className="px-5 py-2.5 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-60 disabled:cursor-wait"
               >
-                Save
+                {loanSaving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>

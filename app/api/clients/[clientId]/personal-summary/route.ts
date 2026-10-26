@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCorePersonalSummaryForClient } from "@/src/lib/coreApi";
+import { getCorePersonalSummaryForClient, toCoreGstQuery } from "@/src/lib/coreApi";
 import { getBearerToken, renderUpstreamError } from "@/src/lib/coreApiProxy";
 
 type RouteContext = { params: Promise<{ clientId: string }> };
@@ -12,7 +12,12 @@ export async function GET(req: Request, context: RouteContext) {
 
   const { clientId } = await context.params;
   try {
-    const summary = await getCorePersonalSummaryForClient(token, clientId);
+    const summary = await getCorePersonalSummaryForClient(
+      token,
+      clientId,
+      // Optional BAS period (financial_year, quarter, from/to); none = all time.
+      toCoreGstQuery(new URL(req.url).searchParams),
+    );
     return NextResponse.json(summary);
   } catch (error) {
     return renderUpstreamError(

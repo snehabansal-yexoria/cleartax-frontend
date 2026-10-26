@@ -47,6 +47,18 @@ export type CoreOrganization = {
   name: string;
   email: string;
   tenantCode: string;
+  // Optional profile fields the organisations endpoint already returns; used by
+  // the super admin console. Absent values stay empty/null.
+  contactNumber?: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  subscriptionPlan?: string;
+  maxUsersAllowed?: number | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
 };
 
 export type EntityType =
@@ -96,12 +108,39 @@ export type CoreEntity = {
   propertiesCount: number;
   transactionsCount: number;
   /**
+   * GST registration (migration 0054). "unknown" until an accountant records
+   * it — and the reports treat unknown exactly as they did before the field
+   * existed (the BAS view), so nothing changes for an entity nobody has set.
+   */
+  gstStatus: CoreGstRegistrationStatus;
+  gstBasis: CoreGstBasis | null;
+  basFrequency: CoreBasFrequency | null;
+  /**
    * Present only on responses from the entity BFF (`GET/PATCH
    * /api/entities/{id}`); `null` there means nobody is assigned. Absent on
    * everything that comes straight from the core API.
    */
   regionalManager?: CoreRegionalManager | null;
 };
+
+export type CoreGstRegistrationStatus = "registered" | "not_registered" | "unknown";
+export type CoreGstBasis = "cash" | "accruals";
+export type CoreBasFrequency = "monthly" | "quarterly" | "annually";
+
+export function toGstRegistrationStatus(value: unknown): CoreGstRegistrationStatus {
+  const s = toStringValue(value);
+  return s === "registered" || s === "not_registered" ? s : "unknown";
+}
+
+function toGstBasis(value: unknown): CoreGstBasis | null {
+  const s = toStringValue(value);
+  return s === "cash" || s === "accruals" ? s : null;
+}
+
+function toBasFrequency(value: unknown): CoreBasFrequency | null {
+  const s = toStringValue(value);
+  return s === "monthly" || s === "quarterly" || s === "annually" ? s : null;
+}
 
 export type CorePropertyOwner = {
   id?: number;
@@ -317,6 +356,21 @@ export function normalizeCoreOrganization(raw: RawRecord): CoreOrganization {
     name: toStringValue(raw.name || raw.org_name || raw.orgName),
     email: toStringValue(raw.org_email || raw.email),
     tenantCode: toStringValue(raw.tenant_code || raw.tenantCode),
+    contactNumber: toStringValue(raw.contact_number || raw.contactNumber),
+    addressLine1: toStringValue(raw.address_line1 || raw.addressLine1),
+    city: toStringValue(raw.city),
+    state: toStringValue(raw.state),
+    postalCode: toStringValue(raw.postal_code || raw.postalCode),
+    country: toStringValue(raw.country),
+    subscriptionPlan: toStringValue(raw.subscription_plan || raw.subscriptionPlan),
+    maxUsersAllowed: toNumberValue(raw.max_users_allowed ?? raw.maxUsersAllowed),
+    isActive:
+      typeof raw.is_active === "boolean"
+        ? raw.is_active
+        : typeof raw.isActive === "boolean"
+          ? raw.isActive
+          : null,
+    createdAt: toStringValue(raw.created_at || raw.createdAt) || null,
   };
 }
 
@@ -617,11 +671,15 @@ export interface CoreNotification {
   count: number;
   createdAt: string;
   updatedAt: string;
+  /** When the recipient read it; null while unread. Server-side (0053). */
+  readAt: string | null;
 }
 
 export interface CoreNotificationPage {
   items: CoreNotification[];
   nextCursor: string | null;
+  /** The recipient's total unread, regardless of category / cursor / limit. */
+  unreadCount: number;
 }
 
 function normalizeCoreNotification(raw: RawRecord): CoreNotification {
@@ -645,6 +703,7 @@ function normalizeCoreNotification(raw: RawRecord): CoreNotification {
     count: toNumberValue(raw.count) ?? 1,
     createdAt: toStringValue(raw.created_at),
     updatedAt: toStringValue(raw.updated_at) || toStringValue(raw.created_at),
+    readAt: toStringValue(raw.read_at) || null,
   };
 }
 
@@ -663,7 +722,160 @@ export async function listCoreNotifications(
   return {
     items: getJsonArray(raw.items).map(normalizeCoreNotification),
     nextCursor: toStringValue(raw.next_cursor) || null,
+    unreadCount: toNumberValue(raw.unread_count) ?? 0,
   };
+}
+
+/**
+ * POST /notifications/read — mark the caller's own notifications read, either
+ * the given ids or everything. The backend only touches the recipient's own
+ * unread rows; someone else's id is silently not counted.
+ */
+export async function markCoreNotificationsRead(
+  token: string,
+  body: { ids: string[] } | { all: true },
+): Promise<{ updated: number; unreadCount: number }> {
+  const raw = getJsonObject(
+    await coreApiRequest("/notifications/read", { method: "POST", token, body }),
+  );
+  return {
+    updated: toNumberValue(raw.updated) ?? 0,
+    unreadCount: toNumberValue(raw.unread_count) ?? 0,
+  };
+}
+
+// Emailed documents (migration 0055). Clients email files to the documents
+// address; each attachment waits in the client's inbox, with no transaction,
+// until their accountant files it (a transaction create carrying the
+// document_id), rejects it with a note, or discards it. All org-scoped.
+export type CoreInboxStatus = "pending" | "filed" | "rejected" | "discarded";
+
+export type CoreInboxDocument = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  assignedAccountantName: string;
+  clientUnassigned: boolean;
+  fileName: string;
+  mimeType: string;
+  fileSize: number | null;
+  s3Key: string;
+  status: CoreInboxStatus;
+  note: string;
+  actionedByName: string;
+  actionedAt: string | null;
+  processingStatus: string;
+  createdAt: string;
+  emailFrom: string;
+  emailSubject: string;
+  receivedAt: string | null;
+  duplicate: boolean;
+  transactionId: string | null;
+  transactionEntityId: string | null;
+  viewUrl: string | null;
+};
+
+export type CoreInboxPage = {
+  items: CoreInboxDocument[];
+  nextCursor: string | null;
+  pendingCount: number;
+};
+
+const INBOX_STATUSES: CoreInboxStatus[] = ["pending", "filed", "rejected", "discarded"];
+
+function normalizeCoreInboxDocument(raw: RawRecord): CoreInboxDocument {
+  const status = toStringValue(raw.inbox_status) as CoreInboxStatus;
+  return {
+    id: toStringValue(raw.id),
+    clientId: toStringValue(raw.client_id),
+    clientName: toStringValue(raw.client_name),
+    assignedAccountantName: toStringValue(raw.assigned_accountant_name),
+    clientUnassigned: raw.client_unassigned === true,
+    fileName: toStringValue(raw.file_name),
+    mimeType: toStringValue(raw.mime_type),
+    fileSize: toNumberValue(raw.file_size),
+    s3Key: toStringValue(raw.s3_key),
+    status: INBOX_STATUSES.includes(status) ? status : "pending",
+    note: toStringValue(raw.inbox_note),
+    actionedByName: toStringValue(raw.inbox_actioned_by_name),
+    actionedAt: toStringValue(raw.inbox_actioned_at) || null,
+    processingStatus: toStringValue(raw.processing_status),
+    createdAt: toStringValue(raw.created_at),
+    emailFrom: toStringValue(raw.email_from),
+    emailSubject: toStringValue(raw.email_subject),
+    receivedAt: toStringValue(raw.received_at) || null,
+    duplicate: raw.duplicate === true,
+    transactionId: toStringValue(raw.transaction_id) || null,
+    transactionEntityId: toStringValue(raw.transaction_entity_id) || null,
+    viewUrl: toStringValue(raw.view_url) || null,
+  };
+}
+
+function inboxPath(orgId: string, suffix = "") {
+  return `/orgs/${encodeURIComponent(orgId)}/document-inbox${suffix}`;
+}
+
+export async function listCoreInboxDocuments(
+  token: string,
+  orgId: string,
+  params?: { status?: CoreInboxStatus | "all"; clientId?: string; limit?: number; cursor?: string },
+): Promise<CoreInboxPage> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.clientId) query.set("client_id", params.clientId);
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.cursor) query.set("cursor", params.cursor);
+  const qs = query.toString();
+  const raw = getJsonObject(
+    await coreApiRequest(inboxPath(orgId, qs ? `?${qs}` : ""), { token }),
+  );
+  return {
+    items: getJsonArray(raw.items).map(normalizeCoreInboxDocument),
+    nextCursor: toStringValue(raw.next_cursor) || null,
+    pendingCount: toNumberValue(raw.pending_count) ?? 0,
+  };
+}
+
+export async function getCoreInboxDocument(
+  token: string,
+  orgId: string,
+  docId: string,
+): Promise<CoreInboxDocument> {
+  const raw = getJsonObject(
+    await coreApiRequest(inboxPath(orgId, `/${encodeURIComponent(docId)}`), {
+      token,
+      timeoutMs: CORE_DOCUMENTS_TIMEOUT_MS,
+    }),
+  );
+  return normalizeCoreInboxDocument(raw);
+}
+
+// Reject (note required; the client sees it) or discard (silent) one pending
+// emailed document. Accountant/admin only — the backend 403s clients.
+export async function actionCoreInboxDocument(
+  token: string,
+  orgId: string,
+  docId: string,
+  action: "reject" | "discard",
+  note?: string,
+): Promise<CoreInboxDocument> {
+  const body = action === "reject" ? { note: note ?? "" } : { reason: note ?? "" };
+  const raw = getJsonObject(
+    await coreApiRequest(inboxPath(orgId, `/${encodeURIComponent(docId)}/${action}`), {
+      method: "POST",
+      token,
+      body,
+    }),
+  );
+  return normalizeCoreInboxDocument(raw);
+}
+
+export async function getCoreInboxAddress(
+  token: string,
+  orgId: string,
+): Promise<{ address: string; enabled: boolean }> {
+  const raw = getJsonObject(await coreApiRequest(inboxPath(orgId, "/address"), { token }));
+  return { address: toStringValue(raw.address), enabled: raw.enabled === true };
 }
 
 // Client ↔ accountant assignment. The backend writes the change and its
@@ -793,6 +1005,10 @@ export function normalizeCoreEntity(raw: RawRecord): CoreEntity {
     trustType: raw.trust_type != null ? toStringValue(raw.trust_type) : undefined,
     propertiesCount: toNumberValue(raw.properties_count ?? raw.propertiesCount) ?? 0,
     transactionsCount: toNumberValue(raw.transactions_count ?? raw.transactionsCount) ?? 0,
+    // A backend that predates 0054 sends none of these: unknown / null.
+    gstStatus: toGstRegistrationStatus(raw.gst_status ?? raw.gstStatus),
+    gstBasis: toGstBasis(raw.gst_basis ?? raw.gstBasis),
+    basFrequency: toBasFrequency(raw.bas_frequency ?? raw.basFrequency),
   };
 }
 
@@ -2133,6 +2349,54 @@ export type CoreGstSummary = {
   purchasesNet: number;
   salesCount: number;
   purchasesCount: number;
+  /**
+   * Bills awaiting accountant review that ARE included in the figures above.
+   * null when the backend predates the field — the UI then says nothing rather
+   * than claiming "0 awaiting review".
+   */
+  unreviewedCount: number | null;
+
+  /**
+   * `detail` requests only (`?detail=1`). null when not asked for — or when
+   * the backend predates them, which callers that asked must treat as "not
+   * available yet" rather than as an empty breakdown.
+   *
+   * `quarters` is present for a whole-financial-year window only.
+   * `registration` is present at property and entity scope only.
+   */
+  registration: CoreGstRegistration | null;
+  quarters: CoreGstQuarter[] | null;
+  salesByCategory: CoreGstCategory[] | null;
+  purchasesByCategory: CoreGstCategory[] | null;
+};
+
+export type CoreGstRegistration = {
+  status: CoreGstRegistrationStatus;
+  basis: CoreGstBasis | null;
+  basFrequency: CoreBasFrequency | null;
+};
+
+/** One BAS quarter; the four sum to the year's figures. */
+export type CoreGstQuarter = {
+  quarter: number;
+  label: string;
+  from: string;
+  to: string;
+  g1TotalSales: number;
+  gstOnSales: number;
+  gstOnPurchases: number;
+  netGst: number;
+  purchasesTotal: number;
+};
+
+/** One category's sales (1A) or purchases (1B). gross is GST-inclusive. */
+export type CoreGstCategory = {
+  categoryId: number;
+  categoryName: string;
+  gross: number;
+  gst: number;
+  net: number;
+  count: number;
 };
 
 export type CoreGstQuery = {
@@ -2142,6 +2406,8 @@ export type CoreGstQuery = {
   quarter?: number;
   from?: string;
   to?: string;
+  /** Adds quarters / by-category / registration (see CoreGstSummary). */
+  detail?: boolean;
 };
 
 /**
@@ -2157,6 +2423,7 @@ export function gstQueryString(query: CoreGstQuery = {}): string {
   if (query.quarter) params.set("quarter", String(query.quarter));
   if (query.from) params.set("from", query.from);
   if (query.to) params.set("to", query.to);
+  if (query.detail) params.set("detail", "1");
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -2175,6 +2442,8 @@ export function toCoreGstQuery(params: URLSearchParams): CoreGstQuery {
   if (from) query.from = from;
   const to = params.get("to");
   if (to) query.to = to;
+  const detail = params.get("detail");
+  if (detail === "1" || detail === "true") query.detail = true;
   return query;
 }
 
@@ -2219,7 +2488,57 @@ export function normalizeCoreGstSummary(raw: RawRecord): CoreGstSummary {
     salesCount: toNumberValue(raw.sales_count ?? raw.salesCount) ?? 0,
     purchasesCount:
       toNumberValue(raw.purchases_count ?? raw.purchasesCount) ?? 0,
+    unreviewedCount: toNumberValue(raw.unreviewed_count ?? raw.unreviewedCount),
+    registration: normalizeGstRegistration(raw.registration),
+    quarters: Array.isArray(raw.quarters)
+      ? raw.quarters.map((q) => normalizeGstQuarter(getJsonObject(q)))
+      : null,
+    salesByCategory: normalizeGstCategories(
+      raw.sales_by_category ?? raw.salesByCategory,
+    ),
+    purchasesByCategory: normalizeGstCategories(
+      raw.purchases_by_category ?? raw.purchasesByCategory,
+    ),
   };
+}
+
+function normalizeGstRegistration(raw: unknown): CoreGstRegistration | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as RawRecord;
+  return {
+    status: toGstRegistrationStatus(r.status),
+    basis: toGstBasis(r.basis),
+    basFrequency: toBasFrequency(r.bas_frequency ?? r.basFrequency),
+  };
+}
+
+function normalizeGstQuarter(raw: RawRecord): CoreGstQuarter {
+  return {
+    quarter: toNumberValue(raw.quarter) ?? 0,
+    label: toStringValue(raw.label),
+    from: toStringValue(raw.from),
+    to: toStringValue(raw.to),
+    g1TotalSales: toFloatValue(raw.g1_total_sales ?? raw.g1TotalSales),
+    gstOnSales: toFloatValue(raw.gst_on_sales ?? raw.gstOnSales),
+    gstOnPurchases: toFloatValue(raw.gst_on_purchases ?? raw.gstOnPurchases),
+    netGst: toFloatValue(raw.net_gst ?? raw.netGst),
+    purchasesTotal: toFloatValue(raw.purchases_total ?? raw.purchasesTotal),
+  };
+}
+
+function normalizeGstCategories(raw: unknown): CoreGstCategory[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.map((item) => {
+    const c = getJsonObject(item);
+    return {
+      categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+      categoryName: toStringValue(c.category_name ?? c.categoryName),
+      gross: toFloatValue(c.gross),
+      gst: toFloatValue(c.gst),
+      net: toFloatValue(c.net),
+      count: toNumberValue(c.count) ?? 0,
+    };
+  });
 }
 
 export async function getCoreGstSummaryByProperty(
@@ -2298,6 +2617,8 @@ export type CorePnlPeriod = {
   label: string;
   from: string;
   to: string;
+  /** An explicit from/to window, not a financial year (Portfolio Summary only). */
+  custom?: boolean;
 };
 
 /**
@@ -2365,6 +2686,7 @@ function toPnlPeriod(value: unknown): CorePnlPeriod {
     label: toStringValue(raw.label),
     from: toStringValue(raw.from),
     to: toStringValue(raw.to),
+    ...(raw.custom === true ? { custom: true } : {}),
   };
 }
 
@@ -2517,6 +2839,312 @@ export async function getCorePnlTrendByEntity(
   return normalizeCorePnlTrend(getJsonObject(payload));
 }
 
+// ---------------------------------------------------------------------------
+// Portfolio Summary (client-level report)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /clients/{id}/portfolio-summary. One server aggregate behind the client
+ * portal's printable Portfolio Summary: hero totals, twelve months, income and
+ * expenses by category, depreciation bands, and By Entity / By Property rows.
+ *
+ * Money is GROSS at property-split grain with the P&L statement's eligibility,
+ * minus rows awaiting review (counted in `excludedUnreviewedCount`). The
+ * balance sheet is the latest RECORDED value whatever the year. Every total is
+ * footed server-side — render them, never re-sum rows in the browser.
+ *
+ * Nullable numbers are `null` when unknown (no recorded value, unreadable
+ * loan, no value to divide by, principal not recorded) and must print "—".
+ */
+export type CorePortfolioTotals = {
+  entityCount: number;
+  propertyCount: number;
+  marketValue: number;
+  propertiesMissingValue: number;
+  loanBalance: number;
+  loanCount: number;
+  loansUnparseable: number;
+  netEquity: number;
+  lvrPercent: number | null;
+  equityPercent: number | null;
+  income: number;
+  expenses: number;
+  depreciation: number;
+  expensesAndDepreciation: number;
+  /** Income − expenses, before depreciation. */
+  cashFlow: number;
+  /** Income − expenses − depreciation. Signed. */
+  netResult: number;
+  interest: number;
+  /** Always null until principal repayments are recorded. */
+  principal: number | null;
+  profitCount: number;
+  lossCount: number;
+  netIncomeTotal: number;
+  netLossTotal: number;
+  transactionCount: number;
+};
+
+export type CorePortfolioMonth = CorePnlTrendMonth & { interest: number };
+
+export type CorePortfolioCategoryLine = {
+  categoryId: number;
+  categoryName: string;
+  accountCode: string | null;
+  amount: number;
+  isInterest: boolean;
+};
+
+export type CorePortfolioDepreciationLine = {
+  kind: string;
+  label: string;
+  amount: number;
+};
+
+export type CorePortfolioEntityRow = {
+  entityId: string;
+  name: string;
+  enabled: boolean;
+  propertyCount: number;
+  marketValue: number;
+  propertiesMissingValue: number;
+  loanBalance: number;
+  loanCount: number;
+  loansUnparseable: number;
+  equity: number;
+  lvrPercent: number | null;
+  income: number;
+  expenses: number;
+  depreciation: number;
+  interest: number;
+  netResult: number;
+};
+
+export type CorePortfolioResult = "net_income" | "net_loss" | "break_even" | "no_activity";
+
+export type CorePortfolioPropertyRow = {
+  propertyId: string;
+  name: string;
+  entityId: string;
+  entityName: string;
+  enabled: boolean;
+  marketValue: number | null;
+  loanBalance: number | null;
+  loanStatus: "none" | "recorded" | "unparseable" | string;
+  equity: number | null;
+  income: number;
+  expenses: number;
+  depreciation: number;
+  interest: number;
+  netResult: number;
+  result: CorePortfolioResult;
+  transactionCount: number;
+};
+
+export type CorePortfolioSummary = {
+  scope: { level: CoreGstScopeLevel; id: string; name: string };
+  period: CorePnlPeriod;
+  /** "invoice_date": accruals basis, like the P&L statement. */
+  dateBasis: string;
+  /** "gross": GST-inclusive. */
+  amountBasis: string;
+  /** "latest_recorded": market value and loans are today's, for every year. */
+  balanceBasis: string;
+  interestAccountCode: string;
+  generatedAt: string;
+  availableFinancialYears: number[];
+  excludedUnreviewedCount: number;
+  totals: CorePortfolioTotals;
+  months: CorePortfolioMonth[];
+  incomeByCategory: CorePortfolioCategoryLine[];
+  expensesByCategory: CorePortfolioCategoryLine[];
+  /**
+   * The category × month matrix the category lines and months are folded
+   * from, so a page can total any window inside the year (this month, this
+   * quarter) without re-summing transactions. Empty from an older backend.
+   */
+  categoryMonths: CorePortfolioCategoryMonth[];
+  depreciationByKind: CorePortfolioDepreciationLine[];
+  entities: CorePortfolioEntityRow[];
+  properties: CorePortfolioPropertyRow[];
+};
+
+export type CorePortfolioCategoryMonth = {
+  categoryId: number;
+  categoryName: string;
+  accountCode: string | null;
+  type: "revenue" | "expense";
+  /** "YYYY-MM" */
+  month: string;
+  amount: number;
+};
+
+/** Unlike toFloatValue, keeps "unknown" distinct from zero. */
+function toNullableFloatValue(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const asNumber =
+    typeof value === "number" ? value : Number.parseFloat(toStringValue(value));
+  return Number.isNaN(asNumber) ? null : asNumber;
+}
+
+function toRecordArray(value: unknown): RawRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is RawRecord => typeof item === "object" && item !== null,
+  );
+}
+
+function toPortfolioResult(value: unknown): CorePortfolioResult {
+  return value === "net_income" || value === "net_loss" || value === "break_even"
+    ? value
+    : "no_activity";
+}
+
+function toPortfolioCategoryLines(value: unknown): CorePortfolioCategoryLine[] {
+  return toRecordArray(value).map((raw) => ({
+    categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
+    categoryName: toStringValue(raw.category_name ?? raw.categoryName),
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
+    amount: toFloatValue(raw.amount),
+    isInterest: (raw.is_interest ?? raw.isInterest) === true,
+  }));
+}
+
+export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSummary {
+  const scope = (raw.scope ?? {}) as RawRecord;
+  const t = (raw.totals ?? {}) as RawRecord;
+  const int = (v: unknown) => toNumberValue(v) ?? 0;
+  const yearsRaw = raw.available_financial_years ?? raw.availableFinancialYears;
+
+  return {
+    scope: {
+      level: toGstScopeLevel(scope.level),
+      id: toStringValue(scope.id),
+      name: toStringValue(scope.name),
+    },
+    period: toPnlPeriod(raw.period),
+    dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
+    amountBasis: toStringValue(raw.amount_basis ?? raw.amountBasis),
+    balanceBasis: toStringValue(raw.balance_basis ?? raw.balanceBasis),
+    interestAccountCode: toStringValue(raw.interest_account_code ?? raw.interestAccountCode),
+    generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
+    availableFinancialYears: Array.isArray(yearsRaw)
+      ? yearsRaw.map((y) => toNumberValue(y)).filter((y): y is number => y !== null)
+      : [],
+    excludedUnreviewedCount: int(raw.excluded_unreviewed_count ?? raw.excludedUnreviewedCount),
+    totals: {
+      entityCount: int(t.entity_count),
+      propertyCount: int(t.property_count),
+      marketValue: toFloatValue(t.market_value),
+      propertiesMissingValue: int(t.properties_missing_value),
+      loanBalance: toFloatValue(t.loan_balance),
+      loanCount: int(t.loan_count),
+      loansUnparseable: int(t.loans_unparseable),
+      netEquity: toFloatValue(t.net_equity),
+      lvrPercent: toNullableFloatValue(t.lvr_percent),
+      equityPercent: toNullableFloatValue(t.equity_percent),
+      income: toFloatValue(t.income),
+      expenses: toFloatValue(t.expenses),
+      depreciation: toFloatValue(t.depreciation),
+      expensesAndDepreciation: toFloatValue(t.expenses_and_depreciation),
+      cashFlow: toFloatValue(t.cash_flow),
+      netResult: toFloatValue(t.net_result),
+      interest: toFloatValue(t.interest),
+      principal: toNullableFloatValue(t.principal),
+      profitCount: int(t.profit_count),
+      lossCount: int(t.loss_count),
+      netIncomeTotal: toFloatValue(t.net_income_total),
+      netLossTotal: toFloatValue(t.net_loss_total),
+      transactionCount: int(t.transaction_count),
+    },
+    months: toRecordArray(raw.months).map((m) => ({
+      month: toStringValue(m.month),
+      income: toFloatValue(m.income),
+      expenses: toFloatValue(m.expenses),
+      interest: toFloatValue(m.interest),
+      netResult: toFloatValue(m.net_result ?? m.netResult),
+    })),
+    incomeByCategory: toPortfolioCategoryLines(raw.income_by_category ?? raw.incomeByCategory),
+    expensesByCategory: toPortfolioCategoryLines(raw.expenses_by_category ?? raw.expensesByCategory),
+    categoryMonths: toRecordArray(raw.category_months ?? raw.categoryMonths).map((c) => ({
+      categoryId: toNumberValue(c.category_id ?? c.categoryId) ?? 0,
+      categoryName: toStringValue(c.category_name ?? c.categoryName),
+      accountCode: toNullableString(c.account_code ?? c.accountCode),
+      type: c.type === "revenue" ? "revenue" : "expense",
+      month: toStringValue(c.month),
+      amount: toFloatValue(c.amount),
+    })),
+    depreciationByKind: toRecordArray(raw.depreciation_by_kind ?? raw.depreciationByKind).map(
+      (d) => ({
+        kind: toStringValue(d.kind),
+        label: toStringValue(d.label),
+        amount: toFloatValue(d.amount),
+      }),
+    ),
+    entities: toRecordArray(raw.entities).map((e) => ({
+      entityId: toStringValue(e.entity_id ?? e.entityId),
+      name: toStringValue(e.name),
+      enabled: e.enabled !== false,
+      propertyCount: int(e.property_count),
+      marketValue: toFloatValue(e.market_value),
+      propertiesMissingValue: int(e.properties_missing_value),
+      loanBalance: toFloatValue(e.loan_balance),
+      loanCount: int(e.loan_count),
+      loansUnparseable: int(e.loans_unparseable),
+      equity: toFloatValue(e.equity),
+      lvrPercent: toNullableFloatValue(e.lvr_percent),
+      income: toFloatValue(e.income),
+      expenses: toFloatValue(e.expenses),
+      depreciation: toFloatValue(e.depreciation),
+      interest: toFloatValue(e.interest),
+      netResult: toFloatValue(e.net_result),
+    })),
+    properties: toRecordArray(raw.properties).map((p) => ({
+      propertyId: toStringValue(p.property_id ?? p.propertyId),
+      name: toStringValue(p.name),
+      entityId: toStringValue(p.entity_id ?? p.entityId),
+      entityName: toStringValue(p.entity_name ?? p.entityName),
+      enabled: p.enabled !== false,
+      marketValue: toNullableFloatValue(p.market_value),
+      loanBalance: toNullableFloatValue(p.loan_balance),
+      loanStatus: toStringValue(p.loan_status) || "none",
+      equity: toNullableFloatValue(p.equity),
+      income: toFloatValue(p.income),
+      expenses: toFloatValue(p.expenses),
+      depreciation: toFloatValue(p.depreciation),
+      interest: toFloatValue(p.interest),
+      netResult: toFloatValue(p.net_result),
+      result: toPortfolioResult(p.result),
+      transactionCount: int(p.transaction_count),
+    })),
+  };
+}
+
+export async function getCorePortfolioSummaryForClient(
+  token: string,
+  clientId: string,
+  financialYear?: number,
+  entityId?: string,
+  propertyId?: string,
+  /** An exact window (YYYY-MM-DD, inclusive); overrides financialYear. */
+  range?: { from: string; to: string },
+) {
+  const params = new URLSearchParams();
+  if (financialYear) params.set("financial_year", String(financialYear));
+  if (entityId) params.set("entity_id", entityId);
+  if (propertyId) params.set("property_id", propertyId);
+  if (range) {
+    params.set("from", range.from);
+    params.set("to", range.to);
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const payload = await coreApiRequest(
+    `/clients/${encodeURIComponent(clientId)}/portfolio-summary${qs}`,
+    { token },
+  );
+  return normalizeCorePortfolioSummary(getJsonObject(payload));
+}
+
 // -----------------------------------------------------------------------------
 // Personal (private-use) spending summary
 // -----------------------------------------------------------------------------
@@ -2545,6 +3173,12 @@ export type CorePersonalCategoryTotal = {
 
 export type CorePersonalSummary = {
   scope: { level: CoreGstScopeLevel; id: string; name: string };
+  /**
+   * The window applied when the request named one (same params as the GST
+   * summary). null means ALL TIME — no period asked for, or a backend that
+   * predates period support and ignored it.
+   */
+  period: CoreGstPeriod | null;
   categories: CorePersonalCategoryTotal[];
   totalGross: number;
   totalGst: number;
@@ -2557,12 +3191,27 @@ export function normalizeCorePersonalSummary(
 ): CorePersonalSummary {
   const scope = toRecord(raw.scope);
   const categories = Array.isArray(raw.categories) ? raw.categories : [];
+  const period =
+    raw.period && typeof raw.period === "object"
+      ? (raw.period as RawRecord)
+      : null;
   return {
     scope: {
       level: (toStringValue(scope.level) || "entity") as CoreGstScopeLevel,
       id: toStringValue(scope.id),
       name: toStringValue(scope.name),
     },
+    period: period
+      ? {
+          label: toStringValue(period.label),
+          financialYear:
+            toNumberValue(period.financial_year ?? period.financialYear) ?? 0,
+          quarter: toNumberValue(period.quarter) ?? 0,
+          from: toStringValue(period.from),
+          to: toStringValue(period.to),
+          custom: Boolean(period.custom),
+        }
+      : null,
     categories: categories
       .filter((c): c is RawRecord => typeof c === "object" && c !== null)
       .map((c) => ({
@@ -2584,9 +3233,10 @@ export function normalizeCorePersonalSummary(
 export async function getCorePersonalSummaryForProperty(
   token: string,
   propertyId: string,
+  query?: CoreGstQuery,
 ) {
   const payload = await coreApiRequest(
-    `/properties/${encodeURIComponent(propertyId)}/personal-summary`,
+    `/properties/${encodeURIComponent(propertyId)}/personal-summary${gstQueryString(query)}`,
     { token },
   );
   return normalizeCorePersonalSummary(getJsonObject(payload));
@@ -2595,9 +3245,10 @@ export async function getCorePersonalSummaryForProperty(
 export async function getCorePersonalSummaryForEntity(
   token: string,
   entityId: string,
+  query?: CoreGstQuery,
 ) {
   const payload = await coreApiRequest(
-    `/entities/${encodeURIComponent(entityId)}/personal-summary`,
+    `/entities/${encodeURIComponent(entityId)}/personal-summary${gstQueryString(query)}`,
     { token },
   );
   return normalizeCorePersonalSummary(getJsonObject(payload));
@@ -2606,9 +3257,10 @@ export async function getCorePersonalSummaryForEntity(
 export async function getCorePersonalSummaryForClient(
   token: string,
   clientId: string,
+  query?: CoreGstQuery,
 ) {
   const payload = await coreApiRequest(
-    `/clients/${encodeURIComponent(clientId)}/personal-summary`,
+    `/clients/${encodeURIComponent(clientId)}/personal-summary${gstQueryString(query)}`,
     { token },
   );
   return normalizeCorePersonalSummary(getJsonObject(payload));
@@ -2748,6 +3400,34 @@ export async function getCoreTransactionFacets(
     types: Array.isArray(record.types)
       ? record.types.map((t) => toStringValue(t)).filter(Boolean)
       : [],
+  };
+}
+
+// GET /transactions/totals — Income and Expense totals for exactly the set a
+// list query describes (same scope, filters and review tab), minus its `type`
+// filter: the two figures are themselves the type split. Each sums the amount
+// the list rows display, so the cards above a list equal the rows below it.
+export type CoreTransactionTotals = {
+  income: number;
+  expense: number;
+  incomeCount: number;
+  expenseCount: number;
+};
+
+export async function getCoreTransactionTotals(
+  token: string,
+  query: CoreTransactionListQuery = {},
+): Promise<CoreTransactionTotals> {
+  const payload = await coreApiRequest(
+    `/transactions/totals${transactionListQueryString({ ...query, limit: undefined, offset: undefined })}`,
+    { token },
+  );
+  const record = getJsonObject(payload);
+  return {
+    income: toNumberValue(record.income) ?? 0,
+    expense: toNumberValue(record.expense) ?? 0,
+    incomeCount: toNumberValue(record.income_count ?? record.incomeCount) ?? 0,
+    expenseCount: toNumberValue(record.expense_count ?? record.expenseCount) ?? 0,
   };
 }
 
@@ -3918,6 +4598,19 @@ export type CoreDepreciationSchedule = {
   documentName: string;
   generatedAt: string;
 
+  /**
+   * The requested `fy` in context (client Depreciation report). Opening and
+   * closing are null without `fy`, and ALSO null when the schedule has no row
+   * for that year (bought later, or already written off) — the signal to
+   * leave the asset out of that year's list. claimedBeforeFy is null without
+   * `fy`. lastFyStartYear is the schedule's final year, whatever was asked.
+   * All null from a backend that predates them.
+   */
+  fyOpeningValue: number | null;
+  fyClosingValue: number | null;
+  claimedBeforeFy: number | null;
+  lastFyStartYear: number | null;
+
   /** Populated by the per-transaction and single-schedule endpoints only. */
   years: CoreDepreciationYear[];
 };
@@ -3951,12 +4644,26 @@ export type CoreDepreciationTotals = {
   firstYearDepreciation: number;
 };
 
+/** One future year of a scope's claim (Div 43 / Div 40). */
+export type CoreDepreciationProjectionYear = {
+  fyStartYear: number;
+  fyLabel: string;
+  capitalWorks: number;
+  capitalAllowances: number;
+  depreciation: number;
+};
+
 export type CoreDepreciationList = {
   scope: { level: string; id: string; name: string };
   fyStartYear: number | null;
   fyLabel: string;
   totals: CoreDepreciationTotals;
   items: CoreDepreciationSchedule[];
+  /**
+   * The five years after `fy`, assuming nothing new is bought. null without
+   * `fy`, or from a backend that predates it.
+   */
+  projection: CoreDepreciationProjectionYear[] | null;
 };
 
 function toDepreciationMethod(value: unknown): CoreDepreciationMethod {
@@ -4038,6 +4745,11 @@ function normalizeDepreciationSchedule(raw: RawRecord): CoreDepreciationSchedule
     documentName: toStringValue(raw.document_name ?? raw.documentName),
     generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
 
+    fyOpeningValue: toNullableFloatValue(raw.fy_opening_value ?? raw.fyOpeningValue),
+    fyClosingValue: toNullableFloatValue(raw.fy_closing_value ?? raw.fyClosingValue),
+    claimedBeforeFy: toNullableFloatValue(raw.claimed_before_fy ?? raw.claimedBeforeFy),
+    lastFyStartYear: toNumberValue(raw.last_fy_start_year ?? raw.lastFyStartYear),
+
     years: Array.isArray(raw.years)
       ? raw.years.map((y) => normalizeDepreciationYear(getJsonObject(y)))
       : [],
@@ -4113,6 +4825,20 @@ function normalizeDepreciationList(payload: unknown): CoreDepreciationList {
       ),
     },
     items,
+    projection: Array.isArray(record.projection)
+      ? record.projection.map((p) => {
+          const y = getJsonObject(p);
+          return {
+            fyStartYear: toNumberValue(y.fy_start_year ?? y.fyStartYear) ?? 0,
+            fyLabel: toStringValue(y.fy_label ?? y.fyLabel),
+            capitalWorks: toFloatValue(y.capital_works ?? y.capitalWorks),
+            capitalAllowances: toFloatValue(
+              y.capital_allowances ?? y.capitalAllowances,
+            ),
+            depreciation: toFloatValue(y.depreciation),
+          };
+        })
+      : null,
   };
 }
 

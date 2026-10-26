@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getIdToken } from "@/src/lib/authToken";
-import type { CoreGstScopeLevel, CoreGstSummary } from "@/src/lib/coreApi";
+import type {
+  CoreGstOutcome,
+  CoreGstScopeLevel,
+  CoreGstSummary,
+} from "@/src/lib/coreApi";
 
 /**
  * Single source of truth for GST figures across the property, entity and client
@@ -47,6 +51,22 @@ export function auQuarterOf(date: Date): number {
   return 4; // Apr–Jun
 }
 
+/**
+ * BAS label 9 in words, from the SERVER's outcome. Never re-derive it from the
+ * sign of (purchases - sales) on the client: that reads a nil period as a
+ * refund.
+ */
+export function gstOutcomeLabel(outcome: CoreGstOutcome): string {
+  switch (outcome) {
+    case "payment_due":
+      return "Payment due to ATO";
+    case "refund_due":
+      return "Refund due from ATO";
+    default:
+      return "Nil — nothing to pay or claim";
+  }
+}
+
 /** Six years back covers any period still amendable with the ATO. */
 export function gstAvailableYears(now = new Date()): number[] {
   const current = auFinancialYearOf(now);
@@ -61,6 +81,34 @@ function endpointFor(level: CoreGstScopeLevel, id: string): string {
       return `/api/clients/${encodeURIComponent(id)}/gst-summary`;
     default:
       return `/api/properties/${encodeURIComponent(id)}/gst-summary`;
+  }
+}
+
+/**
+ * The figures must be for the scope and period the pickers show. An answer
+ * for another one — a backend that ignored a parameter, say — would print
+ * confident numbers under the wrong heading, so it is refused and the card
+ * shows Retry instead, as usePortfolioSummary's assertScope does.
+ */
+function assertGstAnswer(
+  summary: CoreGstSummary,
+  level: CoreGstScopeLevel,
+  id: string,
+  financialYear: number,
+  quarter: number,
+) {
+  const scope = summary?.scope;
+  const period = summary?.period;
+  const wantQuarter = quarter === GST_FULL_YEAR ? 0 : quarter;
+  if (
+    !scope ||
+    !period ||
+    scope.level !== level ||
+    scope.id.trim().toLowerCase() !== id.trim().toLowerCase() ||
+    period.financialYear !== financialYear ||
+    period.quarter !== wantQuarter
+  ) {
+    throw new Error("These GST figures aren't available yet. Please try again shortly.");
   }
 }
 
@@ -87,11 +135,14 @@ export type UseGstSummaryResult = {
  * Loads on mount rather than on modal open, because the GST stat cards sit
  * above the fold on these pages and must be populated before any modal is
  * opened. Pass `enabled: false` to defer until an id is known.
+ *
+ * `initialQuarter` picks the opening period: the current BAS quarter by
+ * default, or GST_FULL_YEAR for the whole current financial year.
  */
 export function useGstSummary(
   level: CoreGstScopeLevel,
   id: string,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; initialQuarter?: number } = {},
 ): UseGstSummaryResult {
   const enabled = options.enabled ?? true;
 
@@ -103,10 +154,24 @@ export function useGstSummary(
   const [financialYear, setFinancialYear] = useState(() =>
     auFinancialYearOf(new Date()),
   );
-  const [quarter, setQuarter] = useState(() => auQuarterOf(new Date()));
+  const [quarter, setQuarter] = useState(
+    () => options.initialQuarter ?? auQuarterOf(new Date()),
+  );
+
+  // Every period change fires a request. Each new one aborts the last, so a
+  // slow answer for the previous period can never land after — and overwrite —
+  // the figures for the period now shown in the pickers.
+  const inFlight = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
-    if (!enabled || !id) return;
+    inFlight.current?.abort();
+    if (!enabled || !id) {
+      inFlight.current = null;
+      setIsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    inFlight.current = controller;
     setIsLoading(true);
     setError(null);
     try {
@@ -119,6 +184,7 @@ export function useGstSummary(
 
       const res = await fetch(`${endpointFor(level, id)}?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -126,8 +192,12 @@ export function useGstSummary(
           body?.message || `Could not load the GST summary (${res.status}).`,
         );
       }
-      setSummary((await res.json()) as CoreGstSummary);
+      const data = (await res.json()) as CoreGstSummary;
+      if (controller.signal.aborted) return;
+      assertGstAnswer(data, level, id, financialYear, quarter);
+      setSummary(data);
     } catch (err) {
+      if (controller.signal.aborted) return;
       // Clear rather than keep stale figures: a wrong GST number shown
       // confidently is worse than none.
       setSummary(null);
@@ -135,12 +205,14 @@ export function useGstSummary(
         err instanceof Error ? err.message : "Could not load the GST summary.",
       );
     } finally {
-      setIsLoading(false);
+      // A superseded request leaves the loading flag to its successor.
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }, [enabled, level, id, financialYear, quarter]);
 
   useEffect(() => {
     void load();
+    return () => inFlight.current?.abort();
   }, [load]);
 
   return {

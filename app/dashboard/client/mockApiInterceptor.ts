@@ -1264,6 +1264,8 @@ const PASSTHROUGH_PATHS: RegExp[] = [
   // The topbar bell polls this on every client page; with no mock model the
   // catch-all would 404 it every 30 seconds.
   /^\/api\/notifications(\?|$)/,
+  // A server aggregate with no mock model; the mock would otherwise 404 it.
+  /^\/api\/clients\/[^/]+\/portfolio-summary(\?|$)/,
 ];
 
 let originalFetch: typeof window.fetch | null = null;

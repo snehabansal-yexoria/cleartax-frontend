@@ -50,7 +50,9 @@ export function notificationsPagePath(role: NotificationViewerRole) {
 }
 
 // Where a notification takes its reader. Deleted records link to the list they
-// were in; documents have no page yet, so they are not clickable. Accountants
+// were in. Documents have no page yet, so they are not clickable, except
+// emailed ones: those open the emailed-documents inbox (accountant) or the
+// client's emailed-documents list on their transactions page. Accountants
 // land on the client's workspace, since the audit row carries no entity id for
 // a property or transaction.
 export function notificationHref(
@@ -63,11 +65,16 @@ export function notificationHref(
   if (role === "accountant") {
     if (!n.clientId) return null;
     const clientHome = `/dashboard/accountant/clients/${enc(n.clientId)}`;
+    if (n.eventType === "document.emailed") return `${clientHome}?tab=emailed`;
     if (n.category === "document") return null;
     if (n.recordType === "entity" && n.recordId && !deleted) {
       return `${clientHome}/entities/${enc(n.recordId)}`;
     }
     return clientHome;
+  }
+
+  if (n.eventType === "document.email_rejected") {
+    return "/dashboard/client/transactions#emailed-documents";
   }
 
   switch (n.category) {
@@ -123,41 +130,52 @@ export function formatFullTime(iso: string): string {
   });
 }
 
-// "Seen" is a per-browser marker, not server read state: the newest
-// updatedAt the viewer has seen in the bell. A collapsed row that gains events
-// gets a newer updatedAt, so it counts as new again.
-function seenKey(viewer: string) {
-  return `cleartax:notifications:seen:${viewer.trim().toLowerCase()}`;
+// Read state lives on the server (notification.read_at, migration 0053), so it
+// follows the user across browsers and devices — it used to be a per-browser
+// localStorage "seen" timestamp. A collapsed row that gains a new event is
+// made unread again by the backend.
+
+export function isUnread(n: NotificationItem): boolean {
+  return !n.readAt;
 }
 
-// Fired in this tab when the marker moves, so the bell's badge clears when the
-// viewer reads the full page. (The storage event only reaches other tabs.)
-export const SEEN_EVENT = "cleartax:notifications-seen";
+// Fired in this tab after a mark-read, so the bell's badge follows the full
+// page (and the page follows the bell) without waiting for the next poll.
+export const READ_EVENT = "cleartax:notifications-read";
 
-export function readSeenAt(viewer: string): number {
-  if (typeof window === "undefined" || !viewer) return 0;
-  const raw = window.localStorage.getItem(seenKey(viewer));
-  const n = raw ? Number(raw) : 0;
-  return Number.isFinite(n) ? n : 0;
-}
-
-export function writeSeenAt(viewer: string, at: number) {
-  if (typeof window === "undefined" || !viewer || !at) return;
-  if (at <= readSeenAt(viewer)) return;
-  window.localStorage.setItem(seenKey(viewer), String(at));
-  window.dispatchEvent(new CustomEvent(SEEN_EVENT, { detail: { at } }));
-}
-
-export function newestUpdatedAt(items: NotificationItem[]): number {
-  let max = 0;
-  for (const n of items) {
-    const t = Date.parse(n.updatedAt);
-    if (!Number.isNaN(t) && t > max) max = t;
+export async function markNotificationsRead(
+  target: { ids: string[] } | { all: true },
+): Promise<{ updated: number; unreadCount: number }> {
+  const token = await getIdToken();
+  const res = await fetch("/api/notifications/read", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(target),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || `Request failed (${res.status})`);
   }
-  return max;
+  const result = (await res.json()) as { updated: number; unreadCount: number };
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(READ_EVENT, { detail: { ...result, target } }),
+    );
+  }
+  return result;
 }
 
-export function isNewSince(n: NotificationItem, seenAt: number) {
-  const t = Date.parse(n.updatedAt);
-  return !Number.isNaN(t) && t > seenAt;
+/** A copy of `items` with the given ids (or everything) marked read now. */
+export function withRead(
+  items: NotificationItem[],
+  target: { ids: string[] } | { all: true },
+): NotificationItem[] {
+  const now = new Date().toISOString();
+  const ids = "ids" in target ? new Set(target.ids) : null;
+  return items.map((n) =>
+    n.readAt || (ids && !ids.has(n.id)) ? n : { ...n, readAt: now },
+  );
 }

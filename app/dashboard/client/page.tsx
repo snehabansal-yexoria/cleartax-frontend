@@ -6,9 +6,14 @@ import { useEffect, useState, useId, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import { ClientPortfolioSkeleton } from "@/app/components/PortalSkeletons";
-import { logout } from "@/src/lib/logout";
-import { getSession } from "@/src/lib/session";
-import { formatCurrencyShort, formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { triggerClientLogout } from "./ClientLogoutAnimation";
+import { getIdToken } from "@/src/lib/authToken";
+import {
+  formatExactCurrency,
+  formatClientPercent,
+  signedTone,
+  toneClass,
+} from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 import { transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
@@ -17,18 +22,28 @@ import {
   ReviewStatusBadge,
 } from "@/app/components/ReviewStatusBadge";
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
-import PaymentAlerts from "@/app/components/clients/PaymentAlerts";
+import RegionError from "@/app/components/ui/RegionError";
+import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
+import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
+import { fetchCurrentUser, type CurrentUser } from "@/app/components/currentUser";
+import {
+  currentFinancialYear,
+  fyLongLabel,
+  fyRangeLabel,
+  fyMonthKeys,
+  fyShortLabel,
+  monthAt,
+  monthIndex,
+  monthKey,
+  monthShortLabel,
+  percentChange,
+  shiftMonth,
+} from "@/app/components/clients/portfolioDashboard";
 import {
   dropdownRegistryEvent,
   announceDropdownOpen,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -50,6 +65,48 @@ function formatDate(dateString: string) {
   } catch (e) {
     return "";
   }
+}
+
+/**
+ * Month-on-month change badge. Renders nothing when there is no honest number
+ * (see percentChange) — these used to be hardcoded "+12%" / "-3.5%" strings
+ * that showed even on an A$ 0 month. `goodWhenUp` is false for expenses, where
+ * a rise is the bad direction.
+ */
+function TrendBadge({
+  change,
+  goodWhenUp = true,
+  variant,
+}: {
+  change: number | null;
+  goodWhenUp?: boolean;
+  variant: "mobile" | "desktop";
+}) {
+  if (change === null) return null;
+  const label = formatClientPercent(change, { showPlus: true });
+  if (!/[1-9]/.test(label)) return null;
+  const isUp = change > 0;
+  const isGood = isUp === goodWhenUp;
+  const title = "Compared with last month";
+  if (variant === "mobile") {
+    return (
+      <span className={`m-db-trend-badge ${isGood ? "up" : "down"}`} title={title}>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span
+      title={title}
+      className={
+        isGood
+          ? "bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[20px] text-xs font-semibold"
+          : "bg-[#fef3f2] dark:bg-[var(--surface-2)] text-[#b42318] dark:text-[#f09595] px-2 py-0.5 rounded-[20px] text-xs font-semibold"
+      }
+    >
+      {label}
+    </span>
+  );
 }
 
 function ChevronIcon() {
@@ -215,14 +272,19 @@ export default function ClientPage() {
   const router = useRouter();
   const [entities, setEntities] = useState<CoreEntity[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string } | null>(null);
+  // Display only: the five newest rows for Recent Activity. No money on this
+  // page is summed from transactions — see the Portfolio Summary below.
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [awaitingReviewCount, setAwaitingReviewCount] = useState(0);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [sortBy, setSortBy] = useState<string>("name-asc");
   const [pageSize, setPageSize] = useState<string>("20");
   const [cashFlowView, setCashFlowView] = useState<'graph' | 'table'>('graph');
+  const [cashFlowYear, setCashFlowYear] = useState(() => currentFinancialYear());
+  const [cashFlowPickerOpen, setCashFlowPickerOpen] = useState(false);
 
   // Mobile layout state
   const [isMobile, setIsMobile] = useState(false);
@@ -235,6 +297,19 @@ export default function ClientPage() {
   const activeMobileView = viewParam as 'home' | 'activity' | 'property' | 'entity' | 'insights';
   const activeTab = tabParam as 'summary' | 'detailed';
 
+  // The Add pages' Back link returns here, to the same phone tab. Passed
+  // explicitly so it never depends on the layout's path history.
+  const dashboardQuery = searchParams?.toString() ?? "";
+  const dashboardHref = `/dashboard/client${dashboardQuery ? `?${dashboardQuery}` : ""}`;
+  const addTransactionHref = `/dashboard/client/transactions/new?${new URLSearchParams({
+    backHref: dashboardHref,
+    backLabel: "Dashboard",
+  })}`;
+  const addPropertyHref = `/dashboard/client/properties/new?${new URLSearchParams({
+    backUrl: dashboardHref,
+    backText: "Dashboard",
+  })}`;
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -244,69 +319,70 @@ export default function ClientPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // The Cash Flow year picker closes on any outside click (its own button
+  // stops propagation).
+  useEffect(() => {
+    if (!cashFlowPickerOpen) return;
+    const close = () => setCashFlowPickerOpen(false);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [cashFlowPickerOpen]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
+        let token: string;
+        try {
+          token = await getIdToken();
+        } catch {
           router.replace("/login/user");
           return;
         }
-        const token = session.getIdToken().getJwtToken();
+        const headers = { Authorization: `Bearer ${token}` };
 
-        // 1. Fetch current user me info
-        try {
-          const userRes = await fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (userRes.ok) {
-            const data = await userRes.json();
-            if (!cancelled) setCurrentUser(data);
-          }
-        } catch (err) {
-          console.error("Failed to fetch current user:", err);
-        }
-
-        // 2. Fetch entities
-        const res = await fetch("/api/entities", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Independent reads, so they go out together instead of one after
+        // another. The user is the layout's in-flight request, not a second
+        // one. Recent Activity needs only the five newest rows; the review
+        // badge needs only the queue's total.
+        const [userResult, entitiesResult, recentResult, queueResult] =
+          await Promise.allSettled([
+            fetchCurrentUser(token),
+            fetch("/api/entities", { headers }),
+            fetch("/api/transactions?limit=5&sort=date&dir=desc", { headers }),
+            fetch("/api/transactions?review_status=unreviewed&limit=1", { headers }),
+          ]);
         if (cancelled) return;
 
-        let loadedEntities: CoreEntity[] = [];
-        if (res.ok) {
-          const data = (await res.json()) as { items?: CoreEntity[] };
-          loadedEntities = data.items || [];
-          if (!cancelled) setEntities(loadedEntities);
+        if (userResult.status === "fulfilled") {
+          setCurrentUser(userResult.value);
         } else {
-          const data = await res.json().catch(() => ({}));
-          if (!cancelled) setErrorMessage(data.error || "Failed to load your entities.");
+          console.error("Failed to fetch current user:", userResult.reason);
         }
 
-        if (cancelled || loadedEntities.length === 0) {
-          if (!cancelled) setIsLoading(false);
-          return;
+        if (entitiesResult.status === "fulfilled" && entitiesResult.value.ok) {
+          const data = (await entitiesResult.value.json()) as { items?: CoreEntity[] };
+          if (cancelled) return;
+          const loadedEntities = data.items || [];
+          setEntities(loadedEntities);
+          setProperties(loadedEntities.flatMap((entity: any) => entity.properties || []));
+        } else {
+          const data =
+            entitiesResult.status === "fulfilled"
+              ? await entitiesResult.value.json().catch(() => ({}))
+              : {};
+          if (cancelled) return;
+          setErrorMessage(data.error || "Failed to load your entities.");
         }
 
-        // 3. Extract aggregated properties from nested entities response
-        const allProperties = loadedEntities.flatMap((entity: any) => entity.properties || []);
-        if (!cancelled) setProperties(allProperties);
-
-        if (cancelled) return;
-
-        // 4. Fetch transactions
-        try {
-          const txRes = await fetch("/api/transactions", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (txRes.ok) {
-            const data = await txRes.json();
-            if (!cancelled) setTransactions(data.items || []);
-          }
-        } catch (err) {
-          console.error("Failed to fetch transactions:", err);
+        if (recentResult.status === "fulfilled" && recentResult.value.ok) {
+          const data = await recentResult.value.json();
+          if (!cancelled) setRecentTransactions(data.items || []);
+        }
+        if (queueResult.status === "fulfilled" && queueResult.value.ok) {
+          const data = await queueResult.value.json();
+          if (!cancelled) setAwaitingReviewCount(Number(data.total) || 0);
         }
       } catch (error) {
         if (!cancelled) {
@@ -325,106 +401,125 @@ export default function ClientPage() {
   }, [router]);
 
   function handleLogout() {
-    logout();
-    router.replace("/login");
+    triggerClientLogout();
   }
 
-  // Calculate metrics
-  const marketValue = properties.reduce((sum, prop) => sum + (prop.estimatedMarketValue || 0), 0);
-  const outstandingLoans = properties.reduce((sum, prop) => {
-    if (!prop.loanDetails) return sum;
-    const loanAmt = prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0;
-    return sum + Number(loanAmt);
-  }, 0);
-  const netPosition = marketValue - outstandingLoans;
+  // ---------------------------------------------------------------------------
+  // Money. Every figure below comes from the Portfolio Summary — the same
+  // server aggregate as the Reports page: gross, at each property's share of a
+  // split bill, unreviewed rows excluded, for the financial year. The page used
+  // to sum one 50-row page of transactions in the browser (net in some places,
+  // gross in others, unreviewed rows included), which undercounted as soon as
+  // a client had more than 50 rows. Last year's summary supplies the months
+  // before 1 July (the 6-month chart, July's month-on-month badge) and the
+  // Last Financial Year cards.
+  // ---------------------------------------------------------------------------
+  const clientId = currentUser?.id || null;
+  const financialYear = currentFinancialYear();
+  const summaryRegion = usePortfolioSummary(clientId, financialYear);
+  const lastYearRegion = usePortfolioSummary(clientId, financialYear - 1);
+  const summary = summaryRegion.data;
+  const lastYear = lastYearRegion.data;
+  const totals = summary?.totals ?? null;
+  const hasSummary = summary !== null;
+  /** Exact money (to the cent, never "12.3K"), or "—" while the summary is missing (never a fake zero). */
+  const money = (value: number | null | undefined) =>
+    hasSummary && value != null ? formatExactCurrency(value) : "—";
 
-  // Monthly cash flow calculation
-  const currentMonthDate = new Date();
-  const currentMonth = currentMonthDate.getMonth();
-  const currentYear = currentMonthDate.getFullYear();
+  const now = new Date();
+  const monthsByKey = monthIndex(lastYear, summary);
+  const thisMonth = monthAt(monthsByKey, monthKey(now));
+  const previousMonth = monthAt(monthsByKey, monthKey(shiftMonth(now, -1)));
 
-  const currentMonthTx = transactions.filter(tx => {
-    if (!tx.invoiceDate) return false;
-    const d = new Date(tx.invoiceDate);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
+  const displayIncomeThisMonth = thisMonth.income;
+  const displayExpenseThisMonth = thisMonth.expenses;
+  const displayCashFlow = displayIncomeThisMonth - displayExpenseThisMonth;
+  // Interest only: principal repayments are not recorded anywhere, so a
+  // "repayments" figure would be a guess (it used to be a keyword match on
+  // category names).
+  const displayInterestThisMonth = thisMonth.interest;
 
-  const incomeThisMonth = currentMonthTx
-    .filter(tx => tx.type === "revenue")
-    .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+  const cashFlowChange = percentChange(
+    displayCashFlow,
+    previousMonth.income - previousMonth.expenses,
+  );
+  const incomeChange = percentChange(displayIncomeThisMonth, previousMonth.income);
+  const expenseChange = percentChange(displayExpenseThisMonth, previousMonth.expenses);
 
-  const expenseThisMonth = currentMonthTx
-    .filter(tx => tx.type === "expense")
-    .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
+  // Cash Flow: one financial year, July to June, picked on the card (and in
+  // its View Detail overlay — the same state). This year and last reuse the
+  // summaries above; only an older year fetches its own.
+  const isOlderCashFlowYear = cashFlowYear < financialYear - 1;
+  const olderYearRegion = usePortfolioSummary(
+    isOlderCashFlowYear ? clientId : null,
+    cashFlowYear,
+  );
+  const cashFlowRegion =
+    cashFlowYear === financialYear
+      ? summaryRegion
+      : cashFlowYear === financialYear - 1
+        ? lastYearRegion
+        : olderYearRegion;
+  const cashFlowSummary = cashFlowRegion.data;
+  const cashFlowLoading = cashFlowRegion.status === "loading" && !cashFlowSummary;
+  const cashFlowError =
+    cashFlowRegion.status === "error" && !cashFlowSummary
+      ? `Couldn't load ${fyLongLabel(cashFlowYear)}. ${cashFlowRegion.error ?? ""}`.trim()
+      : null;
+  // Years with data, plus this year and the one on screen, so the picker
+  // never hides the selected year (the Reports page's rule).
+  const cashFlowYearOptions = [
+    ...new Set<number>([
+      financialYear,
+      cashFlowYear,
+      ...(summary?.availableFinancialYears ?? []),
+    ]),
+  ].sort((a, b) => b - a);
 
-  const cashFlowThisMonth = incomeThisMonth - expenseThisMonth;
-
-  // Calculate MTD repayments
-  const repaymentsThisMonth = currentMonthTx
-    .filter(tx => {
-      const cat = (tx.categoryName || "").toLowerCase();
-      const subcat = (tx.subcategoryName || "").toLowerCase();
-      const desc = (tx.description || "").toLowerCase();
-      return (
-        cat.includes("repayment") ||
-        cat.includes("loan") ||
-        subcat.includes("repayment") ||
-        subcat.includes("loan") ||
-        desc.includes("repayment")
-      );
-    })
-    .reduce((sum, tx) => sum + Math.abs(tx.netAmount || tx.grossAmount || 0), 0);
-
-  const displayRepayments = repaymentsThisMonth;
-
-  // 6 Month historical logic
-  const months: string[] = [];
-  const incomeHistory: number[] = [];
-  const expenseHistory: number[] = [];
-
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const m = d.getMonth();
-    const y = d.getFullYear();
-
-    const label = d.toLocaleDateString("en-US", { month: "short" });
-    months.push(label);
-
-    const txsInMonth = transactions.filter(tx => {
-      if (!tx.invoiceDate) return false;
-      const txd = new Date(tx.invoiceDate);
-      return txd.getMonth() === m && txd.getFullYear() === y;
-    });
-
-    const inc = txsInMonth
-      .filter(tx => tx.type === "revenue")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    const exp = txsInMonth
-      .filter(tx => tx.type === "expense")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    incomeHistory.push(inc);
-    expenseHistory.push(exp);
-  }
-
-  // Compute actual values based on real data
-  const displayMarketValue = marketValue;
-  const displayOutstandingLoans = outstandingLoans;
-  const displayNetPosition = netPosition;
-  const displayCashFlow = cashFlowThisMonth;
-  const displayLoansValue = displayOutstandingLoans;
-  const displayIncomeThisMonth = incomeThisMonth;
-  const displayExpenseThisMonth = expenseThisMonth;
-
-  const displayMonths = months;
-  const displayIncome = incomeHistory;
-  const displayExpense = expenseHistory;
+  const cashFlowMonthsByKey = monthIndex(cashFlowSummary);
+  const chartMonthKeys = fyMonthKeys(cashFlowYear);
+  const displayMonths = chartMonthKeys.map(monthShortLabel);
+  const displayIncome = chartMonthKeys.map((key) => monthAt(cashFlowMonthsByKey, key).income);
+  const displayExpense = chartMonthKeys.map((key) => monthAt(cashFlowMonthsByKey, key).expenses);
+  const hasChartData = displayIncome.some((v) => v > 0) || displayExpense.some((v) => v > 0);
 
   const maxMonthSum = Math.max(...displayIncome.map((inc, idx) => inc + displayExpense[idx]), 1);
 
-  const activityItems = transactions.slice(0, 5).map(tx => ({
+  // Balance sheet: latest recorded values, loans at each property's
+  // allocation — the Reports page's figures, not a raw sum of loan amounts.
+  const displayMarketValue = totals?.marketValue ?? 0;
+  const displayOutstandingLoans = totals?.loanBalance ?? 0;
+  const displayNetPosition = totals?.netEquity ?? 0;
+  const displayLoansValue = displayOutstandingLoans;
+
+  const expenseCategories = (cashFlowSummary?.expensesByCategory ?? [])
+    .filter((line) => line.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5)
+    .map((line) => ({ name: line.categoryName || "Uncategorised", amount: line.amount }));
+  const incomeSources = (cashFlowSummary?.incomeByCategory ?? [])
+    .filter((line) => line.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .map((line) => ({ name: line.categoryName || "Uncategorised", amount: line.amount }));
+
+  const lastYearTotals = lastYear?.totals ?? null;
+
+  // The figures are one region: if the summary (or the entity list) fails,
+  // the page says so once, with Retry, and every figure shows "—".
+  const figuresError =
+    summaryRegion.status === "error"
+      ? `Couldn't load your figures. ${summaryRegion.error ?? ""}`.trim()
+      : errorMessage;
+  const retryFigures = () => {
+    summaryRegion.reload();
+    lastYearRegion.reload();
+  };
+  // Hold the skeleton until the first summary arrives, so the cards never
+  // flash zeros before the real numbers.
+  const figuresLoading =
+    isLoading || (clientId !== null && summaryRegion.status === "loading" && !summary);
+
+  const activityItems = recentTransactions.map(tx => ({
     id: tx.id,
     description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
     categoryName: tx.categoryName,
@@ -435,70 +530,67 @@ export default function ClientPage() {
     awaitingExtraction: isAwaitingExtraction(tx.metadata),
   }));
 
-  // What the client has sent to their accountant and is still waiting on.
-  const awaitingReviewCount = transactions.filter(tx =>
-    isAwaitingReview(tx.reviewStatus),
-  ).length;
+  // By Entity / By Property rows come straight from the summary, which lists
+  // every live entity and property even when it has no activity this year.
+  // Until it arrives (or if it fails) the lists fall back to names only, with
+  // "—" for every figure.
+  const entityListItems = summary
+    ? summary.entities.map((entity) => ({
+        id: entity.entityId,
+        name: entity.name,
+        propertiesCount: entity.propertyCount,
+        marketValue: entity.marketValue as number | null,
+        outstandingLoans: entity.loanBalance as number | null,
+        netPosition: entity.equity as number | null,
+        loanPercentage: entity.lvrPercent ?? 0,
+        isReal: true,
+      }))
+    : entities.map((entity) => ({
+        id: entity.id,
+        name: entity.name,
+        propertiesCount: properties.filter((p) => p.entityId === entity.id).length,
+        marketValue: null as number | null,
+        outstandingLoans: null as number | null,
+        netPosition: null as number | null,
+        loanPercentage: 0,
+        isReal: true,
+      }));
 
-  const entityListItems = entities.map(entity => {
-    const entityProperties = properties.filter(p => p.entityId === entity.id);
-    const mValue = entityProperties.reduce((sum, p) => sum + (p.estimatedMarketValue || 0), 0);
-    const oLoans = entityProperties.reduce((sum, p) => {
-      if (!p.loanDetails) return sum;
-      const loanAmt = p.loanDetails.loan_amount ?? p.loanDetails.loanAmount ?? p.loanDetails.amount ?? 0;
-      return sum + Number(loanAmt);
-    }, 0);
-    const nPosition = mValue - oLoans;
-    const loanPct = mValue > 0 ? (oLoans / mValue) * 100 : 0;
-    return {
-      id: entity.id,
-      name: entity.name,
-      propertiesCount: entityProperties.length,
-      marketValue: mValue,
-      outstandingLoans: oLoans,
-      netPosition: nPosition,
-      loanPercentage: loanPct,
-      isReal: true,
-    };
-  });
-
-  const propertyListItems = properties.map((prop, idx) => {
-    const ent = entities.find(e => e.id === prop.entityId);
-    const entName = ent ? ent.name : "Individual";
-    const mValue = prop.estimatedMarketValue || 0;
-    const oLoans = prop.loanDetails ? Number(prop.loanDetails.loan_amount ?? prop.loanDetails.loanAmount ?? prop.loanDetails.amount ?? 0) : 0;
-
-    const propTxs = transactions.filter(tx => {
-      return tx.propertyIds?.includes(prop.id) || tx.propertyNames?.includes(prop.name);
-    });
-
-    const inc = propTxs
-      .filter(tx => tx.type === "revenue")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    const exp = propTxs
-      .filter(tx => tx.type === "expense")
-      .reduce((sum, tx) => sum + (tx.netAmount || tx.grossAmount || 0), 0);
-
-    const netVal = inc - exp;
-    const statusVal = prop.status || "Rented";
-    const imageUrlVal = prop.imageUrl || null;
-
-    return {
-      id: prop.id,
-      name: prop.name,
-      entityName: entName,
-      marketValue: mValue,
-      outstandingLoans: oLoans,
-      income: inc,
-      expense: exp,
-      net: netVal,
-      status: statusVal,
-      imageUrl: imageUrlVal,
-      isReal: true,
-      entityId: prop.entityId,
-    };
-  });
+  const propertyListItems = summary
+    ? summary.properties.map((row) => {
+        const prop = properties.find((p) => p.id === row.propertyId);
+        return {
+          id: row.propertyId,
+          name: row.name,
+          entityName: row.entityName,
+          marketValue: row.marketValue,
+          outstandingLoans: row.loanBalance,
+          income: row.income as number | null,
+          expense: row.expenses as number | null,
+          depreciation: row.depreciation,
+          // Net after depreciation — the Reports page's By Property figure.
+          net: row.netResult as number | null,
+          status: prop?.status || "Rented",
+          imageUrl: prop?.imageUrl || null,
+          isReal: true,
+          entityId: row.entityId,
+        };
+      })
+    : properties.map((prop) => ({
+        id: prop.id as string,
+        name: prop.name as string,
+        entityName: entities.find((e) => e.id === prop.entityId)?.name ?? "",
+        marketValue: null as number | null,
+        outstandingLoans: null as number | null,
+        income: null as number | null,
+        expense: null as number | null,
+        depreciation: 0,
+        net: null as number | null,
+        status: prop.status || "Rented",
+        imageUrl: prop.imageUrl || null,
+        isReal: true,
+        entityId: prop.entityId as string,
+      }));
 
   // Filter properties by search query and selected entity
   let filteredProperties = propertyListItems;
@@ -515,8 +607,8 @@ export default function ClientPage() {
   }
 
   // Calculate portfolio metrics
-  const portfolioValueSum = filteredProperties.reduce((sum, p) => sum + p.marketValue, 0);
-  const portfolioNetSum = filteredProperties.reduce((sum, p) => sum + p.net, 0);
+  const portfolioValueSum = filteredProperties.reduce((sum, p) => sum + (p.marketValue ?? 0), 0);
+  const portfolioNetSum = filteredProperties.reduce((sum, p) => sum + (p.net ?? 0), 0);
   const calculatedReturnRate = portfolioValueSum > 0 ? (portfolioNetSum / portfolioValueSum) * 100 : 0;
 
   const portfolioAvgReturn = calculatedReturnRate;
@@ -527,8 +619,9 @@ export default function ClientPage() {
     ...entities.map(e => ({ id: e.id, name: e.name }))
   ];
 
-  const loanPercentageOverall = displayMarketValue > 0 ? (displayOutstandingLoans / displayMarketValue) * 100 : 0;
-  const equityPercentageOverall = 100 - loanPercentageOverall;
+  // The summary's LVR / equity split (null when there is no value to divide by).
+  const loanPercentageOverall = Math.min(Math.max(totals?.lvrPercent ?? 0, 0), 100);
+  const equityPercentageOverall = totals?.equityPercent != null ? 100 - loanPercentageOverall : 0;
 
 
 
@@ -555,11 +648,11 @@ export default function ClientPage() {
 
   // User Greeting values
   const firstWord = (str: string) => str ? str.split(/[\s,]+/)[0] : "";
-  const userName = currentUser?.fullName ? firstWord(currentUser.fullName) : (currentUser?.email ? titleCase(currentUser.email.split("@")[0]) : "Sarah");
-  const userInitials = currentUser?.fullName ? getInitials(currentUser.fullName) : (currentUser?.email ? getInitials(currentUser.email) : "SJ");
+  const userName = currentUser?.fullName ? firstWord(currentUser.fullName) : (currentUser?.email ? titleCase(currentUser.email.split("@")[0]) : "");
+  const userInitials = currentUser?.fullName ? getInitials(currentUser.fullName) : (currentUser?.email ? getInitials(currentUser.email) : "");
 
   function getInitials(value: string) {
-    if (!value) return "SJ";
+    if (!value) return "";
     const localPart = value.split("@")[0] || value;
     const parts = localPart.split(/[._-]/).map((part) => part.trim()).filter(Boolean);
     if (parts.length >= 2) {
@@ -589,7 +682,7 @@ export default function ClientPage() {
     return (
       <Skeleton
         name="client-portfolio-page"
-        loading={isLoading}
+        loading={figuresLoading}
         fallback={<ClientPortfolioSkeleton isMobile={true} activeTab={activeTab} activeMobileView={activeMobileView} />}
       >
         <div className="mobile-client-dashboard">
@@ -634,6 +727,12 @@ export default function ClientPage() {
             </div>
           </div>
 
+          {figuresError && (
+            <div style={{ padding: '0 16px' }}>
+              <RegionError message={figuresError} onRetry={retryFigures} />
+            </div>
+          )}
+
           {/* Content views */}
           {activeTab === 'summary' && activeMobileView === 'home' && (
             <div className="m-db-content">
@@ -643,16 +742,16 @@ export default function ClientPage() {
                   <span className="m-db-net-label">Net Position</span>
                   <span className="m-db-net-date-badge">As of {ordinalDate}</span>
                 </div>
-                <div className="m-db-net-value">{formatCurrencyShort(displayNetPosition)}</div>
+                <div className="m-db-net-value">{money(displayNetPosition)}</div>
                 <div className="m-db-net-divider" />
                 <div className="m-db-net-stats-row">
                   <div className="m-db-net-stat-col">
                     <span className="m-db-net-stat-label">Market Value</span>
-                    <span className="m-db-net-stat-value">{formatCurrencyShort(displayMarketValue)}</span>
+                    <span className="m-db-net-stat-value">{money(displayMarketValue)}</span>
                   </div>
                   <div className="m-db-net-stat-col">
                     <span className="m-db-net-stat-label">Outstanding Loans</span>
-                    <span className="m-db-net-stat-value">{formatCurrencyShort(displayOutstandingLoans)}</span>
+                    <span className="m-db-net-stat-value">{money(displayOutstandingLoans)}</span>
                   </div>
                 </div>
               </div>
@@ -675,7 +774,7 @@ export default function ClientPage() {
                   <span>Create Entity</span>
                 </Link>
                 <div className="m-db-actions-row">
-                  <Link href="/dashboard/client/transactions/new" className="m-db-action-box tx">
+                  <Link href={addTransactionHref} className="m-db-action-box tx">
                     <div className="m-db-action-icon-wrap">
                       <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                         <path d="m15 4 5 4-5 4" />
@@ -688,7 +787,7 @@ export default function ClientPage() {
                   </Link>
 
                   <Link
-                    href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
+                    href={addPropertyHref}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -716,11 +815,11 @@ export default function ClientPage() {
                         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                       </svg>
                     </div>
-                    <span className="m-db-trend-badge up">+12%</span>
+                    <TrendBadge change={cashFlowChange} variant="mobile" />
                   </div>
                   <div className="m-db-stat-body">
                     <span className="m-db-stat-label">Cash Flow (This Month)</span>
-                    <span className="m-db-stat-value">{formatCurrencyShort(displayCashFlow)}</span>
+                    <span className="m-db-stat-value" style={hasSummary ? { color: signedTone(displayCashFlow) } : undefined}>{money(displayCashFlow)}</span>
                   </div>
                 </div>
 
@@ -735,11 +834,10 @@ export default function ClientPage() {
                         <path d="M20 10v11" />
                       </svg>
                     </div>
-                    <span className="m-db-trend-badge down">-2.1%</span>
                   </div>
                   <div className="m-db-stat-body">
                     <span className="m-db-stat-label">Loans</span>
-                    <span className="m-db-stat-value">{formatCurrencyShort(displayLoansValue)}</span>
+                    <span className="m-db-stat-value">{money(displayLoansValue)}</span>
                   </div>
                 </div>
               </div>
@@ -747,14 +845,9 @@ export default function ClientPage() {
               {/* Last Financial Year Section */}
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                      Last Financial Year
-                    </h3>
-                    <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                      NEW
-                    </span>
-                  </div>
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                    Last Financial Year
+                  </h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -768,13 +861,15 @@ export default function ClientPage() {
                         </svg>
                       </div>
                       <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
-                        FY 25–26
+                        {fyShortLabel(financialYear - 1)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Income (Last FY)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">0 properties in profit</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
+                        {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
+                      </span>
                     </div>
                   </div>
 
@@ -788,21 +883,18 @@ export default function ClientPage() {
                         </svg>
                       </div>
                       <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
-                        FY 25–26
+                        {fyShortLabel(financialYear - 1)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Loss (Last FY)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">0 properties at a loss</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
+                        {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Payment Alerts Section */}
-              <div className="m-db-activity-section">
-                <PaymentAlerts />
               </div>
 
               {/* Stacked Bar Chart Card */}
@@ -813,21 +905,36 @@ export default function ClientPage() {
                     <div className="m-db-chart-subtitle">
                       <span>Income vs expense</span>
                       <span className="m-db-chart-dot" />
-                      <span>6 Months</span>
+                      <span>{fyShortLabel(cashFlowYear)}</span>
                     </div>
                   </div>
-                  <div className="m-db-chart-legend">
-                    <div className="m-db-legend-item">
-                      <div className="m-db-legend-color income" />
-                      <span>Income</span>
-                    </div>
-                    <div className="m-db-legend-item">
-                      <div className="m-db-legend-color expense" />
-                      <span>Expenses</span>
+                  <div className="flex flex-col items-end gap-2">
+                    <FinancialYearPicker
+                      value={cashFlowYear}
+                      onChange={setCashFlowYear}
+                      isOpen={cashFlowPickerOpen}
+                      setIsOpen={setCashFlowPickerOpen}
+                      years={cashFlowYearOptions}
+                    />
+                    <div className="m-db-chart-legend">
+                      <div className="m-db-legend-item">
+                        <div className="m-db-legend-color income" />
+                        <span>Income</span>
+                      </div>
+                      <div className="m-db-legend-item">
+                        <div className="m-db-legend-color expense" />
+                        <span>Expenses</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                {transactions.length === 0 ? (
+                {cashFlowError ? (
+                  <RegionError message={cashFlowError} onRetry={cashFlowRegion.reload} />
+                ) : cashFlowLoading ? (
+                  <div className="flex items-center justify-center text-sm text-[#667085]" style={{ minHeight: '150px' }}>
+                    Loading {fyLongLabel(cashFlowYear)}…
+                  </div>
+                ) : !hasChartData ? (
                   <div className="flex flex-col items-center justify-center text-center p-6 text-[#667085]" style={{ minHeight: '150px' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
                       <line x1="18" y1="20" x2="18" y2="10" />
@@ -838,15 +945,15 @@ export default function ClientPage() {
                     <span className="text-xs text-[#98a2b3] mt-1">Record transactions to view the chart.</span>
                   </div>
                 ) : (
-                  <div className="m-db-chart-bars-wrap">
+                  <div className="m-db-chart-bars-wrap is-fy">
                     {displayMonths.map((month, idx) => {
                       const incVal = displayIncome[idx];
                       const expVal = displayExpense[idx];
                       const total = incVal + expVal;
 
                       const barHeightPct = (total / maxMonthSum) * 100;
-                      const incPct = (incVal / total) * 100;
-                      const expPct = (expVal / total) * 100;
+                      const incPct = total > 0 ? (incVal / total) * 100 : 0;
+                      const expPct = total > 0 ? (expVal / total) * 100 : 0;
 
                       return (
                         <div key={month} className="m-db-chart-bar-container">
@@ -857,8 +964,8 @@ export default function ClientPage() {
                               minHeight: '16px'
                             }}
                           >
-                            <div className="m-db-chart-bar-income" style={{ height: `${incPct}%` }} title={`Income: ${formatCurrencyShort(incVal)}`} />
-                            <div className="m-db-chart-bar-expense" style={{ height: `${expPct}%` }} title={`Expense: ${formatCurrencyShort(expVal)}`} />
+                            <div className="m-db-chart-bar-income" style={{ height: `${incPct}%` }} title={`Income: ${formatExactCurrency(incVal)}`} />
+                            <div className="m-db-chart-bar-expense" style={{ height: `${expPct}%` }} title={`Expense: ${formatExactCurrency(expVal)}`} />
                           </div>
                           <span className="m-db-chart-bar-label">{month}</span>
                         </div>
@@ -926,7 +1033,7 @@ export default function ClientPage() {
                           </div>
                         </div>
                         <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                          {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                         </span>
                       </div>
                     ))
@@ -945,20 +1052,20 @@ export default function ClientPage() {
                   <span className="m-db-net-label">Net Position</span>
                   <span className="m-db-net-date-badge">As of {ordinalDate}</span>
                 </div>
-                <div className="m-db-net-value">{formatCurrencyShort(displayNetPosition)}</div>
+                <div className="m-db-net-value">{money(displayNetPosition)}</div>
                 <div className="m-db-net-divider" />
                 <div className="m-db-net-stats-row" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.1fr 1.2fr', gap: '4px' }}>
                   <div className="m-db-net-stat-col" style={{ paddingLeft: 0 }}>
                     <span className="m-db-net-stat-label">Market Value</span>
-                    <span className="m-db-net-stat-value">{formatCurrencyShort(displayMarketValue)}</span>
+                    <span className="m-db-net-stat-value">{money(displayMarketValue)}</span>
                   </div>
                   <div className="m-db-net-stat-col" style={{ paddingLeft: '8px' }}>
                     <span className="m-db-net-stat-label">Outstanding Loan</span>
-                    <span className="m-db-net-stat-value">{formatCurrencyShort(displayOutstandingLoans)}</span>
+                    <span className="m-db-net-stat-value">{money(displayOutstandingLoans)}</span>
                   </div>
                   <div className="m-db-net-stat-col" style={{ paddingLeft: '8px' }}>
-                    <span className="m-db-net-stat-label">Repayments (MTD)</span>
-                    <span className="m-db-net-stat-value">{formatCurrencyShort(displayRepayments)}</span>
+                    <span className="m-db-net-stat-label">Interest (MTD)</span>
+                    <span className="m-db-net-stat-value">{money(displayInterestThisMonth)}</span>
                   </div>
                 </div>
               </div>
@@ -981,7 +1088,7 @@ export default function ClientPage() {
                   <span>Create Entity</span>
                 </Link>
                 <div className="m-db-actions-row">
-                  <Link href="/dashboard/client/transactions/new" className="m-db-action-box tx">
+                  <Link href={addTransactionHref} className="m-db-action-box tx">
                     <div className="m-db-action-icon-wrap">
                       <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                         <path d="m15 4 5 4-5 4" />
@@ -994,7 +1101,7 @@ export default function ClientPage() {
                   </Link>
 
                   <Link
-                    href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
+                    href={addPropertyHref}
                     className="m-db-action-box property"
                   >
                     <div className="m-db-action-icon-wrap">
@@ -1016,14 +1123,9 @@ export default function ClientPage() {
               {/* Loans & Interest Section */}
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                      Loans & Interest
-                    </h3>
-                    <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                      NEW
-                    </span>
-                  </div>
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+                    Loans & Interest
+                  </h3>
                   <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
                     View all
                   </Link>
@@ -1042,99 +1144,19 @@ export default function ClientPage() {
                           </svg>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Overall Interest (FY 25–26)</span>
-                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
+                          <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Interest ({fyShortLabel(financialYear)})</span>
+                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(totals?.interest)}</span>
                         </div>
                       </div>
                       <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
-                        0.00% avg p.a.
+                        {totals?.lvrPercent != null ? `LVR ${formatClientPercent(totals.lvrPercent)}` : "LVR —"}
                       </span>
                     </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <div className="h-2 w-full rounded-full overflow-hidden flex bg-[#f2f4f7] dark:bg-[var(--surface-2)]">
-                        <div className="bg-[#1b265c] h-full" style={{ width: '60%' }} />
-                        <div className="bg-[#f79009] h-full" style={{ width: '40%' }} />
-                      </div>
-                      <div className="flex justify-between items-center text-[11px] text-[#344054] dark:text-[var(--text-secondary)] font-medium">
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-[2px] bg-[#1b265c] inline-block" />
-                          <span>Fixed 0% · A$ 0</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-[2px] bg-[#f79009] inline-block" />
-                          <span>Variable 0% · A$ 0</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 2-Card Row: Fixed & Variable */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Fixed Interest */}
-                    <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
-                      <div className="flex justify-between items-center">
-                        <div className="w-8 h-8 rounded-[8px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                          </svg>
-                        </div>
-                        <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-1.5 py-0.5 rounded text-[10px] font-semibold">
-                          0.00% p.a.
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Fixed Interest</span>
-                        <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
-                      </div>
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
-                        A$ 0 fixed until Mar 2028
-                      </span>
-                    </div>
-
-                    {/* Variable Interest */}
-                    <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
-                      <div className="flex justify-between items-center">
-                        <div className="w-8 h-8 rounded-[8px] bg-[#fffaf5] text-[#d97706] flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                            <path d="M2 12h5l3 5 4-10 3 5h5" />
-                          </svg>
-                        </div>
-                        <span className="bg-[#fff6ed] dark:bg-[var(--surface-2)] border border-[#ffecd5] dark:border-[var(--border)] text-[#b54708] dark:text-[#f79009] px-1.5 py-0.5 rounded text-[10px] font-semibold">
-                          0.00% p.a.
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Variable Interest</span>
-                        <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
-                      </div>
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
-                        A$ 0 on variable rate
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Available Redraw Card */}
-                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center flex-shrink-0">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                          <rect x="2" y="4" width="20" height="16" rx="2" />
-                          <path d="M7 15h0M2 10h20" />
-                        </svg>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Available Redraw</span>
-                        <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">A$ 0</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded-[8px] border border-[#d0d5dd] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-primary)] text-xs font-semibold hover:bg-[#f8f9fc] dark:hover:bg-[var(--surface-2)] transition-colors"
-                    >
-                      Redraw
-                    </button>
+                    {/* Rates, fixed/variable splits and redraw are not recorded
+                        anywhere, so they are not shown (they were hardcoded). */}
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
+                      Loan interest recorded this financial year · {money(displayOutstandingLoans)} outstanding
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1179,7 +1201,9 @@ export default function ClientPage() {
                           >
                             {item.name}
                           </Link>
-                          <span className="m-db-entity-net">{formatCurrencyShort(item.netPosition)}</span>
+                          <span className={`m-db-entity-net ${toneClass(item.netPosition)}`}>
+                            {money(item.netPosition)}
+                          </span>
                         </div>
 
                         <p className="m-db-entity-subtitle">
@@ -1194,8 +1218,8 @@ export default function ClientPage() {
                         </div>
 
                         <div className="m-db-entity-label-row">
-                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
-                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{money(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{money(item.outstandingLoans)}</strong></span>
                         </div>
                       </div>
                     ))
@@ -1236,7 +1260,7 @@ export default function ClientPage() {
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             {item.isReal ? (
                               <Link
-                                href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`}
+                                href={`/dashboard/client/properties/${item.id}`}
                                 className="m-db-entity-name"
                                 style={{ textDecoration: 'none', color: 'var(--text-primary)', fontSize: '15px', fontWeight: 700 }}
                               >
@@ -1266,14 +1290,17 @@ export default function ClientPage() {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.marketValue)}</strong></span>
-                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{formatCurrencyShort(item.outstandingLoans)}</strong></span>
+                          <span>Value <strong style={{ color: 'var(--text-primary)' }}>{money(item.marketValue)}</strong></span>
+                          <span>Loan <strong style={{ color: 'var(--text-primary)' }}>{money(item.outstandingLoans)}</strong></span>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>Income <strong style={{ color: 'var(--success)' }}>{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
-                          <span style={{ color: 'var(--text-secondary)' }}>Expense <strong style={{ color: 'var(--text-primary)' }}>{formatClientCurrency(-item.expense, { short: true })}</strong></span>
-                          <span style={{ color: 'var(--text-secondary)' }}>Net <strong style={{ color: item.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>{formatClientCurrency(item.net, { short: true, showPlus: true })}</strong></span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '16px', rowGap: '4px', marginTop: '8px', fontSize: '12px', fontWeight: 600 }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Income <strong style={{ color: 'var(--success)' }}>{item.income != null ? formatExactCurrency(item.income, { showPlus: true }) : "—"}</strong></span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Expense <strong style={{ color: 'var(--text-primary)' }}>{item.expense != null ? formatExactCurrency(-item.expense) : "—"}</strong></span>
+                          {item.depreciation > 0 && (
+                            <span style={{ color: 'var(--text-secondary)' }}>Depreciation <strong style={{ color: 'var(--text-primary)' }}>{formatExactCurrency(-item.depreciation)}</strong></span>
+                          )}
+                          <span style={{ color: 'var(--text-secondary)' }}>Net <strong style={{ color: item.net != null ? signedTone(item.net) : 'var(--text-primary)' }}>{item.net != null ? formatExactCurrency(item.net, { showPlus: true }) : "—"}</strong></span>
                         </div>
                       </div>
                     ))
@@ -1300,6 +1327,19 @@ export default function ClientPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Reports live in Insights → Reports on a phone; a shortcut from home. */}
+              <Link
+                href="/dashboard/client/insights?tab=reports"
+                className="m-db-stat-card"
+                style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', textDecoration: 'none' }}
+              >
+                <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Reports</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Profit &amp; Loss, Depreciation, GST and Portfolio Summary, as PDFs</span>
+                </span>
+                <span aria-hidden="true" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-secondary)' }}>→</span>
+              </Link>
             </div>
           )}
         </div>
@@ -1311,7 +1351,7 @@ export default function ClientPage() {
   return (
     <Skeleton
       name="client-portfolio-page"
-      loading={isLoading}
+      loading={figuresLoading}
       fallback={<ClientPortfolioSkeleton isMobile={false} activeTab={activeTab} activeMobileView={activeMobileView} />}
     >
       <div className="desktop-client-dashboard">
@@ -1319,7 +1359,7 @@ export default function ClientPage() {
         {/* Quick Actions Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
-            href="/dashboard/client/transactions/new"
+            href={addTransactionHref}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
               background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
@@ -1337,7 +1377,7 @@ export default function ClientPage() {
           </Link>
 
           <Link
-            href={entities.length > 0 ? `/dashboard/client/properties/new` : "/dashboard/client/properties/new"}
+            href={addPropertyHref}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
               background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
@@ -1377,6 +1417,10 @@ export default function ClientPage() {
           </Link>
         </div>
 
+        {figuresError && (
+          <RegionError message={figuresError} onRetry={retryFigures} />
+        )}
+
         {/* Net Equity Card */}
         <div className="m-db-net-card" style={{ width: '100%' }}>
           <div className="m-db-net-label-row">
@@ -1384,32 +1428,32 @@ export default function ClientPage() {
             <span className="m-db-net-date-badge">As of {ordinalDate}</span>
           </div>
           <div className="m-db-net-value" style={{ fontSize: '42px', fontWeight: 800 }}>
-            {formatCurrencyShort(displayNetPosition)}
+            {money(displayNetPosition)}
           </div>
           <div className="m-db-net-divider" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="m-db-net-stat-col" style={{ borderLeft: 'none', paddingLeft: 0 }}>
               <span className="m-db-net-stat-label">Market Value</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {formatCurrencyShort(displayMarketValue)}
+                {money(displayMarketValue)}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Outstanding Loans</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {formatClientCurrency(displayOutstandingLoans > 0 ? -displayOutstandingLoans : displayOutstandingLoans, { short: true })}
+                {hasSummary ? formatExactCurrency(-displayOutstandingLoans) : "—"}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
-              <span className="m-db-net-stat-label">Repayments (This Month)</span>
+              <span className="m-db-net-stat-label">Interest (This Month)</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {formatCurrencyShort(displayRepayments)}
+                {money(displayInterestThisMonth)}
               </span>
             </div>
             <div className="m-db-net-stat-col" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: '20px' }}>
               <span className="m-db-net-stat-label">Cash Flow (This Month)</span>
               <span className="m-db-net-stat-value" style={{ fontSize: '20px' }}>
-                {formatClientCurrency(displayCashFlow, { short: true, showPlus: true })}
+                {hasSummary ? formatExactCurrency(displayCashFlow, { showPlus: true }) : "—"}
               </span>
             </div>
           </div>
@@ -1424,11 +1468,11 @@ export default function ClientPage() {
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
               </div>
-              <span className="bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[20px] text-xs font-semibold">+12%</span>
+              <TrendBadge change={cashFlowChange} variant="desktop" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Cash Flow (this month)</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{formatCurrencyShort(displayCashFlow)}</span>
+              <span className="text-xl font-bold" style={{ color: hasSummary ? signedTone(displayCashFlow) : 'var(--text-primary)' }}>{money(displayCashFlow)}</span>
             </div>
           </div>
 
@@ -1437,11 +1481,11 @@ export default function ClientPage() {
               <div className="w-9 h-9 rounded-[10px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
                 <span className="text-base font-bold">$</span>
               </div>
-              <span className="bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[20px] text-xs font-semibold">+8.4%</span>
+              <TrendBadge change={incomeChange} variant="desktop" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Income (this month)</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{formatCurrencyShort(displayIncomeThisMonth)}</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayIncomeThisMonth)}</span>
             </div>
           </div>
 
@@ -1452,11 +1496,16 @@ export default function ClientPage() {
                   <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 </svg>
               </div>
-              <span className="bg-[#fef3f2] dark:bg-[var(--surface-2)] text-[#b42318] dark:text-[#f09595] px-2 py-0.5 rounded-[20px] text-xs font-semibold">-3.5%</span>
+              <TrendBadge change={expenseChange} goodWhenUp={false} variant="desktop" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Expenses (this month)</span>
-              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{formatCurrencyShort(displayExpenseThisMonth)}</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayExpenseThisMonth)}</span>
+              {summary && summary.excludedUnreviewedCount > 0 && (
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
+                  Excludes {summary.excludedUnreviewedCount} awaiting review
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1464,16 +1513,11 @@ export default function ClientPage() {
         {/* Section: Last Financial Year */}
         <div className="flex flex-col gap-3.5">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                Last Financial Year
-              </h3>
-              <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                NEW
-              </span>
-            </div>
+            <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+              Last Financial Year
+            </h3>
             <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
-              FY 2025–26 · 1 Jul 2025 – 30 Jun 2026
+              {fyShortLabel(financialYear - 1)} · {fyRangeLabel(financialYear - 1)}
             </span>
           </div>
 
@@ -1488,17 +1532,21 @@ export default function ClientPage() {
                   </svg>
                 </div>
                 <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
-                  FY 25–26
+                  {fyShortLabel(financialYear - 1)}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Income (Last FY)</span>
-                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">A$ 0</span>
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">0 properties in profit</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
+                  {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
+                </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] font-medium">--</span>
-                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">1 Jul 2025 – 30 Jun 2026</span>
+                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#667085] dark:text-[var(--text-secondary)] font-medium hover:underline">
+                  View report
+                </Link>
+                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
               </div>
             </div>
 
@@ -1512,218 +1560,86 @@ export default function ClientPage() {
                   </svg>
                 </div>
                 <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
-                  FY 25–26
+                  {fyShortLabel(financialYear - 1)}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Loss (Last FY)</span>
-                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">A$ 0</span>
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">0 properties at a loss</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
+                  {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
+                </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] font-medium">--</span>
-                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">1 Jul 2025 – 30 Jun 2026</span>
+                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#667085] dark:text-[var(--text-secondary)] font-medium hover:underline">
+                  View report
+                </Link>
+                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Dashboard Grid Sections: Cash Flow & Payment Alerts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {/* Chart card */}
-          <div className="md:col-span-2 xl:col-span-2 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
-            <CashFlowChart
-              months={displayMonths}
-              income={displayIncome}
-              expenses={displayExpense}
-              view={cashFlowView}
-              onViewChange={setCashFlowView}
-            />
-          </div>
-
-          {/* Payment Alerts card */}
-          <div className="col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
-            <PaymentAlerts />
-          </div>
+        {/* Cash Flow. The Payment Alerts card that sat beside it was demo data
+            with no backend (no bills or due dates are recorded), so it is gone
+            until there is something real to show. */}
+        <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
+          <CashFlowChart
+            months={displayMonths}
+            income={displayIncome}
+            expenses={displayExpense}
+            view={cashFlowView}
+            onViewChange={setCashFlowView}
+            expenseCategories={expenseCategories}
+            incomeSources={incomeSources}
+            detailPeriodLabel={fyLongLabel(cashFlowYear)}
+            financialYear={cashFlowYear}
+            financialYearOptions={cashFlowYearOptions}
+            onFinancialYearChange={setCashFlowYear}
+            loading={cashFlowLoading}
+            error={cashFlowError}
+            onRetry={cashFlowRegion.reload}
+          />
         </div>
 
-        {/* Section: Loans & Interest */}
+        {/* Section: Loans & Interest. Only what is recorded: the loan balance
+            (at each property's allocation), LVR and the interest booked to the
+            loan-interest account this year and this month. Rates, fixed vs
+            variable splits, redraw, principal and due dates are not stored
+            anywhere — those cards were hardcoded zeros and are gone. */}
         <div className="flex flex-col gap-3.5">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                Loans & Interest
-              </h3>
-              <span className="bg-[#1b265c] text-white px-2 py-0.5 rounded-[4px] text-[10px] font-bold tracking-wider">
-                NEW
-              </span>
-            </div>
-            <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
-              View loans
+            <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
+              Loans & Interest
+            </h3>
+            <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
+              View report
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left 2 Columns: Overall Interest & 3 Sub-Cards */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              {/* Overall Interest Card */}
-              <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-[10px] bg-[#eff4ff] text-[#3538cd] flex items-center justify-center font-bold text-base">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
-                        <line x1="19" y1="5" x2="5" y2="19" />
-                        <circle cx="6.5" cy="6.5" r="2.5" />
-                        <circle cx="17.5" cy="17.5" r="2.5" />
-                      </svg>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Overall Interest (FY 25–26)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">A$ 0</span>
-                    </div>
-                  </div>
-                  <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
-                    0.00% avg p.a.
-                  </span>
-                </div>
-
-                {/* Progress Bar (Fixed vs Variable) */}
-                <div className="flex flex-col gap-2">
-                  <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-[#f2f4f7] dark:bg-[var(--surface-2)]">
-                    <div className="bg-[#1b265c] h-full" style={{ width: '60%' }} />
-                    <div className="bg-[#f79009] h-full" style={{ width: '40%' }} />
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-[#344054] dark:text-[var(--text-secondary)] font-medium">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-[2px] bg-[#1b265c] inline-block" />
-                      <span>Fixed 0% · A$ 0</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-[2px] bg-[#f79009] inline-block" />
-                      <span>Variable 0% · A$ 0</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3 Sub-Cards Row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Fixed Interest Card */}
-                <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col justify-between gap-3">
-                  <div className="flex justify-between items-center">
-                    <div className="w-8 h-8 rounded-[8px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </div>
-                    <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded text-[11px] font-semibold">
-                      0.00% p.a.
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Fixed Interest</span>
-                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
-                  </div>
-                  <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
-                    A$ 0 fixed
-                  </span>
-                </div>
-
-                {/* Variable Interest Card */}
-                <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col justify-between gap-3">
-                  <div className="flex justify-between items-center">
-                    <div className="w-8 h-8 rounded-[8px] bg-[#fffaf5] text-[#d97706] flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                        <path d="M2 12h5l3 5 4-10 3 5h5" />
-                      </svg>
-                    </div>
-                    <span className="bg-[#fff6ed] dark:bg-[var(--surface-2)] border border-[#ffecd5] dark:border-[var(--border)] text-[#b54708] dark:text-[#f79009] px-2 py-0.5 rounded text-[11px] font-semibold">
-                      0.00% p.a.
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Variable Interest</span>
-                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
-                  </div>
-                  <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
-                    A$ 0 on variable rate
-                  </span>
-                </div>
-
-                {/* Available Redraw Card */}
-                <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col justify-between gap-3">
-                  <div className="flex justify-between items-center">
-                    <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                        <rect x="2" y="4" width="20" height="16" rx="2" />
-                        <path d="M7 15h0M2 10h20" />
-                      </svg>
-                    </div>
-                    <span className="bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[12px] text-[11px] font-semibold">
-                      Ready
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Available Redraw</span>
-                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">A$ 0</span>
-                  </div>
-                  <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
-                    Variable loan
-                  </span>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Outstanding loans</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{money(displayOutstandingLoans)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs">
+                {totals ? `${totals.loanCount} loan${totals.loanCount === 1 ? "" : "s"} recorded` : " "}
+              </span>
             </div>
-
-            {/* Right 1 Column: Repayment Summary Card */}
-            <div className="lg:col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-[8px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                    </svg>
-                  </div>
-                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-sm font-bold">Repayment Summary</h3>
-                </div>
-                <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
-                  View schedule
-                </Link>
-              </div>
-
-              {/* Month repayment / Next Due */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center text-xs font-medium">
-                  <span className="text-[#667085] dark:text-[var(--text-secondary)]">{monthName} repayment</span>
-                  <span className="text-[#101828] dark:text-[var(--text-primary)] font-bold">A$ 0 <span className="font-normal text-[#667085] dark:text-[var(--text-secondary)]">of A$ 0 paid</span></span>
-                </div>
-                <div className="h-1.5 w-full bg-[#f2f4f7] dark:bg-[var(--surface-2)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#f79009] rounded-full w-0" />
-                </div>
-                <div className="text-[#b54708] dark:text-[#f79009] text-xs font-bold mt-1">
-                  Next due -- · in -- days
-                </div>
-              </div>
-
-              {/* This financial year (since 1 Jul) */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)]">
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
-                  This financial year (since 1 Jul)
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] rounded-[10px] p-2.5 flex flex-col gap-0.5 items-center justify-center text-center">
-                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px] font-bold tracking-wider uppercase">PRINCIPAL</span>
-                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xs font-bold">A$ 0</span>
-                  </div>
-                  <div className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] rounded-[10px] p-2.5 flex flex-col gap-0.5 items-center justify-center text-center">
-                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px] font-bold tracking-wider uppercase">INTEREST</span>
-                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xs font-bold">A$ 0</span>
-                  </div>
-                  <div className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] rounded-[10px] p-2.5 flex flex-col gap-0.5 items-center justify-center text-center">
-                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px] font-bold tracking-wider uppercase">TOTAL</span>
-                    <span className="text-[#101828] dark:text-[var(--text-primary)] text-xs font-bold">A$ 0</span>
-                  </div>
-                </div>
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Interest ({fyShortLabel(financialYear)})</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{money(totals?.interest)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs">
+                {hasSummary ? `${money(displayInterestThisMonth)} this month` : " "}
+              </span>
+            </div>
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-2">
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Loan vs value</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">
+                {totals?.lvrPercent != null ? `LVR ${formatClientPercent(totals.lvrPercent)}` : "—"}
+              </span>
+              <div className="h-2 w-full rounded-full overflow-hidden flex bg-[#f2f4f7] dark:bg-[var(--surface-2)]">
+                <div className="h-full" style={{ width: `${loanPercentageOverall}%`, background: 'var(--brand)' }} />
+                <div className="h-full" style={{ width: `${equityPercentageOverall}%`, background: 'var(--accent)' }} />
               </div>
             </div>
           </div>
@@ -1781,7 +1697,7 @@ export default function ClientPage() {
                       </div>
                     </div>
                     <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
-                      {formatClientCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                      {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                     </span>
                   </div>
                 ))
@@ -1817,7 +1733,7 @@ export default function ClientPage() {
                       <div className="flex flex-col min-w-0">
                         {item.isReal ? (
                           <Link
-                            href={`/dashboard/client/entities/${item.entityId}/properties/${item.id}`}
+                            href={`/dashboard/client/properties/${item.id}`}
                             className="text-[#101828] dark:text-[var(--text-primary)] text-[14px] font-bold hover:underline truncate"
                           >
                             {item.name}
@@ -1840,15 +1756,25 @@ export default function ClientPage() {
                         </div>
                       </div>
 
-                      {/* Net value in Figma is "Net +$24.2K" or dynamic */}
-                      <span className="text-[#12b76a] text-[14px] font-bold">Net {formatClientCurrency(item.net, { short: true, showPlus: true, decimals: 1 })}</span>
+                      {/* Net after depreciation, as on the Reports page. Red
+                          when negative — it used to be green whatever the sign. */}
+                      <span
+                        className="text-[14px] font-bold"
+                        style={{ color: item.net != null ? signedTone(item.net) : 'var(--text-primary)' }}
+                        title={`Net result, ${fyShortLabel(financialYear)}`}
+                      >
+                        Net {item.net != null ? formatExactCurrency(item.net, { showPlus: true }) : "—"}
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] dark:text-[var(--text-secondary)] mt-1">
-                      <span>Value <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatCurrencyShort(item.marketValue)}</strong></span>
-                      <span>Loan <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatCurrencyShort(item.outstandingLoans)}</strong></span>
-                      <span>Income <strong className="text-[#12b76a]">{formatClientCurrency(item.income, { short: true, showPlus: true })}</strong></span>
-                      <span>Expenses <strong className="text-[#f04438]">{formatClientCurrency(-item.expense, { short: true })}</strong></span>
+                      <span>Value <strong className="text-[#101828] dark:text-[var(--text-primary)]">{money(item.marketValue)}</strong></span>
+                      <span>Loan <strong className="text-[#101828] dark:text-[var(--text-primary)]">{money(item.outstandingLoans)}</strong></span>
+                      <span>Income <strong className="text-[#12b76a]">{item.income != null ? formatExactCurrency(item.income, { showPlus: true }) : "—"}</strong></span>
+                      <span>Expenses <strong className="text-[#f04438]">{item.expense != null ? formatExactCurrency(-item.expense) : "—"}</strong></span>
+                      {item.depreciation > 0 && (
+                        <span>Depreciation <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatExactCurrency(-item.depreciation)}</strong></span>
+                      )}
                     </div>
                   </div>
                 ))

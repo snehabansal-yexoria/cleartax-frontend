@@ -1,17 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { EmailDocumentsHint } from "@/app/components/documentInbox/ClientEmailedDocuments";
 import { useEffect, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
-import { getSession } from "@/src/lib/session";
-
-interface SessionWithIdToken {
-  getIdToken(): {
-    getJwtToken(): string;
-  };
-}
+import { useClientLogout } from "../ClientLogoutAnimation";
+import { getIdToken } from "@/src/lib/authToken";
+import {
+  fetchCurrentUser,
+  invalidateCurrentUser,
+  type CurrentUser,
+} from "@/app/components/currentUser";
 
 const inlineStyles = {
   wrapper: {
@@ -283,6 +284,16 @@ function ClientProfileSkeleton({ isMobile }: { isMobile: boolean }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="profile-grid-column">
+            <div className="profile-section-container">
+              <div className="profile-section-title" style={{ visibility: "hidden", userSelect: "none" }} aria-hidden="true">&nbsp;</div>
+              <div className="profile-accountant-hint">
+                <div className="skeleton-pill" style={{ width: "100%", height: "92px", borderRadius: "16px" }} />
+              </div>
+            </div>
 
             {/* Personal Details */}
             <div className="profile-section-container">
@@ -302,60 +313,6 @@ function ClientProfileSkeleton({ isMobile }: { isMobile: boolean }) {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="profile-grid-column">
-            {/* Bank Connections */}
-            <div className="profile-section-container">
-              <div className="skeleton-line" style={{ width: "120px", height: "12px", margin: "8px 0 8px 4px" }} />
-              <div className="profile-details-card">
-                <div className="profile-detail-row">
-                  <div className="profile-bank-info">
-                    <div className="skeleton-circle" style={{ width: "40px", height: "40px" }} />
-                    <div className="profile-bank-details" style={{ gap: "4px" }}>
-                      <div className="skeleton-line" style={{ width: "80px", height: "14px", marginBottom: "2px" }} />
-                      <div className="skeleton-line" style={{ width: "120px", height: "12px" }} />
-                    </div>
-                  </div>
-                  <div className="profile-chevron-right">
-                    <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
-                  </div>
-                </div>
-
-                <div className="profile-detail-row">
-                  <div className="profile-bank-info">
-                    <div className="skeleton-circle" style={{ width: "40px", height: "40px" }} />
-                    <div className="profile-bank-details" style={{ gap: "4px" }}>
-                      <div className="skeleton-line" style={{ width: "140px", height: "14px", marginBottom: "2px" }} />
-                      <div className="skeleton-line" style={{ width: "120px", height: "12px" }} />
-                    </div>
-                  </div>
-                  <div className="profile-chevron-right">
-                    <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Settings */}
-            <div className="profile-section-container">
-              <div className="skeleton-line" style={{ width: "80px", height: "12px", margin: "8px 0 8px 4px" }} />
-              <div className="profile-details-card">
-                <div className="profile-settings-row">
-                  <div className="skeleton-line" style={{ width: "100px", height: "14px" }} />
-                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
-                </div>
-                <div className="profile-settings-row">
-                  <div className="skeleton-line" style={{ width: "120px", height: "14px" }} />
-                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
-                </div>
-                <div className="profile-settings-row">
-                  <div className="skeleton-line" style={{ width: "160px", height: "14px" }} />
-                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
-                </div>
-              </div>
-            </div>
 
             {/* Sign Out */}
             <div className="skeleton-pill" style={{ width: "100%", height: "48px", marginTop: "8px", borderRadius: "12px" }} />
@@ -366,13 +323,185 @@ function ClientProfileSkeleton({ isMobile }: { isMobile: boolean }) {
   );
 }
 
+function initialsOf(nameString: string) {
+  const trimmed = nameString.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return trimmed.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Edit name and phone through the existing PATCH /api/users/me (Cognito + DB),
+ * the same call the accountant's account page makes. The phone must carry its
+ * country code; the route rejects anything else with a message we show as is.
+ */
+function EditProfileModal({
+  initialName,
+  initialPhone,
+  onClose,
+  onSaved,
+}: {
+  initialName: string;
+  initialPhone: string;
+  onClose: () => void;
+  onSaved: (next: { fullName: string; phoneNumber: string }) => void;
+}) {
+  const [fullName, setFullName] = useState(initialName);
+  const [phoneNumber, setPhoneNumber] = useState(initialPhone);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = fullName.trim();
+    const phone = phoneNumber.trim();
+    if (!name) {
+      setError("Enter your full name.");
+      return;
+    }
+    if (phone && !phone.startsWith("+")) {
+      setError("Include the country code, e.g. +61 491 570 156.");
+      return;
+    }
+    setIsSaving(true);
+    setError("");
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fullName: name, phoneNumber: phone }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Couldn't save your details. Please try again.");
+        return;
+      }
+      onSaved({ fullName: name, phoneNumber: phone });
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const fieldStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    height: "44px",
+    padding: "0 14px",
+    borderRadius: "10px",
+    border: "1px solid var(--border)",
+    background: "var(--surface-2)",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    outline: "none",
+  };
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "13px",
+    fontWeight: 600,
+    color: "var(--text-secondary)",
+    marginBottom: "6px",
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-profile-title"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(16, 24, 40, 0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+      }}
+    >
+      <form
+        onSubmit={handleSave}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          background: "var(--surface-1)",
+          border: "1px solid var(--border)",
+          borderRadius: "16px",
+          padding: "24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.18)",
+        }}
+      >
+        <h2 id="edit-profile-title" style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>
+          Edit profile
+        </h2>
+        <div>
+          <label htmlFor="edit-profile-name" style={labelStyle}>Full name</label>
+          <input
+            id="edit-profile-name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            autoComplete="name"
+            style={fieldStyle}
+          />
+        </div>
+        <div>
+          <label htmlFor="edit-profile-phone" style={labelStyle}>Phone</label>
+          <input
+            id="edit-profile-phone"
+            type="tel"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="+61 491 570 156"
+            autoComplete="tel"
+            style={fieldStyle}
+          />
+        </div>
+        {error && (
+          <div role="alert" style={{ color: "var(--danger)", fontSize: "13px", fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ height: "40px", padding: "0 16px", borderRadius: "10px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-primary)", fontWeight: 600, cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            style={{ height: "40px", padding: "0 18px", borderRadius: "10px", border: "none", background: "var(--brand)", color: "#ffffff", fontWeight: 700, cursor: isSaving ? "not-allowed" : "pointer", opacity: isSaving ? 0.7 : 1 }}
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function ClientProfilePage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<{ fullName?: string; email?: string; phoneNumber?: string } | null>(null);
+  const { triggerLogout, isLoggingOut } = useClientLogout();
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [emailSummariesEnabled, setEmailSummariesEnabled] = useState(true);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Responsive design listener
@@ -390,20 +519,16 @@ export default function ClientProfilePage() {
 
     async function load() {
       try {
-        const session = (await getSession()) as SessionWithIdToken | null;
-        if (!session) {
+        let token: string;
+        try {
+          token = await getIdToken();
+        } catch {
           router.replace("/login/user");
           return;
         }
-        const token = session.getIdToken().getJwtToken();
-
-        const userRes = await fetch("/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (userRes.ok) {
-          const data = await userRes.json();
-          if (!cancelled) setCurrentUser(data);
-        }
+        // The layout's request, shared — not a second /api/users/me.
+        const me = await fetchCurrentUser(token);
+        if (!cancelled) setCurrentUser(me);
       } catch (err) {
         console.error("Failed to fetch current user in profile:", err);
       } finally {
@@ -418,27 +543,49 @@ export default function ClientProfilePage() {
   }, [router]);
 
   function handleLogout() {
-    logout();
-    router.replace("/login");
+    triggerLogout();
   }
 
-  // Derived user values with Figma's fallbacks
-  const fullName = currentUser?.fullName || "Sarah Johnson";
-  const email = currentUser?.email || "sarah.johnson@email.com";
-  const phoneNumber = currentUser?.phoneNumber || "+61 400 123 456";
+  // Real values only. The demo fallbacks ("Sarah Johnson", a sample email,
+  // "+61 400 123 456") made a missing phone look like a real one.
+  const fullName = currentUser?.fullName || "";
+  const email = currentUser?.email || "";
+  const phoneNumber = currentUser?.phoneNumber || "";
+  const initials = initialsOf(fullName || email.split("@")[0] || "");
 
-  function getInitials(nameString: string) {
-    if (!nameString) return "SJ";
-    const parts = nameString.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    }
-    return nameString.slice(0, 2).toUpperCase();
-  }
+  const accountantName = currentUser?.assignedAccountantName || "";
+  const accountantEmail = currentUser?.assignedAccountantEmail || "";
+  const accountantInitials = initialsOf(accountantName || accountantEmail.split("@")[0] || "");
+  const accountantLabel = accountantName || accountantEmail || "Not assigned yet";
+  const accountantSubtitle = accountantName && accountantEmail
+    ? accountantEmail
+    : accountantEmail || accountantName
+      ? "Your accountant"
+      : "Your accountant will appear here once one is assigned.";
+  const accountantHref = accountantEmail ? `mailto:${accountantEmail}` : null;
 
-  const initials = getInitials(fullName);
+  const editModal = isEditing ? (
+    <EditProfileModal
+      initialName={fullName}
+      initialPhone={phoneNumber}
+      onClose={() => setIsEditing(false)}
+      onSaved={(next) => {
+        invalidateCurrentUser();
+        setCurrentUser((prev) => (prev ? { ...prev, ...next } : prev));
+        setIsEditing(false);
+      }}
+    />
+  ) : null;
 
-
+  const phoneValue = phoneNumber || (
+    <button
+      type="button"
+      onClick={() => setIsEditing(true)}
+      style={{ background: "none", border: "none", padding: 0, color: "var(--accent)", fontWeight: 600, cursor: "pointer", font: "inherit" }}
+    >
+      Add phone
+    </button>
+  );
 
   if (isMobile) {
     return (
@@ -471,69 +618,78 @@ export default function ClientProfilePage() {
             <div className="mobile-profile-hero" style={inlineStyles.hero}>
               <div className="mobile-profile-hero-avatar" style={inlineStyles.heroAvatar}>{initials}</div>
               <h2 className="mobile-profile-hero-name" style={inlineStyles.heroName}>{fullName}</h2>
-              <p className="mobile-profile-hero-email" style={inlineStyles.heroEmail}>{email}</p>
+              <div className="mobile-profile-hero-email" style={inlineStyles.heroEmail}>{email}</div>
             </div>
 
             {/* Your Accountant */}
             <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Your Accountant</h3>
-            <div className="mobile-profile-accountant-card" style={inlineStyles.accountantCard}>
-              <div className="mobile-profile-accountant-avatar" style={inlineStyles.accountantAvatar}>MC</div>
-              <div className="mobile-profile-accountant-info" style={inlineStyles.accountantInfo}>
-                <h4 className="mobile-profile-accountant-name" style={inlineStyles.accountantName}>Michael Chen</h4>
-                <p className="mobile-profile-accountant-subtitle" style={inlineStyles.accountantSubtitle}>Chen & Associates CPA</p>
+            {accountantHref ? (
+              <a href={accountantHref} className="mobile-profile-accountant-card" style={{ ...inlineStyles.accountantCard, textDecoration: "none" }}>
+                <div className="mobile-profile-accountant-avatar" style={inlineStyles.accountantAvatar}>{accountantInitials}</div>
+                <div className="mobile-profile-accountant-info" style={inlineStyles.accountantInfo}>
+                  <h4 className="mobile-profile-accountant-name" style={inlineStyles.accountantName}>{accountantLabel}</h4>
+                  <div className="mobile-profile-accountant-subtitle" style={inlineStyles.accountantSubtitle}>{accountantSubtitle}</div>
+                </div>
+              </a>
+            ) : (
+              <div className="mobile-profile-accountant-card" style={inlineStyles.accountantCard}>
+                <div className="mobile-profile-accountant-avatar" style={inlineStyles.accountantAvatar}>{accountantInitials || "—"}</div>
+                <div className="mobile-profile-accountant-info" style={inlineStyles.accountantInfo}>
+                  <h4 className="mobile-profile-accountant-name" style={inlineStyles.accountantName}>{accountantLabel}</h4>
+                  <div className="mobile-profile-accountant-subtitle" style={inlineStyles.accountantSubtitle}>{accountantSubtitle}</div>
+                </div>
               </div>
-            </div>
+            )}
+
+            <EmailDocumentsHint />
 
             {/* Personal Details */}
-            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Personal Details</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Personal Details</h3>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                style={{ background: "none", border: "none", padding: 0, color: "var(--accent)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
+              >
+                Edit
+              </button>
+            </div>
             <div className="mobile-profile-details-card" style={inlineStyles.detailsCard}>
               <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
                 <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Full Name</span>
-                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{fullName}</span>
+                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{fullName || "—"}</span>
               </div>
               <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
                 <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Email</span>
-                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{email}</span>
+                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{email || "—"}</span>
               </div>
               <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(true)}>
                 <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Phone</span>
-                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{phoneNumber}</span>
+                <span className="mobile-profile-detail-value" style={inlineStyles.detailValue}>{phoneValue}</span>
               </div>
             </div>
 
-            {/* Bank Connections */}
-            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Bank Connections</h3>
-            <div className="mobile-profile-details-card" style={inlineStyles.detailsCard}>
-              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(false)}>
-                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Westpac</span>
-                <span className="mobile-profile-detail-value-connected" style={inlineStyles.detailValueConnected}>Connected ...3421</span>
-              </div>
-              <div className="mobile-profile-detail-row" style={inlineStyles.detailRow(true)}>
-                <span className="mobile-profile-detail-label" style={inlineStyles.detailLabel}>Commonwealth Bank</span>
-                <span className="mobile-profile-detail-value-connected" style={inlineStyles.detailValueConnected}>Connected ...7890</span>
-              </div>
-            </div>
-
-            {/* Settings */}
-            <h3 className="mobile-profile-section-title" style={inlineStyles.sectionTitle}>Settings</h3>
-            <div className="mobile-profile-settings-card" style={inlineStyles.settingsCard}>
-              <span className="mobile-profile-settings-label" style={inlineStyles.settingsLabel}>Notifications</span>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={notificationsEnabled}
-                  onChange={(e) => setNotificationsEnabled(e.target.checked)}
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
+            {/* Bank connections and the notification / email-summary / 2FA
+                switches were demo UI with no backend behind them, so they are
+                hidden until there is one. */}
 
             {/* Sign Out */}
-            <button type="button" className="mobile-profile-signout-btn" style={inlineStyles.signOutBtn} onClick={handleLogout}>
-              Sign Out
+            <button
+              type="button"
+              className="mobile-profile-signout-btn"
+              style={{
+                ...inlineStyles.signOutBtn,
+                opacity: isLoggingOut ? 0.7 : 1,
+                cursor: isLoggingOut ? "wait" : "pointer",
+              }}
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? "Signing Out..." : "Sign Out"}
             </button>
           </div>
         </div>
+        {editModal}
       </Skeleton>
     );
   }
@@ -565,10 +721,10 @@ export default function ClientProfilePage() {
               <div className="profile-hero-avatar">{initials}</div>
               <div className="profile-hero-info">
                 <h2 className="profile-hero-name">{fullName}</h2>
-                <p className="profile-hero-email">{email}</p>
+                <div className="profile-hero-email">{email}</div>
               </div>
             </div>
-            <button className="profile-edit-btn">
+            <button type="button" className="profile-edit-btn" onClick={() => setIsEditing(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -583,17 +739,37 @@ export default function ClientProfilePage() {
               {/* Accountant */}
               <div className="profile-section-container">
                 <div className="profile-section-title">Your Accountant</div>
-                <div className="profile-accountant-card">
-                  <div className="profile-accountant-avatar">MC</div>
-                  <div className="profile-accountant-info">
-                    <h4 className="profile-accountant-name">Michael Chen</h4>
-                    <p className="profile-accountant-subtitle">Chen & Associates CPA</p>
+                {accountantHref ? (
+                  <a href={accountantHref} className="profile-accountant-card" style={{ textDecoration: "none" }} title={`Email ${accountantLabel}`}>
+                    <div className="profile-accountant-avatar">{accountantInitials}</div>
+                    <div className="profile-accountant-info">
+                      <h4 className="profile-accountant-name">{accountantLabel}</h4>
+                      <div className="profile-accountant-subtitle">{accountantSubtitle}</div>
+                    </div>
+                    <div className="profile-chevron-right">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </div>
+                  </a>
+                ) : (
+                  <div className="profile-accountant-card">
+                    <div className="profile-accountant-avatar">{accountantInitials || "—"}</div>
+                    <div className="profile-accountant-info">
+                      <h4 className="profile-accountant-name">{accountantLabel}</h4>
+                      <div className="profile-accountant-subtitle">{accountantSubtitle}</div>
+                    </div>
                   </div>
-                  <div className="profile-chevron-right">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="profile-grid-column">
+              <div className="profile-section-container">
+                <div className="profile-section-title" style={{ visibility: "hidden", userSelect: "none" }} aria-hidden="true">&nbsp;</div>
+                <div className="profile-accountant-hint">
+                  <EmailDocumentsHint />
                 </div>
               </div>
 
@@ -603,126 +779,41 @@ export default function ClientProfilePage() {
                 <div className="profile-details-card">
                   <div className="profile-detail-row">
                     <span className="profile-detail-label">Full name</span>
-                    <span className="profile-detail-value">{fullName}</span>
+                    <span className="profile-detail-value">{fullName || "—"}</span>
                   </div>
                   <div className="profile-detail-row">
                     <span className="profile-detail-label">Email</span>
-                    <span className="profile-detail-value">{email}</span>
+                    <span className="profile-detail-value">{email || "—"}</span>
                   </div>
                   <div className="profile-detail-row">
                     <span className="profile-detail-label">Phone</span>
-                    <span className="profile-detail-value">{phoneNumber}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="profile-grid-column">
-              {/* Bank Connections */}
-              <div className="profile-section-container">
-                <div className="profile-section-title">Bank Connections</div>
-                <div className="profile-details-card">
-                  <div className="profile-detail-row profile-clickable-row">
-                    <div className="profile-bank-info">
-                      <div className="profile-bank-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                        </svg>
-                      </div>
-                      <div className="profile-bank-details">
-                        <span className="profile-bank-name">Westpac</span>
-                        <span className="profile-bank-status">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="profile-check-icon">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Connected ...3421
-                        </span>
-                      </div>
-                    </div>
-                    <div className="profile-chevron-right">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <div className="profile-detail-row profile-clickable-row">
-                    <div className="profile-bank-info">
-                      <div className="profile-bank-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                        </svg>
-                      </div>
-                      <div className="profile-bank-details">
-                        <span className="profile-bank-name">Commonwealth Bank</span>
-                        <span className="profile-bank-status">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="profile-check-icon">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Connected ...7890
-                        </span>
-                      </div>
-                    </div>
-                    <div className="profile-chevron-right">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </div>
+                    <span className="profile-detail-value">{phoneValue}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Settings */}
-              <div className="profile-section-container">
-                <div className="profile-section-title">Settings</div>
-                <div className="profile-details-card">
-                  <div className="profile-settings-row">
-                    <span className="profile-settings-label">Notifications</span>
-                    <label className="desktop-switch">
-                      <input
-                        type="checkbox"
-                        checked={notificationsEnabled}
-                        onChange={(e) => setNotificationsEnabled(e.target.checked)}
-                      />
-                      <span className="desktop-slider"></span>
-                    </label>
-                  </div>
-                  <div className="profile-settings-row">
-                    <span className="profile-settings-label">Email summaries</span>
-                    <label className="desktop-switch">
-                      <input
-                        type="checkbox"
-                        checked={emailSummariesEnabled}
-                        onChange={(e) => setEmailSummariesEnabled(e.target.checked)}
-                      />
-                      <span className="desktop-slider"></span>
-                    </label>
-                  </div>
-                  <div className="profile-settings-row">
-                    <span className="profile-settings-label">Two-factor authentication</span>
-                    <label className="desktop-switch">
-                      <input
-                        type="checkbox"
-                        checked={twoFactorEnabled}
-                        onChange={(e) => setTwoFactorEnabled(e.target.checked)}
-                      />
-                      <span className="desktop-slider"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
+              {/* Bank connections and the notification / email-summary / 2FA
+                  switches were demo UI with no backend behind them, so they
+                  are hidden until there is one. */}
 
               {/* Sign out */}
-              <button type="button" className="profile-signout-btn" onClick={handleLogout}>
-                Sign out
+              <button
+                type="button"
+                className="profile-signout-btn"
+                style={{
+                  opacity: isLoggingOut ? 0.7 : 1,
+                  cursor: isLoggingOut ? "wait" : "pointer",
+                }}
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Signing out..." : "Sign out"}
               </button>
             </div>
           </div>
         </div>
       </div>
+      {editModal}
     </Skeleton>
   );
 }

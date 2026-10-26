@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getIdToken } from "@/src/lib/authToken";
+import { GST_FULL_YEAR } from "./useGstSummary";
 import type {
   CoreGstScopeLevel,
   CorePersonalSummary,
@@ -68,22 +69,51 @@ export type UsePersonalSummaryResult = {
 export function usePersonalSummary(
   level: CoreGstScopeLevel,
   id: string,
-  options: { enabled?: boolean } = {},
+  options: {
+    enabled?: boolean;
+    /**
+     * Narrow to a BAS period (the GST card's). Omitted = all time, which is
+     * what the accountant panels show. quarter 0 (GST_FULL_YEAR) is the whole
+     * financial year.
+     */
+    period?: { financialYear: number; quarter: number };
+  } = {},
 ): UsePersonalSummaryResult {
   const enabled = options.enabled ?? true;
+  // Primitives, not the object, so a fresh literal each render doesn't refetch.
+  const periodYear = options.period?.financialYear ?? null;
+  const periodQuarter = options.period?.quarter ?? null;
   const [summary, setSummary] = useState<CorePersonalSummary | null>(null);
   // Loading from the first frame whenever a fetch will happen (see useGstSummary).
   const [isLoading, setIsLoading] = useState(() => enabled && !!id);
   const [error, setError] = useState<string | null>(null);
+  // A period change aborts the previous request (see useGstSummary).
+  const inFlight = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
-    if (!enabled || !id) return;
+    inFlight.current?.abort();
+    if (!enabled || !id) {
+      inFlight.current = null;
+      setIsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    inFlight.current = controller;
     setIsLoading(true);
     setError(null);
     try {
       const token = await bearerToken();
-      const res = await fetch(`${scopePath(level, id)}/personal-summary`, {
+      const params = new URLSearchParams();
+      if (periodYear !== null) {
+        params.set("financial_year", String(periodYear));
+        if (periodQuarter !== null && periodQuarter !== GST_FULL_YEAR) {
+          params.set("quarter", String(periodQuarter));
+        }
+      }
+      const qs = params.toString();
+      const res = await fetch(`${scopePath(level, id)}/personal-summary${qs ? `?${qs}` : ""}`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -92,8 +122,11 @@ export function usePersonalSummary(
             `Could not load personal transactions (${res.status}).`,
         );
       }
-      setSummary((await res.json()) as CorePersonalSummary);
+      const data = (await res.json()) as CorePersonalSummary;
+      if (controller.signal.aborted) return;
+      setSummary(data);
     } catch (err) {
+      if (controller.signal.aborted) return;
       // Cleared rather than left stale — a wrong total shown confidently is
       // worse than none, the same rule useGstSummary follows.
       setSummary(null);
@@ -101,12 +134,13 @@ export function usePersonalSummary(
         err instanceof Error ? err.message : "Could not load personal transactions.",
       );
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
-  }, [enabled, level, id]);
+  }, [enabled, level, id, periodYear, periodQuarter]);
 
   useEffect(() => {
     void load();
+    return () => inFlight.current?.abort();
   }, [load]);
 
   return { summary, isLoading, error, reload: load };
@@ -149,9 +183,17 @@ export function useAssetTransactions(
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(() => enabled && !!id);
   const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
-    if (!enabled || !id) return;
+    inFlight.current?.abort();
+    if (!enabled || !id) {
+      inFlight.current = null;
+      setIsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    inFlight.current = controller;
     setIsLoading(true);
     setError(null);
     try {
@@ -177,6 +219,7 @@ export function useAssetTransactions(
       );
       const res = await fetch(`/api/transactions?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -188,21 +231,24 @@ export function useAssetTransactions(
         items?: CoreTransactionListItem[];
         total?: number;
       };
+      if (controller.signal.aborted) return;
       setRows(data.items ?? []);
       setTotal(data.total ?? data.items?.length ?? 0);
     } catch (err) {
+      if (controller.signal.aborted) return;
       setRows([]);
       setTotal(0);
       setError(
         err instanceof Error ? err.message : "Could not load asset transactions.",
       );
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }, [enabled, level, id, limit]);
 
   useEffect(() => {
     void load();
+    return () => inFlight.current?.abort();
   }, [load]);
 
   return { rows, total, isLoading, error, reload: load };
