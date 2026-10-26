@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/src/lib/session";
-import type { CoreEntity, CoreGstRegistrationStatus, EntityType } from "@/src/lib/coreApi";
+import type { CoreEntity, EntityType } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -109,13 +109,6 @@ export default function AddEntityWizard({
     return null;
   });
   const [entityName, setEntityName] = useState(initialEntity?.name ?? "");
-  // GST registration (accountant only). Decides how the client's GST report
-  // reads: a BAS for a registered entity, the GST inside its costs otherwise.
-  const [gstStatus, setGstStatus] = useState<CoreGstRegistrationStatus>(
-    initialEntity?.gstStatus ?? "unknown",
-  );
-  const [gstBasis, setGstBasis] = useState<string>(initialEntity?.gstBasis ?? "");
-  const [basFrequency, setBasFrequency] = useState<string>(initialEntity?.basFrequency ?? "");
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>(
     getInitialBeneficiaries(initialEntity),
   );
@@ -357,12 +350,12 @@ export default function AddEntityWizard({
         body.trust_type = trustType;
       }
 
-      // Staff only: the API refuses GST fields from a client.
-      if (role === "accountant") {
-        const registered = gstStatus === "registered";
-        body.gst_status = gstStatus;
-        body.gst_basis = registered ? gstBasis : "";
-        body.bas_frequency = registered ? basFrequency : "";
+      // Staff only: preserve existing GST fields on edit if present
+      if (role === "accountant" && initialEntity?.gstStatus) {
+        const registered = initialEntity.gstStatus === "registered";
+        body.gst_status = initialEntity.gstStatus;
+        body.gst_basis = registered ? (initialEntity.gstBasis ?? "") : "";
+        body.bas_frequency = registered ? (initialEntity.basFrequency ?? "") : "";
       }
 
       const primaryBeneficiary = initialEntity?.beneficiaries[0];
@@ -675,51 +668,6 @@ export default function AddEntityWizard({
               Selected Type: <strong>{selectedTypeLabel}</strong>
             </div>
 
-            <fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
-              <legend className="mb-2 text-sm font-semibold text-[#101828]">GST registration</legend>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <label className="entity-wizard-label">
-                  <span>Registered for GST</span>
-                  <select
-                    value={gstStatus}
-                    onChange={(event) => setGstStatus(event.target.value as CoreGstRegistrationStatus)}
-                  >
-                    <option value="unknown">Not recorded</option>
-                    <option value="registered">Registered</option>
-                    <option value="not_registered">Not registered</option>
-                  </select>
-                </label>
-                <label className="entity-wizard-label">
-                  <span>GST basis</span>
-                  <select
-                    value={gstStatus === "registered" ? gstBasis : ""}
-                    disabled={gstStatus !== "registered"}
-                    onChange={(event) => setGstBasis(event.target.value)}
-                  >
-                    <option value="">Not recorded</option>
-                    <option value="cash">Cash</option>
-                    <option value="accruals">Accruals</option>
-                  </select>
-                </label>
-                <label className="entity-wizard-label">
-                  <span>BAS lodged</span>
-                  <select
-                    value={gstStatus === "registered" ? basFrequency : ""}
-                    disabled={gstStatus !== "registered"}
-                    onChange={(event) => setBasFrequency(event.target.value)}
-                  >
-                    <option value="">Not recorded</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="annually">Annually</option>
-                  </select>
-                </label>
-              </div>
-              <span className="text-xs text-[#667085]">
-                Sets the client&apos;s GST report: a registered entity sees its BAS quarter by quarter; one that
-                isn&apos;t sees the GST inside its costs, which it can&apos;t claim. Not recorded keeps the BAS view.
-              </span>
-            </fieldset>
 
             {errorMessage && (
               <div className="entity-wizard-error flex items-center gap-1.5 mt-2 animate-fadeIn">

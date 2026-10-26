@@ -7,7 +7,7 @@ import { Skeleton } from "boneyard-js/react";
 import { PropertyDetailSkeleton } from "@/app/components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import { getIdToken } from "@/src/lib/authToken";
-import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { formatClientCurrency, formatExactCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreProperty, CoreEntity, CorePropertyTransactionRow } from "@/src/lib/coreApi";
 import PropertyTrendChart, { type PropertyTrendRow } from "@/app/components/clients/PropertyTrendChart";
 import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard";
@@ -112,9 +112,9 @@ function formatDocDate(value: string) {
   });
 }
 
-// Currency formatter using the standard formatClientCurrency but ensuring nice styling
+// Currency formatter using the standard formatExactCurrency for exact 2-decimal display
 function formatCurrency(val: number, showPlus = false) {
-  return formatClientCurrency(val, { decimals: 0, showPlus });
+  return formatExactCurrency(val, { showPlus });
 }
 
 // A figure that may not have loaded: "—" rather than a confident A$ 0.

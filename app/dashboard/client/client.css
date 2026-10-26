@@ -2988,6 +2988,45 @@ html.dark .client-tx-entity-tab-pill:hover:not(.is-active) {
   margin: 0 !important;
 }
 
+/* Centered Choose File button & badges for client dropzone */
+.client-tx-container .transaction-document-drop__choose-btn,
+.client-tx-dropzone-wrapper .transaction-document-drop__choose-btn {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 18px !important;
+  align-self: center !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 9px 22px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.client-tx-container .transaction-document-drop:hover .transaction-document-drop__choose-btn,
+.client-tx-dropzone-wrapper .transaction-document-drop:hover .transaction-document-drop__choose-btn {
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08) !important;
+}
+
+.client-tx-container .transaction-document-drop__progress-badge,
+.client-tx-container .transaction-document-drop__status-badge,
+.client-tx-dropzone-wrapper .transaction-document-drop__progress-badge,
+.client-tx-dropzone-wrapper .transaction-document-drop__status-badge {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 14px !important;
+  align-self: center !important;
+}
+
+.client-tx-container .transaction-document-drop__text-container,
+.client-tx-dropzone-wrapper .transaction-document-drop__text-container {
+  flex: 0 0 auto !important;
+}
+
 /* Split Toggle Switch container */
 .client-tx-split-toggle-container {
   display: flex !important;
@@ -5668,12 +5707,33 @@ input:checked + .slider:before {
 .profile-accountant-card {
   background: #f4f6fa;
   border-radius: 16px;
-  padding: 16px 20px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   gap: 16px;
   cursor: pointer;
   transition: background 0.2s ease;
+  min-height: 92px;
+  height: 92px;
+  box-sizing: border-box;
+}
+.profile-accountant-hint {
+  display: flex;
+  height: 92px;
+  min-height: 92px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.profile-accountant-hint .inbox-hint {
+  margin: 0 !important;
+  width: 100% !important;
+  min-height: 92px !important;
+  height: 92px !important;
+  border-radius: 16px !important;
+  padding: 14px 20px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
 }
 .profile-accountant-card:hover {
   background: #eaedf5;
@@ -7164,9 +7224,243 @@ html.dark .client-pager-btn:hover:not(:disabled) {
   gap: 10px;
 }
 .insights-filters-period {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  user-select: none;
+}
+.insights-filters-period-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Report Scope Picker (Theme-based Entity & Property dropdowns)
+   ========================================================================== */
+.report-scope-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scope-picker-dropdown {
+  position: relative;
+}
+
+.scope-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  max-width: 240px;
+  min-width: 150px;
+}
+
+.scope-picker-trigger:hover:not(:disabled) {
+  border-color: rgba(244, 161, 23, 0.4);
+  background: var(--surface-2);
+}
+
+.scope-picker-trigger.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.18);
+  background: var(--surface-2);
+}
+
+.scope-picker-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scope-picker-trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-picker-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--accent);
+  transition: color 0.2s ease;
+}
+
+.scope-picker-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.scope-picker-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
+}
+
+.scope-picker-trigger.is-open .scope-picker-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.scope-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 250px;
+  max-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.35), 0 6px 16px -2px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  backdrop-filter: blur(16px);
+  scrollbar-width: thin;
+  animation: scopePickerMenuIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scopePickerMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.scope-picker-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.scope-picker-item:hover {
+  background: var(--surface-2);
+}
+
+.scope-picker-item.is-selected {
+  background: var(--surface-2);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.scope-picker-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.scope-picker-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-picker-item-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-picker-group-header {
+  padding: 8px 10px 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.scope-picker-group-header:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+.scope-picker-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.scope-picker-inactive-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 .insights-custom-range {
   display: flex;

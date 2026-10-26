@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { ClientEntitiesSkeleton } from "@/app/components/PortalSkeletons";
 import { logout } from "@/src/lib/logout";
+import { useClientLogout } from "../ClientLogoutAnimation";
 import { getIdToken } from "@/src/lib/authToken";
 import {
   fetchCurrentUser,
@@ -283,6 +284,16 @@ function ClientProfileSkeleton({ isMobile }: { isMobile: boolean }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="profile-grid-column">
+            <div className="profile-section-container">
+              <div className="profile-section-title" style={{ visibility: "hidden", userSelect: "none" }} aria-hidden="true">&nbsp;</div>
+              <div className="profile-accountant-hint">
+                <div className="skeleton-pill" style={{ width: "100%", height: "92px", borderRadius: "16px" }} />
+              </div>
+            </div>
 
             {/* Personal Details */}
             <div className="profile-section-container">
@@ -299,60 +310,6 @@ function ClientProfileSkeleton({ isMobile }: { isMobile: boolean }) {
                 <div className="profile-detail-row">
                   <div className="skeleton-line" style={{ width: "60px", height: "14px" }} />
                   <div className="skeleton-line" style={{ width: "110px", height: "14px" }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="profile-grid-column">
-            {/* Bank Connections */}
-            <div className="profile-section-container">
-              <div className="skeleton-line" style={{ width: "120px", height: "12px", margin: "8px 0 8px 4px" }} />
-              <div className="profile-details-card">
-                <div className="profile-detail-row">
-                  <div className="profile-bank-info">
-                    <div className="skeleton-circle" style={{ width: "40px", height: "40px" }} />
-                    <div className="profile-bank-details" style={{ gap: "4px" }}>
-                      <div className="skeleton-line" style={{ width: "80px", height: "14px", marginBottom: "2px" }} />
-                      <div className="skeleton-line" style={{ width: "120px", height: "12px" }} />
-                    </div>
-                  </div>
-                  <div className="profile-chevron-right">
-                    <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
-                  </div>
-                </div>
-
-                <div className="profile-detail-row">
-                  <div className="profile-bank-info">
-                    <div className="skeleton-circle" style={{ width: "40px", height: "40px" }} />
-                    <div className="profile-bank-details" style={{ gap: "4px" }}>
-                      <div className="skeleton-line" style={{ width: "140px", height: "14px", marginBottom: "2px" }} />
-                      <div className="skeleton-line" style={{ width: "120px", height: "12px" }} />
-                    </div>
-                  </div>
-                  <div className="profile-chevron-right">
-                    <div className="skeleton-pill" style={{ width: "16px", height: "16px" }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Settings */}
-            <div className="profile-section-container">
-              <div className="skeleton-line" style={{ width: "80px", height: "12px", margin: "8px 0 8px 4px" }} />
-              <div className="profile-details-card">
-                <div className="profile-settings-row">
-                  <div className="skeleton-line" style={{ width: "100px", height: "14px" }} />
-                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
-                </div>
-                <div className="profile-settings-row">
-                  <div className="skeleton-line" style={{ width: "120px", height: "14px" }} />
-                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
-                </div>
-                <div className="profile-settings-row">
-                  <div className="skeleton-line" style={{ width: "160px", height: "14px" }} />
-                  <div className="skeleton-pill" style={{ width: "44px", height: "24px" }} />
                 </div>
               </div>
             </div>
@@ -541,6 +498,7 @@ function EditProfileModal({
 
 export default function ClientProfilePage() {
   const router = useRouter();
+  const { triggerLogout, isLoggingOut } = useClientLogout();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -585,8 +543,7 @@ export default function ClientProfilePage() {
   }, [router]);
 
   function handleLogout() {
-    logout();
-    router.replace("/login");
+    triggerLogout();
   }
 
   // Real values only. The demo fallbacks ("Sarah Johnson", a sample email,
@@ -717,8 +674,18 @@ export default function ClientProfilePage() {
                 hidden until there is one. */}
 
             {/* Sign Out */}
-            <button type="button" className="mobile-profile-signout-btn" style={inlineStyles.signOutBtn} onClick={handleLogout}>
-              Sign Out
+            <button
+              type="button"
+              className="mobile-profile-signout-btn"
+              style={{
+                ...inlineStyles.signOutBtn,
+                opacity: isLoggingOut ? 0.7 : 1,
+                cursor: isLoggingOut ? "wait" : "pointer",
+              }}
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? "Signing Out..." : "Sign Out"}
             </button>
           </div>
         </div>
@@ -799,7 +766,12 @@ export default function ClientProfilePage() {
 
             {/* Right Column */}
             <div className="profile-grid-column">
-              <EmailDocumentsHint />
+              <div className="profile-section-container">
+                <div className="profile-section-title" style={{ visibility: "hidden", userSelect: "none" }} aria-hidden="true">&nbsp;</div>
+                <div className="profile-accountant-hint">
+                  <EmailDocumentsHint />
+                </div>
+              </div>
 
               {/* Personal Details */}
               <div className="profile-section-container">
@@ -825,8 +797,17 @@ export default function ClientProfilePage() {
                   are hidden until there is one. */}
 
               {/* Sign out */}
-              <button type="button" className="profile-signout-btn" onClick={handleLogout}>
-                Sign out
+              <button
+                type="button"
+                className="profile-signout-btn"
+                style={{
+                  opacity: isLoggingOut ? 0.7 : 1,
+                  cursor: isLoggingOut ? "wait" : "pointer",
+                }}
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Signing out..." : "Sign out"}
               </button>
             </div>
           </div>

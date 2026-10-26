@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/src/lib/session";
 import type { CoreEntity, EntityType } from "@/src/lib/coreApi";
+import { resolveBackTarget } from "./backTarget";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -63,9 +64,9 @@ function newBeneficiaryRow(): BeneficiaryRow {
 
 export type ClientAddEntityWizardProps = {
   createdFor: string;
-  backLabel: string;
-  backHref: string;
-  onSuccessHref: string;
+  backLabel?: string;
+  backHref?: string;
+  onSuccessHref?: string;
   addAnotherHref?: string;
   defaultBeneficiaryName?: string;
   mode?: "create" | "edit";
@@ -75,9 +76,9 @@ export type ClientAddEntityWizardProps = {
 
 export default function ClientAddEntityWizard({
   createdFor,
-  backLabel,
-  backHref,
-  onSuccessHref,
+  backLabel: propBackLabel,
+  backHref: propBackHref,
+  onSuccessHref: propOnSuccessHref,
   addAnotherHref,
   defaultBeneficiaryName = "",
   mode = "create",
@@ -85,6 +86,33 @@ export default function ClientAddEntityWizard({
   role = "client",
 }: ClientAddEntityWizardProps) {
   const router = useRouter();
+  const [backHref, setBackHref] = useState(
+    propBackHref || "/dashboard/client/entities"
+  );
+  const [backLabel, setBackLabel] = useState(
+    propBackLabel || "Entities"
+  );
+
+  useEffect(() => {
+    if (propBackHref) {
+      setBackHref(propBackHref);
+    }
+    if (propBackLabel) {
+      setBackLabel(propBackLabel);
+    }
+
+    if (!propBackHref || !propBackLabel) {
+      const target = resolveBackTarget(window.location.pathname);
+      if (target) {
+        if (!propBackHref) setBackHref(target.href);
+        if (!propBackLabel) setBackLabel(target.label);
+      }
+    }
+  }, [propBackHref, propBackLabel]);
+
+  const effectiveOnSuccessHref =
+    propOnSuccessHref || backHref || "/dashboard/client/entities";
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [showHelpSidebar, setShowHelpSidebar] = useState(false);
   const [entityType, setEntityType] = useState<EntityType | null>(() => {
@@ -962,10 +990,10 @@ export default function ClientAddEntityWizard({
                 <Link
                   href={
                     !isEditMode && nextStep === "property" && savedEntity
-                      ? onSuccessHref.includes("/dashboard/accountant")
+                      ? effectiveOnSuccessHref.includes("/dashboard/accountant")
                         ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
                         : `/dashboard/client/entities/${savedEntity.id}/properties/new`
-                      : onSuccessHref
+                      : effectiveOnSuccessHref
                   }
                   className="entity-wizard-primary"
                 >
@@ -1301,10 +1329,10 @@ export default function ClientAddEntityWizard({
               <Link
                 href={
                   !isEditMode && nextStep === "property" && savedEntity
-                    ? onSuccessHref.includes("/dashboard/accountant")
+                    ? effectiveOnSuccessHref.includes("/dashboard/accountant")
                       ? `/dashboard/accountant/clients/${createdFor}/entities/${savedEntity.id}/properties/new`
                       : `/dashboard/client/entities/${savedEntity.id}/properties/new`
-                    : onSuccessHref
+                    : effectiveOnSuccessHref
                 }
                 className="entity-wizard-btn-save"
                 style={{ textAlign: "center", display: "inline-block" }}

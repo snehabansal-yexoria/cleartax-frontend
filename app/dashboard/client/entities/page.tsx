@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "boneyard-js/react";
 import ClientEntitiesSkeleton from "@/app/components/clients/ClientEntitiesSkeleton";
 import { getSession } from "@/src/lib/session";
-import { formatCurrencyShort } from "@/app/components/clients/CurrencyFormatter";
+import { formatExactCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
 
 interface SessionWithIdToken {
@@ -481,7 +481,7 @@ function EntityCard({ item }: EntityCardProps) {
             <span className="text-[13px] font-medium text-t-secondary truncate">Net Value</span>
           </div>
           <span className="text-[15px] font-bold text-t-primary truncate">
-            {formatCurrencyShort(item.marketValue)}
+            {formatExactCurrency(item.marketValue)}
           </span>
         </div>
       </div>
@@ -680,7 +680,7 @@ export default function ClientEntitiesPage() {
                 Total Under Management
               </div>
               <div style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", margin: "6px 0" }}>
-                {formatCurrencyShort(displayPortfolioValue)}
+                {formatExactCurrency(displayPortfolioValue)}
               </div>
               <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500 }}>
                 Across {entitiesCount} entities
@@ -769,7 +769,7 @@ export default function ClientEntitiesPage() {
               Total Under Management
             </div>
             <div style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", margin: "6px 0" }}>
-              {formatCurrencyShort(displayPortfolioValue)}
+              {formatExactCurrency(displayPortfolioValue)}
             </div>
             <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500 }}>
               Across {entitiesCount} entities
