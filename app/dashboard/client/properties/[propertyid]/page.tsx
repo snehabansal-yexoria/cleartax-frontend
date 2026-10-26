@@ -413,11 +413,12 @@ export default function ClientPropertyDetailPage() {
   }, [propertyId, router]);
 
   // Derived Values — all from the summary, "—" until it lands.
-  // Loan Balance is this property's share of its loan (amount × allocation),
-  // and Net Position is market value less that share: the server's
-  // net_equity, so it matches the Properties list and the Reports page.
+  // Loan Balance is this property's share of its loan (amount × allocation).
+  // Net Position is the server's net_position: all-time income − expenses on
+  // this property (positive = profit), from transactions only — market value
+  // and the loan play no part. null ("—") until that backend is deployed.
   const loanBalance = totals ? totals.loanBalance : null;
-  const netPosition = totals ? totals.netEquity : null;
+  const netPosition = totals ? totals.netPosition : null;
 
   const monthsByKey = monthIndex(lastYearRegion.data, summary);
   const now = new Date();

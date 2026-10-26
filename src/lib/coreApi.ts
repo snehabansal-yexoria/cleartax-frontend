@@ -2867,6 +2867,12 @@ export type CorePortfolioTotals = {
   netEquity: number;
   lvrPercent: number | null;
   equityPercent: number | null;
+  /**
+   * Net Position: ALL-TIME income − expenses (positive = profit), whatever
+   * period was asked for; market value and loans play no part. null when the
+   * backend predates the field, so the UI prints "—", never a fake zero.
+   */
+  netPosition: number | null;
   income: number;
   expenses: number;
   depreciation: number;
@@ -2913,6 +2919,8 @@ export type CorePortfolioEntityRow = {
   loansUnparseable: number;
   equity: number;
   lvrPercent: number | null;
+  /** All-time income − expenses: its properties' plus its own off-property money. */
+  netPosition: number | null;
   income: number;
   expenses: number;
   depreciation: number;
@@ -2932,6 +2940,8 @@ export type CorePortfolioPropertyRow = {
   loanBalance: number | null;
   loanStatus: "none" | "recorded" | "unparseable" | string;
   equity: number | null;
+  /** All-time income − expenses on this property. */
+  netPosition: number | null;
   income: number;
   expenses: number;
   depreciation: number;
@@ -2950,6 +2960,8 @@ export type CorePortfolioSummary = {
   amountBasis: string;
   /** "latest_recorded": market value and loans are today's, for every year. */
   balanceBasis: string;
+  /** "all_time": net_position ignores the period. */
+  netPositionBasis: string;
   interestAccountCode: string;
   generatedAt: string;
   availableFinancialYears: number[];
@@ -3026,6 +3038,7 @@ export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSumm
     dateBasis: toStringValue(raw.date_basis ?? raw.dateBasis),
     amountBasis: toStringValue(raw.amount_basis ?? raw.amountBasis),
     balanceBasis: toStringValue(raw.balance_basis ?? raw.balanceBasis),
+    netPositionBasis: toStringValue(raw.net_position_basis ?? raw.netPositionBasis),
     interestAccountCode: toStringValue(raw.interest_account_code ?? raw.interestAccountCode),
     generatedAt: toStringValue(raw.generated_at ?? raw.generatedAt),
     availableFinancialYears: Array.isArray(yearsRaw)
@@ -3043,6 +3056,7 @@ export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSumm
       netEquity: toFloatValue(t.net_equity),
       lvrPercent: toNullableFloatValue(t.lvr_percent),
       equityPercent: toNullableFloatValue(t.equity_percent),
+      netPosition: toNullableFloatValue(t.net_position),
       income: toFloatValue(t.income),
       expenses: toFloatValue(t.expenses),
       depreciation: toFloatValue(t.depreciation),
@@ -3093,6 +3107,7 @@ export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSumm
       loansUnparseable: int(e.loans_unparseable),
       equity: toFloatValue(e.equity),
       lvrPercent: toNullableFloatValue(e.lvr_percent),
+      netPosition: toNullableFloatValue(e.net_position),
       income: toFloatValue(e.income),
       expenses: toFloatValue(e.expenses),
       depreciation: toFloatValue(e.depreciation),
@@ -3109,6 +3124,7 @@ export function normalizeCorePortfolioSummary(raw: RawRecord): CorePortfolioSumm
       loanBalance: toNullableFloatValue(p.loan_balance),
       loanStatus: toStringValue(p.loan_status) || "none",
       equity: toNullableFloatValue(p.equity),
+      netPosition: toNullableFloatValue(p.net_position),
       income: toFloatValue(p.income),
       expenses: toFloatValue(p.expenses),
       depreciation: toFloatValue(p.depreciation),
