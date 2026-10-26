@@ -63,18 +63,6 @@ export const TRANSACTION_TYPE_ENTRY_OPTIONS = TRANSACTION_TYPE_OPTIONS.filter(
   (option) => option.value !== "contra",
 );
 
-/**
- * The reconciliation drawers' picker: the entry options minus Balance Sheet.
- *
- * A reconciled transaction is also listed in the bank Account Ledger, and
- * Balance Sheet was asked for as visible in All Transactions only. Its typed
- * category also has no field in those drawers. Recorded from the Add
- * Transaction form instead.
- */
-export const RECONCILIATION_TYPE_ENTRY_OPTIONS = TRANSACTION_TYPE_ENTRY_OPTIONS.filter(
-  (option) => option.value !== "balance_sheet",
-);
-
 const TRANSACTION_TYPE_MODIFIERS: Record<CoreTransactionType, string> = {
   revenue: "is-income",
   expense: "is-expense",
