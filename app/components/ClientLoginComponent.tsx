@@ -1071,7 +1071,7 @@ export default function ClientLoginComponent() {
                 <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
                   <button
                     type="button"
-                    onClick={() => router.push("/login")}
+                    onClick={() => router.push("/")}
                     style={{
                       background: "none",
                       border: "none",
