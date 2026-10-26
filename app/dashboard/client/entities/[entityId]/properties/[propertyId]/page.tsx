@@ -1,18 +1,13 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useParams } from "next/navigation";
-import PropertyDetailView from "@/app/components/PropertyDetailView";
-
-export default function ClientPropertyDetailPage() {
-  const params = useParams<{ entityId: string; propertyId: string }>();
-  const entityId = params?.entityId ?? "";
-  const propertyId = params?.propertyId ?? "";
-
-  return (
-    <PropertyDetailView
-      propertyId={propertyId}
-      backHref={`/dashboard/client/entities/${entityId}`}
-      backLabel="Entity"
-    />
-  );
+// The client property page lives at /dashboard/client/properties/[propertyid].
+// This entity-nested URL is kept only so older links and bookmarks still land
+// on it instead of a 404.
+export default async function ClientEntityPropertyRedirect({
+  params,
+}: {
+  params: Promise<{ entityId: string; propertyId: string }>;
+}) {
+  const { propertyId } = await params;
+  redirect(`/dashboard/client/properties/${propertyId}`);
 }

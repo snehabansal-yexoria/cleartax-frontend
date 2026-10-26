@@ -163,3 +163,82 @@ export function parseFlexibleRows(text: string, defaultHeaders: string[]) {
     }, {});
   });
 }
+
+/**
+ * Tokenize a CSV while preserving the ORIGINAL file line number of every row.
+ *
+ * `parseCsv` above drops blank lines and splits on newlines before tokenizing.
+ * Both are fine for its existing callers and wrong for an import that reports
+ * per-row errors: an error that says "row 14" when the accountant's spreadsheet
+ * shows row 16 costs more support time than the import saves, and a quoted
+ * field containing a newline (a Description pasted from another system) is
+ * silently corrupted.
+ *
+ * This walks the text character by character, so a newline inside quotes stays
+ * inside the field, and it emits blank rows rather than discarding them so the
+ * line numbering never shifts.
+ */
+export function parseCsvWithLines(
+  text: string,
+): { line: number; values: string[] }[] {
+  const src = text.replace(/^﻿/, "");
+  const out: { line: number; values: string[] }[] = [];
+
+  let values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let line = 1;
+  let rowStartLine = 1;
+
+  const endField = () => {
+    values.push(current.trim());
+    current = "";
+  };
+  const endRow = () => {
+    endField();
+    out.push({ line: rowStartLine, values });
+    values = [];
+    rowStartLine = line + 1;
+  };
+
+  for (let i = 0; i < src.length; i += 1) {
+    const char = src[i];
+    const next = src[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (inQuotes) {
+      if (char === "\n") line += 1;
+      current += char;
+      continue;
+    }
+
+    if (char === ",") {
+      endField();
+      continue;
+    }
+
+    if (char === "\r") continue;
+
+    if (char === "\n") {
+      endRow();
+      line += 1;
+      continue;
+    }
+
+    current += char;
+  }
+
+  // Trailing row with no final newline.
+  if (current !== "" || values.length > 0) endRow();
+
+  return out;
+}

@@ -1,5 +1,6 @@
-import LoginComponent from "@/app/components/LoginComponent";
+import ClientLoginComponent from "@/app/components/ClientLoginComponent";
 
 export default function UserLoginPage() {
-  return <LoginComponent allowedRoles={["client"]} />;
+  return <ClientLoginComponent />;
 }
+

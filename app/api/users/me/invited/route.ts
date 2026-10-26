@@ -51,7 +51,7 @@ export async function GET(req: Request) {
     const roleNames =
       requesterRole === "super_admin"
         ? ["admin"]
-        : ["accountant", "client"];
+        : ["accountant", "client", "regional_manager"];
     const roleIds = await getRoleIdsByNames(roleNames);
 
     if (roleIds.length !== roleNames.length) {
@@ -97,6 +97,7 @@ export async function GET(req: Request) {
       admins: normalizedUsers.filter((user) => user.role === "admin").length,
       accountants: normalizedUsers.filter((user) => user.role === "accountant").length,
       clients: normalizedUsers.filter((user) => user.role === "client").length,
+      regionalManagers: normalizedUsers.filter((user) => user.role === "regional_manager").length,
       organizations:
         requesterRole === "super_admin"
           ? new Set(

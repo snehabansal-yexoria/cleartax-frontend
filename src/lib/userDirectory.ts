@@ -40,6 +40,7 @@ type RawDirectoryRow = {
   created_at: Date | string | null;
   assigned_accountant_id: string | null;
   assigned_accountant_name: string | null;
+  phone_number: string | null;
 };
 
 function toRoleIdNumber(roleId: number | string | null) {
@@ -104,7 +105,7 @@ async function normalizeDirectoryUser(
     invitedBy: row.invited_by || "",
     invitedByEmail: row.invited_by_email || "",
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
-    phoneNumber: "",
+    phoneNumber: row.phone_number || "",
     assignedAccountantId: row.assigned_accountant_id || "",
     assignedAccountantName: row.assigned_accountant_name || "",
   };
@@ -113,7 +114,7 @@ async function normalizeDirectoryUser(
 export async function findDirectoryUserByIdentity(identity: {
   id?: string;
   email?: string;
-}) {
+  }): Promise<DirectoryUser | null> {
   const email = String(identity.email || "")
     .trim()
     .toLowerCase();
@@ -128,6 +129,7 @@ export async function findDirectoryUserByIdentity(identity: {
        u.id,
        u.email,
        u.full_name,
+       u.phone_number,
        m.role_id,
        m.org_id,
        o.org_name,
@@ -172,7 +174,7 @@ export async function findDirectoryUserByIdentity(identity: {
 export async function listDirectoryUsers(filter?: {
   orgId?: string;
   roleIds?: number[];
-}) {
+  }): Promise<DirectoryUser[]> {
   const orgId = String(filter?.orgId || "").trim();
   const roleIds = (filter?.roleIds || []).filter((value): value is number =>
     Number.isFinite(value),
@@ -183,6 +185,7 @@ export async function listDirectoryUsers(filter?: {
        u.id,
        u.email,
        u.full_name,
+       u.phone_number,
        m.role_id,
        m.org_id,
        o.org_name,
@@ -266,10 +269,20 @@ export async function assignClientsToAccountant({
 
     const result = await client.query<{ id: string }>(
       `UPDATE users
-       SET assigned_accountant_id = $1
+       SET assigned_accountant_id = $1,
+           assigned_at = NOW()
        WHERE id = ANY($2::varchar[])
        RETURNING id`,
       [accountantId, uniqueClientIds],
+    );
+
+    await client.query(
+      `INSERT INTO client_accountant_history
+         (client_user_id, org_id, from_accountant_id, to_accountant_id, transferred_by)
+       SELECT id, $3::uuid, NULL, $1, $1
+       FROM users
+       WHERE id = ANY($2::varchar[])`,
+      [accountantId, uniqueClientIds, orgId],
     );
 
     await client.query("COMMIT");

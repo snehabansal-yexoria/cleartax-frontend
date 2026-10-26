@@ -4,9 +4,16 @@ import { getRoleIdByName } from "@/src/lib/roles";
 import {
   assignClientsToAccountant,
   findDirectoryUserByIdentity,
-  listDirectoryUsers,
   type VerifiedTokenLike,
 } from "@/src/lib/userDirectory";
+import {
+  assignCoreClients,
+  CoreApiError,
+  getCoreApiBearerFromRequest,
+  isCoreClientAssignmentEnabled,
+  listCoreClients,
+} from "@/src/lib/coreApi";
+import { logError } from "@/src/lib/log";
 
 async function getRequester(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -35,82 +42,108 @@ async function getRequester(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const scope =
+    new URL(req.url).searchParams.get("scope") === "mine" ? "mine" : "all";
+
   try {
-    const requesterResult = await getRequester(req);
-    if ("error" in requesterResult) {
-      return NextResponse.json(
-        { error: requesterResult.error },
-        { status: requesterResult.status },
-      );
-    }
-    const { requester } = requesterResult;
-
-    const requesterRole = requester.role.toLowerCase();
-
-    if (!["admin", "accountant"].includes(requesterRole)) {
-      return NextResponse.json(
-        { error: "You are not allowed to view clients" },
-        { status: 403 },
-      );
-    }
-
-    if (!requester.orgId) {
-      return NextResponse.json({ clients: [] });
-    }
-
-    const scope =
-      new URL(req.url).searchParams.get("scope") === "mine" ? "mine" : "all";
-    const clientRoleId = await getRoleIdByName("client");
-
-    if (!clientRoleId) {
-      return NextResponse.json(
-        { error: "Client role is missing in the database" },
-        { status: 500 },
-      );
-    }
-
-    const clients = await listDirectoryUsers({
-      orgId: requester.orgId,
-      roleIds: [clientRoleId],
+    // Single backend call. The core API resolves the caller, enforces role,
+    // and computes property counts, totals, invite status, inviter email and
+    // assignment flags in one SQL query — no per-client/per-entity fan-out.
+    const clients = await listCoreClients(getCoreApiBearerFromRequest(req), {
+      scope,
     });
 
     return NextResponse.json({
-      clients: clients
-        .filter(
-          (user) =>
-            requesterRole === "admin" ||
-            (scope === "mine"
-              ? user.assignedAccountantId === requester.id
-              : true),
-        )
-        .map((user) => ({
-          id: user.id,
-          email: user.email,
-          status: user.status,
-          name: user.fullName,
-          phoneNumber: user.phoneNumber || "",
-          invitedByEmail: user.invitedByEmail || "",
-          joinedAt: user.createdAt,
-          assignedAccountantId: user.assignedAccountantId,
-          assignedAccountantName: user.assignedAccountantName,
-          isAssignedToCurrentAccountant:
-            Boolean(user.assignedAccountantId) &&
-            user.assignedAccountantId === requester.id,
-          isAssignedToAnotherAccountant:
-            Boolean(user.assignedAccountantId) &&
-            user.assignedAccountantId !== requester.id,
-        })),
+      clients: clients.map((c) => ({
+        id: c.id,
+        email: c.email,
+        status: c.status,
+        name: c.fullName,
+        phoneNumber: c.phoneNumber,
+        invitedByEmail: c.invitedByEmail,
+        joinedAt: c.joinedAt,
+        assignedAccountantId: c.assignedAccountantId,
+        assignedAccountantName: c.assignedAccountantName,
+        isAssignedToCurrentAccountant: c.isAssignedToCurrentAccountant,
+        isAssignedToAnotherAccountant: c.isAssignedToAnotherAccountant,
+        propertiesCount: c.propertiesCount,
+        totalMarketValue: c.totalMarketValue,
+      })),
     });
   } catch (error) {
-    console.error("Fetch clients error:", error);
+    logError("Fetch clients failed", error, {
+      route: "GET /api/users/me/clients",
+    });
+    // Forward the upstream status (e.g. 403 for an unauthorized role).
+    const status = error instanceof CoreApiError ? error.status : 500;
     return NextResponse.json(
       { error: "Failed to fetch clients" },
+      { status },
+    );
+  }
+}
+
+// Backend path: the core API does the assignment and writes the
+// accountant.assigned audit row, which notifies the client. It enforces the
+// same rules as the direct-DB path below and answers in the same shape.
+async function assignViaCore(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as {
+    clientIds?: unknown;
+  };
+  const clientIds = Array.isArray(body.clientIds)
+    ? body.clientIds.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+
+  if (clientIds.length === 0) {
+    return NextResponse.json(
+      { error: "At least one client id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await assignCoreClients(
+      getCoreApiBearerFromRequest(req),
+      clientIds,
+    );
+    return NextResponse.json({
+      success: true,
+      assignedClientIds: result.assignedClientIds,
+      assignedAccountantId: result.assignedAccountantId,
+      assignedCount: result.assignedCount,
+    });
+  } catch (error) {
+    if (error instanceof CoreApiError && error.status === 409) {
+      return NextResponse.json(
+        {
+          error:
+            "Some clients are already added to an accountant or are not in your organization.",
+          assignedClientIds: [],
+        },
+        { status: 409 },
+      );
+    }
+    if (error instanceof CoreApiError && error.status < 500) {
+      return NextResponse.json(
+        { error: error.upstreamMessage || "Failed to assign clients" },
+        { status: error.status },
+      );
+    }
+    logError("Assign clients failed", error, {
+      route: "POST /api/users/me/clients (core)",
+    });
+    return NextResponse.json(
+      { error: "Failed to assign clients" },
       { status: 500 },
     );
   }
 }
 
 export async function POST(req: Request) {
+  if (isCoreClientAssignmentEnabled()) {
+    return assignViaCore(req);
+  }
+
   try {
     const requesterResult = await getRequester(req);
     if ("error" in requesterResult) {
@@ -186,7 +219,9 @@ export async function POST(req: Request) {
       assignedCount: assignedClientIds.length,
     });
   } catch (error) {
-    console.error("Assign clients error:", error);
+    logError("Assign clients failed", error, {
+      route: "POST /api/users/me/clients",
+    });
     return NextResponse.json(
       { error: "Failed to assign clients" },
       { status: 500 },

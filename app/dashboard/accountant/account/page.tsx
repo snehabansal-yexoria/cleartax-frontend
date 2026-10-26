@@ -4,7 +4,9 @@ import { Skeleton } from "boneyard-js/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AccountantAccountSkeleton } from "../../../components/PortalSkeletons";
+import MfaSettings from "../../../components/MfaSettings";
 import { getSession } from "../../../../src/lib/session";
+import { PhoneInput, validatePhone } from "../../../components/PhoneInput";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -48,9 +50,17 @@ function getInitials(value: string) {
 
 export default function AccountantAccountPage() {
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Phone editing states
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [tempPhone, setTempPhone] = useState("");
+  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
 
   useEffect(() => {
     async function loadProfile() {
@@ -62,9 +72,25 @@ export default function AccountantAccountPage() {
         }
 
         const token = session.getIdToken().getJwtToken();
-        const tokenPayload = JSON.parse(atob(token.split(".")[1] || ""));
-        const currentEmail = tokenPayload.email || "";
-        setEmail(currentEmail);
+
+        // Fetch current user from Next.js user me route (dynamic backend proxy)
+        const meRes = await fetch("/api/users/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          setEmail(meData.email || "");
+          setFullName(meData.fullName || "");
+          setPhoneNumber(meData.phoneNumber || "");
+        } else {
+          // Fallback if me proxy fails
+          const tokenPayload = JSON.parse(atob(token.split(".")[1] || ""));
+          const currentEmail = tokenPayload.email || "";
+          setEmail(currentEmail);
+        }
 
         const res = await fetch("/api/users/me/organization", {
           headers: {
@@ -100,7 +126,54 @@ export default function AccountantAccountPage() {
     loadProfile();
   }, []);
 
-  const displayName = formatDisplayName(email || "Sarah Johnson");
+  async function handleSavePhone() {
+    try {
+      setIsUpdatingPhone(true);
+      setPhoneError("");
+
+      const validation = validatePhone(tempPhone);
+      if (!validation.isValid) {
+        setPhoneError(validation.error || "Please enter a valid phone number.");
+        return;
+      }
+
+      const session = (await getSession()) as SessionWithIdToken | null;
+      if (!session) {
+        setPhoneError("Your session has expired. Please log in again.");
+        return;
+      }
+
+      const token = session.getIdToken().getJwtToken();
+
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phoneNumber: tempPhone,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setPhoneError(data.error || "Failed to update phone number.");
+        return;
+      }
+
+      setPhoneNumber(tempPhone);
+      setIsEditingPhone(false);
+    } catch (error) {
+      console.error("Failed to update phone number:", error);
+      setPhoneError("Something went wrong. Please try again.");
+    } finally {
+      setIsUpdatingPhone(false);
+    }
+  }
+
+  const displayName = fullName || formatDisplayName(email || "Sarah Johnson");
   const initials = getInitials(displayName);
   const adminName = formatDisplayName(adminEmail || "Michael Roberts");
 
@@ -111,140 +184,199 @@ export default function AccountantAccountPage() {
       fallback={<AccountantAccountSkeleton />}
     >
       <section className="accountant-account-page">
-      <Link href="/dashboard/accountant" className="accountant-back-link">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m15 6-6 6 6 6" />
-        </svg>
-        Back to Dashboard
-      </Link>
+        <Link href="/dashboard/accountant" className="accountant-back-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+          Back to Dashboard
+        </Link>
 
-      <div className="accountant-account-heading">
-        <h1>Accountant Profile</h1>
-        <p>Manage your profile information and settings</p>
-      </div>
+        <div className="accountant-account-heading">
+          <h1>Accountant Profile</h1>
+          <p>Manage your profile information and settings</p>
+        </div>
 
-      <div className="accountant-account-grid">
-        <section className="accountant-account-card">
-          <div className="accountant-account-hero">
-            <div className="accountant-account-avatar-wrap">
-              <div className="accountant-account-avatar">{initials}</div>
-              <button type="button" className="accountant-avatar-upload">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 16V7" />
-                  <path d="m8.5 10.5 3.5-3.5 3.5 3.5" />
-                  <path d="M20 16.5v.5A2 2 0 0 1 18 19H6a2 2 0 0 1-2-2v-.5" />
-                </svg>
-              </button>
+        <div className="accountant-account-grid">
+          <section className="accountant-account-card">
+            <div className="accountant-account-hero">
+              <div className="accountant-account-avatar-wrap">
+                <div className="accountant-account-avatar">{initials}</div>
+                {/* <button type="button" className="accountant-avatar-upload">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 16V7" />
+                    <path d="m8.5 10.5 3.5-3.5 3.5 3.5" />
+                    <path d="M20 16.5v.5A2 2 0 0 1 18 19H6a2 2 0 0 1-2-2v-.5" />
+                  </svg>
+                </button> */}
+              </div>
+
+              <div className="accountant-account-hero-copy">
+                <h2>{displayName}</h2>
+                <p>{organizationName || "Accounting Pro Solutions"}</p>
+                {/* <button type="button" className="accountant-upload-link">
+                  Upload Profile Picture
+                </button> */}
+              </div>
             </div>
 
-            <div className="accountant-account-hero-copy">
-              <h2>{displayName}</h2>
-              <p>{organizationName || "Accounting Pro Solutions"}</p>
-              <button type="button" className="accountant-upload-link">
-                Upload Profile Picture
-              </button>
-            </div>
-          </div>
+            <div className="accountant-profile-fields">
+              <div className="accountant-profile-field">
+                <label>Full Name</label>
+                <div className="accountant-profile-input">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M20 21v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span>{displayName}</span>
+                </div>
+              </div>
 
-          <div className="accountant-profile-fields">
-            <div className="accountant-profile-field">
-              <label>Full Name</label>
-              <div className="accountant-profile-input">
+              <div className="accountant-profile-field">
+                <label>Email Address</label>
+                <div className="accountant-profile-input">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="m3 7 9 6 9-6" />
+                  </svg>
+                  <span>{email || "sarah.johnson@accountingpro.com"}</span>
+                </div>
+              </div>
+
+              <div className="accountant-profile-field">
+                <label>Phone Number</label>
+                {isEditingPhone ? (
+                  <div className="accountant-profile-input accountant-profile-input-editable">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "20px", height: "20px" }}>
+                      <path fill="currentColor" d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.3 19.3 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.4 2.6a2 2 0 0 1-.6 1.8l-1.3 1.3a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 1.8-.6l2.6.4A2 2 0 0 1 22 16.9z" />
+                    </svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <PhoneInput
+                        variant="borderless"
+                        value={tempPhone}
+                        disabled={isUpdatingPhone}
+                        error={!!phoneError}
+                        onChange={(val) => {
+                          setTempPhone(val);
+                          if (val) {
+                            const res = validatePhone(val);
+                            if (!res.isValid) {
+                              setPhoneError(res.error || "Invalid phone number");
+                            } else {
+                              setPhoneError("");
+                            }
+                          } else {
+                            setPhoneError("");
+                          }
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button
+                        type="button"
+                        onClick={handleSavePhone}
+                        disabled={isUpdatingPhone || !!phoneError}
+                        style={{ color: "#2ea86b", fontWeight: 700 }}
+                      >
+                        {isUpdatingPhone ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPhone(false)}
+                        disabled={isUpdatingPhone}
+                        style={{ color: "#dc2626", fontWeight: 700 }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="accountant-profile-input accountant-profile-input-editable">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "20px", height: "20px" }}>
+                      <path fill="currentColor" d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.3 19.3 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.4 2.6a2 2 0 0 1-.6 1.8l-1.3 1.3a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 1.8-.6l2.6.4A2 2 0 0 1 22 16.9z" />
+                    </svg>
+                    <span>{phoneNumber || "Not set yet"}</span>
+                    <button type="button" onClick={() => {
+                      setTempPhone(phoneNumber);
+                      setIsEditingPhone(true);
+                      setPhoneError("");
+                    }}>Edit</button>
+                  </div>
+                )}
+                {phoneError && (
+                  <span style={{ color: "#dc2626", fontSize: "0.85rem", marginTop: "4px" }}>
+                    {phoneError}
+                  </span>
+                )}
+              </div>
+
+              <div className="accountant-profile-field">
+                <label>Organisation Name</label>
+                <div className="accountant-profile-input">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="3" width="10" height="18" rx="2" />
+                    <path d="M14 9h6v12h-6" />
+                    <path d="M8 7h2" />
+                    <path d="M8 11h2" />
+                    <path d="M8 15h2" />
+                  </svg>
+                  <span>{organizationName || "Accounting Pro Solutions"}</span>
+                </div>
+              </div>
+
+              {/* <div className="accountant-profile-field">
+                <label>Alternate Name</label>
+                <div className="accountant-profile-input accountant-profile-input-editable">
+                  <span>{displayName.split(" ")[0]} J.</span>
+                  <button type="button">Edit</button>
+                </div>
+              </div>
+
+              <div className="accountant-profile-field">
+                <label>Address</label>
+                <div className="accountant-profile-input accountant-profile-input-editable">
+                  <span>Level 12, 456 Collins</span>
+                  <button type="button">Edit</button>
+                </div>
+              </div> */}
+            </div>
+          </section>
+
+          <aside className="accountant-admin-card">
+            <div className="accountant-admin-card-header">
+              <div className="accountant-admin-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M20 21v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
-                <span>{displayName}</span>
+              </div>
+              <div>
+                <h3>Admin Contact</h3>
+                <p>Primary administrator</p>
               </div>
             </div>
 
-            <div className="accountant-profile-field">
-              <label>Email Address</label>
-              <div className="accountant-profile-input">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <path d="m3 7 9 6 9-6" />
-                </svg>
-                <span>{email || "sarah.johnson@accountingpro.com"}</span>
+            <div className="accountant-admin-info">
+              <div>
+                <span>Name</span>
+                <strong>{adminName}</strong>
+              </div>
+              <div>
+                <span>Email Address</span>
+                <strong>{adminEmail || "No admin info available yet"}</strong>
+              </div>
+              <div>
+                <span>Contact Number</span>
+                <strong>{adminEmail ? "Contact via email" : "Not available"}</strong>
               </div>
             </div>
 
-            <div className="accountant-profile-field">
-              <label>Phone Number</label>
-              <div className="accountant-profile-input">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.3 19.3 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.4 2.6a2 2 0 0 1-.6 1.8l-1.3 1.3a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 1.8-.6l2.6.4A2 2 0 0 1 22 16.9z" />
-                </svg>
-                <span>+1 (555) 123-4567</span>
-              </div>
-            </div>
+            <button type="button" className="accountant-admin-cta">
+              Contact Admin
+            </button>
+          </aside>
 
-            <div className="accountant-profile-field">
-              <label>Organisation Name</label>
-              <div className="accountant-profile-input">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="4" y="3" width="10" height="18" rx="2" />
-                  <path d="M14 9h6v12h-6" />
-                  <path d="M8 7h2" />
-                  <path d="M8 11h2" />
-                  <path d="M8 15h2" />
-                </svg>
-                <span>{organizationName || "Accounting Pro Solutions"}</span>
-              </div>
-            </div>
-
-            <div className="accountant-profile-field">
-              <label>Alternate Name</label>
-              <div className="accountant-profile-input accountant-profile-input-editable">
-                <span>{displayName.split(" ")[0]} J.</span>
-                <button type="button">Edit</button>
-              </div>
-            </div>
-
-            <div className="accountant-profile-field">
-              <label>Address</label>
-              <div className="accountant-profile-input accountant-profile-input-editable">
-                <span>Level 12, 456 Collins</span>
-                <button type="button">Edit</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="accountant-admin-card">
-          <div className="accountant-admin-card-header">
-            <div className="accountant-admin-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20 21v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <div>
-              <h3>Admin Contact</h3>
-              <p>Primary administrator</p>
-            </div>
-          </div>
-
-          <div className="accountant-admin-info">
-            <div>
-              <span>Name</span>
-              <strong>{adminName}</strong>
-            </div>
-            <div>
-              <span>Email Address</span>
-              <strong>{adminEmail || "No admin info available yet"}</strong>
-            </div>
-            <div>
-              <span>Contact Number</span>
-              <strong>{adminEmail ? "Contact via email" : "Not available"}</strong>
-            </div>
-          </div>
-
-          <button type="button" className="accountant-admin-cta">
-            Contact Admin
-          </button>
-        </aside>
-      </div>
+          <MfaSettings email={email} />
+        </div>
       </section>
     </Skeleton>
   );
