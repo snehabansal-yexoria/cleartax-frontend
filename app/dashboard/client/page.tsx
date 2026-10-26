@@ -489,7 +489,11 @@ export default function ClientPage() {
   // allocation — the Reports page's figures, not a raw sum of loan amounts.
   const displayMarketValue = totals?.marketValue ?? 0;
   const displayOutstandingLoans = totals?.loanBalance ?? 0;
-  const displayNetPosition = totals?.netEquity ?? 0;
+  // Net Equity is market value less loans (the desktop card); Net Position is
+  // all-time income − expenses, from transactions only — null ("—") until a
+  // backend that sends it is deployed.
+  const displayNetEquity = totals?.netEquity ?? 0;
+  const displayNetPosition = totals?.netPosition ?? null;
   const displayLoansValue = displayOutstandingLoans;
 
   const expenseCategories = (cashFlowSummary?.expensesByCategory ?? [])
@@ -541,7 +545,7 @@ export default function ClientPage() {
         propertiesCount: entity.propertyCount,
         marketValue: entity.marketValue as number | null,
         outstandingLoans: entity.loanBalance as number | null,
-        netPosition: entity.equity as number | null,
+        netPosition: entity.netPosition,
         loanPercentage: entity.lvrPercent ?? 0,
         isReal: true,
       }))
@@ -1428,7 +1432,7 @@ export default function ClientPage() {
             <span className="m-db-net-date-badge">As of {ordinalDate}</span>
           </div>
           <div className="m-db-net-value" style={{ fontSize: '42px', fontWeight: 800 }}>
-            {money(displayNetPosition)}
+            {money(displayNetEquity)}
           </div>
           <div className="m-db-net-divider" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
