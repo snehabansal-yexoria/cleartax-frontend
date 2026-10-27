@@ -320,7 +320,7 @@ export default function Home() {
               Contact
             </Link>
             <Link
-              href="/login"
+              href="/login/user"
               className="ct-btn-primary"
             >
               Get Started
@@ -446,7 +446,7 @@ export default function Home() {
         {/* Drawer Bottom Action */}
         <div className="ct-drawer-footer">
           <Link
-            href="/login"
+            href="/login/user"
             className="ct-btn-primary ct-drawer-cta"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -482,7 +482,7 @@ export default function Home() {
         {/* CTA Buttons */}
         <div className="ct-hero-actions scroll-reveal scroll-delay-3">
           <Link
-            href="/login"
+            href="/login/user"
             className="ct-btn-primary"
           >
             <span>Get Started Free</span>
