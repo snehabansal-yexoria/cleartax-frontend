@@ -120,7 +120,7 @@ export function ChangeAdminDialog({
       ) : (
         <form id="change-admin-form" onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1em" }} noValidate>
           {isChange && currentAdmin ? (
-            <div className="cpc-card" style={{ padding: "0.85em", background: "#faf9f7" }}>
+            <div className="cpc-card" style={{ padding: "0.85em", background: "#F3F0E9" }}>
               <Person name={currentAdmin.name || currentAdmin.email} sub={`Current admin · ${currentAdmin.email}`} />
             </div>
           ) : null}

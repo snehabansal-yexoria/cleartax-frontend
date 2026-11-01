@@ -455,8 +455,8 @@ export default function AccountantPage() {
         <section className={`accountant-clients-panel${!summaryLoading && registeredClients === 0 ? " is-inactive" : ""}`}>
           <div className="accountant-panel-header">
             <div>
-              <h3 style={!summaryLoading && registeredClients === 0 ? { color: "#64748b", transition: "color 0.3s ease" } : undefined}>Client Management</h3>
-              <p style={!summaryLoading && registeredClients === 0 ? { color: "#94a3b8", transition: "color 0.3s ease" } : undefined}>
+              <h3 style={!summaryLoading && registeredClients === 0 ? { color: "#6C6C6B", transition: "color 0.3s ease" } : undefined}>Client Management</h3>
+              <p style={!summaryLoading && registeredClients === 0 ? { color: "#999894", transition: "color 0.3s ease" } : undefined}>
                 {managedClients.length > 0
                   ? organizationName
                     ? `Manage your clients for ${organizationName}`
@@ -552,13 +552,13 @@ export default function AccountantPage() {
                       width: "56px",
                       height: "56px",
                       borderRadius: "999px",
-                      background: "#f8fafc",
-                      color: "#64748b",
+                      background: "#F3F0E9",
+                      color: "#6C6C6B",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 4px 12px rgba(21, 23, 25, 0.05)",
+                      border: "1px solid #E2E0D9",
                     }}
                   >
                     <svg
@@ -579,7 +579,7 @@ export default function AccountantPage() {
                   <h4
                     style={{
                       fontSize: "1.25rem",
-                      color: "#0f172a",
+                      color: "#151719",
                       fontWeight: 700,
                       margin: 0,
                     }}
@@ -589,7 +589,7 @@ export default function AccountantPage() {
                   <p
                     style={{
                       fontSize: "0.95rem",
-                      color: "#475569",
+                      color: "#505050",
                       lineHeight: 1.5,
                       margin: 0,
                     }}
@@ -603,7 +603,7 @@ export default function AccountantPage() {
                       marginTop: "4px",
                       padding: "10px 20px",
                       fontSize: "0.9rem",
-                      boxShadow: "0 4px 12px rgba(47, 59, 130, 0.15)",
+                      boxShadow: "0 4px 12px rgba(46, 49, 53, 0.15)",
                     }}
                   >
                     Go to Clients
@@ -784,7 +784,7 @@ export default function AccountantPage() {
                     return (
                       <div
                         key={index}
-                        className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200"
+                        className="flex items-start justify-between gap-4 p-3 rounded-2xl hover:bg-slate-50/80 border border-slate-100/50 bg-white shadow-[0_1px_2px_rgba(21, 23, 25,0.02)] transition-all duration-200"
                       >
                         <div className="flex items-start gap-3 min-w-0">
                           <div className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 ${getActivityCategoryStyles(cat)}`}>
@@ -798,7 +798,7 @@ export default function AccountantPage() {
                                   {" — "}
                                   <Link
                                     href={`/dashboard/accountant/reports/clients/${event.clientId}`}
-                                    className="font-bold text-[#28336e] hover:underline"
+                                    className="font-bold text-[#242629] hover:underline"
                                   >
                                     {event.clientName}
                                   </Link>
@@ -823,7 +823,7 @@ export default function AccountantPage() {
                 </div>
                 <Link
                   href="/dashboard/accountant/reports"
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#28336e] hover:underline self-start"
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#242629] hover:underline self-start"
                 >
                   View all reports
                   <svg className="w-3.5 h-3.5 stroke-current stroke-[2] fill-none" viewBox="0 0 24 24">

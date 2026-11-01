@@ -62,7 +62,7 @@ export default function ClientInsightsSkeleton() {
             ))}
           </div>
 
-          <div style={{ height: "1px", background: "var(--border, #eaeef4)", margin: "8px 0" }} />
+          <div style={{ height: "1px", background: "var(--border, #EBE8E1)", margin: "8px 0" }} />
 
           <div style={{ display: "flex", gap: "16px", marginTop: "4px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -117,7 +117,7 @@ export default function ClientInsightsSkeleton() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   paddingBottom: idx < 2 ? "12px" : "0",
-                  borderBottom: idx < 2 ? "1px solid var(--border, #eaeef4)" : "none",
+                  borderBottom: idx < 2 ? "1px solid var(--border, #EBE8E1)" : "none",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

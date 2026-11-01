@@ -39,10 +39,10 @@ function GstCard({
   const failed = gst.status === "error" || (gst.status === "ready" && gst.data === null);
   const isPurchases = tone === "purchases";
 
-  const borderColor = isPurchases ? "#fee2e2" : "#dcfce7";
-  const bgColor = isPurchases ? "#fef2f2" : "#f0fdf4";
-  const labelColor = isPurchases ? "#b91c1c" : "#15803d";
-  const iconBg = isPurchases ? "#ef4444" : "#12b76a";
+  const borderColor = isPurchases ? "#F6EAE2" : "#F2F2EA";
+  const bgColor = isPurchases ? "#F3F0E9" : "#F3F0E9";
+  const labelColor = isPurchases ? "#C46A4C" : "#56613F";
+  const iconBg = isPurchases ? "#C46A4C" : "#6F7A5A";
 
   return (
     <article
@@ -54,7 +54,7 @@ function GstCard({
         border: `1px solid ${borderColor}`,
         borderRadius: "10px",
         background: bgColor,
-        boxShadow: "0 8px 20px rgba(16, 24, 40, 0.05)",
+        boxShadow: "0 8px 20px rgba(21, 23, 25, 0.05)",
       }}
       aria-busy={pending || undefined}
     >
@@ -90,7 +90,7 @@ function GstCard({
           style={{
             fontSize: "28px",
             fontWeight: 800,
-            color: "#000000",
+            color: "#151719",
             marginTop: "4px",
             fontVariantNumeric: "tabular-nums",
           }}
@@ -108,7 +108,7 @@ function GstCard({
       <span
         style={{
           background: iconBg,
-          color: "#ffffff",
+          color: "#FFFFFF",
           borderRadius: "9px",
           width: "46px",
           height: "46px",

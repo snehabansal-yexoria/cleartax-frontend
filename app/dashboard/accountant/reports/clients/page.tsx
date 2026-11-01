@@ -157,7 +157,7 @@ export default function ClientsTouched() {
               onClick={() => setSelectedPeriod(period)}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 selectedPeriod === period
-                  ? "bg-[#28336e] text-white shadow-md shadow-indigo-900/10"
+                  ? "bg-[#242629] text-white shadow-md shadow-indigo-900/10"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >

@@ -116,10 +116,10 @@ export default function InviteUserByAdmin() {
         }
         
         .premium-card {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
+          background: #FFFFFF;
+          border: 1px solid #E2E0D9;
           border-radius: 16px;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+          box-shadow: 0 10px 25px -5px rgba(21, 23, 25, 0.05), 0 8px 10px -6px rgba(21, 23, 25, 0.05);
           padding: 32px;
           margin-top: 24px;
         }
@@ -139,7 +139,7 @@ export default function InviteUserByAdmin() {
         }
 
         .role-card {
-          border: 2px solid #e2e8f0;
+          border: 2px solid #E2E0D9;
           border-radius: 12px;
           padding: 20px 16px;
           cursor: pointer;
@@ -149,49 +149,49 @@ export default function InviteUserByAdmin() {
           align-items: center;
           text-align: center;
           position: relative;
-          background: #f8fafc;
+          background: #F3F0E9;
         }
 
         .role-card:hover {
-          border-color: #cbd5e1;
+          border-color: #CBC9C4;
           transform: translateY(-2px);
-          background: #ffffff;
+          background: #FFFFFF;
         }
 
         .role-card.is-active {
-          border-color: #2563eb;
-          background: rgba(37, 99, 235, 0.02);
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+          border-color: #7A5CFA;
+          background: rgba(122, 92, 250, 0.02);
+          box-shadow: 0 4px 12px rgba(122, 92, 250, 0.08);
         }
 
         .role-card-icon {
           width: 44px;
           height: 44px;
           border-radius: 50%;
-          background: #f1f5f9;
+          background: #F3F0E9;
           display: flex;
           align-items: center;
           justify-content: center;
           margin-bottom: 12px;
-          color: #64748b;
+          color: #6C6C6B;
           transition: all 0.25s ease;
         }
 
         .role-card.is-active .role-card-icon {
-          background: rgba(37, 99, 235, 0.1);
-          color: #2563eb;
+          background: rgba(122, 92, 250, 0.1);
+          color: #7A5CFA;
         }
 
         .role-card-title {
           font-weight: 700;
           font-size: 0.95rem;
-          color: #0f172a;
+          color: #151719;
           margin-bottom: 6px;
         }
 
         .role-card-desc {
           font-size: 0.78rem;
-          color: #64748b;
+          color: #6C6C6B;
           line-height: 1.4;
         }
 
@@ -199,7 +199,7 @@ export default function InviteUserByAdmin() {
           position: absolute;
           top: 10px;
           right: 10px;
-          color: #2563eb;
+          color: #7A5CFA;
           opacity: 0;
           transform: scale(0.8);
           transition: all 0.2s ease;
@@ -219,7 +219,7 @@ export default function InviteUserByAdmin() {
           display: block;
           font-weight: 600;
           font-size: 0.88rem;
-          color: #334155;
+          color: #3E3F3F;
           margin-bottom: 8px;
         }
 
@@ -232,24 +232,24 @@ export default function InviteUserByAdmin() {
         .input-icon-left {
           position: absolute;
           left: 14px;
-          color: #94a3b8;
+          color: #999894;
           pointer-events: none;
         }
 
         .custom-field {
           width: 100%;
           padding: 12px 14px 12px 42px;
-          border: 1px solid #cbd5e1;
+          border: 1px solid #CBC9C4;
           border-radius: 8px;
           font-size: 0.95rem;
-          color: #0f172a;
+          color: #151719;
           transition: all 0.2s ease;
-          background: #ffffff;
+          background: #FFFFFF;
         }
 
         .custom-field:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+          border-color: #7A5CFA;
+          box-shadow: 0 0 0 3px rgba(122, 92, 250, 0.12);
           outline: none;
         }
 
@@ -260,32 +260,32 @@ export default function InviteUserByAdmin() {
           gap: 8px;
           width: 100%;
           padding: 12px 24px;
-          background: #2563eb;
-          color: #ffffff;
+          background: #7A5CFA;
+          color: #FFFFFF;
           font-weight: 600;
           font-size: 0.95rem;
           border: none;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+          box-shadow: 0 4px 6px -1px rgba(122, 92, 250, 0.2), 0 2px 4px -1px rgba(122, 92, 250, 0.1);
         }
 
         .submit-btn-premium:hover:not(:disabled) {
-          background: #1d4ed8;
-          box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.25), 0 3px 6px -1px rgba(37, 99, 235, 0.15);
+          background: #7A5CFA;
+          box-shadow: 0 6px 10px -1px rgba(122, 92, 250, 0.25), 0 3px 6px -1px rgba(122, 92, 250, 0.15);
         }
 
         .submit-btn-premium:disabled {
-          background: #94a3b8;
+          background: #999894;
           cursor: not-allowed;
           box-shadow: none;
         }
 
         .success-card {
           margin-top: 32px;
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
+          background: #F3F0E9;
+          border: 1px solid #EBECE1;
           border-radius: 12px;
           padding: 24px;
           animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -297,8 +297,8 @@ export default function InviteUserByAdmin() {
           gap: 6px;
           padding: 4px 10px;
           border-radius: 99px;
-          background: #dcfce7;
-          color: #15803d;
+          background: #F2F2EA;
+          color: #56613F;
           font-size: 0.72rem;
           font-weight: 700;
           text-transform: uppercase;
@@ -310,8 +310,8 @@ export default function InviteUserByAdmin() {
           display: flex;
           align-items: center;
           gap: 8px;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
+          background: #FFFFFF;
+          border: 1px solid #E2E0D9;
           border-radius: 8px;
           padding: 8px 12px;
           margin-top: 6px;
@@ -321,7 +321,7 @@ export default function InviteUserByAdmin() {
         .copy-box-text {
           flex: 1;
           font-size: 0.88rem;
-          color: #334155;
+          color: #3E3F3F;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -334,9 +334,9 @@ export default function InviteUserByAdmin() {
           padding: 6px 12px;
           font-size: 0.75rem;
           font-weight: 600;
-          color: #0f172a;
-          background: #f1f5f9;
-          border: 1px solid #cbd5e1;
+          color: #151719;
+          background: #F3F0E9;
+          border: 1px solid #CBC9C4;
           border-radius: 6px;
           cursor: pointer;
           transition: all 0.15s ease;
@@ -344,24 +344,24 @@ export default function InviteUserByAdmin() {
         }
 
         .copy-btn:hover {
-          background: #e2e8f0;
-          border-color: #94a3b8;
+          background: #E2E0D9;
+          border-color: #999894;
         }
 
         .copy-btn.copied {
-          background: #dcfce7;
-          color: #15803d;
-          border-color: #86efac;
+          background: #F2F2EA;
+          color: #56613F;
+          border-color: #E0E3D4;
         }
 
         .password-pre {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: #F3F0E9;
+          border: 1px solid #E2E0D9;
           border-radius: 6px;
           padding: 10px 14px;
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
           font-size: 0.9rem;
-          color: #0f172a;
+          color: #151719;
           margin: 6px 0;
           display: flex;
           justify-content: space-between;
@@ -411,8 +411,8 @@ export default function InviteUserByAdmin() {
           align-items: flex-start;
           justify-content: space-between;
           gap: 12px;
-          background: #fef2f2;
-          border: 1px solid #fee2e2;
+          background: #F3F0E9;
+          border: 1px solid #F6EAE2;
           border-radius: 12px;
           padding: 16px;
           margin-bottom: 24px;
@@ -426,7 +426,7 @@ export default function InviteUserByAdmin() {
         }
         
         .error-alert-icon {
-          color: #ef4444;
+          color: #C46A4C;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -443,12 +443,12 @@ export default function InviteUserByAdmin() {
         .error-alert-title {
           font-weight: 700;
           font-size: 0.88rem;
-          color: #991b1b;
+          color: #C46A4C;
         }
         
         .error-alert-desc {
           font-size: 0.8rem;
-          color: #b91c1c;
+          color: #C46A4C;
           margin: 0;
           line-height: 1.4;
         }
@@ -456,7 +456,7 @@ export default function InviteUserByAdmin() {
         .error-alert-close {
           background: transparent;
           border: none;
-          color: #f87171;
+          color: #E6B7A4;
           cursor: pointer;
           padding: 4px;
           border-radius: 6px;
@@ -469,8 +469,8 @@ export default function InviteUserByAdmin() {
         }
         
         .error-alert-close:hover {
-          background: rgba(239, 68, 68, 0.08);
-          color: #b91c1c;
+          background: rgba(196, 106, 76, 0.08);
+          color: #C46A4C;
         }
       `}</style>
 
@@ -650,11 +650,11 @@ export default function InviteUserByAdmin() {
                   <span>Reg. Manager Created</span>
                 </div>
 
-                <h3 style={{ color: "#0f172a", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
+                <h3 style={{ color: "#151719", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
                   User Created Successfully
                 </h3>
 
-                <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "0px" }}>
+                <p style={{ color: "#505050", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "0px" }}>
                   The user has been created successfully.
                 </p>
               </>
@@ -667,11 +667,11 @@ export default function InviteUserByAdmin() {
                   <span>Member Account Provisioned</span>
                 </div>
 
-                <h3 style={{ color: "#0f172a", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
+                <h3 style={{ color: "#151719", fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px" }}>
                   Invitation Sent
                 </h3>
 
-                <p style={{ color: "#475569", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "0px" }}>
+                <p style={{ color: "#505050", fontSize: "0.85rem", lineHeight: "1.5", marginBottom: "0px" }}>
                   An invitation email has been sent to the user with a secure link
                   to set their password and access their workspace.
                 </p>
@@ -708,7 +708,7 @@ export default function InviteUserByAdmin() {
                           type="button"
                           onClick={() => handleCopy(tempPassword, setCopiedPassword)}
                           className={`copy-btn${copiedPassword ? " copied" : ""}`}
-                          style={{ background: "#ffffff" }}
+                          style={{ background: "#FFFFFF" }}
                         >
                           {copiedPassword ? "Copied!" : "Copy"}
                         </button>

@@ -580,10 +580,10 @@ export default function NewPropertyPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", background: "#f7f9fc" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", background: "#F3F0E9" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #1a235a", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-          <span style={{ fontSize: "15px", color: "#667085", fontWeight: 500 }}>Loading workspace...</span>
+          <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #151719", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+          <span style={{ fontSize: "15px", color: "#6A6A69", fontWeight: 500 }}>Loading workspace...</span>
         </div>
       </div>
     );
@@ -594,13 +594,13 @@ export default function NewPropertyPage() {
     const isCurrentStepValid = step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : (isStep2Valid && isLoanDetailsValid);
     
     return (
-      <div style={{ background: "#ffffff", minHeight: "100vh", paddingBottom: "90px", display: "flex", flexDirection: "column", fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+      <div style={{ background: "#FFFFFF", minHeight: "100vh", paddingBottom: "90px", display: "flex", flexDirection: "column", fontFamily: '"Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
         {/* Top Header */}
         <div style={{
           position: "sticky",
           top: 0,
-          background: "#ffffff",
-          borderBottom: "1px solid #eaeef4",
+          background: "#FFFFFF",
+          borderBottom: "1px solid #EBE8E1",
           zIndex: 100,
           display: "flex",
           alignItems: "center",
@@ -619,7 +619,7 @@ export default function NewPropertyPage() {
               border: "none",
               fontSize: "16px",
               fontWeight: 600,
-              color: "#2f3c82",
+              color: "#2E3135",
               cursor: "pointer",
               padding: 0
             }}
@@ -636,7 +636,7 @@ export default function NewPropertyPage() {
             transform: "translateX(-50%)",
             fontSize: "18px",
             fontWeight: 700,
-            color: "#101828"
+            color: "#151719"
           }}>
             Add Property
           </div>
@@ -645,13 +645,13 @@ export default function NewPropertyPage() {
 
         {/* Step Info Banner */}
         <div style={{
-          background: "#f4f6fc",
+          background: "#F3F0E9",
           padding: "14px 16px",
           textAlign: "center",
           fontSize: "14px",
           fontWeight: 600,
-          color: "#2f3c82",
-          borderBottom: "1px solid #eaeef4"
+          color: "#2E3135",
+          borderBottom: "1px solid #EBE8E1"
         }}>
           Enter the below values to complete the step
         </div>
@@ -662,36 +662,36 @@ export default function NewPropertyPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               {/* Property Image */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
                   Property Image
                 </label>
                 
                 {isUploadingPropertyImage ? (
-                  <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", background: "#f8f9fc" }}>
+                  <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", background: "#F3F0E9" }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 500, color: "#344054", marginBottom: "4px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 500, color: "#3E3F3F", marginBottom: "4px" }}>
                         <span>Uploading...</span>
                         <span>{propertyImageProgress}%</span>
                       </div>
-                      <div style={{ height: "6px", width: "100%", background: "#eaeef4", borderRadius: "3px", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: "#2f3c82" }} />
+                      <div style={{ height: "6px", width: "100%", background: "#EBE8E1", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: "#2E3135" }} />
                       </div>
                     </div>
                   </div>
                 ) : imageUrl ? (
-                  <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8f9fc" }}>
+                  <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F3F0E9" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <img 
                         src={imageUrl.startsWith("http") || imageUrl.startsWith("/") ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`} 
                         alt="Preview" 
-                        style={{ width: "40px", height: "40px", borderRadius: "8px", objectFit: "cover", border: "1px solid #eaeef4" }} 
+                        style={{ width: "40px", height: "40px", borderRadius: "8px", objectFit: "cover", border: "1px solid #EBE8E1" }} 
                       />
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#344054" }}>Image added</span>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#3E3F3F" }}>Image added</span>
                     </div>
                     <button 
                       type="button" 
                       onClick={() => { setImageUrl(""); setPropertyImageName(""); }}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3" }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794" }}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}>
                         <path d="M18 6L6 18M6 6l12 12" />
@@ -702,8 +702,8 @@ export default function NewPropertyPage() {
                   <div
                     onClick={() => document.getElementById("mobile-image-input")?.click()}
                     style={{
-                      border: "1px solid #eaeef4",
-                      background: "#f4f6fa",
+                      border: "1px solid #EBE8E1",
+                      background: "#F3F0E9",
                       borderRadius: "12px",
                       padding: "24px 16px",
                       textAlign: "center",
@@ -717,10 +717,10 @@ export default function NewPropertyPage() {
                       onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file); }} 
                       style={{ display: "none" }} 
                     />
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#718096", marginBottom: "4px" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#777775", marginBottom: "4px" }}>
                       Tap to add property photo
                     </div>
-                    <div style={{ fontSize: "11px", color: "#a0aec0" }}>
+                    <div style={{ fontSize: "11px", color: "#A3A19E" }}>
                       JPEG, PNG max 10 MB<br />Camera or Gallery
                     </div>
                   </div>
@@ -729,8 +729,8 @@ export default function NewPropertyPage() {
 
               {/* Entity name */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Entity Name <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Entity Name <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <div style={{ position: "relative", zIndex: isEntityOpen ? 30 : 1 }}>
                   <button
@@ -740,11 +740,11 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: "#f4f6fa",
-                      border: "1px solid #eaeef4",
+                      background: "#F3F0E9",
+                      border: "1px solid #EBE8E1",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: selectedEntityId ? "#101828" : "#94a3b8",
+                      color: selectedEntityId ? "#151719" : "#999894",
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
@@ -754,12 +754,12 @@ export default function NewPropertyPage() {
                     }}
                   >
                     <span>{selectedEntity ? selectedEntity.name : "Select Entity"}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                       <path d="M6 9l6 6 6-6" />
                     </svg>
                   </button>
                   {isEntityOpen && (
-                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "12px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
+                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: "#FFFFFF", border: "1px solid #EBE8E1", borderRadius: "12px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
                       {entities.map((e) => (
                         <button
                           key={e.id}
@@ -769,10 +769,10 @@ export default function NewPropertyPage() {
                             width: "100%",
                             padding: "12px 16px",
                             textAlign: "left",
-                            background: selectedEntityId === e.id ? "#f4f6fc" : "transparent",
+                            background: selectedEntityId === e.id ? "#F3F0E9" : "transparent",
                             border: "none",
                             fontSize: "14px",
-                            color: "#101828",
+                            color: "#151719",
                             cursor: "pointer",
                             fontWeight: selectedEntityId === e.id ? 600 : 500,
                             display: "block"
@@ -788,8 +788,8 @@ export default function NewPropertyPage() {
 
               {/* Property name */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Property Name <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Property Name <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -800,11 +800,11 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: "#f4f6fa",
-                    border: "1px solid #eaeef4",
+                    background: "#F3F0E9",
+                    border: "1px solid #EBE8E1",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: "#101828",
+                    color: "#151719",
                     outline: "none"
                   }}
                 />
@@ -812,8 +812,8 @@ export default function NewPropertyPage() {
 
               {/* Property Location */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Property Location <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Property Location <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -824,11 +824,11 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: "#f4f6fa",
-                    border: "1px solid #eaeef4",
+                    background: "#F3F0E9",
+                    border: "1px solid #EBE8E1",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: "#101828",
+                    color: "#151719",
                     outline: "none"
                   }}
                 />
@@ -836,8 +836,8 @@ export default function NewPropertyPage() {
 
               {/* Property Type */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Property Type <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Property Type <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <div style={{ position: "relative", zIndex: isTypeOpen ? 30 : 1 }}>
                   <button
@@ -847,11 +847,11 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: "#f4f6fa",
-                      border: "1px solid #eaeef4",
+                      background: "#F3F0E9",
+                      border: "1px solid #EBE8E1",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: propertyType ? "#101828" : "#94a3b8",
+                      color: propertyType ? "#151719" : "#999894",
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
@@ -861,12 +861,12 @@ export default function NewPropertyPage() {
                     }}
                   >
                     <span>{propertyType ? propertyTypeOptions.find((o) => o.value === propertyType)?.label : "Select Type"}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                       <path d="M6 9l6 6 6-6" />
                     </svg>
                   </button>
                   {isTypeOpen && (
-                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "12px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 120 }}>
+                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: "#FFFFFF", border: "1px solid #EBE8E1", borderRadius: "12px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 120 }}>
                       {propertyTypeOptions.map((o) => (
                         <button
                           key={o.value}
@@ -876,10 +876,10 @@ export default function NewPropertyPage() {
                             width: "100%",
                             padding: "12px 16px",
                             textAlign: "left",
-                            background: propertyType === o.value ? "#f4f6fc" : "transparent",
+                            background: propertyType === o.value ? "#F3F0E9" : "transparent",
                             border: "none",
                             fontSize: "14px",
-                            color: "#101828",
+                            color: "#151719",
                             cursor: "pointer",
                             fontWeight: propertyType === o.value ? 600 : 500,
                             display: "block"
@@ -895,8 +895,8 @@ export default function NewPropertyPage() {
 
               {/* Property Status */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Property Status <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Property Status <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <div style={{ position: "relative", zIndex: isStatusOpen ? 30 : 1 }}>
                   <button
@@ -906,11 +906,11 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: "#f4f6fa",
-                      border: "1px solid #eaeef4",
+                      background: "#F3F0E9",
+                      border: "1px solid #EBE8E1",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: status ? "#101828" : "#94a3b8",
+                      color: status ? "#151719" : "#999894",
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
@@ -920,12 +920,12 @@ export default function NewPropertyPage() {
                     }}
                   >
                     <span>{status || "Select Status"}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                       <path d="M6 9l6 6 6-6" />
                     </svg>
                   </button>
                   {isStatusOpen && (
-                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "12px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
+                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: "#FFFFFF", border: "1px solid #EBE8E1", borderRadius: "12px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
                       {propertyStatusOptions.map((opt) => (
                         <button
                           key={opt}
@@ -935,10 +935,10 @@ export default function NewPropertyPage() {
                             width: "100%",
                             padding: "12px 16px",
                             textAlign: "left",
-                            background: status === opt ? "#f4f6fc" : "transparent",
+                            background: status === opt ? "#F3F0E9" : "transparent",
                             border: "none",
                             fontSize: "14px",
-                            color: "#101828",
+                            color: "#151719",
                             cursor: "pointer",
                             fontWeight: status === opt ? 600 : 500,
                             display: "block"
@@ -954,10 +954,10 @@ export default function NewPropertyPage() {
 
               {/* Status dates */}
               {(status === "Available for Rent" || status === "Rented") && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: "#f8f9fc", borderRadius: "12px", border: "1px solid #eaeef4" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: "#F3F0E9", borderRadius: "12px", border: "1px solid #EBE8E1" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "6px" }}>
-                      Available for Rent Date <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#505050", marginBottom: "6px" }}>
+                      Available for Rent Date <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -968,18 +968,18 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 12px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "13px",
-                        color: "#101828"
+                        color: "#151719"
                       }}
                     />
                   </div>
                   {status === "Rented" && (
                     <div>
-                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "6px" }}>
-                        First Rental Income Date <span style={{ color: "#EF4444" }}>*</span>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#505050", marginBottom: "6px" }}>
+                        First Rental Income Date <span style={{ color: "#C46A4C" }}>*</span>
                       </label>
                       <input
                         type="date"
@@ -990,11 +990,11 @@ export default function NewPropertyPage() {
                           width: "100%",
                           height: "44px",
                           padding: "0 12px",
-                          background: "#ffffff",
-                          border: "1px solid #eaeef4",
+                          background: "#FFFFFF",
+                          border: "1px solid #EBE8E1",
                           borderRadius: "8px",
                           fontSize: "13px",
-                          color: "#101828"
+                          color: "#151719"
                         }}
                       />
                     </div>
@@ -1003,10 +1003,10 @@ export default function NewPropertyPage() {
               )}
 
               {status === "Under Renovation" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: "#f8f9fc", borderRadius: "12px", border: "1px solid #eaeef4" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: "#F3F0E9", borderRadius: "12px", border: "1px solid #EBE8E1" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "6px" }}>
-                      Renovation Start Date <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#505050", marginBottom: "6px" }}>
+                      Renovation Start Date <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -1017,17 +1017,17 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 12px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "13px",
-                        color: "#101828"
+                        color: "#151719"
                       }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "6px" }}>
-                      Renovation End Date <small style={{ color: "#667085" }}>(Optional)</small>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#505050", marginBottom: "6px" }}>
+                      Renovation End Date <small style={{ color: "#6A6A69" }}>(Optional)</small>
                     </label>
                     <input
                       type="date"
@@ -1038,11 +1038,11 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 12px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "13px",
-                        color: "#101828"
+                        color: "#151719"
                       }}
                     />
                   </div>
@@ -1053,15 +1053,15 @@ export default function NewPropertyPage() {
 
           {step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={{ fontSize: "11px", fontWeight: 800, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <div style={{ fontSize: "11px", fontWeight: 800, color: "#6C6C6B", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 FINANCIAL INFO
               </div>
 
               {/* Market and Purchase Value */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                    Market Value <span style={{ color: "#EF4444" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                    Market Value <span style={{ color: "#C46A4C" }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1072,18 +1072,18 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: "#f4f6fa",
-                      border: "1px solid #eaeef4",
+                      background: "#F3F0E9",
+                      border: "1px solid #EBE8E1",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: "#101828",
+                      color: "#151719",
                       outline: "none"
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                    Purchase Value <span style={{ color: "#EF4444" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                    Purchase Value <span style={{ color: "#C46A4C" }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1094,11 +1094,11 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: "#f4f6fa",
-                      border: "1px solid #eaeef4",
+                      background: "#F3F0E9",
+                      border: "1px solid #EBE8E1",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: "#101828",
+                      color: "#151719",
                       outline: "none"
                     }}
                   />
@@ -1107,8 +1107,8 @@ export default function NewPropertyPage() {
 
               {/* Purchase Date */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Purchase Date <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Purchase Date <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <input
                   type="date"
@@ -1119,11 +1119,11 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: "#f4f6fa",
-                    border: "1px solid #eaeef4",
+                    background: "#F3F0E9",
+                    border: "1px solid #EBE8E1",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: "#101828",
+                    color: "#151719",
                     outline: "none"
                   }}
                 />
@@ -1131,19 +1131,19 @@ export default function NewPropertyPage() {
 
               {/* Depreciation Schedule Radios */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
                   Depreciation Schedule
                 </label>
                 <div style={{ display: "flex", gap: "24px", marginTop: "4px" }}>
                   <div
                     onClick={() => setHasDepreciationSchedule(true)}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#1e293b", cursor: "pointer", fontWeight: 500 }}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#151719", cursor: "pointer", fontWeight: 500 }}
                   >
                     <div style={{
                       width: "20px",
                       height: "20px",
                       borderRadius: "50%",
-                      border: hasDepreciationSchedule ? "2.5px solid #1B265C" : "2px solid #A0AEC0",
+                      border: hasDepreciationSchedule ? "2.5px solid #151719" : "2px solid #A3A19E",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1155,7 +1155,7 @@ export default function NewPropertyPage() {
                           width: "10px",
                           height: "10px",
                           borderRadius: "50%",
-                          background: "#1B265C"
+                          background: "#151719"
                         }} />
                       )}
                     </div>
@@ -1167,13 +1167,13 @@ export default function NewPropertyPage() {
                       setDepreciationScheduleDocument(null);
                       setDepreciationUploadProgress(0);
                     }}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#1e293b", cursor: "pointer", fontWeight: 500 }}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#151719", cursor: "pointer", fontWeight: 500 }}
                   >
                     <div style={{
                       width: "20px",
                       height: "20px",
                       borderRadius: "50%",
-                      border: !hasDepreciationSchedule ? "2.5px solid #1B265C" : "2px solid #A0AEC0",
+                      border: !hasDepreciationSchedule ? "2.5px solid #151719" : "2px solid #A3A19E",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1185,7 +1185,7 @@ export default function NewPropertyPage() {
                           width: "10px",
                           height: "10px",
                           borderRadius: "50%",
-                          background: "#1B265C"
+                          background: "#151719"
                         }} />
                       )}
                     </div>
@@ -1196,18 +1196,18 @@ export default function NewPropertyPage() {
                 {hasDepreciationSchedule && (
                   <div style={{ marginTop: "12px" }}>
                     {isUploadingDepreciationSchedule ? (
-                      <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "12px", background: "#f8f9fc" }}>
-                        <div style={{ fontSize: "12px", fontWeight: 500, color: "#344054" }}>Uploading depreciation document ({depreciationUploadProgress}%)</div>
+                      <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "12px", background: "#F3F0E9" }}>
+                        <div style={{ fontSize: "12px", fontWeight: 500, color: "#3E3F3F" }}>Uploading depreciation document ({depreciationUploadProgress}%)</div>
                       </div>
                     ) : depreciationScheduleDocument ? (
-                      <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8f9fc" }}>
-                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#344054" }}>{depreciationScheduleDocument.filename}</span>
-                        <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3" }}>✕</button>
+                      <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F3F0E9" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#3E3F3F" }}>{depreciationScheduleDocument.filename}</span>
+                        <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794" }}>✕</button>
                       </div>
                     ) : (
                       <div
                         onClick={() => document.getElementById("mobile-doc-input")?.click()}
-                        style={{ border: "1px dashed #eaeef4", background: "#f8f9fc", borderRadius: "12px", padding: "16px", textAlign: "center", cursor: "pointer" }}
+                        style={{ border: "1px dashed #EBE8E1", background: "#F3F0E9", borderRadius: "12px", padding: "16px", textAlign: "center", cursor: "pointer" }}
                       >
                         <input 
                           type="file" 
@@ -1216,7 +1216,7 @@ export default function NewPropertyPage() {
                           onChange={(e) => { const file = e.target.files?.[0]; if (file) handleDocUpload(file); }} 
                           style={{ display: "none" }} 
                         />
-                        <span style={{ fontSize: "13px", color: "#2f3c82", fontWeight: 600 }}>+ Upload depreciation schedule</span>
+                        <span style={{ fontSize: "13px", color: "#2E3135", fontWeight: 600 }}>+ Upload depreciation schedule</span>
                       </div>
                     )}
                   </div>
@@ -1224,8 +1224,8 @@ export default function NewPropertyPage() {
               </div>
 
               {/* Beneficiaries section */}
-              <div style={{ borderTop: "1px solid #eaeef4", paddingTop: "20px", marginTop: "10px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 800, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "12px" }}>
+              <div style={{ borderTop: "1px solid #EBE8E1", paddingTop: "20px", marginTop: "10px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 800, color: "#6C6C6B", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "12px" }}>
                   BENEFICIARIES
                 </div>
 
@@ -1241,11 +1241,11 @@ export default function NewPropertyPage() {
                           flex: 1,
                           height: "48px",
                           padding: "0 16px",
-                          background: "#f4f6fa",
-                          border: "1px solid #eaeef4",
+                          background: "#F3F0E9",
+                          border: "1px solid #EBE8E1",
                           borderRadius: "12px",
                           fontSize: "14px",
-                          color: "#101828",
+                          color: "#151719",
                           outline: "none"
                         }}
                       />
@@ -1259,21 +1259,21 @@ export default function NewPropertyPage() {
                             width: "60px",
                             height: "48px",
                             padding: "0 12px",
-                            background: "#f4f6fa",
-                            border: "1px solid #eaeef4",
+                            background: "#F3F0E9",
+                            border: "1px solid #EBE8E1",
                             borderRadius: "12px",
                             fontSize: "14px",
-                            color: "#101828",
+                            color: "#151719",
                             outline: "none",
                             textAlign: "center"
                           }}
                         />
-                        <span style={{ fontSize: "14px", color: "#667085", fontWeight: 700 }}>%</span>
+                        <span style={{ fontSize: "14px", color: "#6A6A69", fontWeight: 700 }}>%</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => deleteBeneficiaryRow(idx)}
-                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#C46A4C", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: "18px", height: "18px" }}>
                           <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -1290,10 +1290,10 @@ export default function NewPropertyPage() {
                   style={{
                     width: "100%",
                     height: "48px",
-                    background: "#ffffff",
-                    border: "1px solid #1B265C",
+                    background: "#FFFFFF",
+                    border: "1px solid #151719",
                     borderRadius: "12px",
-                    color: "#1B265C",
+                    color: "#151719",
                     fontSize: "14px",
                     fontWeight: 700,
                     cursor: "pointer",
@@ -1313,12 +1313,12 @@ export default function NewPropertyPage() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "14px 16px",
-                  background: "#fffdf0",
-                  border: "1px solid #fef08a",
+                  background: "#F3F0E9",
+                  border: "1px solid #EAC4B4",
                   borderRadius: "12px",
                   fontSize: "14px",
                   fontWeight: 600,
-                  color: "#b45309"
+                  color: "#C46A4C"
                 }}>
                   <span>Total Ownership:</span>
                   <span>{totalOwnership.toFixed(1)}%</span>
@@ -1329,12 +1329,12 @@ export default function NewPropertyPage() {
 
           {step === 3 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={{ fontSize: "11px", fontWeight: 800, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <div style={{ fontSize: "11px", fontWeight: 800, color: "#6C6C6B", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 LOAN DETAILS — OPTIONAL
               </div>
 
               {/* Does the property have a loan? checkbox */}
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", marginBottom: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: "#F3F0E9", border: "1px solid #E2E0D9", borderRadius: "12px", marginBottom: "10px" }}>
                 <input
                   type="checkbox"
                   id="has-loan-checkbox-mobile"
@@ -1361,7 +1361,7 @@ export default function NewPropertyPage() {
                   }}
                   style={{ width: "18px", height: "18px", cursor: "pointer" }}
                 />
-                <label htmlFor="has-loan-checkbox-mobile" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", cursor: "pointer", userSelect: "none" }}>
+                <label htmlFor="has-loan-checkbox-mobile" style={{ fontSize: "14px", fontWeight: 600, color: "#151719", cursor: "pointer", userSelect: "none" }}>
                   Does the property have a loan?
                 </label>
               </div>
@@ -1369,8 +1369,8 @@ export default function NewPropertyPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "20px", opacity: hasLoan ? 1 : 0.5, pointerEvents: hasLoan ? "auto" : "none", transition: "opacity 0.2s" }}>
                 {/* Bank Name */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Bank Name {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Bank Name {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                 </label>
                 <input
                   type="text"
@@ -1383,17 +1383,17 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: hasLoan ? "#ffffff" : "#f1f5f9",
-                    border: touchedFields.bankName && !isBankNameValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                    background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                    border: touchedFields.bankName && !isBankNameValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: hasLoan ? "#101828" : "#94a3b8",
+                    color: hasLoan ? "#151719" : "#999894",
                     outline: "none",
                     cursor: hasLoan ? "text" : "not-allowed"
                   }}
                 />
                 {touchedFields.bankName && !isBankNameValid && (
-                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                  <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                     {!bankName.trim() ? "Bank Name is required." : "Bank Name must contain letters and spaces only."}
                   </div>
                 )}
@@ -1402,8 +1402,8 @@ export default function NewPropertyPage() {
               {/* BSB Number and Loan % Allocation */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                    BSB Number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                    BSB Number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
@@ -1416,24 +1416,24 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: hasLoan ? "#ffffff" : "#f1f5f9",
-                      border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                      background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                      border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: hasLoan ? "#101828" : "#94a3b8",
+                      color: hasLoan ? "#151719" : "#999894",
                       outline: "none",
                       cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
                   {touchedFields.bsbNumber && !isBsbValid && (
-                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                       {!bsbNumber.trim() ? "BSB Number is required." : "BSB Number must be exactly 6 digits."}
                     </div>
                   )}
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                    Loan % Allocation {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                    Loan % Allocation {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                   </label>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     <input
@@ -1466,19 +1466,19 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "48px",
                         padding: "0 24px 0 12px",
-                        background: hasLoan ? "#ffffff" : "#f1f5f9",
-                        border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                        background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                        border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                         borderRadius: "12px",
                         fontSize: "14px",
-                        color: hasLoan ? "#101828" : "#94a3b8",
+                        color: hasLoan ? "#151719" : "#999894",
                         outline: "none",
                         cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
-                    <span style={{ position: "absolute", right: "12px", fontSize: "14px", color: "#667085", fontWeight: 500 }}>%</span>
+                    <span style={{ position: "absolute", right: "12px", fontSize: "14px", color: "#6A6A69", fontWeight: 500 }}>%</span>
                   </div>
                   {touchedFields.loanAllocationPercentage && !isLoanAllocationValid && (
-                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                       {!loanAllocationPercentage
                         ? "Loan allocation is required."
                         : Number(loanAllocationPercentage) === 0
@@ -1491,8 +1491,8 @@ export default function NewPropertyPage() {
 
               {/* Loan Account Number */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Loan Account Number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Loan Account Number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                 </label>
                 <input
                   type="text"
@@ -1505,17 +1505,17 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: hasLoan ? "#ffffff" : "#f1f5f9",
-                    border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                    background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                    border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: hasLoan ? "#101828" : "#94a3b8",
+                    color: hasLoan ? "#151719" : "#999894",
                     outline: "none",
                     cursor: hasLoan ? "text" : "not-allowed"
                   }}
                 />
                 {touchedFields.loanAccountNumber && !isLoanAccountNumberValid && (
-                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                  <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                     {!loanAccountNumber.trim() ? "Loan Account Number is required." : "Loan Account Number must contain numeric values only."}
                   </div>
                 )}
@@ -1523,8 +1523,8 @@ export default function NewPropertyPage() {
 
               {/* Loan Amount */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
-                  Loan Amount {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#151719", marginBottom: "8px" }}>
+                  Loan Amount {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                 </label>
                 <input
                   type="text"
@@ -1537,17 +1537,17 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: hasLoan ? "#ffffff" : "#f1f5f9",
-                    border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                    background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                    border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: hasLoan ? "#101828" : "#94a3b8",
+                    color: hasLoan ? "#151719" : "#999894",
                     outline: "none",
                     cursor: hasLoan ? "text" : "not-allowed"
                   }}
                 />
                 {touchedFields.loanAmount && !isLoanAmountValid && (
-                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                  <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                     {!loanAmount.trim() ? "Loan Amount is required." : "Loan Amount must accept only currency format."}
                   </div>
                 )}
@@ -1558,7 +1558,7 @@ export default function NewPropertyPage() {
 
           {/* Mobile Error Message */}
           {errorMessage && (
-            <div style={{ marginTop: "16px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "8px", color: "#991b1b", fontSize: "13px", fontWeight: 500 }}>
+            <div style={{ marginTop: "16px", padding: "12px 16px", background: "#F3F0E9", border: "1px solid #EECFC1", borderRadius: "8px", color: "#C46A4C", fontSize: "13px", fontWeight: 500 }}>
               {errorMessage}
             </div>
           )}
@@ -1570,9 +1570,9 @@ export default function NewPropertyPage() {
           bottom: 0,
           left: 0,
           right: 0,
-          background: "#ffffff",
-          borderTop: "1px solid #eaeef4",
-          boxShadow: "0px -4px 10px rgba(0, 0, 0, 0.04)",
+          background: "#FFFFFF",
+          borderTop: "1px solid #EBE8E1",
+          boxShadow: "0px -4px 10px rgba(21, 23, 25, 0.04)",
           padding: "16px 20px",
           zIndex: 200
         }}>
@@ -1584,9 +1584,9 @@ export default function NewPropertyPage() {
               width: "100%",
               height: "48px",
               borderRadius: "12px",
-              background: isCurrentStepValid ? "#1B265C" : "#A2AABF",
+              background: isCurrentStepValid ? "#151719" : "#A3A29E",
               border: "none",
-              color: "#ffffff",
+              color: "#FFFFFF",
               fontSize: "16px",
               fontWeight: 700,
               cursor: isCurrentStepValid ? "pointer" : "not-allowed",
@@ -1599,15 +1599,15 @@ export default function NewPropertyPage() {
 
         {/* Success Modal */}
         {saved && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(16, 24, 40, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-            <div style={{ background: "#ffffff", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "340px", textAlign: "center", boxShadow: "0px 20px 48px rgba(16, 24, 40, 0.12)", border: "1px solid #eaeef4" }}>
-              <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px auto" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ width: "32px", height: "32px" }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(21, 23, 25, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+            <div style={{ background: "#FFFFFF", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "340px", textAlign: "center", boxShadow: "0px 20px 48px rgba(21, 23, 25, 0.12)", border: "1px solid #EBE8E1" }}>
+              <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#F3F0E9", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px auto" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6F7A5A" strokeWidth="3" style={{ width: "32px", height: "32px" }}>
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#101828", margin: "0 0 8px 0" }}>Property Added</h3>
-              <p style={{ fontSize: "13px", color: "#667085", margin: "0 0 24px 0", lineHeight: "1.4" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#151719", margin: "0 0 8px 0" }}>Property Added</h3>
+              <p style={{ fontSize: "13px", color: "#6A6A69", margin: "0 0 24px 0", lineHeight: "1.4" }}>
                 <strong>{propertyName}</strong> has been added successfully.
               </p>
               <Link
@@ -1618,11 +1618,11 @@ export default function NewPropertyPage() {
                   justifyContent: "center",
                   height: "44px",
                   width: "100%",
-                  background: "#1B265C",
+                  background: "#151719",
                   borderRadius: "8px",
                   fontSize: "14px",
                   fontWeight: 600,
-                  color: "#ffffff",
+                  color: "#FFFFFF",
                   textDecoration: "none"
                 }}
               >
@@ -1638,73 +1638,73 @@ export default function NewPropertyPage() {
   // --- DESKTOP RENDER FUNCTION (already built & verified) ---
   const renderDesktopView = () => {
     return (
-      <div style={{ background: "#f7f9fc", minHeight: "100vh", padding: "40px", fontFamily: '"Inter", sans-serif' }}>
+      <div style={{ background: "#F3F0E9", minHeight: "100vh", padding: "40px", fontFamily: '"Inter Tight", sans-serif' }}>
         <div style={{ marginBottom: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#667085", fontWeight: 500, marginBottom: "8px" }}>
-            <Link href="/dashboard/client/property" style={{ color: "#2f3c82", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#6A6A69", fontWeight: 500, marginBottom: "8px" }}>
+            <Link href="/dashboard/client/property" style={{ color: "#2E3135", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px" }}>
                 <path d="M15 19l-7-7 7-7" />
               </svg>
               Properties
             </Link>
             <span>/</span>
-            <span style={{ color: "#344054" }}>Add property</span>
+            <span style={{ color: "#3E3F3F" }}>Add property</span>
           </div>
-          <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#101828", margin: "0 0 4px 0", letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#151719", margin: "0 0 4px 0", letterSpacing: "-0.02em" }}>
             Add a new property
           </h1>
-          <p style={{ fontSize: "15px", color: "#667085", margin: 0, fontWeight: 400 }}>
+          <p style={{ fontSize: "15px", color: "#6A6A69", margin: 0, fontWeight: 400 }}>
             Enter the property details, financial info, and link any supporting documents
           </p>
         </div>
 
         <div style={{ width: "100%" }}>
           {step === 1 && (
-            <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #eaeef4", padding: "32px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.02)" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "#667085", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
+            <div style={{ background: "#FFFFFF", borderRadius: "16px", border: "1px solid #EBE8E1", padding: "32px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.02)" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#6A6A69", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
                 STEP 1 — PROPERTY DETAILS
               </div>
 
               {/* Property Image Dropzone */}
               <div style={{ marginBottom: "28px" }}>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
                   Property image
                 </label>
                 
                 {isUploadingPropertyImage ? (
-                  <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: "#f8f9fc" }}>
-                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "#eaeef4", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#2f3c82" strokeWidth="2" style={{ width: "20px", height: "20px" }}>
+                  <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: "#F3F0E9" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "#EBE8E1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#2E3135" strokeWidth="2" style={{ width: "20px", height: "20px" }}>
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: "#344054", marginBottom: "4px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: "#3E3F3F", marginBottom: "4px" }}>
                         <span>Uploading property image...</span>
                         <span>{propertyImageProgress}%</span>
                       </div>
-                      <div style={{ height: "6px", width: "100%", background: "#eaeef4", borderRadius: "3px", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: "#2f3c82", transition: "width 0.1s ease" }} />
+                      <div style={{ height: "6px", width: "100%", background: "#EBE8E1", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: "#2E3135", transition: "width 0.1s ease" }} />
                       </div>
                     </div>
                   </div>
                 ) : imageUrl ? (
-                  <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8f9fc" }}>
+                  <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F3F0E9" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       <img 
                         src={imageUrl.startsWith("http") || imageUrl.startsWith("/") ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`} 
                         alt="Preview" 
-                        style={{ width: "48px", height: "48px", borderRadius: "8px", objectFit: "cover", border: "1px solid #eaeef4" }} 
+                        style={{ width: "48px", height: "48px", borderRadius: "8px", objectFit: "cover", border: "1px solid #EBE8E1" }} 
                       />
                       <div>
-                        <div style={{ fontSize: "14px", fontWeight: 600, color: "#344054" }}>{propertyImageName || "Property Image"}</div>
-                        <div style={{ fontSize: "12px", color: "#10b981", fontWeight: 500 }}>Successfully uploaded</div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, color: "#3E3F3F" }}>{propertyImageName || "Property Image"}</div>
+                        <div style={{ fontSize: "12px", color: "#6F7A5A", fontWeight: 500 }}>Successfully uploaded</div>
                       </div>
                     </div>
                     <button 
                       type="button" 
                       onClick={() => { setImageUrl(""); setPropertyImageName(""); }}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3", padding: "8px" }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794", padding: "8px" }}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "18px", height: "18px" }}>
                         <path d="M18 6L6 18M6 6l12 12" />
@@ -1717,8 +1717,8 @@ export default function NewPropertyPage() {
                     onDragLeave={() => setIsDraggingImage(false)}
                     onDrop={(e) => { e.preventDefault(); setIsDraggingImage(false); const file = e.dataTransfer.files?.[0]; if (file) handleImageUpload(file); }}
                     style={{
-                      border: `2px dashed ${isDraggingImage ? "#2f3c82" : "#eaeef4"}`,
-                      background: isDraggingImage ? "#f4f6fc" : "#f8f9fc",
+                      border: `2px dashed ${isDraggingImage ? "#2E3135" : "#EBE8E1"}`,
+                      background: isDraggingImage ? "#F3F0E9" : "#F3F0E9",
                       borderRadius: "12px",
                       padding: "36px 20px",
                       textAlign: "center",
@@ -1734,17 +1734,17 @@ export default function NewPropertyPage() {
                       onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file); }} 
                       style={{ display: "none" }} 
                     />
-                    <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#ffffff", border: "1px solid #eaeef4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px auto", boxShadow: "0px 2px 8px rgba(16, 24, 40, 0.02)" }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "20px", height: "20px" }}>
+                    <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#FFFFFF", border: "1px solid #EBE8E1", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px auto", boxShadow: "0px 2px 8px rgba(21, 23, 25, 0.02)" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "20px", height: "20px" }}>
                         <rect x="3" y="3" width="18" height="18" rx="2" />
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <path d="M21 15l-5-5L5 21" />
                       </svg>
                     </div>
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#101828", marginBottom: "4px" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#151719", marginBottom: "4px" }}>
                       Tap to add property photo
                     </div>
-                    <div style={{ fontSize: "12px", color: "#667085", fontWeight: 400 }}>
+                    <div style={{ fontSize: "12px", color: "#6A6A69", fontWeight: 400 }}>
                       JPEG, PNG max 10 MB<br />Camera or Gallery
                     </div>
                   </div>
@@ -1754,8 +1754,8 @@ export default function NewPropertyPage() {
               {/* Entity Name & Property Name Fields */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                    Entity name <span style={{ color: "#EF4444" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                    Entity name <span style={{ color: "#C46A4C" }}>*</span>
                   </label>
                   <div style={{ position: "relative" }}>
                     <button
@@ -1765,11 +1765,11 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: selectedEntityId ? "#101828" : "#98a2b3",
+                        color: selectedEntityId ? "#151719" : "#989794",
                         textAlign: "left",
                         display: "flex",
                         alignItems: "center",
@@ -1779,12 +1779,12 @@ export default function NewPropertyPage() {
                       }}
                     >
                       <span>{selectedEntity ? selectedEntity.name : "Select Entity"}</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                     {isEntityOpen && (
-                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "8px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
+                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: "#FFFFFF", border: "1px solid #EBE8E1", borderRadius: "8px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
                         {entities.map((e) => (
                           <button
                             key={e.id}
@@ -1794,10 +1794,10 @@ export default function NewPropertyPage() {
                               width: "100%",
                               padding: "12px 16px",
                               textAlign: "left",
-                              background: selectedEntityId === e.id ? "#f4f6fc" : "transparent",
+                              background: selectedEntityId === e.id ? "#F3F0E9" : "transparent",
                               border: "none",
                               fontSize: "14px",
-                              color: "#101828",
+                              color: "#151719",
                               cursor: "pointer",
                               fontWeight: selectedEntityId === e.id ? 600 : 500,
                               display: "block"
@@ -1812,8 +1812,8 @@ export default function NewPropertyPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                    Property name <span style={{ color: "#EF4444" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                    Property name <span style={{ color: "#C46A4C" }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1824,11 +1824,11 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "44px",
                       padding: "0 16px",
-                      background: "#ffffff",
-                      border: "1px solid #eaeef4",
+                      background: "#FFFFFF",
+                      border: "1px solid #EBE8E1",
                       borderRadius: "8px",
                       fontSize: "14px",
-                      color: "#101828",
+                      color: "#151719",
                       outline: "none"
                     }}
                   />
@@ -1837,8 +1837,8 @@ export default function NewPropertyPage() {
 
               {/* Property Location Field */}
               <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                  Property location <span style={{ color: "#EF4444" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                  Property location <span style={{ color: "#C46A4C" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -1849,11 +1849,11 @@ export default function NewPropertyPage() {
                     width: "100%",
                     height: "44px",
                     padding: "0 16px",
-                    background: "#ffffff",
-                    border: "1px solid #eaeef4",
+                    background: "#FFFFFF",
+                    border: "1px solid #EBE8E1",
                     borderRadius: "8px",
                     fontSize: "14px",
-                    color: "#101828",
+                    color: "#151719",
                     outline: "none"
                   }}
                 />
@@ -1862,8 +1862,8 @@ export default function NewPropertyPage() {
               {/* Property Type & Status Dropdowns */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                    Property type <span style={{ color: "#EF4444" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                    Property type <span style={{ color: "#C46A4C" }}>*</span>
                   </label>
                   <div style={{ position: "relative" }}>
                     <button
@@ -1873,11 +1873,11 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: propertyType ? "#101828" : "#98a2b3",
+                        color: propertyType ? "#151719" : "#989794",
                         textAlign: "left",
                         display: "flex",
                         alignItems: "center",
@@ -1887,12 +1887,12 @@ export default function NewPropertyPage() {
                       }}
                     >
                       <span>{propertyType ? propertyTypeOptions.find((o) => o.value === propertyType)?.label : "Select Type"}</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                     {isTypeOpen && (
-                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "8px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 30 }}>
+                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: "#FFFFFF", border: "1px solid #EBE8E1", borderRadius: "8px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 30 }}>
                         {propertyTypeOptions.map((o) => (
                           <button
                             key={o.value}
@@ -1902,10 +1902,10 @@ export default function NewPropertyPage() {
                               width: "100%",
                               padding: "12px 16px",
                               textAlign: "left",
-                              background: propertyType === o.value ? "#f4f6fc" : "transparent",
+                              background: propertyType === o.value ? "#F3F0E9" : "transparent",
                               border: "none",
                               fontSize: "14px",
-                              color: "#101828",
+                              color: "#151719",
                               cursor: "pointer",
                               fontWeight: propertyType === o.value ? 600 : 500,
                               display: "block"
@@ -1920,8 +1920,8 @@ export default function NewPropertyPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                    Property status <span style={{ color: "#EF4444" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                    Property status <span style={{ color: "#C46A4C" }}>*</span>
                   </label>
                   <div style={{ position: "relative" }}>
                     <button
@@ -1931,11 +1931,11 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: status ? "#101828" : "#98a2b3",
+                        color: status ? "#151719" : "#989794",
                         textAlign: "left",
                         display: "flex",
                         alignItems: "center",
@@ -1945,12 +1945,12 @@ export default function NewPropertyPage() {
                       }}
                     >
                       <span>{status || "Select Status"}</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                     {isStatusOpen && (
-                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: "#ffffff", border: "1px solid #eaeef4", borderRadius: "8px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
+                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: "#FFFFFF", border: "1px solid #EBE8E1", borderRadius: "8px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
                         {propertyStatusOptions.map((opt) => (
                           <button
                             key={opt}
@@ -1960,10 +1960,10 @@ export default function NewPropertyPage() {
                               width: "100%",
                               padding: "12px 16px",
                               textAlign: "left",
-                              background: status === opt ? "#f4f6fc" : "transparent",
+                              background: status === opt ? "#F3F0E9" : "transparent",
                               border: "none",
                               fontSize: "14px",
-                              color: "#101828",
+                              color: "#151719",
                               cursor: "pointer",
                               fontWeight: status === opt ? 600 : 500,
                               display: "block"
@@ -1980,10 +1980,10 @@ export default function NewPropertyPage() {
 
               {/* Status Date Conditionals */}
               {(status === "Available for Rent" || status === "Rented") && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: "#f8f9fc", borderRadius: "8px", border: "1px solid #eaeef4" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: "#F3F0E9", borderRadius: "8px", border: "1px solid #EBE8E1" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
-                      Available for Rent Date <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+                      Available for Rent Date <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -1994,18 +1994,18 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "40px",
                         padding: "0 12px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "6px",
                         fontSize: "13px",
-                        color: "#101828"
+                        color: "#151719"
                       }}
                     />
                   </div>
                   {status === "Rented" && (
                     <div>
-                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
-                        First Rental Income Date <span style={{ color: "#EF4444" }}>*</span>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+                        First Rental Income Date <span style={{ color: "#C46A4C" }}>*</span>
                       </label>
                       <input
                         type="date"
@@ -2016,11 +2016,11 @@ export default function NewPropertyPage() {
                           width: "100%",
                           height: "40px",
                           padding: "0 12px",
-                          background: "#ffffff",
-                          border: "1px solid #eaeef4",
+                          background: "#FFFFFF",
+                          border: "1px solid #EBE8E1",
                           borderRadius: "6px",
                           fontSize: "13px",
-                          color: "#101828"
+                          color: "#151719"
                         }}
                       />
                     </div>
@@ -2029,10 +2029,10 @@ export default function NewPropertyPage() {
               )}
 
               {status === "Under Renovation" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: "#f8f9fc", borderRadius: "8px", border: "1px solid #eaeef4" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: "#F3F0E9", borderRadius: "8px", border: "1px solid #EBE8E1" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
-                      Renovation Start Date <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+                      Renovation Start Date <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -2043,17 +2043,17 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "40px",
                         padding: "0 12px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "6px",
                         fontSize: "13px",
-                        color: "#101828"
+                        color: "#151719"
                       }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
-                      Renovation End Date <small style={{ color: "#667085" }}>(Optional)</small>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+                      Renovation End Date <small style={{ color: "#6A6A69" }}>(Optional)</small>
                     </label>
                     <input
                       type="date"
@@ -2064,11 +2064,11 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "40px",
                         padding: "0 12px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "6px",
                         fontSize: "13px",
-                        color: "#101828"
+                        color: "#151719"
                       }}
                     />
                   </div>
@@ -2076,7 +2076,7 @@ export default function NewPropertyPage() {
               )}
 
               {/* Step 1 Footer */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: "1px solid #eaeef4", paddingTop: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: "1px solid #EBE8E1", paddingTop: "24px" }}>
                 <Link
                   href="/dashboard/client/property"
                   style={{
@@ -2085,12 +2085,12 @@ export default function NewPropertyPage() {
                     justifyContent: "center",
                     height: "44px",
                     padding: "0 20px",
-                    background: "#ffffff",
-                    border: "1px solid #d0d5dd",
+                    background: "#FFFFFF",
+                    border: "1px solid #CCCAC4",
                     borderRadius: "8px",
                     fontSize: "15px",
                     fontWeight: 600,
-                    color: "#344054",
+                    color: "#3E3F3F",
                     textDecoration: "none",
                     cursor: "pointer"
                   }}
@@ -2104,12 +2104,12 @@ export default function NewPropertyPage() {
                   style={{
                     height: "44px",
                     padding: "0 24px",
-                    background: isStep1Valid ? "#1a235a" : "#cbd5e1",
+                    background: isStep1Valid ? "#151719" : "#CBC9C4",
                     border: "none",
                     borderRadius: "8px",
                     fontSize: "15px",
                     fontWeight: 600,
-                    color: "#ffffff",
+                    color: "#FFFFFF",
                     cursor: isStep1Valid ? "pointer" : "not-allowed"
                   }}
                 >
@@ -2122,16 +2122,16 @@ export default function NewPropertyPage() {
           {step >= 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               {/* Step 2 Form Card */}
-              <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #eaeef4", padding: "32px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.02)" }}>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#667085", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
+              <div style={{ background: "#FFFFFF", borderRadius: "16px", border: "1px solid #EBE8E1", padding: "32px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.02)" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#6A6A69", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
                   STEP 2 — FINANCIAL INFO
                 </div>
 
                 {/* Financial values row */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                      Market value <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                      Market value <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -2142,24 +2142,24 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: "#101828",
+                        color: "#151719",
                         outline: "none"
                       }}
                     />
                     {!isEstimatedMarketValueValid && (
-                      <span style={{ fontSize: "12px", color: "#EF4444", marginTop: "4px", display: "block" }}>
+                      <span style={{ fontSize: "12px", color: "#C46A4C", marginTop: "4px", display: "block" }}>
                         Must accept only AUD format ($).
                       </span>
                     )}
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                      Purchase value <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                      Purchase value <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -2170,24 +2170,24 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: "#101828",
+                        color: "#151719",
                         outline: "none"
                       }}
                     />
                     {!isPurchaseAmountValid && (
-                      <span style={{ fontSize: "12px", color: "#EF4444", marginTop: "4px", display: "block" }}>
+                      <span style={{ fontSize: "12px", color: "#C46A4C", marginTop: "4px", display: "block" }}>
                         Must accept only AUD format ($).
                       </span>
                     )}
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                      Purchase date <span style={{ color: "#EF4444" }}>*</span>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                      Purchase date <span style={{ color: "#C46A4C" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -2198,11 +2198,11 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: "#ffffff",
-                        border: "1px solid #eaeef4",
+                        background: "#FFFFFF",
+                        border: "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: "#101828",
+                        color: "#151719",
                         outline: "none"
                       }}
                     />
@@ -2211,21 +2211,21 @@ export default function NewPropertyPage() {
 
                 {/* Depreciation schedule */}
                 <div style={{ marginBottom: "28px" }}>
-                  <span style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "10px" }}>
+                  <span style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "10px" }}>
                     Depreciation schedule
                   </span>
                   <div style={{ display: "flex", gap: "24px" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#344054", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#3E3F3F", cursor: "pointer" }}>
                       <input
                         type="radio"
                         name="depreciation"
                         checked={hasDepreciationSchedule}
                         onChange={() => setHasDepreciationSchedule(true)}
-                        style={{ width: "16px", height: "16px", accentColor: "#1a235a" }}
+                        style={{ width: "16px", height: "16px", accentColor: "#151719" }}
                       />
                       Yes
                     </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#344054", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#3E3F3F", cursor: "pointer" }}>
                       <input
                         type="radio"
                         name="depreciation"
@@ -2235,7 +2235,7 @@ export default function NewPropertyPage() {
                           setDepreciationScheduleDocument(null);
                           setDepreciationUploadProgress(0);
                         }}
-                        style={{ width: "16px", height: "16px", accentColor: "#1a235a" }}
+                        style={{ width: "16px", height: "16px", accentColor: "#151719" }}
                       />
                       No
                     </label>
@@ -2244,29 +2244,29 @@ export default function NewPropertyPage() {
                   {hasDepreciationSchedule && (
                     <div style={{ marginTop: "16px" }}>
                       {isUploadingDepreciationSchedule ? (
-                        <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: "#f8f9fc" }}>
+                        <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: "#F3F0E9" }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: "#344054", marginBottom: "4px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: "#3E3F3F", marginBottom: "4px" }}>
                               <span>Uploading...</span>
                               <span>{depreciationUploadProgress}%</span>
                             </div>
-                            <div style={{ height: "6px", width: "100%", background: "#eaeef4", borderRadius: "3px", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${depreciationUploadProgress}%`, background: "#2f3c82" }} />
+                            <div style={{ height: "6px", width: "100%", background: "#EBE8E1", borderRadius: "3px", overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${depreciationUploadProgress}%`, background: "#2E3135" }} />
                             </div>
                           </div>
                         </div>
                       ) : depreciationScheduleDocument ? (
-                        <div style={{ border: "1px solid #eaeef4", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8f9fc" }}>
-                          <span style={{ fontSize: "14px", fontWeight: 600, color: "#344054" }}>{depreciationScheduleDocument.filename}</span>
-                          <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3" }}>✕</button>
+                        <div style={{ border: "1px solid #EBE8E1", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F3F0E9" }}>
+                          <span style={{ fontSize: "14px", fontWeight: 600, color: "#3E3F3F" }}>{depreciationScheduleDocument.filename}</span>
+                          <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794" }}>✕</button>
                         </div>
                       ) : (
                         <div
                           onClick={() => document.getElementById("doc-upload-input")?.click()}
-                          style={{ border: "2px dashed #eaeef4", background: "#f8f9fc", borderRadius: "12px", padding: "24px 20px", textAlign: "center", cursor: "pointer" }}
+                          style={{ border: "2px dashed #EBE8E1", background: "#F3F0E9", borderRadius: "12px", padding: "24px 20px", textAlign: "center", cursor: "pointer" }}
                         >
                           <input type="file" id="doc-upload-input" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleDocUpload(file); }} style={{ display: "none" }} />
-                          <span style={{ fontSize: "13px", color: "#2f3c82", fontWeight: 600 }}>Click to upload depreciation schedule</span>
+                          <span style={{ fontSize: "13px", color: "#2E3135", fontWeight: 600 }}>Click to upload depreciation schedule</span>
                         </div>
                       )}
                     </div>
@@ -2274,14 +2274,14 @@ export default function NewPropertyPage() {
                 </div>
 
                 {/* Beneficiaries */}
-                <div style={{ borderTop: "1px solid #eaeef4", paddingTop: "24px", marginTop: "24px" }}>
-                  <span style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", letterSpacing: "0.08em", marginBottom: "16px" }}>
+                <div style={{ borderTop: "1px solid #EBE8E1", paddingTop: "24px", marginTop: "24px" }}>
+                  <span style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#505050", letterSpacing: "0.08em", marginBottom: "16px" }}>
                     BENEFICIARIES
                   </span>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 48px", gap: "16px", marginBottom: "8px", padding: "0 8px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>BENEFICIARY NAME</span>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>OWNERSHIP %</span>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#999894", textTransform: "uppercase" }}>BENEFICIARY NAME</span>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#999894", textTransform: "uppercase" }}>OWNERSHIP %</span>
                     <span />
                   </div>
 
@@ -2293,7 +2293,7 @@ export default function NewPropertyPage() {
                           placeholder="Beneficiary name"
                           value={b.name}
                           onChange={(e) => handleSaveBeneficiary(idx, "name", e.target.value)}
-                          style={{ width: "100%", height: "44px", padding: "0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828", outline: "none" }}
+                          style={{ width: "100%", height: "44px", padding: "0 16px", border: "1px solid #EBE8E1", borderRadius: "8px", fontSize: "14px", color: "#151719", outline: "none" }}
                         />
                         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                           <input
@@ -2301,11 +2301,11 @@ export default function NewPropertyPage() {
                             placeholder="0"
                             value={b.percentage}
                             onChange={(e) => handleSaveBeneficiary(idx, "percentage", e.target.value)}
-                            style={{ width: "100%", height: "44px", padding: "0 32px 0 16px", border: "1px solid #eaeef4", borderRadius: "8px", fontSize: "14px", color: "#101828", outline: "none", textAlign: "right" }}
+                            style={{ width: "100%", height: "44px", padding: "0 32px 0 16px", border: "1px solid #EBE8E1", borderRadius: "8px", fontSize: "14px", color: "#151719", outline: "none", textAlign: "right" }}
                           />
-                          <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: "#667085" }}>%</span>
+                          <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: "#6A6A69" }}>%</span>
                         </div>
-                        <button type="button" onClick={() => deleteBeneficiaryRow(idx)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444" }}>
+                        <button type="button" onClick={() => deleteBeneficiaryRow(idx)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#C46A4C" }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "20px", height: "20px" }}>
                             <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7" />
                           </svg>
@@ -2314,11 +2314,11 @@ export default function NewPropertyPage() {
                     ))}
                   </div>
 
-                  <button type="button" onClick={addBeneficiaryRow} style={{ background: "transparent", border: "none", fontSize: "14px", fontWeight: 600, color: "#2f3c82", cursor: "pointer", padding: "8px 0", marginBottom: "20px" }}>
+                  <button type="button" onClick={addBeneficiaryRow} style={{ background: "transparent", border: "none", fontSize: "14px", fontWeight: 600, color: "#2E3135", cursor: "pointer", padding: "8px 0", marginBottom: "20px" }}>
                     + Add beneficiary
                   </button>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: totalOwnership === 100 ? "#f0fdf4" : "#fffbeb", border: `1px solid ${totalOwnership === 100 ? "#bbf7d0" : "#fef3c7"}`, borderRadius: "8px", fontSize: "14px", fontWeight: 600, color: totalOwnership === 100 ? "#15803d" : "#b45309" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: totalOwnership === 100 ? "#F3F0E9" : "#F7EEE7", border: `1px solid ${totalOwnership === 100 ? "#EBECE1" : "#F2DED4"}`, borderRadius: "8px", fontSize: "14px", fontWeight: 600, color: totalOwnership === 100 ? "#56613F" : "#C46A4C" }}>
                     <span>Total ownership</span>
                     <span>{totalOwnership.toFixed(1)}%</span>
                   </div>
@@ -2326,13 +2326,13 @@ export default function NewPropertyPage() {
               </div>
 
               {/* Step 3 Card (Loan details) */}
-              <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #eaeef4", padding: "32px", boxShadow: "0px 8px 30px rgba(16, 24, 40, 0.02)" }}>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#667085", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
+              <div style={{ background: "#FFFFFF", borderRadius: "16px", border: "1px solid #EBE8E1", padding: "32px", boxShadow: "0px 8px 30px rgba(21, 23, 25, 0.02)" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#6A6A69", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
                   STEP 3 — LOAN DETAILS (OPTIONAL)
                 </div>
 
                 {/* Does the property have a loan? checkbox */}
-                <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px" }}>
+                <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: "#F3F0E9", border: "1px solid #E2E0D9", borderRadius: "12px" }}>
                   <input
                     type="checkbox"
                     id="has-loan-checkbox-desktop"
@@ -2359,15 +2359,15 @@ export default function NewPropertyPage() {
                     }}
                     style={{ width: "18px", height: "18px", cursor: "pointer" }}
                   />
-                  <label htmlFor="has-loan-checkbox-desktop" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", cursor: "pointer", userSelect: "none" }}>
+                  <label htmlFor="has-loan-checkbox-desktop" style={{ fontSize: "14px", fontWeight: 600, color: "#151719", cursor: "pointer", userSelect: "none" }}>
                     Does the property have a loan?
                   </label>
                 </div>
 
                 <div style={{ opacity: hasLoan ? 1 : 0.5, pointerEvents: hasLoan ? "auto" : "none", transition: "opacity 0.2s" }}>
                 <div style={{ marginBottom: "20px" }}>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                    Bank name {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                    Bank name {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
@@ -2380,17 +2380,17 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "44px",
                       padding: "0 16px",
-                      background: hasLoan ? "#ffffff" : "#f1f5f9",
-                      border: touchedFields.bankName && !isBankNameValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                      background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                      border: touchedFields.bankName && !isBankNameValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                       borderRadius: "8px",
                       fontSize: "14px",
-                      color: hasLoan ? "#101828" : "#94a3b8",
+                      color: hasLoan ? "#151719" : "#999894",
                       outline: "none",
                       cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
                   {touchedFields.bankName && !isBankNameValid && (
-                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                       {!bankName.trim() ? "Bank Name is required." : "Bank Name must contain letters and spaces only."}
                     </div>
                   )}
@@ -2398,8 +2398,8 @@ export default function NewPropertyPage() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                      BSB number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                      BSB number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                     </label>
                     <input
                       type="text"
@@ -2412,24 +2412,24 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: hasLoan ? "#ffffff" : "#f1f5f9",
-                        border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                        background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                        border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: hasLoan ? "#101828" : "#94a3b8",
+                        color: hasLoan ? "#151719" : "#999894",
                         outline: "none",
                         cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
                     {touchedFields.bsbNumber && !isBsbValid && (
-                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                         {!bsbNumber.trim() ? "BSB Number is required." : "BSB Number must be exactly 6 digits."}
                       </div>
                     )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                      Loan % allocation {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                      Loan % allocation {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                     </label>
                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                       <input
@@ -2462,18 +2462,18 @@ export default function NewPropertyPage() {
                           width: "100%",
                           height: "44px",
                           padding: "0 32px 0 16px",
-                          background: hasLoan ? "#ffffff" : "#f1f5f9",
-                          border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                          background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                          border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                           borderRadius: "8px",
                           fontSize: "14px",
-                          color: hasLoan ? "#101828" : "#94a3b8",
+                          color: hasLoan ? "#151719" : "#999894",
                           cursor: hasLoan ? "text" : "not-allowed"
                         }}
                       />
-                      <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: "#667085" }}>%</span>
+                      <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: "#6A6A69" }}>%</span>
                     </div>
                     {touchedFields.loanAllocationPercentage && !isLoanAllocationValid && (
-                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                         {!loanAllocationPercentage
                           ? "Loan allocation is required."
                           : Number(loanAllocationPercentage) === 0
@@ -2483,8 +2483,8 @@ export default function NewPropertyPage() {
                     )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                      Loan account number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                      Loan account number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                     </label>
                     <input
                       type="text"
@@ -2497,17 +2497,17 @@ export default function NewPropertyPage() {
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: hasLoan ? "#ffffff" : "#f1f5f9",
-                        border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                        background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                        border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: hasLoan ? "#101828" : "#94a3b8",
+                        color: hasLoan ? "#151719" : "#999894",
                         outline: "none",
                         cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
                     {touchedFields.loanAccountNumber && !isLoanAccountNumberValid && (
-                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                         {!loanAccountNumber.trim() ? "Loan Account Number is required." : "Loan Account Number must contain numeric values only."}
                       </div>
                     )}
@@ -2515,8 +2515,8 @@ export default function NewPropertyPage() {
                 </div>
 
                 <div style={{ marginBottom: "10px" }}>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#344054", marginBottom: "8px" }}>
-                    Loan amount {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", marginBottom: "8px" }}>
+                    Loan amount {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
@@ -2529,17 +2529,17 @@ export default function NewPropertyPage() {
                       width: "100%",
                       height: "44px",
                       padding: "0 16px",
-                      background: hasLoan ? "#ffffff" : "#f1f5f9",
-                      border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #fca5a5" : "1px solid #eaeef4",
+                      background: hasLoan ? "#FFFFFF" : "#F3F0E9",
+                      border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #EECFC1" : "1px solid #EBE8E1",
                       borderRadius: "8px",
                       fontSize: "14px",
-                      color: hasLoan ? "#101828" : "#94a3b8",
+                      color: hasLoan ? "#151719" : "#999894",
                       outline: "none",
                       cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
                   {touchedFields.loanAmount && !isLoanAmountValid && (
-                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
                       {!loanAmount.trim() ? "Loan Amount is required." : "Loan Amount must accept only currency format."}
                     </div>
                   )}
@@ -2548,15 +2548,15 @@ export default function NewPropertyPage() {
               </div>
 
               {errorMessage && (
-                <div style={{ padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "8px", color: "#991b1b", fontSize: "14px" }}>
+                <div style={{ padding: "12px 16px", background: "#F3F0E9", border: "1px solid #EECFC1", borderRadius: "8px", color: "#C46A4C", fontSize: "14px" }}>
                   {errorMessage}
                 </div>
               )}
 
               {/* Step 2 Footer */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "12px", background: "#ffffff", borderRadius: "12px", border: "1px solid #eaeef4", padding: "16px 24px" }}>
-                <button type="button" onClick={() => setStep(1)} style={{ height: "44px", padding: "0 20px", background: "#ffffff", border: "1px solid #d0d5dd", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#344054" }}>Back</button>
-                <button type="button" disabled={isSaving || !isStep2Valid || !isLoanDetailsValid} onClick={handleSave} style={{ height: "44px", padding: "0 24px", background: (isStep2Valid && isLoanDetailsValid) ? "#1a235a" : "#cbd5e1", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#ffffff", cursor: (isStep2Valid && isLoanDetailsValid) ? "pointer" : "not-allowed" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "12px", background: "#FFFFFF", borderRadius: "12px", border: "1px solid #EBE8E1", padding: "16px 24px" }}>
+                <button type="button" onClick={() => setStep(1)} style={{ height: "44px", padding: "0 20px", background: "#FFFFFF", border: "1px solid #CCCAC4", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#3E3F3F" }}>Back</button>
+                <button type="button" disabled={isSaving || !isStep2Valid || !isLoanDetailsValid} onClick={handleSave} style={{ height: "44px", padding: "0 24px", background: (isStep2Valid && isLoanDetailsValid) ? "#151719" : "#CBC9C4", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#FFFFFF", cursor: (isStep2Valid && isLoanDetailsValid) ? "pointer" : "not-allowed" }}>
                   {isSaving ? "Saving..." : "Save and add property"}
                 </button>
               </div>
@@ -2566,18 +2566,18 @@ export default function NewPropertyPage() {
 
         {/* Success Overlay */}
         {saved && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(16, 24, 40, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-            <div style={{ background: "#ffffff", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "440px", textAlign: "center", boxShadow: "0px 20px 48px rgba(16, 24, 40, 0.12)", border: "1px solid #eaeef4" }}>
-              <div style={{ width: "80px", height: "80px", margin: "0 auto 24px auto", borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" style={{ width: "40px", height: "40px" }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(21, 23, 25, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+            <div style={{ background: "#FFFFFF", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "440px", textAlign: "center", boxShadow: "0px 20px 48px rgba(21, 23, 25, 0.12)", border: "1px solid #EBE8E1" }}>
+              <div style={{ width: "80px", height: "80px", margin: "0 auto 24px auto", borderRadius: "50%", background: "#F3F0E9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6F7A5A" strokeWidth="3" style={{ width: "40px", height: "40px" }}>
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#101828", margin: "0 0 12px 0" }}>Property Added Successfully</h3>
-              <p style={{ fontSize: "14px", color: "#667085", margin: "0 0 28px 0" }}>
+              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#151719", margin: "0 0 12px 0" }}>Property Added Successfully</h3>
+              <p style={{ fontSize: "14px", color: "#6A6A69", margin: "0 0 28px 0" }}>
                 <strong>{propertyName}</strong> is now linked to <strong>{selectedEntity?.name}</strong>.
               </p>
-              <Link href="/dashboard/client/property" style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: "#1a235a", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#ffffff", textDecoration: "none" }}>View Properties List</Link>
+              <Link href="/dashboard/client/property" style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: "#151719", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: "#FFFFFF", textDecoration: "none" }}>View Properties List</Link>
             </div>
           </div>
         )}

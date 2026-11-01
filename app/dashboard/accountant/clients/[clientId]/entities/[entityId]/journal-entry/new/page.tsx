@@ -108,7 +108,7 @@ export default function AccountantAddJournalEntryPage() {
   if (!entity || !client) {
     return (
       <section className="entity-wizard" style={{ padding: "40px", textAlign: "center" }}>
-        <p className="entity-wizard-error" style={{ color: "#e11d48", fontWeight: 500 }}>
+        <p className="entity-wizard-error" style={{ color: "#C46A4C", fontWeight: 500 }}>
           {errorMessage || "Entity or client not found."}
         </p>
         <button
@@ -117,7 +117,7 @@ export default function AccountantAddJournalEntryPage() {
             marginTop: "16px",
             padding: "8px 16px",
             borderRadius: "6px",
-            border: "1px solid #cbd5e1",
+            border: "1px solid #CBC9C4",
             cursor: "pointer",
           }}
         >

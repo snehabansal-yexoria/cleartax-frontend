@@ -713,7 +713,7 @@ export function StaticSelect({
                 fontFamily: "inherit",
                 fontSize: "14px",
                 fontWeight: 600,
-                color: "#101828",
+                color: "#151719",
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -814,7 +814,7 @@ export function StaticSelect({
                 </button>
               ))}
               {filteredOptions.length === 0 && (
-                <div className="dropdown-no-results" style={{ padding: "12px 6px", color: "#667085", fontSize: "13px" }}>
+                <div className="dropdown-no-results" style={{ padding: "12px 6px", color: "#6A6A69", fontSize: "13px" }}>
                   No results found
                 </div>
               )}
@@ -1677,8 +1677,8 @@ function TransactionDetailPopup({
                 gap: "8px",
                 padding: "10px 12px",
                 borderRadius: "10px",
-                background: "rgba(53, 56, 205, 0.08)",
-                border: "1px solid rgba(53, 56, 205, 0.24)",
+                background: "rgba(122, 92, 250, 0.08)",
+                border: "1px solid rgba(122, 92, 250, 0.24)",
                 color: "var(--text-primary)",
                 fontSize: "13px",
                 fontWeight: 500,
@@ -3477,7 +3477,7 @@ function TransactionTable({
                             <td>{child.categoryName || "—"}</td>
                             <td></td>
                             <td></td>
-                            <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
+                            <td className="amount-negative" style={{ textAlign: "right", color: "#C46A4C", fontWeight: 800 }}>
                               {formatTransactionCurrency(child.grossAmount, false)}
                             </td>
                             <td className="transaction-child-gst" style={{ textAlign: "right" }}>
@@ -3507,24 +3507,24 @@ function TransactionTable({
             left: `${hoveredDescription.x}px`,
             top: `${hoveredDescription.y - 8}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: '#ffffff',
-            color: '#344054',
+            backgroundColor: '#FFFFFF',
+            color: '#3E3F3F',
             padding: '10px 14px',
             borderRadius: '8px',
             fontSize: '13px',
             fontWeight: 500,
             maxWidth: '280px',
             zIndex: 99999,
-            boxShadow: '0 10px 15px -3px rgba(16, 24, 40, 0.1), 0 4px 6px -2px rgba(16, 24, 40, 0.05)',
+            boxShadow: '0 10px 15px -3px rgba(21, 23, 25, 0.1), 0 4px 6px -2px rgba(21, 23, 25, 0.05)',
             pointerEvents: 'none',
             whiteSpace: 'normal',
             wordBreak: 'break-word',
-            border: '1px solid #cbd5e1',
+            border: '1px solid #CBC9C4',
             lineHeight: '1.45',
             fontFamily: 'inherit',
           }}
         >
-          <div style={{ color: '#475467' }}>
+          <div style={{ color: '#4F4F4F' }}>
             {hoveredDescription.text}
           </div>
           {/* Arrow border */}
@@ -3538,7 +3538,7 @@ function TransactionTable({
               height: 0,
               borderLeft: '6px solid transparent',
               borderRight: '6px solid transparent',
-              borderTop: '6px solid #cbd5e1',
+              borderTop: '6px solid #CBC9C4',
             }}
           />
           {/* Arrow fill */}
@@ -3552,7 +3552,7 @@ function TransactionTable({
               height: 0,
               borderLeft: '5px solid transparent',
               borderRight: '5px solid transparent',
-              borderTop: '5px solid #ffffff',
+              borderTop: '5px solid #FFFFFF',
             }}
           />
         </div>
@@ -3789,7 +3789,7 @@ function PropertyTransactionTable({
                             <td>{child.categoryName || "—"}</td>
                             <td></td>
                             <td></td>
-                            <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
+                            <td className="amount-negative" style={{ textAlign: "right", color: "#C46A4C", fontWeight: 800 }}>
                               {formatTransactionCurrency(child.grossAmount, false)}
                             </td>
                             <td></td>
@@ -3908,7 +3908,7 @@ function AwaitingReviewTable({
                     <button
                       type="button"
                       className="transaction-id-button"
-                      style={{ color: "#2563eb", whiteSpace: "nowrap" }}
+                      style={{ color: "#7A5CFA", whiteSpace: "nowrap" }}
                       onClick={() => onView(row)}
                     >
                       {row.id.slice(0, 8)}…
@@ -8302,7 +8302,7 @@ export function AddTransactionView({
               </p>
             )}
             {inboxError && (
-              <p className="transaction-field-error" style={{ margin: "0 0 8px", color: "#da3838", fontSize: "13px" }}>
+              <p className="transaction-field-error" style={{ margin: "0 0 8px", color: "#C46A4C", fontSize: "13px" }}>
                 {inboxError}
               </p>
             )}
@@ -8372,7 +8372,7 @@ export function AddTransactionView({
                     onChange={handleClientPicked}
                   />
                   {requireClientSelection && !activeClientId && (
-                    <p className="transaction-field-error" style={{ marginTop: "4px", color: "#da3838", fontSize: "12px" }}>
+                    <p className="transaction-field-error" style={{ marginTop: "4px", color: "#C46A4C", fontSize: "12px" }}>
                       A client must be selected to continue.
                     </p>
                   )}
@@ -8381,7 +8381,7 @@ export function AddTransactionView({
             )}
 
             {showSelectionMessage && selectionMessage && (
-              <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#da3838" }}>
+              <div className="transaction-detail-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: "#C46A4C" }}>
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ width: "20px", height: "20px" }}>
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                 </svg>
@@ -8572,9 +8572,9 @@ export function AddTransactionView({
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    background: '#f0f9ff',
-                    border: '1px solid #e0f2fe',
-                    color: '#0284c7',
+                    background: '#F3F0E9',
+                    border: '1px solid #E9E3F4',
+                    color: '#7A5CFA',
                     borderRadius: '8px',
                     padding: '12px 16px',
                     fontSize: '13px',
@@ -8675,7 +8675,7 @@ export function AddTransactionView({
                     onBlur={() => setGrossAmountTouched(true)}
                   />
                   {showGrossAmountError && (
-                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#C46A4C", fontSize: "12px", fontWeight: "600" }}>
                       <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
@@ -8707,7 +8707,7 @@ export function AddTransactionView({
                     onBlur={() => setInvoiceDateTouched(true)}
                   />
                   {showDateError && (
-                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                    <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#C46A4C", fontSize: "12px", fontWeight: "600" }}>
                       <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
@@ -8823,9 +8823,9 @@ export function AddTransactionView({
                             gap: "8px",
                             padding: "10px 14px",
                             borderRadius: "10px",
-                            background: "rgba(218, 56, 56, 0.08)",
-                            border: "1px solid rgba(218, 56, 56, 0.24)",
-                            color: "#da3838",
+                            background: "rgba(196, 106, 76, 0.08)",
+                            border: "1px solid rgba(196, 106, 76, 0.24)",
+                            color: "#C46A4C",
                             fontSize: "13px",
                             fontWeight: 500,
                             marginTop: "10px",
@@ -8969,7 +8969,7 @@ export function AddTransactionView({
                       </div>
 
                       {personalSplitError && (
-                        <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "8px 0 0" }}>
+                        <p role="alert" style={{ color: "#C46A4C", fontSize: 13, fontWeight: 600, margin: "8px 0 0" }}>
                           {personalSplitError}
                         </p>
                       )}
@@ -9014,7 +9014,7 @@ export function AddTransactionView({
                               onBlur={() => setDueDateTouched(true)}
                             />
                             {showDueDateError && (
-                              <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                              <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#C46A4C", fontSize: "12px", fontWeight: "600" }}>
                                 <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                                 </svg>
@@ -9057,7 +9057,7 @@ export function AddTransactionView({
                   </label>
 
                   {isSplit && (
-                    <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#eaecf0"}` }}>
+                    <div className="transaction-split-section" style={{ marginBottom: "24px", padding: "4px 16px 20px 16px", borderLeft: `2px solid ${isDark ? "var(--border)" : "#E8E5DF"}` }}>
                       {splitRows.map((row, index) => {
                         const rowError = splitErrors[row.id];
                         const propertyError = (rowError === "Choose a property." || rowError === "Property already used in another split.") ? rowError : undefined;
@@ -9076,7 +9076,7 @@ export function AddTransactionView({
                                 ]}
                                 onChange={(value) => updateSplitRow(row.id, { propertyId: value })}
                               />
-                              {propertyError && <span style={{ color: "#da3838", fontSize: "11px" }}>{propertyError}</span>}
+                              {propertyError && <span style={{ color: "#C46A4C", fontSize: "11px" }}>{propertyError}</span>}
                             </div>
 
                             <div className="figma-field-container" style={{ flex: 1 }}>
@@ -9088,7 +9088,7 @@ export function AddTransactionView({
                                 value={row.amount}
                                 onChange={(e) => updateSplitRow(row.id, { amount: e.target.value })}
                               />
-                              {amountError && <span style={{ color: "#da3838", fontSize: "11px" }}>{amountError}</span>}
+                              {amountError && <span style={{ color: "#C46A4C", fontSize: "11px" }}>{amountError}</span>}
                             </div>
 
                             <button
@@ -9096,7 +9096,7 @@ export function AddTransactionView({
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                color: "#da3838",
+                                color: "#C46A4C",
                                 fontWeight: "600",
                                 fontSize: "14px",
                                 cursor: "pointer",
@@ -9113,7 +9113,7 @@ export function AddTransactionView({
                       })}
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
-                        <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#da3838" : "#667085" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#C46A4C" : "#6A6A69" }}>
                           {grossAmount && !Number.isNaN(grossNumberValue)
                             ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
                             : "Enter the total amount above to validate splits."}
@@ -9147,7 +9147,7 @@ export function AddTransactionView({
               </div>
 
               {submitError && !submitError.toLowerCase().includes("split") && (
-                <p className="transaction-field-error" style={{ color: "#da3838", fontWeight: "600", marginBottom: "16px" }}>
+                <p className="transaction-field-error" style={{ color: "#C46A4C", fontWeight: "600", marginBottom: "16px" }}>
                   {submitError}
                 </p>
               )}
@@ -9624,7 +9624,7 @@ function RuleModal({
                 </p>
               )}
               {clients.length === 0 && (
-                <p style={{ color: "#d92d20", fontSize: "14px", marginTop: "6px", marginBottom: "0px" }}>
+                <p style={{ color: "#C46A4C", fontSize: "14px", marginTop: "6px", marginBottom: "0px" }}>
                   To create a rule, please add a client to your account first.
                 </p>
               )}
@@ -9782,7 +9782,7 @@ function RuleModal({
                   business portion is deductible.
                 </p>
                 {rulePersonalError && (
-                  <p role="alert" style={{ color: "#da3838", fontSize: 13, fontWeight: 600, margin: "6px 0 0" }}>
+                  <p role="alert" style={{ color: "#C46A4C", fontSize: 13, fontWeight: 600, margin: "6px 0 0" }}>
                     {rulePersonalError}
                   </p>
                 )}
@@ -10304,7 +10304,7 @@ function ConfirmationDialog({
       <div
         className="transaction-modal-backdrop"
         style={{
-          background: "rgba(15, 23, 42, 0.4)",
+          background: "rgba(21, 23, 25, 0.4)",
           cursor: "default",
         }}
       />
@@ -10317,15 +10317,15 @@ function ConfirmationDialog({
           display: "flex",
           flexDirection: "column",
           borderRadius: "12px",
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
+          border: "1px solid #E2E0D9",
+          boxShadow: "0 20px 25px -5px rgba(21, 23, 25, 0.15), 0 10px 10px -5px rgba(21, 23, 25, 0.05)",
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#151719" }}>
             {title}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#475569" }}>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#505050" }}>
             {message}
           </p>
         </div>

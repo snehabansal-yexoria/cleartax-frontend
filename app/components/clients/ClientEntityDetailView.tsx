@@ -503,10 +503,10 @@ export default function ClientEntityDetailView({
           </Link>
           <h2 className="text-base font-extrabold text-slate-800 dark:text-slate-100">Entity Detail</h2>
           <div className="flex items-center gap-2">
-            <Link href={reportsHref} className="text-[#28336e] dark:text-[#f4a117] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
+            <Link href={reportsHref} className="text-[#242629] dark:text-[#7A5CFA] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
               Reports
             </Link>
-            <Link href={editEntityHref} className="text-[#28336e] dark:text-[#f4a117] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
+            <Link href={editEntityHref} className="text-[#242629] dark:text-[#7A5CFA] font-bold text-sm bg-gray-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-lg" style={{ textDecoration: 'none' }}>
               Edit
             </Link>
           </div>
@@ -562,7 +562,7 @@ export default function ClientEntityDetailView({
             <span className="client-entity-stat-label">Cash Flow (this month)</span>
             <span
               className="client-entity-stat-val"
-              style={{ color: cashFlowThisMonth != null && cashFlowThisMonth < 0 ? "#F09595" : "#5dcaa5" }}
+              style={{ color: cashFlowThisMonth != null && cashFlowThisMonth < 0 ? "#EAC3B2" : "#6F7A5A" }}
             >
               {formatMoney(cashFlowThisMonth, true)}
             </span>
@@ -713,7 +713,7 @@ export default function ClientEntityDetailView({
                       <div className="flex-1 flex flex-col min-w-0">
                         {/* Line 1: Address Name & Net */}
                         <div className="flex justify-between items-start">
-                          <div className="font-extrabold text-[#28336e] dark:text-white text-base leading-snug">
+                          <div className="font-extrabold text-[#242629] dark:text-white text-base leading-snug">
                             {prop.name}
                           </div>
                           <div className="flex items-center gap-1 text-xs">
@@ -727,8 +727,8 @@ export default function ClientEntityDetailView({
                           <span className="text-slate-400 text-xs font-semibold">{prop.entityName}</span>
                           <span className="text-slate-300 text-xs font-semibold select-none">·</span>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${prop.status.toLowerCase() === 'rented'
-                            ? 'bg-[#ecfdf3] text-[#12b76a] dark:bg-green-500/10'
-                            : 'bg-[#e0f2fe] text-[#0284c7] dark:bg-blue-500/10'
+                            ? 'bg-[#F3F0E9] text-[#6F7A5A] dark:bg-green-500/10'
+                            : 'bg-[#E9E3F4] text-[#7A5CFA] dark:bg-blue-500/10'
                             }`}>
                             {titleCase(prop.status)}
                           </span>
@@ -738,8 +738,8 @@ export default function ClientEntityDetailView({
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 font-semibold">
                           <span>Value <strong className="text-slate-700 dark:text-slate-200 ml-0.5">{formatMoney(prop.marketValue)}</strong></span>
                           <span>Loan <strong className="text-slate-700 dark:text-slate-200 ml-0.5">{formatMoney(prop.outstandingLoans)}</strong></span>
-                          <span>Income <strong className="text-[#12b76a] ml-0.5">{formatMoney(prop.income, true)}</strong></span>
-                          <span>Expenses <strong className="text-[#f04438] ml-0.5">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
+                          <span>Income <strong className="text-[#6F7A5A] ml-0.5">{formatMoney(prop.income, true)}</strong></span>
+                          <span>Expenses <strong className="text-[#C46A4C] ml-0.5">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
                         </div>
                       </div>
                     </Link>
@@ -775,8 +775,8 @@ export default function ClientEntityDetailView({
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.type === "revenue"
-                            ? "bg-[#ecfdf3] text-[#12b76a] dark:bg-green-500/10"
-                            : "bg-[#fef3f2] text-[#f04438] dark:bg-red-500/10"
+                            ? "bg-[#F3F0E9] text-[#6F7A5A] dark:bg-green-500/10"
+                            : "bg-[#F3F0E9] text-[#C46A4C] dark:bg-red-500/10"
                             }`}
                         >
                           {tx.type === "revenue" ? <UpRightIcon /> : <DownLeftIcon />}
@@ -795,7 +795,7 @@ export default function ClientEntityDetailView({
                         </div>
                       </div>
 
-                      <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
+                      <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#6F7A5A]" : "text-slate-700 dark:text-slate-300"}`}>
                         {formatMoney(tx.type === "revenue" ? tx.amount : -tx.amount, true)}
                       </span>
                     </div>
@@ -841,7 +841,7 @@ export default function ClientEntityDetailView({
               <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Documents</h3>
               <button
                 type="button"
-                className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#28336e] dark:bg-[#38417f] px-4 py-2.5 rounded-xl hover:opacity-90 cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#242629] dark:bg-[#2E3135] px-4 py-2.5 rounded-xl hover:opacity-90 cursor-pointer"
                 onClick={() => setIsUploadOpen(true)}
               >
                 <PlusIcon />
@@ -863,8 +863,8 @@ export default function ClientEntityDetailView({
                     return (
                       <div
                         key={doc.id}
-                        className={`flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1b2050]/40 cursor-pointer transition-all duration-200
-                          hover:bg-slate-50 dark:hover:bg-[#202860]/40 hover:border-slate-300 dark:hover:border-slate-700
+                        className={`flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151719]/40 cursor-pointer transition-all duration-200
+                          hover:bg-slate-50 dark:hover:bg-[#151719]/40 hover:border-slate-300 dark:hover:border-slate-700
                           
                           lg:relative lg:bg-transparent lg:dark:bg-transparent lg:border-none lg:rounded-none lg:shadow-none lg:py-3 lg:px-5
                           lg:hover:bg-slate-50 lg:dark:hover:bg-slate-800/40 lg:hover:rounded-xl lg:hover:border-none
@@ -892,7 +892,7 @@ export default function ClientEntityDetailView({
                           </div>
                         </div>
 
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#98a2b3" }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#989794" }}>
                           <path d="m9 18 6-6-6-6" />
                         </svg>
                       </div>
@@ -1022,7 +1022,7 @@ export default function ClientEntityDetailView({
                       {prop.imageSrc ? (
                         <img src={prop.imageSrc} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '48px', height: '48px', color: '#98a2b3' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '48px', height: '48px', color: '#989794' }}>
                           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                           <path d="M9 22V12h6v10" />
                         </svg>
@@ -1049,7 +1049,7 @@ export default function ClientEntityDetailView({
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold">
-                        <span>Income <strong className="text-[#12b76a]">{formatMoney(prop.income, true)}</strong></span>
+                        <span>Income <strong className="text-[#6F7A5A]">{formatMoney(prop.income, true)}</strong></span>
                         <span>Expenses <strong className="text-red-500">{formatMoney(prop.expense != null ? -prop.expense : null)}</strong></span>
                       </div>
                     </div>
@@ -1086,8 +1086,8 @@ export default function ClientEntityDetailView({
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.type === "revenue"
-                          ? "bg-[#ecfdf3] text-[#12b76a] dark:bg-green-500/10"
-                          : "bg-[#fef3f2] text-[#f04438] dark:bg-red-500/10"
+                          ? "bg-[#F3F0E9] text-[#6F7A5A] dark:bg-green-500/10"
+                          : "bg-[#F3F0E9] text-[#C46A4C] dark:bg-red-500/10"
                           }`}
                       >
                         {tx.type === "revenue" ? <UpRightIcon /> : <DownLeftIcon />}
@@ -1106,7 +1106,7 @@ export default function ClientEntityDetailView({
                       </div>
                     </div>
 
-                    <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
+                    <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#6F7A5A]" : "text-slate-700 dark:text-slate-300"}`}>
                       {formatMoney(tx.type === "revenue" ? tx.amount : -tx.amount, true)}
                     </span>
                   </div>
@@ -1150,7 +1150,7 @@ export default function ClientEntityDetailView({
                 </Link>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-xs font-bold text-white bg-[#28336e] dark:bg-[#38417f] px-3.5 py-2 rounded-lg cursor-pointer"
+                  className="flex items-center gap-1 text-xs font-bold text-white bg-[#242629] dark:bg-[#2E3135] px-3.5 py-2 rounded-lg cursor-pointer"
                   onClick={() => setIsUploadOpen(true)}
                 >
                   Add
@@ -1187,7 +1187,7 @@ export default function ClientEntityDetailView({
                       </div>
                     </div>
 
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#98a2b3" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", color: "#989794" }}>
                       <path d="m9 18 6-6-6-6" />
                     </svg>
                   </div>
@@ -1234,7 +1234,7 @@ export default function ClientEntityDetailView({
                   </div>
                   {uploadFile ? (
                     <>
-                      <h4 className="client-upload-drag-title text-[#12b76a]">File selected!</h4>
+                      <h4 className="client-upload-drag-title text-[#6F7A5A]">File selected!</h4>
                       <p className="client-upload-drag-sub">{uploadFile.name}</p>
                     </>
                   ) : (
@@ -1265,7 +1265,7 @@ export default function ClientEntityDetailView({
                       <span>{uploadProgress}%</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#1b265c] dark:bg-[#f4a117] transition-all" style={{ width: `${uploadProgress}%` }} />
+                      <div className="h-full bg-[#151719] dark:bg-[#7A5CFA] transition-all" style={{ width: `${uploadProgress}%` }} />
                     </div>
                   </div>
                 )}

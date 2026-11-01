@@ -109,7 +109,7 @@ export function Kpi({
   loading?: boolean;
   tone?: "good" | "warn" | "bad";
 }) {
-  const color = tone === "good" ? "#0f6b4f" : tone === "warn" ? "#8a520a" : tone === "bad" ? "#a32d24" : undefined;
+  const color = tone === "good" ? "#56613F" : tone === "warn" ? "#A8503A" : tone === "bad" ? "#C46A4C" : undefined;
   const body = (
     <>
       <span className="cpc-kpi-label">{label}</span>

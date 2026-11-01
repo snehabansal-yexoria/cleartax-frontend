@@ -417,7 +417,7 @@ export default function GeneralLedgerPage() {
         .ledger-page {
           min-height: 100vh;
           padding: 24px 20px 64px;
-          background: linear-gradient(180deg, #f8faff 0%, #eef2fb 100%);
+          background: linear-gradient(180deg, #FAF8F3 0%, #F3F0E9 100%);
         }
         .ledger-page .wrap {
           width: min(1320px, 100%);
@@ -427,14 +427,14 @@ export default function GeneralLedgerPage() {
           gap: 22px;
         }
         .ledger-page a {
-          color: #28336e; /* Global blue color */
+          color: #242629; /* Global blue color */
           text-decoration: none;
         }
         .ledger-page a:hover {
-          color: #1a224c;
+          color: #151719;
         }
         .ledger-page ::placeholder {
-          color: #a3adc4;
+          color: #A6A5A1;
         }
 
         /* Custom Dropdown select styles */
@@ -452,9 +452,9 @@ export default function GeneralLedgerPage() {
           width: 100%;
           padding: 10px 12px;
           border-radius: 12px;
-          border: 1px solid rgba(203,211,234,0.9);
-          background: #f8faff;
-          color: #28336e;
+          border: 1px solid rgba(213, 203, 245,0.9);
+          background: #FAF8F3;
+          color: #242629;
           font-size: 0.85rem;
           font-weight: 600;
           cursor: pointer;
@@ -462,8 +462,8 @@ export default function GeneralLedgerPage() {
           outline: none;
         }
         .ledger-page .custom-select-trigger:hover {
-          background: #f1f5f9;
-          border-color: rgba(203, 211, 234, 1);
+          background: #F3F0E9;
+          border-color: rgba(213, 203, 245, 1);
         }
         .ledger-page .custom-select-dropdown {
           position: absolute;
@@ -472,10 +472,10 @@ export default function GeneralLedgerPage() {
           width: 100%;
           max-height: 280px;
           overflow-y: auto;
-          background: #ffffff;
-          border: 1px solid rgba(203, 211, 234, 0.9);
+          background: #FFFFFF;
+          border: 1px solid rgba(213, 203, 245, 0.9);
           border-radius: 12px;
-          box-shadow: 0 10px 25px rgba(31, 42, 95, 0.1);
+          box-shadow: 0 10px 25px rgba(21, 23, 25, 0.1);
           z-index: 100;
           padding: 6px;
           display: flex;
@@ -489,18 +489,18 @@ export default function GeneralLedgerPage() {
           border: none;
           background: transparent;
           border-radius: 8px;
-          color: #28336e;
+          color: #242629;
           font-size: 0.85rem;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.15s ease;
         }
         .ledger-page .custom-select-option:hover {
-          background: #f1f5f9;
+          background: #F3F0E9;
         }
         .ledger-page .custom-select-option.is-selected {
-          background: #e4e9ff;
-          color: #28336e;
+          background: #EBE6F4;
+          color: #242629;
         }
         .ledger-page .custom-select-header {
           padding: 8px 12px 4px;
@@ -508,7 +508,7 @@ export default function GeneralLedgerPage() {
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #8892ab;
+          color: #8C8C89;
         }
 
 
@@ -534,20 +534,20 @@ export default function GeneralLedgerPage() {
           border-radius: 10px;
           font-size: 0.85rem;
           font-weight: 700;
-          color: #586682;
+          color: #636362;
         }
         .ledger-page .crumb-sep {
-          color: #b7bfd6;
+          color: #BAB8B4;
           font-size: 0.85rem;
         }
         .ledger-page .crumb-muted {
           font-size: 0.85rem;
-          color: #586682;
+          color: #636362;
           font-weight: 600;
         }
         .ledger-page .crumb-current {
           font-size: 0.85rem;
-          color: #28336e; /* Global blue color */
+          color: #242629; /* Global blue color */
           font-weight: 800;
         }
         .ledger-page .status-pill {
@@ -558,20 +558,20 @@ export default function GeneralLedgerPage() {
           border-radius: 999px;
           font-size: 0.78rem;
           font-weight: 700;
-          background: #e6f7ef;
-          color: #1f8a5f;
+          background: #EAE7E1;
+          color: #6F7A5A;
         }
 
         .ledger-page .hero {
           border-radius: 28px;
           padding: 32px 34px;
-          background: linear-gradient(135deg, #28336e 0%, #3e4c9c 100%); /* Global blue card background */
-          color: #ffffff;
-          box-shadow: 0 26px 60px rgba(31, 42, 95, 0.18);
+          background: linear-gradient(135deg, #242629 0%, #2E3135 100%); /* Global blue card background */
+          color: #FFFFFF;
+          box-shadow: 0 26px 60px rgba(21, 23, 25, 0.18);
         }
         .ledger-page .hero-eyebrow {
           margin: 0;
-          color: rgba(255,255,255,0.68);
+          color: rgba(255, 255, 255,0.68);
           text-transform: uppercase;
           letter-spacing: 0.09em;
           font-size: 0.76rem;
@@ -591,7 +591,7 @@ export default function GeneralLedgerPage() {
         }
         .ledger-page .hero-meta-label {
           margin: 0;
-          color: rgba(255,255,255,0.62);
+          color: rgba(255, 255, 255,0.62);
           font-size: 0.74rem;
           font-weight: 700;
           text-transform: uppercase;
@@ -601,26 +601,26 @@ export default function GeneralLedgerPage() {
           margin: 6px 0 0;
           font-size: 1.15rem;
           font-weight: 700;
-          color: #ffffff;
+          color: #FFFFFF;
         }
         .ledger-page .hero-meta-divider {
-          border-left: 1px solid rgba(255,255,255,0.18);
+          border-left: 1px solid rgba(255, 255, 255,0.18);
           padding-left: 48px;
         }
 
         .ledger-page .card {
           border-radius: 24px;
           padding: 22px 24px;
-          background: rgba(255,255,255,0.96);
-          border: 1px solid rgba(203, 211, 234, 0.8);
-          box-shadow: 0 18px 40px rgba(48, 59, 109, 0.08);
+          background: rgba(255, 255, 255,0.96);
+          border: 1px solid rgba(213, 203, 245, 0.8);
+          box-shadow: 0 18px 40px rgba(36, 38, 41, 0.08);
         }
         .ledger-page .table-card {
           border-radius: 24px;
           padding: 26px;
-          background: rgba(255,255,255,0.97);
-          border: 1px solid rgba(203, 211, 234, 0.8);
-          box-shadow: 0 18px 40px rgba(48, 59, 109, 0.08);
+          background: rgba(255, 255, 255,0.97);
+          border: 1px solid rgba(213, 203, 245, 0.8);
+          box-shadow: 0 18px 40px rgba(36, 38, 41, 0.08);
         }
 
         .ledger-page .filters-row {
@@ -646,14 +646,14 @@ export default function GeneralLedgerPage() {
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #5d6787;
+          color: #676766;
         }
         .ledger-page .field input[type="date"] {
           padding: 9px 12px;
           border-radius: 12px;
-          border: 1px solid rgba(203,211,234,0.9);
-          background: #f8faff;
-          color: #28336e; /* Global blue color */
+          border: 1px solid rgba(213, 203, 245,0.9);
+          background: #FAF8F3;
+          color: #242629; /* Global blue color */
           font-size: 0.85rem;
           font-weight: 600;
           font-family: inherit;
@@ -670,26 +670,26 @@ export default function GeneralLedgerPage() {
           gap: 7px;
           padding: 10px 16px;
           border-radius: 12px;
-          border: 1px solid rgba(203,211,234,0.9);
-          background: #ffffff;
-          color: #28336e; /* Global blue color */
+          border: 1px solid rgba(213, 203, 245,0.9);
+          background: #FFFFFF;
+          color: #242629; /* Global blue color */
           font-size: 0.83rem;
           font-weight: 700;
           cursor: pointer;
           transition: background 0.15s ease, border-color 0.15s ease;
         }
         .ledger-page .export-btn:hover {
-          background: #f8faff;
-          border-color: rgba(203, 211, 234, 1);
+          background: #FAF8F3;
+          border-color: rgba(213, 203, 245, 1);
         }
         .ledger-page .export-btn.pdf {
           border: none;
-          background: linear-gradient(180deg, #ffb425 0%, #f4a117 100%);
-          color: #28336e; /* Global blue color */
-          box-shadow: 0 10px 20px rgba(244,161,23,0.24);
+          background: linear-gradient(180deg, #7A5CFA 0%, #7A5CFA 100%);
+          color: #242629; /* Global blue color */
+          box-shadow: 0 10px 20px rgba(122, 92, 250,0.24);
         }
         .ledger-page .export-btn.pdf:hover {
-          background: linear-gradient(180deg, #ffa71a 0%, #e68a00 100%);
+          background: linear-gradient(180deg, #7A5CFA 0%, #7A5CFA 100%);
         }
 
         .ledger-page .type-tabs {
@@ -701,32 +701,32 @@ export default function GeneralLedgerPage() {
         .ledger-page .type-tab {
           padding: 9px 16px;
           border-radius: 999px;
-          border: 1px solid rgba(203,211,234,0.9);
-          background: #ffffff;
-          color: #586682;
+          border: 1px solid rgba(213, 203, 245,0.9);
+          background: #FFFFFF;
+          color: #636362;
           font-size: 0.83rem;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.15s ease;
         }
         .ledger-page .type-tab:hover {
-          background: #f8faff;
-          color: #28336e; /* Global blue color */
+          background: #FAF8F3;
+          color: #242629; /* Global blue color */
         }
         .ledger-page .type-tab.active {
           border: 1px solid transparent;
-          background: #28336e; /* Global blue color */
-          color: #fff;
+          background: #242629; /* Global blue color */
+          color: #FFFFFF;
         }
 
         .ledger-page .toast {
           border-radius: 14px;
           padding: 13px 18px;
-          background: #28336e; /* Global blue color */
-          color: #ffffff;
+          background: #242629; /* Global blue color */
+          color: #FFFFFF;
           font-size: 0.85rem;
           font-weight: 600;
-          box-shadow: 0 14px 30px rgba(31,42,95,0.2);
+          box-shadow: 0 14px 30px rgba(21, 23, 25,0.2);
           display: inline-flex;
           align-items: center;
           gap: 10px;
@@ -754,8 +754,8 @@ export default function GeneralLedgerPage() {
           font-size: 0.7rem;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #5d6787;
-          border-bottom: 1px solid rgba(203,211,234,0.8);
+          color: #676766;
+          border-bottom: 1px solid rgba(213, 203, 245,0.8);
           white-space: nowrap;
         }
         .ledger-page thead th.num {
@@ -763,15 +763,15 @@ export default function GeneralLedgerPage() {
         }
         .ledger-page tbody td {
           padding: 13px 14px;
-          border-bottom: 1px solid rgba(226,231,245,0.7);
-          color: #28336e; /* Global blue color */
+          border-bottom: 1px solid rgba(230, 223, 244,0.7);
+          color: #242629; /* Global blue color */
           vertical-align: middle;
         }
         .ledger-page tbody tr:hover td {
-          background: rgba(228,233,255,0.28);
+          background: rgba(235, 230, 244,0.28);
         }
         .ledger-page .col-account {
-          color: #8892ab;
+          color: #8C8C89;
           font-size: 0.8rem;
           white-space: nowrap;
         }
@@ -791,32 +791,32 @@ export default function GeneralLedgerPage() {
           white-space: nowrap;
         }
         .ledger-page .badge-income {
-          background: #e6f7ef;
-          color: #1f8a5f;
+          background: #EAE7E1;
+          color: #6F7A5A;
         }
         .ledger-page .badge-expense {
-          background: #fbe9e9;
-          color: #c23b3b;
+          background: #F6ECE4;
+          color: #C46A4C;
         }
         .ledger-page .badge-transfer {
-          background: #e4e9ff;
-          color: #28336e; /* Global blue color */
+          background: #EBE6F4;
+          color: #242629; /* Global blue color */
         }
         .ledger-page .badge-journal {
-          background: #f3eefc;
-          color: #6d4aad;
+          background: #F3F0E9;
+          color: #7A5CFA;
         }
         /* Contra — teal, deliberately outside the income/expense pair because a
            transfer between the entity's own accounts is neither. */
         .ledger-page .badge-contra {
-          background: #cffafe;
-          color: #0e7490;
+          background: #F0F0E7;
+          color: #6B4EE6;
         }
         .ledger-page .col-desc {
-          color: #586682;
+          color: #636362;
         }
         .ledger-page .col-split {
-          color: #586682;
+          color: #636362;
           white-space: nowrap;
         }
         .ledger-page .col-amount {
@@ -825,26 +825,26 @@ export default function GeneralLedgerPage() {
           font-weight: 700;
         }
         .ledger-page .amount-income {
-          color: #1f8a5f;
+          color: #6F7A5A;
         }
         .ledger-page .amount-expense {
-          color: #c23b3b;
+          color: #C46A4C;
         }
         .ledger-page .amount-neutral {
-          color: #28336e; /* Global blue color */
+          color: #242629; /* Global blue color */
         }
         .ledger-page .col-balance {
           text-align: right;
           white-space: nowrap;
-          color: #28336e; /* Global blue color */
+          color: #242629; /* Global blue color */
           font-weight: 700;
         }
         .ledger-page .opening-row td {
           padding: 13px 14px;
-          border-bottom: 1px solid rgba(203,211,234,0.9);
+          border-bottom: 1px solid rgba(213, 203, 245,0.9);
         }
         .ledger-page .opening-label {
-          color: #586682;
+          color: #636362;
           font-weight: 800;
           font-size: 0.8rem;
           text-transform: uppercase;
@@ -871,14 +871,14 @@ export default function GeneralLedgerPage() {
           border-radius: 8px;
           border: none;
           background: transparent;
-          color: #a3adc4;
+          color: #A6A5A1;
           cursor: pointer;
           padding: 0;
           transition: all 0.15s ease;
         }
         .ledger-page .icon-btn:hover {
-          color: #28336e; /* Global blue color */
-          background: rgba(228, 233, 255, 0.4);
+          color: #242629; /* Global blue color */
+          background: rgba(235, 230, 244, 0.4);
         }
         .ledger-page .name-edit {
           display: flex;
@@ -888,38 +888,38 @@ export default function GeneralLedgerPage() {
         .ledger-page .name-edit input {
           padding: 6px 9px;
           border-radius: 8px;
-          border: 1px solid #28336e; /* Global blue color */
+          border: 1px solid #242629; /* Global blue color */
           font-size: 0.85rem;
           font-weight: 600;
-          color: #28336e; /* Global blue color */
+          color: #242629; /* Global blue color */
           width: 140px;
           font-family: inherit;
           outline: none;
         }
         .ledger-page .icon-btn.save {
-          background: #e6f7ef;
-          color: #1f8a5f;
+          background: #EAE7E1;
+          color: #6F7A5A;
         }
         .ledger-page .icon-btn.cancel {
-          background: #fbe9e9;
-          color: #c23b3b;
+          background: #F6ECE4;
+          color: #C46A4C;
         }
 
         .ledger-page .unused-section {
           margin-top: 30px;
           padding-top: 24px;
-          border-top: 1px dashed rgba(203,211,234,0.9);
+          border-top: 1px dashed rgba(213, 203, 245,0.9);
         }
         .ledger-page .unused-section h3 {
           margin: 0;
           font-size: 0.95rem;
           font-weight: 800;
-          color: #28336e; /* Global blue color */
+          color: #242629; /* Global blue color */
         }
         .ledger-page .unused-section p {
           margin: 6px 0 0;
           font-size: 0.82rem;
-          color: #8892ab;
+          color: #8C8C89;
           max-width: 60ch;
         }
         .ledger-page .unused-grid {
@@ -935,37 +935,37 @@ export default function GeneralLedgerPage() {
           gap: 10px;
           padding: 12px 16px;
           border-radius: 14px;
-          background: #f8faff;
-          border: 1px solid rgba(226,231,245,0.9);
+          background: #FAF8F3;
+          border: 1px solid rgba(230, 223, 244,0.9);
         }
         .ledger-page .unused-item span:first-child {
           font-size: 0.85rem;
           font-weight: 600;
-          color: #586682;
+          color: #636362;
         }
         .ledger-page .unused-item span:last-child {
           font-size: 0.85rem;
           font-weight: 700;
-          color: #a3adc4;
+          color: #A6A5A1;
         }
 
         .ledger-page .no-results {
           padding: 32px 14px;
           text-align: center;
-          color: #8892ab;
+          color: #8C8C89;
           font-size: 0.88rem;
         }
 
         /* ── Added when the page was wired to the API ───────────────── */
 
         .ledger-page .status-pill.is-open {
-          background: #fef3c7;
-          color: #92400e;
+          background: #F2DED4;
+          color: #A8503A;
         }
         .ledger-page .hero-note {
           margin: 14px 0 0;
           font-size: 0.82rem;
-          color: #dbe2f5;
+          color: #E2DBF4;
           max-width: 62ch;
           line-height: 1.5;
         }
@@ -981,7 +981,7 @@ export default function GeneralLedgerPage() {
           border-radius: 7px;
           border: 1px solid rgba(255, 255, 255, 0.35);
           background: rgba(255, 255, 255, 0.12);
-          color: #fff;
+          color: #FFFFFF;
           font-size: 0.9rem;
           font-weight: 700;
         }
@@ -992,8 +992,8 @@ export default function GeneralLedgerPage() {
           padding: 7px 14px;
           border-radius: 7px;
           border: none;
-          background: #ffd166;
-          color: #28336e;
+          background: #E6B5A2;
+          color: #242629;
           font-weight: 800;
           font-size: 0.82rem;
           cursor: pointer;
@@ -1011,53 +1011,53 @@ export default function GeneralLedgerPage() {
           cursor: not-allowed;
         }
         .ledger-page .badge-unreconciled {
-          background: #f1f3f9;
-          color: #6b7590;
+          background: #F3F0E9;
+          color: #727270;
         }
         .ledger-page .name-empty {
-          color: #a3adc4;
+          color: #A6A5A1;
           font-style: italic;
         }
         .ledger-page .opening-row.is-closing td {
-          border-top: 2px solid #d8dff0;
+          border-top: 2px solid #DED6F5;
         }
         .ledger-page .balance-note {
           margin: 0;
           padding: 11px 18px;
-          background: #f6f8ff;
-          border-bottom: 1px solid #e6ebf7;
-          color: #5a6484;
+          background: #F3F0E9;
+          border-bottom: 1px solid #EAE7E1;
+          color: #646563;
           font-size: 0.8rem;
         }
         .ledger-page .ledger-state {
-          background: #fff;
+          background: #FFFFFF;
           border-radius: 14px;
           padding: 34px 28px;
           text-align: center;
-          box-shadow: 0 10px 30px rgba(40, 51, 110, 0.07);
+          box-shadow: 0 10px 30px rgba(36, 38, 41, 0.07);
         }
         .ledger-page .ledger-state h3 {
           margin: 0 0 8px;
-          color: #28336e;
+          color: #242629;
           font-size: 1.05rem;
         }
         .ledger-page .ledger-state p {
           margin: 0 auto 18px;
           max-width: 58ch;
-          color: #6b7590;
+          color: #727270;
           font-size: 0.88rem;
           line-height: 1.55;
         }
         .ledger-page .ledger-state.is-error h3 {
-          color: #b42318;
+          color: #C46A4C;
         }
         .ledger-page .ledger-state-action {
           display: inline-block;
           padding: 9px 18px;
           border-radius: 8px;
           border: none;
-          background: #28336e;
-          color: #fff !important;
+          background: #242629;
+          color: #FFFFFF !important;
           font-weight: 700;
           font-size: 0.85rem;
           cursor: pointer;
@@ -1071,7 +1071,7 @@ export default function GeneralLedgerPage() {
         .ledger-page .ledger-skeleton-row {
           height: 34px;
           border-radius: 8px;
-          background: linear-gradient(90deg, #eef1f8 25%, #f7f9ff 50%, #eef1f8 75%);
+          background: linear-gradient(90deg, #F2EFE8 25%, #F3F0E9 50%, #F2EFE8 75%);
           background-size: 400% 100%;
           animation: ledger-shimmer 1.4s ease infinite;
         }
@@ -1086,9 +1086,9 @@ export default function GeneralLedgerPage() {
           align-items: center;
           justify-content: space-between;
           padding: 14px 18px;
-          border-top: 1px solid #e6ebf7;
+          border-top: 1px solid #EAE7E1;
           font-size: 0.83rem;
-          color: #5a6484;
+          color: #646563;
         }
         .ledger-page .ledger-pagination-left,
         .ledger-page .ledger-pagination-right {
@@ -1099,17 +1099,17 @@ export default function GeneralLedgerPage() {
         .ledger-page .ledger-pagination select {
           padding: 6px 9px;
           border-radius: 7px;
-          border: 1px solid #dbe1ef;
-          background: #fff;
-          color: #28336e;
+          border: 1px solid #DFD7F4;
+          background: #FFFFFF;
+          color: #242629;
           font-size: 0.8rem;
         }
         .ledger-page .ledger-pagination button {
           padding: 6px 13px;
           border-radius: 7px;
-          border: 1px solid #dbe1ef;
-          background: #fff;
-          color: #28336e;
+          border: 1px solid #DFD7F4;
+          background: #FFFFFF;
+          color: #242629;
           font-weight: 700;
           font-size: 0.8rem;
           cursor: pointer;
@@ -1203,7 +1203,7 @@ export default function GeneralLedgerPage() {
                   </button>
                 </div>
               ) : (
-                <p className="hero-meta-value" style={{ color: "#ffd166" }}>
+                <p className="hero-meta-value" style={{ color: "#E6B5A2" }}>
                   {ledger ? formatMoney(ledger.openingBalance) : "—"}
                 </p>
               )}
@@ -1338,7 +1338,7 @@ export default function GeneralLedgerPage() {
                 width="15"
                 height="15"
                 fill="none"
-                stroke="#ffd166"
+                stroke="#E6B5A2"
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -1415,8 +1415,8 @@ export default function GeneralLedgerPage() {
                     <td colSpan={6} className="opening-label">
                       Opening Balance
                     </td>
-                    <td style={{ textAlign: "right", color: "#a3adc4" }}>—</td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#28336e", fontWeight: 800 }}>
+                    <td style={{ textAlign: "right", color: "#A6A5A1" }}>—</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#242629", fontWeight: 800 }}>
                       {formatMoney(ledger.openingBalance)}
                     </td>
                   </tr>
@@ -1511,8 +1511,8 @@ export default function GeneralLedgerPage() {
                     <td colSpan={6} className="opening-label">
                       Closing Balance
                     </td>
-                    <td style={{ textAlign: "right", color: "#a3adc4" }}>—</td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#28336e", fontWeight: 800 }}>
+                    <td style={{ textAlign: "right", color: "#A6A5A1" }}>—</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap", color: "#242629", fontWeight: 800 }}>
                       {formatMoney(ledger.closingBalance)}
                     </td>
                   </tr>

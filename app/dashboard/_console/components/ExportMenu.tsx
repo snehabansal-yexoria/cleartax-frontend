@@ -66,10 +66,10 @@ export function ExportMenu<T>({
             top: "calc(100% + 0.4em)",
             zIndex: 30,
             minWidth: "14em",
-            background: "#fff",
+            background: "#FFFFFF",
             border: "1px solid var(--cpc-line)",
             borderRadius: "0.7em",
-            boxShadow: "0 12px 30px rgba(20, 22, 40, 0.14)",
+            boxShadow: "0 12px 30px rgba(21, 23, 25, 0.14)",
             padding: "0.35em",
           }}
         >
@@ -95,7 +95,7 @@ export function ExportMenu<T>({
                 font: "inherit",
                 textAlign: "left",
               }}
-              onMouseEnter={(event) => (event.currentTarget.style.background = "#f6f5f2")}
+              onMouseEnter={(event) => (event.currentTarget.style.background = "#F3F0E9")}
               onMouseLeave={(event) => (event.currentTarget.style.background = "transparent")}
             >
               <span style={{ fontWeight: 600, fontSize: "0.93em" }}>{format.label}</span>

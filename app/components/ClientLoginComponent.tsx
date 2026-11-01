@@ -421,9 +421,9 @@ export default function ClientLoginComponent() {
         .client-mobile-layout {
           min-height: 100dvh;
           width: 100%;
-          background: #1e295d;
+          background: #151719;
           flex-direction: column;
-          font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           position: relative;
           overflow-x: hidden;
           box-sizing: border-box;
@@ -432,7 +432,7 @@ export default function ClientLoginComponent() {
         .mobile-blueprint-bg {
           position: absolute;
           inset: 0;
-          background-color: #1e295d;
+          background-color: #151719;
           background-image: 
             linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
@@ -451,12 +451,12 @@ export default function ClientLoginComponent() {
         }
 
         .brand-squircle {
-          background: #f4a117;
+          background: #7A5CFA;
           border-radius: 18px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 10px 25px rgba(244, 161, 23, 0.3);
+          box-shadow: 0 10px 25px rgba(122, 92, 250, 0.3);
           flex-shrink: 0;
         }
 
@@ -469,7 +469,7 @@ export default function ClientLoginComponent() {
           justify-content: center;
           padding: 32px 24px;
           text-align: center;
-          background-color: #1e295d;
+          background-color: #151719;
           background-image: 
             linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
@@ -484,7 +484,7 @@ export default function ClientLoginComponent() {
           flex-direction: column;
           justify-content: space-between;
           padding: 44px 28px 32px 28px;
-          background-color: #1e295d;
+          background-color: #151719;
           background-image: 
             linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
@@ -507,11 +507,11 @@ export default function ClientLoginComponent() {
           width: 38px;
           height: 38px;
           border-radius: 10px;
-          background: rgba(244, 161, 23, 0.15);
+          background: rgba(122, 92, 250, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #f4a117;
+          color: #7A5CFA;
           flex-shrink: 0;
         }
 
@@ -519,8 +519,8 @@ export default function ClientLoginComponent() {
           width: 100%;
           height: 52px;
           border-radius: 14px;
-          background: #f4a117;
-          color: #ffffff;
+          background: #7A5CFA;
+          color: #FFFFFF;
           border: none;
           font-size: 1.05rem;
           font-weight: 700;
@@ -528,7 +528,7 @@ export default function ClientLoginComponent() {
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 24px rgba(244, 161, 23, 0.35);
+          box-shadow: 0 8px 24px rgba(122, 92, 250, 0.35);
           font-family: inherit;
         }
 
@@ -539,7 +539,7 @@ export default function ClientLoginComponent() {
           flex-direction: column;
           justify-content: flex-start;
           padding: 32px 28px 28px 28px;
-          background: #f7f9fd;
+          background: #F3F0E9;
           box-sizing: border-box;
         }
 
@@ -555,29 +555,29 @@ export default function ClientLoginComponent() {
           font-weight: 700;
           letter-spacing: 0.06em;
           text-transform: uppercase;
-          color: #64748b;
+          color: #6C6C6B;
         }
 
         .login-input-box {
           position: relative;
           display: flex;
           align-items: center;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
+          background: #FFFFFF;
+          border: 1px solid #E2E0D9;
           border-radius: 12px;
           padding: 0 14px;
           height: 48px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+          box-shadow: 0 1px 3px rgba(21, 23, 25, 0.02);
         }
 
         .login-input-box:focus-within {
-          border-color: #263574;
-          box-shadow: 0 0 0 3px rgba(38, 53, 116, 0.12);
+          border-color: #242629;
+          box-shadow: 0 0 0 3px rgba(36, 38, 41, 0.12);
         }
 
         .login-input-box.has-error {
-          border-color: #ef4444;
-          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+          border-color: #C46A4C;
+          box-shadow: 0 0 0 3px rgba(196, 106, 76, 0.1);
         }
 
         .login-input-field {
@@ -585,7 +585,7 @@ export default function ClientLoginComponent() {
           border: none;
           background: transparent;
           font-size: 0.95rem;
-          color: #1e293b;
+          color: #151719;
           font-family: inherit;
           padding: 0 10px;
           outline: none;
@@ -593,15 +593,15 @@ export default function ClientLoginComponent() {
         }
 
         .login-input-field::placeholder {
-          color: #94a3b8;
+          color: #999894;
         }
 
         .login-submit-btn {
           width: 100%;
           height: 50px;
           border-radius: 12px;
-          background: #232f65;
-          color: #ffffff;
+          background: #242629;
+          color: #FFFFFF;
           border: none;
           font-size: 1rem;
           font-weight: 700;
@@ -609,7 +609,7 @@ export default function ClientLoginComponent() {
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 6px 20px rgba(35, 47, 101, 0.25);
+          box-shadow: 0 6px 20px rgba(36, 38, 41, 0.25);
           font-family: inherit;
         }
 
@@ -618,7 +618,7 @@ export default function ClientLoginComponent() {
           align-items: center;
           justify-content: flex-start;
           padding: 0 2px 14px 2px;
-          color: #1e293b;
+          color: #151719;
         }
       `}</style>
 
@@ -631,7 +631,7 @@ export default function ClientLoginComponent() {
             left: 0,
             width: "100vw",
             height: "100vh",
-            background: "radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.94) 0%, rgba(244, 246, 250, 0.98) 100%)",
+            background: "radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.94) 0%, rgba(243, 240, 233, 0.98) 100%)",
             backdropFilter: "blur(18px)",
             WebkitBackdropFilter: "blur(18px)",
             display: "flex",
@@ -651,8 +651,8 @@ export default function ClientLoginComponent() {
               padding: "40px 32px",
               borderRadius: "28px",
               background: "rgba(255, 255, 255, 0.9)",
-              border: "1px solid rgba(40, 51, 110, 0.08)",
-              boxShadow: "0 30px 80px rgba(40, 51, 110, 0.08)",
+              border: "1px solid rgba(36, 38, 41, 0.08)",
+              boxShadow: "0 30px 80px rgba(36, 38, 41, 0.08)",
               maxWidth: "340px",
               width: "90%",
               textAlign: "center",
@@ -663,16 +663,16 @@ export default function ClientLoginComponent() {
                 width: "48px",
                 height: "48px",
                 borderRadius: "50%",
-                border: "3px solid rgba(35, 47, 101, 0.1)",
-                borderTopColor: "#f4a117",
+                border: "3px solid rgba(36, 38, 41, 0.1)",
+                borderTopColor: "#7A5CFA",
                 animation: "spin 0.8s linear infinite",
               }}
             />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <span style={{ color: "#28336e", fontSize: "1.2rem", fontWeight: 800 }}>
+            <span style={{ color: "#242629", fontSize: "1.2rem", fontWeight: 800 }}>
               Authorizing Access
             </span>
-            <span style={{ color: "#64748b", fontSize: "0.88rem" }}>
+            <span style={{ color: "#6C6C6B", fontSize: "0.88rem" }}>
               Opening your client portfolio dashboard...
             </span>
           </div>
@@ -694,13 +694,13 @@ export default function ClientLoginComponent() {
                       <div className="login-icon">
                         <Image
                           src={logo}
-                          alt="Clear Portfolio"
+                          alt="Thetaxio"
                           width={100}
                           height={100}
                           className="icon"
                         />
                       </div>
-                      <h1>Clear Portfolio</h1>
+                      <h1>Thetaxio</h1>
                     </div>
                     <h2>Client</h2>
                     <p className="darkBg txt-center">
@@ -736,7 +736,7 @@ export default function ClientLoginComponent() {
                   </div>
                 </div>
                 <div className="ll-copyright">
-                  <p>© 2026 Clear Portfolio | Internal Use Only</p>
+                  <p>© 2026 Thetaxio | Internal Use Only</p>
                 </div>
               </div>
 
@@ -747,7 +747,7 @@ export default function ClientLoginComponent() {
                     <div className="login-icon">
                       <Image
                         src={logoBlue}
-                        alt="Clear Portfolio"
+                        alt="Thetaxio"
                         width={100}
                         height={100}
                         className="icon"
@@ -775,7 +775,7 @@ export default function ClientLoginComponent() {
                           <label htmlFor="desktop-email">Email Address</label>
                           <input
                             type="email"
-                            placeholder="client@clearportfolio.com"
+                            placeholder="client@thetaxio.com"
                             id="desktop-email"
                             value={email}
                             onChange={(e) => {
@@ -829,7 +829,7 @@ export default function ClientLoginComponent() {
                         <div style={{ textAlign: "center" }}>
                           <Link
                             href="/login/forgot-password?role=client"
-                            style={{ color: "#2f3c82", fontWeight: 600, fontSize: "0.95rem" }}
+                            style={{ color: "#2E3135", fontWeight: 600, fontSize: "0.95rem" }}
                           >
                             Forgot password?
                           </Link>
@@ -903,7 +903,7 @@ export default function ClientLoginComponent() {
                       >
                         <div className="login-element">
                           <label htmlFor="desktop_mfa_code">Authentication Code</label>
-                          <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                          <p style={{ fontSize: "0.85rem", color: "#6E6E6C", marginBottom: "8px" }}>
                             Enter the code from your authenticator app.
                           </p>
                           <input
@@ -935,7 +935,7 @@ export default function ClientLoginComponent() {
                       >
                         <div className="login-element">
                           <label htmlFor="desktop_email_mfa_code">Email Verification Code</label>
-                          <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                          <p style={{ fontSize: "0.85rem", color: "#6E6E6C", marginBottom: "8px" }}>
                             Enter the code we sent to your email ({maskEmail(email)}).
                           </p>
                           <input
@@ -961,7 +961,7 @@ export default function ClientLoginComponent() {
                       <div className="login-form-wrap">
                         <div className="login-element">
                           <label>Choose a verification method</label>
-                          <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                          <p style={{ fontSize: "0.85rem", color: "#6E6E6C", marginBottom: "8px" }}>
                             How would you like to receive your one-time code?
                           </p>
                         </div>
@@ -1020,14 +1020,14 @@ export default function ClientLoginComponent() {
                   <svg width="46" height="46" viewBox="0 0 80 80" fill="none">
                     <path
                       d="M56.6668 31.6666L42.5002 45.8333L34.1668 37.5L23.3335 48.3333"
-                      stroke="#1e295d"
+                      stroke="#151719"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                     <path
                       d="M46.6665 31.6666H56.6665V41.6666"
-                      stroke="#1e295d"
+                      stroke="#151719"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1037,14 +1037,14 @@ export default function ClientLoginComponent() {
                 <div>
                   <h1
                     style={{
-                      color: "#ffffff",
+                      color: "#FFFFFF",
                       fontSize: "1.95rem",
                       fontWeight: 800,
                       letterSpacing: "-0.03em",
                       margin: 0,
                     }}
                   >
-                    ClearPortfolio
+                    Thetaxio
                   </h1>
                   <p
                     style={{
@@ -1100,14 +1100,14 @@ export default function ClientLoginComponent() {
                   <svg width="28" height="28" viewBox="0 0 80 80" fill="none">
                     <path
                       d="M56.6668 31.6666L42.5002 45.8333L34.1668 37.5L23.3335 48.3333"
-                      stroke="#1e295d"
+                      stroke="#151719"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                     <path
                       d="M46.6665 31.6666H56.6665V41.6666"
-                      stroke="#1e295d"
+                      stroke="#151719"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1119,7 +1119,7 @@ export default function ClientLoginComponent() {
                 <div style={{ marginTop: "28px" }}>
                   <h1
                     style={{
-                      color: "#ffffff",
+                      color: "#FFFFFF",
                       fontSize: "2.1rem",
                       fontWeight: 800,
                       lineHeight: "1.15",
@@ -1158,7 +1158,7 @@ export default function ClientLoginComponent() {
                         <path d="m19 9-5 5-4-4-3 3" />
                       </svg>
                     </div>
-                    <span style={{ color: "#ffffff", fontSize: "0.95rem", fontWeight: 600 }}>
+                    <span style={{ color: "#FFFFFF", fontSize: "0.95rem", fontWeight: 600 }}>
                       Real-time portfolio P&L
                     </span>
                   </div>
@@ -1175,7 +1175,7 @@ export default function ClientLoginComponent() {
                         <line x1="8" y1="15" x2="13" y2="15" />
                       </svg>
                     </div>
-                    <span style={{ color: "#ffffff", fontSize: "0.95rem", fontWeight: 600 }}>
+                    <span style={{ color: "#FFFFFF", fontSize: "0.95rem", fontWeight: 600 }}>
                       OCR receipts in seconds
                     </span>
                   </div>
@@ -1189,7 +1189,7 @@ export default function ClientLoginComponent() {
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
                     </div>
-                    <span style={{ color: "#ffffff", fontSize: "0.95rem", fontWeight: 600 }}>
+                    <span style={{ color: "#FFFFFF", fontSize: "0.95rem", fontWeight: 600 }}>
                       Shared with your accountant
                     </span>
                   </div>
@@ -1230,7 +1230,7 @@ export default function ClientLoginComponent() {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "#64748b",
+                      color: "#6C6C6B",
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
@@ -1254,14 +1254,14 @@ export default function ClientLoginComponent() {
                   <svg width="24" height="24" viewBox="0 0 80 80" fill="none">
                     <path
                       d="M56.6668 31.6666L42.5002 45.8333L34.1668 37.5L23.3335 48.3333"
-                      stroke="#1e295d"
+                      stroke="#151719"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                     <path
                       d="M46.6665 31.6666H56.6665V41.6666"
-                      stroke="#1e295d"
+                      stroke="#151719"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1272,7 +1272,7 @@ export default function ClientLoginComponent() {
                 <div style={{ marginTop: "20px", marginBottom: "24px" }}>
                   <h2
                     style={{
-                      color: "#0f172a",
+                      color: "#151719",
                       fontSize: "1.75rem",
                       fontWeight: 800,
                       letterSpacing: "-0.03em",
@@ -1283,7 +1283,7 @@ export default function ClientLoginComponent() {
                   </h2>
                   <p
                     style={{
-                      color: "#64748b",
+                      color: "#6C6C6B",
                       fontSize: "0.9rem",
                       margin: "4px 0 0 0",
                     }}
@@ -1313,7 +1313,7 @@ export default function ClientLoginComponent() {
                           height="18"
                           viewBox="0 0 24 24"
                           fill="none"
-                          stroke="#94a3b8"
+                          stroke="#999894"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1335,7 +1335,7 @@ export default function ClientLoginComponent() {
                         />
                       </div>
                       {emailError && (
-                        <span style={{ color: "#ef4444", fontSize: "0.78rem", fontWeight: 500 }}>
+                        <span style={{ color: "#C46A4C", fontSize: "0.78rem", fontWeight: 500 }}>
                           {emailError}
                         </span>
                       )}
@@ -1351,7 +1351,7 @@ export default function ClientLoginComponent() {
                           height="18"
                           viewBox="0 0 24 24"
                           fill="none"
-                          stroke="#94a3b8"
+                          stroke="#999894"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1377,7 +1377,7 @@ export default function ClientLoginComponent() {
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#94a3b8",
+                            color: "#999894",
                             cursor: "pointer",
                             padding: "4px",
                           }}
@@ -1396,7 +1396,7 @@ export default function ClientLoginComponent() {
                         </button>
                       </div>
                       {passwordError && (
-                        <span style={{ color: "#ef4444", fontSize: "0.78rem", fontWeight: 500 }}>
+                        <span style={{ color: "#C46A4C", fontSize: "0.78rem", fontWeight: 500 }}>
                           {passwordError}
                         </span>
                       )}
@@ -1405,7 +1405,7 @@ export default function ClientLoginComponent() {
                         <Link
                           href="/login/forgot-password?role=client"
                           style={{
-                            color: "#263574",
+                            color: "#242629",
                             fontSize: "0.82rem",
                             fontWeight: 700,
                             textDecoration: "none",
@@ -1437,13 +1437,13 @@ export default function ClientLoginComponent() {
                   >
                     <div className="login-input-group">
                       <label className="login-input-label">Email</label>
-                      <div className="login-input-box" style={{ background: "#f1f5f9" }}>
+                      <div className="login-input-box" style={{ background: "#F3F0E9" }}>
                         <input
                           type="email"
                           value={email}
                           disabled
                           className="login-input-field"
-                          style={{ color: "#64748b" }}
+                          style={{ color: "#6C6C6B" }}
                         />
                       </div>
                     </div>
@@ -1464,7 +1464,7 @@ export default function ClientLoginComponent() {
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#94a3b8",
+                            color: "#999894",
                             cursor: "pointer",
                             padding: "4px",
                           }}
@@ -1500,7 +1500,7 @@ export default function ClientLoginComponent() {
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#94a3b8",
+                            color: "#999894",
                             cursor: "pointer",
                             padding: "4px",
                           }}
@@ -1536,7 +1536,7 @@ export default function ClientLoginComponent() {
                   >
                     <div className="login-input-group">
                       <label className="login-input-label">Authentication Code</label>
-                      <p style={{ fontSize: "0.82rem", color: "#64748b", margin: "4px 0 8px 0" }}>
+                      <p style={{ fontSize: "0.82rem", color: "#6C6C6B", margin: "4px 0 8px 0" }}>
                         Enter the code from your authenticator app.
                       </p>
                       <div className="login-input-box">
@@ -1568,7 +1568,7 @@ export default function ClientLoginComponent() {
                   >
                     <div className="login-input-group">
                       <label className="login-input-label">Email Verification Code</label>
-                      <p style={{ fontSize: "0.82rem", color: "#64748b", margin: "4px 0 8px 0" }}>
+                      <p style={{ fontSize: "0.82rem", color: "#6C6C6B", margin: "4px 0 8px 0" }}>
                         Enter the code sent to {maskEmail(email)}.
                       </p>
                       <div className="login-input-box">
@@ -1594,7 +1594,7 @@ export default function ClientLoginComponent() {
                 {selectMfaChoice && (
                   <div>
                     <label className="login-input-label">Choose verification method</label>
-                    <p style={{ fontSize: "0.82rem", color: "#64748b", margin: "4px 0 14px 0" }}>
+                    <p style={{ fontSize: "0.82rem", color: "#6C6C6B", margin: "4px 0 14px 0" }}>
                       How would you like to receive your one-time verification code?
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1611,7 +1611,7 @@ export default function ClientLoginComponent() {
                         disabled={loading}
                         onClick={() => void handleSelectMfa("SOFTWARE_TOKEN_MFA")}
                         className="login-submit-btn"
-                        style={{ background: "#475569" }}
+                        style={{ background: "#505050" }}
                       >
                         Use authenticator app
                       </button>
@@ -1625,9 +1625,9 @@ export default function ClientLoginComponent() {
                       marginTop: "16px",
                       padding: "10px 14px",
                       borderRadius: "10px",
-                      background: "rgba(239, 68, 68, 0.08)",
-                      border: "1px solid rgba(239, 68, 68, 0.2)",
-                      color: "#dc2626",
+                      background: "rgba(196, 106, 76, 0.08)",
+                      border: "1px solid rgba(196, 106, 76, 0.2)",
+                      color: "#C46A4C",
                       fontSize: "0.84rem",
                       fontWeight: 500,
                       textAlign: "center",
@@ -1648,7 +1648,7 @@ export default function ClientLoginComponent() {
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(15, 23, 42, 0.6)",
+            backgroundColor: "rgba(21, 23, 25, 0.6)",
             backdropFilter: "blur(12px)",
             display: "flex",
             alignItems: "center",
@@ -1658,13 +1658,13 @@ export default function ClientLoginComponent() {
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "#FFFFFF",
               borderRadius: "24px",
               padding: "32px 28px",
               width: "360px",
               maxWidth: "90%",
               textAlign: "center",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              boxShadow: "0 25px 50px -12px rgba(21, 23, 25, 0.25)",
             }}
           >
             <div
@@ -1672,8 +1672,8 @@ export default function ClientLoginComponent() {
                 width: "60px",
                 height: "60px",
                 borderRadius: "50%",
-                background: "#ecfdf5",
-                color: "#10b981",
+                background: "#F3F0E9",
+                color: "#6F7A5A",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1684,10 +1684,10 @@ export default function ClientLoginComponent() {
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <h3 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "1.3rem", fontWeight: 700 }}>
+            <h3 style={{ margin: "0 0 8px 0", color: "#151719", fontSize: "1.3rem", fontWeight: 700 }}>
               Password Updated!
             </h3>
-            <p style={{ color: "#64748b", fontSize: "0.9rem", margin: "0 0 20px 0" }}>
+            <p style={{ color: "#6C6C6B", fontSize: "0.9rem", margin: "0 0 20px 0" }}>
               {alertMessage}
             </p>
             <button

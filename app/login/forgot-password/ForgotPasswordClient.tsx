@@ -194,7 +194,7 @@ export default function ForgotPasswordClient({
             <div className="login-icon">
               <Image
                 src={logoBlue}
-                alt="Clear Portfolio"
+                alt="Thetaxio"
                 width={100}
                 height={100}
                 className="icon"
@@ -215,7 +215,7 @@ export default function ForgotPasswordClient({
           <div className="lr-form">
             {done && (
               <div className="login-form-wrap">
-                <p style={{ textAlign: "center", color: "#364153", fontSize: "1rem" }}>
+                <p style={{ textAlign: "center", color: "#3E3F40", fontSize: "1rem" }}>
                   Your password has been reset. You can now sign in with your new
                   password.
                 </p>
@@ -240,7 +240,7 @@ export default function ForgotPasswordClient({
                   <input
                     type="email"
                     id="reset_email"
-                    placeholder="you@clearportfolio.com"
+                    placeholder="you@thetaxio.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoFocus
@@ -264,7 +264,7 @@ export default function ForgotPasswordClient({
               >
                 <div className="login-element">
                   <label htmlFor="reset_code">Verification Code</label>
-                  <p style={{ fontSize: "0.85rem", color: "#717182", marginBottom: "8px" }}>
+                  <p style={{ fontSize: "0.85rem", color: "#6E6E6C", marginBottom: "8px" }}>
                     Enter the code we emailed to {email}.{" "}
                     <button
                       type="button"
@@ -276,7 +276,7 @@ export default function ForgotPasswordClient({
                       style={{
                         border: 0,
                         background: "transparent",
-                        color: "#2f3c82",
+                        color: "#2E3135",
                         fontWeight: 700,
                         cursor: "pointer",
                         padding: 0,
@@ -347,7 +347,7 @@ export default function ForgotPasswordClient({
                   style={{
                     border: 0,
                     background: "transparent",
-                    color: "#2f3c82",
+                    color: "#2E3135",
                     fontWeight: 700,
                     cursor: "pointer",
                   }}
@@ -359,7 +359,7 @@ export default function ForgotPasswordClient({
 
             {info && (
               <div className="login-info">
-                <p style={{ color: "#1f7a4d", textAlign: "center", paddingTop: "8px" }}>
+                <p style={{ color: "#56613F", textAlign: "center", paddingTop: "8px" }}>
                   {info}
                 </p>
               </div>
@@ -375,7 +375,7 @@ export default function ForgotPasswordClient({
 
             {!done && (
               <div style={{ textAlign: "center", paddingTop: "8px" }}>
-                <Link href={loginPath} style={{ color: "#2f3c82", fontWeight: 600 }}>
+                <Link href={loginPath} style={{ color: "#2E3135", fontWeight: 600 }}>
                   Back to login
                 </Link>
               </div>

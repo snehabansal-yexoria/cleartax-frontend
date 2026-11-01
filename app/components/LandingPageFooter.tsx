@@ -153,10 +153,10 @@ export default function LandingPageFooter() {
                 </li>
                 <li>
                   <a
-                    href="mailto:contact@clearportfolio.com.au"
+                    href="mailto:contact@thetaxio.com.au"
                     className="ct-footer-nav-link"
                   >
-                    contact@clearportfolio.com.au
+                    contact@thetaxio.com.au
                   </a>
                 </li>
               </ul>
@@ -169,7 +169,7 @@ export default function LandingPageFooter() {
           {/* Desktop Bottom Row */}
           <div className="ct-footer-bottom-row">
             <p className="ct-footer-copyright">
-              © 2025 ClearPortfolio by Clear Tax. All rights reserved.
+              © 2025 Thetaxio. All rights reserved.
             </p>
             <p className="ct-footer-tagline">
               Engineered with <span className="highlight-orange">financial precision</span>.
@@ -296,10 +296,10 @@ export default function LandingPageFooter() {
           {/* Mobile Disclaimer & Copyright */}
           <div className="ct-mobile-disclaimer-block">
             <p className="ct-mobile-disclaimer-text">
-              Disclaimer: ClearPortfolio provides general portfolio analytics and does not constitute licensed personal financial, taxation or credit advice.
+              Disclaimer: Thetaxio provides general portfolio analytics and does not constitute licensed personal financial, taxation or credit advice.
             </p>
             <p className="ct-mobile-copyright-text">
-              © 2025 ClearPortfolio by Clear Tax. All rights reserved.
+              © 2025 Thetaxio. All rights reserved.
             </p>
           </div>
         </div>

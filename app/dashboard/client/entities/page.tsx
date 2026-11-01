@@ -194,7 +194,7 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[#2563EB] dark:text-[#60A5FA]"
+          className="text-[#7A5CFA] dark:text-[#A995F7]"
         >
           <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
           <path d="M6 12H4a2 2 0 0 0-2 2v8" />
@@ -205,8 +205,8 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           <path d="M10 18h4" />
         </svg>
       ),
-      iconBoxClass: "bg-[#EFF6FF] border-[#DBEAFE] dark:bg-blue-500/15 dark:border-blue-500/25",
-      badgeClass: "bg-[#EBF3FF] text-[#2563EB] dark:bg-blue-500/20 dark:text-[#93C5FD]",
+      iconBoxClass: "bg-[#F3F0E9] border-[#E7E0F4] dark:bg-blue-500/15 dark:border-blue-500/25",
+      badgeClass: "bg-[#EFEAF4] text-[#7A5CFA] dark:bg-blue-500/20 dark:text-[#C3B5F6]",
     };
   }
 
@@ -223,14 +223,14 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[#059669] dark:text-[#34D399]"
+          className="text-[#56613F] dark:text-[#6F7A5A]"
         >
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           <path d="m9 12 2 2 4-4" />
         </svg>
       ),
-      iconBoxClass: "bg-[#ECFDF5] border-[#D1FAE5] dark:bg-emerald-500/15 dark:border-emerald-500/25",
-      badgeClass: "bg-[#ECFDF5] text-[#059669] dark:bg-emerald-500/20 dark:text-[#6EE7B7]",
+      iconBoxClass: "bg-[#F3F0E9] border-[#F0F0E7] dark:bg-emerald-500/15 dark:border-emerald-500/25",
+      badgeClass: "bg-[#F3F0E9] text-[#56613F] dark:bg-emerald-500/20 dark:text-[#DADECC]",
     };
   }
 
@@ -247,7 +247,7 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[#7E22CE] dark:text-[#C084FC]"
+          className="text-[#7A5CFA] dark:text-[#BBABF6]"
         >
           <path d="m11 17 2 2a1 1 0 1 0 3-3" />
           <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" />
@@ -256,8 +256,8 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           <path d="M3 4h8" />
         </svg>
       ),
-      iconBoxClass: "bg-[#F3E8FF] border-[#E9D5FF] dark:bg-purple-500/15 dark:border-purple-500/25",
-      badgeClass: "bg-[#F3E8FF] text-[#7E22CE] dark:bg-purple-500/20 dark:text-[#D8B4FE]",
+      iconBoxClass: "bg-[#EDE9F4] border-[#E4DDF4] dark:bg-purple-500/15 dark:border-purple-500/25",
+      badgeClass: "bg-[#EDE9F4] text-[#7A5CFA] dark:bg-purple-500/20 dark:text-[#D3C9F5]",
     };
   }
 
@@ -274,14 +274,14 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[#E11D48] dark:text-[#FB7185]"
+          className="text-[#C46A4C] dark:text-[#E7B8A5]"
         >
           <circle cx="12" cy="8" r="4.5" />
           <path d="M20 21a8 8 0 0 0-16 0" />
         </svg>
       ),
-      iconBoxClass: "bg-[#FFF1F2] border-[#FFE4E6] dark:bg-rose-500/15 dark:border-rose-500/25",
-      badgeClass: "bg-[#FFF1F2] text-[#E11D48] dark:bg-rose-500/20 dark:text-[#FDA4AF]",
+      iconBoxClass: "bg-[#F3F0E9] border-[#F6EBE3] dark:bg-rose-500/15 dark:border-rose-500/25",
+      badgeClass: "bg-[#F3F0E9] text-[#C46A4C] dark:bg-rose-500/20 dark:text-[#EECFC1]",
     };
   }
 
@@ -298,7 +298,7 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[#D97706] dark:text-[#FBBF24]"
+          className="text-[#C46A4C] dark:text-[#7A5CFA]"
         >
           <line x1="3" y1="22" x2="21" y2="22" />
           <line x1="6" y1="18" x2="6" y2="11" />
@@ -308,8 +308,8 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
           <polygon points="12 2 20 7 4 7" />
         </svg>
       ),
-      iconBoxClass: "bg-[#FEF3C7] border-[#FDE68A] dark:bg-amber-500/15 dark:border-amber-500/25",
-      badgeClass: "bg-[#FEF3C7] text-[#D97706] dark:bg-amber-500/20 dark:text-[#FCD34D]",
+      iconBoxClass: "bg-[#F2DED4] border-[#EAC3B3] dark:bg-amber-500/15 dark:border-amber-500/25",
+      badgeClass: "bg-[#F2DED4] text-[#C46A4C] dark:bg-amber-500/20 dark:text-[#E2A993]",
     };
   }
 
@@ -325,14 +325,14 @@ function getEntityCategoryConfig(type?: string): EntityCategoryConfig {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-[#475569] dark:text-[#94A3B8]"
+        className="text-[#505050] dark:text-[#999894]"
       >
         <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
       </svg>
     ),
-    iconBoxClass: "bg-[#F1F5F9] border-[#E2E8F0] dark:bg-slate-700/30 dark:border-slate-600/30",
-    badgeClass: "bg-[#F1F5F9] text-[#475569] dark:bg-slate-700/40 dark:text-[#CBD5E1]",
+    iconBoxClass: "bg-[#F3F0E9] border-[#E2E0D9] dark:bg-slate-700/30 dark:border-slate-600/30",
+    badgeClass: "bg-[#F3F0E9] text-[#505050] dark:bg-slate-700/40 dark:text-[#CBC9C4]",
   };
 }
 
@@ -349,7 +349,7 @@ function EntitiesSectionHeader() {
   return (
     <div className="flex items-center gap-3.5 mb-6 mt-6 md:mt-8">
       {/* Distinct Layers icon to differentiate from the Company building card icon */}
-      <div className="w-12 h-12 rounded-[14px] bg-[#EFF6FF] dark:bg-blue-500/15 text-[#2563EB] dark:text-[#60A5FA] flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-blue-500/20 shadow-sm">
+      <div className="w-12 h-12 rounded-[14px] bg-[#F3F0E9] dark:bg-blue-500/15 text-[#7A5CFA] dark:text-[#A995F7] flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-blue-500/20 shadow-sm">
         <svg
           viewBox="0 0 24 24"
           width="24"
@@ -401,7 +401,7 @@ function EntityCard({ item }: EntityCardProps) {
   return (
     <Link
       href={`/dashboard/client/entities/${item.id}`}
-      className="group bg-white dark:bg-[var(--surface-1)] border border-[#EAEFF4] dark:border-[var(--border)] rounded-[20px] p-5 md:p-6 flex flex-col justify-between shadow-[0_2px_8px_rgba(16,24,40,0.02)] hover:shadow-[0_12px_24px_rgba(27,38,92,0.06)] dark:hover:shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 dark:hover:border-blue-500/40 no-underline cursor-pointer"
+      className="group bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[20px] p-5 md:p-6 flex flex-col justify-between shadow-[0_2px_8px_rgba(21, 23, 25,0.02)] hover:shadow-[0_12px_24px_rgba(21, 23, 25,0.06)] dark:hover:shadow-[0_12px_24px_rgba(21, 23, 25,0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 dark:hover:border-blue-500/40 no-underline cursor-pointer"
     >
       {/* Top Section */}
       <div className="flex items-center gap-3.5 mb-4 min-w-0">
@@ -414,7 +414,7 @@ function EntityCard({ item }: EntityCardProps) {
 
         {/* Entity Name & Category Pill Badge */}
         <div className="flex flex-col min-w-0">
-          <h4 className="text-[17px] md:text-[18px] font-bold text-t-primary m-0 truncate group-hover:text-[#2563EB] dark:group-hover:text-[#60A5FA] transition-colors leading-snug">
+          <h4 className="text-[17px] md:text-[18px] font-bold text-t-primary m-0 truncate group-hover:text-[#7A5CFA] dark:group-hover:text-[#A995F7] transition-colors leading-snug">
             {item.name}
           </h4>
           <span
@@ -426,7 +426,7 @@ function EntityCard({ item }: EntityCardProps) {
       </div>
 
       {/* Horizontal Divider */}
-      <div className="h-[1px] bg-[#F2F4F7] dark:bg-white/[0.08] w-full my-3.5" />
+      <div className="h-[1px] bg-[#F3F0E9] dark:bg-white/[0.08] w-full my-3.5" />
 
       {/* Bottom Stats Section */}
       <div className="grid grid-cols-2 gap-4 items-center">
@@ -651,8 +651,8 @@ export default function ClientEntitiesPage() {
                 width: "40px",
                 height: "40px",
                 borderRadius: "20px",
-                background: "#1a235a",
-                color: "#ffffff",
+                background: "#151719",
+                color: "#FFFFFF",
                 textDecoration: "none"
               }}
             >
@@ -675,11 +675,11 @@ export default function ClientEntitiesPage() {
           {/* Content Area */}
           <div style={{ padding: "0 16px" }}>
             {/* Blue Summary Card (Total Under Management) */}
-            <div className="entities-portfolio-summary-card relative w-full rounded-[20px] text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 py-5 px-6">
+            <div className="entities-portfolio-summary-card relative w-full rounded-[20px] text-white overflow-hidden shadow-[0_10px_25px_rgba(21, 23, 25,0.15)] mb-6 py-5 px-6">
               <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, letterSpacing: "0.5px" }}>
                 Total Under Management
               </div>
-              <div style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", margin: "6px 0" }}>
+              <div style={{ fontSize: "36px", fontWeight: 700, color: "#FFFFFF", margin: "6px 0" }}>
                 {formatExactCurrency(displayPortfolioValue)}
               </div>
               <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500 }}>
@@ -692,7 +692,7 @@ export default function ClientEntitiesPage() {
 
             {/* Entities List */}
             {entityListItems.length === 0 ? (
-              <div className="w-full text-center py-12 px-6 rounded-2xl bg-white dark:bg-[var(--surface-1)] border border-[#EAEFF4] dark:border-[var(--border)] text-t-secondary shadow-sm">
+              <div className="w-full text-center py-12 px-6 rounded-2xl bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] text-t-secondary shadow-sm">
                 <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 mx-auto flex items-center justify-center mb-3 text-slate-400">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
@@ -739,8 +739,8 @@ export default function ClientEntitiesPage() {
               width: "40px",
               height: "40px",
               borderRadius: "20px",
-              background: "#1a235a",
-              color: "#ffffff",
+              background: "#151719",
+              color: "#FFFFFF",
               textDecoration: "none"
             }}
           >
@@ -763,12 +763,12 @@ export default function ClientEntitiesPage() {
         <div>
           {/* Blue Summary Card (Total Under Management) */}
           <div
-            className="relative w-full rounded-[20px] py-6 px-6 text-white overflow-hidden shadow-[0_10px_25px_rgba(27,38,92,0.15)] mb-6 entities-portfolio-summary-card"
+            className="relative w-full rounded-[20px] py-6 px-6 text-white overflow-hidden shadow-[0_10px_25px_rgba(21, 23, 25,0.15)] mb-6 entities-portfolio-summary-card"
           >
             <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, letterSpacing: "0.5px" }}>
               Total Under Management
             </div>
-            <div style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", margin: "6px 0" }}>
+            <div style={{ fontSize: "36px", fontWeight: 700, color: "#FFFFFF", margin: "6px 0" }}>
               {formatExactCurrency(displayPortfolioValue)}
             </div>
             <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500 }}>
@@ -781,7 +781,7 @@ export default function ClientEntitiesPage() {
 
           {/* Entities Grid */}
           {entityListItems.length === 0 ? (
-            <div className="w-full text-center py-12 px-6 rounded-2xl bg-white dark:bg-[var(--surface-1)] border border-[#EAEFF4] dark:border-[var(--border)] text-t-secondary shadow-sm">
+            <div className="w-full text-center py-12 px-6 rounded-2xl bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] text-t-secondary shadow-sm">
               <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 mx-auto flex items-center justify-center mb-3 text-slate-400">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />

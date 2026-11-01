@@ -424,7 +424,7 @@ export default function ClientInsightsPage() {
 
   // Doughnut Chart circle properties
   const doughnutCircumference = 282.743; // 2 * Math.PI * 45
-  const categoryColors = ["#1b265c", "#f7a61a", "#12b76a", "#475467"];
+  const categoryColors = ["#151719", "#7A5CFA", "#6F7A5A", "#4F4F4F"];
 
   const formatCurrency = (val: number) => {
     return formatExactCurrency(val);
@@ -433,8 +433,8 @@ export default function ClientInsightsPage() {
   const trendPercentage = displayCashFlowMetrics.trendPercentage;
   const trendBadgeStyle =
     trendPercentage !== null && trendPercentage >= 0
-      ? { background: "#ecfdf3", color: "#027a48" }
-      : { background: "#fef3f2", color: "#b42318" };
+      ? { background: "#F3F0E9", color: "#56613F" }
+      : { background: "#F3F0E9", color: "#C46A4C" };
   const trendLabel =
     trendPercentage !== null ? formatClientPercent(trendPercentage, { showPlus: true }) : "";
   const showTrendBadge = /[1-9]/.test(trendLabel);
@@ -618,7 +618,7 @@ export default function ClientInsightsPage() {
             style={{
               fontSize: "12px",
               fontWeight: 500,
-              color: "#8c9ba5",
+              color: "#8B8B88",
               margin: 0,
             }}
           >
@@ -628,7 +628,7 @@ export default function ClientInsightsPage() {
             style={{
               fontSize: "28px",
               fontWeight: 700,
-              color: "#101828",
+              color: "#151719",
               margin: "4px 0 0 0",
             }}
           >
@@ -639,8 +639,8 @@ export default function ClientInsightsPage() {
           href="/dashboard/client/profile"
           className="m-db-avatar-circle"
           style={{
-            backgroundColor: "#1d2d5c",
-            color: "#ffffff",
+            backgroundColor: "#151719",
+            color: "#FFFFFF",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -649,7 +649,7 @@ export default function ClientInsightsPage() {
             width: "40px",
             height: "40px",
             borderRadius: "50%",
-            border: "2px solid #eaeef4",
+            border: "2px solid #EBE8E1",
             textDecoration: "none",
           }}
         >
@@ -716,7 +716,7 @@ export default function ClientInsightsPage() {
                   borderRadius: "18px",
                   padding: "32px 24px",
                   textAlign: "center",
-                  boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                  boxShadow: "0px 1px 2px rgba(21, 23, 25, 0.05)",
                 }}
               >
                 <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px 0" }}>
@@ -732,8 +732,8 @@ export default function ClientInsightsPage() {
                       display: "block",
                       padding: "12px",
                       borderRadius: "12px",
-                      background: "#1b265c",
-                      color: "#ffffff",
+                      background: "#151719",
+                      color: "#FFFFFF",
                       textDecoration: "none",
                       fontWeight: 600,
                       fontSize: "14px",
@@ -772,7 +772,7 @@ export default function ClientInsightsPage() {
                     display: "flex",
                     flexDirection: "column",
                     gap: "0",
-                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    boxShadow: "0px 1px 2px rgba(21, 23, 25, 0.05)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -799,7 +799,7 @@ export default function ClientInsightsPage() {
                     style={{
                       fontSize: "28px",
                       fontWeight: 700,
-                      color: displayCashFlowMetrics.currentNet >= 0 ? "#12b76a" : "#f04438",
+                      color: displayCashFlowMetrics.currentNet >= 0 ? "#6F7A5A" : "#C46A4C",
                       margin: "8px 0 12px 0",
                     }}
                   >
@@ -819,8 +819,8 @@ export default function ClientInsightsPage() {
                     >
                       <defs>
                         <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#12b76a" stopOpacity="0.15" />
-                          <stop offset="100%" stopColor="#12b76a" stopOpacity="0.0" />
+                          <stop offset="0%" stopColor="#6F7A5A" stopOpacity="0.15" />
+                          <stop offset="100%" stopColor="#6F7A5A" stopOpacity="0.0" />
                         </linearGradient>
                       </defs>
                       {displayLineChartSvg.areaPath && (
@@ -830,7 +830,7 @@ export default function ClientInsightsPage() {
                         <path
                           d={displayLineChartSvg.linePath}
                           fill="none"
-                          stroke="#12b76a"
+                          stroke="#6F7A5A"
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -848,7 +848,7 @@ export default function ClientInsightsPage() {
                     border: "1px solid var(--border)",
                     borderRadius: "18px",
                     padding: "20px",
-                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    boxShadow: "0px 1px 2px rgba(21, 23, 25, 0.05)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "16px",
@@ -946,7 +946,7 @@ export default function ClientInsightsPage() {
                   <div
                     style={{
                       height: "1px",
-                      background: "var(--border, #eaeef4)",
+                      background: "var(--border, #EBE8E1)",
                       margin: "4px 0",
                     }}
                   />
@@ -990,7 +990,7 @@ export default function ClientInsightsPage() {
                     border: "1px solid var(--border)",
                     borderRadius: "18px",
                     padding: "20px",
-                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    boxShadow: "0px 1px 2px rgba(21, 23, 25, 0.05)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "16px",
@@ -1023,7 +1023,7 @@ export default function ClientInsightsPage() {
                             cy="50"
                             r="45"
                             fill="none"
-                            stroke="#f2f4f7"
+                            stroke="#F3F0E9"
                             strokeWidth="10"
                           />
                         ) : (
@@ -1106,7 +1106,7 @@ export default function ClientInsightsPage() {
                     border: "1px solid var(--border)",
                     borderRadius: "18px",
                     padding: "20px",
-                    boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
+                    boxShadow: "0px 1px 2px rgba(21, 23, 25, 0.05)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "12px",
@@ -1145,8 +1145,8 @@ export default function ClientInsightsPage() {
                                 width: "24px",
                                 height: "24px",
                                 borderRadius: "50%",
-                                backgroundColor: "#1b265c",
-                                color: "#ffffff",
+                                backgroundColor: "#151719",
+                                color: "#FFFFFF",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -1169,7 +1169,7 @@ export default function ClientInsightsPage() {
                               style={{
                                 fontSize: "14px",
                                 fontWeight: 700,
-                                color: item.net >= 0 ? "#12b76a" : "#f04438",
+                                color: item.net >= 0 ? "#6F7A5A" : "#C46A4C",
                               }}
                             >
                               {formatKCurrency(item.net)}
@@ -1251,7 +1251,7 @@ export default function ClientInsightsPage() {
               <div
                 className="cashflow-value"
                 style={{
-                  color: displayCashFlowMetrics.currentNet >= 0 ? "#12b76a" : "#f04438",
+                  color: displayCashFlowMetrics.currentNet >= 0 ? "#6F7A5A" : "#C46A4C",
                 }}
               >
                 {formatCurrency(displayCashFlowMetrics.currentNet)}
@@ -1267,8 +1267,8 @@ export default function ClientInsightsPage() {
                 >
                   <defs>
                     <linearGradient id="areaGradientDesktop" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#12b76a" stopOpacity="0.15" />
-                      <stop offset="100%" stopColor="#12b76a" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#6F7A5A" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="#6F7A5A" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
                   {displayLineChartSvg.areaPath && (
@@ -1278,7 +1278,7 @@ export default function ClientInsightsPage() {
                     <path
                       d={displayLineChartSvg.linePath}
                       fill="none"
-                      stroke="#12b76a"
+                      stroke="#6F7A5A"
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1390,7 +1390,7 @@ export default function ClientInsightsPage() {
                         cy="50"
                         r="45"
                         fill="none"
-                        stroke="#f2f4f7"
+                        stroke="#F3F0E9"
                         strokeWidth="10"
                       />
                     ) : (

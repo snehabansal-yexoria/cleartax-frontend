@@ -5,21 +5,21 @@
 .inbox-page,
 .inbox-hint,
 .inbox-dialog-layer {
-  --inbox-surface: #ffffff;
-  --inbox-surface-2: #f7f8fe;
-  --inbox-title: #1f2d4f;
-  --inbox-text: #34405f;
-  --inbox-muted: #7d89a8;
-  --inbox-border: #e1e7f3;
-  --inbox-brand: #28336e;
-  --inbox-brand-ink: #ffffff;
-  --inbox-accent: #f4a117;
-  --inbox-warn-bg: #fff4e0;
-  --inbox-warn-ink: #9a5b00;
-  --inbox-danger: #c62f2f;
-  --inbox-ok-bg: #e6f6ec;
-  --inbox-ok-ink: #1d7a43;
-  --inbox-skel: #eef1f8;
+  --inbox-surface: #FFFFFF;
+  --inbox-surface-2: #F3F0E9;
+  --inbox-title: #151719;
+  --inbox-text: #434444;
+  --inbox-muted: #868583;
+  --inbox-border: #E4DDF4;
+  --inbox-brand: #242629;
+  --inbox-brand-ink: #FFFFFF;
+  --inbox-accent: #7A5CFA;
+  --inbox-warn-bg: #F6E9E1;
+  --inbox-warn-ink: #A8503A;
+  --inbox-danger: #C46A4C;
+  --inbox-ok-bg: #E9E7E0;
+  --inbox-ok-ink: #56613F;
+  --inbox-skel: #F2EFE8;
 }
 
 html.dark .inbox-page,
@@ -28,19 +28,19 @@ html.dark .inbox-hint,
 .dark .inbox-hint,
 html.dark .inbox-dialog-layer,
 .dark .inbox-dialog-layer {
-  --inbox-surface: var(--surface-1, #1b2050);
-  --inbox-surface-2: var(--surface-2, #242c68);
-  --inbox-title: var(--text-primary, #ffffff);
-  --inbox-text: var(--text-secondary, #b9c0e8);
-  --inbox-muted: var(--text-muted, #8891c4);
+  --inbox-surface: var(--surface-1, #151719);
+  --inbox-surface-2: var(--surface-2, #242629);
+  --inbox-title: var(--text-primary, #FFFFFF);
+  --inbox-text: var(--text-secondary, #CBBFF6);
+  --inbox-muted: var(--text-muted, #A28CF8);
   --inbox-border: var(--border, rgba(255, 255, 255, 0.08));
-  --inbox-brand: #ffffff;
-  --inbox-brand-ink: #14172e;
-  --inbox-warn-bg: rgba(244, 161, 23, 0.16);
-  --inbox-warn-ink: #f7c46a;
-  --inbox-danger: #ff7b7b;
-  --inbox-ok-bg: rgba(46, 184, 102, 0.16);
-  --inbox-ok-ink: #7fe0a6;
+  --inbox-brand: #FFFFFF;
+  --inbox-brand-ink: #151719;
+  --inbox-warn-bg: rgba(122, 92, 250, 0.16);
+  --inbox-warn-ink: #E5B39F;
+  --inbox-danger: #E9BEAD;
+  --inbox-ok-bg: rgba(111, 122, 90, 0.16);
+  --inbox-ok-ink: #DCDFCF;
   --inbox-skel: rgba(255, 255, 255, 0.08);
 }
 
@@ -104,7 +104,7 @@ html.dark .inbox-dialog-layer,
 
 .inbox-count {
   background: var(--inbox-accent);
-  color: #1f2d4f;
+  color: #151719;
   border-radius: 999px;
   font-size: 12px;
   line-height: 1;
@@ -261,7 +261,7 @@ html.dark .inbox-dialog-layer,
 .inbox-button.is-danger {
   background: var(--inbox-danger);
   border-color: var(--inbox-danger);
-  color: #ffffff;
+  color: #FFFFFF;
 }
 
 .inbox-button.is-ghost {
@@ -378,7 +378,7 @@ html.dark .inbox-dialog-layer,
 }
 
 .inbox-dialog-backdrop {
-  background: rgba(15, 20, 45, 0.45);
+  background: rgba(21, 23, 25, 0.45);
   inset: 0;
   position: absolute;
 }
@@ -386,7 +386,7 @@ html.dark .inbox-dialog-layer,
 .inbox-dialog {
   background: var(--inbox-surface);
   border-radius: 14px;
-  box-shadow: 0 24px 60px rgba(15, 20, 45, 0.3);
+  box-shadow: 0 24px 60px rgba(21, 23, 25, 0.3);
   color: var(--inbox-text);
   display: grid;
   gap: 10px;

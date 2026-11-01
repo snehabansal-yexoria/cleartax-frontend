@@ -118,7 +118,7 @@ export function ClientLogoutOverlay({
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(15, 23, 42, 0.4);
+          background: rgba(21, 23, 25, 0.4);
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
           animation: minimalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -143,8 +143,8 @@ export function ClientLogoutOverlay({
           max-width: 290px;
           border-radius: 20px;
           background: rgba(255, 255, 255, 0.96);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+          border: 1px solid rgba(21, 23, 25, 0.06);
+          box-shadow: 0 20px 40px -12px rgba(21, 23, 25, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
           padding: 28px 24px 26px;
           display: flex;
           flex-direction: column;
@@ -162,9 +162,9 @@ export function ClientLogoutOverlay({
 
         html.dark .minimal-logout-card,
         .dark .minimal-logout-card {
-          background: rgba(23, 27, 54, 0.95);
+          background: rgba(21, 23, 25, 0.95);
           border: 1px solid rgba(255, 255, 255, 0.09);
-          box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+          box-shadow: 0 24px 50px -12px rgba(21, 23, 25, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
         }
 
         @keyframes minimalCardIn {
@@ -196,15 +196,15 @@ export function ClientLogoutOverlay({
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          border: 2px solid rgba(40, 51, 110, 0.12);
-          border-top-color: #28336e;
+          border: 2px solid rgba(36, 38, 41, 0.12);
+          border-top-color: #242629;
           animation: minimalSpin 0.75s linear infinite;
         }
 
         html.dark .minimal-spinner,
         .dark .minimal-spinner {
           border-color: rgba(255, 255, 255, 0.12);
-          border-top-color: #f4a117;
+          border-top-color: #7A5CFA;
         }
 
         @keyframes minimalSpin {
@@ -216,8 +216,8 @@ export function ClientLogoutOverlay({
           width: 36px;
           height: 36px;
           border-radius: 50%;
-          background: rgba(15, 110, 86, 0.1);
-          color: #0F6E56;
+          background: rgba(86, 97, 63, 0.1);
+          color: #56613F;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -226,8 +226,8 @@ export function ClientLogoutOverlay({
 
         html.dark .minimal-check-circle,
         .dark .minimal-check-circle {
-          background: rgba(93, 202, 165, 0.15);
-          color: #5DCAA5;
+          background: rgba(111, 122, 90, 0.15);
+          color: #6F7A5A;
         }
 
         @keyframes minimalCheckPop {
@@ -245,7 +245,7 @@ export function ClientLogoutOverlay({
         .minimal-title {
           font-size: 16px;
           font-weight: 600;
-          color: #14172e;
+          color: #151719;
           letter-spacing: -0.01em;
           margin: 0 0 4px 0;
           line-height: 1.3;
@@ -253,19 +253,19 @@ export function ClientLogoutOverlay({
 
         html.dark .minimal-title,
         .dark .minimal-title {
-          color: #ffffff;
+          color: #FFFFFF;
         }
 
         .minimal-subtitle {
           font-size: 13px;
-          color: #64748b;
+          color: #6C6C6B;
           margin: 0;
           font-weight: 400;
         }
 
         html.dark .minimal-subtitle,
         .dark .minimal-subtitle {
-          color: #94a3b8;
+          color: #999894;
         }
 
         /* Subtle Bottom Hairline Bar */
@@ -275,13 +275,13 @@ export function ClientLogoutOverlay({
           left: 0;
           height: 2px;
           width: 100%;
-          background: linear-gradient(90deg, #28336e 0%, #f4a117 100%);
+          background: linear-gradient(90deg, #242629 0%, #7A5CFA 100%);
           animation: minimalLineExpand 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         html.dark .minimal-hairline-bar,
         .dark .minimal-hairline-bar {
-          background: linear-gradient(90deg, #7380d4 0%, #f4a117 100%);
+          background: linear-gradient(90deg, #9F89F8 0%, #7A5CFA 100%);
         }
 
         @keyframes minimalLineExpand {

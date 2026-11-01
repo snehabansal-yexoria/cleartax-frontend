@@ -37,9 +37,9 @@ export function ReviewStatusBadge({
         letterSpacing: "0.01em",
         whiteSpace: "nowrap",
         background: awaitingExtraction
-          ? "rgba(249, 115, 22, 0.12)"
-          : "rgba(53, 56, 205, 0.10)",
-        color: awaitingExtraction ? "#c2410c" : "#3538cd",
+          ? "rgba(196, 106, 76, 0.12)"
+          : "rgba(122, 92, 250, 0.10)",
+        color: awaitingExtraction ? "#C46A4C" : "#7A5CFA",
         ...style,
       }}
     >
@@ -59,8 +59,8 @@ export function ReviewQueueCount({ count }: { count: number }) {
         borderRadius: "999px",
         fontSize: "11px",
         fontWeight: 700,
-        background: "rgba(53, 56, 205, 0.10)",
-        color: "#3538cd",
+        background: "rgba(122, 92, 250, 0.10)",
+        color: "#7A5CFA",
       }}
     >
       {count} {REVIEW_QUEUE_LABEL}

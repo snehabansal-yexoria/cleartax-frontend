@@ -25,7 +25,7 @@ const inlineStyles = {
     width: "100%",
     maxWidth: "480px",
     padding: "0 20px 40px 20px",
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
   header: {
     display: "flex",
@@ -422,7 +422,7 @@ function EditProfileModal({
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(16, 24, 40, 0.45)",
+        background: "rgba(21, 23, 25, 0.45)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -442,7 +442,7 @@ function EditProfileModal({
           display: "flex",
           flexDirection: "column",
           gap: "16px",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 20px 40px rgba(21, 23, 25, 0.18)",
         }}
       >
         <h2 id="edit-profile-title" style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>
@@ -486,7 +486,7 @@ function EditProfileModal({
           <button
             type="submit"
             disabled={isSaving}
-            style={{ height: "40px", padding: "0 18px", borderRadius: "10px", border: "none", background: "var(--brand)", color: "#ffffff", fontWeight: 700, cursor: isSaving ? "not-allowed" : "pointer", opacity: isSaving ? 0.7 : 1 }}
+            style={{ height: "40px", padding: "0 18px", borderRadius: "10px", border: "none", background: "var(--brand)", color: "#FFFFFF", fontWeight: 700, cursor: isSaving ? "not-allowed" : "pointer", opacity: isSaving ? 0.7 : 1 }}
           >
             {isSaving ? "Saving…" : "Save"}
           </button>

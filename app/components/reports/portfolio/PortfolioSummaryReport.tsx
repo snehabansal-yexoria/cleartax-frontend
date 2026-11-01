@@ -95,7 +95,7 @@ function ReportHeader({
           ) : (
             <>
               <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                Clear Portfolio · Client Portal · Reports
+                Thetaxio · Client Portal · Reports
               </span>
               <h1 className="text-[26px] leading-tight font-bold text-[var(--text-primary)]">{scope.title}</h1>
             </>

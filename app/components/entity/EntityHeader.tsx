@@ -119,10 +119,10 @@ export default function EntityHeader({
                   alignItems: "center",
                   gap: "8px",
                   padding: "10px 20px",
-                  border: "1.5px solid #233069",
+                  border: "1.5px solid #242629",
                   borderRadius: "10px",
-                  backgroundColor: "#e8ebfa",
-                  color: "#233069",
+                  backgroundColor: "#EBE6F4",
+                  color: "#242629",
                   fontSize: "14px",
                   fontWeight: 700,
                   cursor: "pointer",
@@ -130,10 +130,10 @@ export default function EntityHeader({
                   height: "42px",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#d8def7";
+                  e.currentTarget.style.backgroundColor = "#E2DAF4";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#e8ebfa";
+                  e.currentTarget.style.backgroundColor = "#EBE6F4";
                 }}
               >
                 <svg

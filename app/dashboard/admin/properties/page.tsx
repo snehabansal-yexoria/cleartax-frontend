@@ -73,7 +73,7 @@ export default function PropertiesReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["ClearPortfolio - Properties Report Summary", "Period: FY 2025-26"],
+        ["Thetaxio - Properties Report Summary", "Period: FY 2025-26"],
         ["Total Properties", summary.totalProperties],
         ["Total Market Value", summary.totalMarketValue],
         ["With Depreciation", `${summary.withDepreciationCount} (${summary.withDepreciationPercentText})`],
@@ -108,7 +108,7 @@ export default function PropertiesReportPage() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-[#0f172a] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 animate-fadeIn">
+        <div className="fixed top-6 right-6 z-50 bg-[#151719] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 animate-fadeIn">
           <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -121,8 +121,8 @@ export default function PropertiesReportPage() {
       {/* Section Header with Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 select-none">
         <div>
-          <h2 className="text-[20px] text-[#0f172a] tracking-tight mb-0.5 font-medium">Property report</h2>
-          <p className="text-[12.5px] text-[#64748b] font-normal leading-normal">
+          <h2 className="text-[20px] text-[#151719] tracking-tight mb-0.5 font-medium">Property report</h2>
+          <p className="text-[12.5px] text-[#6C6C6B] font-normal leading-normal">
             {summary.totalProperties} properties across 84 clients
           </p>
         </div>
@@ -144,39 +144,39 @@ export default function PropertiesReportPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 select-none">
 
         {/* Card 1: Total Properties */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Total properties</span>
-            <h3 className="text-[34px] font-medium text-[#0f172a] leading-none mb-2 tracking-tight">{summary.totalProperties}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Total properties</span>
+            <h3 className="text-[34px] font-medium text-[#151719] leading-none mb-2 tracking-tight">{summary.totalProperties}</h3>
           </div>
           <div className="h-4" />
         </div>
 
         {/* Card 2: Total Market Value */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Total market value</span>
-            <h3 className="text-[34px] font-medium text-[#0f172a] leading-none mb-2 tracking-tight">{summary.totalMarketValue}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Total market value</span>
+            <h3 className="text-[34px] font-medium text-[#151719] leading-none mb-2 tracking-tight">{summary.totalMarketValue}</h3>
           </div>
           <div className="h-4" />
         </div>
 
         {/* Card 3: With Depreciation */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">With depreciation</span>
-            <h3 className="text-[34px] font-medium text-[#0f172a] leading-none mb-2 tracking-tight">{summary.withDepreciationCount}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">With depreciation</span>
+            <h3 className="text-[34px] font-medium text-[#151719] leading-none mb-2 tracking-tight">{summary.withDepreciationCount}</h3>
           </div>
-          <span className="text-[12.5px] text-[#64748b] font-normal">{summary.withDepreciationPercentText}</span>
+          <span className="text-[12.5px] text-[#6C6C6B] font-normal">{summary.withDepreciationPercentText}</span>
         </div>
 
         {/* Card 4: Co-owned */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Co-owned</span>
-            <h3 className="text-[34px] font-medium text-[#0f172a] leading-none mb-2 tracking-tight">{summary.coOwnedCount}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Co-owned</span>
+            <h3 className="text-[34px] font-medium text-[#151719] leading-none mb-2 tracking-tight">{summary.coOwnedCount}</h3>
           </div>
-          <span className="text-[12.5px] text-[#64748b] font-normal">{summary.coOwnedText}</span>
+          <span className="text-[12.5px] text-[#6C6C6B] font-normal">{summary.coOwnedText}</span>
         </div>
 
       </div>
@@ -185,17 +185,17 @@ export default function PropertiesReportPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 select-none">
 
         {/* Left Side: By Property Type Card */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div className="w-full">
-            <h3 className="text-[15px] font-semibold text-[#0f172a] mb-6">By property type</h3>
+            <h3 className="text-[15px] font-semibold text-[#151719] mb-6">By property type</h3>
 
             <div className="space-y-4">
               {byPropertyType.map((item) => (
                 <div key={item.type} className="flex justify-between items-center py-1">
-                  <span className="text-[13.5px] text-[#475569] font-normal">{item.type}</span>
+                  <span className="text-[13.5px] text-[#505050] font-normal">{item.type}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[13.5px] text-[#0f172a] font-semibold">{item.amount}</span>
-                    <span className="text-[12.5px] text-[#94a3b8] font-normal">{item.countText}</span>
+                    <span className="text-[13.5px] text-[#151719] font-semibold">{item.amount}</span>
+                    <span className="text-[12.5px] text-[#999894] font-normal">{item.countText}</span>
                   </div>
                 </div>
               ))}
@@ -204,18 +204,18 @@ export default function PropertiesReportPage() {
         </div>
 
         {/* Right Side: Ownership Structure Card */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div className="w-full">
-            <h3 className="text-[15px] font-semibold text-[#0f172a] mb-6">Ownership structure</h3>
+            <h3 className="text-[15px] font-semibold text-[#151719] mb-6">Ownership structure</h3>
 
             <div className="space-y-4">
               {ownershipStructure.map((item) => (
                 <div key={item.label} className="flex justify-between items-center py-1">
-                  <span className="text-[13.5px] text-[#475569] font-normal">{item.label}</span>
+                  <span className="text-[13.5px] text-[#505050] font-normal">{item.label}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[13.5px] text-[#0f172a] font-semibold">{item.countText}</span>
+                    <span className="text-[13.5px] text-[#151719] font-semibold">{item.countText}</span>
                     {item.percentText && (
-                      <span className="text-[12.5px] text-[#94a3b8] font-normal">{item.percentText}</span>
+                      <span className="text-[12.5px] text-[#999894] font-normal">{item.percentText}</span>
                     )}
                   </div>
                 </div>

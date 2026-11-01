@@ -5,35 +5,35 @@
 
 .notif-bell,
 .notif-page {
-  --notif-surface: #ffffff;
-  --notif-surface-2: #f7f8fe;
-  --notif-hover: #f5f7fd;
-  --notif-title: #1f2d4f;
-  --notif-text: #34405f;
-  --notif-muted: #7d89a8;
-  --notif-border: #e1e7f3;
-  --notif-brand: #28336e;
-  --notif-brand-ink: #ffffff;
-  --notif-accent: #f4a117;
-  --notif-skel: #eef1f8;
-  --notif-shadow: 0 20px 44px rgba(43, 55, 108, 0.14);
+  --notif-surface: #FFFFFF;
+  --notif-surface-2: #F3F0E9;
+  --notif-hover: #F3F0E9;
+  --notif-title: #151719;
+  --notif-text: #434444;
+  --notif-muted: #868583;
+  --notif-border: #E4DDF4;
+  --notif-brand: #242629;
+  --notif-brand-ink: #FFFFFF;
+  --notif-accent: #7A5CFA;
+  --notif-skel: #F2EFE8;
+  --notif-shadow: 0 20px 44px rgba(36, 38, 41, 0.14);
 }
 
 html.dark .notif-bell,
 .dark .notif-bell,
 html.dark .notif-page,
 .dark .notif-page {
-  --notif-surface: var(--surface-1, #1b2050);
-  --notif-surface-2: var(--surface-2, #242c68);
+  --notif-surface: var(--surface-1, #151719);
+  --notif-surface-2: var(--surface-2, #242629);
   --notif-hover: rgba(255, 255, 255, 0.06);
-  --notif-title: var(--text-primary, #ffffff);
-  --notif-text: var(--text-secondary, #b9c0e8);
-  --notif-muted: var(--text-muted, #8891c4);
+  --notif-title: var(--text-primary, #FFFFFF);
+  --notif-text: var(--text-secondary, #CBBFF6);
+  --notif-muted: var(--text-muted, #A28CF8);
   --notif-border: var(--border, rgba(255, 255, 255, 0.08));
-  --notif-brand: #ffffff;
-  --notif-brand-ink: #14172e;
+  --notif-brand: #FFFFFF;
+  --notif-brand-ink: #151719;
   --notif-skel: rgba(255, 255, 255, 0.08);
-  --notif-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+  --notif-shadow: 0 20px 44px rgba(21, 23, 25, 0.45);
 }
 
 /* ---- Bell ------------------------------------------------------------ */
@@ -66,7 +66,7 @@ html.dark .notif-page,
   padding: 0 5px;
   border-radius: 999px;
   background: var(--notif-accent);
-  color: #1a1300;
+  color: #151719;
   font-size: 11px;
   font-weight: 700;
   line-height: 19px;
@@ -382,7 +382,7 @@ html.dark .notif-page,
 }
 
 .notif-more-error {
-  color: #bf315d;
+  color: #C46A4C;
   font-size: 0.86rem;
   font-weight: 600;
 }

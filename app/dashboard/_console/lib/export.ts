@@ -78,12 +78,12 @@ export function exportRows<T>(format: ExportFormat, request: ExportRequest<T>) {
   if (!printable) return;
   printable.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(request.title)}</title>
 <style>
-  body{font-family:Inter,system-ui,sans-serif;color:#16181d;margin:32px;font-size:12px}
-  h1{font-family:"Public Sans",Inter,sans-serif;font-size:20px;margin:0 0 6px}
-  p{margin:0 0 4px;color:#5b6170}
+  body{font-family:Inter,system-ui,sans-serif;color:#191B1D;margin:32px;font-size:12px}
+  h1{font-family:"Inter Tight",Inter,sans-serif;font-size:20px;margin:0 0 6px}
+  p{margin:0 0 4px;color:#5C5C5B}
   table{width:100%;border-collapse:collapse;margin-top:16px}
-  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5b6170;border-bottom:1px solid #d6d3cc;padding:6px 8px}
-  td{border-bottom:1px solid #efede8;padding:6px 8px}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5C5C5B;border-bottom:1px solid #C6C4BE;padding:6px 8px}
+  td{border-bottom:1px solid #E6E3DD;padding:6px 8px}
 </style></head><body>${tableHtml(request)}<p style="margin-top:16px">Exported ${escapeHtml(new Date().toLocaleString("en-AU"))}</p></body></html>`);
   printable.document.close();
   printable.focus();

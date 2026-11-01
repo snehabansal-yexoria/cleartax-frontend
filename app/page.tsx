@@ -217,16 +217,16 @@ export default function Home() {
 
   const faqs = [
     {
-      question: "What is ClearPortfolio?",
-      mobileQuestion: "How does ClearPortfolio calculate property values?",
+      question: "What is Thetaxio?",
+      mobileQuestion: "How does Thetaxio calculate property values?",
       answer:
-        "ClearPortfolio is a comprehensive real-time property intelligence and portfolio management platform built specifically for Australian property investors. It brings your loans, valuations, rental income, and tax-deductible expenses into one live, synchronised dashboard.",
+        "Thetaxio is a comprehensive real-time property intelligence and portfolio management platform built specifically for Australian property investors. It brings your loans, valuations, rental income, and tax-deductible expenses into one live, synchronised dashboard.",
     },
     {
-      question: "Who can use ClearPortfolio?",
+      question: "Who can use Thetaxio?",
       mobileQuestion: "Can I connect properties held in Trusts and SMSFs?",
       answer:
-        "Whether you own one investment property, a growing residential portfolio, commercial assets, or properties held across Trusts and SMSFs, ClearPortfolio is engineered to scale with your wealth strategy.",
+        "Whether you own one investment property, a growing residential portfolio, commercial assets, or properties held across Trusts and SMSFs, Thetaxio is engineered to scale with your wealth strategy.",
     },
     {
       question: "How do I get started?",
@@ -235,7 +235,7 @@ export default function Home() {
         "Getting started takes under 2 minutes. Simply create your account, connect your property addresses, and link your banking institutions or upload your initial settlement and lease documents. Our engine automatically reconciles your current equity and cash flow.",
     },
     {
-      question: "What can I track in ClearPortfolio?",
+      question: "What can I track in Thetaxio?",
       mobileQuestion: "How does Clear Tax integration work for my tax return?",
       answer:
         "You can track live property valuations via CoreLogic, mortgage balances, interest rates, LVR drift, rental yields, tenant lease expiry schedules, deductible maintenance expenses, and depreciation schedules.",
@@ -244,13 +244,13 @@ export default function Home() {
       question: "Is my information secure?",
       mobileQuestion: "Can I invite my mortgage broker or property manager?",
       answer:
-        "Yes. ClearPortfolio uses bank-grade 256-bit AES encryption and SOC 2 Type II compliant cloud infrastructure. We maintain strict read-only banking integrations through regulated Open Banking partners, ensuring your credentials and assets remain 100% protected.",
+        "Yes. Thetaxio uses bank-grade 256-bit AES encryption and SOC 2 Type II compliant cloud infrastructure. We maintain strict read-only banking integrations through regulated Open Banking partners, ensuring your credentials and assets remain 100% protected.",
     },
     {
-      question: "Does ClearPortfolio replace my accountant?",
+      question: "Does Thetaxio replace my accountant?",
       mobileQuestion: "Is my financial and personal data safe?",
       answer:
-        "No, ClearPortfolio is designed to empower both you and your accountant. It automates record keeping, categorises expenses according to ATO rules, and generates one-click tax packs that save your accountant hours during tax season.",
+        "No, Thetaxio is designed to empower both you and your accountant. It automates record keeping, categorises expenses according to ATO rules, and generates one-click tax packs that save your accountant hours during tax season.",
     },
   ];
 
@@ -476,7 +476,7 @@ export default function Home() {
 
         {/* Subtitle */}
         <p className="ct-hero-subtitle scroll-reveal scroll-delay-2">
-          ClearPortfolio brings every property you own into a single, live view, so you always know exactly how your portfolio is performing.
+          Thetaxio brings every property you own into a single, live view, so you always know exactly how your portfolio is performing.
         </p>
 
         {/* CTA Buttons */}
@@ -550,7 +550,7 @@ export default function Home() {
 
           <img
             src="/Image1.png"
-            alt="ClearPortfolio Dashboard Preview"
+            alt="Thetaxio Dashboard Preview"
             className="ct-mockup-img"
           />
         </div>
@@ -569,7 +569,7 @@ export default function Home() {
 
           {/* Section Description */}
           <p className="ct-features-subtitle scroll-reveal scroll-delay-2">
-            ClearPortfolio is a portfolio tracking tool built for property investors. It replaces scattered spreadsheets, folders and email threads with one live dashboard, so you always know how each property is performing and how your whole portfolio is tracking.
+            Thetaxio is a portfolio tracking tool built for property investors. It replaces scattered spreadsheets, folders and email threads with one live dashboard, so you always know how each property is performing and how your whole portfolio is tracking.
           </p>
 
           {/* 4 Feature Cards Grid */}
@@ -734,13 +734,13 @@ export default function Home() {
                   </p>
                   <ul className="ct-feature-checklist">
                     <li>
-                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span>Consolidated equity and mortgage ledger</span>
                     </li>
                     <li>
-                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span>State and asset class distribution tracking</span>
@@ -753,7 +753,7 @@ export default function Home() {
                   <div className="ct-clarity-img-wrapper">
                     <img
                       src="/Image1.png"
-                      alt="ClearPortfolio Dashboard Preview"
+                      alt="Thetaxio Dashboard Preview"
                       className="ct-clarity-mockup-img"
                     />
                   </div>
@@ -916,7 +916,7 @@ export default function Home() {
                     {/* Documents Grid */}
                     <div className="ct-vault-grid">
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -924,7 +924,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -932,7 +932,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -940,7 +940,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -948,7 +948,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -967,7 +967,7 @@ export default function Home() {
                   <span className="ct-feature-tag">FEATURE 04</span>
                   <h3 className="ct-clarity-row-title">Everything in one place</h3>
                   <p className="ct-clarity-row-desc">
-                    ClearPortfolio brings your property records into a single, secure dashboard, so nothing is scattered across emails and folders again. Ready at tax time for instant sharing with your accountant.
+                    Thetaxio brings your property records into a single, secure dashboard, so nothing is scattered across emails and folders again. Ready at tax time for instant sharing with your accountant.
                   </p>
                   <div className="ct-clarity-footer-note uppercase">
                     BACKED BY CLEAR TAX INFRASTRUCTURE
@@ -1008,7 +1008,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* CARD 02: Financial Performance (Theme Blue #28336e) */}
+              {/* CARD 02: Financial Performance (Theme Blue #242629) */}
               <div className="ct-mcard ct-mcard-blue scroll-reveal">
                 {/* Header Row */}
                 <div className="ct-mcard-blue-header">
@@ -1103,7 +1103,7 @@ export default function Home() {
 
                 <div className="ct-mdocs-list">
                   <div className="ct-mdoc-item">
-                    <svg className="mdoc-icon orange" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="mdoc-icon orange" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
@@ -1111,7 +1111,7 @@ export default function Home() {
                   </div>
 
                   <div className="ct-mdoc-item highlighted-doc">
-                    <svg className="mdoc-icon amber" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="mdoc-icon amber" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C46A4C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
@@ -1119,7 +1119,7 @@ export default function Home() {
                   </div>
 
                   <div className="ct-mdoc-item">
-                    <svg className="mdoc-icon green" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="mdoc-icon green" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F7A5A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
@@ -1258,7 +1258,7 @@ export default function Home() {
             <div className="ct-demo-window-content">
               <img
                 src="/Image1.png"
-                alt="ClearPortfolio Live Dashboard - Real-time metrics and portfolio tracking"
+                alt="Thetaxio Live Dashboard - Real-time metrics and portfolio tracking"
                 className="ct-demo-dashboard-img"
               />
             </div>
@@ -1311,7 +1311,7 @@ export default function Home() {
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1.5">
+                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#7A5CFA" stroke="#7A5CFA" strokeWidth="1.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
@@ -1321,10 +1321,10 @@ export default function Home() {
 
               <blockquote className="ct-testimonial-quote">
                 <span className="desktop-quote">
-                  “Before ClearPortfolio, every quarter was an agonising scramble across five bank portals and accountant spreadsheets. Now my entire portfolio equity and cash flow are live and indisputable.”
+                  “Before Thetaxio, every quarter was an agonising scramble across five bank portals and accountant spreadsheets. Now my entire portfolio equity and cash flow are live and indisputable.”
                 </span>
                 <span className="mobile-quote">
-                  “Before ClearPortfolio, every quarter was an agonising scramble across bank portals and spreadsheets. Now my entire equity and cash flow are live and indisputable.”
+                  “Before Thetaxio, every quarter was an agonising scramble across bank portals and spreadsheets. Now my entire equity and cash flow are live and indisputable.”
                 </span>
               </blockquote>
 
@@ -1347,7 +1347,7 @@ export default function Home() {
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1.5">
+                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#7A5CFA" stroke="#7A5CFA" strokeWidth="1.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
@@ -1383,7 +1383,7 @@ export default function Home() {
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1.5">
+                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#7A5CFA" stroke="#7A5CFA" strokeWidth="1.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
@@ -1441,7 +1441,7 @@ export default function Home() {
 
             {/* Subtitle */}
             <p className="ct-faqs-subtitle">
-              Everything you need to know about getting started with ClearPortfolio.
+              Everything you need to know about getting started with Thetaxio.
             </p>
           </div>
 
@@ -1472,7 +1472,7 @@ export default function Home() {
                         height="18"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#f59e0b"
+                        stroke="#7A5CFA"
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -1511,14 +1511,14 @@ export default function Home() {
 
             {/* Main Heading */}
             <h2 className="ct-contact-title">
-              Have questions about ClearPortfolio?{" "}
+              Have questions about Thetaxio?{" "}
               <span className="highlight-orange">Let’s talk.</span>
             </h2>
 
             {/* Subtitle */}
             <p className="ct-contact-subtitle">
               <span className="desktop-contact-desc">
-                Speak directly with our product team to see how ClearPortfolio can bring complete visibility to your property investments.
+                Speak directly with our product team to see how Thetaxio can bring complete visibility to your property investments.
               </span>
               <span className="mobile-contact-desc">
                 Get in touch with our Australian property specialist team for a guided portfolio setup or data import walkthrough.
@@ -1527,7 +1527,7 @@ export default function Home() {
 
             {/* CTA Button */}
             <div className="ct-contact-cta-wrapper">
-              <Link href="mailto:contact@clearportfolio.com.au" className="ct-btn-contact">
+              <Link href="mailto:contact@thetaxio.com.au" className="ct-btn-contact">
                 {/* Desktop Envelope Icon */}
                 <svg className="desktop-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -1546,8 +1546,8 @@ export default function Home() {
             <div className="ct-contact-email-note">
               <span className="desktop-email-prefix">Direct email: </span>
               <span className="mobile-email-prefix">Or email us directly at </span>
-              <a href="mailto:contact@clearportfolio.com.au" className="ct-contact-email-link">
-                contact@clearportfolio.com.au
+              <a href="mailto:contact@thetaxio.com.au" className="ct-contact-email-link">
+                contact@thetaxio.com.au
               </a>
             </div>
           </div>

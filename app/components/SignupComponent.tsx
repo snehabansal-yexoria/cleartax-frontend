@@ -97,7 +97,7 @@ export default function SignupComponent({
                   <div className="login-icon signup-icon-box">
                     <span>CP</span>
                   </div>
-                  <h1>Clear Portfolio</h1>
+                  <h1>Thetaxio</h1>
                 </div>
                 <h2>{roleMap[role]} Sign Up</h2>
                 <p className="darkBg txt-center">
@@ -151,7 +151,7 @@ export default function SignupComponent({
                     <input
                       id="signup_email"
                       type="email"
-                      placeholder="jane@clearportfolio.com"
+                      placeholder="jane@thetaxio.com"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                     />

@@ -126,7 +126,7 @@ function formatFigure(val: number | null | undefined, showPlus = false) {
 // Hero colour for a signed figure; white while it is still "—".
 function figureTone(val: number | null) {
   if (val == null) return "text-white";
-  return val >= 0 ? "text-[#4ade80]" : "text-[#fb923c]";
+  return val >= 0 ? "text-[#6F7A5A]" : "text-[#C46A4C]";
 }
 
 // The loan inside property.loan_details. That JSONB also holds unrelated keys
@@ -551,13 +551,13 @@ export default function ClientPropertyDetailPage() {
   const renderMobileView = () => {
     if (!property) return null;
     return (
-      <div className="flex flex-col min-h-screen bg-[#f7f9fc]">
+      <div className="flex flex-col min-h-screen bg-[#F3F0E9]">
         {/* Mobile Header */}
-        <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-3.5 bg-white border-b border-[#eaeef4]">
+        <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-3.5 bg-white border-b border-[#EBE8E1]">
           {/* Back link */}
           <Link
             href="/dashboard/client/properties"
-            className="flex items-center gap-1 text-sm font-semibold text-[#1a235a]"
+            className="flex items-center gap-1 text-sm font-semibold text-[#151719]"
           >
             <svg
               viewBox="0 0 24 24"
@@ -574,7 +574,7 @@ export default function ClientPropertyDetailPage() {
           </Link>
 
           {/* Title */}
-          <div className="flex items-center gap-1 text-base font-bold text-[#101828]">Property
+          <div className="flex items-center gap-1 text-base font-bold text-[#151719]">Property
             <span>Detail</span>
           </div>
 
@@ -582,14 +582,14 @@ export default function ClientPropertyDetailPage() {
             {/* Reports, with this property preselected */}
             <Link
               href={reportsHref}
-              className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
+              className="px-4 py-1.5 border border-[#EBE8E1] hover:bg-gray-50 rounded-full text-xs font-bold text-[#151719] transition-all cursor-pointer"
             >
               Reports
             </Link>
             {/* Edit button */}
             <Link
               href={`/dashboard/client/properties/${property.id}/edit`}
-              className="px-4 py-1.5 border border-[#eaeef4] hover:bg-gray-50 rounded-full text-xs font-bold text-[#101828] transition-all cursor-pointer"
+              className="px-4 py-1.5 border border-[#EBE8E1] hover:bg-gray-50 rounded-full text-xs font-bold text-[#151719] transition-all cursor-pointer"
             >
               Edit
             </Link>
@@ -602,7 +602,7 @@ export default function ClientPropertyDetailPage() {
           <div
             className="rounded-3xl p-5 text-white flex flex-col gap-5 shadow-lg relative overflow-hidden"
             style={{
-              background: "linear-gradient(135deg, #1b2559 0%, #28336e 100%)",
+              background: "linear-gradient(135deg, #151719 0%, #242629 100%)",
             }}
           >
             <div className="flex flex-col gap-1.5">
@@ -635,7 +635,7 @@ export default function ClientPropertyDetailPage() {
               {/* Loan Balance */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-1">
                 <span className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Loan Balance</span>
-                <span className="text-lg font-extrabold text-[#fb923c]">
+                <span className="text-lg font-extrabold text-[#C46A4C]">
                   {formatFigure(loanBalance)}
                 </span>
               </div>
@@ -657,13 +657,13 @@ export default function ClientPropertyDetailPage() {
           )}
 
           {/* Loan Summary Card */}
-          <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col gap-4 shadow-sm">
+          <div className="bg-white rounded-2xl border border-[#EBE8E1] p-5 flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#101828]">Loan Summary</h2>
+              <h2 className="text-base font-bold text-[#151719]">Loan Summary</h2>
               {loan && (
                 <button
                   onClick={openLoanModal}
-                  className="text-xs font-bold text-[#1b2559] hover:underline cursor-pointer"
+                  className="text-xs font-bold text-[#151719] hover:underline cursor-pointer"
                 >
                   Edit
                 </button>
@@ -671,43 +671,43 @@ export default function ClientPropertyDetailPage() {
             </div>
             {loan ? (
               <div className="flex flex-col text-sm">
-                <div className="flex justify-between items-center py-2.5 border-b border-[#eaeef4]">
-                  <span className="text-[#667085] font-medium">Bank</span>
-                  <span className="font-bold text-[#101828]">
+                <div className="flex justify-between items-center py-2.5 border-b border-[#EBE8E1]">
+                  <span className="text-[#6A6A69] font-medium">Bank</span>
+                  <span className="font-bold text-[#151719]">
                     {formatBankName(loan.bankName)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2.5 border-b border-[#eaeef4]">
-                  <span className="text-[#667085] font-medium">BSB Number</span>
-                  <span className="font-bold text-[#101828]">
+                <div className="flex justify-between items-center py-2.5 border-b border-[#EBE8E1]">
+                  <span className="text-[#6A6A69] font-medium">BSB Number</span>
+                  <span className="font-bold text-[#151719]">
                     {formatBsb(loan.bsbNumber)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2.5 border-b border-[#eaeef4]">
-                  <span className="text-[#667085] font-medium">Loan Account</span>
-                  <span className="font-bold text-[#101828]">
+                <div className="flex justify-between items-center py-2.5 border-b border-[#EBE8E1]">
+                  <span className="text-[#6A6A69] font-medium">Loan Account</span>
+                  <span className="font-bold text-[#151719]">
                     {formatLoanAccount(loan.accountNumber)}
                   </span>
                 </div>
-                <div className={`flex justify-between items-center py-2.5 ${loan.allocationPercent != null ? "border-b border-[#eaeef4]" : ""}`}>
-                  <span className="text-[#667085] font-medium">Loan Amount</span>
-                  <span className="font-bold text-[#101828]">
+                <div className={`flex justify-between items-center py-2.5 ${loan.allocationPercent != null ? "border-b border-[#EBE8E1]" : ""}`}>
+                  <span className="text-[#6A6A69] font-medium">Loan Amount</span>
+                  <span className="font-bold text-[#151719]">
                     {formatFigure(loan.amount)}
                   </span>
                 </div>
                 {loan.allocationPercent != null && (
                   <div className="flex justify-between items-center py-2.5">
-                    <span className="text-[#667085] font-medium">On this property</span>
-                    <span className="font-bold text-[#101828]">{loan.allocationPercent}%</span>
+                    <span className="text-[#6A6A69] font-medium">On this property</span>
+                    <span className="font-bold text-[#151719]">{loan.allocationPercent}%</span>
                   </div>
                 )}
               </div>
             ) : (
               <div className="py-6 text-center flex flex-col items-center gap-2">
-                <p className="text-xs text-[#667085]">No loan details configured for this property.</p>
+                <p className="text-xs text-[#6A6A69]">No loan details configured for this property.</p>
                 <button
                   onClick={openLoanModal}
-                  className="px-3.5 py-1.5 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 bg-[#151719] hover:bg-[#151719] text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
                 >
                   Add Loan
                 </button>
@@ -716,10 +716,10 @@ export default function ClientPropertyDetailPage() {
           </div>
 
           {/* Profit & Loss Trend Card */}
-          <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col gap-4 shadow-sm">
+          <div className="bg-white rounded-2xl border border-[#EBE8E1] p-5 flex flex-col gap-4 shadow-sm">
             <div className="flex flex-col gap-0.5">
-              <h2 className="text-base font-bold text-[#101828]">Profit & Loss Trend</h2>
-              <p className="text-[10px] text-[#667085] font-medium">Income vs expenses · last 6 months</p>
+              <h2 className="text-base font-bold text-[#151719]">Profit & Loss Trend</h2>
+              <p className="text-[10px] text-[#6A6A69] font-medium">Income vs expenses · last 6 months</p>
             </div>
             <PropertyTrendChart rows={trendRows} />
           </div>
@@ -729,9 +729,9 @@ export default function ClientPropertyDetailPage() {
             href={`/dashboard/client/transactions/new?propertyId=${propertyId}`}
             className="w-full flex items-center justify-center gap-3 py-3.5 font-bold rounded-2xl transition-all shadow-md cursor-pointer text-base"
             style={{
-              background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
-              color: '#1b265c',
-              boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
+              background: 'linear-gradient(135deg, #9B83FF 0%, #6B4EE6 100%)',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 15px rgba(122, 92, 250, 0.15)',
             }}
           >
             <div
@@ -765,12 +765,12 @@ export default function ClientPropertyDetailPage() {
           </Link>
 
           {/* Recent Transactions Card */}
-          <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col shadow-sm">
+          <div className="bg-white rounded-2xl border border-[#EBE8E1] p-5 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-[#101828]">Recent Transactions</h2>
+              <h2 className="text-base font-bold text-[#151719]">Recent Transactions</h2>
               <Link
                 href={`/dashboard/client/transactions?propertyId=${propertyId}`}
-                className="text-xs font-bold text-[#1b2559] hover:underline"
+                className="text-xs font-bold text-[#151719] hover:underline"
               >
                 View all
               </Link>
@@ -786,7 +786,7 @@ export default function ClientPropertyDetailPage() {
                     <div key={tx.transactionId} className="flex items-center justify-between py-1">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isIncome ? "bg-[#e8f8f0] text-[#16a34a]" : "bg-[#fdf2f2] text-[#e53e3e]"
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isIncome ? "bg-[#ECEAE3] text-[#6F7A5A]" : "bg-[#F3F0E9] text-[#C46A4C]"
                             }`}
                         >
                           {isIncome ? (
@@ -800,15 +800,15 @@ export default function ClientPropertyDetailPage() {
                           )}
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-[#101828] truncate max-w-[140px] sm:max-w-[200px]">
+                          <span className="text-xs font-bold text-[#151719] truncate max-w-[140px] sm:max-w-[200px]">
                             {tx.description || tx.subcategoryName || tx.categoryName}
                           </span>
-                          <span className="text-[10px] text-[#667085] font-semibold truncate max-w-[140px]">
+                          <span className="text-[10px] text-[#6A6A69] font-semibold truncate max-w-[140px]">
                             {tx.categoryName}
                           </span>
                         </div>
                       </div>
-                      <span className={`text-xs font-extrabold ${isIncome ? "text-[#16a34a]" : "text-[#e53e3e]"}`}>
+                      <span className={`text-xs font-extrabold ${isIncome ? "text-[#6F7A5A]" : "text-[#C46A4C]"}`}>
                         {formatCurrency(isIncome ? amount : -amount, true)}
                       </span>
                     </div>
@@ -816,7 +816,7 @@ export default function ClientPropertyDetailPage() {
                 })}
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-[#667085]">
+              <div className="py-8 text-center text-xs text-[#6A6A69]">
                 No transactions recorded for this property.
               </div>
             )}
@@ -839,12 +839,12 @@ export default function ClientPropertyDetailPage() {
           />
 
           {/* Documents Card */}
-          <div className="bg-white rounded-2xl border border-[#eaeef4] p-5 flex flex-col shadow-sm">
+          <div className="bg-white rounded-2xl border border-[#EBE8E1] p-5 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-[#101828]">Documents</h2>
+              <h2 className="text-base font-bold text-[#151719]">Documents</h2>
               <button
                 onClick={triggerFileUpload}
-                className="flex items-center gap-1 px-2.5 py-1 bg-[#1b2559] hover:bg-[#151c44] text-white text-[10px] font-bold rounded-lg cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 bg-[#151719] hover:bg-[#151719] text-white text-[10px] font-bold rounded-lg cursor-pointer"
               >
                 Add
               </button>
@@ -852,20 +852,20 @@ export default function ClientPropertyDetailPage() {
 
             <div className="flex flex-col gap-3">
               {uploadingFiles.map((file) => (
-                <div key={file.id} className="flex items-center justify-between py-1.5 border-b border-[#eaeef4] border-dashed">
+                <div key={file.id} className="flex items-center justify-between py-1.5 border-b border-[#EBE8E1] border-dashed">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded bg-[#eaeef4] flex items-center justify-center text-[#7b88ad] animate-pulse">
+                    <div className="w-7 h-7 rounded bg-[#EBE8E1] flex items-center justify-center text-[#878684] animate-pulse">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-[#101828] truncate max-w-[120px]">{file.name}</span>
-                      <span className="text-[8px] text-[#667085] font-semibold">Uploading {file.progress}%</span>
+                      <span className="text-[10px] font-bold text-[#151719] truncate max-w-[120px]">{file.name}</span>
+                      <span className="text-[8px] text-[#6A6A69] font-semibold">Uploading {file.progress}%</span>
                     </div>
                   </div>
                   <div className="w-10 bg-gray-200 rounded-full h-1 overflow-hidden">
-                    <div className="bg-[#1b2559] h-full" style={{ width: `${file.progress}%` }} />
+                    <div className="bg-[#151719] h-full" style={{ width: `${file.progress}%` }} />
                   </div>
                 </div>
               ))}
@@ -876,10 +876,10 @@ export default function ClientPropertyDetailPage() {
                     <div
                       key={doc.id}
                       onClick={() => handleDownload(doc.id, doc.original_file_name)}
-                      className="client-doc-row flex items-center justify-between p-2.5 rounded-xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
+                      className="client-doc-row flex items-center justify-between p-2.5 rounded-xl border border-[#EBE8E1] hover:bg-[#F3F0E9] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-[#eaeef4]/60 text-[#1b2559] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#EBE8E1]/60 text-[#151719] flex items-center justify-center shrink-0">
                           <svg
                             viewBox="0 0 24 24"
                             fill="none"
@@ -892,10 +892,10 @@ export default function ClientPropertyDetailPage() {
                           </svg>
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-[#101828] group-hover:text-[#1b2559] transition-colors truncate max-w-[140px] sm:max-w-[200px]">
+                          <span className="text-xs font-bold text-[#151719] group-hover:text-[#151719] transition-colors truncate max-w-[140px] sm:max-w-[200px]">
                             {doc.original_file_name}
                           </span>
-                          <span className="text-[10px] text-[#667085] font-semibold">
+                          <span className="text-[10px] text-[#6A6A69] font-semibold">
                             {formatDocDate(doc.created_at)}
                           </span>
                         </div>
@@ -905,7 +905,7 @@ export default function ClientPropertyDetailPage() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2.5"
-                        className="w-3.5 h-3.5 text-[#98a2b3] group-hover:text-[#1b2559] transition-colors"
+                        className="w-3.5 h-3.5 text-[#989794] group-hover:text-[#151719] transition-colors"
                       >
                         <path d="m9 18 6-6-6-6" />
                       </svg>
@@ -914,7 +914,7 @@ export default function ClientPropertyDetailPage() {
                 </div>
               ) : (
                 uploadingFiles.length === 0 && (
-                  <div className="py-8 text-center text-xs text-[#667085]">
+                  <div className="py-8 text-center text-xs text-[#6A6A69]">
                     No documents uploaded.
                   </div>
                 )
@@ -932,25 +932,25 @@ export default function ClientPropertyDetailPage() {
     return (
       <div className="desktop-client-dashboard">
         {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 text-sm text-[#7b88ad] font-medium">
-          <Link href="/dashboard/client/properties" className="hover:text-[#1b2559] transition-colors">
+        <div className="flex items-center gap-2 text-sm text-[#878684] font-medium">
+          <Link href="/dashboard/client/properties" className="hover:text-[#151719] transition-colors">
             Properties
           </Link>
           <span>/</span>
-          <span className="text-[#101828] font-semibold">{property.name}</span>
+          <span className="text-[#151719] font-semibold">{property.name}</span>
         </div>
 
         {/* Hero Blue Card */}
         <div
           className="rounded-3xl p-6 lg:p-8 text-white flex flex-col gap-6 lg:gap-8 shadow-xl relative overflow-hidden"
           style={{
-            background: "linear-gradient(135deg, #1b2559 0%, #28336e 100%)",
+            background: "linear-gradient(135deg, #151719 0%, #242629 100%)",
           }}
         >
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
             <div className="flex flex-col gap-2.5">
               {/* Badge pill */}
-              <div className="self-start px-3 py-1 rounded-full text-xs font-bold border border-[#f4a117]/30 bg-[#f4a117]/10 text-[#f4a117] tracking-wider uppercase">
+              <div className="self-start px-3 py-1 rounded-full text-xs font-bold border border-[#7A5CFA]/30 bg-[#7A5CFA]/10 text-[#7A5CFA] tracking-wider uppercase">
                 {property.propertyType ? titleCase(property.propertyType) : "Residential"} · {property.status ? titleCase(property.status) : "Rented"}
               </div>
               {/* Title */}
@@ -1023,7 +1023,7 @@ export default function ClientPropertyDetailPage() {
             {/* Loan Balance */}
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col gap-1.5 shadow-sm">
               <span className="text-white/60 text-xs font-semibold uppercase tracking-wider">Loan Balance</span>
-              <span className="text-2xl lg:text-3xl font-bold text-[#fb923c]">
+              <span className="text-2xl lg:text-3xl font-bold text-[#C46A4C]">
                 {formatFigure(loanBalance)}
               </span>
             </div>
@@ -1048,7 +1048,7 @@ export default function ClientPropertyDetailPage() {
         {/* Add Transaction Banner */}
         <Link
           href={`/dashboard/client/transactions/new?propertyId=${propertyId}`}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-[#f4a117] hover:bg-[#e0900f] text-[#1b2559] font-bold rounded-2xl transition-all shadow-md active:scale-[0.99] cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 py-4 bg-[#7A5CFA] hover:bg-[#7A5CFA] text-[#151719] font-bold rounded-2xl transition-all shadow-md active:scale-[0.99] cursor-pointer"
         >
           <svg
             viewBox="0 0 24 24"
@@ -1070,13 +1070,13 @@ export default function ClientPropertyDetailPage() {
         {/* Grid Content Columns (stacked in 1 col on tablet, 2 cols on desktop) */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Row 1, Col 1: Loan Summary */}
-          <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
+          <div className="bg-white rounded-3xl border border-[#EBE8E1] p-6 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#101828]">Loan Summary</h2>
+              <h2 className="text-lg font-bold text-[#151719]">Loan Summary</h2>
               {loan && (
                 <button
                   onClick={openLoanModal}
-                  className="text-sm font-semibold text-[#1b2559] hover:underline cursor-pointer"
+                  className="text-sm font-semibold text-[#151719] hover:underline cursor-pointer"
                 >
                   Edit
                 </button>
@@ -1084,43 +1084,43 @@ export default function ClientPropertyDetailPage() {
             </div>
             {loan ? (
               <div className="flex flex-col">
-                <div className="flex justify-between items-center py-3.5 border-b border-[#eaeef4]">
-                  <span className="text-sm text-[#667085] font-medium">Bank</span>
-                  <span className="text-sm font-bold text-[#101828]">
+                <div className="flex justify-between items-center py-3.5 border-b border-[#EBE8E1]">
+                  <span className="text-sm text-[#6A6A69] font-medium">Bank</span>
+                  <span className="text-sm font-bold text-[#151719]">
                     {formatBankName(loan.bankName)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-3.5 border-b border-[#eaeef4]">
-                  <span className="text-sm text-[#667085] font-medium">BSB Number</span>
-                  <span className="text-sm font-bold text-[#101828]">
+                <div className="flex justify-between items-center py-3.5 border-b border-[#EBE8E1]">
+                  <span className="text-sm text-[#6A6A69] font-medium">BSB Number</span>
+                  <span className="text-sm font-bold text-[#151719]">
                     {formatBsb(loan.bsbNumber)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-3.5 border-b border-[#eaeef4]">
-                  <span className="text-sm text-[#667085] font-medium">Loan Account</span>
-                  <span className="text-sm font-bold text-[#101828]">
+                <div className="flex justify-between items-center py-3.5 border-b border-[#EBE8E1]">
+                  <span className="text-sm text-[#6A6A69] font-medium">Loan Account</span>
+                  <span className="text-sm font-bold text-[#151719]">
                     {formatLoanAccount(loan.accountNumber)}
                   </span>
                 </div>
-                <div className={`flex justify-between items-center py-3.5 ${loan.allocationPercent != null ? "border-b border-[#eaeef4]" : ""}`}>
-                  <span className="text-sm text-[#667085] font-medium">Loan Amount</span>
-                  <span className="text-sm font-bold text-[#101828]">
+                <div className={`flex justify-between items-center py-3.5 ${loan.allocationPercent != null ? "border-b border-[#EBE8E1]" : ""}`}>
+                  <span className="text-sm text-[#6A6A69] font-medium">Loan Amount</span>
+                  <span className="text-sm font-bold text-[#151719]">
                     {formatFigure(loan.amount)}
                   </span>
                 </div>
                 {loan.allocationPercent != null && (
                   <div className="flex justify-between items-center py-3.5">
-                    <span className="text-sm text-[#667085] font-medium">On this property</span>
-                    <span className="text-sm font-bold text-[#101828]">{loan.allocationPercent}%</span>
+                    <span className="text-sm text-[#6A6A69] font-medium">On this property</span>
+                    <span className="text-sm font-bold text-[#151719]">{loan.allocationPercent}%</span>
                   </div>
                 )}
               </div>
             ) : (
               <div className="py-8 text-center flex flex-col items-center gap-3">
-                <p className="text-sm text-[#667085]">No loan details configured for this property.</p>
+                <p className="text-sm text-[#6A6A69]">No loan details configured for this property.</p>
                 <button
                   onClick={openLoanModal}
-                  className="px-4 py-2 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm animate-fade-in"
+                  className="px-4 py-2 bg-[#151719] hover:bg-[#151719] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm animate-fade-in"
                 >
                   Add Loan Details
                 </button>
@@ -1129,21 +1129,21 @@ export default function ClientPropertyDetailPage() {
           </div>
 
           {/* Row 1, Col 2: Profit & Loss Trend */}
-          <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col gap-5 shadow-sm">
+          <div className="bg-white rounded-3xl border border-[#EBE8E1] p-6 flex flex-col gap-5 shadow-sm">
             <div className="flex flex-col gap-0.5">
-              <h2 className="text-lg font-bold text-[#101828]">Profit & Loss Trend</h2>
-              <p className="text-xs text-[#667085] font-medium">Income vs expenses · last 6 months</p>
+              <h2 className="text-lg font-bold text-[#151719]">Profit & Loss Trend</h2>
+              <p className="text-xs text-[#6A6A69] font-medium">Income vs expenses · last 6 months</p>
             </div>
             <PropertyTrendChart rows={trendRows} />
           </div>
 
           {/* Row 2, Col 1: Recent Transactions */}
-          <div className="bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
+          <div className="bg-white rounded-3xl border border-[#EBE8E1] p-6 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-[#101828]">Recent Transactions</h2>
+              <h2 className="text-lg font-bold text-[#151719]">Recent Transactions</h2>
               <Link
                 href={`/dashboard/client/transactions?propertyId=${propertyId}`}
-                className="text-sm font-semibold text-[#1b2559] hover:underline"
+                className="text-sm font-semibold text-[#151719] hover:underline"
               >
                 View all
               </Link>
@@ -1160,7 +1160,7 @@ export default function ClientPropertyDetailPage() {
                       <div className="flex items-center gap-3">
                         {/* Transaction Icon */}
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isIncome ? "bg-[#e8f8f0] text-[#16a34a]" : "bg-[#fdf2f2] text-[#e53e3e]"
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isIncome ? "bg-[#ECEAE3] text-[#6F7A5A]" : "bg-[#F3F0E9] text-[#C46A4C]"
                             }`}
                         >
                           {isIncome ? (
@@ -1174,15 +1174,15 @@ export default function ClientPropertyDetailPage() {
                           )}
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-bold text-[#101828] truncate max-w-[200px] sm:max-w-[280px]">
+                          <span className="text-sm font-bold text-[#151719] truncate max-w-[200px] sm:max-w-[280px]">
                             {tx.description || tx.subcategoryName || tx.categoryName}
                           </span>
-                          <span className="text-xs text-[#667085] font-semibold">
+                          <span className="text-xs text-[#6A6A69] font-semibold">
                             {tx.categoryName} {tx.subcategoryName ? `· ${tx.subcategoryName}` : ""}
                           </span>
                         </div>
                       </div>
-                      <span className={`text-sm font-extrabold ${isIncome ? "text-[#16a34a]" : "text-[#e53e3e]"}`}>
+                      <span className={`text-sm font-extrabold ${isIncome ? "text-[#6F7A5A]" : "text-[#C46A4C]"}`}>
                         {formatCurrency(isIncome ? amount : -amount, true)}
                       </span>
                     </div>
@@ -1190,7 +1190,7 @@ export default function ClientPropertyDetailPage() {
                 })}
               </div>
             ) : (
-              <div className="py-12 text-center text-sm text-[#667085]">
+              <div className="py-12 text-center text-sm text-[#6A6A69]">
                 No transactions recorded for this property.
               </div>
             )}
@@ -1214,12 +1214,12 @@ export default function ClientPropertyDetailPage() {
           </div>
 
           {/* Row 4: Documents, full width (as on the entity page) */}
-          <div className="xl:col-span-2 bg-white rounded-3xl border border-[#eaeef4] p-6 flex flex-col shadow-sm">
+          <div className="xl:col-span-2 bg-white rounded-3xl border border-[#EBE8E1] p-6 flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-[#101828]">Documents</h2>
+              <h2 className="text-lg font-bold text-[#151719]">Documents</h2>
               <button
                 onClick={triggerFileUpload}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#151719] hover:bg-[#151719] text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
               >
                 + Add
               </button>
@@ -1234,20 +1234,20 @@ export default function ClientPropertyDetailPage() {
 
             <div className="flex flex-col gap-4">
               {uploadingFiles.map((file) => (
-                <div key={file.id} className="flex items-center justify-between py-2 border-b border-[#eaeef4] border-dashed">
+                <div key={file.id} className="flex items-center justify-between py-2 border-b border-[#EBE8E1] border-dashed">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-[#eaeef4] flex items-center justify-center text-[#7b88ad] animate-pulse">
+                    <div className="w-8 h-8 rounded bg-[#EBE8E1] flex items-center justify-center text-[#878684] animate-pulse">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-[#101828] truncate max-w-[200px]">{file.name}</span>
-                      <span className="text-[10px] text-[#667085] font-semibold">Uploading {file.progress}%</span>
+                      <span className="text-xs font-bold text-[#151719] truncate max-w-[200px]">{file.name}</span>
+                      <span className="text-[10px] text-[#6A6A69] font-semibold">Uploading {file.progress}%</span>
                     </div>
                   </div>
                   <div className="w-12 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-[#1b2559] h-full transition-all duration-300" style={{ width: `${file.progress}%` }} />
+                    <div className="bg-[#151719] h-full transition-all duration-300" style={{ width: `${file.progress}%` }} />
                   </div>
                 </div>
               ))}
@@ -1258,20 +1258,20 @@ export default function ClientPropertyDetailPage() {
                     <div
                       key={doc.id}
                       onClick={() => handleDownload(doc.id, doc.original_file_name)}
-                      className="client-doc-row flex items-center justify-between p-3 rounded-2xl border border-[#eaeef4] hover:bg-[#f8f9fb] transition-colors cursor-pointer group"
+                      className="client-doc-row flex items-center justify-between p-3 rounded-2xl border border-[#EBE8E1] hover:bg-[#F3F0E9] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#eaeef4]/60 text-[#1b2559] flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-[#EBE8E1]/60 text-[#151719] flex items-center justify-center shrink-0">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
                             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                             <polyline points="14 2 14 8 20 8" />
                           </svg>
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-bold text-[#101828] group-hover:text-[#1b2559] transition-colors truncate max-w-[200px] sm:max-w-[280px]">
+                          <span className="text-sm font-bold text-[#151719] group-hover:text-[#151719] transition-colors truncate max-w-[200px] sm:max-w-[280px]">
                             {doc.original_file_name}
                           </span>
-                          <span className="text-xs text-[#667085] font-semibold">
+                          <span className="text-xs text-[#6A6A69] font-semibold">
                             {formatDocDate(doc.created_at)}
                           </span>
                         </div>
@@ -1281,7 +1281,7 @@ export default function ClientPropertyDetailPage() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2.5"
-                        className="w-4 h-4 text-[#98a2b3] group-hover:text-[#1b2559] transition-colors"
+                        className="w-4 h-4 text-[#989794] group-hover:text-[#151719] transition-colors"
                       >
                         <path d="m9 18 6-6-6-6" />
                       </svg>
@@ -1290,7 +1290,7 @@ export default function ClientPropertyDetailPage() {
                 </div>
               ) : (
                 uploadingFiles.length === 0 && (
-                  <div className="py-12 text-center text-sm text-[#667085]">
+                  <div className="py-12 text-center text-sm text-[#6A6A69]">
                     No documents uploaded for this property yet.
                   </div>
                 )
@@ -1310,24 +1310,24 @@ export default function ClientPropertyDetailPage() {
       {isLoanModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 w-full max-w-md flex flex-col gap-5 shadow-2xl relative">
-            <h3 className="text-lg font-bold text-[#101828]">Configure Loan Details</h3>
+            <h3 className="text-lg font-bold text-[#151719]">Configure Loan Details</h3>
 
             <div className="flex flex-col gap-4">
               {/* Bank Name */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#667085]">Bank Name</label>
+                <label className="text-xs font-semibold text-[#6A6A69]">Bank Name</label>
                 <input
                   type="text"
                   value={formBankName}
                   onChange={(e) => setFormBankName(e.target.value)}
                   placeholder="e.g. Commonwealth Bank"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#eaeef4] text-sm text-[#101828] focus:outline-none focus:border-[#1b2559]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#EBE8E1] text-sm text-[#151719] focus:outline-none focus:border-[#151719]"
                 />
               </div>
 
               {/* BSB Number */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#667085]">BSB Number</label>
+                <label className="text-xs font-semibold text-[#6A6A69]">BSB Number</label>
                 <input
                   type="text"
                   value={formBsbNumber}
@@ -1336,31 +1336,31 @@ export default function ClientPropertyDetailPage() {
                     setFormBsbNumber(formatted);
                   }}
                   placeholder="e.g. 062-900"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#eaeef4] text-sm text-[#101828] focus:outline-none focus:border-[#1b2559]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#EBE8E1] text-sm text-[#151719] focus:outline-none focus:border-[#151719]"
                 />
               </div>
 
               {/* Account Number */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#667085]">Account Number</label>
+                <label className="text-xs font-semibold text-[#6A6A69]">Account Number</label>
                 <input
                   type="text"
                   value={formAccountNumber}
                   onChange={(e) => setFormAccountNumber(e.target.value.replace(/\D/g, ""))}
                   placeholder="e.g. 12345678"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#eaeef4] text-sm text-[#101828] focus:outline-none focus:border-[#1b2559]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#EBE8E1] text-sm text-[#151719] focus:outline-none focus:border-[#151719]"
                 />
               </div>
 
               {/* Loan Amount */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#667085]">Loan Amount</label>
+                <label className="text-xs font-semibold text-[#6A6A69]">Loan Amount</label>
                 <input
                   type="number"
                   value={formLoanAmount}
                   onChange={(e) => setFormLoanAmount(e.target.value)}
                   placeholder="e.g. 500000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#eaeef4] text-sm text-[#101828] focus:outline-none focus:border-[#1b2559]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#EBE8E1] text-sm text-[#151719] focus:outline-none focus:border-[#151719]"
                 />
               </div>
             </div>
@@ -1385,14 +1385,14 @@ export default function ClientPropertyDetailPage() {
               <button
                 onClick={() => setIsLoanModalOpen(false)}
                 disabled={loanSaving}
-                className="px-4 py-2.5 border border-[#eaeef4] hover:bg-gray-50 text-xs font-bold text-[#667085] rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 border border-[#EBE8E1] hover:bg-gray-50 text-xs font-bold text-[#6A6A69] rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveLoanDetails}
                 disabled={loanSaving}
-                className="px-5 py-2.5 bg-[#1b2559] hover:bg-[#151c44] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-60 disabled:cursor-wait"
+                className="px-5 py-2.5 bg-[#151719] hover:bg-[#151719] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-60 disabled:cursor-wait"
               >
                 {loanSaving ? "Saving…" : "Save"}
               </button>

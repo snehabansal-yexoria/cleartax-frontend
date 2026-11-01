@@ -219,7 +219,7 @@ function StaticSelect({
           style={{
             fontSize: '13px',
             fontWeight: '500',
-            color: isDark ? 'var(--text-secondary)' : '#344054',
+            color: isDark ? 'var(--text-secondary)' : '#3E3F3F',
             marginBottom: '6px',
             display: 'inline-block',
             ...(horizontal && { margin: 0, whiteSpace: 'nowrap' }),
@@ -230,7 +230,7 @@ function StaticSelect({
             <em
               className="client-tx-required"
               style={{
-                color: '#da3838',
+                color: '#C46A4C',
                 fontStyle: 'normal',
                 marginLeft: '3px',
               }}
@@ -260,13 +260,13 @@ function StaticSelect({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-            border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+            background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+            border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
             borderRadius: '12px',
             padding: '12px 16px',
             fontSize: '14.5px',
             fontWeight: '500',
-            color: isDark ? 'var(--text-primary)' : '#1d2939',
+            color: isDark ? 'var(--text-primary)' : '#151719',
             width: '100%',
             boxSizing: 'border-box',
             cursor: disabled ? 'not-allowed' : 'pointer',
@@ -292,10 +292,10 @@ function StaticSelect({
               top: 'calc(100% + 6px)',
               left: 0,
               right: 0,
-              background: isDark ? 'var(--surface-1)' : '#ffffff',
-              border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
               borderRadius: '12px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
+              boxShadow: '0 10px 30px rgba(21, 23, 25, 0.08)',
               zIndex: 999,
               maxHeight: '250px',
               overflowY: 'auto',
@@ -318,12 +318,12 @@ function StaticSelect({
                   alignItems: 'center',
                   width: '100%',
                   padding: '11px 12px',
-                  background: value === option.value ? (isDark ? 'rgba(244, 161, 23, 0.12)' : 'rgba(29, 36, 82, 0.06)') : 'transparent',
+                  background: value === option.value ? (isDark ? 'rgba(122, 92, 250, 0.12)' : 'rgba(21, 23, 25, 0.06)') : 'transparent',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: value === option.value ? '600' : '500',
-                  color: value === option.value ? (isDark ? 'var(--accent)' : '#1d2452') : (isDark ? 'var(--text-primary)' : '#1d2939'),
+                  color: value === option.value ? (isDark ? 'var(--accent)' : '#151719') : (isDark ? 'var(--text-primary)' : '#151719'),
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
@@ -334,7 +334,7 @@ function StaticSelect({
               >
                 <span>{option.label}</span>
                 {value === option.value && (
-                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, color: isDark ? 'var(--accent)' : '#1d2452' }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '16px', height: '16px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, color: isDark ? 'var(--accent)' : '#151719' }}>
                     <path d="M5 12l4 4 10-10" />
                   </svg>
                 )}
@@ -351,7 +351,7 @@ function StaticSelect({
             alignItems: "center",
             gap: "6px",
             marginTop: "4.5px",
-            color: '#da3838',
+            color: '#C46A4C',
             fontSize: '11.5px',
             fontWeight: '600',
           }}
@@ -441,13 +441,13 @@ function EntityPropertyHeaderCard({
               style={{
                 fontSize: '13px',
                 fontWeight: '500',
-                color: isDark ? 'var(--text-secondary)' : '#344054',
+                color: isDark ? 'var(--text-secondary)' : '#3E3F3F',
                 marginBottom: '6px',
                 display: 'inline-block',
               }}
             >
               Entity Name
-              <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+              <em className="client-tx-required" style={{ color: '#C46A4C', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
             </span>
             <div
               className="client-tx-locked-input"
@@ -455,13 +455,13 @@ function EntityPropertyHeaderCard({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
-                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                 borderRadius: '12px',
                 padding: '12px 16px',
                 fontSize: '14.5px',
                 fontWeight: '500',
-                color: isDark ? 'var(--text-primary)' : '#1d2939',
+                color: isDark ? 'var(--text-primary)' : '#151719',
                 width: '100%',
                 boxSizing: 'border-box',
                 height: '50px',
@@ -477,7 +477,7 @@ function EntityPropertyHeaderCard({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: isDark ? 'var(--text-secondary)' : '#566474',
+                    color: isDark ? 'var(--text-secondary)' : '#5B5C5B',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -514,13 +514,13 @@ function EntityPropertyHeaderCard({
               style={{
                 fontSize: '13px',
                 fontWeight: '500',
-                color: isDark ? 'var(--text-secondary)' : '#344054',
+                color: isDark ? 'var(--text-secondary)' : '#3E3F3F',
                 marginBottom: '6px',
                 display: 'inline-block',
               }}
             >
               Select Property
-              {isPropertyRequired && <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>}
+              {isPropertyRequired && <em className="client-tx-required" style={{ color: '#C46A4C', fontStyle: 'normal', marginLeft: '3px' }}>*</em>}
             </span>
             <div
               className="client-tx-locked-input"
@@ -528,13 +528,13 @@ function EntityPropertyHeaderCard({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                background: isDark ? 'var(--surface-2)' : '#f2f4f7',
-                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                 borderRadius: '12px',
                 padding: '12px 16px',
                 fontSize: '14.5px',
                 fontWeight: '500',
-                color: isDark ? 'var(--text-primary)' : '#1d2939',
+                color: isDark ? 'var(--text-primary)' : '#151719',
                 width: '100%',
                 boxSizing: 'border-box',
                 height: '50px',
@@ -550,7 +550,7 @@ function EntityPropertyHeaderCard({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: isDark ? 'var(--text-secondary)' : '#566474',
+                    color: isDark ? 'var(--text-secondary)' : '#5B5C5B',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1729,14 +1729,14 @@ export default function ClientAddTransactionViewNew({
 
   if (isMarked) {
     return (
-      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter Tight', sans-serif" }}>
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: isDark ? 'rgba(15, 19, 48, 0.8)' : 'rgba(29, 36, 82, 0.4)',
+          background: isDark ? 'rgba(21, 23, 25, 0.8)' : 'rgba(21, 23, 25, 0.4)',
           backdropFilter: 'blur(4px)',
           display: 'flex',
           justifyContent: 'center',
@@ -1744,24 +1744,24 @@ export default function ClientAddTransactionViewNew({
           zIndex: 9999,
         }} role="dialog" aria-modal="true">
           <div style={{
-            background: isDark ? 'var(--surface-1)' : '#ffffff',
-            border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+            background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+            border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
             borderRadius: '20px',
             padding: '40px 32px',
             textAlign: 'center',
             maxWidth: '450px',
             width: '90%',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 20px 50px rgba(21, 23, 25, 0.15)',
           }}>
             <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', position: 'relative', marginBottom: '24px' }}>
               <svg viewBox="0 0 72 72" style={{ width: "72px", height: "72px" }}>
-                <circle cx="36" cy="36" r="28" fill="none" stroke="#12B76A" strokeWidth="4" />
-                <path d="M22 37.5 31.5 47 51 25" fill="none" stroke="#12B76A" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="36" cy="36" r="28" fill="none" stroke="#6F7A5A" strokeWidth="4" />
+                <path d="M22 37.5 31.5 47 51 25" fill="none" stroke="#6F7A5A" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: '0 0 12px 0' }}>Transaction Added</h2>
-            <div style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#566474', lineHeight: 1.6 }}>
-              <strong style={{ display: 'block', color: isDark ? 'var(--text-primary)' : '#0f1330', marginBottom: '8px', fontSize: '15.5px' }}>Transaction successfully recorded.</strong>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#151719', margin: '0 0 12px 0' }}>Transaction Added</h2>
+            <div style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#5B5C5B', lineHeight: 1.6 }}>
+              <strong style={{ display: 'block', color: isDark ? 'var(--text-primary)' : '#151719', marginBottom: '8px', fontSize: '15.5px' }}>Transaction successfully recorded.</strong>
               <p style={{ margin: 0 }}>The property ledger has been updated. Returning to transactions...</p>
             </div>
           </div>
@@ -1772,17 +1772,17 @@ export default function ClientAddTransactionViewNew({
 
   if (tokenLoaded && !token) {
     return (
-      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter Tight', sans-serif" }}>
         <div style={{
-          background: isDark ? 'var(--surface-1)' : '#ffffff',
-          border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+          background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+          border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
           borderRadius: '16px',
           padding: '32px',
           textAlign: 'center',
-          boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.05)',
+          boxShadow: '0px 1px 3px rgba(21, 23, 25, 0.05)',
         }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', marginBottom: '12px' }}>Sign-in required</h2>
-          <p style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#566474', margin: 0 }}>Please sign in to add a transaction.</p>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#151719', marginBottom: '12px' }}>Sign-in required</h2>
+          <p style={{ fontSize: '14px', color: isDark ? 'var(--text-secondary)' : '#5B5C5B', margin: 0 }}>Please sign in to add a transaction.</p>
         </div>
       </section>
     );
@@ -1812,7 +1812,7 @@ export default function ClientAddTransactionViewNew({
 
   if (selectedMethod === null) {
     return (
-      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+      <section className="client-tx-container" style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', fontFamily: "'Inter Tight', sans-serif" }}>
         <div className="client-tx-header-bar">
           <Link href={effectiveBackHref} className="client-tx-back-link">
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
@@ -1868,11 +1868,11 @@ export default function ClientAddTransactionViewNew({
       <section className="client-tx-container mobile-submit-invoice" style={{
         width: '100%',
         margin: '0 auto',
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "'Inter Tight', sans-serif",
         padding: '0 0 120px 0',
         boxSizing: 'border-box',
         minHeight: '100vh',
-        background: isDark ? 'var(--surface-0)' : '#ffffff',
+        background: isDark ? 'var(--surface-0)' : '#FFFFFF',
       }}>
         {/* Mobile Header */}
         <div style={{
@@ -1880,8 +1880,8 @@ export default function ClientAddTransactionViewNew({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px 20px',
-          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-          background: isDark ? 'var(--surface-1)' : '#ffffff',
+          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
+          background: isDark ? 'var(--surface-1)' : '#FFFFFF',
           height: '60px',
           boxSizing: 'border-box',
           position: 'sticky',
@@ -1903,7 +1903,7 @@ export default function ClientAddTransactionViewNew({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              color: isDark ? 'var(--accent)' : '#1c2452',
+              color: isDark ? 'var(--accent)' : '#151719',
               fontSize: '15px',
               fontWeight: '600',
               cursor: 'pointer',
@@ -1918,7 +1918,7 @@ export default function ClientAddTransactionViewNew({
           <span style={{
             fontSize: '17px',
             fontWeight: '700',
-            color: isDark ? 'var(--text-primary)' : '#0f1330',
+            color: isDark ? 'var(--text-primary)' : '#151719',
             position: 'absolute',
             left: '50%',
             transform: 'translateX(-50%)',
@@ -1930,14 +1930,14 @@ export default function ClientAddTransactionViewNew({
 
         {/* Step Banner */}
         <div style={{
-          background: isDark ? 'rgba(92, 133, 214, 0.08)' : '#f2f5fa',
+          background: isDark ? 'rgba(122, 92, 250, 0.08)' : '#F3F0E9',
           padding: '12px 16px',
           textAlign: 'center',
         }}>
           <span style={{
             fontSize: '13.5px',
             fontWeight: '600',
-            color: isDark ? 'var(--text-primary)' : '#1e3a7a',
+            color: isDark ? 'var(--text-primary)' : '#6B4EE6',
           }}>
             Enter the below values to complete the step
           </span>
@@ -1985,8 +1985,8 @@ export default function ClientAddTransactionViewNew({
                 justifyContent: 'center',
                 textAlign: 'center',
                 padding: '36px 24px',
-                background: isDark ? 'var(--surface-2)' : '#f8fafe',
-                border: `1px solid ${isDark ? 'var(--border)' : '#e4eefc'}`,
+                background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                border: `1px solid ${isDark ? 'var(--border)' : '#EAE4F4'}`,
                 borderRadius: '16px',
                 marginTop: '12px',
                 minHeight: '120px',
@@ -1994,14 +1994,14 @@ export default function ClientAddTransactionViewNew({
                 <span style={{
                   fontSize: '15px',
                   fontWeight: '700',
-                  color: isDark ? 'var(--text-secondary)' : '#475467',
+                  color: isDark ? 'var(--text-secondary)' : '#4F4F4F',
                   marginBottom: '6px',
                 }}>
                   Fields locked
                 </span>
                 <span style={{
                   fontSize: '13px',
-                  color: isDark ? 'var(--text-muted)' : '#667085',
+                  color: isDark ? 'var(--text-muted)' : '#6A6A69',
                   maxWidth: '260px',
                   lineHeight: '1.4',
                 }}>
@@ -2013,7 +2013,7 @@ export default function ClientAddTransactionViewNew({
                 <span className="client-tx-field-label" style={{
                   fontSize: '13.5px',
                   fontWeight: '600',
-                  color: isDark ? 'var(--text-secondary)' : '#344054',
+                  color: isDark ? 'var(--text-secondary)' : '#3E3F3F',
                   marginBottom: '8px',
                 }}>
                   Upload Invoice or Receipt
@@ -2041,7 +2041,7 @@ export default function ClientAddTransactionViewNew({
                       secondaryLabelText="PDF, JPG, PNG max 10 MB"
                       hideIconOnIdle={true}
                       style={{
-                        border: `1.5px dashed ${isDark ? 'var(--border)' : '#c4ccd8'}`,
+                        border: `1.5px dashed ${isDark ? 'var(--border)' : '#C2C0BB'}`,
                         background: 'transparent',
                         borderRadius: '12px',
                         padding: '40px 24px',
@@ -2058,13 +2058,13 @@ export default function ClientAddTransactionViewNew({
                       strongStyle={{
                         fontSize: '15px',
                         fontWeight: '600',
-                        color: isDark ? 'var(--text-primary)' : '#1c2452',
+                        color: isDark ? 'var(--text-primary)' : '#151719',
                         margin: '0 0 4px 0',
                         display: 'block',
                       }}
                       smallStyle={{
                         fontSize: '12px',
-                        color: isDark ? 'var(--text-muted)' : '#667085',
+                        color: isDark ? 'var(--text-muted)' : '#6A6A69',
                         margin: 0,
                         display: 'block',
                       }}
@@ -2080,11 +2080,11 @@ export default function ClientAddTransactionViewNew({
               bottom: 0,
               left: 0,
               right: 0,
-              background: isDark ? 'var(--surface-1)' : '#ffffff',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
               padding: '16px 20px calc(16px + env(safe-area-inset-bottom)) 20px',
               zIndex: 100,
-              boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+              boxShadow: '0 -4px 12px rgba(21, 23, 25, 0.03)',
             }}>
               {!isSelectionComplete ? (
                 <button
@@ -2093,8 +2093,8 @@ export default function ClientAddTransactionViewNew({
                   style={{
                     width: '100%',
                     height: '52px',
-                    background: isDark ? 'var(--surface-2)' : '#b0b8c9',
-                    color: '#ffffff',
+                    background: isDark ? 'var(--surface-2)' : '#AFAEAA',
+                    color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -2114,8 +2114,8 @@ export default function ClientAddTransactionViewNew({
                   style={{
                     width: '100%',
                     height: '52px',
-                    background: isDark ? 'var(--accent)' : '#1c2452',
-                    color: '#ffffff',
+                    background: isDark ? 'var(--accent)' : '#151719',
+                    color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -2139,8 +2139,8 @@ export default function ClientAddTransactionViewNew({
               {/* Green document preview banner */}
               {documentId && uploadedFilename && (
                 <div style={{
-                  background: isDark ? 'rgba(18, 183, 106, 0.08)' : '#E6F4EA',
-                  border: `1.5px dashed ${isDark ? '#12B76A' : '#A3E0C1'}`,
+                  background: isDark ? 'rgba(111, 122, 90, 0.08)' : '#E8E5DF',
+                  border: `1.5px dashed ${isDark ? '#6F7A5A' : '#E2E5D7'}`,
                   borderRadius: '16px',
                   padding: '16px 20px',
                   textAlign: 'center',
@@ -2156,7 +2156,7 @@ export default function ClientAddTransactionViewNew({
                   <span style={{
                     fontSize: '14.5px',
                     fontWeight: '700',
-                    color: isDark ? '#82F2B1' : '#1d2452',
+                    color: isDark ? '#E0E3D3' : '#151719',
                   }}>
                     {uploadedFilename}
                   </span>
@@ -2172,7 +2172,7 @@ export default function ClientAddTransactionViewNew({
                       background: 'none',
                       border: 'none',
                       padding: 0,
-                      color: isDark ? '#82F2B1' : '#566474',
+                      color: isDark ? '#E0E3D3' : '#5B5C5B',
                       fontSize: '12px',
                       textDecoration: 'underline',
                       cursor: 'pointer',
@@ -2187,7 +2187,7 @@ export default function ClientAddTransactionViewNew({
               {/* Transaction Type Pill Toggle */}
               <div style={{
                 display: 'flex',
-                background: isDark ? 'var(--surface-2)' : '#F2F4F7',
+                background: isDark ? 'var(--surface-2)' : '#F3F0E9',
                 borderRadius: '12px',
                 padding: '4px',
                 width: '100%',
@@ -2203,12 +2203,12 @@ export default function ClientAddTransactionViewNew({
                     height: '100%',
                     border: 'none',
                     borderRadius: '8px',
-                    background: type === "expense" ? (isDark ? 'var(--surface-1)' : '#ffffff') : 'transparent',
-                    color: type === "expense" ? (isDark ? 'var(--text-primary)' : '#1c2452') : '#98A2B3',
+                    background: type === "expense" ? (isDark ? 'var(--surface-1)' : '#FFFFFF') : 'transparent',
+                    color: type === "expense" ? (isDark ? 'var(--text-primary)' : '#151719') : '#989794',
                     fontSize: '14.5px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    boxShadow: type === "expense" && !isDark ? '0px 1px 3px rgba(16, 24, 40, 0.1)' : 'none',
+                    boxShadow: type === "expense" && !isDark ? '0px 1px 3px rgba(21, 23, 25, 0.1)' : 'none',
                     transition: 'all 0.2s ease',
                   }}
                 >
@@ -2222,12 +2222,12 @@ export default function ClientAddTransactionViewNew({
                     height: '100%',
                     border: 'none',
                     borderRadius: '8px',
-                    background: type === "revenue" ? (isDark ? 'var(--surface-1)' : '#ffffff') : 'transparent',
-                    color: type === "revenue" ? (isDark ? 'var(--text-primary)' : '#1c2452') : '#98A2B3',
+                    background: type === "revenue" ? (isDark ? 'var(--surface-1)' : '#FFFFFF') : 'transparent',
+                    color: type === "revenue" ? (isDark ? 'var(--text-primary)' : '#151719') : '#989794',
                     fontSize: '14.5px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    boxShadow: type === "revenue" && !isDark ? '0px 1px 3px rgba(16, 24, 40, 0.1)' : 'none',
+                    boxShadow: type === "revenue" && !isDark ? '0px 1px 3px rgba(21, 23, 25, 0.1)' : 'none',
                     transition: 'all 0.2s ease',
                   }}
                 >
@@ -2263,15 +2263,15 @@ export default function ClientAddTransactionViewNew({
                   <label className="client-tx-field-label" style={{
                     fontSize: '12px',
                     fontWeight: '700',
-                    color: isDark ? 'var(--text-secondary)' : '#667085',
+                    color: isDark ? 'var(--text-secondary)' : '#6A6A69',
                     textTransform: 'uppercase',
                     marginBottom: '6px',
                     display: 'inline-block',
                   }}>
-                    Amount AUD <em style={{ color: '#da3838', fontStyle: 'normal' }}>*</em>
+                    Amount AUD <em style={{ color: '#C46A4C', fontStyle: 'normal' }}>*</em>
                   </label>
                   <div style={{ position: 'relative', width: '100%' }}>
-                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>{CURRENCY_PREFIX}</span>
+                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#151719' }}>{CURRENCY_PREFIX}</span>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -2282,13 +2282,13 @@ export default function ClientAddTransactionViewNew({
                       onKeyDown={preventExponentialAndNegative}
                       onChange={(e) => setGrossAmount(e.target.value.replace(/-/g, ""))}
                       style={{
-                        background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                        border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                        background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                        border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                         borderRadius: '12px',
                         padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
                         fontSize: '14.5px',
                         fontWeight: '500',
-                        color: isDark ? 'var(--text-primary)' : '#1d2939',
+                        color: isDark ? 'var(--text-primary)' : '#151719',
                         width: '100%',
                         boxSizing: 'border-box',
                         height: '50px',
@@ -2297,7 +2297,7 @@ export default function ClientAddTransactionViewNew({
                     />
                   </div>
                   {grossAmount && grossAmountError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                       <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
@@ -2310,7 +2310,7 @@ export default function ClientAddTransactionViewNew({
                   <label className="client-tx-field-label" style={{
                     fontSize: '12px',
                     fontWeight: '700',
-                    color: isDark ? 'var(--text-secondary)' : '#667085',
+                    color: isDark ? 'var(--text-secondary)' : '#6A6A69',
                     textTransform: 'uppercase',
                     marginBottom: '6px',
                     display: 'inline-block',
@@ -2323,13 +2323,13 @@ export default function ClientAddTransactionViewNew({
                     value={gstAmount}
                     onChange={(e) => setGstAmount(e.target.value)}
                     style={{
-                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                       borderRadius: '12px',
                       padding: '14px 16px',
                       fontSize: '14.5px',
                       fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      color: isDark ? 'var(--text-primary)' : '#151719',
                       width: '100%',
                       boxSizing: 'border-box',
                       height: '50px',
@@ -2337,7 +2337,7 @@ export default function ClientAddTransactionViewNew({
                     }}
                   />
                   {gstAmount && gstAmountError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                       <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
@@ -2353,13 +2353,13 @@ export default function ClientAddTransactionViewNew({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '16px 0',
-                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-                borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
+                borderBottom: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
                 marginTop: '8px',
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
-                  <span style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate across multiple properties</span>
+                  <span style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#151719' }}>Is this a split transaction?</span>
+                  <span style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#6A6A69' }}>Allocate across multiple properties</span>
                 </div>
                 <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
                   <input
@@ -2375,7 +2375,7 @@ export default function ClientAddTransactionViewNew({
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#1c2452') : (isDark ? 'var(--surface-2)' : '#e2e8f0'),
+                    backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#151719') : (isDark ? 'var(--surface-2)' : '#E2E0D9'),
                     transition: '.3s',
                     borderRadius: '34px',
                   }} />
@@ -2389,7 +2389,7 @@ export default function ClientAddTransactionViewNew({
                     backgroundColor: 'white',
                     transition: '.3s',
                     borderRadius: '50%',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                    boxShadow: '0 1px 3px rgba(21, 23, 25,0.15)',
                     pointerEvents: 'none',
                   }} />
                 </label>
@@ -2405,8 +2405,8 @@ export default function ClientAddTransactionViewNew({
 
                     return (
                       <div key={row.id} style={{
-                        background: isDark ? 'var(--surface-2)' : '#ffffff',
-                        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                        background: isDark ? 'var(--surface-2)' : '#FFFFFF',
+                        border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
                         borderRadius: '12px',
                         padding: '16px',
                         boxSizing: 'border-box',
@@ -2416,7 +2416,7 @@ export default function ClientAddTransactionViewNew({
                       }}>
                         {/* Split Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', fontWeight: '800', color: isDark ? 'var(--text-muted)' : '#98a2b3', letterSpacing: '0.5px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '800', color: isDark ? 'var(--text-muted)' : '#989794', letterSpacing: '0.5px' }}>
                             PROPERTY {index + 1}
                           </span>
                           <button
@@ -2426,7 +2426,7 @@ export default function ClientAddTransactionViewNew({
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#BC4A24',
+                              color: '#C46A4C',
                               fontSize: '12.5px',
                               fontWeight: '700',
                               cursor: 'pointer',
@@ -2454,7 +2454,7 @@ export default function ClientAddTransactionViewNew({
                           </div>
                           <div style={{ flex: '2', minWidth: 0 }}>
                             <div style={{ position: 'relative', width: '100%' }}>
-                              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>{CURRENCY_PREFIX}</span>
+                              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#151719' }}>{CURRENCY_PREFIX}</span>
                               <input
                                 type="number"
                                 inputMode="decimal"
@@ -2465,13 +2465,13 @@ export default function ClientAddTransactionViewNew({
                                 onKeyDown={preventExponentialAndNegative}
                                 onChange={(e) => updateSplitRow(row.id, { amount: e.target.value.replace(/-/g, "") })}
                                 style={{
-                                  background: isDark ? 'var(--surface-1)' : '#f8f9fb',
-                                  border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                                  background: isDark ? 'var(--surface-1)' : '#F3F0E9',
+                                  border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                                   borderRadius: '12px',
                                   padding: `14px 12px 14px ${18 + CURRENCY_PREFIX.length * 8}px`,
                                   fontSize: '14.5px',
                                   fontWeight: '500',
-                                  color: isDark ? 'var(--text-primary)' : '#1d2939',
+                                  color: isDark ? 'var(--text-primary)' : '#151719',
                                   width: '100%',
                                   boxSizing: 'border-box',
                                   height: '50px',
@@ -2480,7 +2480,7 @@ export default function ClientAddTransactionViewNew({
                               />
                             </div>
                             {amountError && (
-                              <p style={{ color: '#da3838', fontSize: '11px', marginTop: '4px', fontWeight: '600' }}>{amountError}</p>
+                              <p style={{ color: '#C46A4C', fontSize: '11px', marginTop: '4px', fontWeight: '600' }}>{amountError}</p>
                             )}
                           </div>
                         </div>
@@ -2489,7 +2489,7 @@ export default function ClientAddTransactionViewNew({
                   })}
 
                   {splitErrors.__form && (
-                    <p style={{ color: '#da3838', fontSize: '12px', fontWeight: '600', margin: '4px 0' }}>
+                    <p style={{ color: '#C46A4C', fontSize: '12px', fontWeight: '600', margin: '4px 0' }}>
                       {splitErrors.__form}
                     </p>
                   )}
@@ -2503,7 +2503,7 @@ export default function ClientAddTransactionViewNew({
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#12b76a',
+                        color: '#6F7A5A',
                         fontSize: '14px',
                         fontWeight: '700',
                         cursor: properties.length < 2 ? 'not-allowed' : 'pointer',
@@ -2520,16 +2520,16 @@ export default function ClientAddTransactionViewNew({
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      background: isDark ? 'var(--surface-2)' : '#F0F4FA',
+                      background: isDark ? 'var(--surface-2)' : '#F3F0E9',
                       borderRadius: '12px',
                       padding: '12px 16px',
                       width: '100%',
                       boxSizing: 'border-box',
                     }}>
-                      <span style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#667085', fontWeight: '500' }}>
+                      <span style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#6A6A69', fontWeight: '500' }}>
                         Total allocated
                       </span>
-                      <span style={{ fontSize: '14.5px', color: isDark ? 'var(--text-primary)' : '#1c2452', fontWeight: '700' }}>
+                      <span style={{ fontSize: '14.5px', color: isDark ? 'var(--text-primary)' : '#151719', fontWeight: '700' }}>
                         {CURRENCY_PREFIX}{splitTotal.toFixed(2)} / {CURRENCY_PREFIX}{Number(grossAmount || 0).toFixed(2)}
                       </span>
                     </div>
@@ -2540,8 +2540,8 @@ export default function ClientAddTransactionViewNew({
               {/* Invoice Date and Mode of Transaction */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '8px' }}>
-                    Invoice Date <em style={{ color: '#da3838', fontStyle: 'normal' }}>*</em>
+                  <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '8px' }}>
+                    Invoice Date <em style={{ color: '#C46A4C', fontStyle: 'normal' }}>*</em>
                   </label>
                   <input
                     type="date"
@@ -2553,13 +2553,13 @@ export default function ClientAddTransactionViewNew({
                       setInvoiceDateTouched(true);
                     }}
                     style={{
-                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                       borderRadius: '12px',
                       padding: '14px 16px',
                       fontSize: '14.5px',
                       fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      color: isDark ? 'var(--text-primary)' : '#151719',
                       width: '100%',
                       boxSizing: 'border-box',
                       height: '50px',
@@ -2567,7 +2567,7 @@ export default function ClientAddTransactionViewNew({
                     }}
                   />
                   {showDateError && invoiceDateError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                       <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                       </svg>
@@ -2588,19 +2588,19 @@ export default function ClientAddTransactionViewNew({
 
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '8px' }}>Description</label>
+                <label className="client-tx-field-label" style={{ fontSize: '13.5px', fontWeight: '600', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '8px' }}>Description</label>
                 <textarea
                   placeholder="Add remarks...."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   style={{
-                    background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                    border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                     borderRadius: '12px',
                     padding: '14px 16px',
                     fontSize: '14.5px',
                     fontWeight: '500',
-                    color: isDark ? 'var(--text-primary)' : '#1d2939',
+                    color: isDark ? 'var(--text-primary)' : '#151719',
                     width: '100%',
                     boxSizing: 'border-box',
                     outline: 'none',
@@ -2611,7 +2611,7 @@ export default function ClientAddTransactionViewNew({
               </div>
 
               {submitError && (
-                <p style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
+                <p style={{ color: '#C46A4C', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
                   {submitError}
                 </p>
               )}
@@ -2622,11 +2622,11 @@ export default function ClientAddTransactionViewNew({
                 bottom: 0,
                 left: 0,
                 right: 0,
-                background: isDark ? 'var(--surface-1)' : '#ffffff',
-                borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+                borderTop: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
                 padding: '16px 20px calc(16px + env(safe-area-inset-bottom)) 20px',
                 zIndex: 100,
-                boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+                boxShadow: '0 -4px 12px rgba(21, 23, 25, 0.03)',
               }}>
                 <button
                   type="submit"
@@ -2634,8 +2634,8 @@ export default function ClientAddTransactionViewNew({
                   style={{
                     width: '100%',
                     height: '52px',
-                    background: isDark ? 'var(--accent)' : '#1c2452',
-                    color: '#ffffff',
+                    background: isDark ? 'var(--accent)' : '#151719',
+                    color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -2659,8 +2659,8 @@ export default function ClientAddTransactionViewNew({
       width: '100%',
       maxWidth: '1280px',
       margin: '0 auto',
-      fontFamily: "'Inter', sans-serif",
-      background: isDark ? 'var(--surface-0)' : '#ffffff',
+      fontFamily: "'Inter Tight', sans-serif",
+      background: isDark ? 'var(--surface-0)' : '#FFFFFF',
     }}>
       {isMobile ? (
         <>
@@ -2670,8 +2670,8 @@ export default function ClientAddTransactionViewNew({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            background: isDark ? 'var(--surface-1)' : '#ffffff',
+            borderBottom: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
+            background: isDark ? 'var(--surface-1)' : '#FFFFFF',
             height: '60px',
             boxSizing: 'border-box',
             position: 'sticky',
@@ -2687,7 +2687,7 @@ export default function ClientAddTransactionViewNew({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                color: isDark ? 'var(--accent)' : '#1c2452',
+                color: isDark ? 'var(--accent)' : '#151719',
                 fontSize: '15px',
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -2702,7 +2702,7 @@ export default function ClientAddTransactionViewNew({
             <span style={{
               fontSize: '17px',
               fontWeight: '700',
-              color: isDark ? 'var(--text-primary)' : '#0f1330',
+              color: isDark ? 'var(--text-primary)' : '#151719',
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)',
@@ -2714,7 +2714,7 @@ export default function ClientAddTransactionViewNew({
 
           {/* Step Banner */}
           <div style={{
-            background: isDark ? 'rgba(92, 133, 214, 0.08)' : '#f2f5fa',
+            background: isDark ? 'rgba(122, 92, 250, 0.08)' : '#F3F0E9',
             padding: '12px 16px',
             textAlign: 'center',
             marginBottom: '20px',
@@ -2722,7 +2722,7 @@ export default function ClientAddTransactionViewNew({
             <span style={{
               fontSize: '13.5px',
               fontWeight: '600',
-              color: isDark ? 'var(--text-primary)' : '#1e3a7a',
+              color: isDark ? 'var(--text-primary)' : '#6B4EE6',
             }}>
               Enter the below values to complete the step
             </span>
@@ -2745,17 +2745,17 @@ export default function ClientAddTransactionViewNew({
       )}
 
       <div className="client-tx-card" style={{
-        background: isDark ? 'var(--surface-1)' : '#ffffff',
-        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+        border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
         borderRadius: '16px',
         padding: isMobile ? '24px 20px' : '36px 40px',
-        boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.05)',
+        boxShadow: '0px 1px 3px rgba(21, 23, 25, 0.05)',
       }}>
-        <h2 className="client-tx-title" style={{ fontSize: '18px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2452', margin: '0 0 24px 0' }}>Transaction Information</h2>
+        <h2 className="client-tx-title" style={{ fontSize: '18px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#151719', margin: '0 0 24px 0' }}>Transaction Information</h2>
         <form className="client-tx-form" onSubmit={handleSubmit}>
 
           {showSelectionMessage && selectionMessage && (
-            <div className="client-tx-banner-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: '#da3838', fontSize: '13px', fontWeight: '600' }}>
+            <div className="client-tx-banner-error" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", color: '#C46A4C', fontSize: '13px', fontWeight: '600' }}>
               <svg style={{ width: '20px', height: '20px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
@@ -2782,7 +2782,7 @@ export default function ClientAddTransactionViewNew({
 
           {/* Upload Invoice or Receipt (nested here!) */}
           <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginBottom: "24px" }}>
-            <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Upload Invoice or Receipt</span>
+            <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>Upload Invoice or Receipt</span>
             {documentId && uploadedFilename && token ? (
               <DocumentPreviewPanel
                 documentId={documentId}
@@ -2806,7 +2806,7 @@ export default function ClientAddTransactionViewNew({
                   secondaryLabelText="PDF, JPG, PNG · Max 10 MB"
                   hideIconOnIdle={true}
                   style={{
-                    border: '1.5px dashed #c4ccd8',
+                    border: '1.5px dashed #C2C0BB',
                     background: 'transparent',
                     borderRadius: '12px',
                     padding: '40px 24px',
@@ -2823,13 +2823,13 @@ export default function ClientAddTransactionViewNew({
                   strongStyle={{
                     fontSize: '15px',
                     fontWeight: '500',
-                    color: isDark ? 'var(--text-primary)' : '#344054',
+                    color: isDark ? 'var(--text-primary)' : '#3E3F3F',
                     margin: '0 0 4px 0',
                     display: 'block',
                   }}
                   smallStyle={{
                     fontSize: '12px',
-                    color: isDark ? 'var(--text-muted)' : '#667085',
+                    color: isDark ? 'var(--text-muted)' : '#6A6A69',
                     margin: 0,
                     display: 'block',
                   }}
@@ -2842,12 +2842,12 @@ export default function ClientAddTransactionViewNew({
 
             {/* Transaction Type */}
             <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '20px' }}>
-              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>
                 Transaction Type
                 <em
                   className="client-tx-required"
                   style={{
-                    color: '#da3838',
+                    color: '#C46A4C',
                     fontStyle: 'normal',
                     marginLeft: '3px',
                   }}
@@ -2866,20 +2866,20 @@ export default function ClientAddTransactionViewNew({
                     height: '52px',
                     borderRadius: '12px',
                     border: type === "expense"
-                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#1a2b56'}`
-                      : `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#151719'}`
+                      : `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
                     background: isDark
-                      ? (type === "expense" ? 'rgba(92, 133, 214, 0.1)' : 'var(--surface-2)')
-                      : '#ffffff',
+                      ? (type === "expense" ? 'rgba(122, 92, 250, 0.1)' : 'var(--surface-2)')
+                      : '#FFFFFF',
                     color: type === "expense"
-                      ? (isDark ? 'var(--text-primary)' : '#1a2b56')
-                      : (isDark ? 'var(--text-secondary)' : '#566474'),
+                      ? (isDark ? 'var(--text-primary)' : '#151719')
+                      : (isDark ? 'var(--text-secondary)' : '#5B5C5B'),
                     fontSize: '14.5px',
                     fontWeight: '700',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     boxShadow: type === "expense"
-                      ? (isDark ? '0 0 0 3px rgba(92, 133, 214, 0.25)' : '0 0 0 3px rgba(26, 43, 86, 0.15)')
+                      ? (isDark ? '0 0 0 3px rgba(122, 92, 250, 0.25)' : '0 0 0 3px rgba(21, 23, 25, 0.15)')
                       : 'none',
                   }}
                 >
@@ -2895,20 +2895,20 @@ export default function ClientAddTransactionViewNew({
                     height: '52px',
                     borderRadius: '12px',
                     border: type === "revenue"
-                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#1a2b56'}`
-                      : `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                      ? `1.5px solid ${isDark ? 'var(--brand)' : '#151719'}`
+                      : `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
                     background: isDark
-                      ? (type === "revenue" ? 'rgba(92, 133, 214, 0.1)' : 'var(--surface-2)')
-                      : '#ffffff',
+                      ? (type === "revenue" ? 'rgba(122, 92, 250, 0.1)' : 'var(--surface-2)')
+                      : '#FFFFFF',
                     color: type === "revenue"
-                      ? (isDark ? 'var(--text-primary)' : '#1a2b56')
-                      : (isDark ? 'var(--text-secondary)' : '#566474'),
+                      ? (isDark ? 'var(--text-primary)' : '#151719')
+                      : (isDark ? 'var(--text-secondary)' : '#5B5C5B'),
                     fontSize: '14.5px',
                     fontWeight: '700',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     boxShadow: type === "revenue"
-                      ? (isDark ? '0 0 0 3px rgba(92, 133, 214, 0.25)' : '0 0 0 3px rgba(26, 43, 86, 0.15)')
+                      ? (isDark ? '0 0 0 3px rgba(122, 92, 250, 0.25)' : '0 0 0 3px rgba(21, 23, 25, 0.15)')
                       : 'none',
                   }}
                 >
@@ -2949,12 +2949,12 @@ export default function ClientAddTransactionViewNew({
             {/* Amount and GST (Optional) */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className={`client-tx-field-group ${flashClass("grossAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>
                   Amount
-                  <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+                  <em className="client-tx-required" style={{ color: '#C46A4C', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
                 </label>
                 <div className="client-tx-amount-input-wrap" style={{ position: 'relative', width: '100%' }}>
-                  <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
+                  <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#151719', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
                   <input
                     type="number"
                     className="client-tx-input has-prefix"
@@ -2969,14 +2969,14 @@ export default function ClientAddTransactionViewNew({
                       setGrossAmount(val);
                     }}
                     style={{
-                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                       borderRadius: '12px',
                       padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
                       ['--prefix-padding' as any]: `${24 + CURRENCY_PREFIX.length * 9}px`,
                       fontSize: '14.5px',
                       fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      color: isDark ? 'var(--text-primary)' : '#151719',
                       width: '100%',
                       boxSizing: 'border-box',
                       outline: 'none',
@@ -2985,7 +2985,7 @@ export default function ClientAddTransactionViewNew({
                   />
                 </div>
                 {grossAmount && grossAmountError && (
-                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                     <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
@@ -2995,7 +2995,7 @@ export default function ClientAddTransactionViewNew({
               </div>
 
               <div className={`client-tx-field-group ${flashClass("gstAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>GST (Optional)</label>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>GST (Optional)</label>
                 <div className="client-tx-amount-input-wrap no-prefix" style={{ position: 'relative', width: '100%' }}>
                   <input
                     type="text"
@@ -3014,13 +3014,13 @@ export default function ClientAddTransactionViewNew({
                       }
                     }}
                     style={{
-                      background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                      background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                       borderRadius: '12px',
                       padding: '14px 16px',
                       fontSize: '14.5px',
                       fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
+                      color: isDark ? 'var(--text-primary)' : '#151719',
                       width: '100%',
                       boxSizing: 'border-box',
                       outline: 'none',
@@ -3029,7 +3029,7 @@ export default function ClientAddTransactionViewNew({
                   />
                 </div>
                 {gstAmount && gstAmountError && (
-                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                     <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
@@ -3042,9 +3042,9 @@ export default function ClientAddTransactionViewNew({
             {/* Invoice Date and Mode of Transaction */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className={`client-tx-field-group ${flashClass("invoiceDate")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>
+                <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>
                   Invoice Date
-                  <em className="client-tx-required" style={{ color: '#da3838', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
+                  <em className="client-tx-required" style={{ color: '#C46A4C', fontStyle: 'normal', marginLeft: '3px' }}>*</em>
                 </label>
                 <input
                   type="date"
@@ -3063,13 +3063,13 @@ export default function ClientAddTransactionViewNew({
                   }}
                   onBlur={() => setInvoiceDateTouched(true)}
                   style={{
-                    background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                    background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                    border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                     borderRadius: '12px',
                     padding: '14px 16px',
                     fontSize: '14.5px',
                     fontWeight: '500',
-                    color: isDark ? 'var(--text-primary)' : '#1d2939',
+                    color: isDark ? 'var(--text-primary)' : '#151719',
                     width: '100%',
                     boxSizing: 'border-box',
                     outline: 'none',
@@ -3077,7 +3077,7 @@ export default function ClientAddTransactionViewNew({
                   }}
                 />
                 {showDateError && invoiceDateError && (
-                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                     <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
@@ -3108,11 +3108,11 @@ export default function ClientAddTransactionViewNew({
               alignItems: 'center',
               padding: '20px 0',
               margin: '12px 0 20px 0',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
             }}>
               <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a split transaction?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>Allocate across multiple properties</span>
+                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#151719' }}>Is this a split transaction?</span>
+                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#6A6A69' }}>Allocate across multiple properties</span>
               </div>
               <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
                 <input
@@ -3128,7 +3128,7 @@ export default function ClientAddTransactionViewNew({
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#1d2452') : (isDark ? 'var(--surface-2)' : '#e2e8f0'),
+                  backgroundColor: isSplit ? (isDark ? 'var(--accent)' : '#151719') : (isDark ? 'var(--surface-2)' : '#E2E0D9'),
                   transition: '.3s',
                   borderRadius: '34px',
                 }} />
@@ -3142,14 +3142,14 @@ export default function ClientAddTransactionViewNew({
                   backgroundColor: 'white',
                   transition: '.3s',
                   borderRadius: '50%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  boxShadow: '0 1px 3px rgba(21, 23, 25,0.15)',
                   pointerEvents: 'none',
                 }} />
               </label>
             </div>
 
             {!isSplit && submitError && submitError.toLowerCase().includes("split") && (
-              <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
+              <p className="client-tx-warning-banner" role="alert" style={{ color: '#C46A4C', fontSize: '13px', fontWeight: '600', margin: '8px 0' }}>
                 {submitError}
               </p>
             )}
@@ -3164,14 +3164,14 @@ export default function ClientAddTransactionViewNew({
 
                   return (
                     <div key={row.id} className="client-tx-split-card" style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+                      background: isDark ? 'var(--surface-2)' : '#FFFFFF',
+                      border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
                       borderRadius: '12px',
                       padding: '20px',
                       boxSizing: 'border-box',
                     }}>
                       <div className="client-tx-split-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <span className="client-tx-split-card-title" style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.8px', color: isDark ? 'var(--text-muted)' : '#667085' }}>PROPERTY {index + 1}</span>
+                        <span className="client-tx-split-card-title" style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.8px', color: isDark ? 'var(--text-muted)' : '#6A6A69' }}>PROPERTY {index + 1}</span>
                         <button
                           type="button"
                           className="client-tx-split-remove-btn"
@@ -3180,7 +3180,7 @@ export default function ClientAddTransactionViewNew({
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: isDark ? 'var(--danger)' : '#da3838',
+                            color: isDark ? 'var(--danger)' : '#C46A4C',
                             fontSize: '12.5px',
                             fontWeight: '700',
                             cursor: 'pointer',
@@ -3209,7 +3209,7 @@ export default function ClientAddTransactionViewNew({
 
                         <div className="client-tx-field-group flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
                           <div className="client-tx-amount-input-wrap" style={{ position: 'relative', width: '100%' }}>
-                            <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#1d2939', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
+                            <span className="client-tx-amount-prefix" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '14.5px', fontWeight: '600', color: isDark ? 'var(--text-primary)' : '#151719', pointerEvents: 'none' }}>{CURRENCY_PREFIX}</span>
                             <input
                               type="number"
                               className="client-tx-input has-prefix"
@@ -3224,14 +3224,14 @@ export default function ClientAddTransactionViewNew({
                                 updateSplitRow(row.id, { amount: val });
                               }}
                               style={{
-                                background: isDark ? 'var(--surface-1)' : '#f8f9fb',
-                                border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                                background: isDark ? 'var(--surface-1)' : '#F3F0E9',
+                                border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                                 borderRadius: '12px',
                                 padding: `14px 16px 14px ${24 + CURRENCY_PREFIX.length * 9}px`,
                                 ['--prefix-padding' as any]: `${24 + CURRENCY_PREFIX.length * 9}px`,
                                 fontSize: '14.5px',
                                 fontWeight: '500',
-                                color: isDark ? 'var(--text-primary)' : '#1d2939',
+                                color: isDark ? 'var(--text-primary)' : '#151719',
                                 width: '100%',
                                 boxSizing: 'border-box',
                                 outline: 'none',
@@ -3240,7 +3240,7 @@ export default function ClientAddTransactionViewNew({
                             />
                           </div>
                           {amountError && (
-                            <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                            <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                               <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                               </svg>
@@ -3254,7 +3254,7 @@ export default function ClientAddTransactionViewNew({
                 })}
 
                 {splitErrors.__form && (
-                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", margin: "8px 0", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                  <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", margin: "8px 0", color: '#C46A4C', fontSize: '11.5px', fontWeight: '600' }}>
                     <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
@@ -3266,7 +3266,7 @@ export default function ClientAddTransactionViewNew({
                   <span className={`client-tx-split-total-label ${grossAmount && !splitMatches ? "is-mismatch" : ""}`} style={{
                     fontSize: '13px',
                     fontWeight: '600',
-                    color: grossAmount && !splitMatches ? '#da3838' : (isDark ? 'var(--text-secondary)' : '#566474'),
+                    color: grossAmount && !splitMatches ? '#C46A4C' : (isDark ? 'var(--text-secondary)' : '#5B5C5B'),
                   }}>
                     {grossAmount && !Number.isNaN(grossNumberValue)
                       ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
@@ -3280,7 +3280,7 @@ export default function ClientAddTransactionViewNew({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: isDark ? 'var(--accent)' : '#1d2452',
+                      color: isDark ? 'var(--accent)' : '#151719',
                       fontSize: '13.5px',
                       fontWeight: '700',
                       cursor: properties.length < 2 ? 'not-allowed' : 'pointer',
@@ -3294,27 +3294,27 @@ export default function ClientAddTransactionViewNew({
             )}
 
             {isSplit && submitError && submitError.toLowerCase().includes("split") && (
-              <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', marginTop: "12px", marginBottom: "12px" }}>
+              <p className="client-tx-warning-banner" role="alert" style={{ color: '#C46A4C', fontSize: '13px', fontWeight: '600', marginTop: "12px", marginBottom: "12px" }}>
                 {submitError}
               </p>
             )}
 
             {/* Description */}
             <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginTop: "16px" }}>
-              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Description</label>
+              <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>Description</label>
               <textarea
                 className="client-tx-textarea"
                 placeholder="Add remarks..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 style={{
-                  background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-                  border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+                  background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+                  border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
                   borderRadius: '12px',
                   padding: '14px 16px',
                   fontSize: '14.5px',
                   fontWeight: '500',
-                  color: isDark ? 'var(--text-primary)' : '#1d2939',
+                  color: isDark ? 'var(--text-primary)' : '#151719',
                   width: '100%',
                   boxSizing: 'border-box',
                   outline: 'none',
@@ -3326,7 +3326,7 @@ export default function ClientAddTransactionViewNew({
             </div>
 
             {submitError && !submitError.toLowerCase().includes("split") && (
-              <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', marginTop: "16px" }}>
+              <p className="client-tx-warning-banner" role="alert" style={{ color: '#C46A4C', fontSize: '13px', fontWeight: '600', marginTop: "16px" }}>
                 {submitError}
               </p>
             )}
@@ -3339,7 +3339,7 @@ export default function ClientAddTransactionViewNew({
               marginTop: '32px',
               gap: '16px',
               paddingTop: '24px',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+              borderTop: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
               width: '100%',
               boxSizing: 'border-box',
             }}>
@@ -3349,13 +3349,13 @@ export default function ClientAddTransactionViewNew({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: isDark ? 'var(--surface-2)' : '#f2f4f7',
+                  background: isDark ? 'var(--surface-2)' : '#F3F0E9',
                   border: 'none',
                   borderRadius: '12px',
                   padding: '16px 24px',
                   fontSize: '14.5px',
                   fontWeight: '700',
-                  color: isDark ? 'var(--danger)' : '#da3838',
+                  color: isDark ? 'var(--danger)' : '#C46A4C',
                   textDecoration: 'none',
                   cursor: 'pointer',
                   height: '50px',
@@ -3373,13 +3373,13 @@ export default function ClientAddTransactionViewNew({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: isDark ? 'var(--brand)' : '#1d2452',
+                  background: isDark ? 'var(--brand)' : '#151719',
                   border: 'none',
                   borderRadius: '12px',
                   padding: '16px 24px',
                   fontSize: '14.5px',
                   fontWeight: '700',
-                  color: '#ffffff',
+                  color: '#FFFFFF',
                   cursor: (!canSubmit || isSubmitting) ? 'not-allowed' : 'pointer',
                   height: '50px',
                   boxSizing: 'border-box',
@@ -3513,7 +3513,7 @@ function BulkImportModal({
       left: 0,
       right: 0,
       bottom: 0,
-      background: isDark ? 'rgba(15, 19, 48, 0.8)' : 'rgba(29, 36, 82, 0.4)',
+      background: isDark ? 'rgba(21, 23, 25, 0.8)' : 'rgba(21, 23, 25, 0.4)',
       backdropFilter: 'blur(4px)',
       display: 'flex',
       justifyContent: 'center',
@@ -3536,12 +3536,12 @@ function BulkImportModal({
         }}
       />
       <section style={{
-        background: isDark ? 'var(--surface-1)' : '#ffffff',
-        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+        border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
         borderRadius: '20px',
         maxWidth: '550px',
         width: '90%',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+        boxShadow: '0 20px 50px rgba(21, 23, 25, 0.15)',
         zIndex: 10000,
         overflow: 'hidden',
         display: 'flex',
@@ -3552,16 +3552,16 @@ function BulkImportModal({
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '24px 32px',
-          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+          borderBottom: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
         }}>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: 0 }}>Bulk Import from CSV</h2>
-            <p style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#566474', margin: '4px 0 0 0' }}>Upload multiple transactions at once</p>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#151719', margin: 0 }}>Bulk Import from CSV</h2>
+            <p style={{ fontSize: '13px', color: isDark ? 'var(--text-secondary)' : '#5B5C5B', margin: '4px 0 0 0' }}>Upload multiple transactions at once</p>
           </div>
           <button type="button" aria-label="Close bulk import" onClick={onClose} style={{
             background: 'none',
             border: 'none',
-            color: isDark ? 'var(--text-secondary)' : '#566474',
+            color: isDark ? 'var(--text-secondary)' : '#5B5C5B',
             cursor: 'pointer',
             padding: '4px',
             display: 'flex',
@@ -3597,21 +3597,21 @@ function BulkImportModal({
           />
 
           <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box', marginTop: "16px" }}>
-            <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>CSV File</span>
+            <span className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#3E3F3F', marginBottom: '6px', display: 'inline-block' }}>CSV File</span>
             <input type="file" accept=".csv" onChange={handleFileChange} style={{
-              background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-              border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+              background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+              border: `1px solid ${isDark ? 'var(--border)' : '#CCCAC4'}`,
               borderRadius: '12px',
               padding: '12px 16px',
               fontSize: '14px',
-              color: isDark ? 'var(--text-primary)' : '#1d2939',
+              color: isDark ? 'var(--text-primary)' : '#151719',
               width: '100%',
               boxSizing: 'border-box',
               outline: 'none',
             }} />
           </div>
 
-          {errorMsg && <p style={{ color: '#da3838', fontSize: '12px', fontWeight: '600', margin: '8px 0 0 0' }}>{errorMsg}</p>}
+          {errorMsg && <p style={{ color: '#C46A4C', fontSize: '12px', fontWeight: '600', margin: '8px 0 0 0' }}>{errorMsg}</p>}
         </div>
 
         <footer style={{
@@ -3620,13 +3620,13 @@ function BulkImportModal({
           alignItems: 'center',
           gap: '12px',
           padding: '24px 32px',
-          background: isDark ? 'var(--surface-2)' : '#f8f9fb',
-          borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+          background: isDark ? 'var(--surface-2)' : '#F3F0E9',
+          borderTop: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
         }}>
           <button type="button" onClick={onClose} disabled={isLoading} style={{
             background: 'transparent',
             border: 'none',
-            color: isDark ? 'var(--danger)' : '#da3838',
+            color: isDark ? 'var(--danger)' : '#C46A4C',
             fontSize: '14.5px',
             fontWeight: '700',
             cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -3635,13 +3635,13 @@ function BulkImportModal({
             Cancel
           </button>
           <button type="button" onClick={handleImport} disabled={isLoading} style={{
-            background: isDark ? 'var(--brand)' : '#1d2452',
+            background: isDark ? 'var(--brand)' : '#151719',
             border: 'none',
             borderRadius: '10px',
             padding: '10px 24px',
             fontSize: '14.5px',
             fontWeight: '700',
-            color: '#ffffff',
+            color: '#FFFFFF',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             opacity: isLoading ? 0.65 : 1,
           }}>
@@ -3680,7 +3680,7 @@ function TransactionFeedbackModal({
       left: 0,
       right: 0,
       bottom: 0,
-      background: isDark ? 'rgba(15, 19, 48, 0.8)' : 'rgba(29, 36, 82, 0.4)',
+      background: isDark ? 'rgba(21, 23, 25, 0.8)' : 'rgba(21, 23, 25, 0.4)',
       backdropFilter: 'blur(4px)',
       display: 'flex',
       justifyContent: 'center',
@@ -3703,14 +3703,14 @@ function TransactionFeedbackModal({
         }}
       />
       <section style={{
-        background: isDark ? 'var(--surface-1)' : '#ffffff',
-        border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
+        background: isDark ? 'var(--surface-1)' : '#FFFFFF',
+        border: `1px solid ${isDark ? 'var(--border)' : '#EBE8E1'}`,
         borderRadius: '20px',
         padding: '40px 32px',
         textAlign: 'center',
         maxWidth: '450px',
         width: '90%',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+        boxShadow: '0 20px 50px rgba(21, 23, 25, 0.15)',
         zIndex: 10000,
         display: 'flex',
         flexDirection: 'column',
@@ -3723,8 +3723,8 @@ function TransactionFeedbackModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: tone === "success" ? 'rgba(18, 183, 106, 0.1)' : 'rgba(240, 149, 149, 0.15)',
-          color: tone === "success" ? '#12B76A' : '#da3838',
+          background: tone === "success" ? 'rgba(111, 122, 90, 0.1)' : 'rgba(234, 195, 178, 0.15)',
+          color: tone === "success" ? '#6F7A5A' : '#C46A4C',
           marginBottom: '20px',
         }} aria-hidden="true">
           {tone === "success" ? (
@@ -3739,17 +3739,17 @@ function TransactionFeedbackModal({
             </svg>
           )}
         </div>
-        <h2 style={{ fontSize: '20px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#0f1330', margin: '0 0 8px 0' }}>{title}</h2>
-        <p style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#566474', margin: '0 0 24px 0', lineHeight: 1.5 }}>{message}</p>
+        <h2 style={{ fontSize: '20px', fontWeight: '800', color: isDark ? 'var(--text-primary)' : '#151719', margin: '0 0 8px 0' }}>{title}</h2>
+        <p style={{ fontSize: '14.5px', color: isDark ? 'var(--text-secondary)' : '#5B5C5B', margin: '0 0 24px 0', lineHeight: 1.5 }}>{message}</p>
         <button type="button" onClick={onClose} style={{
           width: '100%',
-          background: isDark ? 'var(--brand)' : '#1d2452',
+          background: isDark ? 'var(--brand)' : '#151719',
           border: 'none',
           borderRadius: '12px',
           padding: '14px 24px',
           fontSize: '14.5px',
           fontWeight: '700',
-          color: '#ffffff',
+          color: '#FFFFFF',
           cursor: 'pointer',
         }}>
           Continue

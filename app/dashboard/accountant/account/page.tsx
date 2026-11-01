@@ -275,7 +275,7 @@ export default function AccountantAccountPage() {
                         type="button"
                         onClick={handleSavePhone}
                         disabled={isUpdatingPhone || !!phoneError}
-                        style={{ color: "#2ea86b", fontWeight: 700 }}
+                        style={{ color: "#6F7A5A", fontWeight: 700 }}
                       >
                         {isUpdatingPhone ? "Saving..." : "Save"}
                       </button>
@@ -283,7 +283,7 @@ export default function AccountantAccountPage() {
                         type="button"
                         onClick={() => setIsEditingPhone(false)}
                         disabled={isUpdatingPhone}
-                        style={{ color: "#dc2626", fontWeight: 700 }}
+                        style={{ color: "#C46A4C", fontWeight: 700 }}
                       >
                         Cancel
                       </button>
@@ -303,7 +303,7 @@ export default function AccountantAccountPage() {
                   </div>
                 )}
                 {phoneError && (
-                  <span style={{ color: "#dc2626", fontSize: "0.85rem", marginTop: "4px" }}>
+                  <span style={{ color: "#C46A4C", fontSize: "0.85rem", marginTop: "4px" }}>
                     {phoneError}
                   </span>
                 )}

@@ -171,14 +171,14 @@ export function ProfitLossTrendView({
           {selectedYear && (
             <p
               className="trend-period-label"
-              style={{ fontSize: 14, color: "#667085", marginTop: 4 }}
+              style={{ fontSize: 14, color: "#6A6A69", marginTop: 4 }}
               data-testid="trend-period-label"
             >
               Reporting Period: {selectedYear}
             </p>
           )}
           {notice && (
-            <p className="trend-period-label" role="status" style={{ fontSize: 13, color: "#b54708", marginTop: 4 }}>
+            <p className="trend-period-label" role="status" style={{ fontSize: 13, color: "#C46A4C", marginTop: 4 }}>
               {notice}
             </p>
           )}
@@ -228,7 +228,7 @@ export function ProfitLossTrendView({
             {isDropdownOpen && (
               <div
                 className="property-status-menu"
-                style={{ zIndex: 50, position: "absolute", right: 0, left: "auto", minWidth: 120, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
+                style={{ zIndex: 50, position: "absolute", right: 0, left: "auto", minWidth: 120, boxShadow: "0 10px 30px rgba(21, 23, 25,0.1)" }}
                 role="listbox"
                 data-testid="year-select-menu"
               >

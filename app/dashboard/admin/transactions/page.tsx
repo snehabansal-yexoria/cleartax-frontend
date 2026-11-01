@@ -50,11 +50,11 @@ const DEFAULT_CATEGORY_BREAKDOWN: CategoryBreakdownItem[] = [
 ];
 
 const DEFAULT_ACCOUNTANT_RECONCILIATION: AccountantReconciliationItem[] = [
-  { name: "Priya Rajan", rate: 82, colorClass: "bg-[#0f766e]", textClass: "text-[#0f766e]" },
-  { name: "Akash Sharma", rate: 78, colorClass: "bg-[#0f766e]", textClass: "text-[#0f766e]" },
-  { name: "Jessica Tran", rate: 69, colorClass: "bg-[#d97706]", textClass: "text-[#d97706]" },
-  { name: "Satnam Singh", rate: 55, colorClass: "bg-[#d97706]", textClass: "text-[#d97706]" },
-  { name: "Michael Chen", rate: 31, colorClass: "bg-[#b91c1c]", textClass: "text-[#b91c1c]" },
+  { name: "Priya Rajan", rate: 82, colorClass: "bg-[#56613F]", textClass: "text-[#56613F]" },
+  { name: "Akash Sharma", rate: 78, colorClass: "bg-[#56613F]", textClass: "text-[#56613F]" },
+  { name: "Jessica Tran", rate: 69, colorClass: "bg-[#C46A4C]", textClass: "text-[#C46A4C]" },
+  { name: "Satnam Singh", rate: 55, colorClass: "bg-[#C46A4C]", textClass: "text-[#C46A4C]" },
+  { name: "Michael Chen", rate: 31, colorClass: "bg-[#C46A4C]", textClass: "text-[#C46A4C]" },
 ];
 
 const DEFAULT_RECENT_TRANSACTIONS: RecentTransactionRow[] = [
@@ -63,65 +63,65 @@ const DEFAULT_RECENT_TRANSACTIONS: RecentTransactionRow[] = [
     client: "Sneha Bansal",
     property: "12 Maple St, Sydney",
     type: "Revenue",
-    typeClass: "bg-[#e2f0d9] text-[#385723]",
+    typeClass: "bg-[#F0EFE6] text-[#56613F]",
     category: "Rental income",
     amount: "+$3,200",
-    amountClass: "text-[#15803d]",
+    amountClass: "text-[#56613F]",
     addedBy: "Akash Sharma",
     status: "Classified",
-    statusClass: "bg-[#e2f0d9] text-[#385723]",
+    statusClass: "bg-[#F0EFE6] text-[#56613F]",
   },
   {
     date: "Jun 10, 2026",
     client: "Raj Patel",
     property: "4 Park Ave, Melbourne",
     type: "Expense",
-    typeClass: "bg-[#fce4d6] text-[#c65911]",
+    typeClass: "bg-[#F4E4DA] text-[#C46A4C]",
     category: "Maintenance",
     amount: "-$850",
-    amountClass: "text-[#b91c1c]",
+    amountClass: "text-[#C46A4C]",
     addedBy: "Satnam Singh",
     status: "Classified",
-    statusClass: "bg-[#e2f0d9] text-[#385723]",
+    statusClass: "bg-[#F0EFE6] text-[#56613F]",
   },
   {
     date: "Jun 9, 2026",
     client: "Li Chen",
     property: "8 River Rd, Brisbane",
     type: "Expense",
-    typeClass: "bg-[#fce4d6] text-[#c65911]",
+    typeClass: "bg-[#F4E4DA] text-[#C46A4C]",
     category: "Interest",
     amount: "-$4,100",
-    amountClass: "text-[#b91c1c]",
+    amountClass: "text-[#C46A4C]",
     addedBy: "Priya Rajan",
     status: "Classified",
-    statusClass: "bg-[#e2f0d9] text-[#385723]",
+    statusClass: "bg-[#F0EFE6] text-[#56613F]",
   },
   {
     date: "Jun 9, 2026",
     client: "Mark Williams",
     property: "22 Coast Dr, Perth",
     type: "Unknown",
-    typeClass: "bg-[#f2f2f2] text-[#595959]",
+    typeClass: "bg-[#F0EDE6] text-[#515151]",
     category: "—",
     amount: "$1,400",
-    amountClass: "text-[#333333]",
+    amountClass: "text-[#2F3132]",
     addedBy: "Michael Chen",
     status: "Unclassified",
-    statusClass: "bg-[#fce4d6] text-[#c65911]",
+    statusClass: "bg-[#F4E4DA] text-[#C46A4C]",
   },
   {
     date: "Jun 8, 2026",
     client: "Sneha Bansal",
     property: "6 Hill Ct, Sydney",
     type: "Expense",
-    typeClass: "bg-[#fce4d6] text-[#c65911]",
+    typeClass: "bg-[#F4E4DA] text-[#C46A4C]",
     category: "Mgmt fee",
     amount: "-$420",
-    amountClass: "text-[#b91c1c]",
+    amountClass: "text-[#C46A4C]",
     addedBy: "Akash Sharma",
     status: "Classified",
-    statusClass: "bg-[#e2f0d9] text-[#385723]",
+    statusClass: "bg-[#F0EFE6] text-[#56613F]",
   },
 ];
 
@@ -163,7 +163,7 @@ export default function TransactionsReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["ClearPortfolio - Transactions Report Summary", "Period: FY 2025-26"],
+        ["Thetaxio - Transactions Report Summary", "Period: FY 2025-26"],
         ["Total Transactions", summary.totalTransactions],
         ["Classified", `${summary.classifiedCount} (${summary.classifiedPercentText})`],
         ["Unclassified", `${summary.unclassifiedCount} (${summary.unclassifiedStatusText})`],
@@ -211,7 +211,7 @@ export default function TransactionsReportPage() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-[#0f172a] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 animate-fadeIn">
+        <div className="fixed top-6 right-6 z-50 bg-[#151719] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 animate-fadeIn">
           <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -223,8 +223,8 @@ export default function TransactionsReportPage() {
       {/* Section Header with Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-[20px] text-[#0f172a] tracking-tight mb-0.5 font-medium">Transactions</h2>
-          <p className="text-[12.5px] text-[#64748b] font-normal leading-normal">
+          <h2 className="text-[20px] text-[#151719] tracking-tight mb-0.5 font-medium">Transactions</h2>
+          <p className="text-[12.5px] text-[#6C6C6B] font-normal leading-normal">
             {summary.totalTransactions} total · FY 2025–26
           </p>
         </div>
@@ -290,39 +290,39 @@ export default function TransactionsReportPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
 
         {/* Card 1: Total Transactions */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Total transactions</span>
-            <h3 className="text-[34px] font-medium text-[#0f172a] leading-none mb-2 tracking-tight">{summary.totalTransactions}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Total transactions</span>
+            <h3 className="text-[34px] font-medium text-[#151719] leading-none mb-2 tracking-tight">{summary.totalTransactions}</h3>
           </div>
           <div className="h-4" /> {/* Empty spacing to balance baseline alignment */}
         </div>
 
         {/* Card 2: Classified */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Classified</span>
-            <h3 className="text-[34px] font-medium text-[#15803d] leading-none mb-2 tracking-tight">{summary.classifiedCount}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Classified</span>
+            <h3 className="text-[34px] font-medium text-[#56613F] leading-none mb-2 tracking-tight">{summary.classifiedCount}</h3>
           </div>
-          <span className="text-[12.5px] text-[#64748b]">{summary.classifiedPercentText}</span>
+          <span className="text-[12.5px] text-[#6C6C6B]">{summary.classifiedPercentText}</span>
         </div>
 
         {/* Card 3: Unclassified */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Unclassified</span>
-            <h3 className="text-[34px] font-medium text-[#b91c1c] leading-none mb-2 tracking-tight">{summary.unclassifiedCount}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Unclassified</span>
+            <h3 className="text-[34px] font-medium text-[#C46A4C] leading-none mb-2 tracking-tight">{summary.unclassifiedCount}</h3>
           </div>
-          <span className="text-[12.5px] text-[#b91c1c] font-semibold">{summary.unclassifiedStatusText}</span>
+          <span className="text-[12.5px] text-[#C46A4C] font-semibold">{summary.unclassifiedStatusText}</span>
         </div>
 
         {/* Card 4: Active Rules */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-medium text-[#64748b] tracking-wider uppercase block mb-3">Active rules</span>
-            <h3 className="text-[34px] font-medium text-[#0f172a] leading-none mb-2 tracking-tight">{summary.activeRulesCount}</h3>
+            <span className="text-[11px] font-medium text-[#6C6C6B] tracking-wider uppercase block mb-3">Active rules</span>
+            <h3 className="text-[34px] font-medium text-[#151719] leading-none mb-2 tracking-tight">{summary.activeRulesCount}</h3>
           </div>
-          <span className="text-[12.5px] text-[#64748b]">{summary.activeRulesLabelText}</span>
+          <span className="text-[12.5px] text-[#6C6C6B]">{summary.activeRulesLabelText}</span>
         </div>
 
       </div>
@@ -331,23 +331,23 @@ export default function TransactionsReportPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 
         {/* Left Side: Category Breakdown Card */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div className="w-full">
-            <h3 className="text-[15px] font-semibold text-[#0f172a] mb-6 select-none">Category breakdown</h3>
+            <h3 className="text-[15px] font-semibold text-[#151719] mb-6 select-none">Category breakdown</h3>
 
             <div className="space-y-4">
               {categoryBreakdown.map((item) => (
                 <div key={item.category} className="flex justify-between items-center py-1">
-                  <span className={`text-[13.5px] font-normal ${item.isUnclassified ? "text-[#b91c1c]" : "text-[#475569]"}`}>
+                  <span className={`text-[13.5px] font-normal ${item.isUnclassified ? "text-[#C46A4C]" : "text-[#505050]"}`}>
                     {item.category}
                   </span>
                   <div className="flex items-center gap-2">
                     {item.amount && (
-                      <span className="text-[13.5px] text-[#0f172a] font-semibold">
+                      <span className="text-[13.5px] text-[#151719] font-semibold">
                         {item.amount}
                       </span>
                     )}
-                    <span className={`text-[12.5px] font-normal ${item.isUnclassified ? "text-[#b91c1c] font-semibold" : "text-[#94a3b8]"}`}>
+                    <span className={`text-[12.5px] font-normal ${item.isUnclassified ? "text-[#C46A4C] font-semibold" : "text-[#999894]"}`}>
                       {item.countText}
                     </span>
                   </div>
@@ -358,18 +358,18 @@ export default function TransactionsReportPage() {
         </div>
 
         {/* Right Side: Reconciliation by Accountant Card */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl p-6 shadow-sm flex flex-col justify-between select-none">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between select-none">
           <div className="w-full">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-[15px] font-semibold text-[#0f172a]">Reconciliation by accountant</h3>
-              <span className="text-xs text-[#64748b] font-medium">Target 80%</span>
+              <h3 className="text-[15px] font-semibold text-[#151719]">Reconciliation by accountant</h3>
+              <span className="text-xs text-[#6C6C6B] font-medium">Target 80%</span>
             </div>
 
             <div className="space-y-5">
               {reconciliationList.map((acc) => (
                 <div key={acc.name} className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <span className="text-[13.5px] text-[#0f172a] font-semibold">{acc.name}</span>
+                    <span className="text-[13.5px] text-[#151719] font-semibold">{acc.name}</span>
                     <span className={`text-[12.5px] font-semibold ${acc.textClass}`}>{acc.rate}%</span>
                   </div>
                   {/* Progress bar container */}
@@ -389,42 +389,42 @@ export default function TransactionsReportPage() {
 
       {/* Recent Transactions Table Container */}
       <div className="w-full">
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#64748b] mb-3 select-none">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#6C6C6B] mb-3 select-none">
           RECENT TRANSACTIONS
         </h4>
 
         {/* Transactions Table Card */}
-        <div className="bg-white border border-[#eaecf0] rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-[#E8E5DF] rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#eaecf0] bg-white select-none">
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">DATE</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">CLIENT</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">PROPERTY</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">TYPE</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">CATEGORY</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">AMOUNT</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">ADDED BY</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">STATUS</th>
+                <tr className="border-b border-[#E8E5DF] bg-white select-none">
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">DATE</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">CLIENT</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">PROPERTY</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">TYPE</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">CATEGORY</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">AMOUNT</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">ADDED BY</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">STATUS</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f1f5f9]">
+              <tbody className="divide-y divide-[#F3F0E9]">
                 {recentTransactions.map((tx, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50 transition">
 
                     {/* Date cell */}
-                    <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
+                    <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
                       {tx.date}
                     </td>
 
                     {/* Client cell */}
-                    <td className="py-3.5 px-6 text-[13.5px] font-semibold text-[#0f172a] whitespace-nowrap">
+                    <td className="py-3.5 px-6 text-[13.5px] font-semibold text-[#151719] whitespace-nowrap">
                       {tx.client}
                     </td>
 
                     {/* Property cell */}
-                    <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
+                    <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
                       {tx.property}
                     </td>
 
@@ -436,7 +436,7 @@ export default function TransactionsReportPage() {
                     </td>
 
                     {/* Category cell */}
-                    <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
+                    <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
                       {tx.category}
                     </td>
 
@@ -446,7 +446,7 @@ export default function TransactionsReportPage() {
                     </td>
 
                     {/* Added By cell */}
-                    <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
+                    <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
                       {tx.addedBy}
                     </td>
 

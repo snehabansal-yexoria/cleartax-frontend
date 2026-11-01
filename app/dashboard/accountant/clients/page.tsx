@@ -87,12 +87,12 @@ function statusStyle(raw: string) {
     display: "inline-block",
   };
   if (s === "ACCEPTED" || s === "ACTIVE") {
-    return { ...base, color: "#027a48", background: "#ecfdf3" };
+    return { ...base, color: "#56613F", background: "#F3F0E9" };
   }
   if (s === "PENDING") {
-    return { ...base, color: "#b54708", background: "#fffaeb" };
+    return { ...base, color: "#C46A4C", background: "#F7EEE7" };
   }
-  return { ...base, color: "#344054", background: "#f2f4f7" };
+  return { ...base, color: "#3E3F3F", background: "#F3F0E9" };
 }
 
 function buildInviteLink(params: {
@@ -832,7 +832,7 @@ function AccountantClientsContent() {
           </div>
         ) : displayedClients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-[#f0f3fa] text-[#2f3c82] mb-5 shadow-inner">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-[#F3F0E9] text-[#2E3135] mb-5 shadow-inner">
               {searchValue.trim() ? (
                 <svg
                   viewBox="0 0 24 24"
@@ -880,7 +880,7 @@ function AccountantClientsContent() {
               )}
             </div>
 
-            <h3 className="text-lg font-bold text-[#101828] mb-2">
+            <h3 className="text-lg font-bold text-[#151719] mb-2">
               {searchValue.trim()
                 ? "No clients match your search"
                 : currentTab === "mine"
@@ -888,7 +888,7 @@ function AccountantClientsContent() {
                   : "Your client list is empty"}
             </h3>
 
-            <p className="text-sm text-[#667085] max-w-[420px] leading-relaxed mb-6">
+            <p className="text-sm text-[#6A6A69] max-w-[420px] leading-relaxed mb-6">
               {searchValue.trim()
                 ? `We couldn't find any clients matching "${searchValue}". Check the spelling or try searching for a different term.`
                 : currentTab === "mine"
@@ -901,7 +901,7 @@ function AccountantClientsContent() {
                 <button
                   type="button"
                   onClick={() => setSearchValue("")}
-                  className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#d5dceb] bg-white text-[#49567a] hover:bg-[#f8f9fb] active:bg-[#f1f3f7] transition-colors duration-200 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#DAD1F5] bg-white text-[#585958] hover:bg-[#F3F0E9] active:bg-[#F3F0E9] transition-colors duration-200 cursor-pointer"
                 >
                   Clear Search
                 </button>
@@ -917,7 +917,7 @@ function AccountantClientsContent() {
                       setPageSize("20");
                       setCurrentPage(1);
                     }}
-                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#d5dceb] bg-white text-[#49567a] hover:bg-[#f8f9fb] active:bg-[#f1f3f7] transition-colors duration-200 cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#DAD1F5] bg-white text-[#585958] hover:bg-[#F3F0E9] active:bg-[#F3F0E9] transition-colors duration-200 cursor-pointer"
                   >
                     Browse All Clients
                   </button>
@@ -930,7 +930,7 @@ function AccountantClientsContent() {
                       setInviteDrawerOpen(true);
                       setInviteError("");
                     }}
-                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl bg-[#2f3b82] text-white hover:bg-[#37489c] active:bg-[#252f69] transition-colors duration-200 cursor-pointer shadow-sm"
+                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl bg-[#2E3135] text-white hover:bg-[#2E3135] active:bg-[#242629] transition-colors duration-200 cursor-pointer shadow-sm"
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -955,7 +955,7 @@ function AccountantClientsContent() {
                     setInviteDrawerOpen(true);
                     setInviteError("");
                   }}
-                  className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl bg-[#2f3b82] text-white hover:bg-[#37489c] active:bg-[#252f69] transition-colors duration-200 cursor-pointer shadow-sm"
+                  className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl bg-[#2E3135] text-white hover:bg-[#2E3135] active:bg-[#242629] transition-colors duration-200 cursor-pointer shadow-sm"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -1055,7 +1055,7 @@ function AccountantClientsContent() {
 
                 <div className="accountant-client-cell flex justify-center text-center">
                   {client.isAssignedToCurrentAccountant ? (
-                    <span style={{ color: "#2f3c82", fontWeight: 600, fontSize: "13px" }}>
+                    <span style={{ color: "#2E3135", fontWeight: 600, fontSize: "13px" }}>
                       You
                     </span>
                   ) : client.assignedAccountantName ? (
@@ -1063,12 +1063,12 @@ function AccountantClientsContent() {
                       {client.assignedAccountantName}
                     </span>
                   ) : (
-                    <span style={{ color: "#98a2b3" }}>Unassigned</span>
+                    <span style={{ color: "#989794" }}>Unassigned</span>
                   )}
                 </div>
 
                 <div className="accountant-client-cell flex justify-center text-center">
-                  <span className="inline-flex items-center justify-center px-[10px] py-[3px] rounded-lg bg-[#f0f3fa] text-[#2f3c82] font-bold text-[13px] min-w-[32px] border border-[#e1e7f3] transition-all duration-150 ease-in-out group-hover:bg-[#e5ecfb] group-hover:border-[#cbd5e1] group-hover:text-[#2f3c82]">
+                  <span className="inline-flex items-center justify-center px-[10px] py-[3px] rounded-lg bg-[#F3F0E9] text-[#2E3135] font-bold text-[13px] min-w-[32px] border border-[#E4DDF4] transition-all duration-150 ease-in-out group-hover:bg-[#EAE4F4] group-hover:border-[#CBC9C4] group-hover:text-[#2E3135]">
                     {client.propertiesCount ?? 0}
                   </span>
                 </div>
@@ -1286,15 +1286,15 @@ function AccountantClientsContent() {
                   style={{
                     marginBottom: "20px",
                     padding: "12px 14px",
-                    background: "#f9fafb",
+                    background: "#F3F0E9",
                     borderRadius: "10px",
-                    border: "1px solid #e4e7ec",
+                    border: "1px solid #E1DFD8",
                   }}
                 >
                   <span
                     style={{
                       fontSize: "11px",
-                      color: "#667085",
+                      color: "#6A6A69",
                       fontWeight: 500,
                       textTransform: "uppercase",
                       letterSpacing: "0.04em",
@@ -1306,13 +1306,13 @@ function AccountantClientsContent() {
                     style={{
                       display: "block",
                       fontSize: "15px",
-                      color: "#101828",
+                      color: "#151719",
                       marginTop: "4px",
                     }}
                   >
                     {transferClient?.name}
                   </strong>
-                  <span style={{ fontSize: "13px", color: "#667085" }}>
+                  <span style={{ fontSize: "13px", color: "#6A6A69" }}>
                     {transferClient?.email}
                   </span>
                 </div>
@@ -1326,7 +1326,7 @@ function AccountantClientsContent() {
                   }}
                 >
                   <span
-                    style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}
+                    style={{ fontSize: "14px", fontWeight: 500, color: "#3E3F3F" }}
                   >
                     Transfer To <span className="imp">*</span>
                   </span>
@@ -1355,8 +1355,8 @@ function AccountantClientsContent() {
                     gap: "6px",
                   }}
                 >
-                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}>
-                    Reason <small style={{ fontWeight: 400, color: "#667085" }}>(Optional)</small>
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#3E3F3F" }}>
+                    Reason <small style={{ fontWeight: 400, color: "#6A6A69" }}>(Optional)</small>
                   </span>
                   <textarea
                     placeholder="e.g. Going on annual leave Dec 1–15"
@@ -1365,12 +1365,12 @@ function AccountantClientsContent() {
                     onChange={(e) => setTransferReason(e.target.value)}
                     style={{
                       padding: "10px 14px",
-                      border: "1.5px solid #d0d5dd",
+                      border: "1.5px solid #CCCAC4",
                       borderRadius: "10px",
                       fontSize: "14px",
                       resize: "vertical",
                       fontFamily: "inherit",
-                      color: "#101828",
+                      color: "#151719",
                       outline: "none",
                     }}
                   />
@@ -1519,9 +1519,9 @@ function AccountantClientsContent() {
                     style={{
                       padding: "12px 14px",
                       borderRadius: "10px",
-                      border: "1px solid #fda29b",
-                      background: "#fef3f2",
-                      color: "#b42318",
+                      border: "1px solid #ECCBBC",
+                      background: "#F3F0E9",
+                      color: "#C46A4C",
                       fontSize: "14px",
                       fontWeight: 500,
                       display: "flex",
@@ -1556,7 +1556,7 @@ function AccountantClientsContent() {
                     placeholder="Enter client's full name"
                     value={inviteForm.fullName}
                     style={{
-                      borderColor: inviteError && inviteError.toLowerCase().includes("name") ? "#fda29b" : undefined,
+                      borderColor: inviteError && inviteError.toLowerCase().includes("name") ? "#ECCBBC" : undefined,
                     }}
                     onChange={(event) => {
                       setInviteError("");
@@ -1586,7 +1586,7 @@ function AccountantClientsContent() {
                     placeholder="client@example.com"
                     value={inviteForm.email}
                     style={{
-                      borderColor: inviteError && inviteError.toLowerCase().includes("email") ? "#fda29b" : undefined,
+                      borderColor: inviteError && inviteError.toLowerCase().includes("email") ? "#ECCBBC" : undefined,
                     }}
                     onChange={(event) => {
                       setInviteError("");
@@ -1704,7 +1704,7 @@ function ConfirmationDialog({
       <div
         className="accountant-drawer-backdrop"
         style={{
-          background: "rgba(15, 23, 52, 0.4)",
+          background: "rgba(21, 23, 25, 0.4)",
           cursor: "default",
         }}
       />
@@ -1718,17 +1718,17 @@ function ConfirmationDialog({
           display: "flex",
           flexDirection: "column",
           borderRadius: "16px",
-          border: "1px solid #dde4f2",
-          background: "#ffffff",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
+          border: "1px solid #E2DAF4",
+          background: "#FFFFFF",
+          boxShadow: "0 20px 25px -5px rgba(21, 23, 25, 0.15), 0 10px 10px -5px rgba(21, 23, 25, 0.05)",
           margin: "0 16px",
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#101828" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#151719" }}>
             {title}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#667085" }}>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#6A6A69" }}>
             {message}
           </p>
         </div>
@@ -1739,9 +1739,9 @@ function ConfirmationDialog({
             style={{
               flex: 1,
               minHeight: "40px",
-              border: "1px solid #dde4f2",
-              background: "#ffffff",
-              color: "#5d6987",
+              border: "1px solid #E2DAF4",
+              background: "#FFFFFF",
+              color: "#676766",
               fontWeight: 700,
               fontSize: "14px",
               borderRadius: "10px",
@@ -1756,9 +1756,9 @@ function ConfirmationDialog({
             style={{
               flex: 1,
               minHeight: "40px",
-              border: `1px solid ${isDanger ? "#e11d48" : "#2f3c82"}`,
-              background: isDanger ? "#e11d48" : "#2f3c82",
-              color: "#ffffff",
+              border: `1px solid ${isDanger ? "#C46A4C" : "#2E3135"}`,
+              background: isDanger ? "#C46A4C" : "#2E3135",
+              color: "#FFFFFF",
               fontWeight: 700,
               fontSize: "14px",
               borderRadius: "10px",

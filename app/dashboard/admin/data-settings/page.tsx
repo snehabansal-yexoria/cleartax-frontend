@@ -245,7 +245,7 @@ export default function DataSettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
         {/* Lists */}
-        <nav aria-label="Lists" className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-2 flex flex-col gap-0.5">
+        <nav aria-label="Lists" className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] p-2 flex flex-col gap-0.5">
           {lists.map((entry) => (
             <button
               key={entry.id}
@@ -265,7 +265,7 @@ export default function DataSettingsPage() {
         </nav>
 
         {/* Values */}
-        <section className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
+        <section className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] overflow-hidden">
           <div className="flex justify-between items-start gap-4 flex-wrap px-6 pt-5 pb-4">
             <div>
               <h2 className="text-lg font-bold text-slate-900">{list.label}</h2>
@@ -305,7 +305,7 @@ export default function DataSettingsPage() {
                   }}
                   onDragOver={(event) => onDragOver(event, index)}
                   className={`flex items-center gap-3 min-h-12 px-3 py-1.5 rounded-xl border bg-white text-[13.5px] transition ${
-                    isLifted ? "border-indigo-400 shadow-[0_10px_24px_rgba(38,45,107,0.15)] bg-indigo-50/40" : "border-slate-200"
+                    isLifted ? "border-indigo-400 shadow-[0_10px_24px_rgba(36, 38, 41,0.15)] bg-indigo-50/40" : "border-slate-200"
                   }`}
                 >
                   <span className="text-slate-400 cursor-grab active:cursor-grabbing" aria-hidden="true">

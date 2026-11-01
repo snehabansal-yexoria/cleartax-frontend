@@ -67,7 +67,7 @@ export default function InactiveReasonModal({
         .inactive-reason-modal-backdrop {
           position: absolute;
           inset: 0;
-          background: rgba(15, 23, 42, 0.6);
+          background: rgba(21, 23, 25, 0.6);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
           animation: inactiveFadeIn 0.2s ease-out forwards;
@@ -77,10 +77,10 @@ export default function InactiveReasonModal({
           position: relative;
           width: 100%;
           max-width: 480px;
-          background: #ffffff;
-          border: 1px solid rgba(226, 232, 240, 0.8);
+          background: #FFFFFF;
+          border: 1px solid rgba(226, 224, 217, 0.8);
           border-radius: 16px;
-          box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+          box-shadow: 0 25px 50px -12px rgba(21, 23, 25, 0.25);
           z-index: 10;
           animation: inactiveSlideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           overflow: hidden;
@@ -93,7 +93,7 @@ export default function InactiveReasonModal({
           align-items: center;
           justify-content: space-between;
           padding: 24px 24px 20px;
-          border-bottom: 1px solid #f1f5f9;
+          border-bottom: 1px solid #F3F0E9;
         }
 
         .inactive-reason-modal-title-group {
@@ -106,7 +106,7 @@ export default function InactiveReasonModal({
           margin: 0;
           font-size: 18px;
           font-weight: 700;
-          color: #0f172a;
+          color: #151719;
           letter-spacing: -0.02em;
         }
 
@@ -119,14 +119,14 @@ export default function InactiveReasonModal({
           background: transparent;
           border: none;
           border-radius: 8px;
-          color: #64748b;
+          color: #6C6C6B;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .inactive-reason-modal-close:hover {
-          background-color: #f1f5f9;
-          color: #1e293b;
+          background-color: #F3F0E9;
+          color: #151719;
         }
 
         .inactive-reason-modal-body {
@@ -140,7 +140,7 @@ export default function InactiveReasonModal({
           margin: 0;
           font-size: 14px;
           line-height: 1.5;
-          color: #475569;
+          color: #505050;
         }
 
         .inactive-reason-modal-textarea-container {
@@ -153,33 +153,33 @@ export default function InactiveReasonModal({
           width: 100%;
           min-height: 110px;
           padding: 12px 16px;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: #F3F0E9;
+          border: 1px solid #E2E0D9;
           border-radius: 12px;
           font-size: 14px;
-          color: #0f172a;
+          color: #151719;
           resize: vertical;
           outline: none;
-          box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+          box-shadow: inset 0 1px 2px rgba(21, 23, 25, 0.05);
           transition: all 0.2s ease;
           font-family: inherit;
         }
 
         .inactive-reason-modal-textarea:focus {
-          background: #ffffff;
-          border-color: #ef4444;
-          box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), inset 0 1px 2px rgba(15, 23, 42, 0.05);
+          background: #FFFFFF;
+          border-color: #C46A4C;
+          box-shadow: 0 0 0 4px rgba(196, 106, 76, 0.15), inset 0 1px 2px rgba(21, 23, 25, 0.05);
         }
 
         /* Error States matching theme */
         .inactive-reason-modal-textarea.has-error {
-          border-color: #fda29b !important;
-          background-color: #fffbfa !important;
+          border-color: #ECCBBC !important;
+          background-color: #FAF8F3 !important;
         }
 
         .inactive-reason-modal-textarea.has-error:focus {
-          border-color: #fda29b !important;
-          box-shadow: 0 0 0 4px #fee4e2 !important;
+          border-color: #ECCBBC !important;
+          box-shadow: 0 0 0 4px #F6EAE2 !important;
         }
 
         .inactive-reason-modal-error {
@@ -187,7 +187,7 @@ export default function InactiveReasonModal({
           margin-top: 4px;
           font-size: 13px;
           font-weight: 500;
-          color: #d92d20;
+          color: #C46A4C;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -199,8 +199,8 @@ export default function InactiveReasonModal({
           justify-content: flex-end;
           gap: 12px;
           padding: 16px 24px;
-          background: #f8fafc;
-          border-top: 1px solid #f1f5f9;
+          background: #F3F0E9;
+          border-top: 1px solid #F3F0E9;
         }
 
         .inactive-reason-confirm-btn {
@@ -210,25 +210,25 @@ export default function InactiveReasonModal({
           padding: 10px 20px;
           font-size: 14px;
           font-weight: 600;
-          color: #ffffff;
-          background: #ef4444;
-          border: 1px solid #ef4444;
+          color: #FFFFFF;
+          background: #C46A4C;
+          border: 1px solid #C46A4C;
           border-radius: 10px;
           cursor: pointer;
-          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+          box-shadow: 0 1px 2px rgba(21, 23, 25, 0.05);
           transition: all 0.2s ease;
         }
 
         .inactive-reason-confirm-btn:hover {
-          background: #dc2626;
-          border-color: #dc2626;
+          background: #C46A4C;
+          border-color: #C46A4C;
           transform: translateY(-1px);
-          box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1), 0 2px 4px -1px rgba(220, 38, 38, 0.06);
+          box-shadow: 0 4px 6px -1px rgba(196, 106, 76, 0.1), 0 2px 4px -1px rgba(196, 106, 76, 0.06);
         }
 
         .inactive-reason-confirm-btn:active {
-          background: #b91c1c;
-          border-color: #b91c1c;
+          background: #C46A4C;
+          border-color: #C46A4C;
           transform: translateY(0);
         }
 
@@ -239,17 +239,17 @@ export default function InactiveReasonModal({
           padding: 10px 20px;
           font-size: 14px;
           font-weight: 600;
-          color: #475569;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
+          color: #505050;
+          background: #FFFFFF;
+          border: 1px solid #E2E0D9;
           border-radius: 10px;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .inactive-reason-modal-cancel-btn:hover {
-          background: #f1f5f9;
-          color: #0f172a;
+          background: #F3F0E9;
+          color: #151719;
         }
 
         .inactive-reason-modal-info-toast {
@@ -257,16 +257,16 @@ export default function InactiveReasonModal({
           align-items: flex-start;
           gap: 10px;
           padding: 12px 16px;
-          background-color: #f0f9ff;
-          border: 1px solid #bae6fd;
+          background-color: #F3F0E9;
+          border: 1px solid #D6CCF5;
           border-radius: 10px;
-          color: #0369a1;
+          color: #7A5CFA;
           font-size: 13px;
           line-height: 1.5;
         }
 
         .inactive-reason-modal-info-toast svg {
-          color: #0284c7;
+          color: #7A5CFA;
           flex-shrink: 0;
           margin-top: 2px;
         }
@@ -304,7 +304,7 @@ export default function InactiveReasonModal({
         <div className="inactive-reason-modal-card">
           <header className="inactive-reason-modal-header">
             <div className="inactive-reason-modal-title-group">
-              <svg viewBox="0 0 24 24" width="22" height="22" stroke="#ef4444" fill="none" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="#C46A4C" fill="none" strokeWidth="2.5" style={{ flexShrink: 0 }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <h2>Reason for marking Inactive?</h2>

@@ -27,7 +27,7 @@ const SAMPLE_CREATED = "12 Feb 2024";
 const inputClass =
   "w-full h-10 px-3.5 border border-slate-200 rounded-lg text-[13.5px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition font-sans";
 const labelClass = "text-[11.5px] font-bold text-slate-400 uppercase tracking-wider font-sans";
-const cardClass = "bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)]";
+const cardClass = "bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)]";
 
 function splitName(full: string) {
   const parts = full.trim().split(/\s+/).filter(Boolean);
@@ -205,7 +205,7 @@ export default function AdminOrganisationPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logo} alt="Organisation logo" className="w-16 h-16 rounded-[14px] object-cover border border-slate-200" />
           ) : (
-            <span className="w-16 h-16 rounded-[14px] bg-gradient-to-b from-[#fbb228] to-[#f4a117] text-[#24316e] font-bold text-xl flex items-center justify-center shadow-sm">
+            <span className="w-16 h-16 rounded-[14px] bg-gradient-to-b from-[#7A5CFA] to-[#7A5CFA] text-[#242629] font-bold text-xl flex items-center justify-center shadow-sm">
               {initialsOf(org.legalName)}
             </span>
           )}

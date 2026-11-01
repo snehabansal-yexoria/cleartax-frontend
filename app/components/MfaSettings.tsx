@@ -181,7 +181,7 @@ export default function MfaSettings({ email }: { email: string }) {
 
   return (
     <aside className="accountant-admin-card relative">
-      <div className="flex items-center gap-3 pb-4.5 border-b border-[#e8edf6]">
+      <div className="flex items-center gap-3 pb-4.5 border-b border-[#EBE8E1]">
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 shrink-0">
           <svg
             viewBox="0 0 24 24"
@@ -199,8 +199,8 @@ export default function MfaSettings({ email }: { email: string }) {
           </svg>
         </div>
         <div>
-          <h3 className="text-base font-extrabold text-[#233152] leading-tight">Two-Factor Authentication</h3>
-          <p className="mt-1 text-xs text-[#7e89a8] font-medium">
+          <h3 className="text-base font-extrabold text-[#151719] leading-tight">Two-Factor Authentication</h3>
+          <p className="mt-1 text-xs text-[#868683] font-medium">
             {phase === "loading"
               ? "Checking status…"
               : enabled
@@ -231,7 +231,7 @@ export default function MfaSettings({ email }: { email: string }) {
           )}
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-[#95a0bb] font-bold uppercase tracking-wider">
+            <span className="text-xs text-[#9B9A96] font-bold uppercase tracking-wider">
               Can&apos;t scan? Enter key manually
             </span>
             <code className="px-3.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm text-primary font-mono tracking-wide text-center break-all select-all font-semibold">
@@ -240,7 +240,7 @@ export default function MfaSettings({ email }: { email: string }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-[#95a0bb] font-bold uppercase tracking-wider text-center">
+            <span className="text-xs text-[#9B9A96] font-bold uppercase tracking-wider text-center">
               Verification Code
             </span>
             <input
@@ -258,7 +258,7 @@ export default function MfaSettings({ email }: { email: string }) {
           <div className="flex gap-3 mt-1">
             <button
               type="button"
-              className="flex-1 min-h-[54px] rounded-xl font-bold text-white bg-primary hover:bg-[#1f2858] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow"
+              className="flex-1 min-h-[54px] rounded-xl font-bold text-white bg-primary hover:bg-[#151719] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow"
               onClick={confirmEnrollment}
               disabled={busy}
             >
@@ -277,7 +277,7 @@ export default function MfaSettings({ email }: { email: string }) {
       ) : (
         <div className="flex flex-col gap-5 py-4.5">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-[#95a0bb] font-bold uppercase tracking-wider">Status</span>
+            <span className="text-xs text-[#9B9A96] font-bold uppercase tracking-wider">Status</span>
             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold mt-1 w-fit ${
               enabled ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-500/10 text-slate-500"
             }`}>
@@ -299,7 +299,7 @@ export default function MfaSettings({ email }: { email: string }) {
             ) : (
               <button
                 type="button"
-                className="w-full min-h-[54px] rounded-xl font-bold text-white bg-primary hover:bg-[#1f2858] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow"
+                className="w-full min-h-[54px] rounded-xl font-bold text-white bg-primary hover:bg-[#151719] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow"
                 onClick={startEnrollment}
                 disabled={busy}
               >
@@ -310,9 +310,9 @@ export default function MfaSettings({ email }: { email: string }) {
       )}
 
       {phase === "idle" && (
-        <div className="flex flex-col gap-5 mt-4 pt-4 border-t border-[#e8edf6]">
+        <div className="flex flex-col gap-5 mt-4 pt-4 border-t border-[#EBE8E1]">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-[#95a0bb] font-bold uppercase tracking-wider">Email authentication</span>
+            <span className="text-xs text-[#9B9A96] font-bold uppercase tracking-wider">Email authentication</span>
             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold mt-1 w-fit ${
               emailEnabled ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-500/10 text-slate-500"
             }`}>
@@ -337,7 +337,7 @@ export default function MfaSettings({ email }: { email: string }) {
           ) : (
             <button
               type="button"
-              className="w-full min-h-[54px] rounded-xl font-bold text-white bg-primary hover:bg-[#1f2858] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow"
+              className="w-full min-h-[54px] rounded-xl font-bold text-white bg-primary hover:bg-[#151719] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none shadow-sm hover:shadow"
               onClick={turnOnEmail}
               disabled={emailBusy}
             >
@@ -359,7 +359,7 @@ export default function MfaSettings({ email }: { email: string }) {
       )}
 
       {confirmModal && (
-        <div className="fixed inset-0 z-50 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-[#151719]/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 text-red-600 shrink-0 self-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
@@ -369,7 +369,7 @@ export default function MfaSettings({ email }: { email: string }) {
               </svg>
             </div>
             <div className="flex flex-col gap-1 text-center">
-              <h3 className="text-lg font-extrabold text-[#233152]">{confirmModal.title}</h3>
+              <h3 className="text-lg font-extrabold text-[#151719]">{confirmModal.title}</h3>
               <p className="text-xs text-slate-500 leading-normal mt-1">{confirmModal.message}</p>
             </div>
             <div className="flex gap-3 mt-2">

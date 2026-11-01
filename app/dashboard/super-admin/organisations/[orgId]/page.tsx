@@ -260,12 +260,12 @@ export default function SuperAdminOrganisationDetailPage() {
       </div>
 
       <div className="cpc-grid-2">
-        <Card title="Growth" meta="Clients at month end" actions={<Legend items={[{ label: "Clients", color: "#2e387a" }]} />}>
+        <Card title="Growth" meta="Clients at month end" actions={<Legend items={[{ label: "Clients", color: "#242629" }]} />}>
           {metrics ? (
             <ColumnChart
               loading={loading}
               labels={months.slice(12 - Math.max(shown, 6))}
-              series={[{ name: "Clients", color: "#2e387a", values: metrics.clientsByMonth.slice(12 - Math.max(shown, 6)) }]}
+              series={[{ name: "Clients", color: "#242629", values: metrics.clientsByMonth.slice(12 - Math.max(shown, 6)) }]}
             />
           ) : (
             <EmptyState title="No growth data yet">Monthly client and equity totals appear once the organisation totals API is available.</EmptyState>

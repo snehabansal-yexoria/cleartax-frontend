@@ -531,7 +531,7 @@ export default function AddEntityWizard({
                 <h3 style={{
                   fontSize: "14px",
                   fontWeight: 600,
-                  color: "var(--primary, #28336e)",
+                  color: "var(--primary, #242629)",
                   marginBottom: "12px",
                   marginTop: "16px"
                 }}>
@@ -1052,7 +1052,7 @@ export default function AddEntityWizard({
 
             {/* STEP 2 - BENEFICIARIES */}
             {needsBeneficiaries && (
-              <div className="entity-wizard-section border-t border-[#eaecf0] pt-6 mt-2">
+              <div className="entity-wizard-section border-t border-[#E8E5DF] pt-6 mt-2">
                 <span className="entity-wizard-section-tag">STEP 2 — BENEFICIARIES</span>
 
                 <div className="entity-beneficiary-headers">

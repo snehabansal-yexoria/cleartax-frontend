@@ -40,7 +40,7 @@ export default function ReportDocument({
     <article className="cp-doc" data-report={reportKey} data-ready={ready ? "true" : "false"}>
       <div className="cp-pdf-brand">
         <i aria-hidden="true" />
-        Clear Portfolio · {title}
+        Thetaxio · {title}
       </div>
       <header className="cp-box cp-rhead">
         <div>

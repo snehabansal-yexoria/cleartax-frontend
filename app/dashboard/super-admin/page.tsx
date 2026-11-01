@@ -91,7 +91,7 @@ export default function SuperAdminDashboardPage() {
     <>
       <PageHeader
         title={greeting()}
-        subtitle="Every organisation on ClearPortfolio at a glance. Filters apply to the whole page."
+        subtitle="Every organisation on Thetaxio at a glance. Filters apply to the whole page."
         actions={
           <>
             <button type="button" className="cpc-btn" onClick={() => setInviteOpen(true)}>
@@ -202,10 +202,10 @@ export default function SuperAdminDashboardPage() {
         <Card
           title="Clients on the platform"
           meta={`Total clients at month end · ${period.label.toLowerCase()}`}
-          actions={<Legend items={[{ label: "Clients", color: "#2e387a" }]} />}
+          actions={<Legend items={[{ label: "Clients", color: "#242629" }]} />}
         >
           {totals ? (
-            <ColumnChart loading={loading} labels={months} series={[{ name: "Clients", color: "#2e387a", values: totals.clientsByMonth }]} />
+            <ColumnChart loading={loading} labels={months} series={[{ name: "Clients", color: "#242629", values: totals.clientsByMonth }]} />
           ) : (
             <EmptyState title="No platform totals yet">
               Monthly client counts appear here once the backend exposes platform-wide totals.
@@ -220,7 +220,7 @@ export default function SuperAdminDashboardPage() {
           {totals ? (
             <BarList
               loading={loading}
-              color="#f4a117"
+              color="#7A5CFA"
               labelWidth="13em"
               rows={equityRows.map(({ row, metrics }) => ({
                 key: row.id,
@@ -325,7 +325,7 @@ export default function SuperAdminDashboardPage() {
               cell: (row) => {
                 const clients = orgMetrics(row.id)?.clients;
                 return clients != null && totals?.clients ? (
-                  <Meter value={clients / totals.clients} color="#2e387a" />
+                  <Meter value={clients / totals.clients} color="#242629" />
                 ) : (
                   <span className="cpc-muted">—</span>
                 );

@@ -173,7 +173,7 @@ interface FormFieldProps {
 const FormField: React.FC<FormFieldProps> = ({ label, required, error, children, charCount }) => {
     return (
         <div className="flex flex-col gap-1.5 w-full">
-            <label className="text-sm font-bold text-[#1f2d4f] flex items-center justify-between">
+            <label className="text-sm font-bold text-[#151719] flex items-center justify-between">
                 <span>
                     {label} {required && <span className="text-red-500 ml-0.5">*</span>}
                 </span>
@@ -487,7 +487,7 @@ export default function TaskManagementPage() {
             {/* <div className="flex items-center">
                 <Link
                     href="/dashboard/accountant/transactions"
-                    className="group flex items-center gap-2 text-slate-500 font-medium text-sm transition-colors duration-200 hover:text-[#28336e]"
+                    className="group flex items-center gap-2 text-slate-500 font-medium text-sm transition-colors duration-200 hover:text-[#242629]"
                 >
                     <svg
                         className="w-4 h-4 transform transition-transform duration-200 group-hover:-translate-x-1"
@@ -507,7 +507,7 @@ export default function TaskManagementPage() {
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-[#1f2d4f] tracking-tight">
+                    <h1 className="text-3xl font-extrabold text-[#151719] tracking-tight">
                         Task Management
                     </h1>
                     <p className="text-slate-500 mt-1 font-medium text-[0.98rem]">
@@ -527,7 +527,7 @@ export default function TaskManagementPage() {
                             setNewTaskDeadlineError("");
                             setIsModalOpen(true);
                         }}
-                        className="inline-flex items-center gap-2 bg-[#28336e] hover:bg-[#1f2756] text-white font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#28336e] focus:ring-offset-2"
+                        className="inline-flex items-center gap-2 bg-[#242629] hover:bg-[#151719] text-white font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#242629] focus:ring-offset-2"
                     >
                         <svg
                             className="w-4 h-4 stroke-2"
@@ -547,7 +547,7 @@ export default function TaskManagementPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-                <div className="bg-white border border-[#e2e8f5] rounded-2xl p-6 shadow-sm flex items-center gap-5 transition-all duration-200 hover:shadow-md">
+                <div className="bg-white border border-[#E6DFF4] rounded-2xl p-6 shadow-sm flex items-center gap-5 transition-all duration-200 hover:shadow-md">
                     <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center flex-shrink-0">
                         <span className="text-xl font-extrabold text-indigo-700">{totalTasksCount}</span>
                     </div>
@@ -556,7 +556,7 @@ export default function TaskManagementPage() {
                     </div>
                 </div>
 
-                <div className="bg-white border border-[#e2e8f5] rounded-2xl p-6 shadow-sm flex items-center gap-5 transition-all duration-200 hover:shadow-md">
+                <div className="bg-white border border-[#E6DFF4] rounded-2xl p-6 shadow-sm flex items-center gap-5 transition-all duration-200 hover:shadow-md">
                     <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center flex-shrink-0">
                         <span className="text-xl font-extrabold text-amber-600">{pendingTasksCount}</span>
                     </div>
@@ -565,7 +565,7 @@ export default function TaskManagementPage() {
                     </div>
                 </div>
 
-                <div className="bg-white border border-[#e2e8f5] rounded-2xl p-6 shadow-sm flex items-center gap-5 transition-all duration-200 hover:shadow-md">
+                <div className="bg-white border border-[#E6DFF4] rounded-2xl p-6 shadow-sm flex items-center gap-5 transition-all duration-200 hover:shadow-md">
                     <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center flex-shrink-0">
                         <span className="text-xl font-extrabold text-emerald-600">{completedTasksCount}</span>
                     </div>
@@ -576,7 +576,7 @@ export default function TaskManagementPage() {
 
             </div>
 
-            <div className="bg-white border border-[#e2e8f5] rounded-2xl shadow-sm overflow-hidden p-6 transition-all duration-200">
+            <div className="bg-white border border-[#E6DFF4] rounded-2xl shadow-sm overflow-hidden p-6 transition-all duration-200">
 
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 pb-0 mb-6 gap-4">
                     <div className="flex items-center gap-8 -mb-[1.5px] z-10">
@@ -584,7 +584,7 @@ export default function TaskManagementPage() {
                         <button
                             onClick={() => setActiveTab("my")}
                             className={`flex items-center gap-2 pb-3 transition-all duration-200 focus:outline-none border-b-2 ${activeTab === "my"
-                                ? "border-[#28336e] text-[#28336e] font-extrabold"
+                                ? "border-[#242629] text-[#242629] font-extrabold"
                                 : "border-transparent text-slate-400 hover:text-slate-600 font-semibold"
                                 }`}
                         >
@@ -597,7 +597,7 @@ export default function TaskManagementPage() {
                         <button
                             onClick={() => setActiveTab("assigned")}
                             className={`flex items-center gap-2 pb-3 transition-all duration-200 focus:outline-none border-b-2 ${activeTab === "assigned"
-                                ? "border-[#28336e] text-[#28336e] font-extrabold"
+                                ? "border-[#242629] text-[#242629] font-extrabold"
                                 : "border-transparent text-slate-400 hover:text-slate-600 font-semibold"
                                 }`}
                         >
@@ -620,7 +620,7 @@ export default function TaskManagementPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="border-b border-[#f0f4fa] text-[0.82rem] font-bold text-slate-400 uppercase tracking-wider">
+                            <tr className="border-b border-[#F3F0E9] text-[0.82rem] font-bold text-slate-400 uppercase tracking-wider">
                                 <th className="pb-4 pt-1 w-12 text-center">S.No</th>
                                 <th className="pb-4 pt-1 px-4 min-w-[200px]">Task Name</th>
                                 <th className="pb-4 pt-1 px-4 min-w-[340px]">Description</th>
@@ -646,17 +646,17 @@ export default function TaskManagementPage() {
                                     return (
                                         <tr
                                             key={task.id}
-                                            className="task-row border-b border-[#f5f8fd] last:border-0"
+                                            className="task-row border-b border-[#F3F0E9] last:border-0"
                                         >
                                             <td className="py-4 text-center text-slate-400 text-sm font-semibold">
                                                 {index + 1}
                                             </td>
 
-                                            <td className="py-4 px-4 text-[#1f2d4f] font-bold text-sm">
+                                            <td className="py-4 px-4 text-[#151719] font-bold text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <span>{task.name}</span>
                                                     {task.assignedBy?.id === currentUserId && (
-                                                        <span className="inline-flex items-center bg-[#eef2ff] text-[#4f46e5] text-[0.65rem] px-2 py-0.5 rounded-full font-bold border border-[#e0e7ff] tracking-wide uppercase select-none">
+                                                        <span className="inline-flex items-center bg-[#F3F0E9] text-[#7A5CFA] text-[0.65rem] px-2 py-0.5 rounded-full font-bold border border-[#E9E4F4] tracking-wide uppercase select-none">
                                                             Owner
                                                         </span>
                                                     )}
@@ -686,7 +686,7 @@ export default function TaskManagementPage() {
 
                                             <td className="py-4 px-4">
                                                 {task.status === "Pending" ? (
-                                                    <span className="inline-flex items-center gap-1.5 bg-[#fff3e6] text-[#b25e00] px-3 py-1 rounded-full text-xs font-bold">
+                                                    <span className="inline-flex items-center gap-1.5 bg-[#F6ECE4] text-[#C46A4C] px-3 py-1 rounded-full text-xs font-bold">
                                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                                             <circle cx="12" cy="12" r="10"></circle>
                                                             <polyline points="12 6 12 12 16 14"></polyline>
@@ -694,7 +694,7 @@ export default function TaskManagementPage() {
                                                         Pending
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 bg-[#eafaf1] text-[#1e7e4c] px-3 py-1 rounded-full text-xs font-bold">
+                                                    <span className="inline-flex items-center gap-1.5 bg-[#F0EDE6] text-[#56613F] px-3 py-1 rounded-full text-xs font-bold">
                                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                                                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
@@ -710,7 +710,7 @@ export default function TaskManagementPage() {
                                                         task.status === "Pending" ? (
                                                             <button
                                                                 onClick={() => handleMarkComplete(task.id)}
-                                                                className="inline-flex items-center justify-center gap-1.5 h-9 bg-[#28336e] hover:bg-[#1f2756] text-white px-3.5 rounded-xl text-xs font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                                                                className="inline-flex items-center justify-center gap-1.5 h-9 bg-[#242629] hover:bg-[#151719] text-white px-3.5 rounded-xl text-xs font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                                                             >
                                                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                                                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -752,7 +752,7 @@ export default function TaskManagementPage() {
             {isModalOpen && mounted && createPortal(
                 <div className="fixed inset-0 flex items-center justify-center p-4 animate-fadeIn" style={{ zIndex: 100000 }}>
                     <div
-                        className="absolute inset-0 bg-[#0b122e]/45 backdrop-blur-sm transition-opacity duration-300"
+                        className="absolute inset-0 bg-[#6B4EE6]/45 backdrop-blur-sm transition-opacity duration-300"
                         onClick={() => {
                             setIsModalOpen(false);
                             setNewTaskName("");
@@ -770,7 +770,7 @@ export default function TaskManagementPage() {
 
                          <div className="flex items-start justify-between">
                             <div>
-                                <h2 className="text-[1.5rem] font-bold text-[#1f2d4f] tracking-tight">
+                                <h2 className="text-[1.5rem] font-bold text-[#151719] tracking-tight">
                                     Create New Task
                                 </h2>
                                 <p className="text-slate-400 text-sm mt-1">
@@ -824,7 +824,7 @@ export default function TaskManagementPage() {
                                         }}
                                         className={`w-full h-[50px] pl-4 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${newTaskNameError
                                             ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            : "border-slate-200 focus:ring-[#242629]/10 focus:border-[#242629]"
                                             }`}
                                     />
                                 </div>
@@ -851,7 +851,7 @@ export default function TaskManagementPage() {
                                     }}
                                     className={`w-full p-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 resize-none h-[110px] ${newTaskDescError
                                         ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                        : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                        : "border-slate-200 focus:ring-[#242629]/10 focus:border-[#242629]"
                                         }`}
                                 />
                             </FormField>
@@ -867,7 +867,7 @@ export default function TaskManagementPage() {
                                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                                         className={`property-status-trigger !bg-slate-50/30 hover:!bg-slate-50/80 !rounded-xl !h-[50px] !px-4 ${newTaskAssigneeError
                                             ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                                            : "!border-slate-200 focus:!ring-[#28336e]/10 focus:!border-[#28336e]"
+                                            : "!border-slate-200 focus:!ring-[#242629]/10 focus:!border-[#242629]"
                                             }`}
                                     >
                                         <span className="flex items-center gap-2.5 font-semibold text-slate-700">
@@ -959,7 +959,7 @@ export default function TaskManagementPage() {
                                         }}
                                         className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${newTaskDeadlineError
                                             ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            : "border-slate-200 focus:ring-[#242629]/10 focus:border-[#242629]"
                                             }`}
                                     />
                                 </div>
@@ -987,8 +987,8 @@ export default function TaskManagementPage() {
                                     type="submit"
                                     disabled={submitting}
                                     className={`inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${submitting
-                                        ? "bg-[#a5aec9] cursor-not-allowed"
-                                        : "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
+                                        ? "bg-[#AAA8A4] cursor-not-allowed"
+                                        : "bg-[#242629] hover:bg-[#151719] shadow-md"
                                         }`}
                                 >
                                     {submitting ? (
@@ -1020,7 +1020,7 @@ export default function TaskManagementPage() {
             )}            {isEditModalOpen && mounted && createPortal(
                 <div className="fixed inset-0 flex items-center justify-center p-4 animate-fadeIn" style={{ zIndex: 100000 }}>
                     <div
-                        className="absolute inset-0 bg-[#0b122e]/45 backdrop-blur-sm transition-opacity duration-300"
+                        className="absolute inset-0 bg-[#6B4EE6]/45 backdrop-blur-sm transition-opacity duration-300"
                         onClick={() => {
                             setIsEditModalOpen(false);
                             setEditingTask(null);
@@ -1039,7 +1039,7 @@ export default function TaskManagementPage() {
 
                         <div className="flex items-start justify-between">
                             <div>
-                                <h2 className="text-[1.5rem] font-bold text-[#1f2d4f] tracking-tight">
+                                <h2 className="text-[1.5rem] font-bold text-[#151719] tracking-tight">
                                     Edit Task
                                 </h2>
                                 <p className="text-slate-400 text-sm mt-1">
@@ -1093,7 +1093,7 @@ export default function TaskManagementPage() {
                                         }}
                                         className={`w-full h-[50px] pl-4 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 ${editTaskNameError
                                             ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            : "border-slate-200 focus:ring-[#242629]/10 focus:border-[#242629]"
                                             }`}
                                     />
                                 </div>
@@ -1120,7 +1120,7 @@ export default function TaskManagementPage() {
                                     }}
                                     className={`w-full p-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm placeholder-slate-300 font-semibold transition bg-slate-50/30 hover:bg-slate-50/80 resize-none h-[110px] ${editTaskDescError
                                         ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                        : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                        : "border-slate-200 focus:ring-[#242629]/10 focus:border-[#242629]"
                                         }`}
                                 />
                             </FormField>
@@ -1136,7 +1136,7 @@ export default function TaskManagementPage() {
                                         onClick={() => setIsEditDropdownOpen(!isEditDropdownOpen)}
                                         className={`property-status-trigger !bg-slate-50/30 hover:!bg-slate-50/80 !rounded-xl !h-[50px] !px-4 ${editTaskAssigneeError
                                             ? "!border-rose-400 focus:!ring-rose-500/10 focus:!border-rose-500"
-                                            : "!border-slate-200 focus:!ring-[#28336e]/10 focus:!border-[#28336e]"
+                                            : "!border-slate-200 focus:!ring-[#242629]/10 focus:!border-[#242629]"
                                             }`}
                                     >
                                         <span className="flex items-center gap-2.5 font-semibold text-slate-700">
@@ -1228,7 +1228,7 @@ export default function TaskManagementPage() {
                                         }}
                                         className={`w-full h-[50px] pl-11 pr-4 rounded-xl border focus:outline-none focus:ring-2 text-slate-800 text-sm transition font-semibold bg-slate-50/30 hover:bg-slate-50/80 ${editTaskDeadlineError
                                             ? "border-rose-400 focus:ring-rose-500/10 focus:border-rose-500"
-                                            : "border-slate-200 focus:ring-[#28336e]/10 focus:border-[#28336e]"
+                                            : "border-slate-200 focus:ring-[#242629]/10 focus:border-[#242629]"
                                             }`}
                                     />
                                 </div>
@@ -1257,8 +1257,8 @@ export default function TaskManagementPage() {
                                     type="submit"
                                     disabled={submitting}
                                     className={`font-bold text-sm px-6 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 cursor-pointer text-white ${submitting
-                                        ? "bg-[#a5aec9] cursor-not-allowed"
-                                        : "bg-[#28336e] hover:bg-[#1f2756] shadow-md"
+                                        ? "bg-[#AAA8A4] cursor-not-allowed"
+                                        : "bg-[#242629] hover:bg-[#151719] shadow-md"
                                         }`}
                                 >
                                     {submitting ? "Saving…" : "Save Changes"}
@@ -1292,9 +1292,9 @@ export default function TaskManagementPage() {
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .task-row:hover {
-          background-color: #f8fafc !important;
+          background-color: #F3F0E9 !important;
           transform: translateY(-1px);
-          box-shadow: 0 4px 20px -2px rgba(30, 41, 59, 0.05);
+          box-shadow: 0 4px 20px -2px rgba(21, 23, 25, 0.05);
         }
       `}} />
 

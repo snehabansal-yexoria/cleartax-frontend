@@ -48,7 +48,7 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
                                 {" — "}
                                 <Link
                                     href={`/dashboard/accountant/reports/clients/${event.clientId}`}
-                                    className="text-[#28336e] hover:underline"
+                                    className="text-[#242629] hover:underline"
                                 >
                                     {event.clientName}
                                 </Link>
@@ -61,7 +61,7 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
                             <button
                                 type="button"
                                 onClick={() => setIsExpanded(!isExpanded)}
-                                className="text-[#28336e] hover:text-[#1b2559] text-[10px] font-bold ml-1.5 focus:outline-none transition-all inline-flex items-center gap-0.5 align-baseline bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-200/40"
+                                className="text-[#242629] hover:text-[#151719] text-[10px] font-bold ml-1.5 focus:outline-none transition-all inline-flex items-center gap-0.5 align-baseline bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-200/40"
                             >
                                 <span>{isExpanded ? "Show less" : "View more"}</span>
                                 <svg className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -279,7 +279,7 @@ export default function ReportsDashboard() {
                                 type="button"
                                 onClick={() => handlePresetClick(period)}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${selectedPeriod === period
-                                    ? "bg-[#28336e] text-white shadow-md shadow-indigo-900/10"
+                                    ? "bg-[#242629] text-white shadow-md shadow-indigo-900/10"
                                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                                     }`}
                             >
@@ -291,7 +291,7 @@ export default function ReportsDashboard() {
                     <button
                         type="button"
                         onClick={handleExport}
-                        className="inline-flex items-center gap-2 bg-[#1b2559] hover:bg-[#253275] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-950/15 !hidden"
+                        className="inline-flex items-center gap-2 bg-[#151719] hover:bg-[#242629] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-950/15 !hidden"
                     >
                         <svg
                             className="w-4 h-4 fill-none stroke-current stroke-[2] stroke-round stroke-linejoin"
@@ -342,7 +342,7 @@ export default function ReportsDashboard() {
             {/* Main Metric Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {/* Total Actions Card */}
-                <div className="bg-gradient-to-br from-[#ebf1ff] to-[#f4f7fe] border border-blue-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                <div className="bg-gradient-to-br from-[#EFEAF4] to-[#F3F0E9] border border-blue-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Actions</span>
@@ -358,7 +358,7 @@ export default function ReportsDashboard() {
                 </div>
 
                 {/* Clients Touched Card */}
-                <div className="bg-gradient-to-br from-[#fff7e6] to-[#fffcf5] border border-amber-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                <div className="bg-gradient-to-br from-[#F6ECE4] to-[#F3F0E9] border border-amber-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clients Touched</span>
@@ -383,7 +383,7 @@ export default function ReportsDashboard() {
                 </div>
 
                 {/* Records Added Card */}
-                <div className="bg-gradient-to-br from-[#e6fbf3] to-[#f4fefb] border border-emerald-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                <div className="bg-gradient-to-br from-[#F4F3EC] to-[#F3F0E9] border border-emerald-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Records Added</span>
@@ -402,7 +402,7 @@ export default function ReportsDashboard() {
                 </div>
 
                 {/* Records Edited Card */}
-                <div className="bg-gradient-to-br from-[#f5ebff] to-[#faf5ff] border border-purple-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                <div className="bg-gradient-to-br from-[#EFEAF4] to-[#F3F0E9] border border-purple-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Records Edited</span>
@@ -423,7 +423,7 @@ export default function ReportsDashboard() {
 
             {/* Records You've Worked On Grid */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-[#1f2d4f] mb-1">Records You've Worked On</h2>
+                <h2 className="text-lg font-bold text-[#151719] mb-1">Records You've Worked On</h2>
                 <p className="text-xs text-slate-400 mb-6">{selectedPeriod} · click a card for the full list</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -517,16 +517,16 @@ export default function ReportsDashboard() {
                         <div
                             key={i}
                             onClick={() => router.push(card.link)}
-                            className="bg-[#f8f9fb] border border-slate-100/80 hover:border-indigo-100 hover:bg-slate-100/50 rounded-3xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-sm hover:shadow-md hover:-translate-y-0.5 group min-h-[140px]"
+                            className="bg-[#F3F0E9] border border-slate-100/80 hover:border-indigo-100 hover:bg-slate-100/50 rounded-3xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-sm hover:shadow-md hover:-translate-y-0.5 group min-h-[140px]"
                         >
                             <div className="flex items-center justify-between w-full">
                                 <div className={`p-2.5 rounded-xl ${card.color} flex items-center justify-center`}>
                                     {card.icon}
                                 </div>
-                                <span className="text-3xl font-black text-[#1f2d4f]">{card.count}</span>
+                                <span className="text-3xl font-black text-[#151719]">{card.count}</span>
                             </div>
                             <div className="mt-4 flex flex-col items-start">
-                                <span className="text-[#1f2d4f] font-extrabold text-sm tracking-wide">{card.title}</span>
+                                <span className="text-[#151719] font-extrabold text-sm tracking-wide">{card.title}</span>
                                 <span className="text-[11px] font-semibold text-slate-400 mt-1">{card.sub}</span>
                             </div>
                         </div>
