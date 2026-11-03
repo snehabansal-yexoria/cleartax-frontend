@@ -203,7 +203,7 @@ export default function WorkspaceDataRulesPage() {
               </div>
             ))}
             {editing.protectedCount > 0 ? (
-              <p className="cpc-small" style={{ background: "#F3F0E9", border: "1px solid #E1D9F4", borderRadius: 8, padding: 10 }}>
+              <p className="cpc-small" style={{ background: "#f1f4fd", border: "1px solid #d6def7", borderRadius: 8, padding: 10 }}>
                 {editing.protectedCount} protected value{editing.protectedCount === 1 ? "" : "s"} stay locked whatever you choose here.
               </p>
             ) : null}
@@ -243,7 +243,7 @@ export default function WorkspaceDataRulesPage() {
       </Dialog>
 
       {toast ? (
-        <div role="status" style={{ position: "fixed", right: 24, bottom: 24, zIndex: 60, background: "#151719", color: "#FFFFFF", padding: "12px 16px", borderRadius: 12, fontSize: 14, boxShadow: "0 12px 30px rgba(21, 23, 25,.25)" }}>
+        <div role="status" style={{ position: "fixed", right: 24, bottom: 24, zIndex: 60, background: "#101828", color: "#fff", padding: "12px 16px", borderRadius: 12, fontSize: 14, boxShadow: "0 12px 30px rgba(0,0,0,.25)" }}>
           {toast}
         </div>
       ) : null}

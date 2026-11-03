@@ -1030,15 +1030,15 @@ export default function ClientAddPropertyView({
   };
 
   if (isLoading) {
-    const skeletonBg = isDark ? "rgba(255, 255, 255, 0.08)" : "#EBE8E1";
+    const skeletonBg = isDark ? "rgba(255, 255, 255, 0.08)" : "#eaeef4";
     return (
       <div
         style={{
-          background: isDark ? "var(--surface-0)" : "#F3F0E9",
+          background: isDark ? "var(--surface-0)" : "#f7f9fc",
           color: isDark ? "var(--text-primary)" : "inherit",
           minHeight: "100vh",
           padding: isMobile ? "20px" : "40px",
-          fontFamily: '"Inter Tight", sans-serif'
+          fontFamily: '"Inter", sans-serif'
         }}
       >
         {/* Back Link / Title Area */}
@@ -1054,11 +1054,11 @@ export default function ClientAddPropertyView({
         {/* Main Card */}
         <div
           style={{
-            background: isDark ? "var(--surface-1)" : "#FFFFFF",
+            background: isDark ? "var(--surface-1)" : "#ffffff",
             borderRadius: "16px",
-            border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+            border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
             padding: isMobile ? "20px" : "32px",
-            boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.02)"
+            boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.02)"
           }}
         >
           {/* Step Indicator */}
@@ -1067,7 +1067,7 @@ export default function ClientAddPropertyView({
           {/* Image Dropzone Skeleton */}
           <div style={{ marginBottom: "28px" }}>
             <div className="skeleton-pulse" style={{ width: "120px", height: "14px", background: skeletonBg, borderRadius: "4px", marginBottom: "8px" }} />
-            <div className="skeleton-pulse" style={{ height: "120px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px" }} />
+            <div className="skeleton-pulse" style={{ height: "120px", background: isDark ? "var(--surface-2)" : "#f8f9fc", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px" }} />
           </div>
 
           {/* Form Fields Grid */}
@@ -1075,36 +1075,36 @@ export default function ClientAddPropertyView({
             {/* Entity Name Field */}
             <div>
               <div className="skeleton-pulse" style={{ width: "100px", height: "14px", background: skeletonBg, borderRadius: "4px", marginBottom: "8px" }} />
-              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px" }} />
+              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#f8f9fc", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px" }} />
             </div>
 
             {/* Property Name Field */}
             <div>
               <div className="skeleton-pulse" style={{ width: "110px", height: "14px", background: skeletonBg, borderRadius: "4px", marginBottom: "8px" }} />
-              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px" }} />
+              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#f8f9fc", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px" }} />
             </div>
 
             {/* Location Field */}
             <div style={{ gridColumn: isMobile ? "span 1" : "span 2" }}>
               <div className="skeleton-pulse" style={{ width: "120px", height: "14px", background: skeletonBg, borderRadius: "4px", marginBottom: "8px" }} />
-              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px" }} />
+              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#f8f9fc", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px" }} />
             </div>
 
             {/* Property Type Field */}
             <div>
               <div className="skeleton-pulse" style={{ width: "100px", height: "14px", background: skeletonBg, borderRadius: "4px", marginBottom: "8px" }} />
-              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px" }} />
+              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#f8f9fc", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px" }} />
             </div>
 
             {/* Status Field */}
             <div>
               <div className="skeleton-pulse" style={{ width: "90px", height: "14px", background: skeletonBg, borderRadius: "4px", marginBottom: "8px" }} />
-              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px" }} />
+              <div className="skeleton-pulse" style={{ height: "44px", background: isDark ? "var(--surface-2)" : "#f8f9fc", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px" }} />
             </div>
           </div>
 
           {/* Footer buttons skeleton */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, paddingTop: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, paddingTop: "20px" }}>
             <div className="skeleton-pulse" style={{ width: "120px", height: "44px", background: skeletonBg, borderRadius: "8px" }} />
           </div>
         </div>
@@ -1119,14 +1119,14 @@ export default function ClientAddPropertyView({
     return (
       <div
         onKeyDown={handleKeyDown}
-        style={{ background: isDark ? "var(--surface-0)" : "#FFFFFF", color: isDark ? "var(--text-primary)" : "inherit", minHeight: "100vh", paddingBottom: "90px", display: "flex", flexDirection: "column", fontFamily: '"Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+        style={{ background: isDark ? "var(--surface-0)" : "#ffffff", color: isDark ? "var(--text-primary)" : "inherit", minHeight: "100vh", paddingBottom: "90px", display: "flex", flexDirection: "column", fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
       >
         {/* Top Header */}
         <div style={{
           position: "sticky",
           top: 0,
-          background: isDark ? "var(--surface-1)" : "#FFFFFF",
-          borderBottom: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+          background: isDark ? "var(--surface-1)" : "#ffffff",
+          borderBottom: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
           zIndex: 100,
           display: "flex",
           alignItems: "center",
@@ -1145,7 +1145,7 @@ export default function ClientAddPropertyView({
               border: "none",
               fontSize: "16px",
               fontWeight: 600,
-              color: isDark ? "var(--accent)" : "#2E3135",
+              color: isDark ? "var(--accent)" : "#2f3c82",
               cursor: "pointer",
               padding: 0
             }}
@@ -1162,7 +1162,7 @@ export default function ClientAddPropertyView({
             transform: "translateX(-50%)",
             fontSize: "18px",
             fontWeight: 700,
-            color: isDark ? "var(--text-primary)" : "#151719"
+            color: isDark ? "var(--text-primary)" : "#101828"
           }}>
             Add Property
           </div>
@@ -1171,13 +1171,13 @@ export default function ClientAddPropertyView({
 
         {/* Step Info Banner */}
         <div style={{
-          background: isDark ? "var(--surface-2)" : "#F3F0E9",
+          background: isDark ? "var(--surface-2)" : "#f4f6fc",
           padding: "14px 16px",
           textAlign: "center",
           fontSize: "14px",
           fontWeight: 600,
-          color: isDark ? "var(--text-primary)" : "#2E3135",
-          borderBottom: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`
+          color: isDark ? "var(--text-primary)" : "#2f3c82",
+          borderBottom: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`
         }}>
           Enter the below values to complete the step
         </div>
@@ -1188,36 +1188,36 @@ export default function ClientAddPropertyView({
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               {/* Property Image */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
                   Property Image
                 </label>
 
                 {isUploadingPropertyImage ? (
-                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
+                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#3E3F3F", marginBottom: "4px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#344054", marginBottom: "4px" }}>
                         <span>Uploading...</span>
                         <span>{propertyImageProgress}%</span>
                       </div>
-                      <div style={{ height: "6px", width: "100%", background: isDark ? "var(--surface-1)" : "#EBE8E1", borderRadius: "3px", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: isDark ? "var(--accent)" : "#2E3135" }} />
+                      <div style={{ height: "6px", width: "100%", background: isDark ? "var(--surface-1)" : "#eaeef4", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: isDark ? "var(--accent)" : "#2f3c82" }} />
                       </div>
                     </div>
                   </div>
                 ) : imageUrl ? (
-                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
+                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <img
                         src={imageUrl.startsWith("http") || imageUrl.startsWith("/") ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`}
                         alt="Preview"
-                        style={{ width: "40px", height: "40px", borderRadius: "8px", objectFit: "cover", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}
+                        style={{ width: "40px", height: "40px", borderRadius: "8px", objectFit: "cover", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}
                       />
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#3E3F3F" }}>Image added</span>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#344054" }}>Image added</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => { setImageUrl(""); setPropertyImageName(""); }}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794" }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3" }}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px" }}>
                         <path d="M18 6L6 18M6 6l12 12" />
@@ -1228,8 +1228,8 @@ export default function ClientAddPropertyView({
                   <div
                     onClick={() => document.getElementById("mobile-image-input")?.click()}
                     style={{
-                      border: `1px dashed ${isDark ? "var(--border)" : "#EBE8E1"}`,
-                      background: isDark ? "var(--surface-2)" : "#F3F0E9",
+                      border: `1px dashed ${isDark ? "var(--border)" : "#eaeef4"}`,
+                      background: isDark ? "var(--surface-2)" : "#f4f6fa",
                       borderRadius: "12px",
                       padding: "24px 16px",
                       textAlign: "center",
@@ -1243,10 +1243,10 @@ export default function ClientAddPropertyView({
                       onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file); }}
                       style={{ display: "none" }}
                     />
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#777775", marginBottom: "4px" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#718096", marginBottom: "4px" }}>
                       Tap to add property photo
                     </div>
-                    <div style={{ fontSize: "11px", color: isDark ? "var(--text-muted)" : "#A3A19E" }}>
+                    <div style={{ fontSize: "11px", color: isDark ? "var(--text-muted)" : "#a0aec0" }}>
                       JPEG, PNG max 10 MB<br />Camera or Gallery
                     </div>
                   </div>
@@ -1255,8 +1255,8 @@ export default function ClientAddPropertyView({
 
               {/* Entity name */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                  Entity Name <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                  Entity Name <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <div ref={entityDropdownRef} style={{ position: "relative", zIndex: isEntityOpen ? 30 : 1 }}>
                   <button
@@ -1268,12 +1268,12 @@ export default function ClientAddPropertyView({
                       height: "48px",
                       padding: "0 16px",
                       background: (mode === "edit" || !!entityId)
-                        ? (isDark ? "var(--surface-1)" : "#F3F0E9")
-                        : (isDark ? "var(--surface-2)" : "#F3F0E9"),
-                      border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        ? (isDark ? "var(--surface-1)" : "#f1f5f9")
+                        : (isDark ? "var(--surface-2)" : "#f4f6fa"),
+                      border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: selectedEntityId ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                      color: selectedEntityId ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
@@ -1285,13 +1285,13 @@ export default function ClientAddPropertyView({
                   >
                     <span>{selectedEntity ? selectedEntity.name : "Select Entity"}</span>
                     {mode !== "edit" && !entityId && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     )}
                   </button>
                   {isEntityOpen && mode !== "edit" && !entityId && (
-                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
+                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
                       {entities.map((e) => (
                         <button
                           key={e.id}
@@ -1301,10 +1301,10 @@ export default function ClientAddPropertyView({
                             width: "100%",
                             padding: "12px 16px",
                             textAlign: "left",
-                            background: selectedEntityId === e.id ? (isDark ? "var(--surface-2)" : "#F3F0E9") : "transparent",
+                            background: selectedEntityId === e.id ? (isDark ? "var(--surface-2)" : "#f4f6fc") : "transparent",
                             border: "none",
                             fontSize: "14px",
-                            color: isDark ? "var(--text-primary)" : "#151719",
+                            color: isDark ? "var(--text-primary)" : "#101828",
                             cursor: "pointer",
                             fontWeight: selectedEntityId === e.id ? 600 : 500,
                             display: "block"
@@ -1320,8 +1320,8 @@ export default function ClientAddPropertyView({
 
               {/* Property name */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                  Property Name <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                  Property Name <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -1332,11 +1332,11 @@ export default function ClientAddPropertyView({
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                    border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                    background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                    border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: isDark ? "var(--text-primary)" : "#151719",
+                    color: isDark ? "var(--text-primary)" : "#101828",
                     outline: "none"
                   }}
                 />
@@ -1344,8 +1344,8 @@ export default function ClientAddPropertyView({
 
               {/* Property Location */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                  Property Location <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                  Property Location <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -1356,11 +1356,11 @@ export default function ClientAddPropertyView({
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                    border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                    background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                    border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: isDark ? "var(--text-primary)" : "#151719",
+                    color: isDark ? "var(--text-primary)" : "#101828",
                     outline: "none"
                   }}
                 />
@@ -1368,8 +1368,8 @@ export default function ClientAddPropertyView({
 
               {/* Property Type */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                  Property Type <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                  Property Type <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <div ref={typeDropdownRef} style={{ position: "relative", zIndex: isTypeOpen ? 30 : 1 }}>
                   <button
@@ -1379,11 +1379,11 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                      border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                      border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: propertyType ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                      color: propertyType ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
@@ -1393,12 +1393,12 @@ export default function ClientAddPropertyView({
                     }}
                   >
                     <span>{propertyType ? propertyTypeOptions.find((o) => o.value === propertyType)?.label : "Select Type"}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                       <path d="M6 9l6 6 6-6" />
                     </svg>
                   </button>
                   {isTypeOpen && (
-                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 120 }}>
+                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 120 }}>
                       {propertyTypeOptions.map((o) => (
                         <button
                           key={o.value}
@@ -1408,10 +1408,10 @@ export default function ClientAddPropertyView({
                             width: "100%",
                             padding: "12px 16px",
                             textAlign: "left",
-                            background: propertyType === o.value ? (isDark ? "var(--surface-2)" : "#F3F0E9") : "transparent",
+                            background: propertyType === o.value ? (isDark ? "var(--surface-2)" : "#f4f6fc") : "transparent",
                             border: "none",
                             fontSize: "14px",
-                            color: isDark ? "var(--text-primary)" : "#151719",
+                            color: isDark ? "var(--text-primary)" : "#101828",
                             cursor: "pointer",
                             fontWeight: propertyType === o.value ? 600 : 500,
                             display: "block"
@@ -1427,8 +1427,8 @@ export default function ClientAddPropertyView({
 
               {/* Property Status */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                  Property Status <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                  Property Status <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <div ref={statusDropdownRef} style={{ position: "relative", zIndex: isStatusOpen ? 30 : 1 }}>
                   <button
@@ -1438,11 +1438,11 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                      border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                      border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: status ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                      color: status ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
@@ -1452,12 +1452,12 @@ export default function ClientAddPropertyView({
                     }}
                   >
                     <span>{status || "Select Status"}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                       <path d="M6 9l6 6 6-6" />
                     </svg>
                   </button>
                   {isStatusOpen && (
-                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
+                    <div style={{ position: "absolute", top: "52px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 120, maxHeight: "180px", overflowY: "auto" }}>
                       {propertyStatusOptions.map((opt) => (
                         <button
                           key={opt}
@@ -1467,10 +1467,10 @@ export default function ClientAddPropertyView({
                             width: "100%",
                             padding: "12px 16px",
                             textAlign: "left",
-                            background: status === opt ? (isDark ? "var(--surface-2)" : "#F3F0E9") : "transparent",
+                            background: status === opt ? (isDark ? "var(--surface-2)" : "#f4f6fc") : "transparent",
                             border: "none",
                             fontSize: "14px",
-                            color: isDark ? "var(--text-primary)" : "#151719",
+                            color: isDark ? "var(--text-primary)" : "#101828",
                             cursor: "pointer",
                             fontWeight: status === opt ? 600 : 500,
                             display: "block"
@@ -1486,10 +1486,10 @@ export default function ClientAddPropertyView({
 
               {/* Status dates */}
               {(status === "Available for Rent" || status === "Rented") && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: isDark ? "var(--surface-1)" : "#F3F0E9", borderRadius: "12px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: isDark ? "var(--surface-1)" : "#f8f9fc", borderRadius: "12px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#505050", marginBottom: "6px" }}>
-                      Available for Rent Date <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#475569", marginBottom: "6px" }}>
+                      Available for Rent Date <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -1505,23 +1505,23 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 12px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: touchedFields.availableForRentDate && dateErrors.availableForRentDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: touchedFields.availableForRentDate && dateErrors.availableForRentDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "13px",
-                        color: isDark ? "var(--text-primary)" : "#151719"
+                        color: isDark ? "var(--text-primary)" : "#101828"
                       }}
                     />
                     {dateErrors.availableForRentDate && (touchedFields.availableForRentDate || availableForRentDate) && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {dateErrors.availableForRentDate}
                       </div>
                     )}
                   </div>
                   {status === "Rented" && (
                     <div>
-                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#505050", marginBottom: "6px" }}>
-                        First Rental Income Date <span style={{ color: "#C46A4C" }}>*</span>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#475569", marginBottom: "6px" }}>
+                        First Rental Income Date <span style={{ color: "#EF4444" }}>*</span>
                       </label>
                       <input
                         type="date"
@@ -1537,15 +1537,15 @@ export default function ClientAddPropertyView({
                           width: "100%",
                           height: "44px",
                           padding: "0 12px",
-                          background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                          border: touchedFields.firstRentalIncomeDate && dateErrors.firstRentalIncomeDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                          background: isDark ? "var(--surface-2)" : "#ffffff",
+                          border: touchedFields.firstRentalIncomeDate && dateErrors.firstRentalIncomeDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                           borderRadius: "8px",
                           fontSize: "13px",
-                          color: isDark ? "var(--text-primary)" : "#151719"
+                          color: isDark ? "var(--text-primary)" : "#101828"
                         }}
                       />
                       {dateErrors.firstRentalIncomeDate && (touchedFields.firstRentalIncomeDate || firstRentalIncomeDate) && (
-                        <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                        <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                           {dateErrors.firstRentalIncomeDate}
                         </div>
                       )}
@@ -1555,10 +1555,10 @@ export default function ClientAddPropertyView({
               )}
 
               {status === "Under Renovation" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: isDark ? "var(--surface-1)" : "#F3F0E9", borderRadius: "12px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: isDark ? "var(--surface-1)" : "#f8f9fc", borderRadius: "12px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#505050", marginBottom: "6px" }}>
-                      Renovation Start Date <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#475569", marginBottom: "6px" }}>
+                      Renovation Start Date <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -1574,22 +1574,22 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 12px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: touchedFields.renovationStartDate && dateErrors.renovationStartDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: touchedFields.renovationStartDate && dateErrors.renovationStartDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "13px",
-                        color: isDark ? "var(--text-primary)" : "#151719"
+                        color: isDark ? "var(--text-primary)" : "#101828"
                       }}
                     />
                     {dateErrors.renovationStartDate && (touchedFields.renovationStartDate || renovationStartDate) && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {dateErrors.renovationStartDate}
                       </div>
                     )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#505050", marginBottom: "6px" }}>
-                      Renovation End Date <small style={{ color: isDark ? "var(--text-muted)" : "#6A6A69" }}>(Optional)</small>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#475569", marginBottom: "6px" }}>
+                      Renovation End Date <small style={{ color: isDark ? "var(--text-muted)" : "#667085" }}>(Optional)</small>
                     </label>
                     <input
                       type="date"
@@ -1605,15 +1605,15 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 12px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: touchedFields.renovationEndDate && dateErrors.renovationEndDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: touchedFields.renovationEndDate && dateErrors.renovationEndDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "13px",
-                        color: isDark ? "var(--text-primary)" : "#151719"
+                        color: isDark ? "var(--text-primary)" : "#101828"
                       }}
                     />
                     {dateErrors.renovationEndDate && (touchedFields.renovationEndDate || renovationEndDate) && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {dateErrors.renovationEndDate}
                       </div>
                     )}
@@ -1625,15 +1625,15 @@ export default function ClientAddPropertyView({
 
           {step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={{ fontSize: "11px", fontWeight: 800, color: isDark ? "var(--text-secondary)" : "#6C6C6B", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <div style={{ fontSize: "11px", fontWeight: 800, color: isDark ? "var(--text-secondary)" : "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 FINANCIAL INFO
               </div>
 
               {/* Market and Purchase Value */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                    Market Value <span style={{ color: "#C46A4C" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                    Market Value <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1645,23 +1645,23 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                      border: touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                      border: touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: isDark ? "var(--text-primary)" : "#151719",
+                      color: isDark ? "var(--text-primary)" : "#101828",
                       outline: "none"
                     }}
                   />
                   {touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid && (
-                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                       Market Value must be greater than 0.
                     </div>
                   )}
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                    Purchase Value <span style={{ color: "#C46A4C" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                    Purchase Value <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1673,16 +1673,16 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                      border: touchedFields.purchaseAmount && !isPurchaseAmountValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                      border: touchedFields.purchaseAmount && !isPurchaseAmountValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: isDark ? "var(--text-primary)" : "#151719",
+                      color: isDark ? "var(--text-primary)" : "#101828",
                       outline: "none"
                     }}
                   />
                   {touchedFields.purchaseAmount && !isPurchaseAmountValid && (
-                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                       Purchase Value must be greater than 0.
                     </div>
                   )}
@@ -1691,8 +1691,8 @@ export default function ClientAddPropertyView({
 
               {/* Purchase Date */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                  Purchase Date <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                  Purchase Date <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <input
                   type="date"
@@ -1708,16 +1708,16 @@ export default function ClientAddPropertyView({
                     width: "100%",
                     height: "48px",
                     padding: "0 16px",
-                    background: isDark ? "var(--surface-2)" : "#F3F0E9",
-                    border: touchedFields.purchaseDate && dateErrors.purchaseDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                    background: isDark ? "var(--surface-2)" : "#f4f6fa",
+                    border: touchedFields.purchaseDate && dateErrors.purchaseDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                     borderRadius: "12px",
                     fontSize: "14px",
-                    color: isDark ? "var(--text-primary)" : "#151719",
+                    color: isDark ? "var(--text-primary)" : "#101828",
                     outline: "none"
                   }}
                 />
                 {dateErrors.purchaseDate && (touchedFields.purchaseDate || purchaseDate) && (
-                  <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                  <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                     {dateErrors.purchaseDate}
                   </div>
                 )}
@@ -1725,19 +1725,19 @@ export default function ClientAddPropertyView({
 
               {/* Depreciation Schedule Radios */}
               <div>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
                   Depreciation Schedule
                 </label>
                 <div style={{ display: "flex", gap: "24px", marginTop: "4px" }}>
                   <div
                     onClick={() => setHasDepreciationSchedule(true)}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#151719", cursor: "pointer", fontWeight: 500 }}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#1e293b", cursor: "pointer", fontWeight: 500 }}
                   >
                     <div style={{
                       width: "20px",
                       height: "20px",
                       borderRadius: "50%",
-                      border: hasDepreciationSchedule ? (isDark ? "2.5px solid var(--accent)" : "2.5px solid #151719") : (isDark ? "2px solid var(--text-muted)" : "2px solid #A3A19E"),
+                      border: hasDepreciationSchedule ? (isDark ? "2.5px solid var(--accent)" : "2.5px solid #1B265C") : (isDark ? "2px solid var(--text-muted)" : "2px solid #A0AEC0"),
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1749,7 +1749,7 @@ export default function ClientAddPropertyView({
                           width: "10px",
                           height: "10px",
                           borderRadius: "50%",
-                          background: isDark ? "var(--accent)" : "#151719"
+                          background: isDark ? "var(--accent)" : "#1B265C"
                         }} />
                       )}
                     </div>
@@ -1761,13 +1761,13 @@ export default function ClientAddPropertyView({
                       setDepreciationScheduleDocument(null);
                       setDepreciationUploadProgress(0);
                     }}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#151719", cursor: "pointer", fontWeight: 500 }}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#1e293b", cursor: "pointer", fontWeight: 500 }}
                   >
                     <div style={{
                       width: "20px",
                       height: "20px",
                       borderRadius: "50%",
-                      border: !hasDepreciationSchedule ? (isDark ? "2.5px solid var(--accent)" : "2.5px solid #151719") : (isDark ? "2px solid var(--text-muted)" : "2px solid #A3A19E"),
+                      border: !hasDepreciationSchedule ? (isDark ? "2.5px solid var(--accent)" : "2.5px solid #1B265C") : (isDark ? "2px solid var(--text-muted)" : "2px solid #A0AEC0"),
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1779,7 +1779,7 @@ export default function ClientAddPropertyView({
                           width: "10px",
                           height: "10px",
                           borderRadius: "50%",
-                          background: isDark ? "var(--accent)" : "#151719"
+                          background: isDark ? "var(--accent)" : "#1B265C"
                         }} />
                       )}
                     </div>
@@ -1790,18 +1790,18 @@ export default function ClientAddPropertyView({
                 {hasDepreciationSchedule && (
                   <div style={{ marginTop: "12px" }}>
                     {isUploadingDepreciationSchedule ? (
-                      <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "12px", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
-                        <div style={{ fontSize: "12px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#3E3F3F" }}>Uploading depreciation document ({depreciationUploadProgress}%)</div>
+                      <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "12px", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
+                        <div style={{ fontSize: "12px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#344054" }}>Uploading depreciation document ({depreciationUploadProgress}%)</div>
                       </div>
                     ) : depreciationScheduleDocument ? (
-                      <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
-                        <span style={{ fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#3E3F3F" }}>{depreciationScheduleDocument.filename}</span>
-                        <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794" }}>✕</button>
+                      <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#344054" }}>{depreciationScheduleDocument.filename}</span>
+                        <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3" }}>✕</button>
                       </div>
                     ) : (
                       <div
                         onClick={() => document.getElementById("mobile-doc-input")?.click()}
-                        style={{ border: `1.5px dashed ${isDark ? "var(--border)" : "#EBE8E1"}`, background: isDark ? "var(--surface-2)" : "#F3F0E9", borderRadius: "12px", padding: "16px", textAlign: "center", cursor: "pointer" }}
+                        style={{ border: `1.5px dashed ${isDark ? "var(--border)" : "#eaeef4"}`, background: isDark ? "var(--surface-2)" : "#f8f9fc", borderRadius: "12px", padding: "16px", textAlign: "center", cursor: "pointer" }}
                       >
                         <input
                           type="file"
@@ -1810,7 +1810,7 @@ export default function ClientAddPropertyView({
                           onChange={(e) => { const file = e.target.files?.[0]; if (file) handleDocUpload(file); }}
                           style={{ display: "none" }}
                         />
-                        <span style={{ fontSize: "13px", color: isDark ? "var(--accent)" : "#2E3135", fontWeight: 600 }}>+ Upload depreciation schedule</span>
+                        <span style={{ fontSize: "13px", color: isDark ? "var(--accent)" : "#2f3c82", fontWeight: 600 }}>+ Upload depreciation schedule</span>
                       </div>
                     )}
                   </div>
@@ -1819,8 +1819,8 @@ export default function ClientAddPropertyView({
 
               {/* Beneficiaries section */}
               {takesOwnershipDetails && (
-                <div style={{ borderTop: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, paddingTop: "20px", marginTop: "10px" }}>
-                  <div style={{ fontSize: "11px", fontWeight: 800, color: isDark ? "var(--text-secondary)" : "#6C6C6B", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "12px" }}>
+                <div style={{ borderTop: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, paddingTop: "20px", marginTop: "10px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 800, color: isDark ? "var(--text-secondary)" : "#64748b", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "12px" }}>
                     BENEFICIARIES
                   </div>
 
@@ -1841,13 +1841,13 @@ export default function ClientAddPropertyView({
                             flex: 1,
                             height: "48px",
                             padding: "0 16px",
-                            background: isDark ? "var(--surface-2)" : "#F3F0E9",
+                            background: isDark ? "var(--surface-2)" : "#f4f6fa",
                             border: (b.name === "" && b.percentage !== "")
-                              ? "1px solid #C46A4C"
-                              : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                              ? "1px solid #ef4444"
+                              : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                             borderRadius: "12px",
                             fontSize: "14px",
-                            color: isDark ? "var(--text-primary)" : "#151719",
+                            color: isDark ? "var(--text-primary)" : "#101828",
                             outline: "none"
                           }}
                         />
@@ -1866,23 +1866,23 @@ export default function ClientAddPropertyView({
                               width: "60px",
                               height: "48px",
                               padding: "0 12px",
-                              background: isDark ? "var(--surface-2)" : "#F3F0E9",
+                              background: isDark ? "var(--surface-2)" : "#f4f6fa",
                               border: ((b.percentage !== "" && (Number(b.percentage) <= 0 || isNaN(Number(b.percentage)))) || (b.percentage === "" && b.name !== ""))
-                                ? "1px solid #C46A4C"
-                                : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                                ? "1px solid #ef4444"
+                                : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                               borderRadius: "12px",
                               fontSize: "14px",
-                              color: isDark ? "var(--text-primary)" : "#151719",
+                              color: isDark ? "var(--text-primary)" : "#101828",
                               outline: "none",
                               textAlign: "center"
                             }}
                           />
-                          <span style={{ fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#6A6A69", fontWeight: 700 }}>%</span>
+                          <span style={{ fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#667085", fontWeight: 700 }}>%</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => deleteBeneficiaryRow(idx)}
-                          style={{ background: "transparent", border: "none", cursor: "pointer", color: "#C46A4C", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "20px", height: "20px" }}>
                             <path d="M3 6h18" />
@@ -1898,17 +1898,17 @@ export default function ClientAddPropertyView({
 
                   {/* Beneficiary validation errors */}
                   {beneficiaries.some(b => b.percentage !== "" && (Number(b.percentage) <= 0 || isNaN(Number(b.percentage)))) && (
-                    <span style={{ fontSize: "12px", color: "#C46A4C", display: "block", marginTop: "-4px", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", color: "#ef4444", display: "block", marginTop: "-4px", marginBottom: "12px" }}>
                       Beneficiary ownership percentage must be greater than 0%.
                     </span>
                   )}
                   {beneficiaries.some(b => (b.name === "" && b.percentage !== "") || (b.percentage === "" && b.name !== "")) && (
-                    <span style={{ fontSize: "12px", color: "#C46A4C", display: "block", marginTop: "-4px", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", color: "#ef4444", display: "block", marginTop: "-4px", marginBottom: "12px" }}>
                       Please provide both a name and a valid percentage.
                     </span>
                   )}
                   {totalOwnership > 100 && (
-                    <span style={{ fontSize: "12px", color: "#C46A4C", display: "block", marginTop: "-4px", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", color: "#ef4444", display: "block", marginTop: "-4px", marginBottom: "12px" }}>
                       Total ownership percentage cannot exceed 100%.
                     </span>
                   )}
@@ -1920,10 +1920,10 @@ export default function ClientAddPropertyView({
                     style={{
                       width: "100%",
                       height: "48px",
-                      background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                      border: `1px solid ${isDark ? "var(--accent)" : "#151719"}`,
+                      background: isDark ? "var(--surface-2)" : "#ffffff",
+                      border: `1px solid ${isDark ? "var(--accent)" : "#1B265C"}`,
                       borderRadius: "12px",
-                      color: isDark ? "var(--accent)" : "#151719",
+                      color: isDark ? "var(--accent)" : "#1B265C",
                       fontSize: "14px",
                       fontWeight: 700,
                       cursor: "pointer",
@@ -1944,24 +1944,24 @@ export default function ClientAddPropertyView({
                     alignItems: "center",
                     padding: "14px 16px",
                     background: totalOwnership > 100
-                      ? (isDark ? "rgba(196, 106, 76, 0.12)" : "#F3F0E9")
+                      ? (isDark ? "rgba(239, 68, 68, 0.12)" : "#fef2f2")
                       : totalOwnership === 100
-                        ? (isDark ? "rgba(111, 122, 90, 0.12)" : "#F3F0E9")
-                        : (isDark ? "rgba(122, 92, 250, 0.08)" : "#F3F0E9"),
+                        ? (isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4")
+                        : (isDark ? "rgba(244, 161, 23, 0.08)" : "#fffdf0"),
                     border: `1px solid ${totalOwnership > 100
-                      ? (isDark ? "rgba(196, 106, 76, 0.3)" : "#F3DFD5")
+                      ? (isDark ? "rgba(239, 68, 68, 0.3)" : "#fecaca")
                       : totalOwnership === 100
-                        ? (isDark ? "var(--border)" : "#EBECE1")
-                        : (isDark ? "var(--border)" : "#EAC4B4")
+                        ? (isDark ? "var(--border)" : "#bbf7d0")
+                        : (isDark ? "var(--border)" : "#fef08a")
                       }`,
                     borderRadius: "12px",
                     fontSize: "14px",
                     fontWeight: 600,
                     color: totalOwnership > 100
-                      ? (isDark ? "#C46A4C" : "#C46A4C")
+                      ? (isDark ? "#ef4444" : "#b91c1c")
                       : totalOwnership === 100
-                        ? (isDark ? "var(--success)" : "#56613F")
-                        : (isDark ? "var(--accent)" : "#C46A4C")
+                        ? (isDark ? "var(--success)" : "#15803d")
+                        : (isDark ? "var(--accent)" : "#b45309")
                   }}>
                     <span>Total Ownership:</span>
                     <span>{totalOwnership.toFixed(1)}%</span>
@@ -1973,12 +1973,12 @@ export default function ClientAddPropertyView({
 
           {step === 3 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={{ fontSize: "11px", fontWeight: 800, color: isDark ? "var(--text-secondary)" : "#6C6C6B", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <div style={{ fontSize: "11px", fontWeight: 800, color: isDark ? "var(--text-secondary)" : "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 LOAN DETAILS — OPTIONAL
               </div>
 
               {/* Does the property have a loan? checkbox */}
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: isDark ? "var(--surface-1)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#E2E0D9"}`, borderRadius: "12px", marginBottom: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: isDark ? "var(--surface-1)" : "#f8fafc", border: `1px solid ${isDark ? "var(--border)" : "#e2e8f0"}`, borderRadius: "12px", marginBottom: "10px" }}>
                 <input
                   type="checkbox"
                   id="has-loan-checkbox-mobile"
@@ -2003,9 +2003,9 @@ export default function ClientAddPropertyView({
                       });
                     }
                   }}
-                  style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: isDark ? "var(--accent)" : "#151719" }}
+                  style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: isDark ? "var(--accent)" : "#1B265C" }}
                 />
-                <label htmlFor="has-loan-checkbox-mobile" style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#151719", cursor: "pointer", userSelect: "none" }}>
+                <label htmlFor="has-loan-checkbox-mobile" style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#1e293b", cursor: "pointer", userSelect: "none" }}>
                   Does the property have a loan?
                 </label>
               </div>
@@ -2013,8 +2013,8 @@ export default function ClientAddPropertyView({
               <div style={{ display: "flex", flexDirection: "column", gap: "20px", opacity: hasLoan ? 1 : 0.5, pointerEvents: hasLoan ? "auto" : "none", transition: "opacity 0.2s" }}>
                 {/* Bank Name */}
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                    Bank Name {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                    Bank Name {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
@@ -2027,17 +2027,17 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                      border: touchedFields.bankName && !isBankNameValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                      border: touchedFields.bankName && !isBankNameValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                      color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                       outline: "none",
                       cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
                   {touchedFields.bankName && !isBankNameValid && (
-                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                       {!bankName.trim() ? "Bank Name is required." : "Bank Name must contain letters and spaces only."}
                     </div>
                   )}
@@ -2046,8 +2046,8 @@ export default function ClientAddPropertyView({
                 {/* BSB Number and Loan % Allocation */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                      BSB Number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                      BSB Number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                     </label>
                     <input
                       type="text"
@@ -2060,24 +2060,24 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "48px",
                         padding: "0 16px",
-                        background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                        border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                        border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "12px",
                         fontSize: "14px",
-                        color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                        color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                         outline: "none",
                         cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
                     {touchedFields.bsbNumber && !isBsbValid && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {!bsbNumber.trim() ? "BSB Number is required." : "BSB Number must be exactly 6 digits."}
                       </div>
                     )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                      Loan % Allocation {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                      Loan % Allocation {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                     </label>
                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                       <input
@@ -2110,19 +2110,19 @@ export default function ClientAddPropertyView({
                           width: "100%",
                           height: "48px",
                           padding: "0 24px 0 12px",
-                          background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                          border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                          background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                          border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                           borderRadius: "12px",
                           fontSize: "14px",
-                          color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                          color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                           outline: "none",
                           cursor: hasLoan ? "text" : "not-allowed"
                         }}
                       />
-                      <span style={{ position: "absolute", right: "12px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#6A6A69", fontWeight: 500 }}>%</span>
+                      <span style={{ position: "absolute", right: "12px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#667085", fontWeight: 500 }}>%</span>
                     </div>
                     {touchedFields.loanAllocationPercentage && !isLoanAllocationValid && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {!loanAllocationPercentage
                           ? "Loan allocation is required."
                           : Number(loanAllocationPercentage) === 0
@@ -2135,8 +2135,8 @@ export default function ClientAddPropertyView({
 
                 {/* Loan Account Number */}
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                    Loan Account Number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                    Loan Account Number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
@@ -2149,17 +2149,17 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                      border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                      border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                      color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                       outline: "none",
                       cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
                   {touchedFields.loanAccountNumber && !isLoanAccountNumberValid && (
-                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                       {!loanAccountNumber.trim() ? "Loan Account Number is required." : "Loan Account Number must contain numeric values only."}
                     </div>
                   )}
@@ -2167,8 +2167,8 @@ export default function ClientAddPropertyView({
 
                 {/* Loan Amount */}
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#151719", marginBottom: "8px" }}>
-                    Loan Amount {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#1e293b", marginBottom: "8px" }}>
+                    Loan Amount {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                   </label>
                   <input
                     type="text"
@@ -2181,17 +2181,17 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "48px",
                       padding: "0 16px",
-                      background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                      border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                      border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "12px",
                       fontSize: "14px",
-                      color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                      color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                       outline: "none",
                       cursor: hasLoan ? "text" : "not-allowed"
                     }}
                   />
                   {touchedFields.loanAmount && !isLoanAmountValid && (
-                    <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                    <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                       {!loanAmount.trim()
                         ? "Loan Amount is required."
                         : (Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, "")) <= 0 || isNaN(Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, ""))))
@@ -2206,7 +2206,7 @@ export default function ClientAddPropertyView({
 
           {/* Mobile Error Message */}
           {errorMessage && (
-            <div style={{ marginTop: "16px", padding: "12px 16px", background: isDark ? "rgba(234, 195, 178, 0.12)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EECFC1"}`, borderRadius: "8px", color: isDark ? "var(--danger)" : "#C46A4C", fontSize: "13px", fontWeight: 500 }}>
+            <div style={{ marginTop: "16px", padding: "12px 16px", background: isDark ? "rgba(240, 149, 149, 0.12)" : "#fef2f2", border: `1px solid ${isDark ? "var(--border)" : "#fca5a5"}`, borderRadius: "8px", color: isDark ? "var(--danger)" : "#991b1b", fontSize: "13px", fontWeight: 500 }}>
               {errorMessage}
             </div>
           )}
@@ -2218,9 +2218,9 @@ export default function ClientAddPropertyView({
           bottom: 0,
           left: 0,
           right: 0,
-          background: isDark ? "var(--surface-1)" : "#FFFFFF",
-          borderTop: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
-          boxShadow: "0px -4px 10px rgba(21, 23, 25, 0.04)",
+          background: isDark ? "var(--surface-1)" : "#ffffff",
+          borderTop: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
+          boxShadow: "0px -4px 10px rgba(0, 0, 0, 0.04)",
           padding: "16px 20px",
           zIndex: 200
         }}>
@@ -2232,9 +2232,9 @@ export default function ClientAddPropertyView({
               width: "100%",
               height: "48px",
               borderRadius: "12px",
-              background: isCurrentStepValid ? (isDark ? "var(--accent)" : "#151719") : (isDark ? "var(--surface-2)" : "#A3A29E"),
+              background: isCurrentStepValid ? (isDark ? "var(--accent)" : "#1B265C") : (isDark ? "var(--surface-2)" : "#A2AABF"),
               border: "none",
-              color: isCurrentStepValid ? (isDark ? "#151719" : "#FFFFFF") : (isDark ? "var(--text-muted)" : "#FFFFFF"),
+              color: isCurrentStepValid ? (isDark ? "#0f1330" : "#ffffff") : (isDark ? "var(--text-muted)" : "#ffffff"),
               fontSize: "16px",
               fontWeight: 700,
               cursor: isCurrentStepValid ? "pointer" : "not-allowed",
@@ -2247,17 +2247,17 @@ export default function ClientAddPropertyView({
 
         {/* Success Modal */}
         {saved && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: isDark ? "rgba(21, 23, 25, 0.6)" : "rgba(21, 23, 25, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-            <div style={{ background: isDark ? "var(--surface-1)" : "#FFFFFF", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "340px", textAlign: "center", boxShadow: "0px 20px 48px rgba(21, 23, 25, 0.12)", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}>
-              <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: isDark ? "rgba(111, 122, 90, 0.12)" : "#F3F0E9", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px auto" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--success)" : "#6F7A5A"} strokeWidth="3" style={{ width: "32px", height: "32px" }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: isDark ? "rgba(0, 0, 0, 0.6)" : "rgba(16, 24, 40, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+            <div style={{ background: isDark ? "var(--surface-1)" : "#ffffff", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "340px", textAlign: "center", boxShadow: "0px 20px 48px rgba(16, 24, 40, 0.12)", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}>
+              <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px auto" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--success)" : "#10b981"} strokeWidth="3" style={{ width: "32px", height: "32px" }}>
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: isDark ? "var(--text-primary)" : "#151719", margin: "0 0 8px 0" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: isDark ? "var(--text-primary)" : "#101828", margin: "0 0 8px 0" }}>
                 {mode === "edit" ? "Property Updated" : "Property Added"}
               </h3>
-              <p style={{ fontSize: "13px", color: isDark ? "var(--text-secondary)" : "#6A6A69", margin: "0 0 24px 0", lineHeight: "1.4" }}>
+              <p style={{ fontSize: "13px", color: isDark ? "var(--text-secondary)" : "#667085", margin: "0 0 24px 0", lineHeight: "1.4" }}>
                 <strong>{propertyName}</strong> has been {mode === "edit" ? "updated" : "added"} successfully.
               </p>
               <Link
@@ -2268,11 +2268,11 @@ export default function ClientAddPropertyView({
                   justifyContent: "center",
                   height: "44px",
                   width: "100%",
-                  background: isDark ? "var(--accent)" : "#151719",
+                  background: isDark ? "var(--accent)" : "#1B265C",
                   borderRadius: "8px",
                   fontSize: "14px",
                   fontWeight: 600,
-                  color: isDark ? "#151719" : "#FFFFFF",
+                  color: isDark ? "#0f1330" : "#ffffff",
                   textDecoration: "none"
                 }}
               >
@@ -2290,74 +2290,74 @@ export default function ClientAddPropertyView({
     return (
       <div
         onKeyDown={handleKeyDown}
-        style={{ background: isDark ? "var(--surface-0)" : "#F3F0E9", color: isDark ? "var(--text-primary)" : "inherit", minHeight: "100vh", padding: "40px", fontFamily: '"Inter Tight", sans-serif' }}
+        style={{ background: isDark ? "var(--surface-0)" : "#f7f9fc", color: isDark ? "var(--text-primary)" : "inherit", minHeight: "100vh", padding: "40px", fontFamily: '"Inter", sans-serif' }}
       >
         <div style={{ marginBottom: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#6A6A69", fontWeight: 500, marginBottom: "8px" }}>
-            <Link href={backUrl} style={{ color: isDark ? "var(--accent)" : "#2E3135", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#667085", fontWeight: 500, marginBottom: "8px" }}>
+            <Link href={backUrl} style={{ color: isDark ? "var(--accent)" : "#2f3c82", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px" }}>
                 <path d="M15 19l-7-7 7-7" />
               </svg>
               {backText}
             </Link>
             <span>/</span>
-            <span style={{ color: isDark ? "var(--text-secondary)" : "#3E3F3F" }}>{mode === "edit" ? "Edit property" : "Add property"}</span>
+            <span style={{ color: isDark ? "var(--text-secondary)" : "#344054" }}>{mode === "edit" ? "Edit property" : "Add property"}</span>
           </div>
-          <h1 style={{ fontSize: "32px", fontWeight: 800, color: isDark ? "var(--text-primary)" : "#151719", margin: "0 0 4px 0", letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: "32px", fontWeight: 800, color: isDark ? "var(--text-primary)" : "#101828", margin: "0 0 4px 0", letterSpacing: "-0.02em" }}>
             {mode === "edit" ? "Edit property" : "Add a new property"}
           </h1>
-          <p style={{ fontSize: "15px", color: isDark ? "var(--text-secondary)" : "#6A6A69", margin: 0, fontWeight: 400 }}>
+          <p style={{ fontSize: "15px", color: isDark ? "var(--text-secondary)" : "#667085", margin: 0, fontWeight: 400 }}>
             {mode === "edit" ? "Modify the property details, financial info, and supporting documents" : "Enter the property details, financial info, and link any supporting documents"}
           </p>
         </div>
 
         <div style={{ width: "100%" }}>
           {step === 1 && (
-            <div style={{ background: isDark ? "var(--surface-1)" : "#FFFFFF", borderRadius: "16px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, padding: "32px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.02)" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#6A6A69", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
+            <div style={{ background: isDark ? "var(--surface-1)" : "#ffffff", borderRadius: "16px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, padding: "32px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.02)" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#667085", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
                 STEP 1 — PROPERTY DETAILS
               </div>
 
               {/* Property Image Dropzone */}
               <div style={{ marginBottom: "28px" }}>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
                   Property image
                 </label>
 
                 {isUploadingPropertyImage ? (
-                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
-                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: isDark ? "var(--surface-1)" : "#EBE8E1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--accent)" : "#2E3135"} strokeWidth="2" style={{ width: "20px", height: "20px" }}>
+                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: isDark ? "var(--surface-1)" : "#eaeef4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--accent)" : "#2f3c82"} strokeWidth="2" style={{ width: "20px", height: "20px" }}>
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#3E3F3F", marginBottom: "4px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#344054", marginBottom: "4px" }}>
                         <span>Uploading property image...</span>
                         <span>{propertyImageProgress}%</span>
                       </div>
-                      <div style={{ height: "6px", width: "100%", background: isDark ? "var(--surface-1)" : "#EBE8E1", borderRadius: "3px", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: isDark ? "var(--accent)" : "#2E3135", transition: "width 0.1s ease" }} />
+                      <div style={{ height: "6px", width: "100%", background: isDark ? "var(--surface-1)" : "#eaeef4", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${propertyImageProgress}%`, background: isDark ? "var(--accent)" : "#2f3c82", transition: "width 0.1s ease" }} />
                       </div>
                     </div>
                   </div>
                 ) : imageUrl ? (
-                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
+                  <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       <img
                         src={imageUrl.startsWith("http") || imageUrl.startsWith("/") ? imageUrl : `/api/documents/download?key=${encodeURIComponent(imageUrl)}`}
                         alt="Preview"
-                        style={{ width: "48px", height: "48px", borderRadius: "8px", objectFit: "cover", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}
+                        style={{ width: "48px", height: "48px", borderRadius: "8px", objectFit: "cover", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}
                       />
                       <div>
-                        <div style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#3E3F3F" }}>{propertyImageName || "Property Image"}</div>
-                        <div style={{ fontSize: "12px", color: isDark ? "var(--success)" : "#6F7A5A", fontWeight: 500 }}>Successfully uploaded</div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#344054" }}>{propertyImageName || "Property Image"}</div>
+                        <div style={{ fontSize: "12px", color: isDark ? "var(--success)" : "#10b981", fontWeight: 500 }}>Successfully uploaded</div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => { setImageUrl(""); setPropertyImageName(""); }}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794", padding: "8px" }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3", padding: "8px" }}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "18px", height: "18px" }}>
                         <path d="M18 6L6 18M6 6l12 12" />
@@ -2370,8 +2370,8 @@ export default function ClientAddPropertyView({
                     onDragLeave={() => setIsDraggingImage(false)}
                     onDrop={(e) => { e.preventDefault(); setIsDraggingImage(false); const file = e.dataTransfer.files?.[0]; if (file) handleImageUpload(file); }}
                     style={{
-                      border: `2px dashed ${isDraggingImage ? (isDark ? "var(--accent)" : "#2E3135") : (isDark ? "var(--border)" : "#EBE8E1")}`,
-                      background: isDraggingImage ? (isDark ? "var(--surface-1)" : "#F3F0E9") : (isDark ? "var(--surface-2)" : "#F3F0E9"),
+                      border: `2px dashed ${isDraggingImage ? (isDark ? "var(--accent)" : "#2f3c82") : (isDark ? "var(--border)" : "#eaeef4")}`,
+                      background: isDraggingImage ? (isDark ? "var(--surface-1)" : "#f4f6fc") : (isDark ? "var(--surface-2)" : "#f8f9fc"),
                       borderRadius: "12px",
                       padding: "36px 20px",
                       textAlign: "center",
@@ -2387,17 +2387,17 @@ export default function ClientAddPropertyView({
                       onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file); }}
                       style={{ display: "none" }}
                     />
-                    <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px auto", boxShadow: isDark ? "none" : "0px 2px 8px rgba(21, 23, 25, 0.02)" }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--text-secondary)" : "#6A6A69"} strokeWidth="2" style={{ width: "20px", height: "20px" }}>
+                    <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px auto", boxShadow: isDark ? "none" : "0px 2px 8px rgba(16, 24, 40, 0.02)" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--text-secondary)" : "#667085"} strokeWidth="2" style={{ width: "20px", height: "20px" }}>
                         <rect x="3" y="3" width="18" height="18" rx="2" />
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <path d="M21 15l-5-5L5 21" />
                       </svg>
                     </div>
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#151719", marginBottom: "4px" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#101828", marginBottom: "4px" }}>
                       Tap to add property photo
                     </div>
-                    <div style={{ fontSize: "12px", color: isDark ? "var(--text-secondary)" : "#6A6A69", fontWeight: 400 }}>
+                    <div style={{ fontSize: "12px", color: isDark ? "var(--text-secondary)" : "#667085", fontWeight: 400 }}>
                       JPEG, PNG max 10 MB<br />Camera or Gallery
                     </div>
                   </div>
@@ -2407,8 +2407,8 @@ export default function ClientAddPropertyView({
               {/* Entity Name & Property Name Fields */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                    Entity name <span style={{ color: "#C46A4C" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                    Entity name <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <div ref={entityDropdownRef} style={{ position: "relative" }}>
                     <button
@@ -2420,12 +2420,12 @@ export default function ClientAddPropertyView({
                         height: "44px",
                         padding: "0 16px",
                         background: (mode === "edit" || !!entityId)
-                          ? (isDark ? "var(--surface-1)" : "#F3F0E9")
-                          : (isDark ? "var(--surface-2)" : "#FFFFFF"),
-                        border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                          ? (isDark ? "var(--surface-1)" : "#f1f5f9")
+                          : (isDark ? "var(--surface-2)" : "#ffffff"),
+                        border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: selectedEntityId ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#989794"),
+                        color: selectedEntityId ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#98a2b3"),
                         textAlign: "left",
                         display: "flex",
                         alignItems: "center",
@@ -2437,13 +2437,13 @@ export default function ClientAddPropertyView({
                     >
                       <span>{selectedEntity ? selectedEntity.name : "Select Entity"}</span>
                       {mode !== "edit" && !entityId && (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isEntityOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                           <path d="M6 9l6 6 6-6" />
                         </svg>
                       )}
                     </button>
                     {isEntityOpen && mode !== "edit" && !entityId && (
-                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
+                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
                         {entities.map((e) => (
                           <button
                             key={e.id}
@@ -2453,10 +2453,10 @@ export default function ClientAddPropertyView({
                               width: "100%",
                               padding: "12px 16px",
                               textAlign: "left",
-                              background: selectedEntityId === e.id ? (isDark ? "var(--surface-2)" : "#F3F0E9") : "transparent",
+                              background: selectedEntityId === e.id ? (isDark ? "var(--surface-2)" : "#f4f6fc") : "transparent",
                               border: "none",
                               fontSize: "14px",
-                              color: isDark ? "var(--text-primary)" : "#151719",
+                              color: isDark ? "var(--text-primary)" : "#101828",
                               cursor: "pointer",
                               fontWeight: selectedEntityId === e.id ? 600 : 500,
                               display: "block"
@@ -2471,8 +2471,8 @@ export default function ClientAddPropertyView({
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                    Property name <span style={{ color: "#C46A4C" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                    Property name <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -2483,11 +2483,11 @@ export default function ClientAddPropertyView({
                       width: "100%",
                       height: "44px",
                       padding: "0 16px",
-                      background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                      border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                      background: isDark ? "var(--surface-2)" : "#ffffff",
+                      border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                       borderRadius: "8px",
                       fontSize: "14px",
-                      color: isDark ? "var(--text-primary)" : "#151719",
+                      color: isDark ? "var(--text-primary)" : "#101828",
                       outline: "none"
                     }}
                   />
@@ -2496,8 +2496,8 @@ export default function ClientAddPropertyView({
 
               {/* Property Location Field */}
               <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                  Property location <span style={{ color: "#C46A4C" }}>*</span>
+                <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                  Property location <span style={{ color: "#EF4444" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -2508,11 +2508,11 @@ export default function ClientAddPropertyView({
                     width: "100%",
                     height: "44px",
                     padding: "0 16px",
-                    background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                    border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                    background: isDark ? "var(--surface-2)" : "#ffffff",
+                    border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                     borderRadius: "8px",
                     fontSize: "14px",
-                    color: isDark ? "var(--text-primary)" : "#151719",
+                    color: isDark ? "var(--text-primary)" : "#101828",
                     outline: "none"
                   }}
                 />
@@ -2521,8 +2521,8 @@ export default function ClientAddPropertyView({
               {/* Property Type & Status Dropdowns */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                    Property type <span style={{ color: "#C46A4C" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                    Property type <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <div ref={typeDropdownRef} style={{ position: "relative" }}>
                     <button
@@ -2532,11 +2532,11 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: propertyType ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#989794"),
+                        color: propertyType ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#98a2b3"),
                         textAlign: "left",
                         display: "flex",
                         alignItems: "center",
@@ -2546,12 +2546,12 @@ export default function ClientAddPropertyView({
                       }}
                     >
                       <span>{propertyType ? propertyTypeOptions.find((o) => o.value === propertyType)?.label : "Select Type"}</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isTypeOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                     {isTypeOpen && (
-                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 30 }}>
+                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 30 }}>
                         {propertyTypeOptions.map((o) => (
                           <button
                             key={o.value}
@@ -2561,10 +2561,10 @@ export default function ClientAddPropertyView({
                               width: "100%",
                               padding: "12px 16px",
                               textAlign: "left",
-                              background: propertyType === o.value ? (isDark ? "var(--surface-2)" : "#F3F0E9") : "transparent",
+                              background: propertyType === o.value ? (isDark ? "var(--surface-2)" : "#f4f6fc") : "transparent",
                               border: "none",
                               fontSize: "14px",
-                              color: isDark ? "var(--text-primary)" : "#151719",
+                              color: isDark ? "var(--text-primary)" : "#101828",
                               cursor: "pointer",
                               fontWeight: propertyType === o.value ? 600 : 500,
                               display: "block"
@@ -2579,8 +2579,8 @@ export default function ClientAddPropertyView({
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                    Property status <span style={{ color: "#C46A4C" }}>*</span>
+                  <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                    Property status <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <div ref={statusDropdownRef} style={{ position: "relative" }}>
                     <button
@@ -2590,11 +2590,11 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: status ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#989794"),
+                        color: status ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#98a2b3"),
                         textAlign: "left",
                         display: "flex",
                         alignItems: "center",
@@ -2604,12 +2604,12 @@ export default function ClientAddPropertyView({
                       }}
                     >
                       <span>{status || "Select Status"}</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#6A6A69" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#667085" strokeWidth="2" style={{ width: "16px", height: "16px", transform: isStatusOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                     {isStatusOpen && (
-                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "8px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
+                      <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: isDark ? "var(--surface-1)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "8px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.08)", zIndex: 30, maxHeight: "200px", overflowY: "auto" }}>
                         {propertyStatusOptions.map((opt) => (
                           <button
                             key={opt}
@@ -2619,10 +2619,10 @@ export default function ClientAddPropertyView({
                               width: "100%",
                               padding: "12px 16px",
                               textAlign: "left",
-                              background: status === opt ? (isDark ? "var(--surface-2)" : "#F3F0E9") : "transparent",
+                              background: status === opt ? (isDark ? "var(--surface-2)" : "#f4f6fc") : "transparent",
                               border: "none",
                               fontSize: "14px",
-                              color: isDark ? "var(--text-primary)" : "#151719",
+                              color: isDark ? "var(--text-primary)" : "#101828",
                               cursor: "pointer",
                               fontWeight: status === opt ? 600 : 500,
                               display: "block"
@@ -2639,10 +2639,10 @@ export default function ClientAddPropertyView({
 
               {/* Status Date Conditionals */}
               {(status === "Available for Rent" || status === "Rented") && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: isDark ? "var(--surface-2)" : "#F3F0E9", borderRadius: "8px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: isDark ? "var(--surface-2)" : "#f8f9fc", borderRadius: "8px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "6px" }}>
-                      Available for Rent Date <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "6px" }}>
+                      Available for Rent Date <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -2658,23 +2658,23 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "40px",
                         padding: "0 12px",
-                        background: isDark ? "var(--surface-1)" : "#FFFFFF",
-                        border: touchedFields.availableForRentDate && dateErrors.availableForRentDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-1)" : "#ffffff",
+                        border: touchedFields.availableForRentDate && dateErrors.availableForRentDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "6px",
                         fontSize: "13px",
-                        color: isDark ? "var(--text-primary)" : "#151719"
+                        color: isDark ? "var(--text-primary)" : "#101828"
                       }}
                     />
                     {dateErrors.availableForRentDate && (touchedFields.availableForRentDate || availableForRentDate) && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {dateErrors.availableForRentDate}
                       </div>
                     )}
                   </div>
                   {status === "Rented" && (
                     <div>
-                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "6px" }}>
-                        First Rental Income Date <span style={{ color: "#C46A4C" }}>*</span>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "6px" }}>
+                        First Rental Income Date <span style={{ color: "#EF4444" }}>*</span>
                       </label>
                       <input
                         type="date"
@@ -2690,15 +2690,15 @@ export default function ClientAddPropertyView({
                           width: "100%",
                           height: "40px",
                           padding: "0 12px",
-                          background: isDark ? "var(--surface-1)" : "#FFFFFF",
-                          border: touchedFields.firstRentalIncomeDate && dateErrors.firstRentalIncomeDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                          background: isDark ? "var(--surface-1)" : "#ffffff",
+                          border: touchedFields.firstRentalIncomeDate && dateErrors.firstRentalIncomeDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                           borderRadius: "6px",
                           fontSize: "13px",
-                          color: isDark ? "var(--text-primary)" : "#151719"
+                          color: isDark ? "var(--text-primary)" : "#101828"
                         }}
                       />
                       {dateErrors.firstRentalIncomeDate && (touchedFields.firstRentalIncomeDate || firstRentalIncomeDate) && (
-                        <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                        <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                           {dateErrors.firstRentalIncomeDate}
                         </div>
                       )}
@@ -2708,10 +2708,10 @@ export default function ClientAddPropertyView({
               )}
 
               {status === "Under Renovation" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: isDark ? "var(--surface-2)" : "#F3F0E9", borderRadius: "8px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px", padding: "16px", background: isDark ? "var(--surface-2)" : "#f8f9fc", borderRadius: "8px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "6px" }}>
-                      Renovation Start Date <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "6px" }}>
+                      Renovation Start Date <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -2727,22 +2727,22 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "40px",
                         padding: "0 12px",
-                        background: isDark ? "var(--surface-1)" : "#FFFFFF",
-                        border: touchedFields.renovationStartDate && dateErrors.renovationStartDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-1)" : "#ffffff",
+                        border: touchedFields.renovationStartDate && dateErrors.renovationStartDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "6px",
                         fontSize: "13px",
-                        color: isDark ? "var(--text-primary)" : "#151719"
+                        color: isDark ? "var(--text-primary)" : "#101828"
                       }}
                     />
                     {dateErrors.renovationStartDate && (touchedFields.renovationStartDate || renovationStartDate) && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {dateErrors.renovationStartDate}
                       </div>
                     )}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "6px" }}>
-                      Renovation End Date <small style={{ color: isDark ? "var(--text-muted)" : "#6A6A69" }}>(Optional)</small>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "6px" }}>
+                      Renovation End Date <small style={{ color: isDark ? "var(--text-muted)" : "#667085" }}>(Optional)</small>
                     </label>
                     <input
                       type="date"
@@ -2758,15 +2758,15 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "40px",
                         padding: "0 12px",
-                        background: isDark ? "var(--surface-1)" : "#FFFFFF",
-                        border: touchedFields.renovationEndDate && dateErrors.renovationEndDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-1)" : "#ffffff",
+                        border: touchedFields.renovationEndDate && dateErrors.renovationEndDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "6px",
                         fontSize: "13px",
-                        color: isDark ? "var(--text-primary)" : "#151719"
+                        color: isDark ? "var(--text-primary)" : "#101828"
                       }}
                     />
                     {dateErrors.renovationEndDate && (touchedFields.renovationEndDate || renovationEndDate) && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {dateErrors.renovationEndDate}
                       </div>
                     )}
@@ -2775,7 +2775,7 @@ export default function ClientAddPropertyView({
               )}
 
               {/* Step 1 Footer */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, paddingTop: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", borderTop: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, paddingTop: "24px" }}>
                 <Link
                   href={backUrl}
                   style={{
@@ -2784,12 +2784,12 @@ export default function ClientAddPropertyView({
                     justifyContent: "center",
                     height: "44px",
                     padding: "0 20px",
-                    background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                    border: `1px solid ${isDark ? "var(--border)" : "#CCCAC4"}`,
+                    background: isDark ? "var(--surface-2)" : "#ffffff",
+                    border: `1px solid ${isDark ? "var(--border)" : "#d0d5dd"}`,
                     borderRadius: "8px",
                     fontSize: "15px",
                     fontWeight: 600,
-                    color: isDark ? "var(--text-primary)" : "#3E3F3F",
+                    color: isDark ? "var(--text-primary)" : "#344054",
                     textDecoration: "none",
                     cursor: "pointer"
                   }}
@@ -2803,12 +2803,12 @@ export default function ClientAddPropertyView({
                   style={{
                     height: "44px",
                     padding: "0 24px",
-                    background: isStep1Valid ? (isDark ? "var(--accent)" : "#151719") : (isDark ? "var(--surface-2)" : "#CBC9C4"),
+                    background: isStep1Valid ? (isDark ? "var(--accent)" : "#1a235a") : (isDark ? "var(--surface-2)" : "#cbd5e1"),
                     border: "none",
                     borderRadius: "8px",
                     fontSize: "15px",
                     fontWeight: 600,
-                    color: isStep1Valid ? (isDark ? "#151719" : "#FFFFFF") : (isDark ? "var(--text-muted)" : "#FFFFFF"),
+                    color: isStep1Valid ? (isDark ? "#0f1330" : "#ffffff") : (isDark ? "var(--text-muted)" : "#ffffff"),
                     cursor: isStep1Valid ? "pointer" : "not-allowed"
                   }}
                 >
@@ -2821,16 +2821,16 @@ export default function ClientAddPropertyView({
           {step >= 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               {/* Step 2 Form Card */}
-              <div style={{ background: isDark ? "var(--surface-1)" : "#FFFFFF", borderRadius: "16px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, padding: "32px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.02)" }}>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#6A6A69", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
+              <div style={{ background: isDark ? "var(--surface-1)" : "#ffffff", borderRadius: "16px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, padding: "32px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.02)" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#667085", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
                   STEP 2 — FINANCIAL INFO
                 </div>
 
                 {/* Financial values row */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                      Market value <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                      Market value <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -2842,24 +2842,24 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: isDark ? "var(--text-primary)" : "#151719",
+                        color: isDark ? "var(--text-primary)" : "#101828",
                         outline: "none"
                       }}
                     />
                     {touchedFields.estimatedMarketValue && !isEstimatedMarketValueValid && (
-                      <span style={{ fontSize: "12px", color: "#C46A4C", marginTop: "4px", display: "block" }}>
+                      <span style={{ fontSize: "12px", color: "#EF4444", marginTop: "4px", display: "block" }}>
                         Market Value must be greater than 0 and in currency format ({CURRENCY_PREFIX}).
                       </span>
                     )}
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                      Purchase value <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                      Purchase value <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -2871,24 +2871,24 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: touchedFields.purchaseAmount && !isPurchaseAmountValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: touchedFields.purchaseAmount && !isPurchaseAmountValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: isDark ? "var(--text-primary)" : "#151719",
+                        color: isDark ? "var(--text-primary)" : "#101828",
                         outline: "none"
                       }}
                     />
                     {touchedFields.purchaseAmount && !isPurchaseAmountValid && (
-                      <span style={{ fontSize: "12px", color: "#C46A4C", marginTop: "4px", display: "block" }}>
+                      <span style={{ fontSize: "12px", color: "#EF4444", marginTop: "4px", display: "block" }}>
                         Purchase Value must be greater than 0.
                       </span>
                     )}
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                      Purchase date <span style={{ color: "#C46A4C" }}>*</span>
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                      Purchase date <span style={{ color: "#EF4444" }}>*</span>
                     </label>
                     <input
                       type="date"
@@ -2904,16 +2904,16 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: isDark ? "var(--surface-2)" : "#FFFFFF",
-                        border: touchedFields.purchaseDate && dateErrors.purchaseDate ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: isDark ? "var(--surface-2)" : "#ffffff",
+                        border: touchedFields.purchaseDate && dateErrors.purchaseDate ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: isDark ? "var(--text-primary)" : "#151719",
+                        color: isDark ? "var(--text-primary)" : "#101828",
                         outline: "none"
                       }}
                     />
                     {dateErrors.purchaseDate && (touchedFields.purchaseDate || purchaseDate) && (
-                      <span style={{ fontSize: "12px", color: "#C46A4C", marginTop: "4px", display: "block" }}>
+                      <span style={{ fontSize: "12px", color: "#EF4444", marginTop: "4px", display: "block" }}>
                         {dateErrors.purchaseDate}
                       </span>
                     )}
@@ -2922,21 +2922,21 @@ export default function ClientAddPropertyView({
 
                 {/* Depreciation schedule */}
                 <div style={{ marginBottom: "28px" }}>
-                  <span style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "10px" }}>
+                  <span style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "10px" }}>
                     Depreciation schedule
                   </span>
                   <div style={{ display: "flex", gap: "24px" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#3E3F3F", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#344054", cursor: "pointer" }}>
                       <input
                         type="radio"
                         name="depreciation"
                         checked={hasDepreciationSchedule}
                         onChange={() => setHasDepreciationSchedule(true)}
-                        style={{ width: "16px", height: "16px", accentColor: isDark ? "var(--accent)" : "#151719" }}
+                        style={{ width: "16px", height: "16px", accentColor: isDark ? "var(--accent)" : "#1a235a" }}
                       />
                       Yes
                     </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#3E3F3F", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: isDark ? "var(--text-primary)" : "#344054", cursor: "pointer" }}>
                       <input
                         type="radio"
                         name="depreciation"
@@ -2946,7 +2946,7 @@ export default function ClientAddPropertyView({
                           setDepreciationScheduleDocument(null);
                           setDepreciationUploadProgress(0);
                         }}
-                        style={{ width: "16px", height: "16px", accentColor: isDark ? "var(--accent)" : "#151719" }}
+                        style={{ width: "16px", height: "16px", accentColor: isDark ? "var(--accent)" : "#1a235a" }}
                       />
                       No
                     </label>
@@ -2955,29 +2955,29 @@ export default function ClientAddPropertyView({
                   {hasDepreciationSchedule && (
                     <div style={{ marginTop: "16px" }}>
                       {isUploadingDepreciationSchedule ? (
-                        <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: isDark ? "var(--surface-2)" : "#F3F0E9" }}>
+                        <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px", background: isDark ? "var(--surface-2)" : "#f8f9fc" }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#3E3F3F", marginBottom: "4px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 500, color: isDark ? "var(--text-primary)" : "#344054", marginBottom: "4px" }}>
                               <span>Uploading...</span>
                               <span>{depreciationUploadProgress}%</span>
                             </div>
-                            <div style={{ height: "6px", width: "100%", background: isDark ? "var(--surface-1)" : "#EBE8E1", borderRadius: "3px", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${depreciationUploadProgress}%`, background: isDark ? "var(--accent)" : "#2E3135" }} />
+                            <div style={{ height: "6px", width: "100%", background: isDark ? "var(--surface-1)" : "#eaeef4", borderRadius: "3px", overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${depreciationUploadProgress}%`, background: isDark ? "var(--accent)" : "#2f3c82" }} />
                             </div>
                           </div>
                         </div>
                       ) : depreciationScheduleDocument ? (
-                        <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#F3F0E9", padding: "16px" }}>
-                          <span style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#3E3F3F" }}>{depreciationScheduleDocument.filename}</span>
-                          <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#989794" }}>✕</button>
+                        <div style={{ border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "var(--surface-2)" : "#f8f9fc", padding: "16px" }}>
+                          <span style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#344054" }}>{depreciationScheduleDocument.filename}</span>
+                          <button type="button" onClick={() => setDepreciationScheduleDocument(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#98a2b3" }}>✕</button>
                         </div>
                       ) : (
                         <div
                           onClick={() => document.getElementById("doc-upload-input")?.click()}
-                          style={{ border: `2px dashed ${isDark ? "var(--border)" : "#EBE8E1"}`, background: isDark ? "var(--surface-2)" : "#F3F0E9", borderRadius: "12px", padding: "24px 20px", textAlign: "center", cursor: "pointer" }}
+                          style={{ border: `2px dashed ${isDark ? "var(--border)" : "#eaeef4"}`, background: isDark ? "var(--surface-2)" : "#f8f9fc", borderRadius: "12px", padding: "24px 20px", textAlign: "center", cursor: "pointer" }}
                         >
                           <input type="file" id="doc-upload-input" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleDocUpload(file); }} style={{ display: "none" }} />
-                          <span style={{ fontSize: "13px", color: isDark ? "var(--accent)" : "#2E3135", fontWeight: 600 }}>Click to upload depreciation schedule</span>
+                          <span style={{ fontSize: "13px", color: isDark ? "var(--accent)" : "#2f3c82", fontWeight: 600 }}>Click to upload depreciation schedule</span>
                         </div>
                       )}
                     </div>
@@ -2986,14 +2986,14 @@ export default function ClientAddPropertyView({
 
                 {/* Beneficiaries */}
                 {takesOwnershipDetails && (
-                  <div style={{ borderTop: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, paddingTop: "24px", marginTop: "24px" }}>
-                    <span style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#505050", letterSpacing: "0.08em", marginBottom: "16px" }}>
+                  <div style={{ borderTop: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, paddingTop: "24px", marginTop: "24px" }}>
+                    <span style={{ display: "block", fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#475569", letterSpacing: "0.08em", marginBottom: "16px" }}>
                       BENEFICIARIES
                     </span>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 48px", gap: "16px", marginBottom: "8px", padding: "0 8px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: isDark ? "var(--text-muted)" : "#999894", textTransform: "uppercase" }}>BENEFICIARY NAME</span>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: isDark ? "var(--text-muted)" : "#999894", textTransform: "uppercase" }}>OWNERSHIP %</span>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: isDark ? "var(--text-muted)" : "#94a3b8", textTransform: "uppercase" }}>BENEFICIARY NAME</span>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: isDark ? "var(--text-muted)" : "#94a3b8", textTransform: "uppercase" }}>OWNERSHIP %</span>
                       <span />
                     </div>
 
@@ -3015,13 +3015,13 @@ export default function ClientAddPropertyView({
                               height: "44px",
                               padding: "0 16px",
                               border: (b.name === "" && b.percentage !== "")
-                                ? "1px solid #C46A4C"
-                                : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                                ? "1px solid #ef4444"
+                                : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                               borderRadius: "8px",
                               fontSize: "14px",
-                              color: isDark ? "var(--text-primary)" : "#151719",
+                              color: isDark ? "var(--text-primary)" : "#101828",
                               outline: "none",
-                              background: isDark ? "var(--surface-2)" : "#FFFFFF"
+                              background: isDark ? "var(--surface-2)" : "#ffffff"
                             }}
                           />
                           <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -3040,19 +3040,19 @@ export default function ClientAddPropertyView({
                                 height: "44px",
                                 padding: "0 32px 0 16px",
                                 border: ((b.percentage !== "" && (Number(b.percentage) <= 0 || isNaN(Number(b.percentage)))) || (b.percentage === "" && b.name !== ""))
-                                  ? "1px solid #C46A4C"
-                                  : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                                  ? "1px solid #ef4444"
+                                  : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                                 borderRadius: "8px",
                                 fontSize: "14px",
-                                color: isDark ? "var(--text-primary)" : "#151719",
+                                color: isDark ? "var(--text-primary)" : "#101828",
                                 outline: "none",
                                 textAlign: "right",
-                                background: isDark ? "var(--surface-2)" : "#FFFFFF"
+                                background: isDark ? "var(--surface-2)" : "#ffffff"
                               }}
                             />
-                            <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#6A6A69" }}>%</span>
+                            <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#667085" }}>%</span>
                           </div>
-                          <button type="button" onClick={() => deleteBeneficiaryRow(idx)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#C46A4C", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "44px" }}>
+                          <button type="button" onClick={() => deleteBeneficiaryRow(idx)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "44px" }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "20px", height: "20px" }}>
                               <path d="M3 6h18" />
                               <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
@@ -3067,22 +3067,22 @@ export default function ClientAddPropertyView({
 
                     {/* Beneficiary errors */}
                     {beneficiaries.some(b => b.percentage !== "" && (Number(b.percentage) <= 0 || isNaN(Number(b.percentage)))) && (
-                      <div style={{ fontSize: "12px", color: "#C46A4C", marginTop: "-4px", marginBottom: "12px" }}>
+                      <div style={{ fontSize: "12px", color: "#ef4444", marginTop: "-4px", marginBottom: "12px" }}>
                         Beneficiary ownership percentage must be greater than 0%.
                       </div>
                     )}
                     {beneficiaries.some(b => (b.name === "" && b.percentage !== "") || (b.percentage === "" && b.name !== "")) && (
-                      <div style={{ fontSize: "12px", color: "#C46A4C", marginTop: "-4px", marginBottom: "12px" }}>
+                      <div style={{ fontSize: "12px", color: "#ef4444", marginTop: "-4px", marginBottom: "12px" }}>
                         Please provide both a name and a valid percentage.
                       </div>
                     )}
                     {totalOwnership > 100 && (
-                      <div style={{ fontSize: "12px", color: "#C46A4C", marginTop: "-4px", marginBottom: "12px" }}>
+                      <div style={{ fontSize: "12px", color: "#ef4444", marginTop: "-4px", marginBottom: "12px" }}>
                         Total ownership percentage cannot exceed 100%.
                       </div>
                     )}
 
-                    <button type="button" onClick={addBeneficiaryRow} style={{ background: "transparent", border: "none", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--accent)" : "#2E3135", cursor: "pointer", padding: "8px 0", marginBottom: "20px" }}>
+                    <button type="button" onClick={addBeneficiaryRow} style={{ background: "transparent", border: "none", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--accent)" : "#2f3c82", cursor: "pointer", padding: "8px 0", marginBottom: "20px" }}>
                       + Add beneficiary
                     </button>
 
@@ -3092,24 +3092,24 @@ export default function ClientAddPropertyView({
                       alignItems: "center",
                       padding: "16px 20px",
                       background: totalOwnership > 100
-                        ? (isDark ? "rgba(196, 106, 76, 0.12)" : "#F3F0E9")
+                        ? (isDark ? "rgba(239, 68, 68, 0.12)" : "#fef2f2")
                         : totalOwnership === 100
-                          ? (isDark ? "rgba(111, 122, 90, 0.12)" : "#F3F0E9")
-                          : (isDark ? "rgba(122, 92, 250, 0.12)" : "#F7EEE7"),
+                          ? (isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4")
+                          : (isDark ? "rgba(244, 161, 23, 0.12)" : "#fffbeb"),
                       border: `1px solid ${totalOwnership > 100
-                        ? (isDark ? "rgba(196, 106, 76, 0.3)" : "#F3DFD5")
+                        ? (isDark ? "rgba(239, 68, 68, 0.3)" : "#fecaca")
                         : totalOwnership === 100
-                          ? (isDark ? "var(--border)" : "#EBECE1")
-                          : (isDark ? "var(--border)" : "#F2DED4")
+                          ? (isDark ? "var(--border)" : "#bbf7d0")
+                          : (isDark ? "var(--border)" : "#fef3c7")
                         }`,
                       borderRadius: "8px",
                       fontSize: "14px",
                       fontWeight: 600,
                       color: totalOwnership > 100
-                        ? (isDark ? "#C46A4C" : "#C46A4C")
+                        ? (isDark ? "#ef4444" : "#b91c1c")
                         : totalOwnership === 100
-                          ? (isDark ? "var(--success)" : "#56613F")
-                          : (isDark ? "var(--accent)" : "#C46A4C")
+                          ? (isDark ? "var(--success)" : "#15803d")
+                          : (isDark ? "var(--accent)" : "#b45309")
                     }}>
                       <span>Total ownership</span>
                       <span>{totalOwnership.toFixed(1)}%</span>
@@ -3119,13 +3119,13 @@ export default function ClientAddPropertyView({
               </div>
 
               {/* Step 3 Card (Loan details) */}
-              <div style={{ background: isDark ? "var(--surface-1)" : "#FFFFFF", borderRadius: "16px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, padding: "32px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(21, 23, 25, 0.02)" }}>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#6A6A69", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
+              <div style={{ background: isDark ? "var(--surface-1)" : "#ffffff", borderRadius: "16px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, padding: "32px", boxShadow: isDark ? "none" : "0px 8px 30px rgba(16, 24, 40, 0.02)" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "var(--text-secondary)" : "#667085", letterSpacing: "0.08em", marginBottom: "20px", textTransform: "uppercase" }}>
                   STEP 3 — LOAN DETAILS (OPTIONAL)
                 </div>
 
                 {/* Does the property have a loan? checkbox */}
-                <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: isDark ? "var(--surface-2)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#E2E0D9"}`, borderRadius: "12px" }}>
+                <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px", padding: "16px", background: isDark ? "var(--surface-2)" : "#f8fafc", border: `1px solid ${isDark ? "var(--border)" : "#e2e8f0"}`, borderRadius: "12px" }}>
                   <input
                     type="checkbox"
                     id="has-loan-checkbox-desktop"
@@ -3150,17 +3150,17 @@ export default function ClientAddPropertyView({
                         });
                       }
                     }}
-                    style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: isDark ? "var(--accent)" : "#151719" }}
+                    style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: isDark ? "var(--accent)" : "#1B265C" }}
                   />
-                  <label htmlFor="has-loan-checkbox-desktop" style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#151719", cursor: "pointer", userSelect: "none" }}>
+                  <label htmlFor="has-loan-checkbox-desktop" style={{ fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#1e293b", cursor: "pointer", userSelect: "none" }}>
                     Does the property have a loan?
                   </label>
                 </div>
 
                 <div style={{ opacity: hasLoan ? 1 : 0.5, pointerEvents: hasLoan ? "auto" : "none", transition: "opacity 0.2s" }}>
                   <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                      Bank name {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                      Bank name {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                     </label>
                     <input
                       type="text"
@@ -3173,17 +3173,17 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                        border: touchedFields.bankName && !isBankNameValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                        border: touchedFields.bankName && !isBankNameValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                        color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                         outline: "none",
                         cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
                     {touchedFields.bankName && !isBankNameValid && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {!bankName.trim() ? "Bank Name is required." : "Bank Name must contain letters and spaces only."}
                       </div>
                     )}
@@ -3191,8 +3191,8 @@ export default function ClientAddPropertyView({
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                     <div>
-                      <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                        BSB number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                      <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                        BSB number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                       </label>
                       <input
                         type="text"
@@ -3205,24 +3205,24 @@ export default function ClientAddPropertyView({
                           width: "100%",
                           height: "44px",
                           padding: "0 16px",
-                          background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                          border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                          background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                          border: touchedFields.bsbNumber && !isBsbValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                           borderRadius: "8px",
                           fontSize: "14px",
-                          color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                          color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                           outline: "none",
                           cursor: hasLoan ? "text" : "not-allowed"
                         }}
                       />
                       {touchedFields.bsbNumber && !isBsbValid && (
-                        <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                        <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                           {!bsbNumber.trim() ? "BSB Number is required." : "BSB Number must be exactly 6 digits."}
                         </div>
                       )}
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                        Loan % allocation {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                      <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                        Loan % allocation {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                       </label>
                       <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                         <input
@@ -3255,18 +3255,18 @@ export default function ClientAddPropertyView({
                             width: "100%",
                             height: "44px",
                             padding: "0 32px 0 16px",
-                            background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                            border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                            background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                            border: touchedFields.loanAllocationPercentage && !isLoanAllocationValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                             borderRadius: "8px",
                             fontSize: "14px",
-                            color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                            color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                             cursor: hasLoan ? "text" : "not-allowed"
                           }}
                         />
-                        <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#6A6A69" }}>%</span>
+                        <span style={{ position: "absolute", right: "16px", fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#667085" }}>%</span>
                       </div>
                       {touchedFields.loanAllocationPercentage && !isLoanAllocationValid && (
-                        <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                        <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                           {!loanAllocationPercentage
                             ? "Loan allocation is required."
                             : Number(loanAllocationPercentage) === 0
@@ -3276,8 +3276,8 @@ export default function ClientAddPropertyView({
                       )}
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                        Loan account number {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                      <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                        Loan account number {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                       </label>
                       <input
                         type="text"
@@ -3290,17 +3290,17 @@ export default function ClientAddPropertyView({
                           width: "100%",
                           height: "44px",
                           padding: "0 16px",
-                          background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                          border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                          background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                          border: touchedFields.loanAccountNumber && !isLoanAccountNumberValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                           borderRadius: "8px",
                           fontSize: "14px",
-                          color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                          color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                           outline: "none",
                           cursor: hasLoan ? "text" : "not-allowed"
                         }}
                       />
                       {touchedFields.loanAccountNumber && !isLoanAccountNumberValid && (
-                        <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                        <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                           {!loanAccountNumber.trim() ? "Loan Account Number is required." : "Loan Account Number must contain numeric values only."}
                         </div>
                       )}
@@ -3308,8 +3308,8 @@ export default function ClientAddPropertyView({
                   </div>
 
                   <div style={{ marginBottom: "10px" }}>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#3E3F3F", marginBottom: "8px" }}>
-                      Loan amount {hasLoan && <em style={{ color: "#C46A4C", fontStyle: "normal" }}>*</em>}
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#344054", marginBottom: "8px" }}>
+                      Loan amount {hasLoan && <em style={{ color: "#d92d20", fontStyle: "normal" }}>*</em>}
                     </label>
                     <input
                       type="text"
@@ -3322,17 +3322,17 @@ export default function ClientAddPropertyView({
                         width: "100%",
                         height: "44px",
                         padding: "0 16px",
-                        background: hasLoan ? (isDark ? "var(--surface-2)" : "#FFFFFF") : (isDark ? "var(--surface-1)" : "#F3F0E9"),
-                        border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #EECFC1" : `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`,
+                        background: hasLoan ? (isDark ? "var(--surface-2)" : "#ffffff") : (isDark ? "var(--surface-1)" : "#f1f5f9"),
+                        border: touchedFields.loanAmount && !isLoanAmountValid ? "1px solid #fca5a5" : `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`,
                         borderRadius: "8px",
                         fontSize: "14px",
-                        color: hasLoan ? (isDark ? "var(--text-primary)" : "#151719") : (isDark ? "var(--text-muted)" : "#999894"),
+                        color: hasLoan ? (isDark ? "var(--text-primary)" : "#101828") : (isDark ? "var(--text-muted)" : "#94a3b8"),
                         outline: "none",
                         cursor: hasLoan ? "text" : "not-allowed"
                       }}
                     />
                     {touchedFields.loanAmount && !isLoanAmountValid && (
-                      <div style={{ color: "#C46A4C", fontSize: "12px", marginTop: "4px" }}>
+                      <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px" }}>
                         {!loanAmount.trim()
                           ? "Loan Amount is required."
                           : (Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, "")) <= 0 || isNaN(Number.parseFloat(loanAmount.replace(/[^0-9.-]/g, ""))))
@@ -3345,15 +3345,15 @@ export default function ClientAddPropertyView({
               </div>
 
               {errorMessage && (
-                <div style={{ padding: "12px 16px", background: isDark ? "rgba(234, 195, 178, 0.12)" : "#F3F0E9", border: `1px solid ${isDark ? "var(--border)" : "#EECFC1"}`, borderRadius: "8px", color: isDark ? "var(--danger)" : "#C46A4C", fontSize: "14px" }}>
+                <div style={{ padding: "12px 16px", background: isDark ? "rgba(240, 149, 149, 0.12)" : "#fef2f2", border: `1px solid ${isDark ? "var(--border)" : "#fca5a5"}`, borderRadius: "8px", color: isDark ? "var(--danger)" : "#991b1b", fontSize: "14px" }}>
                   {errorMessage}
                 </div>
               )}
 
               {/* Step 2 Footer */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "12px", background: isDark ? "var(--surface-1)" : "#FFFFFF", borderRadius: "12px", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}`, padding: "16px 24px" }}>
-                <button type="button" onClick={() => setStep(1)} style={{ height: "44px", padding: "0 20px", background: isDark ? "var(--surface-2)" : "#FFFFFF", border: `1px solid ${isDark ? "var(--border)" : "#CCCAC4"}`, borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#3E3F3F" }}>Back</button>
-                <button type="button" disabled={isSaving || !isStep2Valid || !isLoanDetailsValid} onClick={handleSave} style={{ height: "44px", padding: "0 24px", background: (isStep2Valid && isLoanDetailsValid) ? (isDark ? "var(--accent)" : "#151719") : (isDark ? "var(--surface-2)" : "#CBC9C4"), border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: (isStep2Valid && isLoanDetailsValid) ? (isDark ? "#151719" : "#FFFFFF") : (isDark ? "var(--text-muted)" : "#FFFFFF"), cursor: (isStep2Valid && isLoanDetailsValid) ? "pointer" : "not-allowed" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "12px", background: isDark ? "var(--surface-1)" : "#ffffff", borderRadius: "12px", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}`, padding: "16px 24px" }}>
+                <button type="button" onClick={() => setStep(1)} style={{ height: "44px", padding: "0 20px", background: isDark ? "var(--surface-2)" : "#ffffff", border: `1px solid ${isDark ? "var(--border)" : "#d0d5dd"}`, borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: isDark ? "var(--text-primary)" : "#344054" }}>Back</button>
+                <button type="button" disabled={isSaving || !isStep2Valid || !isLoanDetailsValid} onClick={handleSave} style={{ height: "44px", padding: "0 24px", background: (isStep2Valid && isLoanDetailsValid) ? (isDark ? "var(--accent)" : "#1a235a") : (isDark ? "var(--surface-2)" : "#cbd5e1"), border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: (isStep2Valid && isLoanDetailsValid) ? (isDark ? "#0f1330" : "#ffffff") : (isDark ? "var(--text-muted)" : "#ffffff"), cursor: (isStep2Valid && isLoanDetailsValid) ? "pointer" : "not-allowed" }}>
                   {isSaving ? "Saving..." : (mode === "edit" ? "Save changes" : "Save and add property")}
                 </button>
               </div>
@@ -3363,20 +3363,20 @@ export default function ClientAddPropertyView({
 
         {/* Success Overlay */}
         {saved && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: isDark ? "rgba(21, 23, 25, 0.6)" : "rgba(21, 23, 25, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-            <div style={{ background: isDark ? "var(--surface-1)" : "#FFFFFF", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "440px", textAlign: "center", boxShadow: "0px 20px 48px rgba(21, 23, 25, 0.12)", border: `1px solid ${isDark ? "var(--border)" : "#EBE8E1"}` }}>
-              <div style={{ width: "80px", height: "80px", margin: "0 auto 24px auto", borderRadius: "50%", background: isDark ? "rgba(111, 122, 90, 0.12)" : "#F3F0E9", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--success)" : "#6F7A5A"} strokeWidth="3" style={{ width: "40px", height: "40px" }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: isDark ? "rgba(0, 0, 0, 0.6)" : "rgba(16, 24, 40, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+            <div style={{ background: isDark ? "var(--surface-1)" : "#ffffff", borderRadius: "24px", padding: "36px 24px", width: "90%", maxWidth: "440px", textAlign: "center", boxShadow: "0px 20px 48px rgba(16, 24, 40, 0.12)", border: `1px solid ${isDark ? "var(--border)" : "#eaeef4"}` }}>
+              <div style={{ width: "80px", height: "80px", margin: "0 auto 24px auto", borderRadius: "50%", background: isDark ? "rgba(93, 202, 165, 0.12)" : "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke={isDark ? "var(--success)" : "#10b981"} strokeWidth="3" style={{ width: "40px", height: "40px" }}>
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: isDark ? "var(--text-primary)" : "#151719", margin: "0 0 12px 0" }}>
+              <h3 style={{ fontSize: "20px", fontWeight: 800, color: isDark ? "var(--text-primary)" : "#101828", margin: "0 0 12px 0" }}>
                 {mode === "edit" ? "Property Updated Successfully" : "Property Added Successfully"}
               </h3>
-              <p style={{ fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#6A6A69", margin: "0 0 28px 0" }}>
+              <p style={{ fontSize: "14px", color: isDark ? "var(--text-secondary)" : "#667085", margin: "0 0 28px 0" }}>
                 <strong>{propertyName}</strong> {mode === "edit" ? "has been updated successfully." : <>is now linked to <strong>{selectedEntity?.name}</strong>.</>}
               </p>
-              <Link href={onSuccessUrl} style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: isDark ? "var(--accent)" : "#151719", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: isDark ? "#151719" : "#FFFFFF", textDecoration: "none" }}>View Properties List</Link>
+              <Link href={onSuccessUrl} style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", height: "44px", width: "100%", background: isDark ? "var(--accent)" : "#1a235a", borderRadius: "8px", fontSize: "15px", fontWeight: 600, color: isDark ? "#0f1330" : "#ffffff", textDecoration: "none" }}>View Properties List</Link>
             </div>
           </div>
         )}

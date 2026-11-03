@@ -219,7 +219,7 @@ function TableDropdownSelect({
       >
         <span
           className="borrowing-cost-dropdown-value"
-          style={selectedLabel ? undefined : { color: "#989794" }}
+          style={selectedLabel ? undefined : { color: "#98a2b3" }}
         >
           {selectedLabel || placeholder}
         </span>
@@ -865,8 +865,8 @@ export default function BorrowingCostView({
   if (loadError) {
     return (
       <div className="client-detail-page property-detail-page property-detail-shell" style={{ padding: "40px 32px" }}>
-        <div style={{ color: "#C46A4C", fontSize: "16px", fontWeight: 600 }}>{loadError}</div>
-        <Link href={backHref} style={{ display: "inline-block", marginTop: "16px", color: "#242629", fontWeight: 600 }}>
+        <div style={{ color: "#d92d20", fontSize: "16px", fontWeight: 600 }}>{loadError}</div>
+        <Link href={backHref} style={{ display: "inline-block", marginTop: "16px", color: "#233069", fontWeight: 600 }}>
           Back to Property
         </Link>
       </div>
@@ -888,31 +888,31 @@ export default function BorrowingCostView({
           }
         }
         .borrowing-cost-card {
-          background: #FFFFFF;
+          background: #ffffff;
           border-radius: 12px;
-          border: 1px solid #E3E0DA;
+          border: 1px solid #e4e7ef;
           padding: 32px;
-          box-shadow: 0 1px 3px rgba(21, 23, 25, 0.04);
+          box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
         }
         .borrowing-cost-input, .borrowing-cost-select {
           width: 100%;
           padding: 10px 14px;
           border-radius: 8px;
-          border: 1px solid #CCCAC4;
+          border: 1px solid #d0d5dd;
           font-size: 14px;
-          color: #151719;
-          background-color: #FFFFFF;
+          color: #1d2939;
+          background-color: #ffffff;
           transition: all 0.2s ease;
           outline: none;
         }
         .borrowing-cost-input:focus, .borrowing-cost-select:focus {
-          border-color: #242629;
-          box-shadow: 0 0 0 3px rgba(36, 38, 41, 0.12);
+          border-color: #28336e;
+          box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.12);
         }
         .borrowing-cost-input[readonly] {
-          background-color: #F3F0E9;
-          border-color: #E8E5DF;
-          color: #4F4F4F;
+          background-color: #f8f9fc;
+          border-color: #eaecf0;
+          color: #475467;
           cursor: not-allowed;
         }
         .borrowing-cost-table {
@@ -921,13 +921,13 @@ export default function BorrowingCostView({
           text-align: left;
         }
         .borrowing-cost-table th {
-          background-color: #F3F0E9;
+          background-color: #f9fafb;
           padding: 12px 16px;
           font-size: 12px;
           font-weight: 700;
-          color: #4F4F4F;
+          color: #475467;
           letter-spacing: 0.05em;
-          border-bottom: 1.5px solid #E8E5DF;
+          border-bottom: 1.5px solid #eaecf0;
         }
         .borrowing-cost-table td {
           padding: 12px 8px;
@@ -944,10 +944,10 @@ export default function BorrowingCostView({
           width: 100%;
           padding: 10px 14px;
           border-radius: 8px;
-          border: 1px solid #CCCAC4;
+          border: 1px solid #d0d5dd;
           font-size: 14px;
-          color: #151719;
-          background-color: #FFFFFF;
+          color: #1d2939;
+          background-color: #ffffff;
           transition: all 0.2s ease;
           outline: none;
           display: flex;
@@ -960,17 +960,17 @@ export default function BorrowingCostView({
           height: 42px;
         }
         .borrowing-cost-dropdown-trigger:hover:not(:disabled) {
-          border-color: #989794;
-          background-color: #FAF8F3;
+          border-color: #98a2b3;
+          background-color: #fcfcfd;
         }
         .borrowing-cost-dropdown-container.is-open .borrowing-cost-dropdown-trigger {
-          border-color: #242629;
-          box-shadow: 0 0 0 3px rgba(36, 38, 41, 0.12);
+          border-color: #28336e;
+          box-shadow: 0 0 0 3px rgba(40, 51, 110, 0.12);
         }
         .borrowing-cost-dropdown-arrow {
           width: 16px;
           height: 16px;
-          color: #6A6A69;
+          color: #667085;
           transition: transform 0.2s ease;
           flex-shrink: 0;
         }
@@ -989,10 +989,10 @@ export default function BorrowingCostView({
           left: 0;
           right: 0;
           z-index: 99;
-          background-color: #FFFFFF;
-          border: 1px solid #E3E0DA;
+          background-color: #ffffff;
+          border: 1px solid #e4e7ef;
           border-radius: 8px;
-          box-shadow: 0 10px 15px -3px rgba(21, 23, 25, 0.1), 0 4px 6px -2px rgba(21, 23, 25, 0.05);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
           max-height: 200px;
           overflow-y: auto;
           padding: 4px;
@@ -1001,7 +1001,7 @@ export default function BorrowingCostView({
           width: 100%;
           padding: 10px 12px;
           font-size: 14px;
-          color: #3E3F3F;
+          color: #344054;
           background: transparent;
           border: none;
           border-radius: 6px;
@@ -1014,18 +1014,18 @@ export default function BorrowingCostView({
           transition: background-color 0.15s ease, color 0.15s ease;
         }
         .borrowing-cost-dropdown-item:hover {
-          background-color: #F3F0E9;
-          color: #151719;
+          background-color: #f4f5f9;
+          color: #1e295b;
         }
         .borrowing-cost-dropdown-item.is-selected {
-          background-color: #F3F0E9;
-          color: #151719;
+          background-color: #f0f2f9;
+          color: #1e295b;
           font-weight: 600;
         }
         .borrowing-cost-dropdown-check {
           width: 16px;
           height: 16px;
-          color: #242629;
+          color: #28336e;
           flex-shrink: 0;
         }
         .borrowing-cost-dropdown-container.is-disabled {
@@ -1034,30 +1034,30 @@ export default function BorrowingCostView({
         }
         .borrowing-cost-dropdown-trigger:disabled {
           cursor: not-allowed;
-          background-color: #F3F0E9;
+          background-color: #f8f9fc;
         }
         .borrowing-cost-btn-secondary {
           display: inline-flex;
           align-items: center;
           gap: 6px;
           padding: 8px 16px;
-          border: 1px solid #CCCAC4;
+          border: 1px solid #d0d5dd;
           border-radius: 8px;
-          background-color: #FFFFFF;
-          color: #151719;
+          background-color: #ffffff;
+          color: #1e295b;
           font-size: 13px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
         }
         .borrowing-cost-btn-secondary:hover {
-          background-color: #F3F0E9;
-          border-color: #C7BAF6;
+          background-color: #f9fafb;
+          border-color: #bac2de;
         }
         .borrowing-cost-dropdown-empty {
           padding: 10px 12px;
           font-size: 13px;
-          color: #6A6A69;
+          color: #667085;
         }
       `}</style>
 
@@ -1071,10 +1071,10 @@ export default function BorrowingCostView({
 
       <header className="logit-review-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: "12px", marginBottom: "32px" }}>
         <div>
-          <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#151719", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1c244b", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
             Borrowing Cost
           </h1>
-          <p style={{ color: "#4F4F4F", fontSize: "14px", margin: 0, fontWeight: 500 }}>
+          <p style={{ color: "#475467", fontSize: "14px", margin: 0, fontWeight: 500 }}>
             {propName} · {entityName} — borrowing expenses, loan details & amortisation schedule
           </p>
         </div>
@@ -1093,8 +1093,8 @@ export default function BorrowingCostView({
               padding: "10px 20px",
               border: "none",
               borderRadius: "10px",
-              backgroundColor: "#242629",
-              color: "#FFFFFF",
+              backgroundColor: "#28336e",
+              color: "#ffffff",
               fontSize: "14px",
               fontWeight: 700,
               cursor: "pointer",
@@ -1116,10 +1116,10 @@ export default function BorrowingCostView({
               alignItems: "center",
               gap: "8px",
               padding: "10px 20px",
-              border: "1.5px solid #CCCAC4",
+              border: "1.5px solid #d0d5dd",
               borderRadius: "10px",
-              backgroundColor: "#FFFFFF",
-              color: "#151719",
+              backgroundColor: "#ffffff",
+              color: "#1b2559",
               fontSize: "14px",
               fontWeight: 700,
               cursor: isExporting ? "not-allowed" : "pointer",
@@ -1128,10 +1128,10 @@ export default function BorrowingCostView({
               height: "42px",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#F3F0E9";
+              e.currentTarget.style.backgroundColor = "#f9fafb";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#FFFFFF";
+              e.currentTarget.style.backgroundColor = "#ffffff";
             }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
@@ -1145,9 +1145,9 @@ export default function BorrowingCostView({
       {saveSuccess && (
         <div
           style={{
-            backgroundColor: "#F3F0E9",
-            color: "#56613F",
-            border: "1px solid #F0F0E7",
+            backgroundColor: "#ecfdf3",
+            color: "#027a48",
+            border: "1px solid #d1fadf",
             padding: "12px 16px",
             borderRadius: "8px",
             fontSize: "14px",
@@ -1168,9 +1168,9 @@ export default function BorrowingCostView({
       {saveError && (
         <div
           style={{
-            backgroundColor: "#F3F0E9",
-            color: "#C46A4C",
-            border: "1px solid #F3DFD5",
+            backgroundColor: "#fef3f2",
+            color: "#b42318",
+            border: "1px solid #fecdca",
             padding: "12px 16px",
             borderRadius: "8px",
             fontSize: "14px",
@@ -1187,7 +1187,7 @@ export default function BorrowingCostView({
         <section className="entity-wizard-card logit-card borrowing-cost-card">
           <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
             <div>
-              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#151719", margin: "0 0 4px", letterSpacing: "-0.01em" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1c244b", margin: "0 0 4px", letterSpacing: "-0.01em" }}>
                 Borrowing Expenses
               </h2>
             </div>
@@ -1216,7 +1216,7 @@ export default function BorrowingCostView({
               </thead>
               <tbody>
                 {borrowingExpenses.map((exp) => (
-                  <tr key={exp.key} style={{ borderBottom: "1px solid #F3F0E9" }}>
+                  <tr key={exp.key} style={{ borderBottom: "1px solid #f2f4f7" }}>
                     {/* Subcategory Dropdown */}
                     <td>
                       <TableDropdownSelect
@@ -1279,11 +1279,11 @@ export default function BorrowingCostView({
                         aria-label="Delete borrowing expense"
                         style={{
                           background: "none",
-                          border: "1px solid #F3DFD5",
+                          border: "1px solid #fecdca",
                           borderRadius: "6px",
                           padding: "6px 8px",
                           cursor: "pointer",
-                          color: "#C46A4C",
+                          color: "#f04438",
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1291,7 +1291,7 @@ export default function BorrowingCostView({
                           width: "36px",
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#F6EAE2";
+                          e.currentTarget.style.backgroundColor = "#fee4e2";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "transparent";
@@ -1306,11 +1306,11 @@ export default function BorrowingCostView({
                 ))}
 
                 {/* Total Row */}
-                <tr style={{ backgroundColor: "#F3F0E9", borderTop: "2px solid #E8E5DF" }}>
-                  <td style={{ padding: "16px", fontSize: "14px", fontWeight: 700, color: "#151719" }}>
+                <tr style={{ backgroundColor: "#f9fafb", borderTop: "2px solid #eaecf0" }}>
+                  <td style={{ padding: "16px", fontSize: "14px", fontWeight: 700, color: "#1d2939" }}>
                     Total Borrowing Cost
                   </td>
-                  <td style={{ padding: "16px", fontSize: "14px", fontWeight: 700, color: "#151719", textAlign: "right" }} colSpan={1}>
+                  <td style={{ padding: "16px", fontSize: "14px", fontWeight: 700, color: "#1e295b", textAlign: "right" }} colSpan={1}>
                     {formatMoney(totalBorrowingCost)}
                   </td>
                   <td colSpan={3}></td>
@@ -1323,10 +1323,10 @@ export default function BorrowingCostView({
         {/* Section 2: Loan Details */}
         <section className="entity-wizard-card logit-card borrowing-cost-card">
           <header style={{ marginBottom: "8px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#151719", margin: "0 0 4px", letterSpacing: "-0.01em" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1c244b", margin: "0 0 4px", letterSpacing: "-0.01em" }}>
               Loan Details
             </h2>
-            <p style={{ color: "#4F4F4F", fontSize: "14px", margin: 0 }}>
+            <p style={{ color: "#475467", fontSize: "14px", margin: 0 }}>
               Used to spread the total borrowing cost across the loan period
             </p>
           </header>
@@ -1334,7 +1334,7 @@ export default function BorrowingCostView({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "24px", marginTop: "16px" }}>
             {/* Start Date */}
             <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
                 Loan Start Date
               </label>
               <ValidatedDateInput
@@ -1346,7 +1346,7 @@ export default function BorrowingCostView({
 
             {/* End Date (system calculated 5 years from start date) */}
             <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
                 Loan End Date (system)
               </label>
               <input
@@ -1360,7 +1360,7 @@ export default function BorrowingCostView({
 
             {/* Period End Date (system) */}
             <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
                 Period End Date (system)
               </label>
               <input
@@ -1373,7 +1373,7 @@ export default function BorrowingCostView({
 
             {/* Number of Days (system) */}
             <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#3E3F3F", marginBottom: "6px" }}>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#344054", marginBottom: "6px" }}>
                 Number of Days (system)
               </label>
               <input
@@ -1386,7 +1386,7 @@ export default function BorrowingCostView({
           </div>
 
           {loanStartDate && loanEndDate && loanStartDate > loanEndDate && (
-            <div style={{ color: "#C46A4C", fontSize: "13px", fontWeight: 600, marginTop: "16px" }}>
+            <div style={{ color: "#d92d20", fontSize: "13px", fontWeight: 600, marginTop: "16px" }}>
               ⚠️ Loan End Date cannot be earlier than Loan Start Date.
             </div>
           )}
@@ -1395,11 +1395,11 @@ export default function BorrowingCostView({
         {/* Section 3: Borrowing Cost Schedule */}
         <section className="entity-wizard-card logit-card borrowing-cost-card">
           <header style={{ marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#151719", margin: "0 0 4px", letterSpacing: "-0.01em" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1c244b", margin: "0 0 4px", letterSpacing: "-0.01em" }}>
               Borrowing Cost Schedule
             </h2>
             {schedule.length > 0 && (
-              <p style={{ color: "#4F4F4F", fontSize: "14px", margin: 0 }}>
+              <p style={{ color: "#475467", fontSize: "14px", margin: 0 }}>
                 Total Borrowing Cost of {formatMoney(totalBorrowingCost)} spread across {totalScheduleDays} days of the loan period.
               </p>
             )}
@@ -1418,7 +1418,7 @@ export default function BorrowingCostView({
               <tbody>
                 {schedule.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ padding: "32px 16px", textAlign: "center", color: "#6A6A69", fontSize: "14px" }}>
+                    <td colSpan={4} style={{ padding: "32px 16px", textAlign: "center", color: "#667085", fontSize: "14px" }}>
                       {loanStartDate && loanEndDate && loanStartDate > loanEndDate
                         ? "Loan End Date cannot be earlier than Loan Start Date."
                         : "Provide valid Loan Start Date and Loan End Date to display the borrowing cost schedule."}
@@ -1426,17 +1426,17 @@ export default function BorrowingCostView({
                   </tr>
                 ) : (
                   schedule.map((p, idx) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #F3F0E9" }}>
-                      <td style={{ padding: "16px", fontSize: "14px", fontWeight: 600, color: "#3E3F3F" }}>
+                    <tr key={idx} style={{ borderBottom: "1px solid #f2f4f7" }}>
+                      <td style={{ padding: "16px", fontSize: "14px", fontWeight: 600, color: "#344054" }}>
                         {p.label}
                       </td>
-                      <td style={{ padding: "16px", fontSize: "14px", color: "#4F4F4F" }}>
+                      <td style={{ padding: "16px", fontSize: "14px", color: "#475467" }}>
                         {p.days}
                       </td>
-                      <td style={{ padding: "16px", fontSize: "14px", fontWeight: 600, color: "#151719", textAlign: "right" }}>
+                      <td style={{ padding: "16px", fontSize: "14px", fontWeight: 600, color: "#1d2939", textAlign: "right" }}>
                         {formatMoney(p.cost)}
                       </td>
-                      <td style={{ padding: "16px", fontSize: "14px", fontWeight: 600, color: "#3E3F3F", textAlign: "right" }}>
+                      <td style={{ padding: "16px", fontSize: "14px", fontWeight: 600, color: "#344054", textAlign: "right" }}>
                         {formatMoney(p.closingBalance)}
                       </td>
                     </tr>

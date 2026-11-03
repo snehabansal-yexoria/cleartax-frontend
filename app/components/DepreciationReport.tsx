@@ -26,18 +26,18 @@ export type DepreciationReportProps = {
 };
 
 const card: React.CSSProperties = {
-  background: "#FFFFFF",
-  border: "1px solid #E2DAF4",
+  background: "#ffffff",
+  border: "1px solid #dde4f2",
   borderRadius: "16px",
   padding: "24px 28px",
-  boxShadow: "0 4px 12px rgba(21, 23, 25, 0.02)",
+  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
 };
 
 const th: React.CSSProperties = {
   padding: "12px",
   fontSize: "11px",
   fontWeight: 700,
-  color: "#888784",
+  color: "#828fa7",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   whiteSpace: "nowrap",
@@ -47,8 +47,8 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = {
   padding: "14px 12px",
   fontSize: "13px",
-  color: "#3E3F3F",
-  borderBottom: "1px solid #F3F0E9",
+  color: "#334155",
+  borderBottom: "1px solid #f1f5f9",
 };
 
 export default function DepreciationReport({
@@ -98,11 +98,11 @@ export default function DepreciationReport({
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#242629" }}>
+        <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#28336e" }}>
           {title}
         </h2>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label htmlFor="depreciation-fy" style={{ fontSize: "13px", fontWeight: 500, color: "#6C6C6B" }}>
+          <label htmlFor="depreciation-fy" style={{ fontSize: "13px", fontWeight: 500, color: "#64748b" }}>
             Financial Year
           </label>
           <select
@@ -112,10 +112,10 @@ export default function DepreciationReport({
             style={{
               padding: "6px 12px",
               borderRadius: "8px",
-              border: "1px solid #CBC9C4",
-              background: "#FFFFFF",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
               fontSize: "13px",
-              color: "#3E3F3F",
+              color: "#334155",
               cursor: "pointer",
             }}
           >
@@ -130,15 +130,15 @@ export default function DepreciationReport({
       </div>
 
       {error && (
-        <div style={{ ...card, borderColor: "#F3DFD5", background: "#F3F0E9" }}>
-          <p style={{ margin: 0, color: "#C46A4C", fontSize: "14px", fontWeight: 600 }}>{error}</p>
+        <div style={{ ...card, borderColor: "#fecaca", background: "#fef2f2" }}>
+          <p style={{ margin: 0, color: "#b91c1c", fontSize: "14px", fontWeight: 600 }}>{error}</p>
           <button
             type="button"
             onClick={reload}
             style={{
               marginTop: "12px",
-              background: "#242629",
-              color: "#FFFFFF",
+              background: "#28336e",
+              color: "#fff",
               border: "none",
               borderRadius: "8px",
               padding: "8px 16px",
@@ -187,9 +187,9 @@ export default function DepreciationReport({
       {/* ---- Asset table --------------------------------------------------- */}
       <div style={card}>
         {isLoading ? (
-          <p style={{ margin: 0, color: "#6C6C6B", fontSize: "14px" }}>Loading schedules…</p>
+          <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>Loading schedules…</p>
         ) : items.length === 0 ? (
-          <p style={{ margin: 0, color: "#6C6C6B", fontSize: "14px", lineHeight: 1.55 }}>
+          <p style={{ margin: 0, color: "#64748b", fontSize: "14px", lineHeight: 1.55 }}>
             No depreciating assets yet. A schedule is generated automatically when a
             transaction is saved as an asset purchase with a category, an effective life and a
             method.
@@ -198,7 +198,7 @@ export default function DepreciationReport({
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #F0EDE6" }}>
+                <tr style={{ borderBottom: "1px solid #eef2f6" }}>
                   <th style={th}>Asset</th>
                   <th style={th}>Property</th>
                   <th style={th}>Category</th>
@@ -221,12 +221,12 @@ export default function DepreciationReport({
                   const name = assetHrefBase ? (
                     <Link
                       href={`${assetHrefBase}/${encodeURIComponent(item.transactionId)}`}
-                      style={{ color: "#242629", fontWeight: 700, textDecoration: "none" }}
+                      style={{ color: "#28336e", fontWeight: 700, textDecoration: "none" }}
                     >
                       {item.assetName}
                     </Link>
                   ) : (
-                    <strong style={{ color: "#242629" }}>{item.assetName}</strong>
+                    <strong style={{ color: "#28336e" }}>{item.assetName}</strong>
                   );
 
                   return (
@@ -234,7 +234,7 @@ export default function DepreciationReport({
                       <td style={td}>
                         {name}
                         {item.personalPercentage > 0 && (
-                          <div style={{ fontSize: "11px", color: "#888784", marginTop: "2px" }}>
+                          <div style={{ fontSize: "11px", color: "#828fa7", marginTop: "2px" }}>
                             {item.businessPercentage}% business use
                           </div>
                         )}
@@ -247,7 +247,7 @@ export default function DepreciationReport({
                       <td style={{ ...td, textAlign: "right" }}>
                         {formatCurrency(item.depreciableAmount)}
                       </td>
-                      <td style={{ ...td, textAlign: "right", fontWeight: 700, color: "#242629" }}>
+                      <td style={{ ...td, textAlign: "right", fontWeight: 700, color: "#28336e" }}>
                         {formatCurrency(claim)}
                       </td>
                     </tr>
@@ -269,18 +269,18 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
         style={{
           fontSize: "11px",
           fontWeight: 700,
-          color: "#888784",
+          color: "#828fa7",
           textTransform: "uppercase",
           letterSpacing: "0.06em",
         }}
       >
         {label}
       </span>
-      <div style={{ fontSize: "24px", fontWeight: 700, color: "#242629", marginTop: "8px", letterSpacing: "-0.02em" }}>
+      <div style={{ fontSize: "24px", fontWeight: 700, color: "#28336e", marginTop: "8px", letterSpacing: "-0.02em" }}>
         {value}
       </div>
       {note && (
-        <div style={{ fontSize: "12px", color: "#888784", marginTop: "6px" }}>{note}</div>
+        <div style={{ fontSize: "12px", color: "#828fa7", marginTop: "6px" }}>{note}</div>
       )}
     </div>
   );

@@ -734,13 +734,13 @@ export default function Home() {
                   </p>
                   <ul className="ct-feature-checklist">
                     <li>
-                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span>Consolidated equity and mortgage ledger</span>
                     </li>
                     <li>
-                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="ct-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span>State and asset class distribution tracking</span>
@@ -916,7 +916,7 @@ export default function Home() {
                     {/* Documents Grid */}
                     <div className="ct-vault-grid">
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -924,7 +924,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -932,7 +932,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -940,7 +940,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -948,7 +948,7 @@ export default function Home() {
                       </div>
 
                       <div className="ct-vault-chip">
-                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
@@ -1008,7 +1008,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* CARD 02: Financial Performance (Theme Blue #242629) */}
+              {/* CARD 02: Financial Performance (Theme Blue #28336e) */}
               <div className="ct-mcard ct-mcard-blue scroll-reveal">
                 {/* Header Row */}
                 <div className="ct-mcard-blue-header">
@@ -1103,7 +1103,7 @@ export default function Home() {
 
                 <div className="ct-mdocs-list">
                   <div className="ct-mdoc-item">
-                    <svg className="mdoc-icon orange" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A5CFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="mdoc-icon orange" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
@@ -1111,7 +1111,7 @@ export default function Home() {
                   </div>
 
                   <div className="ct-mdoc-item highlighted-doc">
-                    <svg className="mdoc-icon amber" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C46A4C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="mdoc-icon amber" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
@@ -1119,7 +1119,7 @@ export default function Home() {
                   </div>
 
                   <div className="ct-mdoc-item">
-                    <svg className="mdoc-icon green" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F7A5A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="mdoc-icon green" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
@@ -1311,7 +1311,7 @@ export default function Home() {
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#7A5CFA" stroke="#7A5CFA" strokeWidth="1.5">
+                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
@@ -1347,7 +1347,7 @@ export default function Home() {
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#7A5CFA" stroke="#7A5CFA" strokeWidth="1.5">
+                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
@@ -1383,7 +1383,7 @@ export default function Home() {
               <div className="ct-testimonial-top">
                 <div className="ct-stars-group">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#7A5CFA" stroke="#7A5CFA" strokeWidth="1.5">
+                    <svg key={i} className="ct-star-icon" width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
@@ -1472,7 +1472,7 @@ export default function Home() {
                         height="18"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#7A5CFA"
+                        stroke="#f59e0b"
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"

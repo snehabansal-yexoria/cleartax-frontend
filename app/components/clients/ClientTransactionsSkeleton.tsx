@@ -13,7 +13,7 @@ export default function ClientTransactionsSkeleton({ isMobile = false }: ClientT
           background: 'var(--surface-0)',
           minHeight: '100vh',
           paddingBottom: '90px',
-          fontFamily: "'Inter Tight', -apple-system, sans-serif"
+          fontFamily: "'Inter', -apple-system, sans-serif"
         }}
         aria-busy="true"
         aria-label="Loading transactions"
@@ -54,7 +54,7 @@ export default function ClientTransactionsSkeleton({ isMobile = false }: ClientT
               borderRadius: '16px',
               background: 'var(--surface-1)',
               border: '1px solid var(--border)',
-              boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)'
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
             }}
           >
             <div style={{ paddingRight: '12px' }}>
@@ -109,7 +109,7 @@ export default function ClientTransactionsSkeleton({ isMobile = false }: ClientT
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)'
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
             }}
           >
             {Array.from({ length: 4 }).map((_, idx) => (

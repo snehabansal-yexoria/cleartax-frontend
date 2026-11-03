@@ -26,7 +26,7 @@ export default function EntityDepreciationPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            color: "#505050",
+            color: "#475569",
             textDecoration: "none",
             fontSize: "14px",
             fontWeight: 600,

@@ -350,20 +350,20 @@ export function BuddyBot({ size = 120, mood = "idle" }: { size?: number; mood?: 
       <defs>
         <radialGradient id={`${id}-shell`} cx="38%" cy="28%" r="80%">
           <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset=".55" stopColor="#F1ECFA" />
-          <stop offset="1" stopColor="#CFC4EA" />
+          <stop offset=".55" stopColor="#EEF1FA" />
+          <stop offset="1" stopColor="#C6CEEA" />
         </radialGradient>
         <radialGradient id={`${id}-body`} cx="40%" cy="20%" r="90%">
           <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#D9CFF0" />
+          <stop offset="1" stopColor="#CDD5EF" />
         </radialGradient>
         <linearGradient id={`${id}-visor`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2B2350" />
-          <stop offset="1" stopColor="#151330" />
+          <stop offset="0" stopColor="#1E2654" />
+          <stop offset="1" stopColor="#0F1330" />
         </linearGradient>
         <radialGradient id={`${id}-ear`} cx="40%" cy="35%" r="70%">
-          <stop offset="0" stopColor="#E9DEFF" />
-          <stop offset="1" stopColor="#9C84F5" />
+          <stop offset="0" stopColor="#E4E9F9" />
+          <stop offset="1" stopColor="#4A56A6" />
         </radialGradient>
         <filter id={`${id}-glow`} x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="1.6" result="b" />
@@ -375,7 +375,7 @@ export function BuddyBot({ size = 120, mood = "idle" }: { size?: number; mood?: 
       </defs>
       {/* body */}
       <path d="M30 120c0-20 13-31 30-31s30 11 30 31z" fill={`url(#${id}-body)`} />
-      <circle cx="60" cy="104" r="3.2" fill="none" stroke="#B9A9EE" strokeWidth="1.4" />
+      <circle cx="60" cy="104" r="3.2" fill="none" stroke="#9FAAE0" strokeWidth="1.4" />
       {/* ears */}
       <ellipse cx="22" cy="52" rx="7.5" ry="11" fill={`url(#${id}-ear)`} />
       <ellipse cx="98" cy="52" rx="7.5" ry="11" fill={`url(#${id}-ear)`} />
@@ -386,22 +386,22 @@ export function BuddyBot({ size = 120, mood = "idle" }: { size?: number; mood?: 
       <rect x="32" y="33" width="56" height="40" rx="19" fill={`url(#${id}-visor)`} />
       <rect x="35" y="35.5" width="50" height="10" rx="5" fill="#fff" opacity=".07" />
       {/* face */}
-      <g className="txb-bot-eyes" filter={`url(#${id}-glow)`} fill="#E8E0FF">
+      <g className="txb-bot-eyes" filter={`url(#${id}-glow)`} fill="#DDE3F7">
         <rect x="45" y="46" width="7" height="11" rx="3.5" />
         <rect x="68" y="46" width="7" height="11" rx="3.5" />
       </g>
       <path
         className="txb-bot-mouth"
         d="M54 63c3.6 3 8.4 3 12 0"
-        stroke="#E8E0FF"
+        stroke="#DDE3F7"
         strokeWidth="2.4"
         strokeLinecap="round"
         fill="none"
         filter={`url(#${id}-glow)`}
       />
       {/* antenna light */}
-      <circle className="txb-bot-led" cx="60" cy="12" r="3.6" fill="#7A5CFA" />
-      <path d="M60 15.5V18" stroke="#CFC4EA" strokeWidth="2" strokeLinecap="round" />
+      <circle className="txb-bot-led" cx="60" cy="12" r="3.6" fill="#2E387A" />
+      <path d="M60 15.5V18" stroke="#C6CEEA" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

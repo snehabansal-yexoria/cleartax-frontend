@@ -82,12 +82,12 @@ export function transactionTypeModifier(type: CoreTransactionType): string {
 
 /** Accent colour, matching the modifier classes in globals.css. */
 const TRANSACTION_TYPE_COLORS: Record<CoreTransactionType, string> = {
-  revenue: "#6F7A5A",
-  expense: "#7A5CFA",
-  personal: "#A86BC9",
-  cost_base: "#C46A4C",
-  contra: "#4F8A8B",
-  balance_sheet: "#6C6C6B",
+  revenue: "#12a150",
+  expense: "#3538cd",
+  personal: "#a855f7",
+  cost_base: "#f97316",
+  contra: "#0891b2",
+  balance_sheet: "#64748b",
 };
 
 export function transactionTypeColor(type: CoreTransactionType): string {

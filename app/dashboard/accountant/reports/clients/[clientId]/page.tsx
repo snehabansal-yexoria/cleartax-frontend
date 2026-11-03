@@ -49,7 +49,7 @@ function TimelineEventItem({ event }: { event: ReportTimelineEvent }) {
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-[#242629] hover:text-[#151719] text-[10px] font-bold ml-1.5 focus:outline-none transition-all inline-flex items-center gap-0.5 align-baseline bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-200/40"
+                className="text-[#28336e] hover:text-[#1b2559] text-[10px] font-bold ml-1.5 focus:outline-none transition-all inline-flex items-center gap-0.5 align-baseline bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-full border border-slate-200/40"
               >
                 <span>{isExpanded ? "Show less" : "View more"}</span>
                 <svg className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -178,7 +178,7 @@ export default function ClientProfileReport({ params }: PageProps) {
         </p>
         <Link
           href="/dashboard/accountant/reports/clients"
-          className="mt-5 inline-flex items-center justify-center bg-[#242629] text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md hover:bg-[#151719]"
+          className="mt-5 inline-flex items-center justify-center bg-[#28336e] text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md hover:bg-[#1b2559]"
         >
           Back to Clients
         </Link>
@@ -243,7 +243,7 @@ export default function ClientProfileReport({ params }: PageProps) {
               onClick={() => setSelectedPeriod(period)}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 selectedPeriod === period
-                  ? "bg-[#242629] text-white shadow-md shadow-indigo-900/10"
+                  ? "bg-[#28336e] text-white shadow-md shadow-indigo-900/10"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
@@ -290,7 +290,7 @@ export default function ClientProfileReport({ params }: PageProps) {
       {/* Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Your Actions */}
-        <div className="bg-gradient-to-br from-[#EFEAF4] to-[#F3F0E9] border border-blue-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
+        <div className="bg-gradient-to-br from-[#ebf1ff] to-[#f4f7fe] border border-blue-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Your Actions</span>
@@ -306,7 +306,7 @@ export default function ClientProfileReport({ params }: PageProps) {
         </div>
 
         {/* Properties Touched */}
-        <div className="bg-gradient-to-br from-[#F6ECE4] to-[#F3F0E9] border border-amber-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
+        <div className="bg-gradient-to-br from-[#fff7e6] to-[#fffcf5] border border-amber-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Properties Touched</span>
@@ -322,7 +322,7 @@ export default function ClientProfileReport({ params }: PageProps) {
         </div>
 
         {/* Entities Touched */}
-        <div className="bg-gradient-to-br from-[#EFEAF4] to-[#F3F0E9] border border-purple-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
+        <div className="bg-gradient-to-br from-[#f5ebff] to-[#faf5ff] border border-purple-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Entities Touched</span>
@@ -340,7 +340,7 @@ export default function ClientProfileReport({ params }: PageProps) {
         </div>
 
         {/* Transactions Touched */}
-        <div className="bg-gradient-to-br from-[#F4F3EC] to-[#F3F0E9] border border-emerald-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
+        <div className="bg-gradient-to-br from-[#e6fbf3] to-[#f4fefb] border border-emerald-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[120px]">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Transactions Touched</span>

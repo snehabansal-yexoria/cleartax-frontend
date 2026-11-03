@@ -273,7 +273,7 @@ export default function CreateOrganisationPage() {
               <div style={{ display: "flex", gap: "1em", alignItems: "center", flexWrap: "wrap" }}>
                 <span
                   className="cpc-brand-logo"
-                  style={{ width: "4em", height: "4em", fontSize: "0.9em", borderRadius: "0.85em", background: "#E7E4DD", color: "#5C5C5B" }}
+                  style={{ width: "4em", height: "4em", fontSize: "0.9em", borderRadius: "0.85em", background: "#efeee9", color: "#5b6170" }}
                   aria-hidden="true"
                 >
                   Logo

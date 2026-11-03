@@ -22,7 +22,7 @@ export default function ThemeToggle() {
           borderRadius: "50%",
           border: "1px solid var(--border)",
           background: "var(--surface-1)",
-          boxShadow: "0 2px 8px rgba(21, 23, 25,0.04)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
         }}
       />
     );
@@ -54,7 +54,7 @@ export default function ThemeToggle() {
                       background-color 0.3s ease, 
                       border-color 0.3s ease,
                       box-shadow 0.3s ease;
-          box-shadow: 0 2px 8px rgba(21, 23, 25, 0.04);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
           outline: none;
         }
 
@@ -62,12 +62,12 @@ export default function ThemeToggle() {
           transform: scale(1.08);
           background: var(--surface-2);
           border-color: var(--text-muted);
-          box-shadow: 0 4px 12px rgba(21, 23, 25, 0.12);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         }
 
         .theme-toggle-btn:focus-visible {
           border-color: var(--accent);
-          box-shadow: 0 0 0 3px rgba(122, 92, 250, 0.2);
+          box-shadow: 0 0 0 3px rgba(244, 161, 23, 0.2);
         }
 
         .theme-toggle-btn:active {

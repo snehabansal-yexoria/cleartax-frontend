@@ -34,7 +34,7 @@ export default function PropertyTrendChart({ rows }: PropertyTrendChartProps) {
 
   if (trendRows.length === 0) {
     return (
-      <div className="property-trend-empty text-center py-12 text-[#6A6A69] text-sm">
+      <div className="property-trend-empty text-center py-12 text-[#667085] text-sm">
         No transactions are available for this property yet.
       </div>
     );

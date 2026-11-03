@@ -84,7 +84,7 @@ export default function AdminPage() {
   // Interactive State for Unclassified Transactions
   const [unclassifiedTxs, setUnclassifiedTxs] = useState<UnclassifiedTx[]>([
     { id: "tx-1", description: "Property Rent Receipt - Unit 4B", amount: "$3,450.00", date: "2026-06-11", client: "Apex Holdings" },
-    { id: "tx-2", description: "Maintenance & Plumbing Invoice #A8503A", amount: "$850.00", date: "2026-06-10", client: "Blue Sky Trust" },
+    { id: "tx-2", description: "Maintenance & Plumbing Invoice #902", amount: "$850.00", date: "2026-06-10", client: "Blue Sky Trust" },
     { id: "tx-3", description: "Commercial Security Deposit", amount: "$5,200.00", date: "2026-06-08", client: "Vertex Capital" },
     { id: "tx-4", description: "Tax Advisory Filing Fee", amount: "$1,250.00", date: "2026-06-05", client: "Zenith Estates" },
   ]);
@@ -256,14 +256,14 @@ export default function AdminPage() {
                 y1={y}
                 x2={xStart + chartWidth}
                 y2={y}
-                stroke="#F3F0E9"
+                stroke="#F2F4F7"
                 strokeWidth="1"
               />
               <text
                 x={xStart - 10}
                 y={y + 4}
                 textAnchor="end"
-                fill="#989794"
+                fill="#98A2B3"
                 fontSize="11"
                 fontWeight="500"
                 fontFamily="Inter, sans-serif"
@@ -315,7 +315,7 @@ export default function AdminPage() {
                 y={revY}
                 width={barWidth}
                 height={revHeight}
-                fill="#56613F"
+                fill="#039855"
                 rx="2"
               />
               {/* Expenses Bar */}
@@ -324,7 +324,7 @@ export default function AdminPage() {
                 y={expY}
                 width={barWidth}
                 height={expHeight}
-                fill="#C46A4C"
+                fill="#D92D20"
                 rx="2"
               />
               {/* Month Text Label */}
@@ -332,7 +332,7 @@ export default function AdminPage() {
                 x={xCenter}
                 y={yStart + chartHeight + 20}
                 textAnchor="middle"
-                fill="#6A6A69"
+                fill="#667085"
                 fontSize="12"
                 fontWeight="500"
                 fontFamily="Inter, sans-serif"
@@ -347,7 +347,7 @@ export default function AdminPage() {
         <path
           d={linePath}
           fill="none"
-          stroke="#7A5CFA"
+          stroke="#1570EF"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -362,7 +362,7 @@ export default function AdminPage() {
               cx={x}
               cy={y}
               r="5"
-              fill="#7A5CFA"
+              fill="#1570EF"
               stroke="#FFFFFF"
               strokeWidth="2"
             />
@@ -547,15 +547,15 @@ export default function AdminPage() {
                 >
                   <div className="chart-tooltip-month">{chartMonths[hoveredMonthIndex]} 2025-26</div>
                   <div className="chart-tooltip-row">
-                    <span><span className="chart-tooltip-dot" style={{ backgroundColor: "#56613F" }} />Revenue:</span>
+                    <span><span className="chart-tooltip-dot" style={{ backgroundColor: "#039855" }} />Revenue:</span>
                     <strong>${revenueData[hoveredMonthIndex]}K</strong>
                   </div>
                   <div className="chart-tooltip-row">
-                    <span><span className="chart-tooltip-dot" style={{ backgroundColor: "#C46A4C" }} />Expenses:</span>
+                    <span><span className="chart-tooltip-dot" style={{ backgroundColor: "#D92D20" }} />Expenses:</span>
                     <strong>${expensesData[hoveredMonthIndex]}K</strong>
                   </div>
                   <div className="chart-tooltip-row">
-                    <span><span className="chart-tooltip-dot" style={{ backgroundColor: "#7A5CFA" }} />Net Profit:</span>
+                    <span><span className="chart-tooltip-dot" style={{ backgroundColor: "#1570EF" }} />Net Profit:</span>
                     <strong>${netProfitData[hoveredMonthIndex]}K</strong>
                   </div>
                 </div>
@@ -792,7 +792,7 @@ export default function AdminPage() {
                   <td>
                     <div className="reconciled-cell">
                       <div className="reconciled-progress-bar">
-                        <div className="reconciled-progress-fill green" style={{ width: "78%", backgroundColor: "#6F7A5A" }} />
+                        <div className="reconciled-progress-fill green" style={{ width: "78%", backgroundColor: "#12B76A" }} />
                       </div>
                       <span className="reconciled-percentage">78%</span>
                     </div>
@@ -821,7 +821,7 @@ export default function AdminPage() {
                   <td>
                     <div className="reconciled-cell">
                       <div className="reconciled-progress-bar">
-                        <div className="reconciled-progress-fill yellow" style={{ width: "55%", backgroundColor: "#7A5CFA" }} />
+                        <div className="reconciled-progress-fill yellow" style={{ width: "55%", backgroundColor: "#EAAA08" }} />
                       </div>
                       <span className="reconciled-percentage">55%</span>
                     </div>
@@ -850,7 +850,7 @@ export default function AdminPage() {
                   <td>
                     <div className="reconciled-cell">
                       <div className="reconciled-progress-bar">
-                        <div className="reconciled-progress-fill green" style={{ width: "82%", backgroundColor: "#6F7A5A" }} />
+                        <div className="reconciled-progress-fill green" style={{ width: "82%", backgroundColor: "#12B76A" }} />
                       </div>
                       <span className="reconciled-percentage">82%</span>
                     </div>
@@ -879,7 +879,7 @@ export default function AdminPage() {
                   <td>
                     <div className="reconciled-cell">
                       <div className="reconciled-progress-bar">
-                        <div className="reconciled-progress-fill red" style={{ width: "31%", backgroundColor: "#C46A4C" }} />
+                        <div className="reconciled-progress-fill red" style={{ width: "31%", backgroundColor: "#F04438" }} />
                       </div>
                       <span className="reconciled-percentage">31%</span>
                     </div>
@@ -948,10 +948,10 @@ export default function AdminPage() {
                 </button>
               </div>
               <div className="admin-modal-body">
-                <p style={{ color: "#6A6A69", fontSize: "13px" }}>Assign transactions below to an accountant to begin manual reconciliation matching.</p>
+                <p style={{ color: "#667085", fontSize: "13px" }}>Assign transactions below to an accountant to begin manual reconciliation matching.</p>
                 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "12px", fontWeight: "700", color: "#4F4F4F" }}>SELECT ASSIGNEE</label>
+                  <label style={{ fontSize: "12px", fontWeight: "700", color: "#475467" }}>SELECT ASSIGNEE</label>
                   <select
                     className="modal-invites-search"
                     value={txAssignee}
@@ -973,7 +973,7 @@ export default function AdminPage() {
                         <span className="modal-item-sub">{tx.client} · {tx.date}</span>
                       </div>
                       <div className="modal-item-right" style={{ flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                        <span className="table-text-bold" style={{ color: "#C46A4C" }}>{tx.amount}</span>
+                        <span className="table-text-bold" style={{ color: "#B42318" }}>{tx.amount}</span>
                         <button
                           className="btn-alert-action"
                           style={{ padding: "4px 10px", fontSize: "12px" }}
@@ -985,7 +985,7 @@ export default function AdminPage() {
                     </article>
                   ))}
                   {unclassifiedTxs.length === 0 && (
-                    <div style={{ textAlign: "center", padding: "32px", color: "#989794" }}>No unclassified bank feeds remaining.</div>
+                    <div style={{ textAlign: "center", padding: "32px", color: "#98A2B3" }}>No unclassified bank feeds remaining.</div>
                   )}
                 </div>
               </div>
@@ -1039,13 +1039,13 @@ export default function AdminPage() {
                     </div>
                   ))}
                   {filteredInvites.length === 0 && (
-                    <div style={{ textAlign: "center", padding: "48px", color: "#989794" }}>No matching invitation records.</div>
+                    <div style={{ textAlign: "center", padding: "48px", color: "#98A2B3" }}>No matching invitation records.</div>
                   )}
                 </div>
               </div>
               <div className="admin-modal-footer">
                 <button className="btn-alert-action" onClick={() => setActiveModal(null)}>Close</button>
-                <Link href="/dashboard/admin/invite" className="btn-alert-action" style={{ backgroundColor: "#7A5CFA", color: "#FFFFFF", borderColor: "#7A5CFA", textDecoration: 'none' }}>
+                <Link href="/dashboard/admin/invite" className="btn-alert-action" style={{ backgroundColor: "#1570EF", color: "#FFFFFF", borderColor: "#1570EF", textDecoration: 'none' }}>
                   Invite New Client
                 </Link>
               </div>
@@ -1071,7 +1071,7 @@ export default function AdminPage() {
                   <div className="profile-avatar-circle avatar-orange" style={{ width: "60px", height: "60px", fontSize: "20px" }}>MC</div>
                   <div>
                     <h4 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: "700" }}>Michael Chen</h4>
-                    <p style={{ margin: 0, color: "#6A6A69", fontSize: "13px" }}>Junior Accountant · Assigned since March 2026</p>
+                    <p style={{ margin: 0, color: "#667085", fontSize: "13px" }}>Junior Accountant · Assigned since March 2026</p>
                   </div>
                 </div>
 
@@ -1082,7 +1082,7 @@ export default function AdminPage() {
                   </div>
                   <div className="modal-stat-item">
                     <span className="modal-stat-label">Reconciled Rate</span>
-                    <span className="modal-stat-value" style={{ color: "#C46A4C" }}>31%</span>
+                    <span className="modal-stat-value" style={{ color: "#D92D20" }}>31%</span>
                   </div>
                   <div className="modal-stat-item">
                     <span className="modal-stat-label">Assigned Value</span>
@@ -1091,8 +1091,8 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <h4 style={{ margin: "0 0 8px 0", fontSize: "13px", fontWeight: "700", color: "#4F4F4F" }}>PERFORMANCE OBSERVATIONS</h4>
-                  <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "#4F4F4F", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "13px", fontWeight: "700", color: "#475467" }}>PERFORMANCE OBSERVATIONS</h4>
+                  <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "#475467", display: "flex", flexDirection: "column", gap: "6px" }}>
                     <li>Reconciliation has been completed on only 66 of 213 properties ledger transactions.</li>
                     <li>Organization-wide target threshold is set to 80% completion by end of the fiscal month.</li>
                     <li>Average response lag for client questions is currently 3.4 days.</li>
@@ -1103,7 +1103,7 @@ export default function AdminPage() {
                 <button className="btn-alert-action" onClick={() => setActiveModal(null)}>Dismiss</button>
                 <button
                   className="btn-alert-action"
-                  style={{ backgroundColor: "#C46A4C", color: "#FFFFFF", borderColor: "#C46A4C" }}
+                  style={{ backgroundColor: "#F04438", color: "#FFFFFF", borderColor: "#F04438" }}
                   onClick={() => handleRequestReview("Michael Chen")}
                 >
                   Send Warnings Alert
@@ -1133,7 +1133,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <h4 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: "700" }}>{selectedAccountant.name}</h4>
-                    <p style={{ margin: 0, color: "#6A6A69", fontSize: "13px" }}>{selectedAccountant.role} · Active in Org</p>
+                    <p style={{ margin: 0, color: "#667085", fontSize: "13px" }}>{selectedAccountant.role} · Active in Org</p>
                   </div>
                 </div>
 
@@ -1144,7 +1144,7 @@ export default function AdminPage() {
                   </div>
                   <div className="modal-stat-item">
                     <span className="modal-stat-label">Reconciled Rate</span>
-                    <span className="modal-stat-value" style={{ color: selectedAccountant.rate >= 75 ? "#56613F" : selectedAccountant.rate >= 50 ? "#C46A4C" : "#C46A4C" }}>
+                    <span className="modal-stat-value" style={{ color: selectedAccountant.rate >= 75 ? "#039855" : selectedAccountant.rate >= 50 ? "#B54708" : "#D92D20" }}>
                       {selectedAccountant.rate}%
                     </span>
                   </div>
@@ -1155,14 +1155,14 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <h4 style={{ margin: "0 0 8px 0", fontSize: "13px", fontWeight: "700", color: "#4F4F4F" }}>WORKLOAD METRICS</h4>
-                  <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse", color: "#4F4F4F" }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "13px", fontWeight: "700", color: "#475467" }}>WORKLOAD METRICS</h4>
+                  <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse", color: "#475467" }}>
                     <tbody>
-                      <tr style={{ borderBottom: "1px solid #F3F0E9" }}>
+                      <tr style={{ borderBottom: "1px solid #F2F4F7" }}>
                         <td style={{ padding: "8px 0" }}>Total Logged Transactions:</td>
                         <td style={{ padding: "8px 0", fontWeight: "700", textAlign: "right" }}>{selectedAccountant.txs}</td>
                       </tr>
-                      <tr style={{ borderBottom: "1px solid #F3F0E9" }}>
+                      <tr style={{ borderBottom: "1px solid #F2F4F7" }}>
                         <td style={{ padding: "8px 0" }}>Last active status timestamp:</td>
                         <td style={{ padding: "8px 0", fontWeight: "700", textAlign: "right" }}>{selectedAccountant.lastActive}</td>
                       </tr>
@@ -1180,7 +1180,7 @@ export default function AdminPage() {
                 <button className="btn-alert-action" onClick={() => setActiveModal(null)}>Close</button>
                 <button
                   className="btn-alert-action"
-                  style={{ backgroundColor: "#7A5CFA", color: "#FFFFFF", borderColor: "#7A5CFA" }}
+                  style={{ backgroundColor: "#1570EF", color: "#FFFFFF", borderColor: "#1570EF" }}
                   onClick={() => {
                     addToast("Contact Dispatched", `Notification chat ping sent to ${selectedAccountant.name}.`, "success");
                     setActiveModal(null);

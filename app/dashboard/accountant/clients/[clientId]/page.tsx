@@ -673,16 +673,16 @@ function ClientDetailPageContent() {
         </div>
 
         {/* Horizontal Divider Line */}
-        <hr style={{ border: 0, borderTop: "1px solid #E1DFD8", margin: 0 }} />
+        <hr style={{ border: 0, borderTop: "1px solid #e4e7ec", margin: 0 }} />
 
         {/* Managed By & Transfer Row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexWrap: "wrap", gap: "16px" }}>
           <div>
-            <span style={{ fontSize: "12px", color: "#6A6A69", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "8px" }}>
+            <span style={{ fontSize: "12px", color: "#667085", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "8px" }}>
               Account Managed By
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span className="client-profile-avatar" style={{ width: "38px", height: "38px", fontSize: "14px", background: "#2E3135" }}>
+              <span className="client-profile-avatar" style={{ width: "38px", height: "38px", fontSize: "14px", background: "#2f3c82" }}>
                 {getInitials(
                   client.isAssignedToCurrentAccountant
                     ? (currentUser?.fullName || client.assignedAccountantName || "You")
@@ -690,12 +690,12 @@ function ClientDetailPageContent() {
                 )}
               </span>
               <div>
-                <strong style={{ display: "block", fontSize: "15px", color: "#151719", fontWeight: 600 }}>
+                <strong style={{ display: "block", fontSize: "15px", color: "#101828", fontWeight: 600 }}>
                   {client.isAssignedToCurrentAccountant
                     ? `${currentUser?.fullName || client.assignedAccountantName || "You"} (You)`
                     : (client.assignedAccountantName || "Unassigned")}
                 </strong>
-                <span style={{ fontSize: "13px", color: "#6A6A69", display: "block", marginTop: "2px" }}>
+                <span style={{ fontSize: "13px", color: "#667085", display: "block", marginTop: "2px" }}>
                   {assignedAccountant?.email || "No email available"}
                 </span>
               </div>
@@ -715,29 +715,29 @@ function ClientDetailPageContent() {
                 gap: "8px",
                 height: "40px",
                 padding: "0 16px",
-                border: "1px solid #CCCAC4",
+                border: "1px solid #d0d5dd",
                 borderRadius: "8px",
-                background: "#FFFFFF",
-                color: "#3E3F3F",
+                background: "#ffffff",
+                color: "#344054",
                 fontSize: "14px",
                 fontWeight: 600,
                 lineHeight: "20px",
                 margin: 0,
                 cursor: isExporting ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
-                boxShadow: "0 1px 2px rgba(21, 23, 25, 0.05)",
+                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
                 opacity: isExporting ? 0.6 : 1,
                 boxSizing: "border-box",
               }}
               onMouseEnter={(e) => {
                 if (!isExporting) {
-                  e.currentTarget.style.background = "#F3F0E9";
-                  e.currentTarget.style.borderColor = "#BDBBB6";
+                  e.currentTarget.style.background = "#f9fafb";
+                  e.currentTarget.style.borderColor = "#c6cacc";
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#FFFFFF";
-                e.currentTarget.style.borderColor = "#CCCAC4";
+                e.currentTarget.style.background = "#ffffff";
+                e.currentTarget.style.borderColor = "#d0d5dd";
               }}
             >
               {isExporting ? (
@@ -765,26 +765,26 @@ function ClientDetailPageContent() {
                   gap: "8px",
                   height: "40px",
                   padding: "0 16px",
-                  border: "1px solid #CCCAC4",
+                  border: "1px solid #d0d5dd",
                   borderRadius: "8px",
-                  background: "#FFFFFF",
-                  color: "#3E3F3F",
+                  background: "#ffffff",
+                  color: "#344054",
                   fontSize: "14px",
                   fontWeight: 600,
                   lineHeight: "20px",
                   margin: 0,
                   cursor: "pointer",
                   transition: "all 0.2s",
-                  boxShadow: "0 1px 2px rgba(21, 23, 25, 0.05)",
+                  boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
                   boxSizing: "border-box",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#F3F0E9";
-                  e.currentTarget.style.borderColor = "#BDBBB6";
+                  e.currentTarget.style.background = "#f9fafb";
+                  e.currentTarget.style.borderColor = "#c6cacc";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "#FFFFFF";
-                  e.currentTarget.style.borderColor = "#CCCAC4";
+                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.borderColor = "#d0d5dd";
                 }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
@@ -841,24 +841,24 @@ function ClientDetailPageContent() {
         </article>
         <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#464747', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#454a55', display: 'flex', alignItems: 'center', gap: '4px' }}>
               Market Value
               <span title="Estimated market value of all active properties" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px', color: '#989794' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px', color: '#98a2b3' }}>
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
               </span>
             </span>
-            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#151719', marginTop: '4px' }}>
+            <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
               {isClientLoading ? "—" : `A$ ${(client?.totalMarketValue ?? 180000).toLocaleString()}`}
             </strong>
-            <span style={{ fontSize: '12px', color: '#6A6A69', fontWeight: 500 }}>
+            <span style={{ fontSize: '12px', color: '#667085', fontWeight: 500 }}>
               Across {totalProperties} {totalProperties === 1 ? "property" : "properties"}
             </span>
           </div>
-          <span className="client-stat-icon" style={{ background: '#F2DED4', color: '#C46A4C', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span className="client-stat-icon" style={{ background: '#fef0c7', color: '#d97706', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
               <line x1="12" y1="1" x2="12" y2="23"></line>
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
@@ -882,10 +882,10 @@ function ClientDetailPageContent() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '16px 20px',
-              border: '1px solid #E2DAF4',
+              border: '1px solid #dde4f2',
               borderRadius: '12px',
-              background: '#FFFFFF',
-              boxShadow: '0 4px 12px rgba(21, 23, 25, 0.04)',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
               cursor: 'pointer',
               textAlign: 'left',
               fontFamily: 'inherit',
@@ -894,18 +894,18 @@ function ClientDetailPageContent() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <span style={{ background: '#E9E4F4', color: '#7A5CFA', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ background: '#e0e7ff', color: '#4f46e5', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               </span>
               <div>
-                <strong style={{ display: 'block', fontSize: '15px', color: '#151719', fontWeight: 700 }}>Personal Transactions</strong>
-                <span style={{ display: 'block', fontSize: '12px', color: '#6A6A69', marginTop: '2px' }}>Expense & revenue totals by category</span>
+                <strong style={{ display: 'block', fontSize: '15px', color: '#101828', fontWeight: 700 }}>Personal Transactions</strong>
+                <span style={{ display: 'block', fontSize: '12px', color: '#667085', marginTop: '2px' }}>Expense & revenue totals by category</span>
               </div>
             </div>
-            <span style={{ color: '#6A6A69', display: 'flex', alignItems: 'center' }}>
+            <span style={{ color: '#667085', display: 'flex', alignItems: 'center' }}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -928,11 +928,11 @@ function ClientDetailPageContent() {
           {isPersonalExpanded && (
             <div
               style={{
-                background: '#FFFFFF',
-                border: '1px solid #E2DAF4',
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
                 borderRadius: '12px',
                 padding: '24px',
-                boxShadow: '0 4px 12px rgba(21, 23, 25, 0.04)',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '24px',
@@ -942,26 +942,26 @@ function ClientDetailPageContent() {
                   a personal transaction is money out by definition, so the
                   section that used to sit here could only ever be empty. */}
               <div>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#C46A4C', borderBottom: '1px solid #F3F0E9', paddingBottom: '8px' }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#b91c1c', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
                   Private spending
                 </h4>
                 {personal.isLoading ? (
-                  <p style={{ margin: 0, fontSize: '13px', color: '#6A6A69' }}>Loading…</p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>Loading…</p>
                 ) : personal.error ? (
-                  <p style={{ margin: 0, fontSize: '13px', color: '#C46A4C' }}>{personal.error}</p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#b42318' }}>{personal.error}</p>
                 ) : personalCategories.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '13px', color: '#6A6A69' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>
                     No personal transactions recorded for this client.
                   </p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {personalCategories.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#3E3F3F' }}>
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
                         <span>{item.category}</span>
-                        <strong style={{ fontWeight: 600, color: '#151719' }}>{formatPanelAmount(item.amount)}</strong>
+                        <strong style={{ fontWeight: 600, color: '#101828' }}>{formatPanelAmount(item.amount)}</strong>
                       </div>
                     ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #E8E5DF', paddingTop: '12px', color: '#151719' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
                       <strong style={{ fontWeight: 700 }}>Total</strong>
                       <strong style={{ fontWeight: 800 }}>{formatPanelAmount(personalTotal)}</strong>
                     </div>
@@ -983,10 +983,10 @@ function ClientDetailPageContent() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '18px 24px',
-              border: '1px solid #E2DAF4',
+              border: '1px solid #dde4f2',
               borderRadius: '16px',
-              background: '#FFFFFF',
-              boxShadow: '0 4px 12px rgba(21, 23, 25, 0.03)',
+              background: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
               cursor: 'pointer',
               textAlign: 'left',
               fontFamily: 'inherit',
@@ -995,18 +995,18 @@ function ClientDetailPageContent() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ background: '#F6EAE2', color: '#C46A4C', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ background: '#fdf4e3', color: '#c27a00', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                   <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                 </svg>
               </span>
               <div>
-                <strong style={{ display: 'block', fontSize: '16px', color: '#242629', fontWeight: 700 }}>Asset Transactions</strong>
-                <span style={{ display: 'block', fontSize: '13px', color: '#888784', marginTop: '2px' }}>Expenses marked as asset purchases</span>
+                <strong style={{ display: 'block', fontSize: '16px', color: '#28336e', fontWeight: 700 }}>Asset Transactions</strong>
+                <span style={{ display: 'block', fontSize: '13px', color: '#828fa7', marginTop: '2px' }}>Expenses marked as asset purchases</span>
               </div>
             </div>
-            <span style={{ color: '#888784', display: 'flex', alignItems: 'center' }}>
+            <span style={{ color: '#828fa7', display: 'flex', alignItems: 'center' }}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -1029,41 +1029,41 @@ function ClientDetailPageContent() {
           {isAssetExpanded && (
             <div
               style={{
-                background: '#FFFFFF',
-                border: '1px solid #E2DAF4',
+                background: '#ffffff',
+                border: '1px solid #dde4f2',
                 borderRadius: '16px',
                 padding: '24px',
-                boxShadow: '0 4px 12px rgba(21, 23, 25, 0.03)',
+                boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
                 overflowX: 'auto',
               }}
             >
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '450px' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #F0EDE6' }}>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Entity</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
-                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
+                  <tr style={{ borderBottom: '1px solid #eef2f6' }}>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Entity</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Property</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
+                    <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
                     <th style={{ padding: '12px 8px', width: '24px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {assets.isLoading ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#6A6A69' }}>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#667085' }}>
                         Loading…
                       </td>
                     </tr>
                   ) : assets.error ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#C46A4C' }}>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#b42318' }}>
                         {assets.error}
                       </td>
                     </tr>
                   ) : assetRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#6A6A69' }}>
+                      <td colSpan={6} style={{ padding: '20px 8px', fontSize: '13px', color: '#667085' }}>
                         No transactions marked as asset purchases yet.
                       </td>
                     </tr>
@@ -1077,29 +1077,29 @@ function ClientDetailPageContent() {
                             if ((event.target as HTMLElement).closest("a")) return;
                             router.push(to);
                           }}
-                          style={{ borderBottom: idx === assetRows.length - 1 ? 'none' : '1px solid #F3F0E9', cursor: 'pointer', transition: 'background 0.2s ease' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F0E9')}
+                          style={{ borderBottom: idx === assetRows.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
                           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#3E3F3F', fontWeight: 500 }}>{row.entityName}</td>
-                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#3E3F3F' }}>{row.propertyName}</td>
-                          <td style={{ padding: '16px 8px', fontSize: '14px', color: '#242629', fontWeight: 700 }}>
+                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>{row.entityName}</td>
+                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#334155' }}>{row.propertyName}</td>
+                          <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>
                             <Link
                               href={to}
-                              style={{ color: '#242629', textDecoration: 'none' }}
+                              style={{ color: '#28336e', textDecoration: 'none' }}
                               onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
                               onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                             >
                               {row.name}
                             </Link>
                           </td>
-                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#505050', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
-                          <td style={{ padding: '16px 8px', fontSize: '14px', color: '#242629', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{formatPanelDate(row.date)}</td>
+                          <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
                             {formatPanelAmount(row.amount)}
                           </td>
                           <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
                             <Link href={to} aria-label={`Open ${row.name}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                              <svg viewBox="0 0 24 24" fill="none" stroke="#CBC9C4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
                                 <polyline points="9 18 15 12 9 6" />
                               </svg>
                             </Link>
@@ -1338,15 +1338,15 @@ function ClientDetailPageContent() {
                   style={{
                     marginBottom: "20px",
                     padding: "12px 14px",
-                    background: "#F3F0E9",
+                    background: "#f9fafb",
                     borderRadius: "10px",
-                    border: "1px solid #E1DFD8",
+                    border: "1px solid #e4e7ec",
                   }}
                 >
                   <span
                     style={{
                       fontSize: "11px",
-                      color: "#6A6A69",
+                      color: "#667085",
                       fontWeight: 500,
                       textTransform: "uppercase",
                       letterSpacing: "0.04em",
@@ -1358,13 +1358,13 @@ function ClientDetailPageContent() {
                     style={{
                       display: "block",
                       fontSize: "15px",
-                      color: "#151719",
+                      color: "#101828",
                       marginTop: "4px",
                     }}
                   >
                     {client?.name}
                   </strong>
-                  <span style={{ fontSize: "13px", color: "#6A6A69" }}>
+                  <span style={{ fontSize: "13px", color: "#667085" }}>
                     {client?.email}
                   </span>
                 </div>
@@ -1378,7 +1378,7 @@ function ClientDetailPageContent() {
                   }}
                 >
                   <span
-                    style={{ fontSize: "14px", fontWeight: 500, color: "#3E3F3F" }}
+                    style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}
                   >
                     Transfer To <span className="imp">*</span>
                   </span>
@@ -1407,8 +1407,8 @@ function ClientDetailPageContent() {
                     gap: "6px",
                   }}
                 >
-                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#3E3F3F" }}>
-                    Reason <small style={{ fontWeight: 400, color: "#6A6A69" }}>(Optional)</small>
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#344054" }}>
+                    Reason <small style={{ fontWeight: 400, color: "#667085" }}>(Optional)</small>
                   </span>
                   <textarea
                     placeholder="e.g. Going on annual leave Dec 1–15"
@@ -1417,12 +1417,12 @@ function ClientDetailPageContent() {
                     onChange={(e) => setTransferReason(e.target.value)}
                     style={{
                       padding: "10px 14px",
-                      border: "1.5px solid #CCCAC4",
+                      border: "1.5px solid #d0d5dd",
                       borderRadius: "10px",
                       fontSize: "14px",
                       resize: "vertical",
                       fontFamily: "inherit",
-                      color: "#151719",
+                      color: "#101828",
                       outline: "none",
                     }}
                   />
@@ -1531,7 +1531,7 @@ function ConfirmationDialog({
       <div
         className="accountant-drawer-backdrop"
         style={{
-          background: "rgba(21, 23, 25, 0.4)",
+          background: "rgba(15, 23, 52, 0.4)",
           cursor: "default",
         }}
       />
@@ -1545,17 +1545,17 @@ function ConfirmationDialog({
           display: "flex",
           flexDirection: "column",
           borderRadius: "16px",
-          border: "1px solid #E2DAF4",
-          background: "#FFFFFF",
-          boxShadow: "0 20px 25px -5px rgba(21, 23, 25, 0.15), 0 10px 10px -5px rgba(21, 23, 25, 0.05)",
+          border: "1px solid #dde4f2",
+          background: "#ffffff",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)",
           margin: "0 16px",
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#151719" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#101828" }}>
             {title}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#6A6A69" }}>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.5", color: "#667085" }}>
             {message}
           </p>
         </div>
@@ -1566,9 +1566,9 @@ function ConfirmationDialog({
             style={{
               flex: 1,
               minHeight: "40px",
-              border: "1px solid #E2DAF4",
-              background: "#FFFFFF",
-              color: "#676766",
+              border: "1px solid #dde4f2",
+              background: "#ffffff",
+              color: "#5d6987",
               fontWeight: 700,
               fontSize: "14px",
               borderRadius: "10px",
@@ -1583,9 +1583,9 @@ function ConfirmationDialog({
             style={{
               flex: 1,
               minHeight: "40px",
-              border: `1px solid ${isDanger ? "#C46A4C" : "#2E3135"}`,
-              background: isDanger ? "#C46A4C" : "#2E3135",
-              color: "#FFFFFF",
+              border: `1px solid ${isDanger ? "#e11d48" : "#2f3c82"}`,
+              background: isDanger ? "#e11d48" : "#2f3c82",
+              color: "#ffffff",
               fontWeight: 700,
               fontSize: "14px",
               borderRadius: "10px",

@@ -173,28 +173,28 @@ export default function ReconciliationJobMonitor() {
         <div
           key={toast.id}
           style={{
-            background: toast.type === "success" ? "#F3F0E9" : "#F3F0E9",
-            border: `1px solid ${toast.type === "success" ? "#E0E3D4" : "#EECFC1"}`,
+            background: toast.type === "success" ? "#f0fdf4" : "#fef2f2",
+            border: `1px solid ${toast.type === "success" ? "#86efac" : "#fca5a5"}`,
             borderRadius: 10,
             padding: "12px 16px",
-            boxShadow: "0 4px 16px rgba(21, 23, 25,0.12)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             display: "flex",
             alignItems: "center",
             gap: 12,
           }}
         >
           <svg viewBox="0 0 24 24" width={20} height={20} style={{ flexShrink: 0 }}
-            stroke={toast.type === "success" ? "#6F7A5A" : "#C46A4C"} fill="none" strokeWidth={2}>
+            stroke={toast.type === "success" ? "#16a34a" : "#dc2626"} fill="none" strokeWidth={2}>
             {toast.type === "success"
               ? <><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>
               : <><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></>}
           </svg>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#282A2B" }}>{toast.message}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>{toast.message}</p>
             <Link
               href={toast.href}
               onClick={() => dismiss(toast.id)}
-              style={{ fontSize: 12, color: "#7A5CFA", textDecoration: "underline" }}
+              style={{ fontSize: 12, color: "#2563eb", textDecoration: "underline" }}
             >
               View reconciliation →
             </Link>
@@ -203,7 +203,7 @@ export default function ReconciliationJobMonitor() {
             type="button"
             onClick={() => dismiss(toast.id)}
             aria-label="Dismiss"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#6A6A69" }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#6b7280" }}
           >
             <svg viewBox="0 0 24 24" width={14} height={14} stroke="currentColor" fill="none" strokeWidth={2}>
               <path d="M6 6l12 12M18 6 6 18"/>

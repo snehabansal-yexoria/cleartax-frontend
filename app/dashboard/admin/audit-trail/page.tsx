@@ -32,9 +32,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 10, 11:47",
     action: "Edited property",
-    actionClass: "bg-[#E9E3F4] text-[#7A5CFA]",
+    actionClass: "bg-[#e0f2fe] text-[#0369a1]",
     doneByInitials: "SN",
-    doneByAvatarBg: "bg-[#EAE7E1] text-[#6F7A5A]",
+    doneByAvatarBg: "bg-[#e8f5e9] text-[#2e7d32]",
     doneByName: "Satnam Singh",
     client: "Sneha Bansal",
     record: "12 Maple St · #PROP-0091",
@@ -53,9 +53,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 10, 09:14",
     action: "Added property",
-    actionClass: "bg-[#F0EFE6] text-[#56613F]",
+    actionClass: "bg-[#e2f0d9] text-[#385723]",
     doneByInitials: "AK",
-    doneByAvatarBg: "bg-[#F3F2EA] text-[#56613F]",
+    doneByAvatarBg: "bg-[#e0f7fa] text-[#006064]",
     doneByName: "Akash Sharma",
     client: "Sneha Bansal",
     record: "12 Maple St · #PROP-0091",
@@ -66,9 +66,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 9, 15:22",
     action: "Added transaction",
-    actionClass: "bg-[#F0EFE6] text-[#56613F]",
+    actionClass: "bg-[#e2f0d9] text-[#385723]",
     doneByInitials: "SN",
-    doneByAvatarBg: "bg-[#EAE7E1] text-[#6F7A5A]",
+    doneByAvatarBg: "bg-[#e8f5e9] text-[#2e7d32]",
     doneByName: "Satnam Singh",
     client: "Raj Patel",
     record: "4 Park Ave · #TXN-1842",
@@ -79,9 +79,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 9, 14:08",
     action: "Edited transaction",
-    actionClass: "bg-[#E9E3F4] text-[#7A5CFA]",
+    actionClass: "bg-[#e0f2fe] text-[#0369a1]",
     doneByInitials: "PR",
-    doneByAvatarBg: "bg-[#F3F0E9] text-[#7A5CFA]",
+    doneByAvatarBg: "bg-[#faf5ff] text-[#6b21a8]",
     doneByName: "Priya Rajan",
     client: "Li Chen",
     record: "#TXN-1801",
@@ -95,9 +95,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 8, 10:31",
     action: "Deleted entity",
-    actionClass: "bg-[#F4E4DA] text-[#C46A4C]",
+    actionClass: "bg-[#fce4d6] text-[#c65911]",
     doneByInitials: "AK",
-    doneByAvatarBg: "bg-[#F3F2EA] text-[#56613F]",
+    doneByAvatarBg: "bg-[#e0f7fa] text-[#006064]",
     doneByName: "Akash Sharma",
     client: "Mark Williams",
     record: "Old Partnership · #ENT-0014",
@@ -108,9 +108,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 8, 09:02",
     action: "Ownership updated",
-    actionClass: "bg-[#E9E3F4] text-[#7A5CFA]",
+    actionClass: "bg-[#e0f2fe] text-[#0369a1]",
     doneByInitials: "SN",
-    doneByAvatarBg: "bg-[#EAE7E1] text-[#6F7A5A]",
+    doneByAvatarBg: "bg-[#e8f5e9] text-[#2e7d32]",
     doneByName: "Satnam Singh",
     client: "Raj Patel",
     record: "Patel SMSF · #ENT-0007",
@@ -124,9 +124,9 @@ const DEFAULT_ACTIVITIES: ActivityRow[] = [
   {
     timestamp: "Jun 7, 16:45",
     action: "Category added",
-    actionClass: "bg-[#F3F0E9] text-[#7A5CFA]",
+    actionClass: "bg-[#faf5ff] text-[#6b21a8]",
     doneByInitials: "AD",
-    doneByAvatarBg: "bg-[#F3F0E9] text-[#7A5CFA]",
+    doneByAvatarBg: "bg-[#eef2ff] text-[#4f46e5]",
     doneByName: "Admin User",
     client: "Org-wide",
     record: "Transaction category",
@@ -384,7 +384,7 @@ export default function AuditTrailReportPage() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-[#151719] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 animate-fadeIn">
+        <div className="fixed top-6 right-6 z-50 bg-[#0f172a] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 animate-fadeIn">
           <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -396,8 +396,8 @@ export default function AuditTrailReportPage() {
       {/* Section Header with Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 select-none">
         <div>
-          <h2 className="text-[20px] text-[#151719] tracking-tight mb-0.5 font-medium">Audit trail</h2>
-          <p className="text-[12.5px] text-[#6C6C6B] font-normal leading-normal">
+          <h2 className="text-[20px] text-[#0f172a] tracking-tight mb-0.5 font-medium">Audit trail</h2>
+          <p className="text-[12.5px] text-[#64748b] font-normal leading-normal">
             Full activity log across the organisation
           </p>
         </div>
@@ -473,7 +473,7 @@ export default function AuditTrailReportPage() {
           <button
             onClick={handleApplyFilters}
             disabled={!hasChanges}
-            className="h-9 px-4 bg-[#151719] hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-medium text-[13px] rounded-lg transition-colors cursor-pointer"
+            className="h-9 px-4 bg-[#0f172a] hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-medium text-[13px] rounded-lg transition-colors cursor-pointer"
           >
             Apply filters
           </button>
@@ -483,26 +483,26 @@ export default function AuditTrailReportPage() {
       {/* Activities Table Container */}
       <div className="w-full">
         {/* Table Card */}
-        <div className="bg-white border border-[#E8E5DF] rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-[#eaecf0] rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#E8E5DF] bg-white select-none">
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">TIMESTAMP</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">ACTION</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">DONE BY</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">ON CLIENT</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">RECORD</th>
-                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#6C6C6B] tracking-wider uppercase">CHANGES (BEFORE → AFTER)</th>
+                <tr className="border-b border-[#eaecf0] bg-white select-none">
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">TIMESTAMP</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">ACTION</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">DONE BY</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">ON CLIENT</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">RECORD</th>
+                  <th className="py-4 px-6 text-[10.5px] font-semibold text-[#64748b] tracking-wider uppercase">CHANGES (BEFORE → AFTER)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F3F0E9]">
+              <tbody className="divide-y divide-[#f1f5f9]">
                 {filteredActivities.length > 0 ? (
                   filteredActivities.map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition">
                       
                       {/* Timestamp cell */}
-                      <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
+                      <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
                         {item.timestamp}
                       </td>
 
@@ -519,22 +519,22 @@ export default function AuditTrailReportPage() {
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-[10px] select-none ${item.doneByAvatarBg}`}>
                             {item.doneByInitials}
                           </div>
-                          <span className="text-[13px] font-normal text-[#151719]">{item.doneByName}</span>
+                          <span className="text-[13px] font-normal text-[#0f172a]">{item.doneByName}</span>
                         </div>
                       </td>
 
                       {/* Client cell */}
-                      <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
+                      <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
                         {item.client}
                       </td>
 
                       {/* Record cell */}
-                      <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-nowrap">
+                      <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
                         {item.record}
                       </td>
 
                       {/* Changes detailed cell */}
-                      <td className="py-3.5 px-6 text-[13px] text-[#505050] whitespace-normal max-w-sm">
+                      <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-normal max-w-sm">
                         <div className="flex flex-wrap items-center">
                           {item.changes.map((token, tIdx) => {
                             if (token.type === "old") {

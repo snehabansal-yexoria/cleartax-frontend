@@ -30,7 +30,7 @@ export async function downloadReportPdf(doc: HTMLElement, fileName: string): Pro
       margin: [8, 8, 10, 8],
       filename: fileName,
       image: { type: "jpeg", quality: 0.96 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: 1024, backgroundColor: "#F3F0E9" },
+      html2canvas: { scale: 2, useCORS: true, windowWidth: 1024, backgroundColor: "#F3F4FA" },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       pagebreak: {
         mode: ["css", "legacy"],

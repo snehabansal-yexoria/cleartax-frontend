@@ -21,7 +21,7 @@ export type ReconciliationTabProps = {
   onCreated: (session: ReconciliationSession) => void;
 };
 
-const inputStyle = { padding: "8px 10px", border: "1px solid #CBC9C4", borderRadius: 6 } as const;
+const inputStyle = { padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 6 } as const;
 
 export default function ReconciliationTab({
   entityId,
@@ -140,7 +140,7 @@ export default function ReconciliationTab({
           onSubmit={handleCreate}
           className="recon-session-form"
           noValidate
-          style={{ display: "grid", gap: 12, padding: 16, border: "1px solid #E1DFD8", borderRadius: 8, marginBottom: 16 }}
+          style={{ display: "grid", gap: 12, padding: 16, border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 16 }}
         >
           <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
             <span style={{ fontWeight: 600 }}>Account name/number</span>
@@ -156,12 +156,12 @@ export default function ReconciliationTab({
               required
               style={{
                 ...inputStyle,
-                border: labelError ? "1px solid #EECFC1" : inputStyle.border,
-                outlineColor: labelError ? "#C46A4C" : undefined,
+                border: labelError ? "1px solid #fda4af" : inputStyle.border,
+                outlineColor: labelError ? "#f43f5e" : undefined,
               }}
             />
             {labelError && (
-              <span style={{ color: "#C46A4C", fontSize: 12, marginTop: 4, fontWeight: 500 }}>{labelError}</span>
+              <span style={{ color: "#e11d48", fontSize: 12, marginTop: 4, fontWeight: 500 }}>{labelError}</span>
             )}
           </label>
           <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
@@ -210,7 +210,7 @@ export default function ReconciliationTab({
                 ? `${s.periodFrom} → ${s.periodTo}`
                 : s.periodFrom || s.periodTo || "—";
             const statusColor =
-              s.status === "completed" ? "var(--color-success, #6F7A5A)" : "var(--color-warning, #C46A4C)";
+              s.status === "completed" ? "var(--color-success, #16a34a)" : "var(--color-warning, #ca8a04)";
             return (
               <li
                 key={s.id}

@@ -304,10 +304,10 @@ export default function GeneralLedgerPage() {
         <div style={{ marginTop: "20px" }}>
           <div className="gl-skeleton-card">
             <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <div style={{ width: "24px", height: "24px", borderRadius: "4px", background: "#F3F0E9" }} />
-              <div style={{ width: "220px", height: "20px", borderRadius: "4px", background: "#F3F0E9" }} />
-              <div style={{ width: "80px", height: "20px", borderRadius: "999px", background: "#F3F0E9" }} />
-              <div style={{ marginLeft: "auto", width: "180px", height: "20px", borderRadius: "4px", background: "#F3F0E9" }} />
+              <div style={{ width: "24px", height: "24px", borderRadius: "4px", background: "#f1f5f9" }} />
+              <div style={{ width: "220px", height: "20px", borderRadius: "4px", background: "#f1f5f9" }} />
+              <div style={{ width: "80px", height: "20px", borderRadius: "999px", background: "#f1f5f9" }} />
+              <div style={{ marginLeft: "auto", width: "180px", height: "20px", borderRadius: "4px", background: "#f1f5f9" }} />
             </div>
             <div className="journal-grid-wrap" style={{ marginTop: "12px" }}>
               <table className="journal-grid">
@@ -332,10 +332,10 @@ export default function GeneralLedgerPage() {
           </div>
           <div className="gl-skeleton-card">
             <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <div style={{ width: "24px", height: "24px", borderRadius: "4px", background: "#F3F0E9" }} />
-              <div style={{ width: "200px", height: "20px", borderRadius: "4px", background: "#F3F0E9" }} />
-              <div style={{ width: "80px", height: "20px", borderRadius: "999px", background: "#F3F0E9" }} />
-              <div style={{ marginLeft: "auto", width: "160px", height: "20px", borderRadius: "4px", background: "#F3F0E9" }} />
+              <div style={{ width: "24px", height: "24px", borderRadius: "4px", background: "#f1f5f9" }} />
+              <div style={{ width: "200px", height: "20px", borderRadius: "4px", background: "#f1f5f9" }} />
+              <div style={{ width: "80px", height: "20px", borderRadius: "999px", background: "#f1f5f9" }} />
+              <div style={{ marginLeft: "auto", width: "160px", height: "20px", borderRadius: "4px", background: "#f1f5f9" }} />
             </div>
           </div>
         </div>

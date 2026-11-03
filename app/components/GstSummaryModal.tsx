@@ -214,7 +214,7 @@ export default function GstSummaryModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(21, 23, 25, 0.45)",
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
         backdropFilter: "blur(8px)",
         display: "flex",
         alignItems: "center",
@@ -225,13 +225,13 @@ export default function GstSummaryModal({
     >
       <div
         style={{
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "#ffffff",
           borderRadius: "20px",
           width: "100%",
           maxWidth: "540px",
           maxHeight: "min(760px, 92vh)",
           boxShadow:
-            "0 20px 40px -10px rgba(21, 23, 25, 0.15), 0 0 0 1px rgba(21, 23, 25, 0.04)",
+            "0 20px 40px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.04)",
           display: "flex",
           flexDirection: "column",
           fontFamily:
@@ -242,12 +242,12 @@ export default function GstSummaryModal({
         {/* Header */}
         <div
           style={{
-            backgroundColor: "var(--primary, #242629)",
+            backgroundColor: "var(--primary, #28336e)",
             padding: "18px 24px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            color: "#FFFFFF",
+            color: "#ffffff",
             borderTopLeftRadius: "20px",
             borderTopRightRadius: "20px",
             flexShrink: 0,
@@ -267,7 +267,7 @@ export default function GstSummaryModal({
             <div
               style={{
                 fontSize: "12px",
-                color: "#DDD4F5",
+                color: "#c7d2fe",
                 marginTop: "2px",
                 fontWeight: 500,
               }}
@@ -289,17 +289,17 @@ export default function GstSummaryModal({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#CBC9C4",
+              color: "#cbd5e1",
               cursor: "pointer",
               transition: "all 0.2s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)";
-              e.currentTarget.style.color = "#FFFFFF";
+              e.currentTarget.style.color = "#ffffff";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-              e.currentTarget.style.color = "#CBC9C4";
+              e.currentTarget.style.color = "#cbd5e1";
             }}
           >
             <svg
@@ -336,7 +336,7 @@ export default function GstSummaryModal({
                 position: "relative",
               }}
             >
-              <span style={{ fontSize: "12px", fontWeight: 650, color: "#505050" }}>
+              <span style={{ fontSize: "12px", fontWeight: 650, color: "#475569" }}>
                 Financial year
               </span>
               <button
@@ -353,10 +353,10 @@ export default function GstSummaryModal({
                   width: "100%",
                   minHeight: "36px",
                   padding: "0 12px",
-                  border: "1.5px solid #E2E0D9",
+                  border: "1.5px solid #e2e8f0",
                   borderRadius: "8px",
-                  backgroundColor: "#FFFFFF",
-                  color: "#151719",
+                  backgroundColor: "#ffffff",
+                  color: "#1e293b",
                   fontSize: "13px",
                   fontWeight: 600,
                   cursor: "pointer",
@@ -364,15 +364,15 @@ export default function GstSummaryModal({
                   transition: "all 0.2s",
                   outline: "none",
                   boxShadow: isFyDropdownOpen
-                    ? "0 0 0 3px rgba(36, 38, 41, 0.12)"
+                    ? "0 0 0 3px rgba(40, 51, 110, 0.12)"
                     : "none",
-                  borderColor: isFyDropdownOpen ? "var(--primary, #242629)" : "#CBC9C4",
+                  borderColor: isFyDropdownOpen ? "var(--primary, #28336e)" : "#cbd5e1",
                 }}
                 onMouseEnter={(e) => {
-                  if (!isFyDropdownOpen) e.currentTarget.style.borderColor = "#999894";
+                  if (!isFyDropdownOpen) e.currentTarget.style.borderColor = "#94a3b8";
                 }}
                 onMouseLeave={(e) => {
-                  if (!isFyDropdownOpen) e.currentTarget.style.borderColor = "#CBC9C4";
+                  if (!isFyDropdownOpen) e.currentTarget.style.borderColor = "#cbd5e1";
                 }}
               >
                 <span
@@ -392,7 +392,7 @@ export default function GstSummaryModal({
                   style={{
                     width: "14px",
                     height: "14px",
-                    color: "#6C6C6B",
+                    color: "#64748b",
                     transition: "transform 0.2s ease",
                     transform: isFyDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
                   }}
@@ -408,11 +408,11 @@ export default function GstSummaryModal({
                     top: "calc(100% + 4px)",
                     left: 0,
                     right: 0,
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid #E2E0D9",
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e2e8f0",
                     borderRadius: "10px",
                     boxShadow:
-                      "0 8px 16px -4px rgba(21, 23, 25, 0.08), 0 2px 4px -2px rgba(21, 23, 25, 0.04)",
+                      "0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)",
                     zIndex: 1000,
                     padding: "4px",
                     display: "flex",
@@ -434,8 +434,8 @@ export default function GstSummaryModal({
                           borderRadius: "6px",
                           fontSize: "13px",
                           fontWeight: isSelected ? 600 : 500,
-                          color: isSelected ? "var(--primary, #242629)" : "#3E3F3F",
-                          backgroundColor: isSelected ? "#F3F0E9" : "transparent",
+                          color: isSelected ? "var(--primary, #28336e)" : "#334155",
+                          backgroundColor: isSelected ? "#eff6ff" : "transparent",
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
@@ -444,15 +444,15 @@ export default function GstSummaryModal({
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = isSelected
-                            ? "#F3F0E9"
-                            : "#F3F0E9";
-                          if (!isSelected) e.currentTarget.style.color = "#151719";
+                            ? "#eff6ff"
+                            : "#f1f5f9";
+                          if (!isSelected) e.currentTarget.style.color = "#0f172a";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = isSelected
-                            ? "#F3F0E9"
+                            ? "#eff6ff"
                             : "transparent";
-                          if (!isSelected) e.currentTarget.style.color = "#3E3F3F";
+                          if (!isSelected) e.currentTarget.style.color = "#334155";
                         }}
                       >
                         <span>{option.label}</span>
@@ -465,7 +465,7 @@ export default function GstSummaryModal({
                             style={{
                               width: "14px",
                               height: "14px",
-                              color: "var(--primary, #242629)",
+                              color: "var(--primary, #28336e)",
                             }}
                           >
                             <path
@@ -491,7 +491,7 @@ export default function GstSummaryModal({
                 position: "relative",
               }}
             >
-              <span style={{ fontSize: "12px", fontWeight: 650, color: "#505050" }}>
+              <span style={{ fontSize: "12px", fontWeight: 650, color: "#475569" }}>
                 Period
               </span>
               <button
@@ -508,10 +508,10 @@ export default function GstSummaryModal({
                   width: "100%",
                   minHeight: "36px",
                   padding: "0 12px",
-                  border: "1.5px solid #E2E0D9",
+                  border: "1.5px solid #e2e8f0",
                   borderRadius: "8px",
-                  backgroundColor: "#FFFFFF",
-                  color: "#151719",
+                  backgroundColor: "#ffffff",
+                  color: "#1e293b",
                   fontSize: "13px",
                   fontWeight: 600,
                   cursor: "pointer",
@@ -519,17 +519,17 @@ export default function GstSummaryModal({
                   transition: "all 0.2s",
                   outline: "none",
                   boxShadow: isPeriodDropdownOpen
-                    ? "0 0 0 3px rgba(36, 38, 41, 0.12)"
+                    ? "0 0 0 3px rgba(40, 51, 110, 0.12)"
                     : "none",
                   borderColor: isPeriodDropdownOpen
-                    ? "var(--primary, #242629)"
-                    : "#CBC9C4",
+                    ? "var(--primary, #28336e)"
+                    : "#cbd5e1",
                 }}
                 onMouseEnter={(e) => {
-                  if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = "#999894";
+                  if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = "#94a3b8";
                 }}
                 onMouseLeave={(e) => {
-                  if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = "#CBC9C4";
+                  if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = "#cbd5e1";
                 }}
               >
                 <span
@@ -549,7 +549,7 @@ export default function GstSummaryModal({
                   style={{
                     width: "14px",
                     height: "14px",
-                    color: "#6C6C6B",
+                    color: "#64748b",
                     transition: "transform 0.2s ease",
                     transform: isPeriodDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
                   }}
@@ -565,11 +565,11 @@ export default function GstSummaryModal({
                     top: "calc(100% + 4px)",
                     left: 0,
                     right: 0,
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid #E2E0D9",
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e2e8f0",
                     borderRadius: "10px",
                     boxShadow:
-                      "0 8px 16px -4px rgba(21, 23, 25, 0.08), 0 2px 4px -2px rgba(21, 23, 25, 0.04)",
+                      "0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)",
                     zIndex: 1000,
                     padding: "4px",
                     display: "flex",
@@ -591,8 +591,8 @@ export default function GstSummaryModal({
                           borderRadius: "6px",
                           fontSize: "13px",
                           fontWeight: isSelected ? 600 : 500,
-                          color: isSelected ? "var(--primary, #242629)" : "#3E3F3F",
-                          backgroundColor: isSelected ? "#F3F0E9" : "transparent",
+                          color: isSelected ? "var(--primary, #28336e)" : "#334155",
+                          backgroundColor: isSelected ? "#eff6ff" : "transparent",
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
@@ -601,15 +601,15 @@ export default function GstSummaryModal({
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = isSelected
-                            ? "#F3F0E9"
-                            : "#F3F0E9";
-                          if (!isSelected) e.currentTarget.style.color = "#151719";
+                            ? "#eff6ff"
+                            : "#f1f5f9";
+                          if (!isSelected) e.currentTarget.style.color = "#0f172a";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = isSelected
-                            ? "#F3F0E9"
+                            ? "#eff6ff"
                             : "transparent";
-                          if (!isSelected) e.currentTarget.style.color = "#3E3F3F";
+                          if (!isSelected) e.currentTarget.style.color = "#334155";
                         }}
                       >
                         <span>{option.label}</span>
@@ -622,7 +622,7 @@ export default function GstSummaryModal({
                             style={{
                               width: "14px",
                               height: "14px",
-                              color: "var(--primary, #242629)",
+                              color: "var(--primary, #28336e)",
                             }}
                           >
                             <path
@@ -648,7 +648,7 @@ export default function GstSummaryModal({
                 gap: "8px",
                 fontSize: "13px",
                 fontWeight: 600,
-                color: "#6C6C6B",
+                color: "#64748b",
                 padding: "4px 2px",
               }}
             >
@@ -664,14 +664,14 @@ export default function GstSummaryModal({
                   cx="12"
                   cy="12"
                   r="10"
-                  stroke="#CBC9C4"
+                  stroke="#cbd5e1"
                   strokeWidth="3"
                   fill="none"
                   style={{ opacity: 0.3 }}
                 />
                 <path
                   d="M12 2a10 10 0 0 1 10 10"
-                  stroke="var(--primary, #242629)"
+                  stroke="var(--primary, #28336e)"
                   strokeWidth="3"
                   strokeLinecap="round"
                   fill="none"
@@ -687,11 +687,11 @@ export default function GstSummaryModal({
               style={{
                 fontSize: "13px",
                 fontWeight: 600,
-                color: "#C46A4C",
-                backgroundColor: "#F3F0E9",
+                color: "#b42318",
+                backgroundColor: "#fef3f2",
                 padding: "10px 14px",
                 borderRadius: "8px",
-                border: "1px solid #ECCBBC",
+                border: "1px solid #fda29b",
               }}
             >
               {error}
@@ -704,10 +704,10 @@ export default function GstSummaryModal({
               display: "grid",
               gridTemplateColumns: "56px 1fr 120px",
               paddingBottom: "8px",
-              borderBottom: "2px solid #F3F0E9",
+              borderBottom: "2px solid #f1f5f9",
               fontSize: "11px",
               fontWeight: 700,
-              color: "#505050",
+              color: "#475569",
               textTransform: "uppercase",
               letterSpacing: "0.075em",
             }}
@@ -725,7 +725,7 @@ export default function GstSummaryModal({
               gridTemplateColumns: "56px 1fr 120px",
               alignItems: "start",
               paddingBottom: "12px",
-              borderBottom: "1px solid #F3F0E9",
+              borderBottom: "1px solid #f1f5f9",
             }}
           >
             <div
@@ -733,9 +733,9 @@ export default function GstSummaryModal({
                 width: "34px",
                 height: "34px",
                 borderRadius: "8px",
-                backgroundColor: "#F3F0E9",
-                color: "var(--primary, #242629)",
-                border: "1px solid #E7E0F4",
+                backgroundColor: "#eff6ff",
+                color: "var(--primary, #28336e)",
+                border: "1px solid #dbeafe",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -746,10 +746,10 @@ export default function GstSummaryModal({
               G1
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={{ fontWeight: 700, fontSize: "14px", color: "#151719" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
                 Total Sales
               </span>
-              <span style={{ fontSize: "12px", color: "#6C6C6B" }}>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
                 Total Income/Sales including GST
               </span>
               <div>
@@ -757,12 +757,12 @@ export default function GstSummaryModal({
                   style={{
                     fontSize: "10px",
                     fontFamily: "SFMono-Regular, Consolas, Monaco, monospace",
-                    color: "#6C6C6B",
+                    color: "#64748b",
                     marginTop: "4px",
                     display: "inline-block",
                     padding: "1px 6px",
-                    backgroundColor: "#F3F0E9",
-                    border: "1px solid #F3F0E9",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #f1f5f9",
                     borderRadius: "4px",
                   }}
                 >
@@ -775,7 +775,7 @@ export default function GstSummaryModal({
                 textAlign: "right",
                 fontWeight: 700,
                 fontSize: "15px",
-                color: "#151719",
+                color: "#0f172a",
                 whiteSpace: "nowrap",
                 fontVariantNumeric: "tabular-nums",
               }}
@@ -791,7 +791,7 @@ export default function GstSummaryModal({
               gridTemplateColumns: "56px 1fr 120px",
               alignItems: "start",
               paddingBottom: "12px",
-              borderBottom: "1px solid #F3F0E9",
+              borderBottom: "1px solid #f1f5f9",
             }}
           >
             <div
@@ -799,9 +799,9 @@ export default function GstSummaryModal({
                 width: "34px",
                 height: "34px",
                 borderRadius: "8px",
-                backgroundColor: "#F7EFE8",
-                color: "#C46A4C",
-                border: "1px solid #F4E5DC",
+                backgroundColor: "#fff7ed",
+                color: "#ea580c",
+                border: "1px solid #ffedd5",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -812,10 +812,10 @@ export default function GstSummaryModal({
               1A
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={{ fontWeight: 700, fontSize: "14px", color: "#151719" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
                 GST on Sales
               </span>
-              <span style={{ fontSize: "12px", color: "#6C6C6B" }}>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
                 GST collected on Income/Sales
               </span>
             </div>
@@ -824,7 +824,7 @@ export default function GstSummaryModal({
                 textAlign: "right",
                 fontWeight: 700,
                 fontSize: "15px",
-                color: "#151719",
+                color: "#0f172a",
                 whiteSpace: "nowrap",
                 fontVariantNumeric: "tabular-nums",
               }}
@@ -840,7 +840,7 @@ export default function GstSummaryModal({
               gridTemplateColumns: "56px 1fr 120px",
               alignItems: "start",
               paddingBottom: "12px",
-              borderBottom: "1px solid #F3F0E9",
+              borderBottom: "1px solid #f1f5f9",
             }}
           >
             <div
@@ -848,9 +848,9 @@ export default function GstSummaryModal({
                 width: "34px",
                 height: "34px",
                 borderRadius: "8px",
-                backgroundColor: "#F3F0E9",
-                color: "#6F7A5A",
-                border: "1px solid #F2F2EA",
+                backgroundColor: "#f0fdf4",
+                color: "#16a34a",
+                border: "1px solid #dcfce7",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -861,10 +861,10 @@ export default function GstSummaryModal({
               1B
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={{ fontWeight: 700, fontSize: "14px", color: "#151719" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
                 GST on Purchases
               </span>
-              <span style={{ fontSize: "12px", color: "#6C6C6B" }}>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
                 GST paid on Expenses/Purchases
               </span>
             </div>
@@ -873,7 +873,7 @@ export default function GstSummaryModal({
                 textAlign: "right",
                 fontWeight: 700,
                 fontSize: "15px",
-                color: "#151719",
+                color: "#0f172a",
                 whiteSpace: "nowrap",
                 fontVariantNumeric: "tabular-nums",
               }}
@@ -889,7 +889,7 @@ export default function GstSummaryModal({
               gridTemplateColumns: "56px 1fr 120px",
               alignItems: "start",
               paddingBottom: "12px",
-              borderBottom: "1px solid #F3F0E9",
+              borderBottom: "1px solid #f1f5f9",
             }}
           >
             <div
@@ -897,9 +897,9 @@ export default function GstSummaryModal({
                 width: "34px",
                 height: "34px",
                 borderRadius: "8px",
-                backgroundColor: "#F3F0E9",
-                color: "#7A5CFA",
-                border: "1px solid #EDE9F4",
+                backgroundColor: "#faf5ff",
+                color: "#9333ea",
+                border: "1px solid #f3e8ff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -910,10 +910,10 @@ export default function GstSummaryModal({
               9
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={{ fontWeight: 700, fontSize: "14px", color: "#151719" }}>
+              <span style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}>
                 Refund / Payment Due
               </span>
-              <span style={{ fontSize: "12px", color: "#6C6C6B" }}>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
                 Net GST position (1A - 1B)
               </span>
             </div>
@@ -922,7 +922,7 @@ export default function GstSummaryModal({
                 textAlign: "right",
                 fontWeight: 700,
                 fontSize: "15px",
-                color: "#151719",
+                color: "#0f172a",
                 whiteSpace: "nowrap",
                 fontVariantNumeric: "tabular-nums",
               }}
@@ -935,21 +935,21 @@ export default function GstSummaryModal({
           <div
             style={{
               background: isNil
-                ? "#F3F0E9"
+                ? "#f8fafc"
                 : isRefund
-                  ? "linear-gradient(135deg, #F3F0E9 0%, #F3F0E9 100%)"
-                  : "linear-gradient(135deg, #F3F0E9 0%, #F3F0E9 100%)",
+                  ? "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)"
+                  : "linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)",
               border: isNil
-                ? "1px solid #E2E0D9"
+                ? "1px solid #e2e8f0"
                 : isRefund
-                  ? "1px solid #EBECE1"
-                  : "1px solid #F3E1D7",
+                  ? "1px solid #bbf7d0"
+                  : "1px solid #fecdd3",
               borderRadius: "12px",
               padding: "16px",
               display: "flex",
               flexDirection: "column",
               gap: "6px",
-              boxShadow: "0 2px 4px -1px rgba(21, 23, 25, 0.01)",
+              boxShadow: "0 2px 4px -1px rgba(0, 0, 0, 0.01)",
               marginTop: "4px",
             }}
           >
@@ -960,7 +960,7 @@ export default function GstSummaryModal({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
-                  style={{ width: "16px", height: "16px", color: isNil ? "#6C6C6B" : "#6F7A5A" }}
+                  style={{ width: "16px", height: "16px", color: isNil ? "#64748b" : "#16a34a" }}
                 >
                   <path
                     strokeLinecap="round"
@@ -974,7 +974,7 @@ export default function GstSummaryModal({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
-                  style={{ width: "16px", height: "16px", color: "#C46A4C" }}
+                  style={{ width: "16px", height: "16px", color: "#dc2626" }}
                 >
                   <path
                     strokeLinecap="round"
@@ -987,7 +987,7 @@ export default function GstSummaryModal({
                 style={{
                   fontWeight: 700,
                   fontSize: "13px",
-                  color: isNil ? "#3E3F3F" : isRefund ? "#56613F" : "#A8503A",
+                  color: isNil ? "#334155" : isRefund ? "#14532d" : "#7f1d1d",
                 }}
               >
                 {outcomeLabel}
@@ -996,7 +996,7 @@ export default function GstSummaryModal({
             <span
               style={{
                 fontSize: "11px",
-                color: isNil ? "#6C6C6B" : isRefund ? "#56613F" : "#C46A4C",
+                color: isNil ? "#64748b" : isRefund ? "#15803d" : "#b91c1c",
                 fontWeight: 550,
               }}
             >
@@ -1010,7 +1010,7 @@ export default function GstSummaryModal({
               style={{
                 fontSize: "28px",
                 fontWeight: 800,
-                color: isNil ? "#3E3F3F" : isRefund ? "#6F7A5A" : "#C46A4C",
+                color: isNil ? "#334155" : isRefund ? "#16a34a" : "#dc2626",
                 fontVariantNumeric: "tabular-nums",
                 marginTop: "2px",
                 letterSpacing: "-0.02em",
@@ -1025,11 +1025,11 @@ export default function GstSummaryModal({
         <div
           style={{
             padding: "14px 24px",
-            borderTop: "1px solid #E2E0D9",
+            borderTop: "1px solid #e2e8f0",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            backgroundColor: "#F3F0E9",
+            backgroundColor: "#f8fafc",
             borderBottomLeftRadius: "20px",
             borderBottomRightRadius: "20px",
             flexShrink: 0,
@@ -1038,7 +1038,7 @@ export default function GstSummaryModal({
           <span
             style={{
               fontSize: "11px",
-              color: "#6C6C6B",
+              color: "#64748b",
               maxWidth: "62%",
               lineHeight: 1.4,
             }}
@@ -1054,23 +1054,23 @@ export default function GstSummaryModal({
               alignItems: "center",
               gap: "6px",
               padding: "8px 14px",
-              border: "1.5px solid #151719",
+              border: "1.5px solid #1e293b",
               borderRadius: "8px",
-              backgroundColor: "#FFFFFF",
-              color: "#151719",
+              backgroundColor: "#ffffff",
+              color: "#1e293b",
               fontSize: "13px",
               fontWeight: 700,
               cursor: "pointer",
               transition: "all 0.2s ease",
-              boxShadow: "0 1px 2px 0 rgba(21, 23, 25, 0.05)",
+              boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#F3F0E9";
-              e.currentTarget.style.borderColor = "#151719";
+              e.currentTarget.style.backgroundColor = "#f1f5f9";
+              e.currentTarget.style.borderColor = "#0f172a";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#FFFFFF";
-              e.currentTarget.style.borderColor = "#151719";
+              e.currentTarget.style.backgroundColor = "#ffffff";
+              e.currentTarget.style.borderColor = "#1e293b";
             }}
           >
             <svg

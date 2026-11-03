@@ -425,8 +425,8 @@ export default function InviteUserByAdmin() {
     <div className="w-full max-w-[1240px] mx-auto px-4 py-4 transition-all duration-300 ease-in-out">
       {/* Title Header */}
       <div className="mb-6">
-        <h1 className="text-[25px] font-semibold text-[#151719] tracking-tight mb-1 select-none">Invite users</h1>
-        <p className="text-[12.5px] text-[#6C6C6B] font-normal leading-normal">
+        <h1 className="text-[25px] font-semibold text-[#0f172a] tracking-tight mb-1 select-none">Invite users</h1>
+        <p className="text-[12.5px] text-[#64748b] font-normal leading-normal">
           Add clients, accountants, and relationship managers to Thetaxio
         </p>
       </div>
@@ -448,8 +448,8 @@ export default function InviteUserByAdmin() {
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-1.5 transition-colors duration-200 ${
                   activeTab === "pending"
-                    ? "bg-[#F2DED4] text-[#C46A4C]"
-                    : "bg-[#F2DED4]/65 text-[#C46A4C]/90"
+                    ? "bg-[#fef3c7] text-[#d97706]"
+                    : "bg-[#fef3c7]/65 text-[#d97706]/90"
                 }`}
               >
                 {pendingCount}
@@ -468,7 +468,7 @@ export default function InviteUserByAdmin() {
             
             {/* SELECT ROLE SECTION */}
             <div>
-              <span className="text-[10.5px] font-extrabold text-[#6C6C6B]/90 uppercase tracking-wider block mb-3.5 select-none">
+              <span className="text-[10.5px] font-extrabold text-[#64748b]/90 uppercase tracking-wider block mb-3.5 select-none">
                 Select Role
               </span>
               
@@ -479,20 +479,20 @@ export default function InviteUserByAdmin() {
                   onClick={() => handleFormChange("role", "client")}
                   className={`rounded-xl p-5 border-2 text-left cursor-pointer transition-all duration-300 ease-in-out flex flex-col justify-between min-h-[135px] hover:shadow-sm hover:-translate-y-0.5 ${
                     form.role === "client"
-                      ? "border-blue-500 bg-[#F3F0E9]"
+                      ? "border-blue-500 bg-[#f4f7ff]"
                       : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
                 >
                   <div>
                     {/* Perfect circle badge */}
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-[#E8E5DF] text-[#56613F]">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-[#e6f4ea] text-[#137333]">
                       <svg className="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
                     </div>
-                    <h3 className="text-[13.5px] font-bold text-[#151719] mb-1">Client</h3>
-                    <p className="text-[11.5px] text-[#6C6C6B] font-normal leading-[1.5]">
+                    <h3 className="text-[13.5px] font-bold text-[#0f172a] mb-1">Client</h3>
+                    <p className="text-[11.5px] text-[#64748b] font-normal leading-[1.5]">
                       Access to their own portfolio, properties, transactions, and documents.
                     </p>
                   </div>
@@ -503,13 +503,13 @@ export default function InviteUserByAdmin() {
                   onClick={() => handleFormChange("role", "accountant")}
                   className={`rounded-xl p-5 border-2 text-left cursor-pointer transition-all duration-300 ease-in-out flex flex-col justify-between min-h-[135px] hover:shadow-sm hover:-translate-y-0.5 ${
                     form.role === "accountant"
-                      ? "border-blue-500 bg-[#F3F0E9]"
+                      ? "border-blue-500 bg-[#f4f7ff]"
                       : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
                 >
                   <div>
                     {/* Perfect circle badge & calculator SVG */}
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-[#EDE8F4] text-[#7A5CFA]">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-[#e8f0fe] text-[#1a73e8]">
                       <svg className="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
                         <line x1="8" y1="6" x2="16" y2="6" />
@@ -517,8 +517,8 @@ export default function InviteUserByAdmin() {
                         <path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01" />
                       </svg>
                     </div>
-                    <h3 className="text-[13.5px] font-bold text-[#151719] mb-1">Accountant</h3>
-                    <p className="text-[11.5px] text-[#6C6C6B] font-normal leading-[1.5]">
+                    <h3 className="text-[13.5px] font-bold text-[#0f172a] mb-1">Accountant</h3>
+                    <p className="text-[11.5px] text-[#64748b] font-normal leading-[1.5]">
                       Manages assigned client portfolios — transactions, properties, and reports.
                     </p>
                   </div>
@@ -529,20 +529,20 @@ export default function InviteUserByAdmin() {
                   onClick={() => handleFormChange("role", "regional_manager")}
                   className={`rounded-xl p-5 border-2 text-left cursor-pointer transition-all duration-300 ease-in-out flex flex-col justify-between min-h-[135px] hover:shadow-sm hover:-translate-y-0.5 ${
                     form.role === "regional_manager"
-                      ? "border-blue-500 bg-[#F3F0E9]"
+                      ? "border-blue-500 bg-[#f4f7ff]"
                       : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
                 >
                   <div>
                     {/* Perfect circle badge & briefcase SVG */}
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-[#EDE9F4] text-[#A86BC9]">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-[#f3e8ff] text-[#a855f7]">
                       <svg className="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                       </svg>
                     </div>
-                    <h3 className="text-[13.5px] font-bold text-[#151719] mb-1">Relationship manager</h3>
-                    <p className="text-[11.5px] text-[#6C6C6B] font-normal leading-[1.5]">
+                    <h3 className="text-[13.5px] font-bold text-[#0f172a] mb-1">Relationship manager</h3>
+                    <p className="text-[11.5px] text-[#64748b] font-normal leading-[1.5]">
                       Read-only oversight of assigned client portfolios and reports.
                     </p>
                   </div>
@@ -556,7 +556,7 @@ export default function InviteUserByAdmin() {
               
               {/* Column 1: Invite Details Card */}
               <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm">
-                <h3 className="text-[14.5px] font-bold text-[#151719] mb-4">Invite details</h3>
+                <h3 className="text-[14.5px] font-bold text-[#0f172a] mb-4">Invite details</h3>
                 
                 <form onSubmit={handleSendInvite} className="space-y-4">
                   {error && (
@@ -632,13 +632,13 @@ export default function InviteUserByAdmin() {
                               fontSize: "13px",
                               fontWeight: "normal",
                               borderRadius: "8px",
-                              borderColor: "#E2E0D9",
+                              borderColor: "#e2e8f0",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
                               width: "100%",
-                              color: form.assignedAccountantId ? "#151719" : "#999894",
-                              background: "#FFFFFF"
+                              color: form.assignedAccountantId ? "#0f172a" : "#94a3b8",
+                              background: "#ffffff"
                             }}
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                           >
@@ -667,11 +667,11 @@ export default function InviteUserByAdmin() {
                                 position: "absolute",
                                 left: 0,
                                 right: 0,
-                                boxShadow: "0 10px 30px rgba(21, 23, 25,0.08)",
+                                boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
                                 maxHeight: "200px",
                                 overflowY: "auto",
-                                background: "#FFFFFF",
-                                border: "1px solid #E2E0D9",
+                                background: "#ffffff",
+                                border: "1px solid #e2e8f0",
                                 borderRadius: "8px",
                                 padding: "4px"
                               }}
@@ -699,12 +699,12 @@ export default function InviteUserByAdmin() {
                                   justifyContent: "space-between"
                                 }}
                               >
-                                <span style={{ color: "#999894" }}>Select accountant...</span>
+                                <span style={{ color: "#94a3b8" }}>Select accountant...</span>
                                 {form.assignedAccountantId === "" && (
                                   <svg
                                     viewBox="0 0 24 24"
                                     aria-hidden="true"
-                                    style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, color: "#7A5CFA" }}
+                                    style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, color: "#2563eb" }}
                                   >
                                     <path d="M5 12l4 4 10-10" />
                                   </svg>
@@ -734,12 +734,12 @@ export default function InviteUserByAdmin() {
                                     justifyContent: "space-between"
                                   }}
                                 >
-                                  <span style={{ color: form.assignedAccountantId === acc.id ? "#7A5CFA" : "#151719" }}>{acc.name}</span>
+                                  <span style={{ color: form.assignedAccountantId === acc.id ? "#2563eb" : "#0f172a" }}>{acc.name}</span>
                                   {form.assignedAccountantId === acc.id && (
                                     <svg
                                       viewBox="0 0 24 24"
                                       aria-hidden="true"
-                                      style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, color: "#7A5CFA" }}
+                                      style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, color: "#2563eb" }}
                                     >
                                       <path d="M5 12l4 4 10-10" />
                                     </svg>
@@ -750,7 +750,7 @@ export default function InviteUserByAdmin() {
                           )}
                         </div>
                       )}
-                      <p className="text-[11px] text-[#6C6C6B] font-normal mt-1.5 leading-normal select-none">
+                      <p className="text-[11px] text-[#64748b] font-normal mt-1.5 leading-normal select-none">
                         You can assign or change this later from the client profile.
                       </p>
                     </div>
@@ -800,10 +800,10 @@ export default function InviteUserByAdmin() {
 
               {/* Column 2: Email Preview card */}
               <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm">
-                <h3 className="text-[14.5px] font-bold text-[#151719] mb-4">Email preview</h3>
+                <h3 className="text-[14.5px] font-bold text-[#0f172a] mb-4">Email preview</h3>
                 
                 {/* Mock email template envelope */}
-                <div className="border border-slate-200/70 rounded-xl bg-[#F3F0E9] p-5 space-y-4">
+                <div className="border border-slate-200/70 rounded-xl bg-[#f8f9fa] p-5 space-y-4">
                   <div className="border-b border-slate-200/40 pb-3">
                     <span className="text-[15px] font-bold text-slate-900 block">Welcome to Thetaxio</span>
                   </div>
@@ -814,7 +814,7 @@ export default function InviteUserByAdmin() {
                     </p>
                     <p>
                       {"You've"} been invited to join Thetaxio as a{" "}
-                      <strong className="text-[#7A5CFA] font-bold">
+                      <strong className="text-[#1a73e8] font-bold">
                         {displayRoleText(form.role)}
                       </strong>.
                     </p>
@@ -830,7 +830,7 @@ export default function InviteUserByAdmin() {
                     <div className="pt-2">
                       <button
                         type="button"
-                        className="px-4.5 py-2.5 bg-[#151719] text-white font-semibold text-[12px] rounded-lg shadow cursor-default flex items-center gap-1.5 transition hover:bg-[#151719]"
+                        className="px-4.5 py-2.5 bg-[#0f172a] text-white font-semibold text-[12px] rounded-lg shadow cursor-default flex items-center gap-1.5 transition hover:bg-[#1e293b]"
                       >
                         Set up your account
                         <span className="text-[11px] font-bold">→</span>
@@ -841,7 +841,7 @@ export default function InviteUserByAdmin() {
                   </div>
                 </div>
 
-                <p className="text-[11.5px] text-[#6C6C6B] font-normal mt-4 leading-relaxed select-none">
+                <p className="text-[11.5px] text-[#64748b] font-normal mt-4 leading-relaxed select-none">
                   The invite link expires after 24 hours. If a link expires before activation, resend it from Pending invites.
                 </p>
               </div>
@@ -943,7 +943,7 @@ export default function InviteUserByAdmin() {
                   />
                 </div>
 
-                <div className="bg-[#F3F0E9] rounded-lg p-4 text-[12.5px] text-[#6C6C6B] border border-slate-200/60 space-y-1 select-none">
+                <div className="bg-[#fafbfc] rounded-lg p-4 text-[12.5px] text-[#64748b] border border-slate-200/60 space-y-1 select-none">
                   <span className="font-bold text-slate-700 block mb-1">Supported roles:</span>
                   <p>• <code>client</code></p>
                   <p>• <code>accountant</code></p>
@@ -1039,7 +1039,7 @@ export default function InviteUserByAdmin() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#F3F0E9] border-b border-slate-200/80 text-[11px] font-extrabold text-[#6C6C6B]/90 uppercase tracking-widest select-none">
+                      <tr className="bg-[#fafbfc] border-b border-slate-200/80 text-[11px] font-extrabold text-[#64748b]/90 uppercase tracking-widest select-none">
                         <th className="py-4 px-6">Name</th>
                         <th className="py-4 px-6">Email</th>
                         <th className="py-4 px-6">Role</th>
@@ -1083,7 +1083,7 @@ export default function InviteUserByAdmin() {
                               {invite.createdAt ? new Date(invite.createdAt).toLocaleDateString() : "--"}
                             </td>
                             <td className="py-4 px-6">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F2DED4] text-[#C46A4C] border border-amber-200/50 select-none">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#fef3c7] text-[#d97706] border border-amber-200/50 select-none">
                                 Pending
                               </span>
                             </td>

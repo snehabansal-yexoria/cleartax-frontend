@@ -511,25 +511,25 @@ export default function ClientsPage() {
 
       {/* Aggregate metrics grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
           <p className="!text-[11.5px] font-bold text-slate-400 uppercase tracking-wider font-sans">Registered</p>
           <span className="!text-[28px] font-semibold mt-1.5 block text-slate-900">{stats.registered}</span>
           <p className="!text-[12px] text-slate-500 mt-1">Active on platform</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
           <p className="!text-[11.5px] font-bold text-slate-400 uppercase tracking-wider font-sans">Pending</p>
           <span className="!text-[28px] font-semibold mt-1.5 block text-orange-600">{stats.pending}</span>
           <p className="!text-[12px] text-slate-500 mt-1">Invite sent, not activated</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
           <p className="!text-[11.5px] font-bold text-slate-400 uppercase tracking-wider font-sans">Avg properties / client</p>
           <span className="!text-[28px] font-semibold mt-1.5 block text-slate-900">{stats.avgProps}</span>
           <p className="!text-[12px] text-slate-500 mt-1">Across {stats.registered} registered</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition hover:shadow-md hover:translate-y-[-2px] duration-200">
           <p className="!text-[11.5px] font-bold text-slate-400 uppercase tracking-wider font-sans">Avg portfolio / client</p>
           <span className="!text-[28px] font-semibold mt-1.5 block text-slate-900">${stats.avgPortfolio}M</span>
           <p className="!text-[12px] text-slate-500 mt-1">Across all clients</p>
@@ -537,7 +537,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Main clients panel */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
         {/* Tab switcher controls */}
         <div className="flex justify-between items-center flex-wrap gap-4 px-6 pt-5 border-b border-slate-100">
           <div className="flex items-center gap-6">

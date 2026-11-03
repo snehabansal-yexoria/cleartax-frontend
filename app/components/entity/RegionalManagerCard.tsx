@@ -186,9 +186,9 @@ export default function RegionalManagerCard({
         <div className="entity-rm-alert" role="alert">
           <div className="entity-rm-alert-body">
             <svg viewBox="0 0 24 24" width={20} height={20} style={{ flexShrink: 0 }} fill="none" strokeWidth={2} aria-hidden="true">
-              <circle cx="12" cy="12" r="10" stroke="#EECFC1" fill="#F6EAE2" />
-              <path d="M12 8v4" stroke="#C46A4C" strokeLinecap="round" />
-              <path d="M12 16h.01" stroke="#C46A4C" strokeLinecap="round" strokeWidth={3} />
+              <circle cx="12" cy="12" r="10" stroke="#fca5a5" fill="#fee2e2" />
+              <path d="M12 8v4" stroke="#dc2626" strokeLinecap="round" />
+              <path d="M12 16h.01" stroke="#dc2626" strokeLinecap="round" strokeWidth={3} />
             </svg>
             <span>{error}</span>
           </div>
@@ -209,7 +209,7 @@ export default function RegionalManagerCard({
               {selectedRm ? (
                 initialsOf(selectedRm.name)
               ) : (
-                <svg className="entity-rm-avatar-icon" viewBox="0 0 24 24" aria-hidden="true" style={{ width: 22, height: 22, stroke: "#989794" }}>
+                <svg className="entity-rm-avatar-icon" viewBox="0 0 24 24" aria-hidden="true" style={{ width: 22, height: 22, stroke: "#98a2b3" }}>
                   <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
@@ -217,7 +217,7 @@ export default function RegionalManagerCard({
             </div>
 
             <div className="entity-rm-text-details">
-              <h3 className="entity-rm-status-title" style={{ fontSize: 16, fontWeight: 700, color: "#151719" }}>
+              <h3 className="entity-rm-status-title" style={{ fontSize: 16, fontWeight: 700, color: "#1d2939" }}>
                 {selectedRm ? selectedRm.name : "No Regional Manager Assigned"}
               </h3>
               {selectedRm ? (
@@ -232,7 +232,7 @@ export default function RegionalManagerCard({
                   </span>
                 </div>
               ) : (
-                <p className="entity-rm-status-subtitle" style={{ fontSize: 13, color: "#6A6A69", marginTop: 4 }}>
+                <p className="entity-rm-status-subtitle" style={{ fontSize: 13, color: "#667085", marginTop: 4 }}>
                   Please select a regional manager from the dropdown below to assign them to this entity.
                 </p>
               )}
@@ -241,7 +241,7 @@ export default function RegionalManagerCard({
 
           {!selectedRm ? (
             <div className="entity-rm-action-section" aria-busy={isPending(managers.status) || undefined}>
-              <label htmlFor={selectId} className="entity-rm-label" style={{ fontSize: 12, fontWeight: 600, color: "#3E3F3F", marginBottom: 6 }}>
+              <label htmlFor={selectId} className="entity-rm-label" style={{ fontSize: 12, fontWeight: 600, color: "#344054", marginBottom: 6 }}>
                 Select Regional Manager
               </label>
               {isPending(managers.status) ? (

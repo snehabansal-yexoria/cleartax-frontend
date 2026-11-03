@@ -86,7 +86,7 @@ export default function CashFlowChart({
   const regionNotice = error ? (
     <RegionError message={error} onRetry={onRetry} />
   ) : loading ? (
-    <span className="text-sm font-semibold text-[#6A6A69] dark:text-[#CBBFF6]">
+    <span className="text-sm font-semibold text-[#667085] dark:text-[#B9C0E8]">
       Loading{detailPeriodLabel ? ` ${detailPeriodLabel}` : ""}…
     </span>
   ) : null;
@@ -128,8 +128,8 @@ export default function CashFlowChart({
       {/* Chart Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 w-full mb-4 select-none">
         <div className="flex items-baseline gap-2">
-          <h3 className="text-[#151719] dark:text-white text-base font-bold">{title}</h3>
-          <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-xs font-semibold">{subtitle}</span>
+          <h3 className="text-[#101828] dark:text-white text-base font-bold">{title}</h3>
+          <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-xs font-semibold">{subtitle}</span>
         </div>
 
         <div className="flex items-center gap-4 self-stretch sm:self-auto justify-between sm:justify-end">
@@ -138,19 +138,19 @@ export default function CashFlowChart({
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="text-[#242629] dark:text-[#CBBFF6] hover:text-[#7A5CFA] dark:hover:text-[#7A5CFA] transition-all text-sm font-bold bg-transparent border-none cursor-pointer focus:outline-none"
+              className="text-[#28336e] dark:text-[#B9C0E8] hover:text-[#f4a117] dark:hover:text-[#f4a117] transition-all text-sm font-bold bg-transparent border-none cursor-pointer focus:outline-none"
             >
               View Detail
             </button>
           )}
 
-          <div className="flex bg-[#F3F0E9] dark:bg-[#242629] rounded-lg p-0.5 border border-[#EBE8E1] dark:border-slate-700">
+          <div className="flex bg-[#f2f4f7] dark:bg-[#242C68] rounded-lg p-0.5 border border-[#eaeef4] dark:border-slate-700">
             <button
               type="button"
               onClick={() => handleViewChange('graph')}
               className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'graph'
-                  ? 'bg-white dark:bg-slate-700 text-[#151719] dark:text-white shadow-sm'
-                  : 'text-[#4F4F4F] dark:text-[#CBBFF6] hover:text-[#151719] dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
+                  : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
                 }`}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
@@ -164,8 +164,8 @@ export default function CashFlowChart({
               type="button"
               onClick={() => handleViewChange('table')}
               className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'table'
-                  ? 'bg-white dark:bg-slate-700 text-[#151719] dark:text-white shadow-sm'
-                  : 'text-[#4F4F4F] dark:text-[#CBBFF6] hover:text-[#151719] dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
+                  : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
                 }`}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
@@ -186,19 +186,19 @@ export default function CashFlowChart({
         <div className="flex flex-col w-full">
           <div className="flex gap-4 h-[200px] mt-2 relative w-full">
             {!hasData ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-[#6A6A69] bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] rounded-lg">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '36px', height: '36px' }} className="mb-2 text-[#989794]">
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-[#667085] bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] rounded-lg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '36px', height: '36px' }} className="mb-2 text-[#98a2b3]">
                   <line x1="18" y1="20" x2="18" y2="10" />
                   <line x1="12" y1="20" x2="12" y2="4" />
                   <line x1="6" y1="20" x2="6" y2="14" />
                 </svg>
                 <span className="text-sm font-semibold">No cash flow data available</span>
-                <span className="text-xs text-[#989794] mt-1">Add income or expense transactions to view cash flow charts.</span>
+                <span className="text-xs text-[#98a2b3] mt-1">Add income or expense transactions to view cash flow charts.</span>
               </div>
             ) : (
               <>
                 {/* Y Axis Grid/Labels */}
-                <div className="flex flex-col justify-between text-[#989794] text-[10px] font-semibold h-[180px] w-8 select-none">
+                <div className="flex flex-col justify-between text-[#98a2b3] text-[10px] font-semibold h-[180px] w-8 select-none">
                   <span>{formatYLabel(dataMax)}</span>
                   <span>{formatYLabel(dataMax * 0.75)}</span>
                   <span>{formatYLabel(dataMax * 0.5)}</span>
@@ -206,13 +206,13 @@ export default function CashFlowChart({
                   <span>$0</span>
                 </div>
 
-                <div className="flex-1 flex justify-between items-end h-[180px] border-b border-[#F3F0E9] dark:border-slate-700 pb-1 relative">
+                <div className="flex-1 flex justify-between items-end h-[180px] border-b border-[#f2f4f7] dark:border-slate-700 pb-1 relative">
                   {/* Horizontal dotted lines */}
                   <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pr-1">
-                    <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
-                    <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
-                    <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
-                    <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
+                    <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
+                    <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
+                    <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
+                    <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
                     <div className="w-full" />
                   </div>
 
@@ -243,7 +243,7 @@ export default function CashFlowChart({
                             title={`Income: ${formatExactCurrency(incVal)}`}
                           />
                         </div>
-                        <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-[11px] font-bold mt-2.5">{month}</span>
+                        <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-bold mt-2.5">{month}</span>
                       </div>
                     );
                   })}
@@ -269,14 +269,14 @@ export default function CashFlowChart({
       ) : (
         <div className="property-trend-table-full mt-2 h-[200px] overflow-y-auto w-full relative">
           {!hasData ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-[#6A6A69] bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] rounded-lg">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '36px', height: '36px' }} className="mb-2 text-[#989794]">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-[#667085] bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] rounded-lg">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '36px', height: '36px' }} className="mb-2 text-[#98a2b3]">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <line x1="9" y1="3" x2="9" y2="21" />
                 <line x1="15" y1="3" x2="15" y2="21" />
               </svg>
               <span className="text-sm font-semibold">No cash flow data available</span>
-              <span className="text-xs text-[#989794] mt-1">Add income or expense transactions to view cash flow details.</span>
+              <span className="text-xs text-[#98a2b3] mt-1">Add income or expense transactions to view cash flow details.</span>
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -337,12 +337,12 @@ export default function CashFlowChart({
           <div className="absolute inset-0 cursor-default" onClick={() => setIsModalOpen(false)} />
 
           {/* DESKTOP MODAL CONTENT (Figma Image 2 style) */}
-          <div className="hidden md:flex flex-col bg-white dark:bg-[#151719] border border-[#EBE8E1] dark:border-slate-700 rounded-[18px] p-6 shadow-2xl max-w-4xl w-full relative z-10 transition-all transform duration-300">
+          <div className="hidden md:flex flex-col bg-white dark:bg-[#1B2050] border border-[#eaeef4] dark:border-slate-700 rounded-[18px] p-6 shadow-2xl max-w-4xl w-full relative z-10 transition-all transform duration-300">
             {/* Modal Header */}
             <div className="flex justify-between items-center w-full mb-4 select-none">
               <div className="flex items-baseline gap-2">
-                <h3 className="text-[#151719] dark:text-white text-base font-bold">{title}</h3>
-                <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-xs font-semibold">{subtitle}</span>
+                <h3 className="text-[#101828] dark:text-white text-base font-bold">{title}</h3>
+                <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-xs font-semibold">{subtitle}</span>
               </div>
 
               <div className="flex items-center gap-4">
@@ -350,18 +350,18 @@ export default function CashFlowChart({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="text-[#242629] dark:text-[#CBBFF6] hover:text-[#7A5CFA] transition-all text-sm font-bold bg-transparent border-none cursor-pointer focus:outline-none"
+                  className="text-[#28336e] dark:text-[#B9C0E8] hover:text-[#f4a117] transition-all text-sm font-bold bg-transparent border-none cursor-pointer focus:outline-none"
                 >
                   Hide Detail
                 </button>
 
-                <div className="flex bg-[#F3F0E9] dark:bg-[#242629] rounded-lg p-0.5 border border-[#EBE8E1] dark:border-slate-700">
+                <div className="flex bg-[#f2f4f7] dark:bg-[#242C68] rounded-lg p-0.5 border border-[#eaeef4] dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => handleViewChange('graph')}
                     className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'graph'
-                        ? 'bg-white dark:bg-slate-700 text-[#151719] dark:text-white shadow-sm'
-                        : 'text-[#4F4F4F] dark:text-[#CBBFF6] hover:text-[#151719] dark:hover:text-white'
+                        ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
+                        : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
                       }`}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
@@ -375,8 +375,8 @@ export default function CashFlowChart({
                     type="button"
                     onClick={() => handleViewChange('table')}
                     className={`flex items-center gap-1.5 text-xs py-1 px-3.5 rounded-md transition-all font-semibold cursor-pointer ${currentView === 'table'
-                        ? 'bg-white dark:bg-slate-700 text-[#151719] dark:text-white shadow-sm'
-                        : 'text-[#4F4F4F] dark:text-[#CBBFF6] hover:text-[#151719] dark:hover:text-white'
+                        ? 'bg-white dark:bg-slate-700 text-[#101828] dark:text-white shadow-sm'
+                        : 'text-[#475467] dark:text-[#B9C0E8] hover:text-[#101828] dark:hover:text-white'
                       }`}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
@@ -396,7 +396,7 @@ export default function CashFlowChart({
             ) : currentView === 'graph' ? (
               <div className="flex flex-col w-full mb-2">
                 <div className="flex gap-4 h-[200px] mt-2 relative w-full">
-                  <div className="flex flex-col justify-between text-[#989794] text-[10px] font-semibold h-[180px] w-8 select-none">
+                  <div className="flex flex-col justify-between text-[#98a2b3] text-[10px] font-semibold h-[180px] w-8 select-none">
                     <span>{formatYLabel(dataMax)}</span>
                     <span>{formatYLabel(dataMax * 0.75)}</span>
                     <span>{formatYLabel(dataMax * 0.5)}</span>
@@ -404,12 +404,12 @@ export default function CashFlowChart({
                     <span>$0</span>
                   </div>
 
-                  <div className="flex-1 flex justify-between items-end h-[180px] border-b border-[#F3F0E9] dark:border-slate-700 pb-1 relative">
+                  <div className="flex-1 flex justify-between items-end h-[180px] border-b border-[#f2f4f7] dark:border-slate-700 pb-1 relative">
                     <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pr-1">
-                      <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
-                      <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
-                      <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
-                      <div className="w-full border-t border-dashed border-[#F3F0E9] dark:border-slate-700" />
+                      <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
+                      <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
+                      <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
+                      <div className="w-full border-t border-dashed border-[#f2f4f7] dark:border-slate-700" />
                       <div className="w-full" />
                     </div>
 
@@ -440,7 +440,7 @@ export default function CashFlowChart({
                               title={`Income: ${formatExactCurrency(incVal)}`}
                             />
                           </div>
-                          <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-[11px] font-bold mt-2.5">{month}</span>
+                          <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-bold mt-2.5">{month}</span>
                         </div>
                       );
                     })}
@@ -513,31 +513,31 @@ export default function CashFlowChart({
 
             {!regionNotice && (<>
             {/* Dotted Separator */}
-            <div className="w-full border-t border-dashed border-[#EBE8E1] dark:border-slate-700 my-4" />
+            <div className="w-full border-t border-dashed border-[#eaeef4] dark:border-slate-700 my-4" />
 
             {/* Details Lists (Desktop: Side-by-Side 2-Columns) */}
             <div className="flex flex-col gap-4 text-left w-full select-none">
-              <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-xs font-semibold">
+              <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-xs font-semibold">
                 {detailPeriodLabel ? `Top categories for ${detailPeriodLabel} across your whole portfolio.` : "Top categories across your whole portfolio."}
               </span>
 
               <div className="flex flex-row gap-8 w-full mt-2">
                 {/* Expense Categories */}
                 <div className="flex-1 flex flex-col gap-3">
-                  <span className="text-[11px] font-bold text-[#6F6F6E] dark:text-[#CBBFF6] tracking-wider mb-1">
+                  <span className="text-[11px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                     TOP 5 EXPENSE CATEGORIES
                   </span>
                   <div className="flex flex-col gap-2">
-                    {expenseCategories.length === 0 && <span className="text-xs text-[#8B8B88] dark:text-[#CBBFF6]">Nothing recorded yet.</span>}
+                    {expenseCategories.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {expenseCategories.map((item, idx) => (
-                      <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#151719] dark:text-white py-1">
+                      <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#14172E] dark:text-white py-1">
                         <div className="flex items-center gap-3">
-                          <span className="w-5 h-5 rounded-full bg-[#F3F0E9] dark:bg-slate-800 flex items-center justify-center text-[10px] text-[#6F6F6E] dark:text-[#CBBFF6] font-bold">
+                          <span className="w-5 h-5 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[10px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
                             {idx + 1}
                           </span>
-                          <span className="text-[#151719] dark:text-slate-200 font-bold">{item.name}</span>
+                          <span className="text-[#101828] dark:text-slate-200 font-bold">{item.name}</span>
                         </div>
-                        <span className="text-[#151719] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
+                        <span className="text-[#101828] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -545,20 +545,20 @@ export default function CashFlowChart({
 
                 {/* Income Sources */}
                 <div className="flex-1 flex flex-col gap-3">
-                  <span className="text-[11px] font-bold text-[#6F6F6E] dark:text-[#CBBFF6] tracking-wider mb-1">
+                  <span className="text-[11px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                     TOP INCOME SOURCES
                   </span>
                   <div className="flex flex-col gap-2">
-                    {incomeSources.length === 0 && <span className="text-xs text-[#8B8B88] dark:text-[#CBBFF6]">Nothing recorded yet.</span>}
+                    {incomeSources.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {incomeSources.map((item, idx) => (
-                      <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#151719] dark:text-white py-1">
+                      <div key={item.name} className="flex justify-between items-center text-sm font-semibold text-[#14172E] dark:text-white py-1">
                         <div className="flex items-center gap-3">
-                          <span className="w-5 h-5 rounded-full bg-[#F3F0E9] dark:bg-slate-800 flex items-center justify-center text-[10px] text-[#6F6F6E] dark:text-[#CBBFF6] font-bold">
+                          <span className="w-5 h-5 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[10px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
                             {idx + 1}
                           </span>
-                          <span className="text-[#151719] dark:text-slate-200 font-bold">{item.name}</span>
+                          <span className="text-[#101828] dark:text-slate-200 font-bold">{item.name}</span>
                         </div>
-                        <span className="text-[#151719] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
+                        <span className="text-[#101828] dark:text-white font-bold">{formatExactCurrency(item.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -569,19 +569,19 @@ export default function CashFlowChart({
           </div>
 
           {/* MOBILE MODAL CONTENT (Figma Image 3 style) */}
-          <div className="flex md:hidden flex-col bg-white dark:bg-[#151719] border border-[#EBE8E1] dark:border-slate-700 rounded-[18px] p-5 shadow-2xl max-w-sm w-full relative z-10 transition-all transform duration-300">
+          <div className="flex md:hidden flex-col bg-white dark:bg-[#1B2050] border border-[#eaeef4] dark:border-slate-700 rounded-[18px] p-5 shadow-2xl max-w-sm w-full relative z-10 transition-all transform duration-300">
             {/* Mobile Header */}
             <div className="flex justify-between items-start w-full mb-3 select-none">
               <div className="flex flex-col">
-                <h3 className="text-[#151719] dark:text-white text-base font-bold">{title}</h3>
-                <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-[11px] font-semibold mt-0.5">
+                <h3 className="text-[#101828] dark:text-white text-base font-bold">{title}</h3>
+                <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[11px] font-semibold mt-0.5">
                   {subtitle} • {months.length} Months
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-[#242629] dark:text-[#CBBFF6] hover:text-[#7A5CFA] transition-all text-xs font-bold bg-transparent border-none cursor-pointer focus:outline-none"
+                className="text-[#28336e] dark:text-[#B9C0E8] hover:text-[#f4a117] transition-all text-xs font-bold bg-transparent border-none cursor-pointer focus:outline-none"
               >
                 Hide Detail
               </button>
@@ -631,7 +631,7 @@ export default function CashFlowChart({
                       ) : (
                         <div className="w-[18px] h-[6px] rounded-[3px] bg-slate-200 dark:bg-slate-700" />
                       )}
-                      <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-[10px] font-bold mt-2">{month}</span>
+                      <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[10px] font-bold mt-2">{month}</span>
                     </div>
                   );
                 })}
@@ -651,48 +651,48 @@ export default function CashFlowChart({
             </div>
 
             {/* Dotted Separator */}
-            <div className="w-full border-t border-dashed border-[#EBE8E1] dark:border-slate-700 my-3" />
+            <div className="w-full border-t border-dashed border-[#eaeef4] dark:border-slate-700 my-3" />
 
             {/* Mobile Categories lists stacked vertically */}
             <div className="flex flex-col gap-4 text-left w-full select-none max-h-[220px] overflow-y-auto pr-1">
-              <span className="text-[#8B8B88] dark:text-[#CBBFF6] text-[10px] font-semibold">
+              <span className="text-[#8c9ba5] dark:text-[#B9C0E8] text-[10px] font-semibold">
                 {detailPeriodLabel ? `Top categories for ${detailPeriodLabel} across your whole portfolio.` : "Top categories across your whole portfolio."}
               </span>
 
               {/* Expense Categories */}
               <div className="flex flex-col gap-2">
-                <span className="text-[9px] font-bold text-[#6F6F6E] dark:text-[#CBBFF6] tracking-wider mb-1">
+                <span className="text-[9px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                   TOP 5 EXPENSE CATEGORIES
                 </span>
-                {expenseCategories.length === 0 && <span className="text-xs text-[#8B8B88] dark:text-[#CBBFF6]">Nothing recorded yet.</span>}
+                {expenseCategories.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {expenseCategories.map((item, idx) => (
-                  <div key={`mob-exp-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#151719] dark:text-white py-0.5">
+                  <div key={`mob-exp-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#14172E] dark:text-white py-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-[#F3F0E9] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#6F6F6E] dark:text-[#CBBFF6] font-bold">
+                      <span className="w-4 h-4 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
                         {idx + 1}
                       </span>
-                      <span className="text-[#151719] dark:text-slate-200 font-bold text-xs">{item.name}</span>
+                      <span className="text-[#101828] dark:text-slate-200 font-bold text-xs">{item.name}</span>
                     </div>
-                    <span className="text-[#151719] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
+                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
                   </div>
                 ))}
               </div>
 
               {/* Income Sources */}
               <div className="flex flex-col gap-2 mt-1">
-                <span className="text-[9px] font-bold text-[#6F6F6E] dark:text-[#CBBFF6] tracking-wider mb-1">
+                <span className="text-[9px] font-bold text-[#5c639a] dark:text-[#B9C0E8] tracking-wider mb-1">
                   TOP INCOME SOURCES
                 </span>
-                {incomeSources.length === 0 && <span className="text-xs text-[#8B8B88] dark:text-[#CBBFF6]">Nothing recorded yet.</span>}
+                {incomeSources.length === 0 && <span className="text-xs text-[#8c9ba5] dark:text-[#B9C0E8]">Nothing recorded yet.</span>}
                     {incomeSources.map((item, idx) => (
-                  <div key={`mob-inc-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#151719] dark:text-white py-0.5">
+                  <div key={`mob-inc-${item.name}`} className="flex justify-between items-center text-xs font-semibold text-[#14172E] dark:text-white py-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-[#F3F0E9] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#6F6F6E] dark:text-[#CBBFF6] font-bold">
+                      <span className="w-4 h-4 rounded-full bg-[#f2f4f7] dark:bg-slate-800 flex items-center justify-center text-[9px] text-[#5c639a] dark:text-[#B9C0E8] font-bold">
                         {idx + 1}
                       </span>
-                      <span className="text-[#151719] dark:text-slate-200 font-bold text-xs">{item.name}</span>
+                      <span className="text-[#101828] dark:text-slate-200 font-bold text-xs">{item.name}</span>
                     </div>
-                    <span className="text-[#151719] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
+                    <span className="text-[#101828] dark:text-white font-bold text-xs">{formatExactCurrency(item.amount)}</span>
                   </div>
                 ))}
               </div>

@@ -143,7 +143,7 @@ const ACCESS_STYLE: Record<Access, { pill: string; dot: string }> = {
   "Access removed": { pill: "bg-slate-100 text-slate-600", dot: "bg-slate-400" },
 };
 
-const cardClass = "bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)]";
+const cardClass = "bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)]";
 const selectClass =
   "h-10 px-3 border border-slate-200 rounded-lg text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-sans cursor-pointer";
 const btnSm = "px-3 py-1.5 border border-slate-200 bg-white rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer whitespace-nowrap";

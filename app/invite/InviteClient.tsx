@@ -121,7 +121,7 @@ export default function InviteClient({
         <div className="space-y-4">
           <button
             onClick={handleRedirectNow}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-[#242629] to-[#151719] hover:from-[#151719] hover:to-[#151719] text-white rounded-2xl font-semibold shadow-lg shadow-[#242629]/20 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-[#28336e] to-[#1a224c] hover:from-[#1a224c] hover:to-[#121836] text-white rounded-2xl font-semibold shadow-lg shadow-[#28336e]/20 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
           >
             <span>Continue to Login</span>
             <svg

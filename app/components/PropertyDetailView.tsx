@@ -181,10 +181,10 @@ function TripleSummary({
   result: { label: string; value: MoneyTriple };
 }) {
   const dark = tone === "dark";
-  const text = dark ? "#FFFFFF" : "#151719";
-  const muted = dark ? "rgba(255, 255, 255, 0.7)" : "#6C6C6B";
-  const divider = dark ? "rgba(255, 255, 255, 0.15)" : "#E2E0D9";
-  const accent = dark ? "#7A5CFA" : "#C46A4C";
+  const text = dark ? "#ffffff" : "#1c244b";
+  const muted = dark ? "rgba(255, 255, 255, 0.7)" : "#64748b";
+  const divider = dark ? "rgba(255, 255, 255, 0.15)" : "#e2e8f0";
+  const accent = dark ? "#f4a117" : "#b45309";
   const numeric = {
     textAlign: "right" as const,
     whiteSpace: "nowrap" as const,
@@ -1724,7 +1724,7 @@ export default function PropertyDetailView({
           100% { transform: rotate(360deg); }
         }
         .dropdown-item-hover:hover {
-          background-color: #F3F0E9 !important;
+          background-color: #f1f5f9 !important;
         }
       `}</style>
       <section className="client-detail-page property-detail-page property-detail-shell">
@@ -1740,7 +1740,7 @@ export default function PropertyDetailView({
                   gap: "6px",
                   background: "none",
                   border: "none",
-                  color: "#505050",
+                  color: "#475569",
                   fontSize: "14px",
                   fontWeight: 600,
                   cursor: "pointer",
@@ -1757,8 +1757,8 @@ export default function PropertyDetailView({
             {/* P&L Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
               <div>
-                <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 800, color: "#151719" }}>Profit & Loss Statement</h1>
-                <p style={{ margin: "4px 0 0 0", fontSize: "14px", color: "#6C6C6B", fontWeight: 500 }}>
+                <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 800, color: "#1c244b" }}>Profit & Loss Statement</h1>
+                <p style={{ margin: "4px 0 0 0", fontSize: "14px", color: "#64748b", fontWeight: 500 }}>
                   {/* No invented entity name. This header sits above a tax
                       statement; "Smith & Co." appearing on a property whose
                       entity has not loaded is worse than the entity being
@@ -1787,23 +1787,23 @@ export default function PropertyDetailView({
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
-                    backgroundColor: "#FFFFFF",
+                    backgroundColor: "#ffffff",
                     padding: "0 24px 0 16px",
-                    border: "1.5px solid #CBC9C4",
+                    border: "1.5px solid #cbd5e1",
                     borderRadius: "9999px",
                     height: "44px",
                     cursor: "pointer",
                     outline: "none",
                     transition: "all 0.2s ease",
-                    boxShadow: "0 1px 2px rgba(21, 23, 25, 0.05)"
+                    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "#999894";
-                    e.currentTarget.style.backgroundColor = "#F3F0E9";
+                    e.currentTarget.style.borderColor = "#94a3b8";
+                    e.currentTarget.style.backgroundColor = "#f8fafc";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#CBC9C4";
-                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                    e.currentTarget.style.borderColor = "#cbd5e1";
+                    e.currentTarget.style.backgroundColor = "#ffffff";
                   }}
                 >
                   {/* Switch Pill */}
@@ -1812,7 +1812,7 @@ export default function PropertyDetailView({
                       width: "46px",
                       height: "24px",
                       borderRadius: "999px",
-                      backgroundColor: compareWithPrevious ? "#6F7A5A" : "#CBC9C4",
+                      backgroundColor: compareWithPrevious ? "#12b76a" : "#cbd5e1",
                       display: "inline-flex",
                       alignItems: "center",
                       padding: "2px",
@@ -1825,8 +1825,8 @@ export default function PropertyDetailView({
                         width: "20px",
                         height: "20px",
                         borderRadius: "50%",
-                        backgroundColor: "#FFFFFF",
-                        boxShadow: "0 1px 3px rgba(21, 23, 25, 0.2)",
+                        backgroundColor: "#ffffff",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
                         transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                         transform: compareWithPrevious ? "translateX(22px)" : "translateX(0)"
                       }}
@@ -1838,7 +1838,7 @@ export default function PropertyDetailView({
                     style={{
                       fontSize: "15px",
                       fontWeight: 700,
-                      color: "#151719",
+                      color: "#1c244b",
                       whiteSpace: "nowrap"
                     }}
                   >
@@ -1858,9 +1858,9 @@ export default function PropertyDetailView({
                     gap: "6px",
                     padding: "0 16px",
                     borderRadius: "8px",
-                    border: "1px solid #CBC9C4",
-                    backgroundColor: "#FFFFFF",
-                    color: pnl.summary ? "#3E3F3F" : "#999894",
+                    border: "1px solid #cbd5e1",
+                    backgroundColor: "#ffffff",
+                    color: pnl.summary ? "#334155" : "#94a3b8",
                     fontSize: "14px",
                     fontWeight: 700,
                     height: "40px",
@@ -1884,8 +1884,8 @@ export default function PropertyDetailView({
                     padding: "0 16px",
                     borderRadius: "8px",
                     border: "none",
-                    backgroundColor: "#242629",
-                    color: "#FFFFFF",
+                    backgroundColor: "#28336e",
+                    color: "#ffffff",
                     fontSize: "14px",
                     fontWeight: 700,
                     height: "40px",
@@ -1893,10 +1893,10 @@ export default function PropertyDetailView({
                     transition: "all 0.2s"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#151719';
+                    e.currentTarget.style.backgroundColor = '#1f2753';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#242629';
+                    e.currentTarget.style.backgroundColor = '#28336e';
                   }}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ width: "12px", height: "12px" }}>
@@ -1920,10 +1920,10 @@ export default function PropertyDetailView({
                 padding: "16px 20px",
                 marginBottom: "24px",
                 borderRadius: "12px",
-                border: "1.5px solid #F3DFD5",
-                backgroundColor: "#F3F0E9"
+                border: "1.5px solid #fecaca",
+                backgroundColor: "#fef2f2"
               }}>
-                <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#C46A4C" }}>
+                <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#b91c1c" }}>
                   {pnl.error}
                 </span>
                 <button
@@ -1932,9 +1932,9 @@ export default function PropertyDetailView({
                   style={{
                     padding: "8px 14px",
                     borderRadius: "8px",
-                    border: "1px solid #F3DFD5",
-                    backgroundColor: "#FFFFFF",
-                    color: "#C46A4C",
+                    border: "1px solid #fecaca",
+                    backgroundColor: "#ffffff",
+                    color: "#b91c1c",
                     fontSize: "13px",
                     fontWeight: 700,
                     cursor: "pointer",
@@ -1951,7 +1951,7 @@ export default function PropertyDetailView({
                 const placeholder = (height: string) => ({
                   height,
                   borderRadius: "16px",
-                  backgroundColor: "#E2E0D9",
+                  backgroundColor: "#e2e8f0",
                   opacity: 0.6
                 });
                 return (
@@ -1998,7 +1998,7 @@ export default function PropertyDetailView({
               const changeLine = (pct: number | null, higherIsGood: boolean) => {
                 if (pct === null) {
                   return (
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#999894", marginTop: "8px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", marginTop: "8px" }}>
                       No {summary.comparison.label} figure
                     </div>
                   );
@@ -2008,7 +2008,7 @@ export default function PropertyDetailView({
                   <div style={{
                     fontSize: "13px",
                     fontWeight: 700,
-                    color: good ? "#6F7A5A" : "#C46A4C",
+                    color: good ? "#10b981" : "#ef4444",
                     marginTop: "8px",
                     display: "flex",
                     alignItems: "center",
@@ -2039,7 +2039,7 @@ export default function PropertyDetailView({
                   padding: bold ? "14px 8px" : "12px 8px",
                   fontSize: "13.5px",
                   fontWeight: bold ? 700 : 600,
-                  color: bold ? color : "#505050"
+                  color: bold ? color : "#475569"
                 };
                 return (
                   <>
@@ -2047,10 +2047,10 @@ export default function PropertyDetailView({
                       <td style={cellBase}>{formatPLAmount(previous.gross)}</td>
                     )}
                     <td style={cellBase}>{formatPLAmount(current.gross)}</td>
-                    <td style={{ ...cellBase, fontWeight: bold ? 700 : 500, color: bold ? color : "#6C6C6B" }}>
+                    <td style={{ ...cellBase, fontWeight: bold ? 700 : 500, color: bold ? color : "#64748b" }}>
                       {formatPLAmount(current.gst)}
                     </td>
-                    <td style={{ ...cellBase, color: bold ? color : "#151719" }}>
+                    <td style={{ ...cellBase, color: bold ? color : "#1e293b" }}>
                       {formatPLAmount(current.net)}
                     </td>
                     {compareWithPrevious && (
@@ -2060,8 +2060,8 @@ export default function PropertyDetailView({
                         fontSize: "13px",
                         fontWeight: 700,
                         color: pct === null
-                          ? "#999894"
-                          : (pct >= 0) === higherIsGood ? "#6F7A5A" : "#C46A4C"
+                          ? "#94a3b8"
+                          : (pct >= 0) === higherIsGood ? "#10b981" : "#ef4444"
                       }}>
                         {pct === null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}
                       </td>
@@ -2071,8 +2071,8 @@ export default function PropertyDetailView({
               };
 
               const bandHeader = (key: string, label: string) => (
-                <tr key={key} style={{ backgroundColor: "#F3F0E9" }}>
-                  <td colSpan={columnCount} style={{ padding: "8px 8px", fontSize: "12px", fontWeight: 800, color: "#151719" }}>
+                <tr key={key} style={{ backgroundColor: "#f8fafc" }}>
+                  <td colSpan={columnCount} style={{ padding: "8px 8px", fontSize: "12px", fontWeight: 800, color: "#1c244b" }}>
                     {label}
                   </td>
                 </tr>
@@ -2085,11 +2085,11 @@ export default function PropertyDetailView({
                 previous: { gross: number; gst: number; net: number },
                 higherIsGood: boolean
               ) => (
-                <tr key={key} style={{ borderBottom: "1px solid #F3F0E9" }}>
-                  <td style={{ padding: "12px 8px 12px 16px", fontSize: "13.5px", fontWeight: 500, color: "#3E3F3F" }}>
+                <tr key={key} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "12px 8px 12px 16px", fontSize: "13.5px", fontWeight: 500, color: "#334155" }}>
                     {label}
                   </td>
-                  {amountCells(current, previous, false, "#3E3F3F", higherIsGood)}
+                  {amountCells(current, previous, false, "#334155", higherIsGood)}
                 </tr>
               );
 
@@ -2101,14 +2101,14 @@ export default function PropertyDetailView({
                 color: string,
                 higherIsGood: boolean
               ) => (
-                <tr key={key} style={{ borderBottom: "1.5px solid #E2E0D9" }}>
+                <tr key={key} style={{ borderBottom: "1.5px solid #e2e8f0" }}>
                   <td style={{ padding: "14px 8px", fontSize: "13.5px", fontWeight: 700, color }}>{label}</td>
                   {amountCells(current, previous, true, color, higherIsGood)}
                 </tr>
               );
 
               const spacerRow = (key: string) => (
-                <tr key={key} style={{ backgroundColor: "#F3F0E9", height: "10px" }}>
+                <tr key={key} style={{ backgroundColor: "#f8fafc", height: "10px" }}>
                   <td colSpan={columnCount} style={{ padding: 0 }}></td>
                 </tr>
               );
@@ -2124,17 +2124,17 @@ export default function PropertyDetailView({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
                     {/* TOTAL INCOME */}
                     <div style={{
-                      backgroundColor: "#FFFFFF",
-                      border: "1.5px solid #E2E0D9",
+                      backgroundColor: "#ffffff",
+                      border: "1.5px solid #e2e8f0",
                       borderRadius: "16px",
                       padding: "20px 24px",
-                      boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center"
                     }}>
-                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em" }}>TOTAL INCOME</div>
-                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#6F7A5A", marginTop: "4px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>TOTAL INCOME</div>
+                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>
                         A$ {formatPLAmount(incomeCurrent)}
                       </div>
                       {changeLine(incomeChangePct, true)}
@@ -2144,19 +2144,19 @@ export default function PropertyDetailView({
                         income minus this equals the net profit beside it. The
                         table below keeps the two bands separate. */}
                     <div style={{
-                      backgroundColor: "#FFFFFF",
-                      border: "1.5px solid #E2E0D9",
+                      backgroundColor: "#ffffff",
+                      border: "1.5px solid #e2e8f0",
                       borderRadius: "16px",
                       padding: "20px 24px",
-                      boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center"
                     }}>
-                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         TOTAL EXPENSES{summary.deductions.length > 0 ? " (INCL. DEPRECIATION)" : ""}
                       </div>
-                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#C46A4C", marginTop: "4px" }}>
+                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#ef4444", marginTop: "4px" }}>
                         A$ {formatPLAmount(expenseCurrent)}
                       </div>
                       {changeLine(expenseChangePct, false)}
@@ -2164,22 +2164,22 @@ export default function PropertyDetailView({
 
                     {/* NET PROFIT / (LOSS) — the one genuinely signed figure. */}
                     <div style={{
-                      backgroundColor: "#242629",
+                      backgroundColor: "#28336e",
                       borderRadius: "16px",
                       padding: "20px 24px",
-                      boxShadow: "0 10px 15px -3px rgba(21, 23, 25, 0.1)",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center"
                     }}>
-                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#999894", textTransform: "uppercase", letterSpacing: "0.05em" }}>NET PROFIT / (LOSS)</div>
-                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#FFFFFF", marginTop: "4px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>NET PROFIT / (LOSS)</div>
+                      <div style={{ fontSize: "28px", fontWeight: 800, color: "#ffffff", marginTop: "4px" }}>
                         {netCurrent < 0 ? "-" : ""}A$ {formatPLAmount(Math.abs(netCurrent))}
                       </div>
                       <div style={{
                         fontSize: "13px",
                         fontWeight: 700,
-                        color: netChangeDiff >= 0 ? "#6F7A5A" : "#EECFC1",
+                        color: netChangeDiff >= 0 ? "#4ade80" : "#fca5a5",
                         marginTop: "8px",
                         display: "flex",
                         alignItems: "center",
@@ -2194,19 +2194,19 @@ export default function PropertyDetailView({
                   <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "24px", alignItems: "start" }}>
                     {/* Table Column */}
                     <div style={{
-                      backgroundColor: "#FFFFFF",
+                      backgroundColor: "#ffffff",
                       borderRadius: "16px",
-                      border: "1.5px solid #E2E0D9",
+                      border: "1.5px solid #e2e8f0",
                       padding: "24px",
-                      boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)"
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
                     }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#151719" }}>Statement of Profit &amp; Loss</h3>
+                        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#1c244b" }}>Statement of Profit &amp; Loss</h3>
                         <span style={{
                           fontSize: "11px",
                           fontWeight: 700,
-                          backgroundColor: "#F3F0E9",
-                          color: "#505050",
+                          backgroundColor: "#f1f5f9",
+                          color: "#475569",
                           padding: "4px 10px",
                           borderRadius: "9999px"
                         }}>
@@ -2216,23 +2216,23 @@ export default function PropertyDetailView({
 
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
-                          <tr style={{ borderBottom: "1.5px solid #E2E0D9" }}>
-                            <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
+                          <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                            <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
                             {compareWithPrevious && (
-                              <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em" }}>{summary.comparison.label}</th>
+                              <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>{summary.comparison.label}</th>
                             )}
-                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em" }}>Gross</th>
-                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em" }}>GST</th>
-                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em" }}>Net</th>
+                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Gross</th>
+                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>GST</th>
+                            <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Net</th>
                             {compareWithPrevious && (
-                              <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em" }}>Change</th>
+                              <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Change</th>
                             )}
                           </tr>
                         </thead>
                         <tbody>
                           {isEmpty ? (
                             <tr>
-                              <td colSpan={columnCount} style={{ padding: "48px 8px", textAlign: "center", fontSize: "13.5px", fontWeight: 600, color: "#6C6C6B" }}>
+                              <td colSpan={columnCount} style={{ padding: "48px 8px", textAlign: "center", fontSize: "13.5px", fontWeight: 600, color: "#64748b" }}>
                                 No income or expenses recorded for {summary.period.label}.
                               </td>
                             </tr>
@@ -2253,7 +2253,7 @@ export default function PropertyDetailView({
                                 "Total Income",
                                 summary.totals.income.current,
                                 summary.totals.income.previous,
-                                "#6F7A5A",
+                                "#10b981",
                                 true
                               )}
 
@@ -2273,7 +2273,7 @@ export default function PropertyDetailView({
                                 "Total Expense",
                                 summary.totals.expenses.current,
                                 summary.totals.expenses.previous,
-                                "#C46A4C",
+                                "#ef4444",
                                 false
                               )}
 
@@ -2298,14 +2298,14 @@ export default function PropertyDetailView({
                                     "Total Depreciation",
                                     summary.totals.deductions.current,
                                     summary.totals.deductions.previous,
-                                    "#C46A4C",
+                                    "#ef4444",
                                     false
                                   )}
                                 </>
                               )}
 
                               {/* Net Profit / (Loss) */}
-                              <tr style={{ backgroundColor: "#242629", color: "#FFFFFF" }}>
+                              <tr style={{ backgroundColor: "#28336e", color: "#ffffff" }}>
                                 <td style={{ padding: "16px 12px", fontSize: "14px", fontWeight: 800, borderBottomLeftRadius: "8px", borderTopLeftRadius: "8px" }}>Net Profit / (Loss)</td>
                                 {compareWithPrevious && (
                                   <td style={{ textAlign: "right", padding: "16px 12px", fontSize: "14px", fontWeight: 800 }}>
@@ -2327,8 +2327,8 @@ export default function PropertyDetailView({
                                       display: "inline-flex",
                                       alignItems: "center",
                                       gap: "2px",
-                                      backgroundColor: netChangeDiff < 0 ? "#C46A4C" : "#6F7A5A",
-                                      color: "#FFFFFF",
+                                      backgroundColor: netChangeDiff < 0 ? "#ef4444" : "#10b981",
+                                      color: "#ffffff",
                                       padding: "2px 8px",
                                       borderRadius: "4px",
                                       fontSize: "11px",
@@ -2347,7 +2347,7 @@ export default function PropertyDetailView({
                       {/* The backend has only invoice_date, so this statement
                           is accruals basis. Said out loud so nobody transcribes
                           it onto a cash-basis return. */}
-                      <p style={{ margin: "16px 0 0 0", fontSize: "11.5px", color: "#999894", fontWeight: 600 }}>
+                      <p style={{ margin: "16px 0 0 0", fontSize: "11.5px", color: "#94a3b8", fontWeight: 600 }}>
                         Accruals basis &mdash; dated by invoice date. Asset purchases are excluded from expenses and
                         claimed through the depreciation schedule.
                       </p>
@@ -2357,31 +2357,31 @@ export default function PropertyDetailView({
                     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                       {/* Expense Breakdown */}
                       <div style={{
-                        backgroundColor: "#FFFFFF",
+                        backgroundColor: "#ffffff",
                         borderRadius: "16px",
-                        border: "1.5px solid #E2E0D9",
+                        border: "1.5px solid #e2e8f0",
                         padding: "24px",
-                        boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)"
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
                       }}>
-                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#151719" }}>Expense Breakdown</h3>
-                        <p style={{ margin: "4px 0 16px 0", fontSize: "12px", color: "#6C6C6B", fontWeight: 600 }}>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>Expense Breakdown</h3>
+                        <p style={{ margin: "4px 0 16px 0", fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
                           Top categories for {summary.period.label}
                         </p>
 
                         {pnlTopExpenses.length === 0 ? (
-                          <p style={{ margin: 0, fontSize: "13px", color: "#999894", fontWeight: 600 }}>
+                          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8", fontWeight: 600 }}>
                             No expenses recorded.
                           </p>
                         ) : (
                           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                             {pnlTopExpenses.map((exp, idx) => (
                               <div key={`exp-breakdown-${idx}`} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", fontWeight: 700, color: "#3E3F3F" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", fontWeight: 700, color: "#334155" }}>
                                   <span style={{ maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exp.label}</span>
-                                  <span style={{ color: "#151719", fontFamily: "monospace" }}>A$ {formatPLAmount(exp.amount)}</span>
+                                  <span style={{ color: "#1e293b", fontFamily: "monospace" }}>A$ {formatPLAmount(exp.amount)}</span>
                                 </div>
-                                <div style={{ width: "100%", height: "8px", backgroundColor: "#F3F0E9", borderRadius: "9999px", overflow: "hidden" }}>
-                                  <div style={{ width: `${(exp.amount / maxExpenseVal) * 100}%`, height: "100%", backgroundColor: "#242629", borderRadius: "9999px" }}></div>
+                                <div style={{ width: "100%", height: "8px", backgroundColor: "#f1f5f9", borderRadius: "9999px", overflow: "hidden" }}>
+                                  <div style={{ width: `${(exp.amount / maxExpenseVal) * 100}%`, height: "100%", backgroundColor: "#28336e", borderRadius: "9999px" }}></div>
                                 </div>
                               </div>
                             ))}
@@ -2391,40 +2391,40 @@ export default function PropertyDetailView({
 
                       {/* Income vs Expense Bar Chart */}
                       <div style={{
-                        backgroundColor: "#FFFFFF",
+                        backgroundColor: "#ffffff",
                         borderRadius: "16px",
-                        border: "1.5px solid #E2E0D9",
+                        border: "1.5px solid #e2e8f0",
                         padding: "24px",
-                        boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)"
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
                       }}>
-                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#151719" }}>Income vs Expense</h3>
-                        <p style={{ margin: "4px 0 20px 0", fontSize: "12px", color: "#6C6C6B", fontWeight: 600 }}>{summary.period.label}</p>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>Income vs Expense</h3>
+                        <p style={{ margin: "4px 0 20px 0", fontSize: "12px", color: "#64748b", fontWeight: 600 }}>{summary.period.label}</p>
 
-                        <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "160px", paddingBottom: "10px", borderBottom: "1px solid #F3F0E9" }}>
+                        <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "160px", paddingBottom: "10px", borderBottom: "1px solid #f1f5f9" }}>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#6F7A5A" }}>A$ {formatPLAmount(incomeCurrent)}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#10b981" }}>A$ {formatPLAmount(incomeCurrent)}</span>
                             <div style={{
                               width: "36px",
                               height: `${(incomeCurrent / maxChartVal) * 120}px`,
-                              backgroundColor: "#6F7A5A",
+                              backgroundColor: "#10b981",
                               borderTopLeftRadius: "6px",
                               borderTopRightRadius: "6px",
                               transition: "height 0.3s ease"
                             }}></div>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#6C6C6B", marginTop: "4px" }}>Income</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", marginTop: "4px" }}>Income</span>
                           </div>
 
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#C46A4C" }}>A$ {formatPLAmount(expenseCurrent)}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: "#ef4444" }}>A$ {formatPLAmount(expenseCurrent)}</span>
                             <div style={{
                               width: "36px",
                               height: `${(expenseCurrent / maxChartVal) * 120}px`,
-                              backgroundColor: "#C46A4C",
+                              backgroundColor: "#ef4444",
                               borderTopLeftRadius: "6px",
                               borderTopRightRadius: "6px",
                               transition: "height 0.3s ease"
                             }}></div>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#6C6C6B", marginTop: "4px" }}>Expense</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", marginTop: "4px" }}>Expense</span>
                           </div>
                         </div>
                       </div>
@@ -2447,17 +2447,17 @@ export default function PropertyDetailView({
                 left: 0,
                 right: 0,
                 height: "1px",
-                backgroundColor: "#E2E0D9",
+                backgroundColor: "#e2e8f0",
                 zIndex: 1
               }}></div>
               <span style={{
                 position: "relative",
                 zIndex: 2,
-                backgroundColor: "#F3F0E9",
+                backgroundColor: "#f8fafc",
                 padding: "0 16px",
                 fontSize: "11px",
                 fontWeight: 700,
-                color: "#999894",
+                color: "#94a3b8",
                 textTransform: "uppercase",
                 letterSpacing: "0.1em"
               }}>
@@ -2467,18 +2467,18 @@ export default function PropertyDetailView({
 
             {/* Property Cost Base Section */}
             <div style={{
-              backgroundColor: "#FFFFFF",
+              backgroundColor: "#ffffff",
               borderRadius: "16px",
-              border: "1.5px solid #E2E0D9",
+              border: "1.5px solid #e2e8f0",
               padding: "24px",
-              boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
               marginBottom: "32px"
             }}>
               {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#151719" }}>Property Cost Base</h2>
-                  <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#6C6C6B", fontWeight: 500 }}>
+                  <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#1c244b" }}>Property Cost Base</h2>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b", fontWeight: 500 }}>
                     Entered by hand: what this property cost to acquire and improve. Transactions categorised as Property Cost are itemised under Settlement Entries &mdash; {property.name}
                   </p>
                 </div>
@@ -2491,9 +2491,9 @@ export default function PropertyDetailView({
                       gap: "6px",
                       padding: "8px 14px",
                       borderRadius: "8px",
-                      border: "1px solid #CBC9C4",
-                      backgroundColor: "#FFFFFF",
-                      color: "#3E3F3F",
+                      border: "1px solid #cbd5e1",
+                      backgroundColor: "#ffffff",
+                      color: "#334155",
                       fontSize: "13px",
                       fontWeight: 700,
                       cursor: "pointer",
@@ -2513,9 +2513,9 @@ export default function PropertyDetailView({
                       gap: "6px",
                       padding: "8px 14px",
                       borderRadius: "8px",
-                      border: "1px solid #CBC9C4",
-                      backgroundColor: "#FFFFFF",
-                      color: "#3E3F3F",
+                      border: "1px solid #cbd5e1",
+                      backgroundColor: "#ffffff",
+                      color: "#334155",
                       fontSize: "13px",
                       fontWeight: 700,
                       cursor: "pointer",
@@ -2538,12 +2538,12 @@ export default function PropertyDetailView({
                     alignItems: "center",
                     gap: "24px",
                     padding: "16px 20px",
-                    backgroundColor: "#F3F0E9",
+                    backgroundColor: "#f8fafc",
                     borderRadius: "12px",
-                    border: "1px solid #E2E0D9"
+                    border: "1px solid #e2e8f0"
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#505050" }}>Contract Date</span>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>Contract Date</span>
                       <ValidatedDateInput
                         value={contractDate}
                         max={settlementDate || undefined}
@@ -2551,17 +2551,17 @@ export default function PropertyDetailView({
                         style={{
                           padding: "6px 10px",
                           borderRadius: "6px",
-                          border: "1px solid #CBC9C4",
+                          border: "1px solid #cbd5e1",
                           fontSize: "13px",
                           fontWeight: 600,
-                          backgroundColor: "#FFFFFF"
+                          backgroundColor: "#ffffff"
                         }}
                       />
                       <span style={{
                         fontSize: "12px",
                         fontWeight: 700,
-                        backgroundColor: "#E7E0F4",
-                        color: "#7A5CFA",
+                        backgroundColor: "#dbeafe",
+                        color: "#2563eb",
                         padding: "6px 10px",
                         borderRadius: "6px",
                         fontFamily: "monospace"
@@ -2571,7 +2571,7 @@ export default function PropertyDetailView({
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#505050" }}>Settlement Date</span>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>Settlement Date</span>
                       <ValidatedDateInput
                         value={settlementDate}
                         min={contractDate || undefined}
@@ -2579,17 +2579,17 @@ export default function PropertyDetailView({
                         style={{
                           padding: "6px 10px",
                           borderRadius: "6px",
-                          border: "1px solid #CBC9C4",
+                          border: "1px solid #cbd5e1",
                           fontSize: "13px",
                           fontWeight: 600,
-                          backgroundColor: "#FFFFFF"
+                          backgroundColor: "#ffffff"
                         }}
                       />
                       <span style={{
                         fontSize: "12px",
                         fontWeight: 700,
-                        backgroundColor: "#E7E0F4",
-                        color: "#7A5CFA",
+                        backgroundColor: "#dbeafe",
+                        color: "#2563eb",
                         padding: "6px 10px",
                         borderRadius: "6px",
                         fontFamily: "monospace"
@@ -2606,7 +2606,7 @@ export default function PropertyDetailView({
                       marginLeft: "auto",
                       maxWidth: "40%",
                       fontSize: "12px",
-                      color: "#6C6C6B",
+                      color: "#64748b",
                       lineHeight: 1.4
                     }}>
 
@@ -2622,12 +2622,12 @@ export default function PropertyDetailView({
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#151719" }}>Cost Base Items</h3>
+                        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#1c244b" }}>Cost Base Items</h3>
                         <span style={{
                           fontSize: "11px",
                           fontWeight: 700,
-                          backgroundColor: "#F3F0E9",
-                          color: "#505050",
+                          backgroundColor: "#f1f5f9",
+                          color: "#475569",
                           padding: "2px 8px",
                           borderRadius: "4px"
                         }}>Manual Entry</span>
@@ -2641,9 +2641,9 @@ export default function PropertyDetailView({
                           gap: "4px",
                           padding: "6px 12px",
                           borderRadius: "8px",
-                          border: "1px solid #CBC9C4",
-                          backgroundColor: "#FFFFFF",
-                          color: "#151719",
+                          border: "1px solid #cbd5e1",
+                          backgroundColor: "#ffffff",
+                          color: "#1c244b",
                           fontSize: "12.5px",
                           fontWeight: 700,
                           cursor: "pointer"
@@ -2658,18 +2658,18 @@ export default function PropertyDetailView({
 
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
-                        <tr style={{ borderBottom: "1.5px solid #E2E0D9" }}>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Category</th>
-                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em", width: "30%" }}>Description</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Gross</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#505050", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Net</th>
+                        <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Category</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "30%" }}>Description</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Gross</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
+                          <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Net</th>
                           <th style={{ width: "4%" }}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {manualCostBaseRows.map((row) => (
-                          <tr key={`cost-base-manual-`} style={{ borderBottom: "1px solid #F3F0E9" }}>
+                          <tr key={`cost-base-manual-`} style={{ borderBottom: "1px solid #f1f5f9" }}>
                             <td style={{ padding: "8px 8px" }}>
                               <input
                                 type="text"
@@ -2681,7 +2681,7 @@ export default function PropertyDetailView({
                                   boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
-                                  border: "1px solid #CBC9C4",
+                                  border: "1px solid #cbd5e1",
                                   fontSize: "13px",
                                   fontWeight: 500,
                                   outline: "none"
@@ -2699,7 +2699,7 @@ export default function PropertyDetailView({
                                   boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
-                                  border: "1px solid #CBC9C4",
+                                  border: "1px solid #cbd5e1",
                                   fontSize: "13px",
                                   fontWeight: 500,
                                   outline: "none"
@@ -2719,7 +2719,7 @@ export default function PropertyDetailView({
                                   boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
-                                  border: "1px solid #CBC9C4",
+                                  border: "1px solid #cbd5e1",
                                   fontSize: "13px",
                                   fontWeight: 500,
                                   textAlign: "right",
@@ -2740,7 +2740,7 @@ export default function PropertyDetailView({
                                   boxSizing: "border-box",
                                   padding: "8px 12px",
                                   borderRadius: "8px",
-                                  border: "1px solid #CBC9C4",
+                                  border: "1px solid #cbd5e1",
                                   fontSize: "13px",
                                   fontWeight: 500,
                                   textAlign: "right",
@@ -2749,7 +2749,7 @@ export default function PropertyDetailView({
                               />
                             </td>
                             {/* Net is gross less GST, derived as the other two are typed. */}
-                            <td style={{ padding: "8px 20px 8px 8px", textAlign: "right", fontSize: "13px", fontWeight: 600, color: "#151719", whiteSpace: "nowrap" }}>
+                            <td style={{ padding: "8px 20px 8px 8px", textAlign: "right", fontSize: "13px", fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap" }}>
                               {formatAud(manualCostBaseRowTriple(row).net)}
                             </td>
                             <td style={{ padding: "8px 8px", textAlign: "center" }}>
@@ -2759,7 +2759,7 @@ export default function PropertyDetailView({
                                 style={{
                                   background: "none",
                                   border: "none",
-                                  color: "#C46A4C",
+                                  color: "#ef4444",
                                   cursor: "pointer",
                                   padding: "4px",
                                   display: "inline-flex",
@@ -2778,7 +2778,7 @@ export default function PropertyDetailView({
                         ))}
                         {manualCostBaseRows.length === 0 && (
                           <tr>
-                            <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#999894", textAlign: "center" }}>
+                            <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
                               {isCostBaseEntriesLoading
                                 ? "Loading cost base items…"
                                 : costBaseEntryError
@@ -2787,15 +2787,15 @@ export default function PropertyDetailView({
                             </td>
                           </tr>
                         )}
-                        <tr style={{ borderTop: "1.5px solid #CBC9C4" }}>
-                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719" }}>Total Property Cost Base</td>
-                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                        <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Property Cost Base</td>
+                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                             {formatAud(costBaseTotals.manual.gross)}
                           </td>
-                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                             {formatAud(costBaseTotals.manual.gst)}
                           </td>
-                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                          <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                             {formatAud(costBaseTotals.manual.net)}
                           </td>
                           <td></td>
@@ -2809,12 +2809,12 @@ export default function PropertyDetailView({
                       never reaches the database. */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
                     {costBaseEntryError && (
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#C46A4C", marginRight: "auto" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#d92d20", marginRight: "auto" }}>
                         {costBaseEntryError}
                       </span>
                     )}
                     {costBaseSaved && !costBaseEntryError && (
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#56613F", marginRight: "auto" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#059669", marginRight: "auto" }}>
                         Cost base saved.
                       </span>
                     )}
@@ -2826,8 +2826,8 @@ export default function PropertyDetailView({
                         padding: "9px 20px",
                         borderRadius: "8px",
                         border: "none",
-                        backgroundColor: "#242629",
-                        color: "#FFFFFF",
+                        backgroundColor: "#28336e",
+                        color: "#ffffff",
                         fontSize: "13px",
                         fontWeight: 700,
                         cursor: isSavingCostBase || isCostBaseEntriesLoading ? "not-allowed" : "pointer",
@@ -2851,17 +2851,17 @@ export default function PropertyDetailView({
                 is copied into property_settlement_entry, so an edit, a delete
                 or a review rejection upstream needs no sync to stay correct. */}
             <div style={{
-              backgroundColor: "#FFFFFF",
+              backgroundColor: "#ffffff",
               borderRadius: "16px",
-              border: "1.5px solid #E2E0D9",
+              border: "1.5px solid #e2e8f0",
               padding: "24px",
-              boxShadow: "0 4px 6px -1px rgba(21, 23, 25, 0.05)",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
               marginBottom: "40px"
             }}>
               {/* Header */}
               <div style={{ marginBottom: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                  <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#151719" }}>
+                  <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#1c244b" }}>
                     Settlement Entries
                   </h2>
                 </div>
@@ -2870,10 +2870,10 @@ export default function PropertyDetailView({
                   alignItems: "center",
                   gap: "6px",
                   fontSize: "12.5px",
-                  color: "#6C6C6B",
+                  color: "#64748b",
                   fontWeight: 500
                 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px", color: "#999894", flexShrink: 0 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px", color: "#94a3b8", flexShrink: 0 }}>
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" strokeLinejoin="round" />
                     <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" strokeLinejoin="round" />
@@ -2888,14 +2888,14 @@ export default function PropertyDetailView({
                   money actually lives: the transaction itself. */}
               <div style={{ marginBottom: "28px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#151719" }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>
                     Property Cost
                   </h3>
                   <span style={{
                     fontSize: "11px",
                     fontWeight: 700,
-                    backgroundColor: "#F3F0E9",
-                    color: "#505050",
+                    backgroundColor: "#f1f5f9",
+                    color: "#475569",
                     padding: "2px 8px",
                     borderRadius: "4px"
                   }}>From transactions</span>
@@ -2903,37 +2903,37 @@ export default function PropertyDetailView({
 
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1.5px solid #E2E0D9" }}>
-                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "20%" }}>Category</th>
-                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Description</th>
-                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "12%" }}>Source</th>
-                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "15%" }}>Gross</th>
-                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
-                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "15%" }}>Net</th>
+                    <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "20%" }}>Category</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Description</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "12%" }}>Source</th>
+                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "15%" }}>Gross</th>
+                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
+                      <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "15%" }}>Net</th>
                     </tr>
                   </thead>
                   <tbody>
                     {costBaseAutoRows.map((row) => (
-                      <tr key={`settlement-property-cost-${row.id}`} style={{ borderBottom: "1px solid #F3F0E9" }}>
-                        <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#3E3F3F" }}>{row.category}</td>
-                        <td style={{ padding: "12px 8px", fontSize: "13px", color: row.description ? "#505050" : "#999894" }}>
+                      <tr key={`settlement-property-cost-${row.id}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>{row.category}</td>
+                        <td style={{ padding: "12px 8px", fontSize: "13px", color: row.description ? "#475569" : "#94a3b8" }}>
                           {row.description || "—"}
                         </td>
-                        <td style={{ padding: "12px 8px", fontSize: "12px", color: "#6C6C6B" }}>{row.source}</td>
-                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#505050", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "12px 8px", fontSize: "12px", color: "#64748b" }}>{row.source}</td>
+                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>
                           {formatAud(row.gross)}
                         </td>
-                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", color: "#6C6C6B", whiteSpace: "nowrap" }}>
+                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", color: "#64748b", whiteSpace: "nowrap" }}>
                           {formatAud(row.gst)}
                         </td>
-                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#151719", whiteSpace: "nowrap" }}>
+                        <td style={{ textAlign: "right", padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap" }}>
                           {formatAud(row.net)}
                         </td>
                       </tr>
                     ))}
                     {costBaseAutoRows.length === 0 && (
                       <tr>
-                        <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#999894", textAlign: "center" }}>
+                        <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
                           {isCostBaseLoading
                             ? "Loading Property Cost transactions…"
                             : costBaseError
@@ -2943,15 +2943,15 @@ export default function PropertyDetailView({
                       </tr>
                     )}
                     {costBaseAutoRows.length > 0 && (
-                      <tr style={{ borderTop: "1.5px solid #CBC9C4" }}>
-                        <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719" }}>Total Property Cost</td>
-                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                      <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                        <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Property Cost</td>
+                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                           {formatAud(costBaseTotals.propertyCost.gross)}
                         </td>
-                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                           {formatAud(costBaseTotals.propertyCost.gst)}
                         </td>
-                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                        <td style={{ textAlign: "right", padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                           {formatAud(costBaseTotals.propertyCost.net)}
                         </td>
                       </tr>
@@ -2963,14 +2963,14 @@ export default function PropertyDetailView({
               {/* Subheader */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#151719" }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#1c244b" }}>
                     Amount Settled By
                   </h3>
                   <span style={{
                     fontSize: "11px",
                     fontWeight: 700,
-                    backgroundColor: "#F3F0E9",
-                    color: "#505050",
+                    backgroundColor: "#f1f5f9",
+                    color: "#475569",
                     padding: "2px 8px",
                     borderRadius: "4px"
                   }}>Manual Entry</span>
@@ -2984,21 +2984,21 @@ export default function PropertyDetailView({
                     gap: "4px",
                     padding: "6px 14px",
                     borderRadius: "8px",
-                    border: "1px solid #CBC9C4",
-                    backgroundColor: "#FFFFFF",
-                    color: "#151719",
+                    border: "1px solid #cbd5e1",
+                    backgroundColor: "#ffffff",
+                    color: "#1c244b",
                     fontSize: "12.5px",
                     fontWeight: 750,
                     cursor: "pointer",
                     transition: "all 0.15s ease"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#F3F0E9";
-                    e.currentTarget.style.borderColor = "#999894";
+                    e.currentTarget.style.backgroundColor = "#f8fafc";
+                    e.currentTarget.style.borderColor = "#94a3b8";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#FFFFFF";
-                    e.currentTarget.style.borderColor = "#CBC9C4";
+                    e.currentTarget.style.backgroundColor = "#ffffff";
+                    e.currentTarget.style.borderColor = "#cbd5e1";
                   }}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ width: "10px", height: "10px" }}>
@@ -3011,20 +3011,20 @@ export default function PropertyDetailView({
               {/* Table / List */}
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1.5px solid #E2E0D9" }}>
-                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "23%" }} >
+                  <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "23%" }} >
                       FUNDING SOURCE
                     </th>
-                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "27%" }} >
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "27%" }} >
                       DESCRIPTION
                     </th>
-                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "16%" }} >
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "16%" }} >
                       GROSS AMOUNT (AUD)
                     </th>
-                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }} >
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }} >
                       GST AMOUNT (AUD)
                     </th>
-                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#6C6C6B", textTransform: "uppercase", letterSpacing: "0.05em", width: "16%" }} >
+                    <th style={{ textAlign: "right", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", width: "16%" }} >
                       NET TOTAL (AUD)
                     </th>
                     <th style={{ width: "40px" }}></th>
@@ -3033,13 +3033,13 @@ export default function PropertyDetailView({
                 <tbody>
                   {fundingSources.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#999894", textAlign: "center" }}>
+                      <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
                         {isSettlementLoading ? "Loading settlement entries…" : "No funding sources yet. Use “Add Category” to record how this settlement was funded."}
                       </td>
                     </tr>
                   )}
                   {fundingSources.map((row) => (
-                    <tr key={row.key} style={{ borderBottom: "1px solid #F3F0E9" }}>
+                    <tr key={row.key} style={{ borderBottom: "1px solid #f8fafc" }}>
                       <td style={{ padding: "12px 8px", verticalAlign: "middle" }}>
                         <input
                           type="text"
@@ -3051,10 +3051,10 @@ export default function PropertyDetailView({
                             boxSizing: "border-box",
                             padding: "8px 12px",
                             borderRadius: "8px",
-                            border: "1px solid #CBC9C4",
+                            border: "1px solid #cbd5e1",
                             fontSize: "13.5px",
                             fontWeight: 600,
-                            color: "#3E3F3F",
+                            color: "#334155",
                             outline: "none"
                           }}
                         />
@@ -3070,10 +3070,10 @@ export default function PropertyDetailView({
                             boxSizing: "border-box",
                             padding: "8px 12px",
                             borderRadius: "8px",
-                            border: "1px solid #CBC9C4",
+                            border: "1px solid #cbd5e1",
                             fontSize: "13.5px",
                             fontWeight: 500,
-                            color: "#3E3F3F",
+                            color: "#334155",
                             outline: "none"
                           }}
                         />
@@ -3091,9 +3091,9 @@ export default function PropertyDetailView({
                             boxSizing: "border-box",
                             padding: "8px 14px",
                             borderRadius: "8px",
-                            border: "1px solid #E2E0D9",
-                            backgroundColor: "#FFFFFF",
-                            color: "#151719",
+                            border: "1px solid #e2e8f0",
+                            backgroundColor: "#ffffff",
+                            color: "#1e293b",
                             fontSize: "14px",
                             fontWeight: 500,
                             textAlign: "right",
@@ -3101,11 +3101,11 @@ export default function PropertyDetailView({
                             transition: "all 0.2s ease"
                           }}
                           onFocus={(e) => {
-                            e.target.style.borderColor = "#242629";
-                            e.target.style.boxShadow = "0 0 0 3px rgba(36, 38, 41, 0.08)";
+                            e.target.style.borderColor = "#28336e";
+                            e.target.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.08)";
                           }}
                           onBlur={(e) => {
-                            e.target.style.borderColor = "#E2E0D9";
+                            e.target.style.borderColor = "#e2e8f0";
                             e.target.style.boxShadow = "none";
                           }}
                         />
@@ -3123,9 +3123,9 @@ export default function PropertyDetailView({
                             boxSizing: "border-box",
                             padding: "8px 14px",
                             borderRadius: "8px",
-                            border: "1px solid #E2E0D9",
-                            backgroundColor: "#FFFFFF",
-                            color: "#151719",
+                            border: "1px solid #e2e8f0",
+                            backgroundColor: "#ffffff",
+                            color: "#1e293b",
                             fontSize: "14px",
                             fontWeight: 500,
                             textAlign: "right",
@@ -3133,17 +3133,17 @@ export default function PropertyDetailView({
                             transition: "all 0.2s ease"
                           }}
                           onFocus={(e) => {
-                            e.target.style.borderColor = "#242629";
-                            e.target.style.boxShadow = "0 0 0 3px rgba(36, 38, 41, 0.08)";
+                            e.target.style.borderColor = "#28336e";
+                            e.target.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.08)";
                           }}
                           onBlur={(e) => {
-                            e.target.style.borderColor = "#E2E0D9";
+                            e.target.style.borderColor = "#e2e8f0";
                             e.target.style.boxShadow = "none";
                           }}
                         />
                       </td>
                       {/* Net is gross less GST, derived as the other two are typed. */}
-                      <td style={{ padding: "12px 22px 12px 8px", textAlign: "right", verticalAlign: "middle", fontSize: "14px", fontWeight: 600, color: "#151719", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "12px 22px 12px 8px", textAlign: "right", verticalAlign: "middle", fontSize: "14px", fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap" }}>
                         {formatAud(fundingRowNet(row))}
                       </td>
                       <td style={{ padding: "12px 8px", textAlign: "center", verticalAlign: "middle" }}>
@@ -3153,7 +3153,7 @@ export default function PropertyDetailView({
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#C46A4C",
+                            color: "#ef4444",
                             cursor: "pointer",
                             padding: "4px"
                           }}
@@ -3167,15 +3167,15 @@ export default function PropertyDetailView({
                     </tr>
                   ))}
                   {fundingSources.length > 0 && (
-                    <tr style={{ borderTop: "1.5px solid #CBC9C4" }}>
-                      <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719" }}>Total</td>
-                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                    <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
+                      <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total</td>
+                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                         {formatAud(fundingTotals.gross)}
                       </td>
-                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                         {formatAud(fundingTotals.gst)}
                       </td>
-                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#151719", whiteSpace: "nowrap" }}>
+                      <td style={{ textAlign: "right", padding: "14px 22px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                         {formatAud(fundingTotals.net)}
                       </td>
                       <td></td>
@@ -3188,12 +3188,12 @@ export default function PropertyDetailView({
                   page never persists the six seeded funding sources. */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
                 {settlementError && (
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#C46A4C", marginRight: "auto" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#d92d20", marginRight: "auto" }}>
                     {settlementError}
                   </span>
                 )}
                 {settlementSaved && !settlementError && (
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#56613F", marginRight: "auto" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#059669", marginRight: "auto" }}>
                     Settlement entries saved.
                   </span>
                 )}
@@ -3205,8 +3205,8 @@ export default function PropertyDetailView({
                     padding: "9px 20px",
                     borderRadius: "8px",
                     border: "none",
-                    backgroundColor: "#242629",
-                    color: "#FFFFFF",
+                    backgroundColor: "#28336e",
+                    color: "#ffffff",
                     fontSize: "13px",
                     fontWeight: 700,
                     cursor: isSavingSettlement || isSettlementLoading ? "not-allowed" : "pointer",
@@ -3220,9 +3220,9 @@ export default function PropertyDetailView({
               {/* Summary Box */}
               <div style={{
                 marginTop: "24px",
-                backgroundColor: "#F3F0E9",
+                backgroundColor: "#f8fafc",
                 borderRadius: "12px",
-                border: "1px solid #F3F0E9",
+                border: "1px solid #f1f5f9",
                 padding: "20px 24px",
               }}>
                 {/* The cost base first, then everything under Settlement
@@ -3247,7 +3247,7 @@ export default function PropertyDetailView({
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: "rgba(21, 23, 25, 0.6)",
+                backgroundColor: "rgba(15, 23, 42, 0.6)",
                 backdropFilter: "blur(4px)",
                 display: "flex",
                 alignItems: "center",
@@ -3255,22 +3255,22 @@ export default function PropertyDetailView({
                 zIndex: 9999
               }} onClick={() => setIsAddBalanceOpen(false)}>
                 <div style={{
-                  backgroundColor: "#FFFFFF",
+                  backgroundColor: "#ffffff",
                   borderRadius: "16px",
                   width: "100%",
                   maxWidth: "500px",
-                  boxShadow: "0 20px 25px -5px rgba(21, 23, 25, 0.1), 0 10px 10px -5px rgba(21, 23, 25, 0.04)",
+                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
                   overflow: "hidden"
                 }} onClick={(e) => e.stopPropagation()}>
 
                   {/* Modal Header */}
                   <div style={{
-                    backgroundColor: "#242629",
+                    backgroundColor: "#28336e",
                     padding: "20px 24px",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    color: "#FFFFFF"
+                    color: "#ffffff"
                   }}>
                     <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>Add Balance Record</h2>
                     <button
@@ -3284,7 +3284,7 @@ export default function PropertyDetailView({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "#FFFFFF",
+                        color: "#ffffff",
                         cursor: "pointer"
                       }}
                     >
@@ -3298,7 +3298,7 @@ export default function PropertyDetailView({
                   <form onSubmit={handleAddBalanceSubmit} style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
 
                     {balanceError && (
-                      <div style={{ color: "#C46A4C", fontSize: "13px", fontWeight: 700, backgroundColor: "#F3F0E9", padding: "10px", borderRadius: "8px", border: "1px solid #F6EAE2" }}>
+                      <div style={{ color: "#ef4444", fontSize: "13px", fontWeight: 700, backgroundColor: "#fef2f2", padding: "10px", borderRadius: "8px", border: "1px solid #fee2e2" }}>
                         {balanceError}
                       </div>
                     )}
@@ -3306,29 +3306,29 @@ export default function PropertyDetailView({
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       {/* Date */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>Invoice Date *</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Invoice Date *</span>
                         <ValidatedDateInput
                           required
                           value={balanceDate}
                           onChange={(e) => setBalanceDate(e.target.value)}
-                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #CBC9C4", fontSize: "14px", fontWeight: 600 }}
+                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600 }}
                         />
                       </label>
 
                       {/* Type */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>Type *</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Type *</span>
                         <select
                           value={addBalanceType}
                           onChange={(e) => setAddBalanceType(e.target.value as any)}
                           style={{
                             padding: "8px 32px 8px 12px",
                             borderRadius: "8px",
-                            border: "1px solid #CBC9C4",
+                            border: "1px solid #cbd5e1",
                             fontSize: "14px",
                             fontWeight: 600,
                             height: "38px",
-                            backgroundColor: "#FFFFFF",
+                            backgroundColor: "#ffffff",
                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
                             backgroundRepeat: "no-repeat",
                             backgroundPosition: "right 10px center",
@@ -3338,14 +3338,14 @@ export default function PropertyDetailView({
                             cursor: "pointer",
                             outline: "none",
                             transition: "all 0.2s ease",
-                            color: "#151719",
+                            color: "#1e293b",
                           }}
                           onFocus={(e) => {
-                            e.currentTarget.style.borderColor = "#242629";
-                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(36, 38, 41, 0.12)";
+                            e.currentTarget.style.borderColor = "#28336e";
+                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.12)";
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = "#CBC9C4";
+                            e.currentTarget.style.borderColor = "#cbd5e1";
                             e.currentTarget.style.boxShadow = "none";
                           }}
                         >
@@ -3358,7 +3358,7 @@ export default function PropertyDetailView({
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       {/* Category */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>Category *</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Category *</span>
                         <select
                           required
                           value={selectedCatId}
@@ -3366,11 +3366,11 @@ export default function PropertyDetailView({
                           style={{
                             padding: "8px 32px 8px 12px",
                             borderRadius: "8px",
-                            border: "1px solid #CBC9C4",
+                            border: "1px solid #cbd5e1",
                             fontSize: "14px",
                             fontWeight: 600,
                             height: "38px",
-                            backgroundColor: "#FFFFFF",
+                            backgroundColor: "#ffffff",
                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
                             backgroundRepeat: "no-repeat",
                             backgroundPosition: "right 10px center",
@@ -3380,14 +3380,14 @@ export default function PropertyDetailView({
                             cursor: "pointer",
                             outline: "none",
                             transition: "all 0.2s ease",
-                            color: "#151719",
+                            color: "#1e293b",
                           }}
                           onFocus={(e) => {
-                            e.currentTarget.style.borderColor = "#242629";
-                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(36, 38, 41, 0.12)";
+                            e.currentTarget.style.borderColor = "#28336e";
+                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.12)";
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = "#CBC9C4";
+                            e.currentTarget.style.borderColor = "#cbd5e1";
                             e.currentTarget.style.boxShadow = "none";
                           }}
                         >
@@ -3400,7 +3400,7 @@ export default function PropertyDetailView({
 
                       {/* Subcategory */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>Subcategory *</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Subcategory *</span>
                         <select
                           required
                           disabled={!selectedCatId}
@@ -3409,11 +3409,11 @@ export default function PropertyDetailView({
                           style={{
                             padding: "8px 32px 8px 12px",
                             borderRadius: "8px",
-                            border: "1px solid #CBC9C4",
+                            border: "1px solid #cbd5e1",
                             fontSize: "14px",
                             fontWeight: 600,
                             height: "38px",
-                            backgroundColor: "#FFFFFF",
+                            backgroundColor: "#ffffff",
                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
                             backgroundRepeat: "no-repeat",
                             backgroundPosition: "right 10px center",
@@ -3423,15 +3423,15 @@ export default function PropertyDetailView({
                             cursor: selectedCatId ? "pointer" : "not-allowed",
                             outline: "none",
                             transition: "all 0.2s ease",
-                            color: "#151719",
+                            color: "#1e293b",
                             opacity: selectedCatId ? 1 : 0.6
                           }}
                           onFocus={(e) => {
-                            e.currentTarget.style.borderColor = "#242629";
-                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(36, 38, 41, 0.12)";
+                            e.currentTarget.style.borderColor = "#28336e";
+                            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40, 51, 110, 0.12)";
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = "#CBC9C4";
+                            e.currentTarget.style.borderColor = "#cbd5e1";
                             e.currentTarget.style.boxShadow = "none";
                           }}
                         >
@@ -3446,7 +3446,7 @@ export default function PropertyDetailView({
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       {/* Gross Amount */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>Gross Amount (A$) *</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Gross Amount (A$) *</span>
                         <input
                           type="number"
                           step="0.01"
@@ -3454,33 +3454,33 @@ export default function PropertyDetailView({
                           placeholder="e.g. 100.00"
                           value={balanceGross}
                           onChange={(e) => handleGrossChange(e.target.value)}
-                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #CBC9C4", fontSize: "14px", fontWeight: 600 }}
+                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600 }}
                         />
                       </label>
 
                       {/* GST Amount */}
                       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>GST Amount (A$)</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>GST Amount (A$)</span>
                         <input
                           type="number"
                           step="0.01"
                           placeholder="Calculated automatically"
                           value={balanceGst}
                           onChange={(e) => setBalanceGst(e.target.value)}
-                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #CBC9C4", fontSize: "14px", fontWeight: 600 }}
+                          style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600 }}
                         />
                       </label>
                     </div>
 
                     {/* Description */}
                     <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#505050" }}>Description</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Description</span>
                       <input
                         type="text"
                         placeholder="e.g. Monthly rental statement"
                         value={balanceDesc}
                         onChange={(e) => setBalanceDesc(e.target.value)}
-                        style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #CBC9C4", fontSize: "14px", fontWeight: 600 }}
+                        style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", fontWeight: 600 }}
                       />
                     </label>
 
@@ -3489,19 +3489,19 @@ export default function PropertyDetailView({
                       <button
                         type="button"
                         onClick={() => setIsAddBalanceOpen(false)}
-                        style={{ padding: "10px 16px", borderRadius: "8px", border: "1.5px solid #CBC9C4", backgroundColor: "#FFFFFF", color: "#505050", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                        style={{ padding: "10px 16px", borderRadius: "8px", border: "1.5px solid #cbd5e1", backgroundColor: "#ffffff", color: "#475569", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={isSubmittingBalance}
-                        style={{ padding: "10px 16px", borderRadius: "8px", border: "none", backgroundColor: "#242629", color: "#FFFFFF", fontSize: "14px", fontWeight: 700, cursor: isSubmittingBalance ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: "6px", opacity: isSubmittingBalance ? 0.7 : 1 }}
+                        style={{ padding: "10px 16px", borderRadius: "8px", border: "none", backgroundColor: "#28336e", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: isSubmittingBalance ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: "6px", opacity: isSubmittingBalance ? 0.7 : 1 }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#151719';
+                          e.currentTarget.style.backgroundColor = '#1f2753';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#242629';
+                          e.currentTarget.style.backgroundColor = '#28336e';
                         }}
                       >
                         {isSubmittingBalance ? "Saving..." : "Save Balance"}
@@ -3586,8 +3586,8 @@ export default function PropertyDetailView({
                         padding: '8px 16px',
                         borderRadius: '9999px',
                         border: 'none',
-                        backgroundColor: propertyDisabled ? '#F3F0E9' : '#E8E5DF',
-                        color: propertyDisabled ? '#4F4F4F' : '#56613F',
+                        backgroundColor: propertyDisabled ? '#f3f4f6' : '#e6f4ea',
+                        color: propertyDisabled ? '#4b5563' : '#137333',
                         fontSize: '14px',
                         fontWeight: 700,
                         cursor: entityDisabled || isTogglingEnabled ? 'not-allowed' : 'pointer',
@@ -3597,12 +3597,12 @@ export default function PropertyDetailView({
                       }}
                       onMouseEnter={(e) => {
                         if (!entityDisabled && !isTogglingEnabled) {
-                          e.currentTarget.style.backgroundColor = propertyDisabled ? '#E1DFD8' : '#EEEEE5';
+                          e.currentTarget.style.backgroundColor = propertyDisabled ? '#e5e7eb' : '#d4edda';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!entityDisabled && !isTogglingEnabled) {
-                          e.currentTarget.style.backgroundColor = propertyDisabled ? '#F3F0E9' : '#E8E5DF';
+                          e.currentTarget.style.backgroundColor = propertyDisabled ? '#f3f4f6' : '#e6f4ea';
                         }
                       }}
                     >
@@ -3621,7 +3621,7 @@ export default function PropertyDetailView({
                           width: '8px',
                           height: '8px',
                           borderRadius: '50%',
-                          backgroundColor: propertyDisabled ? '#989794' : '#6F7A5A',
+                          backgroundColor: propertyDisabled ? '#9ca3af' : '#10b981',
                         }} />
                       )}
                       {propertyDisabled ? "Inactive" : "Active"}
@@ -3634,8 +3634,8 @@ export default function PropertyDetailView({
                         gap: '8px',
                         padding: '8px 16px',
                         borderRadius: '9999px',
-                        backgroundColor: propertyDisabled ? '#F3F0E9' : '#E8E5DF',
-                        color: propertyDisabled ? '#4F4F4F' : '#56613F',
+                        backgroundColor: propertyDisabled ? '#f3f4f6' : '#e6f4ea',
+                        color: propertyDisabled ? '#4b5563' : '#137333',
                         fontSize: '14px',
                         fontWeight: 700,
                         height: '42px',
@@ -3645,7 +3645,7 @@ export default function PropertyDetailView({
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: propertyDisabled ? '#989794' : '#6F7A5A',
+                        backgroundColor: propertyDisabled ? '#9ca3af' : '#10b981',
                       }} />
                       {propertyDisabled ? "Inactive" : "Active"}
                     </div>
@@ -3659,10 +3659,10 @@ export default function PropertyDetailView({
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 20px',
-                      border: '1.5px solid #CCCAC4',
+                      border: '1.5px solid #d0d5dd',
                       borderRadius: '10px',
-                      backgroundColor: '#FFFFFF',
-                      color: '#242629',
+                      backgroundColor: '#ffffff',
+                      color: '#233069',
                       fontSize: '14px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -3671,10 +3671,10 @@ export default function PropertyDetailView({
                       textDecoration: 'none',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#F3F0E9';
+                      e.currentTarget.style.backgroundColor = '#f9fafb';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                      e.currentTarget.style.backgroundColor = '#ffffff';
                     }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
@@ -3697,10 +3697,10 @@ export default function PropertyDetailView({
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 20px',
-                      border: '1.5px solid #242629',
+                      border: '1.5px solid #233069',
                       borderRadius: '10px',
-                      backgroundColor: '#EBE6F4',
-                      color: '#242629',
+                      backgroundColor: '#e8ebfa',
+                      color: '#233069',
                       fontSize: '14px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -3708,10 +3708,10 @@ export default function PropertyDetailView({
                       height: '42px',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#E2DAF4';
+                      e.currentTarget.style.backgroundColor = '#d8def7';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#EBE6F4';
+                      e.currentTarget.style.backgroundColor = '#e8ebfa';
                     }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
@@ -3731,8 +3731,8 @@ export default function PropertyDetailView({
                       padding: '10px 20px',
                       border: 'none',
                       borderRadius: '10px',
-                      backgroundColor: '#242629',
-                      color: '#FFFFFF',
+                      backgroundColor: '#28336e',
+                      color: '#ffffff',
                       fontSize: '14px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -3740,10 +3740,10 @@ export default function PropertyDetailView({
                       height: '42px',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#151719';
+                      e.currentTarget.style.backgroundColor = '#1f2753';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#242629';
+                      e.currentTarget.style.backgroundColor = '#28336e';
                     }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "16px", height: "16px", flexShrink: 0 }}>
@@ -3767,26 +3767,26 @@ export default function PropertyDetailView({
                           alignItems: 'center',
                           justifyContent: 'center',
                           padding: '10px 14px',
-                          border: '1.5px solid #CCCAC4',
+                          border: '1.5px solid #d0d5dd',
                           borderRadius: '10px',
-                          backgroundColor: '#FFFFFF',
-                          color: '#4F4F4F',
+                          backgroundColor: '#ffffff',
+                          color: '#475467',
                           cursor: 'pointer',
                           transition: 'all 0.2s',
                           height: '42px',
                           width: '42px',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#F3F0E9';
+                          e.currentTarget.style.backgroundColor = '#f9fafb';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#FFFFFF';
+                          e.currentTarget.style.backgroundColor = '#ffffff';
                         }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 17 17" fill="none">
-                          <path d="M3.54245 9.49163C4.09013 9.49163 4.53411 9.04765 4.53411 8.49997C4.53411 7.95228 4.09013 7.5083 3.54245 7.5083C2.99477 7.5083 2.55078 7.95228 2.55078 8.49997C2.55078 9.04765 2.99477 9.49163 3.54245 9.49163Z" fill="#151719" />
-                          <path d="M8.49948 9.49163C9.04716 9.49163 9.49115 9.04765 9.49115 8.49997C9.49115 7.95228 9.04716 7.5083 8.49948 7.5083C7.9518 7.5083 7.50781 7.95228 7.50781 8.49997C7.50781 9.04765 7.9518 9.49163 8.49948 9.49163Z" fill="#151719" />
-                          <path d="M13.4585 9.49163C14.0061 9.49163 14.4501 9.04765 14.4501 8.49997C14.4501 7.95228 14.0061 7.5083 13.4585 7.5083C12.9108 7.5083 12.4668 7.95228 12.4668 8.49997C12.4668 9.04765 12.9108 9.49163 13.4585 9.49163Z" fill="#151719" />
+                          <path d="M3.54245 9.49163C4.09013 9.49163 4.53411 9.04765 4.53411 8.49997C4.53411 7.95228 4.09013 7.5083 3.54245 7.5083C2.99477 7.5083 2.55078 7.95228 2.55078 8.49997C2.55078 9.04765 2.99477 9.49163 3.54245 9.49163Z" fill="#1B2559" />
+                          <path d="M8.49948 9.49163C9.04716 9.49163 9.49115 9.04765 9.49115 8.49997C9.49115 7.95228 9.04716 7.5083 8.49948 7.5083C7.9518 7.5083 7.50781 7.95228 7.50781 8.49997C7.50781 9.04765 7.9518 9.49163 8.49948 9.49163Z" fill="#1B2559" />
+                          <path d="M13.4585 9.49163C14.0061 9.49163 14.4501 9.04765 14.4501 8.49997C14.4501 7.95228 14.0061 7.5083 13.4585 7.5083C12.9108 7.5083 12.4668 7.95228 12.4668 8.49997C12.4668 9.04765 12.9108 9.49163 13.4585 9.49163Z" fill="#1B2559" />
                         </svg>
                       </button>
 
@@ -3796,10 +3796,10 @@ export default function PropertyDetailView({
                           top: '100%',
                           right: 0,
                           marginTop: '8px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1.5px solid #CCCAC4',
+                          backgroundColor: '#ffffff',
+                          border: '1.5px solid #d0d5dd',
                           borderRadius: '12px',
-                          boxShadow: '0 10px 15px -3px rgba(21, 23, 25, 0.1), 0 4px 6px -2px rgba(21, 23, 25, 0.05)',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                           zIndex: 100,
                           padding: '8px',
                           minWidth: '180px',
@@ -3816,7 +3816,7 @@ export default function PropertyDetailView({
                                   alignItems: 'center',
                                   padding: '10px 12px',
                                   borderRadius: '6px',
-                                  color: '#151719',
+                                  color: '#1e295d',
                                   fontSize: '14px',
                                   fontWeight: 600,
                                   textDecoration: 'none',
@@ -3826,7 +3826,7 @@ export default function PropertyDetailView({
                                 onClick={() => setIsActionsDropdownOpen(false)}
                                 className="dropdown-item-hover"
                               >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', marginRight: '10px', color: '#151719', flexShrink: 0 }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', marginRight: '10px', color: '#1e295d', flexShrink: 0 }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                 </svg>
                                 Edit Details
@@ -3841,7 +3841,7 @@ export default function PropertyDetailView({
                                   alignItems: 'center',
                                   padding: '10px 12px',
                                   borderRadius: '6px',
-                                  color: '#151719',
+                                  color: '#1e295d',
                                   fontSize: '14px',
                                   fontWeight: 600,
                                   textDecoration: 'none',
@@ -3851,7 +3851,7 @@ export default function PropertyDetailView({
                                 onClick={() => setIsActionsDropdownOpen(false)}
                                 className="dropdown-item-hover"
                               >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', marginRight: '10px', color: '#151719', flexShrink: 0 }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', marginRight: '10px', color: '#1e295d', flexShrink: 0 }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                                 </svg>
                                 Review Form
@@ -3873,7 +3873,7 @@ export default function PropertyDetailView({
                                 background: 'none',
                                 padding: '10px 12px',
                                 borderRadius: '6px',
-                                color: '#151719',
+                                color: '#1e295d',
                                 fontSize: '14px',
                                 fontWeight: 600,
                                 textAlign: 'left',
@@ -3882,7 +3882,7 @@ export default function PropertyDetailView({
                               }}
                               className="dropdown-item-hover"
                             >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', marginRight: '10px', color: '#151719', flexShrink: 0 }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', marginRight: '10px', color: '#1e295d', flexShrink: 0 }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                               </svg>
                               Export CSV
@@ -3930,14 +3930,14 @@ export default function PropertyDetailView({
             statement header carries the same control bound to the same state. */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#151719' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#1c244b' }}>
                   Profit &amp; Loss summary
                 </span>
                 {/* Keyed off pnlReady, the same flag the cards use, so the period
                 line and the figures beneath it can never tell different stories —
                 the first render has neither loaded nor failed, and would
                 otherwise print a confident year above three em dashes. */}
-                <span style={{ fontSize: '12px', fontWeight: 500, color: pnl.error ? '#C46A4C' : '#6C6C6B' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: pnl.error ? '#b91c1c' : '#64748b' }}>
                   {pnl.error
                     ? pnl.error
                     : !pnlReady
@@ -3954,14 +3954,14 @@ export default function PropertyDetailView({
             </div>
 
             <div className="client-stat-grid property-metric-grid">
-              <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F3F0E9', borderColor: '#DDD4F5' }}>
+              <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eef2ff', borderColor: '#c7d2fe' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#7A5CFA' }}>Total Income</span>
-                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#151719', marginTop: '4px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#4338ca' }}>Total Income</span>
+                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#1e1b4b', marginTop: '4px' }}>
                     {pnlCardAmount(pnlTotals.incomeCurrent)}
                   </strong>
                 </div>
-                <span className="client-stat-icon" style={{ background: '#151719', color: '#FFFFFF', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="client-stat-icon" style={{ background: '#1e1b4b', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
                     <line x1="12" y1="1" x2="12" y2="23"></line>
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
@@ -3974,33 +3974,33 @@ export default function PropertyDetailView({
                   separate bands but deducts them together, so a card showing only
                   the expense band would not reconcile with the net profit beside
                   it. */}
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#464747' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#454a55' }}>
                     Total Expenses
-                    <span style={{ fontWeight: 500, color: '#999894' }}> incl. depreciation</span>
+                    <span style={{ fontWeight: 500, color: '#94a3b8' }}> incl. depreciation</span>
                   </span>
-                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#151719', marginTop: '4px' }}>
+                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
                     {pnlCardAmount(pnlTotals.expenseCurrent)}
                   </strong>
                 </div>
-                <span className="client-stat-icon" style={{ background: '#F3F0E9', color: '#505050', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="client-stat-icon" style={{ background: '#f1f5f9', color: '#475569', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
                     <line x1="12" y1="1" x2="12" y2="23"></line>
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                   </svg>
                 </span>
               </article>
-              <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7EEE7', borderColor: '#EAC3B3' }}>
+              <article className="client-stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fffbeb', borderColor: '#fde68a' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#C46A4C' }}>Net Profit / (Loss)</span>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>Net Profit / (Loss)</span>
                   {/* Signed by the server (Income − Expenses − Depreciation) and
                   never re-derived here, so the card cannot disagree with the
                   statement's footing. Grey while it is still unknown rather than
                   green, which would read as a profit. */}
-                  <strong style={{ fontSize: '28px', fontWeight: 800, color: !pnlReady ? '#999894' : pnlTotals.netCurrent >= 0 ? '#56613F' : '#C46A4C', marginTop: '4px' }}>
+                  <strong style={{ fontSize: '28px', fontWeight: 800, color: !pnlReady ? '#94a3b8' : pnlTotals.netCurrent >= 0 ? '#15803d' : '#b91c1c', marginTop: '4px' }}>
                     {pnlCardAmount(pnlTotals.netCurrent)}
                   </strong>
                 </div>
-                <span className="client-stat-icon" style={{ background: '#7A5CFA', color: '#FFFFFF', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="client-stat-icon" style={{ background: '#f59e0b', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                     <polyline points="17 6 23 6 23 12"></polyline>
@@ -4011,21 +4011,21 @@ export default function PropertyDetailView({
 
             {/* GST Summary Cards Row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px', marginBottom: '18px' }}>
-              <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #F6EAE2', borderRadius: '10px', background: '#F3F0E9', boxShadow: '0 8px 20px rgba(21, 23, 25, 0.05)' }}>
+              <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #fee2e2', borderRadius: '10px', background: '#fef2f2', boxShadow: '0 8px 20px rgba(16, 24, 40, 0.05)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#C46A4C', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                     GST ON PURCHASE
                   </span>
                   {gstPeriodLabel && (
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#C46A4C', opacity: 0.75 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', opacity: 0.75 }}>
                       {gstPeriodLabel}
                     </span>
                   )}
-                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#151719', marginTop: '4px' }}>
+                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
                     A$ {gstPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </strong>
                 </div>
-                <span className="client-stat-icon" style={{ background: '#C46A4C', color: '#FFFFFF', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="client-stat-icon" style={{ background: '#ef4444', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
                     <circle cx="9" cy="21" r="1" />
                     <circle cx="20" cy="21" r="1" />
@@ -4033,21 +4033,21 @@ export default function PropertyDetailView({
                   </svg>
                 </span>
               </article>
-              <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #F2F2EA', borderRadius: '10px', background: '#F3F0E9', boxShadow: '0 8px 20px rgba(21, 23, 25, 0.05)' }}>
+              <article style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', border: '1px solid #dcfce7', borderRadius: '10px', background: '#f0fdf4', boxShadow: '0 8px 20px rgba(16, 24, 40, 0.05)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#56613F', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                     GST ON SALES
                   </span>
                   {gstPeriodLabel && (
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#56613F', opacity: 0.75 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', opacity: 0.75 }}>
                       {gstPeriodLabel}
                     </span>
                   )}
-                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#151719', marginTop: '4px' }}>
+                  <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
                     A$ {gstSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </strong>
                 </div>
-                <span className="client-stat-icon" style={{ background: '#6F7A5A', color: '#FFFFFF', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="client-stat-icon" style={{ background: '#12b76a', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
@@ -4068,10 +4068,10 @@ export default function PropertyDetailView({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '16px 20px',
-                    border: '1px solid #E2DAF4',
+                    border: '1px solid #dde4f2',
                     borderRadius: '12px',
-                    background: '#FFFFFF',
-                    boxShadow: '0 4px 12px rgba(21, 23, 25, 0.04)',
+                    background: '#ffffff',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
                     cursor: 'pointer',
                     textAlign: 'left',
                     fontFamily: 'inherit',
@@ -4080,18 +4080,18 @@ export default function PropertyDetailView({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <span style={{ background: '#E9E4F4', color: '#7A5CFA', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ background: '#e0e7ff', color: '#4f46e5', borderRadius: '8px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
                     </span>
                     <div>
-                      <strong style={{ display: 'block', fontSize: '15px', color: '#151719', fontWeight: 700 }}>Personal Transactions</strong>
-                      <span style={{ display: 'block', fontSize: '12px', color: '#6A6A69', marginTop: '2px' }}>Expense & revenue totals by category</span>
+                      <strong style={{ display: 'block', fontSize: '15px', color: '#101828', fontWeight: 700 }}>Personal Transactions</strong>
+                      <span style={{ display: 'block', fontSize: '12px', color: '#667085', marginTop: '2px' }}>Expense & revenue totals by category</span>
                     </div>
                   </div>
-                  <span style={{ color: '#6A6A69', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ color: '#667085', display: 'flex', alignItems: 'center' }}>
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -4114,11 +4114,11 @@ export default function PropertyDetailView({
                 {isPersonalExpanded && (
                   <div
                     style={{
-                      background: '#FFFFFF',
-                      border: '1px solid #E2DAF4',
+                      background: '#ffffff',
+                      border: '1px solid #dde4f2',
                       borderRadius: '12px',
                       padding: '24px',
-                      boxShadow: '0 4px 12px rgba(21, 23, 25, 0.04)',
+                      boxShadow: '0 4px 12px rgba(16, 24, 40, 0.04)',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '24px',
@@ -4129,26 +4129,26 @@ export default function PropertyDetailView({
                         section that used to sit here could only be empty.
                         Amounts are this property's slice of each bill. */}
                     <div>
-                      <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#C46A4C', borderBottom: '1px solid #F3F0E9', paddingBottom: '8px' }}>
+                      <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#b91c1c', borderBottom: '1px solid #f2f4f7', paddingBottom: '8px' }}>
                         Private spending
                       </h4>
                       {personal.isLoading ? (
-                        <p style={{ margin: 0, fontSize: '13px', color: '#6A6A69' }}>Loading…</p>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>Loading…</p>
                       ) : personal.error ? (
-                        <p style={{ margin: 0, fontSize: '13px', color: '#C46A4C' }}>{personal.error}</p>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#b42318' }}>{personal.error}</p>
                       ) : personalBreakdown.expenses.length === 0 ? (
-                        <p style={{ margin: 0, fontSize: '13px', color: '#6A6A69' }}>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#667085' }}>
                           No personal transactions recorded for this property.
                         </p>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {personalBreakdown.expenses.map((item, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#3E3F3F' }}>
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#344054' }}>
                               <span>{item.category}</span>
-                              <strong style={{ fontWeight: 600, color: '#151719' }}>{formatAmount(item.amount)}</strong>
+                              <strong style={{ fontWeight: 600, color: '#101828' }}>{formatAmount(item.amount)}</strong>
                             </div>
                           ))}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #E8E5DF', paddingTop: '12px', color: '#151719' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderTop: '1px solid #eaecf0', paddingTop: '12px', color: '#101828' }}>
                             <strong style={{ fontWeight: 700 }}>Total</strong>
                             <strong style={{ fontWeight: 800 }}>{formatAmount(personalBreakdown.totalExpense)}</strong>
                           </div>
@@ -4170,10 +4170,10 @@ export default function PropertyDetailView({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '18px 24px',
-                    border: '1px solid #E2DAF4',
+                    border: '1px solid #dde4f2',
                     borderRadius: '16px',
-                    background: '#FFFFFF',
-                    boxShadow: '0 4px 12px rgba(21, 23, 25, 0.03)',
+                    background: '#ffffff',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
                     cursor: 'pointer',
                     textAlign: 'left',
                     fontFamily: 'inherit',
@@ -4182,18 +4182,18 @@ export default function PropertyDetailView({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span style={{ background: '#F6EAE2', color: '#C46A4C', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ background: '#fdf4e3', color: '#c27a00', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
                         <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                       </svg>
                     </span>
                     <div>
-                      <strong style={{ display: 'block', fontSize: '16px', color: '#242629', fontWeight: 700 }}>Asset Transactions</strong>
-                      <span style={{ display: 'block', fontSize: '13px', color: '#888784', marginTop: '2px' }}>Expenses marked as asset purchases</span>
+                      <strong style={{ display: 'block', fontSize: '16px', color: '#28336e', fontWeight: 700 }}>Asset Transactions</strong>
+                      <span style={{ display: 'block', fontSize: '13px', color: '#828fa7', marginTop: '2px' }}>Expenses marked as asset purchases</span>
                     </div>
                   </div>
-                  <span style={{ color: '#888784', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ color: '#828fa7', display: 'flex', alignItems: 'center' }}>
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -4216,20 +4216,20 @@ export default function PropertyDetailView({
                 {isAssetExpanded && (
                   <div
                     style={{
-                      background: '#FFFFFF',
-                      border: '1px solid #E2DAF4',
+                      background: '#ffffff',
+                      border: '1px solid #dde4f2',
                       borderRadius: '16px',
                       padding: '24px',
-                      boxShadow: '0 4px 12px rgba(21, 23, 25, 0.03)',
+                      boxShadow: '0 4px 12px rgba(16, 24, 40, 0.03)',
                       overflowX: 'auto',
                     }}
                   >
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '450px' }}>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid #F0EDE6' }}>
-                          <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
-                          <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
-                          <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#888784', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
+                        <tr style={{ borderBottom: '1px solid #eef2f6' }}>
+                          <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Asset Name</th>
+                          <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
+                          <th style={{ padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: '#828fa7', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</th>
                           <th style={{ padding: '12px 8px', width: '24px' }}></th>
                         </tr>
                       </thead>
@@ -4238,17 +4238,17 @@ export default function PropertyDetailView({
                           <tr
                             key={idx}
                             onClick={() => router.push(`/dashboard/accountant/clients/${clientId}/entities/${entityId}/properties/${propertyId}/assets/${item.id}`)}
-                            style={{ borderBottom: idx === assetTransactionsList.length - 1 ? 'none' : '1px solid #F3F0E9', cursor: 'pointer', transition: 'background 0.2s ease' }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F0E9')}
+                            style={{ borderBottom: idx === assetTransactionsList.length - 1 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                           >
-                            <td style={{ padding: '16px 8px', fontSize: '14px', color: '#242629', fontWeight: 700 }}>{item.description}</td>
-                            <td style={{ padding: '16px 8px', fontSize: '13px', color: '#505050', whiteSpace: 'nowrap' }}>{item.date}</td>
-                            <td style={{ padding: '16px 8px', fontSize: '14px', color: '#242629', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{item.description}</td>
+                            <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{item.date}</td>
+                            <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
                               {formatAmount(item.amount)}
                             </td>
                             <td style={{ padding: '16px 8px', textAlign: 'right', verticalAlign: 'middle' }}>
-                              <svg viewBox="0 0 24 24" fill="none" stroke="#CBC9C4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
                                 <polyline points="9 18 15 12 9 6" />
                               </svg>
                             </td>
@@ -4361,7 +4361,7 @@ export default function PropertyDetailView({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(21, 23, 25, 0.45)',
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
@@ -4369,12 +4369,12 @@ export default function PropertyDetailView({
             zIndex: 9999,
           }} onClick={() => setIsGstSummaryOpen(false)}>
             <div style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: '#ffffff',
               borderRadius: '20px',
               width: '100%',
               maxWidth: '540px',
               maxHeight: 'min(760px, 92vh)',
-              boxShadow: '0 20px 40px -10px rgba(21, 23, 25, 0.15), 0 0 0 1px rgba(21, 23, 25, 0.04)',
+              boxShadow: '0 20px 40px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.04)',
               display: 'flex',
               flexDirection: 'column',
               fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -4382,19 +4382,19 @@ export default function PropertyDetailView({
 
               {/* Header */}
               <div style={{
-                backgroundColor: 'var(--primary, #242629)',
+                backgroundColor: 'var(--primary, #28336e)',
                 padding: '18px 24px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                color: '#FFFFFF',
+                color: '#ffffff',
                 borderTopLeftRadius: '20px',
                 borderTopRightRadius: '20px',
                 flexShrink: 0,
               }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' }}>GST Summary</h2>
-                  <div style={{ fontSize: '12px', color: '#DDD4F5', marginTop: '2px', fontWeight: 500 }}>
+                  <div style={{ fontSize: '12px', color: '#c7d2fe', marginTop: '2px', fontWeight: 500 }}>
                     {property.name}
                     {gstPeriodLabel ? ` · ${gstPeriodLabel}` : ""}
                   </div>
@@ -4411,17 +4411,17 @@ export default function PropertyDetailView({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#CBC9C4',
+                    color: '#cbd5e1',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                    e.currentTarget.style.color = '#FFFFFF';
+                    e.currentTarget.style.color = '#ffffff';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.color = '#CBC9C4';
+                    e.currentTarget.style.color = '#cbd5e1';
                   }}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px' }}>
@@ -4443,7 +4443,7 @@ export default function PropertyDetailView({
                 {/* Period selectors — custom dropdowns */}
                 <div style={{ display: 'flex', gap: '12px', zIndex: 100 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1', position: 'relative' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 650, color: '#505050' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 650, color: '#475569' }}>
                       Financial year
                     </span>
                     <button
@@ -4460,24 +4460,24 @@ export default function PropertyDetailView({
                         width: '100%',
                         minHeight: '36px',
                         padding: '0 12px',
-                        border: '1.5px solid #E2E0D9',
+                        border: '1.5px solid #e2e8f0',
                         borderRadius: '8px',
-                        backgroundColor: '#FFFFFF',
-                        color: '#151719',
+                        backgroundColor: '#ffffff',
+                        color: '#1e293b',
                         fontSize: '13px',
                         fontWeight: 600,
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.2s',
                         outline: 'none',
-                        boxShadow: isFyDropdownOpen ? '0 0 0 3px rgba(36, 38, 41, 0.12)' : 'none',
-                        borderColor: isFyDropdownOpen ? 'var(--primary, #242629)' : '#CBC9C4',
+                        boxShadow: isFyDropdownOpen ? '0 0 0 3px rgba(40, 51, 110, 0.12)' : 'none',
+                        borderColor: isFyDropdownOpen ? 'var(--primary, #28336e)' : '#cbd5e1',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isFyDropdownOpen) e.currentTarget.style.borderColor = '#999894';
+                        if (!isFyDropdownOpen) e.currentTarget.style.borderColor = '#94a3b8';
                       }}
                       onMouseLeave={(e) => {
-                        if (!isFyDropdownOpen) e.currentTarget.style.borderColor = '#CBC9C4';
+                        if (!isFyDropdownOpen) e.currentTarget.style.borderColor = '#cbd5e1';
                       }}
                     >
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -4491,7 +4491,7 @@ export default function PropertyDetailView({
                         style={{
                           width: '14px',
                           height: '14px',
-                          color: '#6C6C6B',
+                          color: '#64748b',
                           transition: 'transform 0.2s ease',
                           transform: isFyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                         }}
@@ -4507,10 +4507,10 @@ export default function PropertyDetailView({
                           top: 'calc(100% + 4px)',
                           left: 0,
                           right: 0,
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #E2E0D9',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e2e8f0',
                           borderRadius: '10px',
-                          boxShadow: '0 8px 16px -4px rgba(21, 23, 25, 0.08), 0 2px 4px -2px rgba(21, 23, 25, 0.04)',
+                          boxShadow: '0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)',
                           zIndex: 1000,
                           padding: '4px',
                           display: 'flex',
@@ -4532,8 +4532,8 @@ export default function PropertyDetailView({
                                 borderRadius: '6px',
                                 fontSize: '13px',
                                 fontWeight: isSelected ? 600 : 500,
-                                color: isSelected ? 'var(--primary, #242629)' : '#3E3F3F',
-                                backgroundColor: isSelected ? '#F3F0E9' : 'transparent',
+                                color: isSelected ? 'var(--primary, #28336e)' : '#334155',
+                                backgroundColor: isSelected ? '#eff6ff' : 'transparent',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -4541,12 +4541,12 @@ export default function PropertyDetailView({
                                 transition: 'all 0.15s ease',
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = isSelected ? '#F3F0E9' : '#F3F0E9';
-                                if (!isSelected) e.currentTarget.style.color = '#151719';
+                                e.currentTarget.style.backgroundColor = isSelected ? '#eff6ff' : '#f1f5f9';
+                                if (!isSelected) e.currentTarget.style.color = '#0f172a';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = isSelected ? '#F3F0E9' : 'transparent';
-                                if (!isSelected) e.currentTarget.style.color = '#3E3F3F';
+                                e.currentTarget.style.backgroundColor = isSelected ? '#eff6ff' : 'transparent';
+                                if (!isSelected) e.currentTarget.style.color = '#334155';
                               }}
                             >
                               <span>{option.label}</span>
@@ -4556,7 +4556,7 @@ export default function PropertyDetailView({
                                   fill="none"
                                   stroke="currentColor"
                                   strokeWidth="2.5"
-                                  style={{ width: '14px', height: '14px', color: 'var(--primary, #242629)' }}
+                                  style={{ width: '14px', height: '14px', color: 'var(--primary, #28336e)' }}
                                 >
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                                 </svg>
@@ -4569,7 +4569,7 @@ export default function PropertyDetailView({
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1', position: 'relative' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 650, color: '#505050' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 650, color: '#475569' }}>
                       Period
                     </span>
                     <button
@@ -4586,24 +4586,24 @@ export default function PropertyDetailView({
                         width: '100%',
                         minHeight: '36px',
                         padding: '0 12px',
-                        border: '1.5px solid #E2E0D9',
+                        border: '1.5px solid #e2e8f0',
                         borderRadius: '8px',
-                        backgroundColor: '#FFFFFF',
-                        color: '#151719',
+                        backgroundColor: '#ffffff',
+                        color: '#1e293b',
                         fontSize: '13px',
                         fontWeight: 600,
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.2s',
                         outline: 'none',
-                        boxShadow: isPeriodDropdownOpen ? '0 0 0 3px rgba(36, 38, 41, 0.12)' : 'none',
-                        borderColor: isPeriodDropdownOpen ? 'var(--primary, #242629)' : '#CBC9C4',
+                        boxShadow: isPeriodDropdownOpen ? '0 0 0 3px rgba(40, 51, 110, 0.12)' : 'none',
+                        borderColor: isPeriodDropdownOpen ? 'var(--primary, #28336e)' : '#cbd5e1',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = '#999894';
+                        if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = '#94a3b8';
                       }}
                       onMouseLeave={(e) => {
-                        if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = '#CBC9C4';
+                        if (!isPeriodDropdownOpen) e.currentTarget.style.borderColor = '#cbd5e1';
                       }}
                     >
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -4617,7 +4617,7 @@ export default function PropertyDetailView({
                         style={{
                           width: '14px',
                           height: '14px',
-                          color: '#6C6C6B',
+                          color: '#64748b',
                           transition: 'transform 0.2s ease',
                           transform: isPeriodDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                         }}
@@ -4633,10 +4633,10 @@ export default function PropertyDetailView({
                           top: 'calc(100% + 4px)',
                           left: 0,
                           right: 0,
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #E2E0D9',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e2e8f0',
                           borderRadius: '10px',
-                          boxShadow: '0 8px 16px -4px rgba(21, 23, 25, 0.08), 0 2px 4px -2px rgba(21, 23, 25, 0.04)',
+                          boxShadow: '0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)',
                           zIndex: 1000,
                           padding: '4px',
                           display: 'flex',
@@ -4658,8 +4658,8 @@ export default function PropertyDetailView({
                                 borderRadius: '6px',
                                 fontSize: '13px',
                                 fontWeight: isSelected ? 600 : 500,
-                                color: isSelected ? 'var(--primary, #242629)' : '#3E3F3F',
-                                backgroundColor: isSelected ? '#F3F0E9' : 'transparent',
+                                color: isSelected ? 'var(--primary, #28336e)' : '#334155',
+                                backgroundColor: isSelected ? '#eff6ff' : 'transparent',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -4667,12 +4667,12 @@ export default function PropertyDetailView({
                                 transition: 'all 0.15s ease',
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = isSelected ? '#F3F0E9' : '#F3F0E9';
-                                if (!isSelected) e.currentTarget.style.color = '#151719';
+                                e.currentTarget.style.backgroundColor = isSelected ? '#eff6ff' : '#f1f5f9';
+                                if (!isSelected) e.currentTarget.style.color = '#0f172a';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = isSelected ? '#F3F0E9' : 'transparent';
-                                if (!isSelected) e.currentTarget.style.color = '#3E3F3F';
+                                e.currentTarget.style.backgroundColor = isSelected ? '#eff6ff' : 'transparent';
+                                if (!isSelected) e.currentTarget.style.color = '#334155';
                               }}
                             >
                               <span>{option.label}</span>
@@ -4682,7 +4682,7 @@ export default function PropertyDetailView({
                                   fill="none"
                                   stroke="currentColor"
                                   strokeWidth="2.5"
-                                  style={{ width: '14px', height: '14px', color: 'var(--primary, #242629)' }}
+                                  style={{ width: '14px', height: '14px', color: 'var(--primary, #28336e)' }}
                                 >
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                                 </svg>
@@ -4702,12 +4702,12 @@ export default function PropertyDetailView({
                     gap: '8px',
                     fontSize: '13px',
                     fontWeight: 600,
-                    color: '#6C6C6B',
+                    color: '#64748b',
                     padding: '4px 2px'
                   }}>
                     <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }}>
-                      <circle cx="12" cy="12" r="10" stroke="#CBC9C4" strokeWidth="3" fill="none" style={{ opacity: 0.3 }} />
-                      <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--primary, #242629)" strokeWidth="3" strokeLinecap="round" fill="none" />
+                      <circle cx="12" cy="12" r="10" stroke="#cbd5e1" strokeWidth="3" fill="none" style={{ opacity: 0.3 }} />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--primary, #28336e)" strokeWidth="3" strokeLinecap="round" fill="none" />
                     </svg>
                     <span>Updating figures…</span>
                   </div>
@@ -4717,11 +4717,11 @@ export default function PropertyDetailView({
                   <div role="alert" style={{
                     fontSize: '13px',
                     fontWeight: 600,
-                    color: '#C46A4C',
-                    backgroundColor: '#F3F0E9',
+                    color: '#b42318',
+                    backgroundColor: '#fef3f2',
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    border: '1px solid #ECCBBC',
+                    border: '1px solid #fda29b',
                   }}>
                     {gstError}
                   </div>
@@ -4732,10 +4732,10 @@ export default function PropertyDetailView({
                   display: 'grid',
                   gridTemplateColumns: '56px 1fr 120px',
                   paddingBottom: '8px',
-                  borderBottom: '2px solid #F3F0E9',
+                  borderBottom: '2px solid #f1f5f9',
                   fontSize: '11px',
                   fontWeight: 700,
-                  color: '#505050',
+                  color: '#475569',
                   textTransform: 'uppercase',
                   letterSpacing: '0.075em'
                 }}>
@@ -4751,15 +4751,15 @@ export default function PropertyDetailView({
                   gridTemplateColumns: '56px 1fr 120px',
                   alignItems: 'start',
                   paddingBottom: '12px',
-                  borderBottom: '1px solid #F3F0E9',
+                  borderBottom: '1px solid #f1f5f9',
                 }}>
                   <div style={{
                     width: '34px',
                     height: '34px',
                     borderRadius: '8px',
-                    backgroundColor: '#F3F0E9',
-                    color: 'var(--primary, #242629)',
-                    border: '1px solid #E7E0F4',
+                    backgroundColor: '#eff6ff',
+                    color: 'var(--primary, #28336e)',
+                    border: '1px solid #dbeafe',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -4767,18 +4767,18 @@ export default function PropertyDetailView({
                     fontSize: '12px',
                   }}>G1</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#151719' }}>Total Sales</span>
-                    <span style={{ fontSize: '12px', color: '#6C6C6B' }}>Total Income/Sales including GST</span>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>Total Sales</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>Total Income/Sales including GST</span>
                     <div>
                       <span style={{
                         fontSize: '10px',
                         fontFamily: 'SFMono-Regular, Consolas, Monaco, monospace',
-                        color: '#6C6C6B',
+                        color: '#64748b',
                         marginTop: '4px',
                         display: 'inline-block',
                         padding: '1px 6px',
-                        backgroundColor: '#F3F0E9',
-                        border: '1px solid #F3F0E9',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #f1f5f9',
                         borderRadius: '4px'
                       }}>
                         G1 = Total Income + GST on Sales = {formatGst(totalIncomeVal)} + {formatGst(gstSales)}
@@ -4789,7 +4789,7 @@ export default function PropertyDetailView({
                     textAlign: 'right',
                     fontWeight: 700,
                     fontSize: '15px',
-                    color: '#151719',
+                    color: '#0f172a',
                     whiteSpace: 'nowrap',
                     fontVariantNumeric: 'tabular-nums'
                   }}>
@@ -4803,15 +4803,15 @@ export default function PropertyDetailView({
                   gridTemplateColumns: '56px 1fr 120px',
                   alignItems: 'start',
                   paddingBottom: '12px',
-                  borderBottom: '1px solid #F3F0E9',
+                  borderBottom: '1px solid #f1f5f9',
                 }}>
                   <div style={{
                     width: '34px',
                     height: '34px',
                     borderRadius: '8px',
-                    backgroundColor: '#F7EFE8',
-                    color: '#C46A4C',
-                    border: '1px solid #F4E5DC',
+                    backgroundColor: '#fff7ed',
+                    color: '#ea580c',
+                    border: '1px solid #ffedd5',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -4819,14 +4819,14 @@ export default function PropertyDetailView({
                     fontSize: '12px',
                   }}>1A</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#151719' }}>GST on Sales</span>
-                    <span style={{ fontSize: '12px', color: '#6C6C6B' }}>GST collected on Income/Sales</span>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>GST on Sales</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>GST collected on Income/Sales</span>
                   </div>
                   <div style={{
                     textAlign: 'right',
                     fontWeight: 700,
                     fontSize: '15px',
-                    color: '#151719',
+                    color: '#0f172a',
                     whiteSpace: 'nowrap',
                     fontVariantNumeric: 'tabular-nums'
                   }}>
@@ -4840,15 +4840,15 @@ export default function PropertyDetailView({
                   gridTemplateColumns: '56px 1fr 120px',
                   alignItems: 'start',
                   paddingBottom: '12px',
-                  borderBottom: '1px solid #F3F0E9',
+                  borderBottom: '1px solid #f1f5f9',
                 }}>
                   <div style={{
                     width: '34px',
                     height: '34px',
                     borderRadius: '8px',
-                    backgroundColor: '#F3F0E9',
-                    color: '#6F7A5A',
-                    border: '1px solid #F2F2EA',
+                    backgroundColor: '#f0fdf4',
+                    color: '#16a34a',
+                    border: '1px solid #dcfce7',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -4856,14 +4856,14 @@ export default function PropertyDetailView({
                     fontSize: '12px',
                   }}>1B</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#151719' }}>GST on Purchases</span>
-                    <span style={{ fontSize: '12px', color: '#6C6C6B' }}>GST paid on Expenses/Purchases</span>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>GST on Purchases</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>GST paid on Expenses/Purchases</span>
                   </div>
                   <div style={{
                     textAlign: 'right',
                     fontWeight: 700,
                     fontSize: '15px',
-                    color: '#151719',
+                    color: '#0f172a',
                     whiteSpace: 'nowrap',
                     fontVariantNumeric: 'tabular-nums'
                   }}>
@@ -4877,15 +4877,15 @@ export default function PropertyDetailView({
                   gridTemplateColumns: '56px 1fr 120px',
                   alignItems: 'start',
                   paddingBottom: '12px',
-                  borderBottom: '1px solid #F3F0E9',
+                  borderBottom: '1px solid #f1f5f9',
                 }}>
                   <div style={{
                     width: '34px',
                     height: '34px',
                     borderRadius: '8px',
-                    backgroundColor: '#F3F0E9',
-                    color: '#7A5CFA',
-                    border: '1px solid #EDE9F4',
+                    backgroundColor: '#faf5ff',
+                    color: '#9333ea',
+                    border: '1px solid #f3e8ff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -4893,14 +4893,14 @@ export default function PropertyDetailView({
                     fontSize: '12px',
                   }}>9</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#151719' }}>Refund / Payment Due</span>
-                    <span style={{ fontSize: '12px', color: '#6C6C6B' }}>Net GST position (1A - 1B)</span>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>Refund / Payment Due</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>Net GST position (1A - 1B)</span>
                   </div>
                   <div style={{
                     textAlign: 'right',
                     fontWeight: 700,
                     fontSize: '15px',
-                    color: '#151719',
+                    color: '#0f172a',
                     whiteSpace: 'nowrap',
                     fontVariantNumeric: 'tabular-nums'
                   }}>
@@ -4911,34 +4911,34 @@ export default function PropertyDetailView({
                 {/* Net position Outcome Card */}
                 <div style={{
                   background: refundOrPayment >= 0
-                    ? 'linear-gradient(135deg, #F3F0E9 0%, #F3F0E9 100%)'
-                    : 'linear-gradient(135deg, #F3F0E9 0%, #F3F0E9 100%)',
+                    ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)'
+                    : 'linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)',
                   border: refundOrPayment >= 0
-                    ? '1px solid #EBECE1'
-                    : '1px solid #F3E1D7',
+                    ? '1px solid #bbf7d0'
+                    : '1px solid #fecdd3',
                   borderRadius: '12px',
                   padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
-                  boxShadow: '0 2px 4px -1px rgba(21, 23, 25, 0.01)',
+                  boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.01)',
                   marginTop: '4px',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {refundOrPayment >= 0 ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#6F7A5A' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#16a34a' }}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#C46A4C' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px', color: '#dc2626' }}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                       </svg>
                     )}
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: refundOrPayment >= 0 ? '#56613F' : '#A8503A' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: refundOrPayment >= 0 ? '#14532d' : '#7f1d1d' }}>
                       {gstOutcomeText}
                     </span>
                   </div>
-                  <span style={{ fontSize: '11px', color: refundOrPayment >= 0 ? '#56613F' : '#C46A4C', fontWeight: 550 }}>
+                  <span style={{ fontSize: '11px', color: refundOrPayment >= 0 ? '#15803d' : '#b91c1c', fontWeight: 550 }}>
                     {refundOrPayment >= 0
                       ? `Formula: GST on Purchases - GST on Sales = ${formatGst(gstPurchases)} - ${formatGst(gstSales)}`
                       : `Formula: GST on Sales - GST on Purchases = ${formatGst(gstSales)} - ${formatGst(gstPurchases)}`
@@ -4947,7 +4947,7 @@ export default function PropertyDetailView({
                   <span style={{
                     fontSize: '28px',
                     fontWeight: 800,
-                    color: refundOrPayment >= 0 ? '#6F7A5A' : '#C46A4C',
+                    color: refundOrPayment >= 0 ? '#16a34a' : '#dc2626',
                     fontVariantNumeric: 'tabular-nums',
                     marginTop: '2px',
                     letterSpacing: '-0.02em'
@@ -4961,16 +4961,16 @@ export default function PropertyDetailView({
               {/* Footer */}
               <div style={{
                 padding: '14px 24px',
-                borderTop: '1px solid #E2E0D9',
+                borderTop: '1px solid #e2e8f0',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                backgroundColor: '#F3F0E9',
+                backgroundColor: '#f8fafc',
                 borderBottomLeftRadius: '20px',
                 borderBottomRightRadius: '20px',
                 flexShrink: 0,
               }}>
-                <span style={{ fontSize: '11px', color: '#6C6C6B', maxWidth: '62%', lineHeight: 1.4 }}>
+                <span style={{ fontSize: '11px', color: '#64748b', maxWidth: '62%', lineHeight: 1.4 }}>
                   Accruals basis, dated by invoice date &mdash; cash-basis reporting
                   will differ. Personal and rejected transactions are excluded.
                 </span>
@@ -4982,23 +4982,23 @@ export default function PropertyDetailView({
                     alignItems: 'center',
                     gap: '6px',
                     padding: '8px 14px',
-                    border: '1.5px solid #151719',
+                    border: '1.5px solid #1e293b',
                     borderRadius: '8px',
-                    backgroundColor: '#FFFFFF',
-                    color: '#151719',
+                    backgroundColor: '#ffffff',
+                    color: '#1e293b',
                     fontSize: '13px',
                     fontWeight: 700,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 1px 2px 0 rgba(21, 23, 25, 0.05)',
+                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#F3F0E9';
-                    e.currentTarget.style.borderColor = '#151719';
+                    e.currentTarget.style.backgroundColor = '#f1f5f9';
+                    e.currentTarget.style.borderColor = '#0f172a';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#FFFFFF';
-                    e.currentTarget.style.borderColor = '#151719';
+                    e.currentTarget.style.backgroundColor = '#ffffff';
+                    e.currentTarget.style.borderColor = '#1e293b';
                   }}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "14px", height: "14px" }}>

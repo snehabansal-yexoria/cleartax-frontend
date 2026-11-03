@@ -100,8 +100,8 @@ function TrendBadge({
       title={title}
       className={
         isGood
-          ? "bg-[#F3F0E9] dark:bg-[var(--surface-2)] text-[#56613F] dark:text-[#6F7A5A] px-2 py-0.5 rounded-[20px] text-xs font-semibold"
-          : "bg-[#F3F0E9] dark:bg-[var(--surface-2)] text-[#C46A4C] dark:text-[#EAC3B2] px-2 py-0.5 rounded-[20px] text-xs font-semibold"
+          ? "bg-[#ecfdf3] dark:bg-[var(--surface-2)] text-[#027a48] dark:text-[#5dcaa5] px-2 py-0.5 rounded-[20px] text-xs font-semibold"
+          : "bg-[#fef3f2] dark:bg-[var(--surface-2)] text-[#b42318] dark:text-[#f09595] px-2 py-0.5 rounded-[20px] text-xs font-semibold"
       }
     >
       {label}
@@ -849,51 +849,51 @@ export default function ClientPage() {
               {/* Last Financial Year Section */}
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-[#151719] dark:text-[var(--text-primary)] text-base font-bold">
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
                     Last Financial Year
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Net Income Card */}
-                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
                     <div className="flex justify-between items-center">
-                      <div className="w-8 h-8 rounded-[8px] bg-[#F3F0E9] text-[#6F7A5A] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
                           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
                           <polyline points="17 6 23 6 23 12" />
                         </svg>
                       </div>
-                      <span className="bg-[#F3F0E9] dark:bg-[var(--surface-2)] text-[#4F4F4F] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
+                      <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
                         {fyShortLabel(financialYear - 1)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Income (Last FY)</span>
-                      <span className="text-[#151719] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
-                      <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[10px]">
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Income (Last FY)</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
                         {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
                       </span>
                     </div>
                   </div>
 
                   {/* Net Loss Card */}
-                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
                     <div className="flex justify-between items-center">
-                      <div className="w-8 h-8 rounded-[8px] bg-[#F3F0E9] text-[#C46A4C] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-[8px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
                           <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
                           <polyline points="17 18 23 18 23 12" />
                         </svg>
                       </div>
-                      <span className="bg-[#F3F0E9] dark:bg-[var(--surface-2)] text-[#4F4F4F] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
+                      <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
                         {fyShortLabel(financialYear - 1)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Loss (Last FY)</span>
-                      <span className="text-[#151719] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
-                      <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[10px]">
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Loss (Last FY)</span>
+                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
+                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
                         {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
                       </span>
                     </div>
@@ -935,18 +935,18 @@ export default function ClientPage() {
                 {cashFlowError ? (
                   <RegionError message={cashFlowError} onRetry={cashFlowRegion.reload} />
                 ) : cashFlowLoading ? (
-                  <div className="flex items-center justify-center text-sm text-[#6A6A69]" style={{ minHeight: '150px' }}>
+                  <div className="flex items-center justify-center text-sm text-[#667085]" style={{ minHeight: '150px' }}>
                     Loading {fyLongLabel(cashFlowYear)}…
                   </div>
                 ) : !hasChartData ? (
-                  <div className="flex flex-col items-center justify-center text-center p-6 text-[#6A6A69]" style={{ minHeight: '150px' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#989794' }} className="mb-2">
+                  <div className="flex flex-col items-center justify-center text-center p-6 text-[#667085]" style={{ minHeight: '150px' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
                       <line x1="18" y1="20" x2="18" y2="10" />
                       <line x1="12" y1="20" x2="12" y2="4" />
                       <line x1="6" y1="20" x2="6" y2="14" />
                     </svg>
                     <span className="text-sm font-semibold">No cash flow data available</span>
-                    <span className="text-xs text-[#989794] mt-1">Record transactions to view the chart.</span>
+                    <span className="text-xs text-[#98a2b3] mt-1">Record transactions to view the chart.</span>
                   </div>
                 ) : (
                   <div className="m-db-chart-bars-wrap is-fy">
@@ -998,15 +998,15 @@ export default function ClientPage() {
 
                 <div className="m-db-activity-list-card">
                   {activityItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#6A6A69]" style={{ minHeight: '120px' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#989794' }} className="mb-2">
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085]" style={{ minHeight: '120px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
                         <rect x="3" y="4" width="18" height="16" rx="2" />
                         <line x1="16" y1="2" x2="16" y2="6" />
                         <line x1="8" y1="2" x2="8" y2="6" />
                         <line x1="3" y1="10" x2="21" y2="10" />
                       </svg>
                       <span className="text-sm font-semibold">No transactions available</span>
-                      <span className="text-xs text-[#989794] mt-1">Start by adding a transaction.</span>
+                      <span className="text-xs text-[#98a2b3] mt-1">Start by adding a transaction.</span>
                     </div>
                   ) : (
                     activityItems.map((item) => (
@@ -1127,20 +1127,20 @@ export default function ClientPage() {
               {/* Loans & Interest Section */}
               <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-[#151719] dark:text-[var(--text-primary)] text-base font-bold">
+                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
                     Loans & Interest
                   </h3>
-                  <Link href="/dashboard/client/properties" className="text-[#7A5CFA] dark:text-[#A48FF8] text-xs font-bold hover:underline">
+                  <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
                     View all
                   </Link>
                 </div>
 
                 <div className="flex flex-col gap-3">
                   {/* Overall Interest Card */}
-                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col gap-3">
+                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-4 shadow-sm flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-[8px] bg-[#F3F0E9] text-[#7A5CFA] flex items-center justify-center font-bold text-sm">
+                        <div className="w-8 h-8 rounded-[8px] bg-[#eff4ff] text-[#3538cd] flex items-center justify-center font-bold text-sm">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
                             <line x1="19" y1="5" x2="5" y2="19" />
                             <circle cx="6.5" cy="6.5" r="2.5" />
@@ -1148,17 +1148,17 @@ export default function ClientPage() {
                           </svg>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[11px] font-medium">Interest ({fyShortLabel(financialYear)})</span>
-                          <span className="text-[#151719] dark:text-[var(--text-primary)] text-xl font-bold">{money(totals?.interest)}</span>
+                          <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium">Interest ({fyShortLabel(financialYear)})</span>
+                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(totals?.interest)}</span>
                         </div>
                       </div>
-                      <span className="bg-[#F3F0E9] dark:bg-[var(--surface-2)] border border-[#E8E5DF] dark:border-[var(--border)] text-[#3E3F3F] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
+                      <span className="bg-[#f8f9fc] dark:bg-[var(--surface-2)] border border-[#eaecf0] dark:border-[var(--border)] text-[#344054] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
                         {totals?.lvrPercent != null ? `LVR ${formatClientPercent(totals.lvrPercent)}` : "LVR —"}
                       </span>
                     </div>
                     {/* Rates, fixed/variable splits and redraw are not recorded
                         anywhere, so they are not shown (they were hardcoded). */}
-                    <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[10px]">
+                    <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
                       Loan interest recorded this financial year · {money(displayOutstandingLoans)} outstanding
                     </span>
                   </div>
@@ -1183,8 +1183,8 @@ export default function ClientPage() {
 
                 <div className="m-db-activity-list-card">
                   {entityListItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#6A6A69]" style={{ minHeight: '120px' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#989794' }} className="mb-2">
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085]" style={{ minHeight: '120px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: '#98a2b3' }} className="mb-2">
                         <path d="M3 21h18" />
                         <path d="M3 10h18" />
                         <path d="M5 6h14" />
@@ -1192,7 +1192,7 @@ export default function ClientPage() {
                         <path d="M20 10v11" />
                       </svg>
                       <span className="text-sm font-semibold">No entities available</span>
-                      <span className="text-xs text-[#989794] mt-1">Create an entity to get started.</span>
+                      <span className="text-xs text-[#98a2b3] mt-1">Create an entity to get started.</span>
                     </div>
                   ) : (
                     entityListItems.map((item) => (
@@ -1249,13 +1249,13 @@ export default function ClientPage() {
 
                 <div className="m-db-activity-list-card">
                   {propertyListItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#6A6A69] dark:text-[#A28CF8]" style={{ minHeight: '120px' }}>
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-[#667085] dark:text-[#8891C4]" style={{ minHeight: '120px' }}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px', color: 'var(--text-muted)' }} className="mb-2">
                         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         <path d="M9 22V12h6v10" />
                       </svg>
                       <span className="text-sm font-semibold">No properties available</span>
-                      <span className="text-xs text-[#989794] dark:text-[#7E7E7B] mt-1">Add a property to start tracking.</span>
+                      <span className="text-xs text-[#98a2b3] dark:text-[#6F76A6] mt-1">Add a property to start tracking.</span>
                     </div>
                   ) : (
                     propertyListItems.map((item, idx) => (
@@ -1312,7 +1312,7 @@ export default function ClientPage() {
                 </div>
               </div>
 
-              <div className="m-db-stat-card" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)' }}>
+              <div className="m-db-stat-card" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '16px', background: 'var(--surface-1)', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Loan vs Value</h3>
 
                 <div style={{ display: 'flex', height: '8px', width: '100%', borderRadius: '4px', overflow: 'hidden', background: 'var(--surface-2)', margin: '4px 0' }}>
@@ -1366,9 +1366,9 @@ export default function ClientPage() {
             href={addTransactionHref}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
-              background: 'linear-gradient(135deg, #9B83FF 0%, #6B4EE6 100%)',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 15px rgba(122, 92, 250, 0.15)',
+              background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
+              color: '#1b265c',
+              boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
             }}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
@@ -1384,9 +1384,9 @@ export default function ClientPage() {
             href={addPropertyHref}
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
-              background: 'linear-gradient(135deg, #9B83FF 0%, #6B4EE6 100%)',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 15px rgba(122, 92, 250, 0.15)',
+              background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
+              color: '#1b265c',
+              boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
             }}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
@@ -1402,9 +1402,9 @@ export default function ClientPage() {
             href="/dashboard/client/entities/new"
             className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.01]"
             style={{
-              background: 'linear-gradient(135deg, #9B83FF 0%, #6B4EE6 100%)',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 15px rgba(122, 92, 250, 0.15)',
+              background: 'linear-gradient(135deg, #ffd36f 0%, #f7a61a 100%)',
+              color: '#1b265c',
+              boxShadow: '0 4px 15px rgba(247, 166, 26, 0.15)',
             }}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
@@ -1465,9 +1465,9 @@ export default function ClientPage() {
 
         {/* Mini Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
-              <div className="w-9 h-9 rounded-[10px] bg-[#F3F0E9] text-[#6F7A5A] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-[10px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
                 <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
@@ -1475,27 +1475,27 @@ export default function ClientPage() {
               <TrendBadge change={cashFlowChange} variant="desktop" />
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Cash Flow (this month)</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Cash Flow (this month)</span>
               <span className="text-xl font-bold" style={{ color: hasSummary ? signedTone(displayCashFlow) : 'var(--text-primary)' }}>{money(displayCashFlow)}</span>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
-              <div className="w-9 h-9 rounded-[10px] bg-[#F3F0E9] text-[#7A5CFA] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-[10px] bg-[#eff8ff] text-[#175cd3] flex items-center justify-center">
                 <span className="text-base font-bold">$</span>
               </div>
               <TrendBadge change={incomeChange} variant="desktop" />
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Income (this month)</span>
-              <span className="text-[#151719] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayIncomeThisMonth)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Income (this month)</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayIncomeThisMonth)}</span>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
-              <div className="w-9 h-9 rounded-[10px] bg-[#F3F0E9] text-[#C46A4C] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-[10px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
                 <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '18px', height: '18px', fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}>
                   <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 </svg>
@@ -1503,10 +1503,10 @@ export default function ClientPage() {
               <TrendBadge change={expenseChange} goodWhenUp={false} variant="desktop" />
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Expenses (this month)</span>
-              <span className="text-[#151719] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayExpenseThisMonth)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Expenses (this month)</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-xl font-bold">{money(displayExpenseThisMonth)}</span>
               {summary && summary.excludedUnreviewedCount > 0 && (
-                <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[11px]">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
                   Excludes {summary.excludedUnreviewedCount} awaiting review
                 </span>
               )}
@@ -1517,68 +1517,68 @@ export default function ClientPage() {
         {/* Section: Last Financial Year */}
         <div className="flex flex-col gap-3.5">
           <div className="flex justify-between items-center">
-            <h3 className="text-[#151719] dark:text-[var(--text-primary)] text-base font-bold">
+            <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
               Last Financial Year
             </h3>
-            <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">
+            <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
               {fyShortLabel(financialYear - 1)} · {fyRangeLabel(financialYear - 1)}
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Net Income Card */}
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
               <div className="flex justify-between items-center">
-                <div className="w-9 h-9 rounded-[10px] bg-[#F3F0E9] text-[#6F7A5A] flex items-center justify-center">
+                <div className="w-9 h-9 rounded-[10px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
                     <polyline points="17 6 23 6 23 12" />
                   </svg>
                 </div>
-                <span className="bg-[#F3F0E9] dark:bg-[var(--surface-2)] text-[#4F4F4F] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
+                <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
                   {fyShortLabel(financialYear - 1)}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Net Income (Last FY)</span>
-                <span className="text-[#151719] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
-                <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs mt-0.5">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Income (Last FY)</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
                   {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
                 </span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#F3F0E9] dark:border-[var(--border)] text-xs">
-                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#6A6A69] dark:text-[var(--text-secondary)] font-medium hover:underline">
+              <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
+                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#667085] dark:text-[var(--text-secondary)] font-medium hover:underline">
                   View report
                 </Link>
-                <span className="text-[#7A5CFA] dark:text-[#A48FF8] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
+                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
               </div>
             </div>
 
             {/* Net Loss Card */}
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
               <div className="flex justify-between items-center">
-                <div className="w-9 h-9 rounded-[10px] bg-[#F3F0E9] text-[#C46A4C] flex items-center justify-center">
+                <div className="w-9 h-9 rounded-[10px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
                     <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
                     <polyline points="17 18 23 18 23 12" />
                   </svg>
                 </div>
-                <span className="bg-[#F3F0E9] dark:bg-[var(--surface-2)] text-[#4F4F4F] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
+                <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
                   {fyShortLabel(financialYear - 1)}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Net Loss (Last FY)</span>
-                <span className="text-[#151719] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
-                <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs mt-0.5">
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Loss (Last FY)</span>
+                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
+                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
                   {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
                 </span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#F3F0E9] dark:border-[var(--border)] text-xs">
-                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#6A6A69] dark:text-[var(--text-secondary)] font-medium hover:underline">
+              <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
+                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#667085] dark:text-[var(--text-secondary)] font-medium hover:underline">
                   View report
                 </Link>
-                <span className="text-[#7A5CFA] dark:text-[#A48FF8] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
+                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
               </div>
             </div>
           </div>
@@ -1587,7 +1587,7 @@ export default function ClientPage() {
         {/* Cash Flow. The Payment Alerts card that sat beside it was demo data
             with no backend (no bills or due dates are recorded), so it is gone
             until there is something real to show. */}
-        <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
+        <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
           <CashFlowChart
             months={displayMonths}
             income={displayIncome}
@@ -1613,35 +1613,35 @@ export default function ClientPage() {
             anywhere — those cards were hardcoded zeros and are gone. */}
         <div className="flex flex-col gap-3.5">
           <div className="flex justify-between items-center">
-            <h3 className="text-[#151719] dark:text-[var(--text-primary)] text-base font-bold">
+            <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
               Loans & Interest
             </h3>
-            <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#7A5CFA] dark:text-[#A48FF8] text-xs font-bold hover:underline">
+            <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
               View report
             </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Outstanding loans</span>
-              <span className="text-[#151719] dark:text-[var(--text-primary)] text-2xl font-bold">{money(displayOutstandingLoans)}</span>
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs">
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Outstanding loans</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{money(displayOutstandingLoans)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs">
                 {totals ? `${totals.loanCount} loan${totals.loanCount === 1 ? "" : "s"} recorded` : " "}
               </span>
             </div>
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Interest ({fyShortLabel(financialYear)})</span>
-              <span className="text-[#151719] dark:text-[var(--text-primary)] text-2xl font-bold">{money(totals?.interest)}</span>
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs">
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-1">
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Interest ({fyShortLabel(financialYear)})</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{money(totals?.interest)}</span>
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs">
                 {hasSummary ? `${money(displayInterestThisMonth)} this month` : " "}
               </span>
             </div>
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-2">
-              <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-xs font-medium">Loan vs value</span>
-              <span className="text-[#151719] dark:text-[var(--text-primary)] text-2xl font-bold">
+            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-2">
+              <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Loan vs value</span>
+              <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">
                 {totals?.lvrPercent != null ? `LVR ${formatClientPercent(totals.lvrPercent)}` : "—"}
               </span>
-              <div className="h-2 w-full rounded-full overflow-hidden flex bg-[#F3F0E9] dark:bg-[var(--surface-2)]">
+              <div className="h-2 w-full rounded-full overflow-hidden flex bg-[#f2f4f7] dark:bg-[var(--surface-2)]">
                 <div className="h-full" style={{ width: `${loanPercentageOverall}%`, background: 'var(--brand)' }} />
                 <div className="h-full" style={{ width: `${equityPercentageOverall}%`, background: 'var(--accent)' }} />
               </div>
@@ -1652,31 +1652,31 @@ export default function ClientPage() {
         {/* Existing remaining items: Recent Activity and By Property */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Recent Activity card */}
-          <div className="col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          <div className="col-span-1 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[#151719] dark:text-[var(--text-primary)] text-base font-bold">
+              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
                 Recent Activity
                 <ReviewQueueCount count={awaitingReviewCount} />
               </h3>
             </div>
 
-            <div className="flex flex-col divide-y divide-[#F3F0E9] dark:divide-[var(--border)]">
+            <div className="flex flex-col divide-y divide-[#f2f4f7] dark:divide-[var(--border)]">
               {activityItems.length === 0 ? (
-                <div className="py-8 flex flex-col items-center justify-center text-center text-[#6A6A69] dark:text-[var(--text-secondary)]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 text-[#989794] mb-2" style={{ width: '32px', height: '32px' }}>
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085] dark:text-[var(--text-secondary)]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 text-[#98a2b3] mb-2" style={{ width: '32px', height: '32px' }}>
                     <rect x="3" y="4" width="18" height="16" rx="2" />
                     <line x1="16" y1="2" x2="16" y2="6" />
                     <line x1="8" y1="2" x2="8" y2="6" />
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
                   <span className="text-sm font-semibold">No transactions available</span>
-                  <span className="text-xs text-[#989794] mt-1">Start by adding a transaction.</span>
+                  <span className="text-xs text-[#98a2b3] mt-1">Start by adding a transaction.</span>
                 </div>
               ) : (
                 activityItems.map((item) => (
                   <div key={item.id} className="py-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === 'revenue' ? 'bg-[#F3F0E9] text-[#6F7A5A]' : 'bg-[#F3F0E9] text-[#C46A4C]'}`}>
+                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === 'revenue' ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
                         {item.type === 'revenue' ? (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
                             <line x1="7" y1="17" x2="7" y2="7" />
@@ -1690,8 +1690,8 @@ export default function ClientPage() {
                         )}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <strong className="text-[#151719] dark:text-[var(--text-primary)] text-[13px] font-bold truncate">{item.description}</strong>
-                        <span className="text-[#6A6A69] dark:text-[var(--text-secondary)] text-[11px] truncate">
+                        <strong className="text-[#101828] dark:text-[var(--text-primary)] text-[13px] font-bold truncate">{item.description}</strong>
+                        <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] truncate">
                           {item.categoryName} · {item.meta}
                         </span>
                         <ReviewStatusBadge
@@ -1700,7 +1700,7 @@ export default function ClientPage() {
                         />
                       </div>
                     </div>
-                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#6F7A5A]' : 'text-[#C46A4C]'}`}>
+                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
                       {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
                     </span>
                   </div>
@@ -1710,25 +1710,25 @@ export default function ClientPage() {
           </div>
 
           {/* By Property Section */}
-          <div className="md:col-span-2 xl:col-span-2 bg-white dark:bg-[var(--surface-1)] border border-[#EBE8E1] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+          <div className="md:col-span-2 xl:col-span-2 bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[#151719] dark:text-[var(--text-primary)] text-base font-bold">By property</h3>
+              <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">By property</h3>
               {properties.length > 0 && (
-                <Link href="/dashboard/client/properties" className="text-[#7A5CFA] dark:text-[#A48FF8] text-xs font-bold hover:underline">
+                <Link href="/dashboard/client/properties" className="text-[#175cd3] dark:text-[#53b1fd] text-xs font-bold hover:underline">
                   View all
                 </Link>
               )}
             </div>
 
-            <div className="flex flex-col divide-y divide-[#F3F0E9] dark:divide-[var(--border)]">
+            <div className="flex flex-col divide-y divide-[#f2f4f7] dark:divide-[var(--border)]">
               {propertyListItems.length === 0 ? (
-                <div className="py-8 flex flex-col items-center justify-center text-center text-[#6A6A69] dark:text-[var(--text-secondary)]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#989794]">
+                <div className="py-8 flex flex-col items-center justify-center text-center text-[#667085] dark:text-[var(--text-secondary)]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '32px', height: '32px' }} className="mb-2 text-[#98a2b3]">
                     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                     <path d="M9 22V12h6v10" />
                   </svg>
                   <span className="text-sm font-semibold">No properties available</span>
-                  <span className="text-xs text-[#989794] mt-1">Add a property to start tracking details.</span>
+                  <span className="text-xs text-[#98a2b3] mt-1">Add a property to start tracking details.</span>
                 </div>
               ) : (
                 propertyListItems.map((item, idx) => (
@@ -1738,22 +1738,22 @@ export default function ClientPage() {
                         {item.isReal ? (
                           <Link
                             href={`/dashboard/client/properties/${item.id}`}
-                            className="text-[#151719] dark:text-[var(--text-primary)] text-[14px] font-bold hover:underline truncate"
+                            className="text-[#101828] dark:text-[var(--text-primary)] text-[14px] font-bold hover:underline truncate"
                           >
                             {item.name}
                           </Link>
                         ) : (
-                          <span className="text-[#151719] dark:text-[var(--text-primary)] text-[14px] font-bold truncate">{item.name}</span>
+                          <span className="text-[#101828] dark:text-[var(--text-primary)] text-[14px] font-bold truncate">{item.name}</span>
                         )}
 
-                        <div className="flex items-center gap-1.5 mt-1 text-[#6A6A69] dark:text-[var(--text-secondary)] text-[11px]">
+                        <div className="flex items-center gap-1.5 mt-1 text-[#667085] dark:text-[var(--text-secondary)] text-[11px]">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px', flexShrink: 0 }}>
                             <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                             <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                           </svg>
                           <Link
                             href={`/dashboard/client/entities/${item.entityId}`}
-                            className="text-[#6A6A69] dark:text-[var(--text-secondary)] hover:underline"
+                            className="text-[#667085] dark:text-[var(--text-secondary)] hover:underline"
                           >
                             {item.entityName}
                           </Link>
@@ -1771,13 +1771,13 @@ export default function ClientPage() {
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#4F4F4F] dark:text-[var(--text-secondary)] mt-1">
-                      <span>Value <strong className="text-[#151719] dark:text-[var(--text-primary)]">{money(item.marketValue)}</strong></span>
-                      <span>Loan <strong className="text-[#151719] dark:text-[var(--text-primary)]">{money(item.outstandingLoans)}</strong></span>
-                      <span>Income <strong className="text-[#6F7A5A]">{item.income != null ? formatExactCurrency(item.income, { showPlus: true }) : "—"}</strong></span>
-                      <span>Expenses <strong className="text-[#C46A4C]">{item.expense != null ? formatExactCurrency(-item.expense) : "—"}</strong></span>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-[#475467] dark:text-[var(--text-secondary)] mt-1">
+                      <span>Value <strong className="text-[#101828] dark:text-[var(--text-primary)]">{money(item.marketValue)}</strong></span>
+                      <span>Loan <strong className="text-[#101828] dark:text-[var(--text-primary)]">{money(item.outstandingLoans)}</strong></span>
+                      <span>Income <strong className="text-[#12b76a]">{item.income != null ? formatExactCurrency(item.income, { showPlus: true }) : "—"}</strong></span>
+                      <span>Expenses <strong className="text-[#f04438]">{item.expense != null ? formatExactCurrency(-item.expense) : "—"}</strong></span>
                       {item.depreciation > 0 && (
-                        <span>Depreciation <strong className="text-[#151719] dark:text-[var(--text-primary)]">{formatExactCurrency(-item.depreciation)}</strong></span>
+                        <span>Depreciation <strong className="text-[#101828] dark:text-[var(--text-primary)]">{formatExactCurrency(-item.depreciation)}</strong></span>
                       )}
                     </div>
                   </div>

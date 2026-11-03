@@ -859,7 +859,7 @@ function ClientTransactionsContent() {
         loading={isLoading}
         fallback={<ClientTransactionsSkeleton isMobile={true} />}
       >
-        <div className="mobile-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '90px', fontFamily: "'Inter Tight', -apple-system, sans-serif" }}>
+        <div className="mobile-client-dashboard" style={{ background: 'var(--surface-0)', minHeight: '100vh', paddingBottom: '90px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
 
           {/* Header */}
           <div style={{
@@ -884,8 +884,8 @@ function ClientTransactionsContent() {
                 width: "40px",
                 height: "40px",
                 borderRadius: "20px",
-                background: "#151719",
-                color: "#FFFFFF",
+                background: "#1a235a",
+                color: "#ffffff",
                 textDecoration: "none"
               }}
             >
@@ -927,7 +927,7 @@ function ClientTransactionsContent() {
                   background: 'var(--surface-1)',
                   color: 'var(--text-primary)',
                   outline: 'none',
-                  boxShadow: '0 1px 2px rgba(21, 23, 25, 0.02)'
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}
               />
               <button
@@ -972,7 +972,7 @@ function ClientTransactionsContent() {
               borderRadius: '16px', 
               background: 'var(--surface-1)', 
               border: '1px solid var(--border)', 
-              boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)' 
+              boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)' 
             }}>
               <div style={{ paddingRight: '12px', minWidth: 0 }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>Income</span>
@@ -1010,7 +1010,7 @@ function ClientTransactionsContent() {
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(21, 23, 25, 0.05)' : 'none',
+                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
                 border: activeTab === 'reviewed' ? '1px solid var(--border)' : '1px solid transparent',
                 transition: 'all 0.2s'
               }}
@@ -1029,7 +1029,7 @@ function ClientTransactionsContent() {
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(21, 23, 25, 0.05)' : 'none',
+                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
                 border: activeTab === 'pending' ? '1px solid var(--border)' : '1px solid transparent',
                 transition: 'all 0.2s'
               }}
@@ -1064,7 +1064,7 @@ function ClientTransactionsContent() {
                       overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column',
-                      boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)'
+                      boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)'
                     }}>
                       {items.map((tx, idx) => (
                         <div
@@ -1152,7 +1152,7 @@ function ClientTransactionsContent() {
                     border: '1px solid var(--border)',
                     borderRadius: '16px',
                     padding: '16px 20px',
-                    boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -1164,13 +1164,13 @@ function ClientTransactionsContent() {
                       width: '40px',
                       height: '40px',
                       borderRadius: '12px',
-                      background: '#F7ECE5',
+                      background: '#FDF2E9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0
                     }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#C46A4C" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
@@ -1189,8 +1189,8 @@ function ClientTransactionsContent() {
                     borderRadius: '100px',
                     fontSize: '12px',
                     fontWeight: '600',
-                    background: '#F7ECE5',
-                    color: '#C46A4C',
+                    background: '#FDF2E9',
+                    color: '#D97706',
                     whiteSpace: 'nowrap',
                     marginLeft: '12px'
                   }}>
@@ -1217,7 +1217,7 @@ function ClientTransactionsContent() {
                   top: 0,
                   width: '100vw',
                   height: '100vh',
-                  background: 'rgba(21, 23, 25, 0.4)',
+                  background: 'rgba(0, 0, 0, 0.4)',
                   zIndex: 1000
                 }}
               />
@@ -1235,7 +1235,7 @@ function ClientTransactionsContent() {
                   borderTop: '1px solid var(--border)',
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  boxShadow: '0 -8px 24px rgba(21, 23, 25, 0.25)',
+                  boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.25)',
                   padding: '8px 16px 24px 16px',
                   boxSizing: 'border-box',
                   display: 'flex',
@@ -1280,7 +1280,7 @@ function ClientTransactionsContent() {
                               fontWeight: 600,
                               border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
                               background: isActive ? 'var(--brand)' : 'var(--surface-2)',
-                              color: isActive ? '#FFFFFF' : 'var(--text-primary)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
                               textTransform: 'capitalize',
                               cursor: 'pointer',
                               outline: 'none'
@@ -1314,7 +1314,7 @@ function ClientTransactionsContent() {
                               fontWeight: 600,
                               border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
                               background: isActive ? 'var(--brand)' : 'var(--surface-2)',
-                              color: isActive ? '#FFFFFF' : 'var(--text-primary)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
                               cursor: 'pointer',
                               outline: 'none'
                             }}
@@ -1343,7 +1343,7 @@ function ClientTransactionsContent() {
                           fontWeight: 600,
                           border: `1px solid ${tempEntity === 'all' ? 'var(--brand)' : 'var(--border)'}`,
                           background: tempEntity === 'all' ? 'var(--brand)' : 'var(--surface-2)',
-                          color: tempEntity === 'all' ? '#FFFFFF' : 'var(--text-primary)',
+                          color: tempEntity === 'all' ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none'
                         }}
@@ -1365,7 +1365,7 @@ function ClientTransactionsContent() {
                               fontWeight: 600,
                               border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
                               background: isActive ? 'var(--brand)' : 'var(--surface-2)',
-                              color: isActive ? '#FFFFFF' : 'var(--text-primary)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
                               cursor: 'pointer',
                               outline: 'none'
                             }}
@@ -1394,7 +1394,7 @@ function ClientTransactionsContent() {
                           fontWeight: 600,
                           border: `1px solid ${tempProperty === 'all' ? 'var(--brand)' : 'var(--border)'}`,
                           background: tempProperty === 'all' ? 'var(--brand)' : 'var(--surface-2)',
-                          color: tempProperty === 'all' ? '#FFFFFF' : 'var(--text-primary)',
+                          color: tempProperty === 'all' ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none'
                         }}
@@ -1416,7 +1416,7 @@ function ClientTransactionsContent() {
                               fontWeight: 600,
                               border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
                               background: isActive ? 'var(--brand)' : 'var(--surface-2)',
-                              color: isActive ? '#FFFFFF' : 'var(--text-primary)',
+                              color: isActive ? '#ffffff' : 'var(--text-primary)',
                               cursor: 'pointer',
                               outline: 'none'
                             }}
@@ -1458,7 +1458,7 @@ function ClientTransactionsContent() {
                       borderRadius: '16px',
                       border: 'none',
                       background: 'var(--brand)',
-                      color: '#FFFFFF',
+                      color: '#ffffff',
                       fontSize: '15px',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -1514,7 +1514,7 @@ function ClientTransactionsContent() {
           <div className="d-tx-search-container">
             <div className="d-tx-search-wrapper">
               <div className="d-tx-search-icon-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: '#989794' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', color: '#98a2b3' }}>
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
@@ -1581,7 +1581,7 @@ function ClientTransactionsContent() {
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(21, 23, 25, 0.05)' : 'none',
+                boxShadow: activeTab === 'reviewed' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
                 border: activeTab === 'reviewed' ? '1px solid var(--border)' : '1px solid transparent',
                 transition: 'all 0.2s'
               }}
@@ -1599,7 +1599,7 @@ function ClientTransactionsContent() {
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(21, 23, 25, 0.05)' : 'none',
+                boxShadow: activeTab === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
                 border: activeTab === 'pending' ? '1px solid var(--border)' : '1px solid transparent',
                 transition: 'all 0.2s'
               }}
@@ -1681,7 +1681,7 @@ function ClientTransactionsContent() {
                     border: '1px solid var(--border)',
                     borderRadius: '16px',
                     padding: '20px 24px',
-                    boxShadow: '0 4px 12px rgba(21, 23, 25, 0.01)',
+                    boxShadow: '0 4px 12px rgba(16, 24, 40, 0.01)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -1693,13 +1693,13 @@ function ClientTransactionsContent() {
                       width: '42px',
                       height: '42px',
                       borderRadius: '12px',
-                      background: '#F7ECE5',
+                      background: '#FDF2E9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0
                     }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#C46A4C" strokeWidth="2.5" style={{ width: '22px', height: '22px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" style={{ width: '22px', height: '22px' }}>
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
@@ -1718,8 +1718,8 @@ function ClientTransactionsContent() {
                     borderRadius: '100px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    background: '#F7ECE5',
-                    color: '#C46A4C',
+                    background: '#FDF2E9',
+                    color: '#D97706',
                     whiteSpace: 'nowrap',
                     marginLeft: '16px'
                   }}>
@@ -1769,7 +1769,7 @@ function ClientTransactionsContent() {
                           fontWeight: 600,
                           border: `1px solid ${tempType === t ? 'var(--brand)' : 'var(--border)'}`,
                           background: tempType === t ? 'var(--brand)' : 'var(--surface-2)',
-                          color: tempType === t ? '#FFFFFF' : 'var(--text-primary)',
+                          color: tempType === t ? '#ffffff' : 'var(--text-primary)',
                           textTransform: 'capitalize',
                           cursor: 'pointer',
                           outline: 'none',
@@ -1800,7 +1800,7 @@ function ClientTransactionsContent() {
                           fontWeight: 600,
                           border: `1px solid ${tempDateRange === d.value ? 'var(--brand)' : 'var(--border)'}`,
                           background: tempDateRange === d.value ? 'var(--brand)' : 'var(--surface-2)',
-                          color: tempDateRange === d.value ? '#FFFFFF' : 'var(--text-primary)',
+                          color: tempDateRange === d.value ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1828,7 +1828,7 @@ function ClientTransactionsContent() {
                         fontWeight: 600,
                         border: `1px solid ${tempEntity === 'all' ? 'var(--brand)' : 'var(--border)'}`,
                         background: tempEntity === 'all' ? 'var(--brand)' : 'var(--surface-2)',
-                        color: tempEntity === 'all' ? '#FFFFFF' : 'var(--text-primary)',
+                        color: tempEntity === 'all' ? '#ffffff' : 'var(--text-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'all 0.15s ease'
@@ -1848,7 +1848,7 @@ function ClientTransactionsContent() {
                           fontWeight: 600,
                           border: `1px solid ${tempEntity === ent.id ? 'var(--brand)' : 'var(--border)'}`,
                           background: tempEntity === ent.id ? 'var(--brand)' : 'var(--surface-2)',
-                          color: tempEntity === ent.id ? '#FFFFFF' : 'var(--text-primary)',
+                          color: tempEntity === ent.id ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1876,7 +1876,7 @@ function ClientTransactionsContent() {
                         fontWeight: 600,
                         border: `1px solid ${tempProperty === 'all' ? 'var(--brand)' : 'var(--border)'}`,
                         background: tempProperty === 'all' ? 'var(--brand)' : 'var(--surface-2)',
-                        color: tempProperty === 'all' ? '#FFFFFF' : 'var(--text-primary)',
+                        color: tempProperty === 'all' ? '#ffffff' : 'var(--text-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'all 0.15s ease'
@@ -1896,7 +1896,7 @@ function ClientTransactionsContent() {
                           fontWeight: 600,
                           border: `1px solid ${tempProperty === prop.id ? 'var(--brand)' : 'var(--border)'}`,
                           background: tempProperty === prop.id ? 'var(--brand)' : 'var(--surface-2)',
-                          color: tempProperty === prop.id ? '#FFFFFF' : 'var(--text-primary)',
+                          color: tempProperty === prop.id ? '#ffffff' : 'var(--text-primary)',
                           cursor: 'pointer',
                           outline: 'none',
                           transition: 'all 0.15s ease'
@@ -1939,7 +1939,7 @@ function ClientTransactionsContent() {
                     borderRadius: '12px',
                     border: 'none',
                     background: 'var(--brand)',
-                    color: '#FFFFFF',
+                    color: '#ffffff',
                     fontSize: '15px',
                     fontWeight: 600,
                     cursor: 'pointer',

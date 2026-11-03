@@ -2277,11 +2277,11 @@ export default function AccountantReconciliationSessionPage() {
       <div className="accountant-reconciliation-title">
         <div>
           <h1>{session.label}</h1>
-          <p style={{ margin: "4px 0 0", color: "#6A6A69", fontSize: 13 }}>
+          <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: 13 }}>
             {sessionPeriod && <>{sessionPeriod} · </>}
             <span style={{
               fontWeight: 600,
-              color: isSessionCompleted ? "var(--color-success, #6F7A5A)" : "var(--color-warning, #C46A4C)",
+              color: isSessionCompleted ? "var(--color-success, #16a34a)" : "var(--color-warning, #ca8a04)",
               textTransform: "capitalize",
             }}>{session.status}</span>
             {" · "}
@@ -2293,7 +2293,7 @@ export default function AccountantReconciliationSessionPage() {
             <button
               type="button"
               onClick={downloadSampleCsv}
-              style={{ background: "none", border: "none", padding: 0, color: "#7A5CFA", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+              style={{ background: "none", border: "none", padding: 0, color: "#2563eb", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
             >
               Download CSV template
             </button>
@@ -2337,7 +2337,7 @@ export default function AccountantReconciliationSessionPage() {
         <div className="accountant-existing-documents-head">
           <div>
             <h2>Bank Statements in this Reconciliation</h2>
-            <p style={{ margin: "4px 0 0", color: "#6A6A69", fontSize: 13 }}>
+            <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: 13 }}>
               Select one or more to view their transactions below.
             </p>
           </div>
@@ -2347,20 +2347,20 @@ export default function AccountantReconciliationSessionPage() {
         </div>
 
         {isProcessing && (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #E1DFD8" }}>
-            <p style={{ fontSize: 13, color: "#4F4F4F", margin: "0 0 8px" }}>{uploadStageLabel()}</p>
-            <div style={{ background: "#E1DFD8", borderRadius: 9999, height: 8 }}>
-              <div style={{ background: "#7A5CFA", borderRadius: 9999, height: 8, width: `${processingPct}%`, transition: "width 0.3s" }} />
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb" }}>
+            <p style={{ fontSize: 13, color: "#4b5563", margin: "0 0 8px" }}>{uploadStageLabel()}</p>
+            <div style={{ background: "#e5e7eb", borderRadius: 9999, height: 8 }}>
+              <div style={{ background: "#3b82f6", borderRadius: 9999, height: 8, width: `${processingPct}%`, transition: "width 0.3s" }} />
             </div>
           </div>
         )}
         {uploadStage.type === "error" && (
-          <div style={{ padding: "10px 16px", color: "#C46A4C", fontSize: 13, borderBottom: "1px solid #E1DFD8" }}>
+          <div style={{ padding: "10px 16px", color: "#dc2626", fontSize: 13, borderBottom: "1px solid #e5e7eb" }}>
             {uploadStage.message}
           </div>
         )}
         {skippedRowNotices.length > 0 && (
-          <div style={{ padding: "10px 16px", background: "#F7EEE7", borderBottom: "1px solid #EAC3B3", color: "#A8503A", fontSize: 13 }}>
+          <div style={{ padding: "10px 16px", background: "#fffbeb", borderBottom: "1px solid #fde68a", color: "#92400e", fontSize: 13 }}>
             {skippedRowNotices.map(({ id, label, rows }) => (
               <details key={id} style={{ margin: "2px 0" }}>
                 <summary style={{ cursor: "pointer" }}>
@@ -2403,9 +2403,9 @@ export default function AccountantReconciliationSessionPage() {
             }}
             style={{
               transition: "all 0.2s ease-in-out",
-              borderColor: isDragging ? "#7A5CFA" : (isHovered ? "#7A5CFA" : undefined),
-              background: isDragging ? "#F3F0E9" : (isHovered ? "#FAF8F3" : undefined),
-              boxShadow: isDragging ? "0 0 0 4px rgba(122, 92, 250, 0.08)" : undefined,
+              borderColor: isDragging ? "#2563eb" : (isHovered ? "#3b82f6" : undefined),
+              background: isDragging ? "#f5f8ff" : (isHovered ? "#fafcff" : undefined),
+              boxShadow: isDragging ? "0 0 0 4px rgba(37, 99, 235, 0.08)" : undefined,
               cursor: (!isSessionCompleted && !isProcessing) ? "pointer" : "default"
             }}
           >
@@ -2416,22 +2416,22 @@ export default function AccountantReconciliationSessionPage() {
                   width: 48,
                   height: 48,
                   borderRadius: "50%",
-                  background: isDragging ? "#7A5CFA" : "#EEEAF4",
-                  color: isDragging ? "#FFFFFF" : "#7A5CFA",
+                  background: isDragging ? "#2563eb" : "#ebf2fe",
+                  color: isDragging ? "#ffffff" : "#2563eb",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   transition: "all 0.2s ease",
                   marginBottom: 12,
-                  boxShadow: isDragging ? "none" : "0 2px 8px rgba(122, 92, 250, 0.12)",
-                  border: isDragging ? "none" : "1px solid rgba(122, 92, 250, 0.15)"
+                  boxShadow: isDragging ? "none" : "0 2px 8px rgba(37, 99, 235, 0.12)",
+                  border: isDragging ? "none" : "1px solid rgba(37, 99, 235, 0.15)"
                 }}
               >
                 <UploadIcon width={22} height={22} />
               </div>
-              <strong style={{ margin: "14px 0 0", color: "#151719", fontSize: "17px" }}>Drag and drop your statement here</strong>
-              <p style={{ color: "#4F4F4F", fontSize: 14, marginTop: 4, marginBottom: 12 }}>
-                or <span style={{ color: "#7A5CFA", fontWeight: 600, textDecoration: "underline" }}>browse files</span> to upload a PDF or CSV bank statement
+              <strong style={{ margin: "14px 0 0", color: "#101828", fontSize: "17px" }}>Drag and drop your statement here</strong>
+              <p style={{ color: "#4b5563", fontSize: 14, marginTop: 4, marginBottom: 12 }}>
+                or <span style={{ color: "#2563eb", fontWeight: 600, textDecoration: "underline" }}>browse files</span> to upload a PDF or CSV bank statement
               </p>
             </div>
             {!isSessionCompleted && (
@@ -2446,7 +2446,7 @@ export default function AccountantReconciliationSessionPage() {
                   background: "none",
                   border: "none",
                   padding: 0,
-                  color: "#7A5CFA",
+                  color: "#2563eb",
                   fontSize: 13,
                   cursor: "pointer",
                   textDecoration: "underline",
@@ -2853,7 +2853,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Date: Newest
                     {sortField === "date" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2864,7 +2864,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort Date: Oldest
                     {sortField === "date" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2875,7 +2875,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "payee" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2886,7 +2886,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "payee" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2927,7 +2927,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "statement" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2938,7 +2938,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "statement" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -2979,7 +2979,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "property" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -2990,7 +2990,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "property" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -3031,7 +3031,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort A to Z
                     {sortField === "category" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -3042,7 +3042,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort Z to A
                     {sortField === "category" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -3083,7 +3083,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort High to Low
                     {sortField === "expense" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -3094,7 +3094,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort Low to High
                     {sortField === "expense" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -3135,7 +3135,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     Sort High to Low
                     {sortField === "income" && sortDirection === "desc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <button
@@ -3146,7 +3146,7 @@ export default function AccountantReconciliationSessionPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                     Sort Low to High
                     {sortField === "income" && sortDirection === "asc" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#C46A4C' }}><polyline points="20 6 9 17 4 12" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', color: '#e04f1a' }}><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </button>
                   <div className="sort-dropdown-divider" />
@@ -3388,13 +3388,13 @@ export default function AccountantReconciliationSessionPage() {
                     </div>
 
                     <div>
-                      <small style={{ color: "#6A6A69" }}>{statementLabel}</small>
+                      <small style={{ color: "#6b7280" }}>{statementLabel}</small>
                     </div>
 
                     <div>{propertyDisplay}</div>
                     <div>{categoryDisplay}</div>
 
-                    <strong style={{ color: row.debit != null ? "#C46A4C" : undefined }}>
+                    <strong style={{ color: row.debit != null ? "#dc2626" : undefined }}>
                       {row.debit != null ? fmtAud(-row.debit) : "— "}
                     </strong>
 
@@ -3508,7 +3508,7 @@ export default function AccountantReconciliationSessionPage() {
                               Property Name <span className="is-required">*</span>
                             </label>
                             {categorizeIsSplit ? (
-                              <div className="recon-categorize-input" style={{ background: '#F3F0E9', color: '#6A6A69', display: 'flex', alignItems: 'center', height: '50px' }}>
+                              <div className="recon-categorize-input" style={{ background: '#f9fafb', color: '#6b7280', display: 'flex', alignItems: 'center', height: '50px' }}>
                                 Split Transaction
                               </div>
                             ) : (
@@ -3710,9 +3710,9 @@ export default function AccountantReconciliationSessionPage() {
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
-                              background: '#F3F0E9',
-                              border: '1px solid #E9E3F4',
-                              color: '#7A5CFA',
+                              background: '#f0f9ff',
+                              border: '1px solid #e0f2fe',
+                              color: '#0284c7',
                               borderRadius: '8px',
                               padding: '12px 16px',
                               fontSize: '13px',
@@ -3792,9 +3792,9 @@ export default function AccountantReconciliationSessionPage() {
                                       gap: "8px",
                                       padding: "10px 14px",
                                       borderRadius: "10px",
-                                      background: "rgba(196, 106, 76, 0.08)",
-                                      border: "1px solid rgba(196, 106, 76, 0.24)",
-                                      color: "#C46A4C",
+                                      background: "rgba(218, 56, 56, 0.08)",
+                                      border: "1px solid rgba(218, 56, 56, 0.24)",
+                                      color: "#da3838",
                                       fontSize: "13px",
                                       fontWeight: 500,
                                       marginTop: "10px",
@@ -3993,7 +3993,7 @@ export default function AccountantReconciliationSessionPage() {
                                     onBlur={() => setCategorizeDueDateTouched(true)}
                                   />
                                   {showCategorizeDueDateError && (
-                                    <p className="recon-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#C46A4C", fontSize: "12px", fontWeight: "600" }}>
+                                    <p className="recon-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
                                       <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                                       </svg>
@@ -4411,7 +4411,7 @@ export default function AccountantReconciliationSessionPage() {
       )}
 
       {bulkOpen && (
-        <div className="fixed inset-0 bg-[#151719]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" style={{ zIndex: 1000 }}>
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" style={{ zIndex: 1000 }}>
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl border border-slate-100 my-auto overflow-visible relative">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-base font-semibold text-slate-900 m-0">
@@ -4576,9 +4576,9 @@ export default function AccountantReconciliationSessionPage() {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    background: '#F3F0E9',
-                    border: '1px solid #E9E3F4',
-                    color: '#7A5CFA',
+                    background: '#f0f9ff',
+                    border: '1px solid #e0f2fe',
+                    color: '#0284c7',
                     borderRadius: '8px',
                     padding: '12px 16px',
                     fontSize: '13px',
@@ -4750,9 +4750,9 @@ export default function AccountantReconciliationSessionPage() {
       )}
 
       {showCompleteConfirm && (
-        <div className="fixed inset-0 bg-[#151719]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
+        <div className="fixed inset-0 bg-[#101828]/60 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#F2DED4] text-[#C46A4C] shrink-0 self-center">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#fef3c7] text-[#d97706] shrink-0 self-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
@@ -4760,7 +4760,7 @@ export default function AccountantReconciliationSessionPage() {
               </svg>
             </div>
             <div className="flex flex-col gap-1 text-center">
-              <h3 className="text-lg font-extrabold text-[#151719]">Complete Reconciliation</h3>
+              <h3 className="text-lg font-extrabold text-[#233152]">Complete Reconciliation</h3>
               <p className="text-xs text-slate-500 leading-normal mt-1">
                 Mark this reconciliation as completed? You can still create new reconciliations for this entity later, but no more statements can be uploaded into this one.
               </p>
@@ -4775,7 +4775,7 @@ export default function AccountantReconciliationSessionPage() {
               </button>
               <button
                 type="button"
-                className="flex-1 min-h-[44px] rounded-xl font-bold text-white bg-[#242629] hover:bg-[#151719] active:scale-[0.98] transition-all duration-150 text-sm shadow-sm cursor-pointer"
+                className="flex-1 min-h-[44px] rounded-xl font-bold text-white bg-[#28336e] hover:bg-[#1f2858] active:scale-[0.98] transition-all duration-150 text-sm shadow-sm cursor-pointer"
                 onClick={handleConfirmComplete}
               >
                 Complete

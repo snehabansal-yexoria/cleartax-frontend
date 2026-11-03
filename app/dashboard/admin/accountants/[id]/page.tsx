@@ -412,8 +412,8 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
             const y = yStart + chartHeight - (gridVal / maxVal) * chartHeight;
             return (
               <g key={gridVal}>
-                <line x1={xStart} y1={y} x2={xStart + chartWidth} y2={y} stroke="#F3F0E9" strokeWidth="1" />
-                <text x={xStart - 12} y={y + 4} textAnchor="end" fill="#989794" className="text-[11px] font-medium font-sans select-none">
+                <line x1={xStart} y1={y} x2={xStart + chartWidth} y2={y} stroke="#F3F4F6" strokeWidth="1" />
+                <text x={xStart - 12} y={y + 4} textAnchor="end" fill="#9CA3AF" className="text-[11px] font-medium font-sans select-none">
                   {gridVal}
                 </text>
               </g>
@@ -456,7 +456,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                 {recH > 0 && (
                   <path
                     d={recPathD}
-                    fill={isHovered ? "#7A5CFA" : "#7A5CFA"}
+                    fill={isHovered ? "#1D4ED8" : "#2563EB"}
                     className="transition-all duration-150"
                   />
                 )}
@@ -465,7 +465,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                 {uncH > 0 && (
                   <path
                     d={uncPathD}
-                    fill={isHovered ? "#C46A4C" : "#C46A4C"}
+                    fill={isHovered ? "#B43D0A" : "#C2410C"}
                     className="transition-all duration-150"
                   />
                 )}
@@ -475,7 +475,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                   x={x + barWidth / 2}
                   y={yStart + chartHeight + 20}
                   textAnchor="middle"
-                  fill="#989794"
+                  fill="#9CA3AF"
                   className="text-[11px] font-medium font-sans select-none"
                 >
                   {month}
@@ -560,7 +560,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
       </nav>
 
       {/* Profile Header Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] p-6">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className={`w-16 h-16 rounded-xl flex items-center justify-center font-bold text-xl ${accountant.avatarBg} shrink-0 shadow-sm`}>
@@ -618,10 +618,10 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <g clip-path="url(#clip0_1348_9540)">
-                  <path d="M9.33203 12.25V11.0833C9.33203 10.4645 9.0862 9.871 8.64861 9.43342C8.21103 8.99583 7.61754 8.75 6.9987 8.75H2.91536C2.29653 8.75 1.70303 8.99583 1.26545 9.43342C0.827864 9.871 0.582031 10.4645 0.582031 11.0833V12.25" stroke="#C46A4C" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M4.95833 6.41667C6.247 6.41667 7.29167 5.372 7.29167 4.08333C7.29167 2.79467 6.247 1.75 4.95833 1.75C3.66967 1.75 2.625 2.79467 2.625 4.08333C2.625 5.372 3.66967 6.41667 4.95833 6.41667Z" stroke="#C46A4C" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M10.5 4.66602L13.4167 7.58268" stroke="#C46A4C" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M13.4167 4.66602L10.5 7.58268" stroke="#C46A4C" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M9.33203 12.25V11.0833C9.33203 10.4645 9.0862 9.871 8.64861 9.43342C8.21103 8.99583 7.61754 8.75 6.9987 8.75H2.91536C2.29653 8.75 1.70303 8.99583 1.26545 9.43342C0.827864 9.871 0.582031 10.4645 0.582031 11.0833V12.25" stroke="#C03A2B" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M4.95833 6.41667C6.247 6.41667 7.29167 5.372 7.29167 4.08333C7.29167 2.79467 6.247 1.75 4.95833 1.75C3.66967 1.75 2.625 2.79467 2.625 4.08333C2.625 5.372 3.66967 6.41667 4.95833 6.41667Z" stroke="#C03A2B" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M10.5 4.66602L13.4167 7.58268" stroke="#C03A2B" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M13.4167 4.66602L10.5 7.58268" stroke="#C03A2B" stroke-linecap="round" stroke-linejoin="round" />
                 </g>
                 <defs>
                   <clipPath id="clip0_1348_9540">
@@ -636,7 +636,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* 5 Stats Card Row (Combined container matching Figma) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] flex flex-col lg:flex-row lg:divide-x divide-slate-100 lg:divide-slate-200/80 divide-y lg:divide-y-0">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] flex flex-col lg:flex-row lg:divide-x divide-slate-100 lg:divide-slate-200/80 divide-y lg:divide-y-0">
         <div className="p-6 flex-1">
           <p className="!text-[11.5px] font-medium text-slate-custom uppercase tracking-wider">Clients</p>
           <span className="!text-[28px] font-semibold mt-1.5 block">{accountant.stats.clients}</span>
@@ -695,7 +695,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
       {activeTab === "overview" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Stacked Chart Card (Left 2 cols) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] p-6 lg:col-span-2 relative">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-6 lg:col-span-2 relative">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-bold text-slate-900 font-sans">Monthly transaction activity</h3>
               <span className="text-sm text-slate-400 font-normal font-sans">FY 2025–26</span>
@@ -703,11 +703,11 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
             {/* Legend */}
             <div className="flex items-center gap-4 text-[13px] font-normal text-slate-500 mb-6 font-sans">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-[3px] bg-[#7A5CFA]" />
+                <span className="w-3 h-3 rounded-[3px] bg-[#2563EB]" />
                 Reconciled
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-[3px] bg-[#C46A4C]" />
+                <span className="w-3 h-3 rounded-[3px] bg-[#C2410C]" />
                 Unclassified
               </div>
             </div>
@@ -715,7 +715,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* Performance Summary Card (Right 1 col) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] p-5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-5">
             <h3 className="text-base font-bold text-slate-900 mb-4">Performance summary</h3>
             <div className="divide-y divide-slate-100">
               <div className="py-3.5 flex justify-between items-center text-sm font-medium">
@@ -749,7 +749,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
 
       {/* Clients Tab */}
       {activeTab === "clients" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
           <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <h3 className="text-base font-bold text-slate-950 font-sans tracking-tight">Assigned clients</h3>
@@ -806,17 +806,17 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                       <td className="py-3 px-6 text-sm font-medium text-slate-900">{client.transactions}</td>
                       <td className="py-3 px-6">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold select-none ${client.unclassified > 15
-                          ? "bg-[#F3F0E9] text-[#C46A4C]"
-                          : "bg-[#F7EEE7] text-[#C46A4C]"
+                          ? "bg-[#FEF2F2] text-[#EF4444]"
+                          : "bg-[#FFFBEB] text-[#D97706]"
                           }`}>
                           {client.unclassified}
                         </span>
                       </td>
-                      <td className="py-3 px-6 text-sm font-bold text-[#6F7A5A]">{client.netProfit}</td>
+                      <td className="py-3 px-6 text-sm font-bold text-[#10B981]">{client.netProfit}</td>
                       <td className="py-3 px-6 text-right">
                         <button
                           onClick={() => triggerToast(`Navigating to profile for ${client.name}...`, "info")}
-                          className="px-3.5 py-1.5 bg-[#F3F0E9] hover:bg-[#E1DFD8] rounded-lg text-xs font-bold text-slate-800 transition duration-150 cursor-pointer"
+                          className="px-3.5 py-1.5 bg-[#F3F4F6] hover:bg-[#E5E7EB] rounded-lg text-xs font-bold text-slate-800 transition duration-150 cursor-pointer"
                         >
                           View
                         </button>
@@ -832,7 +832,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
 
       {/* Transactions Tab */}
       {activeTab === "transactions" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
           <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <h3 className="text-base font-bold text-slate-950 font-sans tracking-tight">Recent transactions</h3>
@@ -883,19 +883,19 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                       <td className="py-4 px-6 text-sm font-medium text-slate-500">{tx.property}</td>
                       <td className="py-4 px-6 text-sm font-bold text-slate-800">{tx.description}</td>
                       <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-[#F3F0E9] text-slate-600 select-none">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-[#F3F4F6] text-slate-600 select-none">
                           {tx.category}
                         </span>
                       </td>
-                      <td className={`py-4 px-6 text-sm font-bold ${tx.isPositive ? "text-[#6F7A5A]" : "text-slate-950"}`}>
+                      <td className={`py-4 px-6 text-sm font-bold ${tx.isPositive ? "text-[#10B981]" : "text-slate-950"}`}>
                         {tx.amount}
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold select-none ${tx.status === "Reconciled"
-                          ? "bg-[#F3F0E9] text-[#56613F] border border-[#F0F0E7]"
-                          : "bg-[#F7EEE7] text-[#C46A4C] border border-[#F2DED4]"
+                          ? "bg-[#ECFDF5] text-[#047857] border border-[#D1FAE5]"
+                          : "bg-[#FFFBEB] text-[#B45309] border border-[#FEF3C7]"
                           }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${tx.status === "Reconciled" ? "bg-[#6F7A5A]" : "bg-[#7A5CFA]"}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${tx.status === "Reconciled" ? "bg-[#10B981]" : "bg-[#F59E0B]"}`} />
                           {tx.status}
                         </span>
                       </td>
@@ -910,7 +910,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
 
       {/* Activity Log Tab */}
       {activeTab === "activity log" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(21, 23, 25,0.05)] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
           <div className="overflow-x-auto">
             {activities.length === 0 ? (
               <div className="p-8 text-center text-slate-400 font-medium">
@@ -931,11 +931,11 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                   {activities.map((act, idx) => {
                     let actionBadgeStyle = "bg-slate-50 text-slate-700 border-slate-200/60";
                     if (act.actionType === "added" || act.actionType === "added_tx") {
-                      actionBadgeStyle = "bg-[#F3F0E9] text-[#56613F] border border-[#F0F0E7]";
+                      actionBadgeStyle = "bg-[#ECFDF5] text-[#047857] border border-[#D1FAE5]";
                     } else if (act.actionType === "edited") {
-                      actionBadgeStyle = "bg-[#F3F0E9] text-[#7A5CFA] border border-[#E7E0F4]";
+                      actionBadgeStyle = "bg-[#EFF6FF] text-[#1D4ED8] border border-[#DBEAFE]";
                     } else if (act.actionType === "deleted") {
-                      actionBadgeStyle = "bg-[#F3F0E9] text-[#C46A4C] border border-[#F6EAE2]";
+                      actionBadgeStyle = "bg-[#FEF2F2] text-[#B91C1C] border border-[#FEE2E2]";
                     }
 
                     return (

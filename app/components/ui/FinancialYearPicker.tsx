@@ -88,30 +88,30 @@ export default function FinancialYearPicker({
           padding: "0 14px",
           borderRadius: "10px",
           border: isOpen
-            ? "1.5px solid var(--accent, #7A5CFA)"
-            : "1px solid var(--border, rgba(21, 23, 25, 0.08))",
-          backgroundColor: isOpen ? "var(--surface-2, #F3F0E9)" : "var(--surface-1, #FFFFFF)",
-          color: "var(--text-primary, #151719)",
+            ? "1.5px solid var(--accent, #F4A117)"
+            : "1px solid var(--border, rgba(20, 23, 46, 0.08))",
+          backgroundColor: isOpen ? "var(--surface-2, #f8fafc)" : "var(--surface-1, #ffffff)",
+          color: "var(--text-primary, #1e293b)",
           fontSize: "13px",
           fontWeight: 600,
           cursor: "pointer",
           outline: "none",
           boxShadow: isOpen
-            ? "0 0 0 3px rgba(122, 92, 250, 0.18)"
-            : "0 1px 2px rgba(21, 23, 25, 0.05)",
+            ? "0 0 0 3px rgba(244, 161, 23, 0.18)"
+            : "0 1px 2px rgba(0, 0, 0, 0.05)",
           transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
           userSelect: "none",
         }}
         onMouseEnter={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.borderColor = "rgba(122, 92, 250, 0.4)";
-            e.currentTarget.style.backgroundColor = "var(--surface-2, #F3F0E9)";
+            e.currentTarget.style.borderColor = "rgba(244, 161, 23, 0.4)";
+            e.currentTarget.style.backgroundColor = "var(--surface-2, #f8fafc)";
           }
         }}
         onMouseLeave={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.borderColor = "var(--border, rgba(21, 23, 25, 0.08))";
-            e.currentTarget.style.backgroundColor = "var(--surface-1, #FFFFFF)";
+            e.currentTarget.style.borderColor = "var(--border, rgba(20, 23, 46, 0.08))";
+            e.currentTarget.style.backgroundColor = "var(--surface-1, #ffffff)";
           }
         }}
       >
@@ -123,7 +123,7 @@ export default function FinancialYearPicker({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ width: "15px", height: "15px", color: "var(--accent, #7A5CFA)", flexShrink: 0 }}
+            style={{ width: "15px", height: "15px", color: "var(--accent, #F4A117)", flexShrink: 0 }}
             aria-hidden="true"
           >
             <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
@@ -143,7 +143,7 @@ export default function FinancialYearPicker({
           style={{
             width: "14px",
             height: "14px",
-            color: isOpen ? "var(--accent, #7A5CFA)" : "var(--text-muted, #6C6C6B)",
+            color: isOpen ? "var(--accent, #F4A117)" : "var(--text-muted, #64748b)",
             transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease",
             transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
             flexShrink: 0,
@@ -163,10 +163,10 @@ export default function FinancialYearPicker({
             top: "calc(100% + 6px)",
             right: 0,
             minWidth: "170px",
-            backgroundColor: "var(--surface-1, #FFFFFF)",
-            border: "1px solid var(--border, #E2E0D9)",
+            backgroundColor: "var(--surface-1, #ffffff)",
+            border: "1px solid var(--border, #e2e8f0)",
             borderRadius: "12px",
-            boxShadow: "0 16px 36px -4px rgba(21, 23, 25, 0.35), 0 6px 16px -2px rgba(21, 23, 25, 0.15)",
+            boxShadow: "0 16px 36px -4px rgba(0, 0, 0, 0.35), 0 6px 16px -2px rgba(0, 0, 0, 0.15)",
             zIndex: 1000,
             padding: "6px",
             display: "flex",
@@ -192,8 +192,8 @@ export default function FinancialYearPicker({
                   borderRadius: "8px",
                   fontSize: "13px",
                   fontWeight: isSelected ? 600 : 500,
-                  color: isSelected ? "var(--accent, #242629)" : "var(--text-primary, #3E3F3F)",
-                  backgroundColor: isSelected ? "var(--surface-2, #F3F0E9)" : "transparent",
+                  color: isSelected ? "var(--accent, #28336e)" : "var(--text-primary, #334155)",
+                  backgroundColor: isSelected ? "var(--surface-2, #eff6ff)" : "transparent",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -205,7 +205,7 @@ export default function FinancialYearPicker({
                   textAlign: "left",
                 }}
                 onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.backgroundColor = "var(--surface-2, #F3F0E9)";
+                  if (!isSelected) e.currentTarget.style.backgroundColor = "var(--surface-2, #f8fafc)";
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
@@ -220,7 +220,7 @@ export default function FinancialYearPicker({
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{ width: "16px", height: "16px", color: "var(--accent, #242629)" }}
+                    style={{ width: "16px", height: "16px", color: "var(--accent, #28336e)" }}
                     aria-hidden="true"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />

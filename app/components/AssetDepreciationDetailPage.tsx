@@ -45,18 +45,18 @@ export type AssetDepreciationDetailPageProps = {
 };
 
 const card: React.CSSProperties = {
-  background: "#FFFFFF",
-  border: "1px solid #E2DAF4",
+  background: "#ffffff",
+  border: "1px solid #dde4f2",
   borderRadius: "16px",
   padding: "24px 28px",
-  boxShadow: "0 4px 12px rgba(21, 23, 25, 0.02)",
+  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.02)",
 };
 
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: "10px",
   fontWeight: 700,
-  color: "#888784",
+  color: "#828fa7",
   textTransform: "uppercase",
   letterSpacing: "0.05em",
   marginBottom: "4px",
@@ -64,7 +64,7 @@ const labelStyle: React.CSSProperties = {
 
 const valueStyle: React.CSSProperties = {
   fontSize: "13px",
-  color: "#242629",
+  color: "#28336e",
   fontWeight: 700,
 };
 
@@ -72,7 +72,7 @@ const thStyle: React.CSSProperties = {
   padding: "12px",
   fontSize: "11px",
   fontWeight: 700,
-  color: "#888784",
+  color: "#828fa7",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   whiteSpace: "nowrap",
@@ -91,7 +91,7 @@ export default function AssetDepreciationDetailPage({
     return (
       <div className="client-detail-page property-detail-page property-detail-shell asset-depreciation-container">
         <BackLink backHref={backHref} />
-        <p style={{ color: "#6C6C6B", fontSize: "14px" }}>Loading depreciation schedule…</p>
+        <p style={{ color: "#64748b", fontSize: "14px" }}>Loading depreciation schedule…</p>
       </div>
     );
   }
@@ -100,8 +100,8 @@ export default function AssetDepreciationDetailPage({
     return (
       <div className="client-detail-page property-detail-page property-detail-shell asset-depreciation-container">
         <BackLink backHref={backHref} />
-        <div style={{ ...card, borderColor: "#F3DFD5", background: "#F3F0E9" }}>
-          <p style={{ margin: 0, color: "#C46A4C", fontSize: "14px", fontWeight: 600 }}>
+        <div style={{ ...card, borderColor: "#fecaca", background: "#fef2f2" }}>
+          <p style={{ margin: 0, color: "#b91c1c", fontSize: "14px", fontWeight: 600 }}>
             {error}
           </p>
           <button
@@ -109,8 +109,8 @@ export default function AssetDepreciationDetailPage({
             onClick={reload}
             style={{
               marginTop: "12px",
-              background: "#242629",
-              color: "#FFFFFF",
+              background: "#28336e",
+              color: "#fff",
               border: "none",
               borderRadius: "8px",
               padding: "8px 16px",
@@ -131,10 +131,10 @@ export default function AssetDepreciationDetailPage({
       <div className="client-detail-page property-detail-page property-detail-shell asset-depreciation-container">
         <BackLink backHref={backHref} />
         <div style={card}>
-          <h2 style={{ margin: 0, fontSize: "18px", color: "#242629", fontWeight: 700 }}>
+          <h2 style={{ margin: 0, fontSize: "18px", color: "#28336e", fontWeight: 700 }}>
             No depreciation schedule for this transaction
           </h2>
-          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#6C6C6B", lineHeight: 1.55 }}>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#64748b", lineHeight: 1.55 }}>
             A schedule is generated when a transaction is saved as an asset purchase with a
             depreciation category, an effective life and a method. If this transaction was
             recently marked as an asset, reopen it and save it again.
@@ -169,7 +169,7 @@ export default function AssetDepreciationDetailPage({
       </div>
 
       {downloadError && (
-        <p style={{ color: "#C46A4C", fontSize: "13px", fontWeight: 600, marginBottom: "16px" }}>
+        <p style={{ color: "#b91c1c", fontSize: "13px", fontWeight: 600, marginBottom: "16px" }}>
           {downloadError}
         </p>
       )}
@@ -194,7 +194,7 @@ function BackLink({ backHref, inline }: { backHref: string; inline?: boolean }) 
         display: "inline-flex",
         alignItems: "center",
         gap: "8px",
-        color: "#505050",
+        color: "#475569",
         textDecoration: "none",
         fontSize: "14px",
         fontWeight: 600,
@@ -265,7 +265,7 @@ function ScheduleReport({
           <h1
             style={{
               fontSize: "28px",
-              color: "#242629",
+              color: "#28336e",
               fontWeight: 700,
               margin: 0,
               letterSpacing: "-0.02em",
@@ -273,7 +273,7 @@ function ScheduleReport({
           >
             {schedule.assetName} — Depreciation Schedule
           </h1>
-          <p style={{ fontSize: "14px", color: "#888784", margin: "6px 0 0", fontWeight: 500 }}>
+          <p style={{ fontSize: "14px", color: "#828fa7", margin: "6px 0 0", fontWeight: 500 }}>
             {[schedule.propertyName, schedule.entityName].filter(Boolean).join(" · ")}
           </p>
         </div>
@@ -287,8 +287,8 @@ function ScheduleReport({
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            background: "#242629",
-            color: "#FFFFFF",
+            background: "#28336e",
+            color: "#ffffff",
             border: "none",
             borderRadius: "8px",
             padding: "8px 16px",
@@ -310,8 +310,8 @@ function ScheduleReport({
 
       {/* ---- Asset details -------------------------------------------------- */}
       <div style={{ ...card, marginBottom: "24px" }}>
-        <div style={{ borderBottom: "1px solid #F3F0E9", paddingBottom: "12px", marginBottom: "20px" }}>
-          <h2 style={{ margin: 0, fontSize: "12px", fontWeight: 700, color: "#888784", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: "12px", marginBottom: "20px" }}>
+          <h2 style={{ margin: 0, fontSize: "12px", fontWeight: 700, color: "#828fa7", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Asset Details
           </h2>
         </div>
@@ -368,12 +368,12 @@ function ScheduleReport({
       {/* ---- Year-by-year table --------------------------------------------- */}
       <div style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "20px" }}>
-          <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#242629" }}>
+          <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#28336e" }}>
             Year-by-Year Depreciation Schedule
           </h2>
 
           <div className="asset-depreciation-noprint" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <label htmlFor={`fy-${schedule.id}`} style={{ fontSize: "13px", fontWeight: 500, color: "#6C6C6B" }}>
+            <label htmlFor={`fy-${schedule.id}`} style={{ fontSize: "13px", fontWeight: 500, color: "#64748b" }}>
               Financial Year
             </label>
             <select
@@ -383,10 +383,10 @@ function ScheduleReport({
               style={{
                 padding: "6px 12px",
                 borderRadius: "8px",
-                border: "1px solid #CBC9C4",
-                background: "#FFFFFF",
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
                 fontSize: "13px",
-                color: "#3E3F3F",
+                color: "#334155",
                 cursor: "pointer",
               }}
             >
@@ -403,7 +403,7 @@ function ScheduleReport({
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontVariantNumeric: "tabular-nums" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #F0EDE6" }}>
+              <tr style={{ borderBottom: "1px solid #eef2f6" }}>
                 <th style={thStyle}>Financial Year</th>
                 <th style={{ ...thStyle, textAlign: "center" }}>Days Held</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Opening Value</th>
@@ -419,29 +419,29 @@ function ScheduleReport({
                   <tr
                     key={y.fyStartYear}
                     style={{
-                      borderBottom: idx === years.length - 1 ? "none" : "1px solid #F3F0E9",
-                      background: isSelected ? "#F3F0E9" : "transparent",
+                      borderBottom: idx === years.length - 1 ? "none" : "1px solid #f1f5f9",
+                      background: isSelected ? "#f0fdf4" : "transparent",
                     }}
                   >
-                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#3E3F3F", fontWeight: 500 }}>
+                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#334155", fontWeight: 500 }}>
                       {fyLabel(y.fyStartYear)}
                       {y.isPartial && (
-                        <span style={{ color: "#888784", fontWeight: 500 }}> (part year)</span>
+                        <span style={{ color: "#828fa7", fontWeight: 500 }}> (part year)</span>
                       )}
                     </td>
-                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#3E3F3F", textAlign: "center" }}>
+                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#334155", textAlign: "center" }}>
                       {y.daysHeld}
                     </td>
-                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#3E3F3F", textAlign: "right" }}>
+                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#334155", textAlign: "right" }}>
                       {formatCurrency(y.openingAdjustableValue)}
                     </td>
-                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#505050", textAlign: "right" }}>
+                    <td style={{ padding: "16px 12px", fontSize: "13px", color: "#475569", textAlign: "right" }}>
                       {y.rate.toFixed(2)}%
                     </td>
-                    <td style={{ padding: "16px 12px", fontSize: "14px", color: "#242629", fontWeight: 700, textAlign: "right" }}>
+                    <td style={{ padding: "16px 12px", fontSize: "14px", color: "#28336e", fontWeight: 700, textAlign: "right" }}>
                       {formatCurrency(y.depreciation)}
                     </td>
-                    <td style={{ padding: "16px 12px", fontSize: "14px", color: "#242629", fontWeight: 700, textAlign: "right" }}>
+                    <td style={{ padding: "16px 12px", fontSize: "14px", color: "#28336e", fontWeight: 700, textAlign: "right" }}>
                       {formatCurrency(y.closingAdjustableValue)}
                     </td>
                   </tr>
@@ -449,11 +449,11 @@ function ScheduleReport({
               })}
             </tbody>
             <tfoot>
-              <tr style={{ borderTop: "2px solid #F0EDE6", background: "#F3F0E9" }}>
-                <td colSpan={4} style={{ padding: "14px 12px", fontSize: "12px", fontWeight: 700, color: "#505050", textAlign: "right", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <tr style={{ borderTop: "2px solid #eef2f6", background: "#f8fafc" }}>
+                <td colSpan={4} style={{ padding: "14px 12px", fontSize: "12px", fontWeight: 700, color: "#475569", textAlign: "right", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Total over the effective life
                 </td>
-                <td style={{ padding: "14px 12px", fontSize: "14px", fontWeight: 700, color: "#242629", textAlign: "right" }}>
+                <td style={{ padding: "14px 12px", fontSize: "14px", fontWeight: 700, color: "#28336e", textAlign: "right" }}>
                   {formatCurrency(totalDepreciation)}
                 </td>
                 <td />
@@ -462,7 +462,7 @@ function ScheduleReport({
           </table>
         </div>
 
-        <div style={{ marginTop: "16px", fontSize: "12px", color: "#6C6C6B", lineHeight: 1.55, display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{ marginTop: "16px", fontSize: "12px", color: "#64748b", lineHeight: 1.55, display: "flex", flexDirection: "column", gap: "6px" }}>
           <span>
             Financial years run 1 July to 30 June. The year of acquisition and the final year
             are prorated by days held over 365; every full financial year receives the annual
@@ -513,15 +513,15 @@ function Stat({
       style={{
         ...card,
         padding: "24px",
-        background: dark ? "#242629" : "#FFFFFF",
-        border: dark ? "none" : "1px solid #E2DAF4",
+        background: dark ? "#28336e" : "#ffffff",
+        border: dark ? "none" : "1px solid #dde4f2",
       }}
     >
       <span
         style={{
           fontSize: "11px",
           fontWeight: 700,
-          color: dark ? "#999894" : "#888784",
+          color: dark ? "#94a3b8" : "#828fa7",
           textTransform: "uppercase",
           letterSpacing: "0.06em",
         }}
@@ -532,7 +532,7 @@ function Stat({
         style={{
           fontSize: "26px",
           fontWeight: 700,
-          color: dark ? "#FFFFFF" : "#242629",
+          color: dark ? "#ffffff" : "#28336e",
           marginTop: "8px",
           letterSpacing: "-0.02em",
         }}
@@ -544,7 +544,7 @@ function Stat({
           style={{
             fontSize: "13px",
             fontWeight: 600,
-            color: dark ? "#6F7A5A" : "#888784",
+            color: dark ? "#4ade80" : "#828fa7",
             marginTop: "8px",
           }}
         >

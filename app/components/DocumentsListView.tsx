@@ -54,9 +54,9 @@ function sourceLabel(source: string) {
 }
 
 function statusColor(status: string) {
-  if (status === "completed") return "var(--color-success, #6F7A5A)";
-  if (status === "failed") return "var(--color-danger, #C46A4C)";
-  return "var(--color-warning, #C46A4C)";
+  if (status === "completed") return "var(--color-success, #16a34a)";
+  if (status === "failed") return "var(--color-danger, #dc2626)";
+  return "var(--color-warning, #ca8a04)";
 }
 
 function titleCase(value: string) {
@@ -375,14 +375,14 @@ export default function DocumentsListView({ context, token, disabled = false }: 
           ))}
         </div>
       ) : error ? (
-        <div className="client-detail-empty" style={{ borderColor: "#ECCBBC", backgroundColor: "#F3F0E9" }}>
-          <svg viewBox="0 0 24 24" width="32" height="32" stroke="#C46A4C" strokeWidth="1.5" fill="none" style={{ marginBottom: 8 }}>
+        <div className="client-detail-empty" style={{ borderColor: "#fda29b", backgroundColor: "#fef3f2" }}>
+          <svg viewBox="0 0 24 24" width="32" height="32" stroke="#f04438" strokeWidth="1.5" fill="none" style={{ marginBottom: 8 }}>
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <p style={{ color: "#C46A4C", fontWeight: 600 }}>{error}</p>
-          <button type="button" onClick={fetchDocuments} className="premium-docs-upload-btn" style={{ marginTop: 12, backgroundColor: "#C46A4C" }}>
+          <p style={{ color: "#b42318", fontWeight: 600 }}>{error}</p>
+          <button type="button" onClick={fetchDocuments} className="premium-docs-upload-btn" style={{ marginTop: 12, backgroundColor: "#d92d20" }}>
             Retry Loading
           </button>
         </div>
@@ -398,13 +398,13 @@ export default function DocumentsListView({ context, token, disabled = false }: 
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden="true"
-            style={{ color: "#CCCAC4", marginBottom: 12 }}
+            style={{ color: "#d0d5dd", marginBottom: 12 }}
           >
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#3E3F3F" }}>No documents uploaded yet</p>
-          <p style={{ fontSize: 14, color: "#6A6A69", marginTop: 4 }}>No documents have been uploaded for this client.</p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#344054" }}>No documents uploaded yet</p>
+          <p style={{ fontSize: 14, color: "#667085", marginTop: 4 }}>No documents have been uploaded for this client.</p>
         </div>
       ) : (
         <ul className="premium-docs-list">

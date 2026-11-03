@@ -154,9 +154,9 @@ export function PhoneInput({
             height: "100%",
             padding: variant === "borderless" ? "0 22px 0 0" : "10px 30px 10px 14px",
             fontSize: "14px",
-            color: variant === "borderless" ? "inherit" : "#3E3F3F",
-            background: variant === "borderless" ? "transparent" : "#FFFFFF",
-            border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#ECCBBC" : "#CCCAC4"}`,
+            color: variant === "borderless" ? "inherit" : "#344054",
+            background: variant === "borderless" ? "transparent" : "#ffffff",
+            border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
             borderRadius: variant === "borderless" ? "0" : "10px",
             outline: "none",
             cursor: "pointer",
@@ -187,7 +187,7 @@ export function PhoneInput({
             right: variant === "borderless" ? "2px" : "12px",
             width: "14px",
             height: "14px",
-            color: "#6A6A69",
+            color: "#667085",
             pointerEvents: "none",
           }}
         >
@@ -206,11 +206,11 @@ export function PhoneInput({
         style={{
           flex: 1,
           padding: variant === "borderless" ? "0" : "10px 14px",
-          border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#ECCBBC" : "#CCCAC4"}`,
+          border: variant === "borderless" ? "none" : `1.5px solid ${error ? "#fda29b" : "#d0d5dd"}`,
           borderRadius: variant === "borderless" ? "0" : "10px",
           background: "transparent",
           fontSize: "14px",
-          color: variant === "borderless" ? "inherit" : "#151719",
+          color: variant === "borderless" ? "inherit" : "#101828",
           outline: "none",
           transition: "border-color 0.2s",
         }}

@@ -203,7 +203,7 @@ export default function ClientPropertyPage() {
                 height: "40px",
                 borderRadius: "20px",
                 background: "var(--brand)",
-                color: "#FFFFFF",
+                color: "#ffffff",
                 textDecoration: "none"
               }}
             >
@@ -247,7 +247,7 @@ export default function ClientPropertyPage() {
                   background: "var(--surface-1)",
                   color: "var(--text-primary)",
                   outline: "none",
-                  boxShadow: "0 4px 12px rgba(21, 23, 25, 0.01)"
+                  boxShadow: "0 4px 12px rgba(16, 24, 40, 0.01)"
                 }}
               />
             </div>

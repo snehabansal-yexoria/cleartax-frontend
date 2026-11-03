@@ -241,10 +241,10 @@ export function ClientPortfolioSkeleton({
         <div className="m-db-toggle-wrap">
           <div className="m-db-toggle">
             <div className={`m-db-toggle-btn${activeTab === 'summary' ? ' is-active' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div className="skeleton-line" style={{ width: '60px', height: '12px', background: activeTab === 'summary' ? 'rgba(21, 23, 25,0.05)' : undefined }} />
+              <div className="skeleton-line" style={{ width: '60px', height: '12px', background: activeTab === 'summary' ? 'rgba(0,0,0,0.05)' : undefined }} />
             </div>
             <div className={`m-db-toggle-btn${activeTab === 'detailed' ? ' is-active' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div className="skeleton-line" style={{ width: '60px', height: '12px', background: activeTab === 'detailed' ? 'rgba(21, 23, 25,0.05)' : undefined }} />
+              <div className="skeleton-line" style={{ width: '60px', height: '12px', background: activeTab === 'detailed' ? 'rgba(0,0,0,0.05)' : undefined }} />
             </div>
           </div>
         </div>
@@ -252,15 +252,15 @@ export function ClientPortfolioSkeleton({
         {activeTab === 'summary' && (
           <div className="m-db-content" style={{ marginTop: '16px' }}>
             {/* Net Position Card */}
-            <div className="bg-white border border-[#EBE8E1] rounded-[18px] p-5 shadow-sm">
+            <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm">
               <div className="flex justify-between items-center">
                 <div className="skeleton-line" style={{ width: '80px', height: '12px' }} />
                 <div className="skeleton-pill" style={{ width: '90px', height: '22px' }} />
               </div>
               <div className="skeleton-line" style={{ width: '160px', height: '34px', marginTop: '12px', marginBottom: '16px' }} />
-              <div style={{ height: '1px', background: '#F3F0E9', margin: '16px 0' }} />
+              <div style={{ height: '1px', background: '#f2f4f7', margin: '16px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div style={{ flex: 1, paddingRight: '12px', borderRight: '1px solid #F3F0E9' }}>
+                <div style={{ flex: 1, paddingRight: '12px', borderRight: '1px solid #f2f4f7' }}>
                   <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
                   <div className="skeleton-line" style={{ width: '80px', height: '16px' }} />
                 </div>
@@ -306,10 +306,10 @@ export function ClientPortfolioSkeleton({
 
             {/* Payment Alerts Section */}
             <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
-              <div className="bg-white border border-[#EBE8E1] rounded-[18px] p-5 shadow-sm">
+              <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm">
                 <div className="skeleton-line" style={{ width: '120px', height: '16px', marginBottom: '12px' }} />
                 <div className="flex flex-col gap-4">
-                  <div className="flex items-start gap-3 p-3 rounded-xl border border-[#F3F0E9]">
+                  <div className="flex items-start gap-3 p-3 rounded-xl border border-[#f2f4f7]">
                     <div className="skeleton-circle" style={{ width: '36px', height: '36px', flexShrink: 0 }} />
                     <div className="flex-grow">
                       <div className="skeleton-line" style={{ width: '70%', height: '14px', marginBottom: '8px' }} />
@@ -356,7 +356,7 @@ export function ClientPortfolioSkeleton({
               </div>
               <div className="m-db-activity-list-card" style={{ marginTop: '8px' }}>
                 {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="m-db-activity-row" style={{ borderBottom: idx < 2 ? '1px solid #F3F0E9' : 'none', padding: '12px' }}>
+                  <div key={idx} className="m-db-activity-row" style={{ borderBottom: idx < 2 ? '1px solid #f2f4f7' : 'none', padding: '12px' }}>
                     <div className="m-db-activity-left">
                       <div className="skeleton-circle" style={{ width: '32px', height: '32px' }} />
                       <div className="m-db-activity-info">
@@ -375,23 +375,23 @@ export function ClientPortfolioSkeleton({
         {activeTab === 'detailed' && (
           <div className="m-db-content" style={{ marginTop: '16px' }}>
             {/* Detailed Net Position Card */}
-            <div className="bg-white border border-[#EBE8E1] rounded-[18px] p-5 shadow-sm">
+            <div className="bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm">
               <div className="flex justify-between items-center">
                 <div className="skeleton-line" style={{ width: '80px', height: '12px' }} />
                 <div className="skeleton-pill" style={{ width: '90px', height: '22px' }} />
               </div>
               <div className="skeleton-line" style={{ width: '160px', height: '34px', marginTop: '12px', marginBottom: '16px' }} />
-              <div style={{ height: '1px', background: '#F3F0E9', margin: '16px 0' }} />
+              <div style={{ height: '1px', background: '#f2f4f7', margin: '16px 0' }} />
               <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.1fr 1.2fr', gap: '4px' }}>
                 <div style={{ paddingLeft: 0 }}>
                   <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
                   <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
                 </div>
-                <div style={{ paddingLeft: '8px', borderLeft: '1px solid #F3F0E9' }}>
+                <div style={{ paddingLeft: '8px', borderLeft: '1px solid #f2f4f7' }}>
                   <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
                   <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
                 </div>
-                <div style={{ paddingLeft: '8px', borderLeft: '1px solid #F3F0E9' }}>
+                <div style={{ paddingLeft: '8px', borderLeft: '1px solid #f2f4f7' }}>
                   <div className="skeleton-line" style={{ width: '60px', height: '11px', marginBottom: '6px' }} />
                   <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
                 </div>
@@ -415,13 +415,13 @@ export function ClientPortfolioSkeleton({
               </div>
               <div className="m-db-activity-list-card" style={{ marginTop: '8px' }}>
                 {Array.from({ length: 2 }).map((_, idx) => (
-                  <div key={idx} className="m-db-entity-row" style={{ padding: '16px', borderBottom: idx < 1 ? '1px solid #F3F0E9' : 'none' }}>
+                  <div key={idx} className="m-db-entity-row" style={{ padding: '16px', borderBottom: idx < 1 ? '1px solid #f2f4f7' : 'none' }}>
                     <div className="m-db-entity-row-top" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                       <div className="skeleton-line" style={{ width: '120px', height: '14px' }} />
                       <div className="skeleton-line" style={{ width: '60px', height: '14px' }} />
                     </div>
                     <div className="skeleton-line" style={{ width: '80px', height: '11px', marginBottom: '8px' }} />
-                    <div className="m-db-entity-bar-container" style={{ height: '6px', background: '#F3F0E9', borderRadius: '3px', marginBottom: '8px' }}>
+                    <div className="m-db-entity-bar-container" style={{ height: '6px', background: '#f2f4f7', borderRadius: '3px', marginBottom: '8px' }}>
                       <div className="skeleton-line" style={{ width: '40%', height: '100%', borderRadius: '3px' }} />
                     </div>
                     <div className="m-db-entity-label-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -441,7 +441,7 @@ export function ClientPortfolioSkeleton({
               </div>
               <div className="m-db-activity-list-card" style={{ marginTop: '8px' }}>
                 {Array.from({ length: 2 }).map((_, idx) => (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < 1 ? '1px solid #F3F0E9' : 'none' }}>
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '16px', borderBottom: idx < 1 ? '1px solid #f2f4f7' : 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <div>
                         <div className="skeleton-line" style={{ width: '140px', height: '14px', marginBottom: '6px' }} />
@@ -474,16 +474,16 @@ export function ClientPortfolioSkeleton({
       </div>
 
       {/* Net Equity Card */}
-      <div className="bg-white border border-[#EBE8E1] rounded-[18px] p-6 shadow-sm" style={{ width: '100%', marginTop: '24px' }}>
+      <div className="bg-white border border-[#eaeef4] rounded-[18px] p-6 shadow-sm" style={{ width: '100%', marginTop: '24px' }}>
         <div className="flex justify-between items-center">
           <div className="skeleton-line" style={{ width: '80px', height: '14px' }} />
           <div className="skeleton-pill" style={{ width: '110px', height: '24px' }} />
         </div>
         <div className="skeleton-line" style={{ width: '220px', height: '42px', marginTop: '12px', marginBottom: '16px' }} />
-        <div style={{ height: '1px', background: '#F3F0E9', margin: '16px 0' }} />
+        <div style={{ height: '1px', background: '#f2f4f7', margin: '16px 0' }} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} style={i === 0 ? { borderLeft: 'none', paddingLeft: 0 } : { borderLeft: '1px solid #F3F0E9', paddingLeft: '20px' }}>
+            <div key={i} style={i === 0 ? { borderLeft: 'none', paddingLeft: 0 } : { borderLeft: '1px solid #f2f4f7', paddingLeft: '20px' }}>
               <div className="skeleton-line" style={{ width: '70px', height: '12px', marginBottom: '8px' }} />
               <div className="skeleton-line" style={{ width: '100px', height: '20px' }} />
             </div>
@@ -494,7 +494,7 @@ export function ClientPortfolioSkeleton({
       {/* Mini Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6" style={{ marginTop: '24px' }}>
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="bg-white border border-[#EBE8E1] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
+          <div key={i} className="bg-white border border-[#eaeef4] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
             <div className="flex justify-between items-center">
               <div className="skeleton-circle" style={{ width: '36px', height: '36px' }} />
               <div className="skeleton-pill" style={{ width: '45px', height: '20px' }} />
@@ -510,7 +510,7 @@ export function ClientPortfolioSkeleton({
       {/* Dashboard Grid Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" style={{ marginTop: '24px' }}>
         {/* Chart card (span 2) */}
-        <div className="md:col-span-2 xl:col-span-2 order-1 xl:order-1 bg-white border border-[#EBE8E1] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
+        <div className="md:col-span-2 xl:col-span-2 order-1 xl:order-1 bg-white border border-[#eaeef4] rounded-[18px] p-6 shadow-sm flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <div className="skeleton-line" style={{ width: '120px', height: '18px' }} />
             <div className="skeleton-pill" style={{ width: '100px', height: '28px' }} />
@@ -527,11 +527,11 @@ export function ClientPortfolioSkeleton({
         </div>
 
         {/* Payment Alerts card */}
-        <div className="col-span-1 order-3 xl:order-2 bg-white border border-[#EBE8E1] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+        <div className="col-span-1 order-3 xl:order-2 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
           <div className="skeleton-line" style={{ width: '120px', height: '18px', marginBottom: '4px' }} />
           <div className="flex flex-col gap-4">
             {Array.from({ length: 2 }).map((_, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 rounded-xl border border-[#F3F0E9]">
+              <div key={idx} className="flex items-start gap-3 p-3 rounded-xl border border-[#f2f4f7]">
                 <div className="skeleton-circle" style={{ width: '36px', height: '36px', flexShrink: 0 }} />
                 <div className="flex-grow">
                   <div className="skeleton-line" style={{ width: '70%', height: '14px', marginBottom: '8px' }} />
@@ -543,11 +543,11 @@ export function ClientPortfolioSkeleton({
         </div>
 
         {/* Recent Activity card */}
-        <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#EBE8E1] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+        <div className="col-span-1 order-2 xl:order-3 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
           <div className="skeleton-line" style={{ width: '140px', height: '18px', marginBottom: '4px' }} />
           <div className="flex flex-col gap-4">
             {Array.from({ length: 3 }).map((_, idx) => (
-              <div key={idx} className="flex justify-between items-center py-2" style={{ borderBottom: idx < 2 ? '1px solid #F3F0E9' : 'none' }}>
+              <div key={idx} className="flex justify-between items-center py-2" style={{ borderBottom: idx < 2 ? '1px solid #f2f4f7' : 'none' }}>
                 <div className="flex items-center gap-3">
                   <div className="skeleton-circle" style={{ width: '34px', height: '34px' }} />
                   <div>
@@ -562,14 +562,14 @@ export function ClientPortfolioSkeleton({
         </div>
 
         {/* By Property Section (span 2) */}
-        <div className="md:col-span-2 xl:col-span-2 order-4 xl:order-4 bg-white border border-[#EBE8E1] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
+        <div className="md:col-span-2 xl:col-span-2 order-4 xl:order-4 bg-white border border-[#eaeef4] rounded-[18px] p-5 shadow-sm flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <div className="skeleton-line" style={{ width: '120px', height: '18px' }} />
             <div className="skeleton-line" style={{ width: '50px', height: '14px' }} />
           </div>
           <div className="flex flex-col gap-4">
             {Array.from({ length: 2 }).map((_, idx) => (
-              <div key={idx} className="py-3 flex flex-col gap-3" style={{ borderBottom: idx < 1 ? '1px solid #F3F0E9' : 'none' }}>
+              <div key={idx} className="py-3 flex flex-col gap-3" style={{ borderBottom: idx < 1 ? '1px solid #f2f4f7' : 'none' }}>
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="skeleton-line" style={{ width: '160px', height: '14px', marginBottom: '6px' }} />
@@ -1099,7 +1099,7 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
           {/* KPI Cards skeleton */}
           <div className="accountant-reconciliation-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 20, marginBottom: 24 }}>
             {Array.from({ length: 4 }).map((_, idx) => (
-              <article key={idx} style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid #E2E0D9", background: "#FFFFFF" }}>
+              <article key={idx} style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid #e3e8ef", background: "#ffffff" }}>
                 <div className="skeleton-line" style={{ width: "50%", height: 12, marginBottom: 12 }} />
                 <div className="skeleton-line" style={{ width: "70%", height: 24, marginBottom: 12 }} />
                 <div className="skeleton-line" style={{ width: "40%", height: 10 }} />
@@ -1109,7 +1109,7 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
 
           {/* Filter/Tab bar skeleton */}
           <section className="accountant-reconciliation-filter-card" style={{ marginBottom: 16 }}>
-            <div className="accountant-reconciliation-tabs" style={{ borderBottom: "1px solid #F3F0E9", paddingBottom: 0 }}>
+            <div className="accountant-reconciliation-tabs" style={{ borderBottom: "1px solid #f1f3f6", paddingBottom: 0 }}>
               <div className="skeleton-pill" style={{ width: 120, height: 36, borderRadius: "8px 8px 0 0" }} />
               <div className="skeleton-pill" style={{ width: 100, height: 36, borderRadius: "8px 8px 0 0" }} />
               <div className="skeleton-pill" style={{ width: 100, height: 36, borderRadius: "8px 8px 0 0" }} />
@@ -1124,7 +1124,7 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
 
           {/* Table skeleton */}
           <section className="accountant-reconciliation-table">
-            <div className="accountant-reconciliation-table-head" style={{ borderBottom: "1px solid #E6E3DD" }}>
+            <div className="accountant-reconciliation-table-head" style={{ borderBottom: "1px solid #e7ebf0" }}>
               <span className="skeleton-line" style={{ width: 100 }} />
               <span className="skeleton-line" style={{ width: 80 }} />
               <span className="skeleton-line" style={{ width: 80 }} />
@@ -1134,7 +1134,7 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
               <span className="skeleton-line" style={{ width: 80 }} />
             </div>
             {Array.from({ length: 6 }).map((_, rowIndex) => (
-              <div key={rowIndex} className="accountant-reconciliation-table-row" style={{ borderBottom: "1px solid #F3F0E9" }}>
+              <div key={rowIndex} className="accountant-reconciliation-table-row" style={{ borderBottom: "1px solid #f1f3f6" }}>
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <div className="skeleton-circle" style={{ width: 24, height: 24 }} />
                 </div>
@@ -1184,7 +1184,7 @@ export function AccountantReconciliationSkeleton({ hasActiveRecon }: { hasActive
             </div>
             <div className="skeleton-stack" style={{ gap: 12, marginBottom: 20 }}>
               {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 12, padding: 12, border: "1px solid #F3F0E9", borderRadius: 8 }}>
+                <div key={idx} style={{ display: "flex", gap: 12, padding: 12, border: "1px solid #f1f3f6", borderRadius: 8 }}>
                   <div className="skeleton-circle" style={{ width: 20, height: 20, borderRadius: 4 }} />
                   <div className="skeleton-stack" style={{ flex: 1, gap: 8 }}>
                     <div className="skeleton-line" style={{ width: "60%", height: 14 }} />

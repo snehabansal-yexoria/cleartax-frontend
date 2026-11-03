@@ -88,7 +88,7 @@ type PortalMenuItem = {
 function DashboardShellSkeleton() {
   return (
     <div className="accountant-shell dashboard-shell-skeleton">
-      <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-[#FFFFFF]/80 border border-[#D7CEF5]/80 pt-7 pb-4 px-3.5 flex-col justify-between transition-all duration-300 ease-in-out group/sidebar z-30">
+      <aside className="hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-[#ffffff]/80 border border-[#ced5ec]/80 pt-7 pb-4 px-3.5 flex-col justify-between transition-all duration-300 ease-in-out group/sidebar z-30">
         <div className="flex flex-col gap-9 w-full">
           <div className="flex items-center justify-start w-full px-1.5 h-12 overflow-hidden">
             <div className="w-11 h-11 rounded-xl bg-slate-200 animate-pulse" />
@@ -1144,7 +1144,7 @@ export default function DashboardLayout({
             <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', }}>
               {item.label}
               {item.badge && (
-                <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#C46A4C] text-white`}>
+                <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
                   {item.badge}
                 </span>
               )}
@@ -1168,7 +1168,7 @@ export default function DashboardLayout({
           <span className="accountant-nav-label" style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', fontWeight: adminLook ? '400' : undefined }}>
             {item.label}
             {item.badge && (
-              <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#C46A4C] text-white`}>
+              <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white`}>
                 {item.badge}
               </span>
             )}
@@ -1202,7 +1202,7 @@ export default function DashboardLayout({
           <span className={labelClass}>
             {item.label}
             {item.badge && (
-              <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#C46A4C] text-white mr-1.5`}>
+              <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
                 {item.badge}
               </span>
             )}
@@ -1223,7 +1223,7 @@ export default function DashboardLayout({
         <span className={labelClass}>
           {item.label}
           {item.badge && (
-            <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#C46A4C] text-white mr-1.5`}>
+            <span className={`px-1.5 py-0.5 text-[10px] ${adminLook ? 'font-normal' : 'font-bold'} rounded-full bg-[#f04438] text-white mr-1.5`}>
               {item.badge}
             </span>
           )}
@@ -1245,7 +1245,7 @@ export default function DashboardLayout({
   ) {
     return (
       <div className={`accountant-shell${isClientPage ? " client-dashboard-shell" : ""}`}>
-        <aside className={`hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#242629] to-[#242629] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(21, 23, 25,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30${
+        <aside className={`hidden lg:flex w-[92px] hover:w-[272px] shrink-0 rounded-[24px] bg-gradient-to-b from-[#2e387a] to-[#2b3470] pt-7 pb-4 px-3.5 flex-col justify-between shadow-[0_30px_80px_rgba(28,38,92,0.2)] transition-all duration-300 ease-in-out group/sidebar z-30${
           // Admin + super admin: pin the sidebar to the viewport height so it doesn't stretch
           // with long pages. Logo and footer stay put; only the menu scrolls,
           // and only when the window is too short to fit it.
@@ -1257,7 +1257,7 @@ export default function DashboardLayout({
                 <div className="w-11 h-11 min-w-11 flex items-center justify-center rounded-xl tx-mark-tile text-[#151719] shadow-lg shadow-black/30 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin">
                   <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 19h28M32 19v28" stroke="#151719" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
                 </div>
-                <div className={`flex flex-col text-left ${adminLook ? 'font-normal' : 'font-extrabold'} text-[1.7rem] tracking-[-0.03em] leading-none text-[#7A5CFA] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`}>
+                <div className={`flex flex-col text-left ${adminLook ? 'font-normal' : 'font-extrabold'} text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`}>
                   <span>Thetaxio</span>
                 </div>
               </div>
@@ -1289,7 +1289,7 @@ export default function DashboardLayout({
           </div>
 
           <div className={`flex items-center gap-3.5 w-full justify-start px-1.5 border-t border-white/10 shrink-0 ${adminLook ? "pt-3 mt-2" : "pt-4"}`}>
-            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#E7E1F4] flex items-center justify-center font-bold text-sm" style={{ fontWeight: adminLook ? '400' : undefined }}>
+            <div className="w-11 h-11 min-w-11 rounded-full bg-white/12 text-[#dbe2ff] flex items-center justify-center font-bold text-sm" style={{ fontWeight: adminLook ? '400' : undefined }}>
               {initials}
             </div>
             <div className="flex flex-col text-left opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden min-w-0">
@@ -1324,7 +1324,7 @@ export default function DashboardLayout({
             {role !== "accountant" && (
               <button
                 type="button"
-                className="lg:hidden mr-3 border border-[#EBE8E1] bg-white rounded-lg p-2.5 flex items-center justify-center text-[#878684] hover:bg-[#F3F0E9] focus:outline-none cursor-pointer"
+                className="lg:hidden mr-3 border border-[#eaeef4] bg-white rounded-lg p-2.5 flex items-center justify-center text-[#7b88ad] hover:bg-[#f7f8fe] focus:outline-none cursor-pointer"
                 onClick={() => setIsMobileNavOpen((current) => !current)}
                 aria-label="Toggle navigation menu"
               >
@@ -1581,9 +1581,9 @@ export default function DashboardLayout({
                       aria-label="Log Out"
                       style={{
                         marginLeft: "auto",
-                        background: "rgba(196, 106, 76, 0.12)",
-                        border: "1px solid rgba(196, 106, 76, 0.2)",
-                        color: "#C46A4C",
+                        background: "rgba(239, 68, 68, 0.12)",
+                        border: "1px solid rgba(239, 68, 68, 0.2)",
+                        color: "#ef4444",
                         borderRadius: "10px",
                         padding: "8px",
                         display: "flex",
