@@ -43,8 +43,8 @@ export async function downloadReportPdf(doc: HTMLElement, fileName: string): Pro
   }
 }
 
-/** "ClearPortfolio_Profit-and-Loss_Johnson-Family-Trust_FY2025-26.pdf" */
+/** "Thetaxio_Profit-and-Loss_Johnson-Family-Trust_FY2025-26.pdf" */
 export function reportFileName(stem: string, scopeName: string, fyLabel: string): string {
   const part = (scopeName || "All-entities").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `ClearPortfolio_${stem}_${part || "Report"}_${fyLabel.replace(/\s+/g, "")}.pdf`;
+  return `Thetaxio_${stem}_${part || "Report"}_${fyLabel.replace(/\s+/g, "")}.pdf`;
 }

@@ -81,32 +81,20 @@ async function getJson<T>(path: string, token: string, signal: AbortSignal): Pro
 
 /* ----------------------------------------------------- command → plan */
 
+// buddy-mode: the buddy runs three fixed pointers per role. Anything else gets
+// the "still under development" reply below.
 const SUGGESTIONS: Record<BuddyRole, string[]> = {
-  accountant: [
-    "How many clients do I have?",
-    "Find client Priya",
-    "Invite a new client",
-    "Open transactions",
-    "Add a transaction",
-    "Show transaction rules",
-  ],
-  client: [
-    "List my entities",
-    "Add a new entity",
-    "Add a transaction",
-    "Open my transactions",
-    "Show my properties",
-    "Open insights",
-    "Open my reports",
-  ],
+  accountant: ["How many clients do I have?", "Find client Priya", "Invite a new client"],
+  client: ["List my entities", "Add a new entity", "Add a transaction"],
 };
 
 const CAPABILITIES: Record<BuddyRole, string> = {
-  accountant:
-    "I can count and look up your clients, open a client search, start an invite, open transactions, start a new transaction, show your rules or open your account.",
-  client:
-    "I can list your entities, start a new entity or transaction, and open your transactions, properties, insights, reports or profile.",
+  accountant: "Right now I can summarise your clients, find a client, or start a client invite.",
+  client: "Right now I can list your entities, start a new entity, or start a new transaction.",
 };
+
+const UNDER_DEVELOPMENT =
+  "This feature is still under development. It will be updated soon. Meanwhile, try one of these:";
 
 function go(label: string, href: string, title: string): Plan {
   return {
@@ -130,7 +118,7 @@ function planFor(role: BuddyRole, raw: string): Plan | null {
   const has = (...words: string[]) => words.some((w) => text.includes(w));
 
   if (role === "accountant") {
-    const find = text.match(/(?:find|search|look ?up|show)\s+(?:for\s+)?(?:client\s+)?(.+)/);
+    const find = text.match(/(?:find|search|look ?up)\s+(?:for\s+)?(?:a\s+)?(?:client\s+)?(.+)/);
     if (has("how many", "count", "summary", "overview") && has("client")) {
       return {
         title: "Counting your clients",
@@ -159,14 +147,7 @@ function planFor(role: BuddyRole, raw: string): Plan | null {
     if (has("invite")) {
       return go("the invite form", "/dashboard/accountant/clients?invite=1", "Starting a client invite");
     }
-    if (has("rule")) return go("Transaction rules", "/dashboard/accountant/transactions/rules", "Opening your rules");
-    if (has("add", "new", "create", "record") && has("transaction")) {
-      return go("a new transaction", "/dashboard/accountant/transactions/new", "Starting a new transaction");
-    }
-    if (has("transaction")) return go("Transactions", "/dashboard/accountant/transactions", "Opening transactions");
-    if (has("my clients")) return go("My clients", "/dashboard/accountant/clients?tab=mine", "Opening your clients");
-    if (has("account", "profile", "settings")) return go("your account", "/dashboard/accountant/account", "Opening your account");
-    if (find && !has("transaction")) {
+    if (find) {
       const query = find[1].replace(/[?.!]+$/, "").trim();
       return {
         title: `Looking up “${query}”`,
@@ -204,8 +185,6 @@ function planFor(role: BuddyRole, raw: string): Plan | null {
         ],
       };
     }
-    if (has("client")) return go("Clients", "/dashboard/accountant/clients", "Opening clients");
-    if (has("dashboard", "home")) return go("your dashboard", "/dashboard/accountant", "Opening your dashboard");
     return null;
   }
 
@@ -240,12 +219,6 @@ function planFor(role: BuddyRole, raw: string): Plan | null {
   if (has("add", "new", "create", "record") && has("transaction", "expense", "income", "invoice")) {
     return go("a new transaction", "/dashboard/client/transactions/new", "Starting a new transaction");
   }
-  if (has("transaction")) return go("your transactions", "/dashboard/client/transactions", "Opening your transactions");
-  if (has("propert")) return go("your properties", "/dashboard/client/properties", "Opening your properties");
-  if (has("insight", "trend", "performance")) return go("Insights", "/dashboard/client/insights", "Opening insights");
-  if (has("report", "tax pack", "statement")) return go("your reports", "/dashboard/client/reports", "Opening your reports");
-  if (has("profile", "account", "settings")) return go("your profile", "/dashboard/client/profile", "Opening your profile");
-  if (has("dashboard", "home")) return go("your dashboard", "/dashboard/client", "Opening your dashboard");
   return null;
 }
 
@@ -260,28 +233,24 @@ const CARDS: Record<BuddyRole, { icon: IconName; tone: Tone; title: string; sub:
     { icon: "users", tone: "violet", title: "Client summary", sub: "Count active and pending clients", command: "How many clients do I have?" },
     { icon: "search", tone: "amber", title: "Find a client", sub: "Search by name or email", command: "Find client Priya" },
     { icon: "invite", tone: "sage", title: "Invite a client", sub: "Open the invite form", command: "Invite a new client" },
-    { icon: "receipt", tone: "rose", title: "Add transaction", sub: "Start a new entry", command: "Add a transaction" },
   ],
   client: [
     { icon: "building", tone: "violet", title: "My entities", sub: "See every entity you own", command: "List my entities" },
     { icon: "spark", tone: "amber", title: "Add an entity", sub: "Company, trust or SMSF", command: "Add a new entity" },
     { icon: "receipt", tone: "sage", title: "Add transaction", sub: "Income or expense", command: "Add a transaction" },
-    { icon: "list", tone: "rose", title: "My transactions", sub: "Review what's recorded", command: "Open my transactions" },
   ],
 };
 
 const ORBIT: Record<BuddyRole, { icon: IconName; label: string; command: string }[]> = {
   accountant: [
-    { icon: "list", label: "Transactions", command: "Open transactions" },
-    { icon: "rules", label: "Rules", command: "Show transaction rules" },
-    { icon: "users", label: "My clients", command: "Open my clients" },
-    { icon: "user", label: "Account", command: "Open my account" },
+    { icon: "users", label: "Client summary", command: "How many clients do I have?" },
+    { icon: "search", label: "Find a client", command: "Find client Priya" },
+    { icon: "invite", label: "Invite", command: "Invite a new client" },
   ],
   client: [
-    { icon: "building", label: "Properties", command: "Show my properties" },
-    { icon: "spark", label: "Insights", command: "Open insights" },
-    { icon: "list", label: "Reports", command: "Open my reports" },
-    { icon: "user", label: "Profile", command: "Open my profile" },
+    { icon: "building", label: "My entities", command: "List my entities" },
+    { icon: "spark", label: "New entity", command: "Add a new entity" },
+    { icon: "receipt", label: "Add transaction", command: "Add a transaction" },
   ],
 };
 
@@ -527,8 +496,8 @@ export default function TaxioBuddy({ role, email }: { role: BuddyRole; email?: s
             kind: "buddy",
             text: /^(hi|hello|hey|help)\b/i.test(text)
               ? `Hi${firstName ? ` ${firstName}` : ""}! ${CAPABILITIES[role]}`
-              : `I can't do that one yet. ${CAPABILITIES[role]}`,
-            chips: SUGGESTIONS[role].slice(0, 4),
+              : UNDER_DEVELOPMENT,
+            chips: SUGGESTIONS[role],
           },
         ]);
         return;

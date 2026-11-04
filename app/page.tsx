@@ -560,7 +560,7 @@ export default function Home() {
       <section id="overview" className="ct-features-section">
         <div className="ct-features-container">
           {/* Section Tag */}
-          <div className="ct-features-badge scroll-reveal">CLEARPORTFOLIO</div>
+          <div className="ct-features-badge scroll-reveal">THETAXIO</div>
 
           {/* Section Title */}
           <h2 className="ct-features-title scroll-reveal scroll-delay-1">

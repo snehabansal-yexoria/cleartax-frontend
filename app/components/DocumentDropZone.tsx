@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import AgentProgress, { type AgentStep } from "@/app/components/agent/AgentProgress";
 import Lottie from "lottie-react";
 import {
   upsertDocumentProcessingJob,
@@ -528,6 +529,19 @@ export function DocumentDropZone({
           </div>
         )}
       </button>
+      {!isSubmitting && (status === "uploading" || status === "extracting") ? (
+        <div className="transaction-document-agent">
+          <AgentProgress
+            compact
+            title="Taxio Agent is reading your invoice"
+            subtitle={filename || undefined}
+            steps={INVOICE_AGENT_STEPS}
+            activeIndex={invoiceAgentStep(status, progress)}
+            activeDetail={status === "uploading" ? `${progress}% transferred` : undefined}
+            percent={progress}
+          />
+        </div>
+      ) : null}
       <input
         ref={inputRef}
         type="file"
@@ -538,6 +552,23 @@ export function DocumentDropZone({
       />
     </div>
   );
+}
+
+// ── Taxio Agent progress (presentation only; follows the existing upload/extract progress) ──
+const INVOICE_AGENT_STEPS: AgentStep[] = [
+  { label: "Uploading document securely", thoughts: ["Encrypting file in transit…", "Saving to secure storage…"] },
+  { label: "Reading the document (OCR)", thoughts: ["Running OCR on every page…", "Detecting document type: tax invoice…", "Reading header and footer text…"] },
+  { label: "Finding supplier, invoice no. and date", thoughts: ["Matching supplier name and ABN…", "Locating invoice number…", "Reading issue and due dates…"] },
+  { label: "Extracting amounts and GST", thoughts: ["Reading line items…", "Separating subtotal, GST and total…", "Checking that line items add up…"] },
+  { label: "Matching your category rules", thoughts: ["Comparing with your saved rules…", "Suggesting transaction type and category…", "Filling in the form…"] },
+];
+
+function invoiceAgentStep(status: Status, progress: number): number {
+  if (status === "uploading") return 0;
+  if (progress < 72) return 1;
+  if (progress < 82) return 2;
+  if (progress < 90) return 3;
+  return 4;
 }
 
 function documentReviewHref(jobId: string) {

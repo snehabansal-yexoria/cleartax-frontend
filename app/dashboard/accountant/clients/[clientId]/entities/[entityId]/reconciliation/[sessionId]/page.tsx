@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AgentProgress, { type AgentStep } from "@/app/components/agent/AgentProgress";
 import {
   useCallback,
   useDeferredValue,
@@ -86,6 +87,45 @@ type UploadStage =
   | { type: "starting" }
   | { type: "streaming"; stage: string; pagesDone: number; pagesTotal: number; txSoFar: number }
   | { type: "error"; message: string };
+
+// ── Taxio Agent progress (presentation only; driven by the existing upload stage) ──
+const STATEMENT_AGENT_STEPS: AgentStep[] = [
+  { label: "Uploading statement securely", thoughts: ["Encrypting file in transit…", "Handing off to secure storage…"] },
+  { label: "Reading the document", thoughts: ["Opening statement…", "Detecting bank and statement format…", "Reading account holder and statement period…"] },
+  { label: "Understanding layout and pages", thoughts: ["Splitting statement into pages…", "Locating transaction tables…", "Mapping columns: date · description · debit · credit · balance"] },
+  { label: "Extracting transactions", thoughts: ["Reading transaction rows…", "Normalising dates to DD/MM/YYYY…", "Separating debits from credits…", "Cleaning up payee names…"] },
+  { label: "Verifying balances", thoughts: ["Cross-checking the running balance…", "Looking for duplicate rows…", "Preparing results for review…"] },
+];
+
+function statementAgentStep(stage: UploadStage): number {
+  if (stage.type === "uploading") return 0;
+  if (stage.type === "starting") return 1;
+  if (stage.type !== "streaming") return 0;
+  if (stage.stage === "downloading") return 1;
+  if (stage.stage === "splitting" || stage.stage === "parsing") return 2;
+  if (stage.stage === "extracting") {
+    return stage.pagesTotal > 0 && stage.pagesDone >= stage.pagesTotal ? 4 : 3;
+  }
+  return 1;
+}
+
+function statementAgentDetail(stage: UploadStage): string | undefined {
+  if (stage.type === "uploading") return `${stage.progress}% transferred`;
+  if (stage.type === "streaming" && stage.stage === "extracting" && stage.pagesTotal > 0) {
+    return `Page ${Math.min(stage.pagesDone + 1, stage.pagesTotal)} of ${stage.pagesTotal} · ${stage.txSoFar} transaction${stage.txSoFar === 1 ? "" : "s"} found`;
+  }
+  return undefined;
+}
+
+function statementAgentPercent(stage: UploadStage, extractPct: number): number {
+  if (stage.type === "uploading") return Math.round(stage.progress * 0.15);
+  if (stage.type === "starting") return 18;
+  if (stage.type !== "streaming") return 0;
+  if (stage.stage === "downloading") return 24;
+  if (stage.stage === "splitting" || stage.stage === "parsing") return 32;
+  if (stage.stage === "extracting") return 35 + Math.round(extractPct * 0.6);
+  return 20;
+}
 
 // Composite key: `${reconId}:${bankTxIndex}` — unique across all statements in
 // the session, lets the match map / candidate map / expand state all live in a
@@ -2348,10 +2388,14 @@ export default function AccountantReconciliationSessionPage() {
 
         {isProcessing && (
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb" }}>
-            <p style={{ fontSize: 13, color: "#4b5563", margin: "0 0 8px" }}>{uploadStageLabel()}</p>
-            <div style={{ background: "#e5e7eb", borderRadius: 9999, height: 8 }}>
-              <div style={{ background: "#3b82f6", borderRadius: 9999, height: 8, width: `${processingPct}%`, transition: "width 0.3s" }} />
-            </div>
+            <AgentProgress
+              title="Taxio Agent is reading your statement"
+              subtitle={uploadStageLabel()}
+              steps={STATEMENT_AGENT_STEPS}
+              activeIndex={statementAgentStep(uploadStage)}
+              activeDetail={statementAgentDetail(uploadStage)}
+              percent={statementAgentPercent(uploadStage, processingPct)}
+            />
           </div>
         )}
         {uploadStage.type === "error" && (

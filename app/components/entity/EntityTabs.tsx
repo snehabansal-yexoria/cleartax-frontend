@@ -76,7 +76,6 @@ export default function EntityTabs({ currentTab, openedTabs, onChange, panels }:
               onClick={() => onChange(tab.id)}
             >
               {tab.label}
-              {tab.id === "reconciliation" && <span className="entity-tab-alpha-badge">Alpha</span>}
             </button>
           );
         })}

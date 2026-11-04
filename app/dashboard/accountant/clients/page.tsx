@@ -274,9 +274,8 @@ function StaticSelect({
 function AccountantClientsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentTab, setCurrentTab] = useState<ClientTab>(
-    searchParams.get("tab") === "mine" ? "mine" : "all",
-  );
+  // buddy-mode: only "My Clients" is shown; the All Clients tab is hidden.
+  const [currentTab, setCurrentTab] = useState<ClientTab>("mine");
   const [allClients, setAllClients] = useState<ClientRecord[] | null>(null);
   const [myClients, setMyClients] = useState<ClientRecord[] | null>(null);
   const [searchValue, setSearchValue] = useState("");
@@ -694,8 +693,8 @@ function AccountantClientsContent() {
     <section className="accountant-clients-page">
       <div className="accountant-clients-topbar">
         <div>
-          <h1>All Clients</h1>
-          <p>Manage and view all your property clients</p>
+          <h1>My Clients</h1>
+          <p>Manage and view your property clients</p>
         </div>
 
         <button
@@ -718,20 +717,6 @@ function AccountantClientsContent() {
       </div>
 
       <div className="accountant-client-tabs">
-        <button
-          type="button"
-          className={currentTab === "all" ? "is-active" : ""}
-          onClick={() => {
-            setCurrentTab("all");
-            setSelectedClientIds([]);
-            setAssignMessage("");
-            setPageSize("20");
-            setCurrentPage(1);
-          }}
-        >
-          All Clients
-          <span>{allClients === null ? "…" : allClients.length}</span>
-        </button>
         <Link href="/dashboard/accountant/clients?tab=mine">
           <button
             type="button"
@@ -907,20 +892,6 @@ function AccountantClientsContent() {
                 </button>
               ) : currentTab === "mine" ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      router.push("/dashboard/accountant/clients");
-                      setCurrentTab("all");
-                      setSelectedClientIds([]);
-                      setAssignMessage("");
-                      setPageSize("20");
-                      setCurrentPage(1);
-                    }}
-                    className="inline-flex items-center justify-center gap-2 px-[18px] py-[10px] text-sm font-semibold rounded-xl border border-[#d5dceb] bg-white text-[#49567a] hover:bg-[#f8f9fb] active:bg-[#f1f3f7] transition-colors duration-200 cursor-pointer"
-                  >
-                    Browse All Clients
-                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -1668,8 +1639,8 @@ export default function AccountantClientsPage() {
         <section className="accountant-clients-page">
           <div className="accountant-clients-topbar">
             <div>
-              <h1>All Clients</h1>
-              <p>Manage and view all your property clients</p>
+              <h1>My Clients</h1>
+              <p>Manage and view your property clients</p>
             </div>
           </div>
         </section>

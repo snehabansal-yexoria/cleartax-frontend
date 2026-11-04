@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PortalDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import "./admin.css";
+import { brandName } from "@/app/components/brandName";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -127,7 +128,7 @@ export default function AdminPage() {
 
         if (orgRes.ok) {
           const data = await orgRes.json();
-          setOrganizationName(data.organization?.name || "");
+          setOrganizationName(brandName(data.organization?.name || ""));
         }
 
         if (invitedRes.ok) {

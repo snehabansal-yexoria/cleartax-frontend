@@ -8,6 +8,7 @@ import { getSession } from "@/src/lib/session";
 import { getCurrencyPrefix } from "@/src/lib/currency";
 import { fetchReportTimeline } from "./reports/reportsApi";
 import type { ReportTimelineEvent } from "./reports/reportsApi";
+import { brandName } from "@/app/components/brandName";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -192,7 +193,7 @@ export default function AccountantPage() {
       fetch("/api/users/me/organization", { headers })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: OrganizationResponse | null) => {
-          if (!cancelled) setOrganizationName(data?.organization?.name || "");
+          if (!cancelled) setOrganizationName(brandName(data?.organization?.name || ""));
         })
         .catch(() => { if (!cancelled) setOrganizationName(""); });
 

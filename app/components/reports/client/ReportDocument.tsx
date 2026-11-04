@@ -5,6 +5,7 @@ import { fyLongLabel, fyRangeLabel } from "@/app/components/clients/portfolioDas
 import { Pill } from "./reportParts";
 import { todayLabel } from "./reportFormat";
 import type { ReportContext } from "./reportScope";
+import { brandName } from "@/app/components/brandName";
 
 /**
  * The report as a document: a header naming who and what it covers, the
@@ -31,7 +32,7 @@ export default function ReportDocument({
 }) {
   const fy = ctx.scope.fy;
   // "Sunrise Accounting Co." must not end the sentence with "..".
-  const org = ctx.orgName.trim().replace(/\.+$/, "");
+  const org = brandName(ctx.orgName).trim().replace(/\.+$/, "");
   const preparedBy = ctx.accountantName
     ? `Prepared from your records with ${ctx.accountantName}${org ? `, ${org}` : ""}.`
     : `Prepared from your records${org ? ` with ${org}` : ""}.`;

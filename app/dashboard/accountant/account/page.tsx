@@ -7,6 +7,7 @@ import { AccountantAccountSkeleton } from "../../../components/PortalSkeletons";
 import MfaSettings from "../../../components/MfaSettings";
 import { getSession } from "../../../../src/lib/session";
 import { PhoneInput, validatePhone } from "../../../components/PhoneInput";
+import { brandName } from "@/app/components/brandName";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -103,7 +104,7 @@ export default function AccountantAccountPage() {
         }
 
         const data = (await res.json()) as OrganizationResponse;
-        setOrganizationName(data.organization?.name || "");
+        setOrganizationName(brandName(data.organization?.name || ""));
 
         const adminContactRes = await fetch("/api/users/me/admin-contact", {
           headers: {

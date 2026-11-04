@@ -63,6 +63,7 @@ import NotificationBell from "@/app/components/notifications/NotificationBell";
 import { fetchCurrentUser } from "@/app/components/currentUser";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import TaxioBuddy from "@/app/components/TaxioBuddy";
+import { brandName } from "@/app/components/brandName";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -734,7 +735,7 @@ export default function DashboardLayout({
         if (bootstrap) {
           setEmail(bootstrap.email);
           setRole(bootstrap.role);
-          setOrganizationName(bootstrap.orgName);
+          setOrganizationName(brandName(bootstrap.orgName));
         }
 
         // getAuthSession primes the shared token cache, so every page hook
@@ -785,7 +786,7 @@ export default function DashboardLayout({
         const roleName = normalizeRoleName(me.role);
 
         setRole(roleName);
-        setOrganizationName(me.orgName || "");
+        setOrganizationName(brandName(me.orgName || ""));
 
         saveSessionBootstrap({
           email: me.email,

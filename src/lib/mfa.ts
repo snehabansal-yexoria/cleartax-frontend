@@ -119,7 +119,7 @@ export function disableTotp(user: CognitoUser): Promise<void> {
 export function buildOtpAuthUri(
   secret: string,
   email: string,
-  issuer = "Clear Portfolio",
+  issuer = "Thetaxio",
 ): string {
   const label = encodeURIComponent(`${issuer}:${email}`);
   const params = new URLSearchParams({ secret, issuer });
