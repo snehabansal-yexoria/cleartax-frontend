@@ -52,6 +52,10 @@ export async function PATCH(req: Request, context: RouteContext) {
   if (typeof body.position === "number" && Number.isInteger(body.position)) {
     payload.position = body.position;
   }
+  // An empty string clears the date, the same way a blanked cell reads.
+  if (typeof body.date === "string") {
+    payload.date = body.date;
+  }
 
   if (Object.keys(payload).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });

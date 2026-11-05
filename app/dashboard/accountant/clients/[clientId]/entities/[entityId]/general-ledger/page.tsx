@@ -487,7 +487,7 @@ export default function GeneralLedgerPage() {
                             <td>{row.date}</td>
                             <td>
                               <span className="journal-status-chip">
-                                {row.sourceKind === "journal" ? "Journal" : "Transaction"}
+                                {row.sourceKind === "journal" ? "Journal" : row.sourceKind === "opening" ? "Opening" : "Transaction"}
                               </span>
                               {row.isAssetPurchase && (
                                 <span

@@ -15,6 +15,7 @@ import {
   allowsBusinessExtras,
   allowsPersonalPortion,
   hidesCategoryPicker,
+  autoSubcategory,
   hidesSubcategoryPicker,
   usesTypedCategory,
   transactionSign,
@@ -593,6 +594,18 @@ function TrashIcon() {
 }
 
 
+type BalanceSheetDirection = "increase" | "decrease";
+
+const BALANCE_SHEET_DIRECTION_OPTIONS = [
+  { label: "Increases the account", value: "increase" },
+  { label: "Decreases the account", value: "decrease" },
+];
+
+// Rows from before the field existed read as increases, as the report does.
+function balanceSheetDirectionOf(metadata: Record<string, unknown>): BalanceSheetDirection {
+  return metadata.balance_sheet_direction === "decrease" ? "decrease" : "increase";
+}
+
 export function StaticSelect({
   label,
   value,
@@ -886,6 +899,7 @@ export function transactionDetailToRow(
 function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransactionRow {
   return {
     id: row.transactionId,
+    source: row.source,
     type: row.transactionType,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
@@ -993,6 +1007,9 @@ function TransactionDetailPopup({
   // Balance Sheet only: the typed category, sent as `category_name`.
   const [categoryName, setCategoryName] = useState(
     usesTypedCategory(row.type) ? row.categoryName : "",
+  );
+  const [balanceSheetDirection, setBalanceSheetDirection] = useState(
+    balanceSheetDirectionOf(row.metadata),
   );
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
@@ -1149,6 +1166,7 @@ function TransactionDetailPopup({
     setIsAssetPurchase(source.isAssetPurchase);
     setType(source.type);
     setCategoryName(usesTypedCategory(source.type) ? source.categoryName : "");
+    setBalanceSheetDirection(balanceSheetDirectionOf(source.metadata));
     setCategoryId(source.categoryId);
     setSubcategoryId(source.subcategoryId);
     setInvoiceDate(source.invoiceDate?.slice(0, 10) || "");
@@ -1596,6 +1614,7 @@ function TransactionDetailPopup({
       metadata: {
         ...display.metadata,
         mode_of_transaction: modeOfTransaction || null,
+        balance_sheet_direction: usesTypedCategory(type) ? balanceSheetDirection : undefined,
         // Saving is the moment the placeholder becomes real values, so the
         // "Awaiting extraction" marker goes. PATCH replaces metadata wholesale
         // and undefined keys drop out of JSON, which removes it.
@@ -1952,16 +1971,25 @@ function TransactionDetailPopup({
                       type="text"
                       list="balance-sheet-category-suggestions-edit"
                       placeholder="e.g. Loan from director"
-                      maxLength={64}
+                      maxLength={128}
                       value={categoryName}
                       onChange={(event) => setCategoryName(event.target.value)}
                     />
                     <datalist id="balance-sheet-category-suggestions-edit">
                       {categories.map((c) => (
-                        <option key={c.id} value={c.name} />
+                        <option key={c.id} value={c.name} label={c.accountCode ?? undefined} />
                       ))}
                     </datalist>
                   </label>
+                )}
+                {usesTypedCategory(type) && (
+                  <StaticSelect
+                    label="Effect on the account"
+                    required
+                    value={balanceSheetDirection}
+                    options={BALANCE_SHEET_DIRECTION_OPTIONS}
+                    onChange={(value) => setBalanceSheetDirection(value as BalanceSheetDirection)}
+                  />
                 )}
                 {!hidesCategoryPicker(type) && !usesTypedCategory(type) && (
                   <StaticSelect
@@ -4632,7 +4660,6 @@ export function AllTransactionsView({
     put("to", filters.to);
     put("type", filters.type);
     put("category_id", filters.category);
-    // New: needs backend support (see docs/BALANCE_SHEET_CGT_UI_HANDOFF.md).
     put("source", filters.source);
     // On a scoped page the path already pins the scope, so only send the
     // narrowing filters the grid actually offers there.
@@ -6280,6 +6307,7 @@ export function AddTransactionView({
   // Balance Sheet only: the category as typed. Sent as `category_name`; the
   // API finds or creates the org's category of that name.
   const [categoryName, setCategoryName] = useState("");
+  const [balanceSheetDirection, setBalanceSheetDirection] = useState<BalanceSheetDirection>("increase");
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
   // When a document extraction matches a rule, the rule's category/subcategory
@@ -7183,10 +7211,26 @@ export function AddTransactionView({
   }, [type, categories, categoryId]);
 
   useEffect(() => {
-    if (hidesSubcategoryPicker(type) && !subcategoryId && subcategories[0]) {
-      setSubcategoryId(subcategories[0].id);
+    // Also re-picks when the selected row is not in the list: changing a cost base
+    // category does not clear the previous category's subcategory.
+    if (
+      hidesSubcategoryPicker(type) &&
+      subcategories[0] &&
+      !subcategories.some((s) => s.id === subcategoryId)
+    ) {
+      setSubcategoryId(autoSubcategory(subcategories)!.id);
     }
   }, [type, subcategories, subcategoryId]);
+
+  // Only Selling Cost has real subcategories under Property Cost Base. The other
+  // categories carry a single "General", so no picker is offered for them.
+  const costBaseSubcategoryOptions = useMemo(
+    () =>
+      subcategories
+        .filter((s) => s.name.toLowerCase() !== "general")
+        .map((s) => ({ label: s.name, value: String(s.id) })),
+    [subcategories],
+  );
 
   useEffect(() => {
     if (!allowsBusinessExtras(type) && !propertyId && properties.length > 0) {
@@ -8090,6 +8134,7 @@ export function AddTransactionView({
         is_regular_payment: withBusinessExtras ? isRegularPayment : false,
         due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
         alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
+        ...(usesTypedCategory(type) ? { balance_sheet_direction: balanceSheetDirection } : {}),
       };
       // asset_class / asset_name / depreciation_method / effective_life_years
       // are first-class body fields since migration 0037 — never metadata. The
@@ -8553,25 +8598,34 @@ export function AddTransactionView({
               {/* Category / Sub-Category dropdowns */}
               {usesTypedCategory(type) ? (
                 <div className="figma-form-row">
-                  <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
+                  <div className="figma-field-container">
                     <span className="figma-field-label">Category<em>*</em></span>
-                    {/* Free text, with the org's earlier Balance Sheet
-                    categories offered as suggestions so "Loan" is not typed
-                    three ways. Recorded in All Transactions only. */}
+                    {/* Pick an account from the chart so it reaches the Balance
+                    Sheet report. Free text is still accepted, but names no
+                    account and is reported as not included. */}
                     <input
                       type="text"
                       className="figma-input"
                       list="balance-sheet-category-suggestions"
-                      placeholder="e.g. Loan from director"
-                      maxLength={64}
+                      placeholder="e.g. Property Loan – Non-Current"
+                      maxLength={128}
                       value={categoryName}
                       onChange={(e) => setCategoryName(e.target.value)}
                     />
                     <datalist id="balance-sheet-category-suggestions">
                       {categories.map((c) => (
-                        <option key={c.id} value={c.name} />
+                        <option key={c.id} value={c.name} label={c.accountCode ?? undefined} />
                       ))}
                     </datalist>
+                  </div>
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Effect on the account"
+                      required
+                      value={balanceSheetDirection}
+                      options={BALANCE_SHEET_DIRECTION_OPTIONS}
+                      onChange={(value) => setBalanceSheetDirection(value as BalanceSheetDirection)}
+                    />
                   </div>
                 </div>
               ) : type === "cost_base" ? (
@@ -8585,6 +8639,16 @@ export function AddTransactionView({
                       onChange={(value) => setCategoryId(value ? Number(value) : null)}
                     />
                   </div>
+                  {costBaseSubcategoryOptions.length > 0 ? (
+                    <div className="figma-field-container">
+                      <StaticSelect
+                        label="Subcategory"
+                        value={subcategoryId == null ? "" : String(subcategoryId)}
+                        options={costBaseSubcategoryOptions}
+                        onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                      />
+                    </div>
+                  ) : (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -8600,6 +8664,7 @@ export function AddTransactionView({
                   }}>
                     No subcategory for Property Cost Base — one free-text/typeable category only.
                   </div>
+                  )}
                 </div>
               ) : !hidesCategoryPicker(type) ? (
                 <div className="figma-form-row">

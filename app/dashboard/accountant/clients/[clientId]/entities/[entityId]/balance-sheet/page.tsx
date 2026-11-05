@@ -8,14 +8,12 @@ import { StaticSelect } from "@/app/components/TransactionsFeature";
 import BalanceSheetReport from "@/app/components/balance-sheet/BalanceSheetReport";
 import OpeningBalanceDrawer from "@/app/components/balance-sheet/OpeningBalanceDrawer";
 import {
-  balanceSheetToCsv,
   downloadBlob,
   exportBalanceSheet,
   loadBalanceSheet,
   loadOpeningBalance,
   saveOpeningBalance,
   type BalanceSheet,
-  type BalanceSheetColumns,
   type BalanceSheetCompare,
   type OpeningBalance,
 } from "@/app/components/balance-sheet/balanceSheetApi";
@@ -36,13 +34,6 @@ const COMPARE_OPTIONS = [
   { label: "Previous period (PP)", value: "pp" },
 ];
 
-const COLUMN_OPTIONS = [
-  { label: "Total", value: "total" },
-  { label: "Months", value: "month" },
-  { label: "Quarters", value: "quarter" },
-  { label: "Years", value: "year" },
-];
-
 export default function EntityBalanceSheetPage() {
   const params = useParams<{ clientId: string; entityId: string }>();
   const router = useRouter();
@@ -54,7 +45,6 @@ export default function EntityBalanceSheetPage() {
   const [entityName, setEntityName] = useState("");
   const [from, setFrom] = useState(fy.from);
   const [to, setTo] = useState(fy.to);
-  const [columns, setColumns] = useState<BalanceSheetColumns>("total");
   const [compare, setCompare] = useState<BalanceSheetCompare>("none");
   const [sheet, setSheet] = useState<BalanceSheet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +56,7 @@ export default function EntityBalanceSheetPage() {
   const [savingOpening, setSavingOpening] = useState(false);
   const [openingError, setOpeningError] = useState("");
   const [openingNotice, setOpeningNotice] = useState("");
+  const [openingVersion, setOpeningVersion] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -95,12 +86,15 @@ export default function EntityBalanceSheetPage() {
   useEffect(() => {
     if (!token || !entityId) return;
     (async () => {
-      const result = await loadOpeningBalance(token, entityId);
-      setOpening(result.value);
+      try {
+        setOpening(await loadOpeningBalance(token, entityId));
+      } catch (err) {
+        setOpeningNotice((err as Error)?.message ?? "Could not load the opening balance.");
+      }
     })();
   }, [token, entityId]);
 
-  const query = useMemo(() => ({ from, to, columns, compare }), [from, to, columns, compare]);
+  const query = useMemo(() => ({ from, to, compare }), [from, to, compare]);
 
   useEffect(() => {
     if (!token || !entityId) return;
@@ -109,7 +103,7 @@ export default function EntityBalanceSheetPage() {
       setIsLoading(true);
       setError("");
       try {
-        setSheet(await loadBalanceSheet(token, entityId, query, entityName || "Entity", controller.signal));
+        setSheet(await loadBalanceSheet(token, entityId, query, controller.signal));
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return;
         setError((err as Error)?.message ?? "Could not load the balance sheet.");
@@ -119,23 +113,14 @@ export default function EntityBalanceSheetPage() {
       }
     })();
     return () => controller.abort();
-  }, [token, entityId, query, entityName]);
+  }, [token, entityId, query, openingVersion]);
 
   const exportAs = async (format: "csv" | "xlsx" | "pdf") => {
     if (!sheet) return;
     setBusyExport(format);
     setError("");
     try {
-      const fileBase = `balance-sheet-${to}`;
-      const blob = await exportBalanceSheet(token, entityId, query, format);
-      if (blob) {
-        downloadBlob(blob, `${fileBase}.${format}`);
-      } else if (format === "csv") {
-        // Export endpoint not built yet: build the CSV from what is on screen.
-        downloadBlob(new Blob([balanceSheetToCsv(sheet, compare !== "none")], { type: "text/csv" }), `${fileBase}.csv`);
-      } else {
-        setError(`${format.toUpperCase()} export needs the backend export endpoint (not built yet). CSV works now.`);
-      }
+      downloadBlob(await exportBalanceSheet(token, entityId, query, format), `balance-sheet-${to}.${format}`);
     } catch (err) {
       setError((err as Error)?.message ?? "The export failed.");
     } finally {
@@ -147,14 +132,11 @@ export default function EntityBalanceSheetPage() {
     setSavingOpening(true);
     setOpeningError("");
     try {
-      const result = await saveOpeningBalance(token, entityId, value);
-      setOpening(value);
+      setOpening(await saveOpeningBalance(token, entityId, value));
       setPanelOpen(false);
-      setOpeningNotice(
-        result.isSample
-          ? "Opening balance kept on this screen only — the save endpoint is not built yet."
-          : "Opening balance saved.",
-      );
+      setOpeningNotice("Opening balance saved.");
+      // The report reads the opening balance, so it has to be fetched again.
+      setOpeningVersion((v) => v + 1);
     } catch (err) {
       setOpeningError((err as Error)?.message ?? "Could not save the opening balance.");
     } finally {
@@ -196,10 +178,6 @@ export default function EntityBalanceSheetPage() {
         <div className="journal-filter-field">
           <span className="journal-filter-field-label">To</span>
           <input className="bs-date" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
-        </div>
-        <div className="journal-filter-field">
-          <span className="journal-filter-field-label">Display columns by</span>
-          <StaticSelect value={columns} options={COLUMN_OPTIONS} onChange={(v) => setColumns(v as BalanceSheetColumns)} />
         </div>
         <div className="journal-filter-field">
           <span className="journal-filter-field-label">Compare to</span>
@@ -245,11 +223,15 @@ export default function EntityBalanceSheetPage() {
           </div>
         ) : null}
         {openingNotice ? <div className="bs-notice">{openingNotice}</div> : null}
-        {sheet?.isSample ? (
+        {sheet && sheet.unmappedCount > 0 ? (
           <div className="bs-notice is-sample">
             <span>
-              <b>Sample figures.</b> The balance sheet endpoint is not connected yet, so this shows example data in the
-              final layout.
+              <b>
+                {sheet.unmappedCount} Balance Sheet {sheet.unmappedCount === 1 ? "transaction is" : "transactions are"} not
+                included.
+              </b>{" "}
+              Their category was typed by hand and names no account. Edit them in All Transactions and pick an account
+              from the list.
             </span>
           </div>
         ) : null}

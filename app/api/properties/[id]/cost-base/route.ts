@@ -74,6 +74,9 @@ export async function POST(req: Request, context: RouteContext) {
   if (typeof body.position === "number" && Number.isInteger(body.position)) {
     payload.position = body.position;
   }
+  if (typeof body.date === "string") {
+    payload.date = body.date;
+  }
 
   try {
     const entry = await createCoreCostBaseEntry(token, id, payload);

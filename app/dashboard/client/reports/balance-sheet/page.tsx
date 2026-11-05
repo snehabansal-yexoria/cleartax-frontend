@@ -11,7 +11,6 @@ import { CLIENT_REPORTS_PATH } from "@/app/components/reports/client/reportLinks
 import { downloadReportPdf, reportFileName } from "@/app/components/reports/client/downloadReportPdf";
 import BalanceSheetReport from "@/app/components/balance-sheet/BalanceSheetReport";
 import {
-  balanceSheetToCsv,
   downloadBlob,
   exportBalanceSheet,
   loadBalanceSheet,
@@ -27,7 +26,7 @@ interface SessionWithIdToken {
 type Choice = { entityId: string; fy: number; compare: BalanceSheetCompare };
 
 function queryFor(c: Choice): BalanceSheetQuery {
-  return { from: `${c.fy - 1}-07-01`, to: `${c.fy}-06-30`, columns: "total", compare: c.compare };
+  return { from: `${c.fy - 1}-07-01`, to: `${c.fy}-06-30`, compare: c.compare };
 }
 
 /**
@@ -68,8 +67,7 @@ export default function ClientBalanceSheetReportPage() {
     setLoading(true);
     setError("");
     try {
-      const name = entities.find((e) => e.id === entityId)?.name ?? "Entity";
-      setSheet(await loadBalanceSheet(token, entityId, queryFor(choice), name));
+      setSheet(await loadBalanceSheet(token, entityId, queryFor(choice)));
     } catch (err) {
       setError((err as Error)?.message ?? "Could not build the balance sheet.");
       setSheet(null);
@@ -93,10 +91,7 @@ export default function ClientBalanceSheetReportPage() {
     if (!built || !sheet) return;
     setBusy("xlsx");
     try {
-      const blob = await exportBalanceSheet(token, built.entityId, queryFor(built), "xlsx");
-      if (blob) downloadBlob(blob, `Balance-Sheet_${fyOption(built.fy)}.xlsx`);
-      // Until the export endpoint exists, a CSV of the same table (opens in Excel).
-      else downloadBlob(new Blob([balanceSheetToCsv(sheet, built.compare !== "none")], { type: "text/csv" }), `Balance-Sheet_${fyOption(built.fy)}.csv`);
+      downloadBlob(await exportBalanceSheet(token, built.entityId, queryFor(built), "xlsx"), `Balance-Sheet_${fyOption(built.fy)}.xlsx`);
     } catch (err) {
       setError((err as Error)?.message ?? "The download failed.");
     } finally {
@@ -194,10 +189,11 @@ export default function ClientBalanceSheetReportPage() {
             <div className="cp-empty">{error}</div>
           ) : sheet ? (
             <>
-              {sheet.isSample ? (
+              {sheet.unmappedCount > 0 ? (
                 <div className="bs-notice is-sample cp-noprint">
                   <span>
-                    <b>Sample figures.</b> Your balance sheet will appear here once it is connected.
+                    {sheet.unmappedCount} {sheet.unmappedCount === 1 ? "item is" : "items are"} not included yet. Your
+                    accountant needs to file {sheet.unmappedCount === 1 ? "it" : "them"} under an account.
                   </span>
                 </div>
               ) : null}

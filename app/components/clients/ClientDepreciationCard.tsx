@@ -54,7 +54,7 @@ const DEFAULT_CHROME =
   "bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-5 shadow-sm";
 
 function money(value: number) {
-  return formatClientCurrency(value, { decimals: 0 });
+  return formatClientCurrency(value, { decimals: 2 });
 }
 
 export default function ClientDepreciationCard({

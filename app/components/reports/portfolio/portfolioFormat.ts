@@ -13,29 +13,35 @@ import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter
 export const MINUS = "−";
 export const DASH = "—";
 
-/** Whole dollars, grouped: "1,420,000", "−3,824", "+708" when `signed`. */
+/** The exact amount, grouped: "1,420,000.00", "−3,824.50", "+708.25" when `signed`. */
 export function tableAmount(
   value: number | null | undefined,
   opts: { signed?: boolean } = {},
 ): string {
   if (value == null || Number.isNaN(value)) return DASH;
-  const rounded = Math.round(value);
-  const digits = Math.abs(rounded).toLocaleString("en-AU");
+  const rounded = Math.round(value * 100) / 100;
+  const digits = Math.abs(rounded).toLocaleString("en-AU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   if (rounded < 0) return `${MINUS}${digits}`;
   if (opts.signed && rounded > 0) return `+${digits}`;
   return digits;
 }
 
-/** Compact hero figure: "A$ 1.36M", "A$ 128.0K", "A$ −14.3K". */
+/** Hero figure, exact: "A$ 1,360,000.00", "A$ −14,300.50". */
 export function heroAmount(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return DASH;
-  return formatClientCurrency(value, { short: true }).replace("-", MINUS);
+  return formatClientCurrency(value, { decimals: 2 }).replace("-", MINUS);
 }
 
-/** Compact amount without the currency prefix, for sub-lines: "105.1K". */
+/**
+ * Compact chart-axis label: "105.1K". A position on a scale, not a figure, so it
+ * is the one place an amount is abbreviated.
+ */
 export function shortAmount(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return DASH;
-  return heroAmount(value).replace(/^A\$\s?/, "");
+  return formatClientCurrency(value, { short: true }).replace("-", MINUS).replace(/^A\$\s?/, "");
 }
 
 /** "55.5%". */

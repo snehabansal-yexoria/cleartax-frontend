@@ -58,14 +58,13 @@ export default function PersonalPanel({ personal, expanded, onToggle }: Personal
             className="entity-panel-list-row"
           >
             <span>{personalCategoryLabel(c)}</span>
-            {/* Private spending is money out by definition; the API returns
-                magnitudes and the sign is applied here. */}
-            <strong>{formatCurrency(-c.grossAmount)}</strong>
+            {/* Already signed by the API. */}
+            <strong>{formatCurrency(c.grossAmount)}</strong>
           </div>
         ))}
         <div className="entity-panel-list-total">
           <strong>Total</strong>
-          <strong>{formatCurrency(-(personal.data?.totalGross ?? 0))}</strong>
+          <strong>{formatCurrency(personal.data?.totalGross ?? 0)}</strong>
         </div>
       </div>
     );

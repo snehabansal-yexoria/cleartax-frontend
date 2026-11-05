@@ -2,9 +2,7 @@
  * Balance Sheet chart of accounts (150 codes) from Balance_sheet_codes.xlsx.
  *
  * Used by the UI to list the Current Asset accounts in the Opening Balance
- * panel. The backend is expected to seed the same list into its account-code
- * table (see docs/BALANCE_SHEET_CGT_UI_HANDOFF.md); once it serves
- * GET /api/account-codes?type=balance_sheet this file can be replaced by it.
+ * panel. Migration 0056 seeds the same list into chart_of_account.
  *
  * Header rows (x000 / x500 codes) are group titles, never selectable.
  */

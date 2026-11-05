@@ -3,10 +3,10 @@
 import type { CoreTransactionListItem } from "@/src/lib/coreApi";
 
 /**
- * Where a transaction came from. The backend is expected to return a `source`
- * field on each transaction and accept `?source=` on GET /api/transactions
- * (see docs/BALANCE_SHEET_CGT_UI_HANDOFF.md). Until it does, the badge is
- * worked out from what the row already carries.
+ * Where a transaction came from: `source` on each row and `?source=` on the list
+ * endpoints. The API works it out (transactionSourceSQL). General is a General
+ * Journal entry and Manual is anything entered or uploaded through Add
+ * Transaction.
  */
 export type TransactionSource = "bank" | "general" | "property_cost_base" | "borrowing_cost" | "manual";
 
@@ -23,24 +23,9 @@ export const TRANSACTION_SOURCE_OPTIONS = [
   ...TRANSACTION_SOURCES.map((s) => ({ label: s.label, value: s.value })),
 ];
 
-function isSource(v: unknown): v is TransactionSource {
-  return typeof v === "string" && TRANSACTION_SOURCES.some((s) => s.value === v);
-}
-
-export function transactionSourceOf(row: CoreTransactionListItem): TransactionSource {
-  const direct = (row as unknown as { source?: unknown }).source;
-  if (isSource(direct)) return direct;
-  const meta = (row.metadata ?? {}) as Record<string, unknown>;
-  if (isSource(meta.source)) return meta.source;
-  if (row.type === "cost_base") return "property_cost_base";
-  if (/borrowing/i.test(row.categoryName ?? "")) return "borrowing_cost";
-  if (meta.reconciliation_id || meta.bank_transaction_id || meta.bank_tx_index !== undefined) return "bank";
-  if (meta.journal_entry_id || meta.manual === true) return "manual";
-  return "general";
-}
-
-export function TransactionSourceBadge({ row }: { row: CoreTransactionListItem }) {
-  const src = TRANSACTION_SOURCES.find((s) => s.value === transactionSourceOf(row)) ?? TRANSACTION_SOURCES[1];
+export function TransactionSourceBadge({ row }: { row: Pick<CoreTransactionListItem, "source"> }) {
+  const src = TRANSACTION_SOURCES.find((s) => s.value === row.source);
+  if (!src) return <span>—</span>;
   return (
     <span
       style={{

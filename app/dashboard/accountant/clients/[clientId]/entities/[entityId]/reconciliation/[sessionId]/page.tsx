@@ -34,6 +34,7 @@ import {
   allowsPersonalPortion,
   hidesCategoryPicker,
   usesTypedCategory,
+  autoSubcategory,
   hidesSubcategoryPicker,
   parseTransactionType,
   typeAfterPick,
@@ -1023,7 +1024,7 @@ export default function AccountantReconciliationSessionPage() {
 
   useEffect(() => {
     if (hidesSubcategoryPicker(categorizeType) && !categorizeSubcategoryId && categorizeSubcategories[0]) {
-      setCategorizeSubcategoryId(categorizeSubcategories[0].id);
+      setCategorizeSubcategoryId(autoSubcategory(categorizeSubcategories)!.id);
     }
   }, [categorizeType, categorizeSubcategories, categorizeSubcategoryId]);
 
@@ -1169,7 +1170,7 @@ export default function AccountantReconciliationSessionPage() {
   useEffect(() => {
     if (!bulkOpen) return;
     if (hidesSubcategoryPicker(bulkType) && !bulkSubcategoryId && bulkSubcategories[0]) {
-      setBulkSubcategoryId(bulkSubcategories[0].id);
+      setBulkSubcategoryId(autoSubcategory(bulkSubcategories)!.id);
     }
   }, [bulkOpen, bulkType, bulkSubcategories, bulkSubcategoryId]);
 
@@ -3653,7 +3654,7 @@ export default function AccountantReconciliationSessionPage() {
                                 className="recon-categorize-input"
                                 list={`balance-sheet-categories-${key}`}
                                 placeholder="e.g. Loan from director"
-                                maxLength={64}
+                                maxLength={128}
                                 value={categorizeCategoryName}
                                 onChange={(e) => setCategorizeCategoryName(e.target.value)}
                               />
@@ -4536,7 +4537,7 @@ export default function AccountantReconciliationSessionPage() {
                       className="recon-categorize-input"
                       list="balance-sheet-categories-bulk"
                       placeholder="e.g. Loan from director"
-                      maxLength={64}
+                      maxLength={128}
                       value={bulkCategoryName}
                       onChange={(e) => setBulkCategoryName(e.target.value)}
                     />

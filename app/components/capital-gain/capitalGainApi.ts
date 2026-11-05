@@ -1,27 +1,31 @@
 /**
- * Capital Gain — the contract between this UI and the backend.
+ * Capital Gain — the browser's calls to the BFF.
  *
- * Reads use endpoints that already exist:
- *   GET /api/properties/{id}            purchase amount, name, address
- *   GET /api/properties/{id}/cost-base  Property Cost Base entries (settlement entries are a separate list)
- *
- * Writes use planned endpoints that are not built yet. Until they are, the
- * UI keeps the values on screen and says so. Write-up:
- * docs/BALANCE_SHEET_CGT_UI_HANDOFF.md.
- *   POST /api/properties/{id}/selling-costs   [{ subcategory, description, date, amount }]
+ *   GET  /api/properties/{id}                 purchase amount, name, address, sale
+ *   GET  /api/properties/{id}/cost-base       cost base and selling cost rows
+ *   POST /api/properties/{id}/selling-costs   replaces the selling cost rows
  *   POST /api/properties/{id}/mark-sold       { sellingAmount, soldDate }
  */
 
 export const SELLING_COST_SUBCATEGORIES = [
-  "Agent commission",
-  "PEXA fees",
+  "Agent Commission",
+  "PEXA Fees",
   "Advertisement / Marketing",
-  "Professional fees",
+  "Professional Fees",
   "Others",
 ] as const;
 
-/** Category the backend should store selling-cost rows under in the cost base list. */
-export const SELLING_COST_CATEGORY = "Selling cost";
+/** Category selling cost rows are stored under in the cost base list. */
+export const SELLING_COST_CATEGORY = "Selling Cost";
+
+/**
+ * Selling costs come off the selling amount, so they sit in the cost base list
+ * but must stay out of every cost base total. The panel's category is free text,
+ * hence the case-insensitive match.
+ */
+export function isSellingCostCategory(category: string): boolean {
+  return category.trim().toLowerCase() === SELLING_COST_CATEGORY.toLowerCase();
+}
 
 export type SellingCostRow = {
   key: string;
@@ -31,30 +35,20 @@ export type SellingCostRow = {
   amount: string; // as typed
 };
 
-function isMissing(status: number) {
-  return status === 404 || status === 405 || status === 501;
+async function post(url: string, token: string, body: unknown, fallback: string): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) return;
+  const data = await res.json().catch(() => ({}));
+  throw new Error(data?.message || data?.error || fallback);
 }
 
-async function postPlanned(url: string, token: string, body: unknown): Promise<{ saved: boolean; isSample: boolean }> {
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) return { saved: true, isSample: false };
-    if (!isMissing(res.status)) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data?.message || data?.error || "Could not save.");
-    }
-  } catch (err) {
-    if (!(err instanceof TypeError)) throw err;
-  }
-  return { saved: false, isSample: true };
-}
-
+/** Replaces the property's whole set, so going Back and Continuing cannot save rows twice. */
 export function saveSellingCosts(token: string, propertyId: string, rows: SellingCostRow[]) {
-  return postPlanned(
+  return post(
     `/api/properties/${encodeURIComponent(propertyId)}/selling-costs`,
     token,
     rows.map((r) => ({
@@ -63,11 +57,17 @@ export function saveSellingCosts(token: string, propertyId: string, rows: Sellin
       date: r.date,
       amount: parseMoney(r.amount),
     })),
+    "Could not save the selling costs.",
   );
 }
 
 export function markPropertySold(token: string, propertyId: string, sellingAmount: number, soldDate: string) {
-  return postPlanned(`/api/properties/${encodeURIComponent(propertyId)}/mark-sold`, token, { sellingAmount, soldDate });
+  return post(
+    `/api/properties/${encodeURIComponent(propertyId)}/mark-sold`,
+    token,
+    { sellingAmount, soldDate },
+    "Could not mark the property as sold.",
+  );
 }
 
 export function parseMoney(v: string): number {

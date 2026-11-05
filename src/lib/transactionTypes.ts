@@ -204,6 +204,15 @@ export function hidesCategoryPicker(type: CoreTransactionType | ""): boolean {
  * Cost base is one free-text/typeable category only — its categories each carry
  * a single "General" subcategory that is auto-selected.
  */
+/**
+ * The row to auto-select when no picker is showing. Prefers "General": Selling
+ * Cost also has real subcategories, and taking the first by name would silently
+ * file everything under Advertisement / Marketing.
+ */
+export function autoSubcategory<T extends { name: string }>(subcategories: T[]): T | undefined {
+  return subcategories.find((s) => s.name.toLowerCase() === "general") ?? subcategories[0];
+}
+
 export function hidesSubcategoryPicker(type: CoreTransactionType | ""): boolean {
   return (
     type === "personal" ||

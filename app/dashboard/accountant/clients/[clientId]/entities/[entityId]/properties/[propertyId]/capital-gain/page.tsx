@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { getSession } from "@/src/lib/session";
-import type { CoreCostBaseEntry, CoreProperty } from "@/src/lib/coreApi";
+import type { CoreCostBaseEntry, CoreGstRegistrationStatus, CoreProperty } from "@/src/lib/coreApi";
 import {
   SELLING_COST_CATEGORY,
   SELLING_COST_SUBCATEGORIES,
+  isSellingCostCategory,
   aud,
   displayDate,
   markPropertySold,
@@ -24,7 +25,14 @@ interface SessionWithIdToken {
 
 type Step = 1 | 2 | 3 | 4;
 
-type CostBaseLine = { id: string; category: string; description: string; amount: number; date: string | null };
+type CostBaseLine = {
+  id: string;
+  category: string;
+  description: string;
+  gross: number;
+  net: number;
+  date: string | null;
+};
 
 let rowSeq = 0;
 function newRow(date: string): SellingCostRow {
@@ -42,7 +50,10 @@ export default function CapitalGainPage() {
   const [token, setToken] = useState("");
   const [property, setProperty] = useState<CoreProperty | null>(null);
   const [entityName, setEntityName] = useState("");
+  const [gstStatus, setGstStatus] = useState<CoreGstRegistrationStatus>("unknown");
   const [costBase, setCostBase] = useState<CostBaseLine[]>([]);
+  // Selling costs already on the property, so answering "No" can clear them.
+  const [savedSellingCostCount, setSavedSellingCostCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -83,29 +94,47 @@ export default function CapitalGainPage() {
         if (!propRes.ok) throw new Error("Could not load the property.");
         const prop = (await propRes.json()) as CoreProperty;
         setProperty(prop);
+        if (prop.sellingAmount != null) setSellingAmount(String(prop.sellingAmount));
+        if (prop.soldDate) setSoldDate(prop.soldDate);
         if (cbRes.ok) {
-          const data = (await cbRes.json()) as { items?: (CoreCostBaseEntry & { date?: string | null })[] };
-          // Only Property Cost Base entries. Settlement entries live in a
-          // separate list and are never part of this one. Selling costs saved
-          // by this flow are shown in the selling cost step instead.
+          const data = (await cbRes.json()) as { items?: CoreCostBaseEntry[] };
+          const items = data.items ?? [];
+          // Only Property Cost Base entries. Settlement entries live in a separate
+          // list and are never part of this one. Selling costs come back into the
+          // selling cost step, so returning from Add More does not lose them.
           setCostBase(
-            (data.items ?? [])
-              .filter((e) => e.category !== SELLING_COST_CATEGORY)
+            items
+              .filter((e) => !isSellingCostCategory(e.category))
               .map((e) => ({
                 id: e.id,
                 category: e.category,
                 description: e.description ?? "",
-                amount: e.grossAmount,
-                date: e.date ?? null,
+                gross: e.grossAmount,
+                net: e.netAmount,
+                date: e.date,
               })),
           );
+          const selling = items.filter((e) => isSellingCostCategory(e.category));
+          setSavedSellingCostCount(selling.length);
+          if (selling.length > 0) {
+            setHasSellingCost(true);
+            setRows(
+              selling.map((e) => ({
+                ...newRow(e.date ?? today),
+                subcategory: e.subcategory ?? "",
+                description: e.description ?? "",
+                amount: String(e.grossAmount),
+              })),
+            );
+          }
         } else {
           setLoadError("Could not load the Property Cost Base.");
         }
         const entRes = await fetch(`/api/entities/${encodeURIComponent(prop.entityId || entityId)}`, { headers });
         if (!cancelled && entRes.ok) {
-          const ent = (await entRes.json()) as { name?: string };
+          const ent = (await entRes.json()) as { name?: string; gstStatus?: CoreGstRegistrationStatus };
           setEntityName(ent?.name ?? "");
+          setGstStatus(ent?.gstStatus ?? "unknown");
         }
       } catch (err) {
         if (!cancelled) setLoadError((err as Error)?.message ?? "Could not load the property.");
@@ -116,9 +145,18 @@ export default function CapitalGainPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, propertyId, entityId]);
+  }, [token, propertyId, entityId, today]);
 
-  const costBaseTotal = useMemo(() => costBase.reduce((a, l) => a + l.amount, 0), [costBase]);
+  // A GST-registered entity claims the GST back, so it is not part of what the
+  // property cost. An unknown status uses gross, and the screen and PDF say so.
+  const usesNet = gstStatus === "registered";
+  const amountOf = (l: CostBaseLine) => (usesNet ? l.net : l.gross);
+  const gstBasisNote = usesNet
+    ? "Amounts exclude GST because this entity is registered for GST."
+    : gstStatus === "not_registered"
+      ? "Amounts include GST because this entity is not registered for GST."
+      : "Amounts include GST because this entity's GST registration is not recorded. Set it on the entity if it is registered.";
+  const costBaseTotal = costBase.reduce((a, l) => a + amountOf(l), 0);
   const validRows = rows.filter((r) => r.subcategory || r.description || parseMoney(r.amount) !== 0);
   const sellingCostTotal = hasSellingCost ? validRows.reduce((a, r) => a + parseMoney(r.amount), 0) : 0;
   const futureRow = rows.some((r) => r.date > today);
@@ -137,11 +175,31 @@ export default function CapitalGainPage() {
     setBusy("save");
     setNotice("");
     try {
-      const result = await saveSellingCosts(token, propertyId, validRows);
-      if (result.isSample) setNotice("Selling costs are kept on this screen for now — the save endpoint is not built yet.");
+      await saveSellingCosts(token, propertyId, validRows);
+      setSavedSellingCostCount(validRows.length);
       setStep(4);
     } catch (err) {
       setNotice((err as Error)?.message ?? "Could not save the selling costs.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  // "No" means zero, so rows saved on an earlier visit have to go as well.
+  const continueWithoutSellingCosts = async () => {
+    if (savedSellingCostCount === 0) {
+      setStep(4);
+      return;
+    }
+    setBusy("save");
+    setNotice("");
+    try {
+      await saveSellingCosts(token, propertyId, []);
+      setSavedSellingCostCount(0);
+      setRows([newRow(today)]);
+      setStep(4);
+    } catch (err) {
+      setNotice((err as Error)?.message ?? "Could not clear the selling costs.");
     } finally {
       setBusy("");
     }
@@ -172,8 +230,9 @@ export default function CapitalGainPage() {
     setBusy("sold");
     setNotice("");
     try {
-      const r = await markPropertySold(token, propertyId, sell, soldDate);
-      setNotice(r.isSample ? "Marking as sold needs the backend endpoint (not built yet)." : "Property marked as sold.");
+      await markPropertySold(token, propertyId, sell, soldDate);
+      setProperty((prev) => (prev ? { ...prev, soldDate, sellingAmount: sell } : prev));
+      setNotice("Property marked as sold.");
     } catch (err) {
       setNotice((err as Error)?.message ?? "Could not mark the property as sold.");
     } finally {
@@ -210,7 +269,7 @@ export default function CapitalGainPage() {
             <td style={{ fontWeight: 600 }}>{l.category || "—"}</td>
             <td>{l.description || "—"}</td>
             {compact ? <td>{displayDate(l.date)}</td> : null}
-            <td className="cg-num">{aud(l.amount)}</td>
+            <td className="cg-num">{aud(amountOf(l))}</td>
             {!compact ? <td>{displayDate(l.date)}</td> : null}
           </tr>
         ))}
@@ -279,6 +338,7 @@ export default function CapitalGainPage() {
             <span style={{ fontSize: 13, color: "#64748b" }}>{costBase.length} transactions</span>
           </div>
           {costBaseTable(false)}
+          <p style={{ margin: 0, padding: "12px 24px 0", fontSize: 13, color: "#64748b" }}>{gstBasisNote}</p>
           <div className="cg-actions">
             <span className="cg-hint">
               Missing something? <b>Add More</b> opens the property&apos;s P&amp;L view at the Property Cost Base. To
@@ -327,10 +387,10 @@ export default function CapitalGainPage() {
             <button
               type="button"
               className="bs-btn is-primary"
-              disabled={hasSellingCost === null}
-              onClick={() => setStep(hasSellingCost ? 3 : 4)}
+              disabled={hasSellingCost === null || busy === "save"}
+              onClick={() => (hasSellingCost ? setStep(3) : void continueWithoutSellingCosts())}
             >
-              Continue ›
+              {busy === "save" ? "Saving…" : "Continue ›"}
             </button>
           </div>
         </section>
@@ -344,10 +404,11 @@ export default function CapitalGainPage() {
             Base as a selling cost.
           </p>
           <div style={{ overflowX: "auto" }}>
-            <table className="cg-grid" style={{ minWidth: 760 }}>
+            <table className="cg-grid" style={{ minWidth: 880 }}>
               <thead>
                 <tr>
                   <th style={{ width: 36 }}>#</th>
+                  <th style={{ width: 120 }}>Category</th>
                   <th style={{ width: 240 }}>Subcategory</th>
                   <th>Description</th>
                   <th style={{ width: 180 }}>Date</th>
@@ -361,6 +422,7 @@ export default function CapitalGainPage() {
                   return (
                     <tr key={r.key}>
                       <td style={{ color: "#94a3b8", fontSize: 13, paddingTop: 18 }}>{i + 1}</td>
+                      <td style={{ fontSize: 13, fontWeight: 600, paddingTop: 18 }}>{SELLING_COST_CATEGORY}</td>
                       <td>
                         <select
                           className="cg-in"
@@ -428,7 +490,7 @@ export default function CapitalGainPage() {
                 })}
                 <tr>
                   <td />
-                  <td colSpan={3} style={{ fontWeight: 700, fontSize: 14, paddingTop: 16 }}>
+                  <td colSpan={4} style={{ fontWeight: 700, fontSize: 14, paddingTop: 16 }}>
                     Total Selling Cost
                   </td>
                   <td style={{ textAlign: "right", fontWeight: 800, fontSize: 15, paddingTop: 16 }}>
@@ -527,6 +589,7 @@ export default function CapitalGainPage() {
             {showBreakdown ? <div className="cg-breakdown">{costBaseTable(true)}</div> : null}
             <div style={{ borderTop: "1px solid #eef1f6", padding: "14px 24px", fontSize: 13, color: "#64748b" }}>
               Net selling amount − Purchase amount − Property cost base = Capital gain / loss
+              <div style={{ marginTop: 6 }}>{gstBasisNote}</div>
             </div>
           </section>
 
@@ -558,7 +621,7 @@ export default function CapitalGainPage() {
               {busy === "pdf" ? "Preparing PDF…" : "Export Capital Gain report (PDF)"}
             </button>
             <button type="button" className="bs-btn" disabled={busy === "sold" || sell <= 0} onClick={() => void markSold()}>
-              Mark property as sold
+              {property?.soldDate ? "Update sale details" : "Mark property as sold"}
             </button>
             <button type="button" className="bs-btn" onClick={() => setStep(hasSellingCost ? 3 : 2)}>
               ‹ Back
@@ -658,7 +721,7 @@ export default function CapitalGainPage() {
                     <td>{l.category}</td>
                     <td>{l.description}</td>
                     <td>{displayDate(l.date)}</td>
-                    <td className="cg-num">{aud(l.amount)}</td>
+                    <td className="cg-num">{aud(amountOf(l))}</td>
                   </tr>
                 ))}
                 <tr><td colSpan={3} style={{ fontWeight: 700 }}>Total property cost base</td><td className="cg-num" style={{ fontWeight: 700 }}>{aud(costBaseTotal)}</td></tr>
@@ -666,7 +729,7 @@ export default function CapitalGainPage() {
             </table>
           </div>
           <div style={{ borderTop: "1px solid #e1e5f0", paddingTop: 10, fontSize: 10, color: "#8a90ad" }}>
-            This report shows the figures entered in ClearPortfolio. It is not tax advice; check CGT discount and
+            {gstBasisNote} This report shows the figures entered in ClearPortfolio. It is not tax advice; check CGT discount and
             exemptions with your accountant.
           </div>
         </div>

@@ -8034,12 +8034,12 @@ html.dark .insights-custom-apply {
   /* Scales with the report's width (cqi = the .cp-doc container), so a
      cents figure like "A$ 6,360.00" stays on one line from a phone up. */
   .cp-kpi-v {
-    font-size: clamp(17px, 3.2cqi, 25px);
+    font-size: clamp(15px, 2.4cqi, 22px);
     line-height: 1.2;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--cp-ink);
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
   .cp-kpi-s {
     font-size: 13px;
