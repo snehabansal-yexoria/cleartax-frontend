@@ -355,6 +355,19 @@ export default function PropertyDetailView({
   const [currentTab, setCurrentTab] = useState<PropertyTab>("transactions");
   const [isLoading, setIsLoading] = useState(true);
   const [showPnLStatement, setShowPnLStatement] = useState(false);
+  // Capital Gain › Add More links here with ?view=pnl#property-cost-base.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("view") !== "pnl") return;
+    const open = window.setTimeout(() => setShowPnLStatement(true), 0);
+    const scroll = window.setTimeout(() => {
+      document.getElementById("property-cost-base")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 700);
+    return () => {
+      window.clearTimeout(open);
+      window.clearTimeout(scroll);
+    };
+  }, []);
   const [pnlFinancialYear, setPnlFinancialYear] = useState(() => auFinancialYearOf(new Date()));
   const [compareWithPrevious, setCompareWithPrevious] = useState(false);
   const [isAddBalanceOpen, setIsAddBalanceOpen] = useState(false);
@@ -2466,7 +2479,7 @@ export default function PropertyDetailView({
             </div>
 
             {/* Property Cost Base Section */}
-            <div style={{
+            <div id="property-cost-base" style={{
               backgroundColor: "#ffffff",
               borderRadius: "16px",
               border: "1.5px solid #e2e8f0",
@@ -3752,6 +3765,36 @@ export default function PropertyDetailView({
                     </svg>
                     View P&L Statement
                   </button>
+
+                  {/* Mark as Sold Out → Capital Gain flow (accountant only) */}
+                  {!isClientView ? (
+                    <Link
+                      href={`${pathname}/capital-gain`}
+                      title="Work out the capital gain or loss for selling this property"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 18px',
+                        border: '1.5px solid #f4a117',
+                        borderRadius: '10px',
+                        backgroundColor: '#f4a117',
+                        color: '#1c244b',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        height: '42px',
+                        boxSizing: 'border-box',
+                        textDecoration: 'none',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: "16px", height: "16px", flexShrink: 0 }} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 11l9-7 9 7M5 9.5V20h14V9.5" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l2 2 4-4" />
+                      </svg>
+                      Mark as Sold Out
+                    </Link>
+                  ) : null}
 
                   {/* Three Dots Actions Dropdown Button */}
                   {(!isClientView || !writesBlocked) && (

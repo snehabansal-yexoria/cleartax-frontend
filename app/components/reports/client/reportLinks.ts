@@ -8,7 +8,7 @@
  * Both lists open the same report pages, so the numbers are the same on both.
  */
 
-export type ClientReportKey = "pl" | "depreciation" | "gst" | "portfolio";
+export type ClientReportKey = "pl" | "depreciation" | "gst" | "portfolio" | "balance-sheet";
 
 export type ReportScopeQuery = {
   entityId?: string | null;
@@ -48,6 +48,6 @@ export function clientReportHrefFor(key: ClientReportKey, scope: ReportScopeQuer
   const path =
     key === "portfolio"
       ? `${CLIENT_REPORTS_PATH}/portfolio-summary`
-      : `${CLIENT_REPORTS_PATH}/${key}`;
+      : `${CLIENT_REPORTS_PATH}/${key}`; // "balance-sheet" has its own page too
   return href(path, withScope(new URLSearchParams(), scope));
 }

@@ -11,7 +11,6 @@ import type {
   CorePortfolioSummary,
 } from "@/src/lib/coreApi";
 import PortfolioMonthlyChart from "./PortfolioMonthlyChart";
-import PortfolioMethodology from "./PortfolioMethodology";
 import type { ReportScopeLevel, ReportScopeView } from "./reportScope";
 import {
   DASH,
@@ -652,7 +651,6 @@ export default function PortfolioSummaryReport({
               <LoanVsValue summary={summary} />
             </>
           )}
-          <PortfolioMethodology summary={summary} level={scope.level} collapsible={embedded} />
         </>
       )}
     </div>

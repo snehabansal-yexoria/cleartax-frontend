@@ -66,6 +66,7 @@ import AssetBuilder, {
   isAssetEligibleCategory,
   type AssetDraft,
 } from "@/app/components/AssetBuilder";
+import { TRANSACTION_SOURCE_OPTIONS, TransactionSourceBadge } from "@/app/components/transactionSource";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -212,6 +213,8 @@ type TransactionFilters = {
   /** Inclusive invoice-date bounds, YYYY-MM-DD. */
   from: string;
   to: string;
+  /** Where the transaction came from: bank | general | property_cost_base | borrowing_cost | manual. */
+  source: string;
 };
 
 type TransactionFilterOptions = {
@@ -228,6 +231,7 @@ const defaultTransactionFilters: TransactionFilters = {
   property: "all",
   type: "all",
   category: "all",
+  source: "all",
   search: "",
   from: "",
   to: "",
@@ -331,6 +335,7 @@ function countActiveFilters(filters: TransactionFilters) {
     filters.property,
     filters.type,
     filters.category,
+    filters.source,
   ].filter((value) => value !== "all").length;
   const text = [filters.search, filters.from, filters.to].filter(Boolean).length;
   return dropdowns + text;
@@ -3235,6 +3240,7 @@ function TransactionTable({
               <SortableTh label="Description" sortKey="description" handlers={sortHandlers} />
               <th>Type</th>
               <th>Category</th>
+              <th>Source</th>
               <th>Subcategory</th>
               <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
               <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
@@ -3363,6 +3369,7 @@ function TransactionTable({
                       ) : null}
                     </td>
                     <td>{row.categoryName}</td>
+                    <td><TransactionSourceBadge row={row} /></td>
                     <td>{row.subcategoryName}</td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
                     <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
@@ -3475,6 +3482,7 @@ function TransactionTable({
                               </span>
                             </td>
                             <td>{child.categoryName || "—"}</td>
+                            <td></td>
                             <td></td>
                             <td></td>
                             <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
@@ -4159,6 +4167,12 @@ function Filters({
           onChange={(value) => onChange("category", value)}
         />
         <StaticSelect
+          label="Source"
+          value={filters.source}
+          options={TRANSACTION_SOURCE_OPTIONS}
+          onChange={(value) => onChange("source", value)}
+        />
+        <StaticSelect
           label="Sort By"
           value={sortBy}
           options={sortOptions}
@@ -4618,6 +4632,8 @@ export function AllTransactionsView({
     put("to", filters.to);
     put("type", filters.type);
     put("category_id", filters.category);
+    // New: needs backend support (see docs/BALANCE_SHEET_CGT_UI_HANDOFF.md).
+    put("source", filters.source);
     // On a scoped page the path already pins the scope, so only send the
     // narrowing filters the grid actually offers there.
     if (contextKind === "none") put("client_id", filters.client);
