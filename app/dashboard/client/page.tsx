@@ -15,7 +15,7 @@ import {
   toneClass,
 } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
-import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { transactionSign, transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
 import {
   ReviewQueueCount,
@@ -526,6 +526,7 @@ export default function ClientPage() {
     categoryName: tx.categoryName,
     meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
     type: tx.type,
+    moneyIn: transactionSign(tx.type, tx.contraDirection) === 'positive',
     amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
     awaitingReview: isAwaitingReview(tx.reviewStatus),
     awaitingExtraction: isAwaitingExtraction(tx.metadata),
@@ -957,8 +958,8 @@ export default function ClientPage() {
                     activityItems.map((item) => (
                       <div key={item.id} className="m-db-activity-row">
                         <div className="m-db-activity-left">
-                          <div className={`m-db-activity-icon-box ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                            {item.type === 'revenue' ? (
+                          <div className={`m-db-activity-icon-box ${item.moneyIn ? 'income' : 'expense'}`}>
+                            {item.moneyIn ? (
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
                                 <line x1="7" y1="17" x2="7" y2="7" />
                                 <polyline points="7 7 17 7 17 17" />
@@ -981,8 +982,8 @@ export default function ClientPage() {
                             />
                           </div>
                         </div>
-                        <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                        <span className={`m-db-activity-amount ${item.moneyIn ? 'income' : 'expense'}`}>
+                          {formatExactCurrency(item.moneyIn ? item.amount : -item.amount, { showPlus: true })}
                         </span>
                       </div>
                     ))
@@ -1554,8 +1555,8 @@ export default function ClientPage() {
                 activityItems.map((item) => (
                   <div key={item.id} className="py-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === 'revenue' ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
-                        {item.type === 'revenue' ? (
+                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.moneyIn ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
+                        {item.moneyIn ? (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
                             <line x1="7" y1="17" x2="7" y2="7" />
                             <polyline points="7 7 17 7 17 17" />
@@ -1578,8 +1579,8 @@ export default function ClientPage() {
                         />
                       </div>
                     </div>
-                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
-                      {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.moneyIn ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
+                      {formatExactCurrency(item.moneyIn ? item.amount : -item.amount, { showPlus: true })}
                     </span>
                   </div>
                 ))

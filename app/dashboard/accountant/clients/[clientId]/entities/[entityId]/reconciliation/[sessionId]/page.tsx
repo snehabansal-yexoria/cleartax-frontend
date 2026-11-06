@@ -29,6 +29,7 @@ import {
   TRANSACTION_TYPE_ENTRY_OPTIONS,
   CONTRA_BASE_TYPE,
   allowsContraFlag,
+  contraDirectionOfBankLine,
   allowsAssetPurchase,
   allowsBusinessExtras,
   allowsPersonalPortion,
@@ -1578,6 +1579,7 @@ export default function AccountantReconciliationSessionPage() {
         is_regular_payment: withBusinessExtras ? categorizeIsRegularPayment : false,
         due_date: withBusinessExtras && categorizeIsRegularPayment ? (categorizeDueDate || null) : null,
         alert_name: withBusinessExtras && categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null,
+        ...(categorizeType === "contra" ? { contra_direction: contraDirectionOfBankLine(bankTx) } : {}),
       };
 
 
@@ -1782,7 +1784,10 @@ export default function AccountantReconciliationSessionPage() {
                 bulkDescription.trim() || row.payee || row.description || null,
               internal_remarks: null,
               is_asset_purchase: false,
-              metadata: { source: "reconciliation_categorized" },
+              metadata: {
+                source: "reconciliation_categorized",
+                ...(bulkType === "contra" ? { contra_direction: contraDirectionOfBankLine(row) } : {}),
+              },
               splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
               // One percentage across every selected line. Each line's own
               // business and personal amounts are derived by the backend from

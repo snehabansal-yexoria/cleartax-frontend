@@ -1640,6 +1640,8 @@ export type CorePersonalSplitFields = {
 };
 
 export type CoreTransactionDetail = {
+  /** Which way a contra's money moved; null on other types or when unrecorded. */
+  contraDirection?: "in" | "out" | null;
   /** The account a Balance Sheet row names, under its category and subcategory. */
   chartOfAccountId?: number | null;
   accountCode?: string | null;
@@ -1736,6 +1738,8 @@ export type CoreTransactionListItem = {
   metadata: Record<string, unknown>;
   /** bank | general | property_cost_base | borrowing_cost | manual. */
   source?: string;
+  /** Which way a contra's money moved; null on other types or when unrecorded. */
+  contraDirection?: "in" | "out" | null;
   createdAt: string;
   updatedAt: string;
 } & CorePersonalSplitFields;
@@ -1766,6 +1770,7 @@ export type CorePropertyTransactionRow = {
   // Optional for the same reason the reviewer stamp is: sample rows and mock
   // fixtures predate the field, and the normalizer always populates it.
   source?: string;
+  contraDirection?: "in" | "out" | null;
   hasChildren?: boolean;
   personalPercentage?: number | null;
 };
@@ -1805,6 +1810,10 @@ function toStringArray(value: unknown): string[] {
 function toNullableNumber(value: unknown): number | null {
   if (value == null) return null;
   return toFloatValue(value);
+}
+
+function toContraDirection(value: unknown): "in" | "out" | null {
+  return value === "in" || value === "out" ? value : null;
 }
 
 function toNullableString(value: unknown): string | null {
@@ -1948,6 +1957,7 @@ export function normalizeCoreTransactionDetail(
   const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
   const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
   return {
+    contraDirection: toContraDirection(raw.contra_direction ?? raw.contraDirection),
     chartOfAccountId: toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? null,
     accountCode: toNullableString(raw.account_code ?? raw.accountCode),
     accountName: toNullableString(raw.account_name ?? raw.accountName),
@@ -2066,6 +2076,7 @@ export function normalizeCoreTransactionListItem(
     ),
     metadata: toRecord(raw.metadata),
     source: toStringValue(raw.source),
+    contraDirection: toContraDirection(raw.contra_direction ?? raw.contraDirection),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
     ...normalizePersonalSplitFields(raw),
@@ -2077,6 +2088,7 @@ export function normalizeCorePropertyTransactionRow(
 ): CorePropertyTransactionRow {
   return {
     source: toStringValue(raw.source),
+    contraDirection: toContraDirection(raw.contra_direction ?? raw.contraDirection),
     transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
     transactionType: toTxnType(raw.transaction_type ?? raw.transactionType),
     categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,

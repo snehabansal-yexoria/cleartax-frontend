@@ -99,22 +99,38 @@ export function isRevenueType(type: CoreTransactionType | string): boolean {
   return type === "revenue";
 }
 
+/** Which way a contra's money moved. The type alone does not say. */
+export type ContraDirection = "in" | "out";
+
+export const CONTRA_DIRECTION_OPTIONS: { label: string; value: ContraDirection }[] = [
+  { label: "Money in", value: "in" },
+  { label: "Money out", value: "out" },
+];
+
+/** A bank line reads as a debit (money out) or a credit (money in). */
+export function contraDirectionOfBankLine(line: { debit?: number | null }): ContraDirection {
+  return line.debit != null ? "out" : "in";
+}
+
 /**
  * How a type's amount should read in the grid.
  *
- * "neutral" exists for contra: a transfer between the entity's own accounts is
- * a movement, not a flow, so rendering it with a minus sign beside real
- * expenses invites exactly the misreading the type was created to prevent. The
- * bank Account Ledger is unaffected — its amount comes from the statement line,
- * where the money genuinely did leave that account.
- *
- * Balance Sheet is neutral for the same reason: it is recorded, not counted.
+ * A contra signs by the direction its money moved (client request): the two legs
+ * of a transfer otherwise read identically. It still counts toward neither the
+ * P&L nor the BAS. A contra with no recorded direction stays neutral rather than
+ * being guessed, as does Balance Sheet: it is recorded, not counted.
  */
 export function transactionSign(
   type: CoreTransactionType | string,
+  contraDirection?: ContraDirection | null,
 ): "positive" | "negative" | "neutral" {
   if (type === "revenue") return "positive";
-  if (type === "contra" || type === "balance_sheet") return "neutral";
+  if (type === "contra") {
+    if (contraDirection === "in") return "positive";
+    if (contraDirection === "out") return "negative";
+    return "neutral";
+  }
+  if (type === "balance_sheet") return "neutral";
   return "negative";
 }
 
