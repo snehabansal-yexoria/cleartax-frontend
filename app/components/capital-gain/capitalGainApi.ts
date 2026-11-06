@@ -75,6 +75,11 @@ export function parseMoney(v: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Amounts are stored to the cent, so an input refuses a third decimal rather than rounding it. */
+export function exceedsCents(v: string): boolean {
+  return /\.\d{3,}/.test(v);
+}
+
 export function aud(n: number): string {
   const s = `A$ ${Math.abs(n).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return n < 0 ? `−${s}` : s;

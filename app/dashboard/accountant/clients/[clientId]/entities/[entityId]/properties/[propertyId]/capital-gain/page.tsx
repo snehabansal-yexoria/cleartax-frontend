@@ -11,6 +11,7 @@ import {
   isSellingCostCategory,
   aud,
   displayDate,
+  exceedsCents,
   markPropertySold,
   parseMoney,
   saveSellingCosts,
@@ -64,6 +65,10 @@ export default function CapitalGainPage() {
   const [soldDate, setSoldDate] = useState(today);
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [notice, setNotice] = useState("");
+  // Shown beside the sale buttons: the page is usually scrolled down by then, so
+  // a notice at the top would go unseen.
+  const [saleStatus, setSaleStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirmingSale, setConfirmingSale] = useState(false);
   const [busy, setBusy] = useState<"" | "save" | "pdf" | "sold">("");
   const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -152,7 +157,7 @@ export default function CapitalGainPage() {
   const usesNet = gstStatus === "registered";
   const amountOf = (l: CostBaseLine) => (usesNet ? l.net : l.gross);
   const gstBasisNote = usesNet
-    ? "Amounts exclude GST because this entity is registered for GST."
+    ? "Property cost base amounts exclude GST because this entity is registered for GST. The purchase amount, selling amount and selling costs are shown as entered."
     : gstStatus === "not_registered"
       ? "Amounts include GST because this entity is not registered for GST."
       : "Amounts include GST because this entity's GST registration is not recorded. Set it on the entity if it is registered.";
@@ -165,7 +170,18 @@ export default function CapitalGainPage() {
   const net = sell - sellingCostTotal;
   const result = net - purchase - costBaseTotal;
   const isGain = result >= 0;
+  // With no selling amount there is no result yet, only the costs.
+  const hasSellingAmount = sell > 0;
+  const purchaseDate = property?.purchaseDate?.slice(0, 10) ?? "";
+  const soldBeforePurchase = Boolean(soldDate && purchaseDate && soldDate < purchaseDate);
+  const canMarkSold = hasSellingAmount && Boolean(soldDate) && !soldBeforePurchase;
   const propertyName = property?.name || "Property";
+
+  const editSale = (patch: () => void) => {
+    patch();
+    setConfirmingSale(false);
+    setSaleStatus(null);
+  };
 
   const setRow = (key: string, patch: Partial<SellingCostRow>) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -228,14 +244,15 @@ export default function CapitalGainPage() {
 
   const markSold = async () => {
     setBusy("sold");
-    setNotice("");
+    setSaleStatus(null);
     try {
       await markPropertySold(token, propertyId, sell, soldDate);
       setProperty((prev) => (prev ? { ...prev, soldDate, sellingAmount: sell } : prev));
-      setNotice("Property marked as sold.");
+      setSaleStatus({ ok: true, text: `Saved: sold on ${displayDate(soldDate)} for ${aud(sell)}.` });
     } catch (err) {
-      setNotice((err as Error)?.message ?? "Could not mark the property as sold.");
+      setSaleStatus({ ok: false, text: (err as Error)?.message ?? "Could not mark the property as sold." });
     } finally {
+      setConfirmingSale(false);
       setBusy("");
     }
   };
@@ -300,7 +317,7 @@ export default function CapitalGainPage() {
 
       <div className="cg-head">
         <div>
-          <h1>Mark as Sold Out · Capital Gain</h1>
+          <h1>Mark as Sold · Capital Gain</h1>
           <p>
             {propertyName}
             {entityName ? ` · ${entityName}` : ""}
@@ -333,16 +350,18 @@ export default function CapitalGainPage() {
           <div className="cg-card-head">
             <div style={{ flex: 1 }}>
               <h2>Property Cost Base</h2>
-              <p>All Property Cost Base transactions recorded for this property. Settlement entries are not included.</p>
+              <p>All Property Cost Base entries recorded for this property. Settlement entries are not included.</p>
             </div>
-            <span style={{ fontSize: 13, color: "#64748b" }}>{costBase.length} transactions</span>
+            <span style={{ fontSize: 13, color: "#64748b" }}>
+              {costBase.length} {costBase.length === 1 ? "entry" : "entries"}
+            </span>
           </div>
           {costBaseTable(false)}
           <p style={{ margin: 0, padding: "12px 24px 0", fontSize: 13, color: "#64748b" }}>{gstBasisNote}</p>
           <div className="cg-actions">
             <span className="cg-hint">
               Missing something? <b>Add More</b> opens the property&apos;s P&amp;L view at the Property Cost Base. To
-              come back, click Mark as Sold Out again.
+              come back, click Mark as Sold again.
             </span>
             <Link href={`${propertyHref}?view=pnl#property-cost-base`} className="bs-btn">
               + Add More
@@ -470,7 +489,9 @@ export default function CapitalGainPage() {
                           aria-label="Amount"
                           placeholder="0.00"
                           value={r.amount}
-                          onChange={(e) => setRow(r.key, { amount: e.target.value })}
+                          onChange={(e) => {
+                            if (!exceedsCents(e.target.value)) setRow(r.key, { amount: e.target.value });
+                          }}
                         />
                       </td>
                       <td>
@@ -538,13 +559,32 @@ export default function CapitalGainPage() {
                     inputMode="decimal"
                     placeholder="0.00"
                     value={sellingAmount}
-                    onChange={(e) => setSellingAmount(e.target.value)}
+                    onChange={(e) => {
+                      const typed = e.target.value;
+                      if (!exceedsCents(typed)) editSale(() => setSellingAmount(typed));
+                    }}
                   />
                 </span>
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, fontWeight: 600, color: "#475569" }}>
                 Sale date
-                <input className="bs-date" style={{ height: 54 }} type="date" max={today} value={soldDate} onChange={(e) => setSoldDate(e.target.value)} />
+                <input
+                  className={soldBeforePurchase ? "bs-date is-error" : "bs-date"}
+                  style={{ height: 54 }}
+                  type="date"
+                  min={purchaseDate || undefined}
+                  max={today}
+                  value={soldDate}
+                  onChange={(e) => {
+                    const typed = e.target.value;
+                    editSale(() => setSoldDate(typed));
+                  }}
+                />
+                {soldBeforePurchase ? (
+                  <span style={{ color: "#dc2626", fontSize: 12, fontWeight: 600 }}>
+                    Can&apos;t be before the purchase date ({displayDate(purchaseDate)})
+                  </span>
+                ) : null}
               </label>
             </div>
             <div className="cg-sh">Step 2 · Net selling amount</div>
@@ -594,15 +634,22 @@ export default function CapitalGainPage() {
           </section>
 
           <aside className="cg-side">
-            <section className={isGain ? "cg-result" : "cg-result is-loss"} aria-live="polite">
-              <div className="cg-kind">{isGain ? "▲ Capital gain" : "▼ Capital loss"}</div>
-              <div className="cg-amount">{aud(result)}</div>
-              <p>
-                {isGain
-                  ? "Net selling amount is higher than the total property cost."
-                  : "Total property cost is higher than the net selling amount."}
-              </p>
-            </section>
+            {hasSellingAmount ? (
+              <section className={isGain ? "cg-result" : "cg-result is-loss"} aria-live="polite">
+                <div className="cg-kind">{isGain ? "▲ Capital gain" : "▼ Capital loss"}</div>
+                <div className="cg-amount">{aud(result)}</div>
+                <p>
+                  {isGain
+                    ? "Net selling amount is higher than the total property cost."
+                    : "Total property cost is higher than the net selling amount."}
+                </p>
+              </section>
+            ) : (
+              <section className="cg-result is-empty" aria-live="polite">
+                <div className="cg-kind">Capital gain or loss</div>
+                <p>Enter the total selling amount to see the result.</p>
+              </section>
+            )}
             <section className="cg-summary">
               <div>
                 <span>Net selling amount</span>
@@ -617,12 +664,47 @@ export default function CapitalGainPage() {
                 <b>{aud(costBaseTotal)}</b>
               </div>
             </section>
-            <button type="button" className="bs-btn is-primary" style={{ height: 48 }} disabled={busy === "pdf"} onClick={() => void exportPdf()}>
+            <button
+              type="button"
+              className="bs-btn is-primary"
+              style={{ height: 48 }}
+              disabled={busy === "pdf" || !hasSellingAmount}
+              onClick={() => void exportPdf()}
+            >
               {busy === "pdf" ? "Preparing PDF…" : "Export Capital Gain report (PDF)"}
             </button>
-            <button type="button" className="bs-btn" disabled={busy === "sold" || sell <= 0} onClick={() => void markSold()}>
-              {property?.soldDate ? "Update sale details" : "Mark property as sold"}
-            </button>
+            {confirmingSale ? (
+              <section className="cg-confirm" role="group" aria-label="Confirm the sale">
+                <p>
+                  Record {propertyName} as sold on <b>{displayDate(soldDate)}</b> for <b>{aud(sell)}</b>?
+                </p>
+                <div>
+                  <button type="button" className="bs-btn" disabled={busy === "sold"} onClick={() => setConfirmingSale(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="bs-btn is-primary" disabled={busy === "sold"} onClick={() => void markSold()}>
+                    {busy === "sold" ? "Saving…" : "Confirm"}
+                  </button>
+                </div>
+              </section>
+            ) : (
+              <button
+                type="button"
+                className="bs-btn"
+                disabled={!canMarkSold}
+                onClick={() => {
+                  setSaleStatus(null);
+                  setConfirmingSale(true);
+                }}
+              >
+                {property?.soldDate ? "Update sale details" : "Mark as Sold"}
+              </button>
+            )}
+            {saleStatus ? (
+              <p className={saleStatus.ok ? "cg-sale-status" : "cg-sale-status is-error"} role="status">
+                {saleStatus.text}
+              </p>
+            ) : null}
             <button type="button" className="bs-btn" onClick={() => setStep(hasSellingCost ? 3 : 2)}>
               ‹ Back
             </button>

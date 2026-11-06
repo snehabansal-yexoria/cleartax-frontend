@@ -4,7 +4,7 @@ import type { CoreTransactionListItem } from "@/src/lib/coreApi";
 
 /**
  * Where a transaction came from: `source` on each row and `?source=` on the list
- * endpoints. The API works it out (transactionSourceSQL). General is a General
+ * endpoints. The API works it out (transactionSourceSQL). Journal (value "general") is a General
  * Journal entry and Manual is anything entered or uploaded through Add
  * Transaction.
  */
@@ -12,7 +12,7 @@ export type TransactionSource = "bank" | "general" | "property_cost_base" | "bor
 
 export const TRANSACTION_SOURCES: { value: TransactionSource; label: string; bg: string; fg: string; dot: string }[] = [
   { value: "bank", label: "Bank", bg: "#e8ebfa", fg: "#28336e", dot: "#28336e" },
-  { value: "general", label: "General", bg: "#f1f5f9", fg: "#334155", dot: "#64748b" },
+  { value: "general", label: "Journal", bg: "#f1f5f9", fg: "#334155", dot: "#64748b" },
   { value: "property_cost_base", label: "Property Cost Base", bg: "#fff1dd", fg: "#9a4d00", dot: "#f97316" },
   { value: "borrowing_cost", label: "Borrowing Cost", bg: "#ecfdf3", fg: "#15803d", dot: "#22c55e" },
   { value: "manual", label: "Manual", bg: "#f5eeff", fg: "#6d28d9", dot: "#8b5cf6" },

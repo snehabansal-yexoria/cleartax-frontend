@@ -39,7 +39,7 @@ How the figures are made (see `internal/handlers/transaction/balance_sheet.go`):
 
 `source=bank|general|property_cost_base|borrowing_cost|manual` on the transaction
 lists, and `source` on each row. Worked out in SQL (`transactionSourceSQL`), so no
-backfill. First match wins: General (journal entry), Property Cost Base (type
+backfill. First match wins: Journal (value `general`, a journal entry), Property Cost Base (type
 `cost_base`), Borrowing Cost (Borrowing expenses category), Bank (matched to a
 bank line), Manual (everything else).
 

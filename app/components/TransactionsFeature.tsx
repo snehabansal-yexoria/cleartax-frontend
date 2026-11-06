@@ -20,6 +20,8 @@ import {
   transactionSign,
   allowsContraFlag,
   CONTRA_BASE_TYPE,
+  CONTRA_DIRECTION_OPTIONS,
+  type ContraDirection,
   typeAfterPick,
   typeButtonActive,
   parseTransactionType,
@@ -413,15 +415,22 @@ const INITIAL_SORT_DIR: Record<TransactionSortKey, SortDirection> = {
 
 /**
  * Amount colouring, keyed on the three signs rather than a revenue boolean.
- *
- * A contra entry gets the neutral class: it is a transfer between the entity's
- * own accounts, so painting it red beside real expenses reads as spending that
- * never happened.
+ * A contra colours by its direction, and stays neutral when it has none.
  */
 function amountClass(sign: ReturnType<typeof transactionSign>): string {
   if (sign === "positive") return "amount-positive";
   if (sign === "neutral") return "amount-neutral";
   return "amount-negative";
+}
+
+/**
+ * What a row may be selected alongside. Contras group apart from real income and
+ * expenses even when they share a sign, because they sum to a transfer rather
+ * than to earnings or spending.
+ */
+function selectionGroupOf(row: DisplayTransactionRow): string {
+  const sign = transactionSign(row.type, row.contraDirection);
+  return row.type === "contra" ? `contra-${sign}` : sign;
 }
 
 function encodeSort(sort: TransactionSort) {
@@ -863,6 +872,8 @@ export function transactionDetailToRow(
 
   return {
     id: detail.id,
+    source: fallback?.source,
+    contraDirection: detail.contraDirection,
     chartOfAccountId: detail.chartOfAccountId,
     accountCode: detail.accountCode,
     accountName: detail.accountName,
@@ -903,6 +914,7 @@ function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransa
   return {
     id: row.transactionId,
     source: row.source,
+    contraDirection: row.contraDirection,
     type: row.transactionType,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
@@ -1010,6 +1022,10 @@ function TransactionDetailPopup({
   const [balanceSheetDirection, setBalanceSheetDirection] = useState(
     balanceSheetDirectionOf(row.metadata),
   );
+  const [contraDirection, setContraDirection] = useState<ContraDirection | "">(row.contraDirection ?? "");
+  // A matched row takes its direction from the statement line, so there is
+  // nothing to ask.
+  const contraDirectionRequired = type === "contra" && row.source !== "bank";
   const [chartOfAccountId, setChartOfAccountId] = useState<number | null>(row.chartOfAccountId ?? null);
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
@@ -1105,6 +1121,7 @@ function TransactionDetailPopup({
     if (reviewStatus !== initial.reviewStatus) return true;
     if (isAssetPurchase !== initial.isAssetPurchase) return true;
     if (type !== initial.type) return true;
+    if (contraDirection !== (initial.contraDirection ?? "")) return true;
     if (categoryId !== initial.categoryId) return true;
     if (subcategoryId !== initial.subcategoryId) return true;
     if (invoiceDate !== (initial.invoiceDate?.slice(0, 10) || "")) return true;
@@ -1142,7 +1159,7 @@ function TransactionDetailPopup({
     return false;
   }, [
     mode, detail, row, description, internalRemarks, reviewStatus, isAssetPurchase,
-    type, categoryId, subcategoryId, invoiceDate, grossAmount, gstAmount,
+    type, contraDirection, categoryId, subcategoryId, invoiceDate, grossAmount, gstAmount,
     modeOfTransaction, assetItemName, assetClass, effectiveLifeYears, isSplit, editSplitRows
   ]);
 
@@ -1166,6 +1183,7 @@ function TransactionDetailPopup({
     setIsAssetPurchase(source.isAssetPurchase);
     setType(source.type);
     setBalanceSheetDirection(balanceSheetDirectionOf(source.metadata));
+    setContraDirection(source.contraDirection ?? "");
     setChartOfAccountId(source.chartOfAccountId ?? null);
     setCategoryId(source.categoryId);
     setSubcategoryId(source.subcategoryId);
@@ -1251,7 +1269,8 @@ function TransactionDetailPopup({
   }
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
-  const amountSign = transactionSign(display.type);
+  const amountSign = transactionSign(display.type, display.contraDirection);
+  const amountOptions = { showPlus: display.type === "contra" };
   const splitRows =
     detail?.splits.map((split) => ({
       id: String(split.id),
@@ -1509,6 +1528,10 @@ function TransactionDetailPopup({
       setEditError(grossAmountError);
       return;
     }
+    if (contraDirectionRequired && !contraDirection) {
+      setEditError("Please select whether this contra entry is money in or money out.");
+      return;
+    }
     const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
     if (!allBlank) {
       if (Number.isNaN(grossNum) || grossNum <= 0) {
@@ -1621,6 +1644,7 @@ function TransactionDetailPopup({
         ...display.metadata,
         mode_of_transaction: modeOfTransaction || null,
         balance_sheet_direction: type === "balance_sheet" ? balanceSheetDirection : undefined,
+        contra_direction: type === "contra" && contraDirection ? contraDirection : undefined,
         // Saving is the moment the placeholder becomes real values, so the
         // "Awaiting extraction" marker goes. PATCH replaces metadata wholesale
         // and undefined keys drop out of JSON, which removes it.
@@ -1791,6 +1815,7 @@ function TransactionDetailPopup({
                         setGstAmount("");
                       } else {
                         setType(CONTRA_BASE_TYPE);
+                        setContraDirection("");
                       }
                       setCategoryId(null);
                       setSubcategoryId(null);
@@ -2028,6 +2053,16 @@ function TransactionDetailPopup({
                     onChange={(value) => setBalanceSheetDirection(value as BalanceSheetDirection)}
                   />
                 )}
+                {contraDirectionRequired && (
+                  <StaticSelect
+                    label="Direction"
+                    required
+                    placeholder="Select direction"
+                    value={contraDirection}
+                    options={CONTRA_DIRECTION_OPTIONS}
+                    onChange={(value) => setContraDirection(value as ContraDirection)}
+                  />
+                )}
                 <label className={`transaction-field${showDateError ? " has-error" : ""}`}>
                   <span className="transaction-field-label">Invoice Date<em>*</em></span>
                   <input
@@ -2253,13 +2288,13 @@ function TransactionDetailPopup({
               <div className="transaction-detail-grid is-three">
                 <DetailField label="Gross Amount">
                   <span className={amountClass(amountSign)}>
-                    {formatTransactionCurrency(display.grossAmount, amountSign)}
+                    {formatTransactionCurrency(display.grossAmount, amountSign, amountOptions)}
                   </span>
                 </DetailField>
                 <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
                 <DetailField label="Net Amount">
                   <span className={amountClass(amountSign)}>
-                    {formatTransactionCurrency(display.netAmount, amountSign)}
+                    {formatTransactionCurrency(display.netAmount, amountSign, amountOptions)}
                   </span>
                 </DetailField>
               </div>
@@ -3283,7 +3318,8 @@ function TransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const amountSign = transactionSign(row.type);
+              const amountSign = transactionSign(row.type, row.contraDirection);
+              const amountOptions = { showPlus: row.type === "contra" };
               const amounts = gridAmounts(row, firstYearDepreciation?.get(row.id));
               const propertyLabel =
                 row.propertyNames.length === 0
@@ -3404,7 +3440,7 @@ function TransactionTable({
                     </td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
                     <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {formatTransactionCurrency(amounts.gross, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -3413,7 +3449,7 @@ function TransactionTable({
                       {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
                     </td>
                     <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {formatTransactionCurrency(amounts.net, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -3657,7 +3693,8 @@ function PropertyTransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const amountSign = transactionSign(row.transactionType);
+              const amountSign = transactionSign(row.transactionType, row.contraDirection);
+              const amountOptions = { showPlus: row.transactionType === "contra" };
               const displayRow = propertyRowToDisplayRow(row);
               const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
               const children = rowChildren?.[row.transactionId];
@@ -3728,7 +3765,7 @@ function PropertyTransactionTable({
                     <td>{formatCurrency(row.transactionGrossAmount)}</td>
                     <td>{row.splitPercentage.toFixed(2)}%</td>
                     <td className={amountClass(amountSign)} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {formatTransactionCurrency(amounts.gross, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -3737,7 +3774,7 @@ function PropertyTransactionTable({
                       {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
                     </td>
                     <td className={amountClass(amountSign)} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {formatTransactionCurrency(amounts.net, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -4991,25 +5028,26 @@ export function AllTransactionsView({
   const selectionEnabled = enableSelection && contextKind === "none";
 
   /**
-   * The sign lock. There are five types, not two, and they fall into three
-   * signs rather than two: only `revenue` is money in; `expense`, `personal`
-   * and `cost_base` render negative; and `contra` is neutral, because a
-   * transfer between the entity's own accounts is a movement rather than a
-   * flow. So the lock is on `transactionSign`, and once the first row is picked
-   * every row of a different sign is disabled and dimmed. Summing a mixed
-   * selection would produce a number that means nothing — and a contra mixed
-   * into a run of expenses would make the total read as spending that never
-   * happened.
+   * The sign lock. Only `revenue` is money in; `expense`, `personal` and
+   * `cost_base` render negative; and a `contra` signs by its direction but is
+   * its own group (selectionGroupOf). Once the first row is picked every row of
+   * a different group is disabled and dimmed. Summing a mixed selection would
+   * produce a number that means nothing — and a contra mixed into a run of
+   * expenses would make the total read as spending that never happened.
    */
-  const selectedSign = useMemo<ReturnType<typeof transactionSign> | null>(() => {
+  const firstSelected = useMemo(() => {
     const first = selectedRows.values().next();
-    return first.done ? null : transactionSign(first.value.type);
+    return first.done ? null : first.value;
   }, [selectedRows]);
+  const selectedSign = firstSelected
+    ? transactionSign(firstSelected.type, firstSelected.contraDirection)
+    : null;
+  const selectedGroup = firstSelected ? selectionGroupOf(firstSelected) : null;
 
   const isSelectionDisabled = useCallback(
     (row: DisplayTransactionRow) =>
-      selectedSign !== null && transactionSign(row.type) !== selectedSign,
-    [selectedSign],
+      selectedGroup !== null && selectionGroupOf(row) !== selectedGroup,
+    [selectedGroup],
   );
 
   const toggleSelectedRow = useCallback((row: DisplayTransactionRow) => {
@@ -5045,15 +5083,15 @@ export function AllTransactionsView({
 
   const toggleSelectAllOnPage = useCallback(
     (checked: boolean) => {
-      // With nothing selected yet the page can hold both signs, so the first
+      // With nothing selected yet the page can hold every group, so the first
       // eligible row sets the lock and the rest of the page follows it.
-      const sign =
-        selectedSign ??
-        (displayedRows.length > 0 ? transactionSign(displayedRows[0].type) : null);
+      const group =
+        selectedGroup ??
+        (displayedRows.length > 0 ? selectionGroupOf(displayedRows[0]) : null);
       const eligible =
-        sign === null
+        group === null
           ? displayedRows
-          : displayedRows.filter((row) => transactionSign(row.type) === sign);
+          : displayedRows.filter((row) => selectionGroupOf(row) === group);
 
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -5072,7 +5110,7 @@ export function AllTransactionsView({
         return next;
       });
     },
-    [displayedRows, selectedSign],
+    [displayedRows, selectedGroup],
   );
 
   // Paging keeps the selection — that is what the side-cache is for. Changing
@@ -6308,6 +6346,7 @@ export function AddTransactionView({
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [balanceSheetDirection, setBalanceSheetDirection] = useState<BalanceSheetDirection>("increase");
+  const [contraDirection, setContraDirection] = useState<ContraDirection | "">("");
   const [chartOfAccountId, setChartOfAccountId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
@@ -6772,6 +6811,7 @@ export function AddTransactionView({
   /** The contra toggle, offered on Personal Transaction only. */
   function handleContraToggle(checked: boolean) {
     handleTransactionTypeChange(checked ? "contra" : CONTRA_BASE_TYPE);
+    if (!checked) setContraDirection("");
   }
 
   useEffect(() => {
@@ -7350,6 +7390,7 @@ export function AddTransactionView({
       !!subcategoryId) &&
     (!accountRequired || !!chartOfAccountId) &&
     !descriptionError &&
+    (type !== "contra" || !!contraDirection) &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
@@ -7952,6 +7993,10 @@ export function AddTransactionView({
       setSubmitError(invoiceDateError);
       return;
     }
+    if (type === "contra" && !contraDirection) {
+      setSubmitError("Please select whether this contra entry is money in or money out.");
+      return;
+    }
     if (grossAmountError) {
       setGrossAmountTouched(true);
       setSubmitError(grossAmountError);
@@ -8127,6 +8172,7 @@ export function AddTransactionView({
         due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
         alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
         ...(type === "balance_sheet" ? { balance_sheet_direction: balanceSheetDirection } : {}),
+        ...(type === "contra" && contraDirection ? { contra_direction: contraDirection } : {}),
       };
       // asset_class / asset_name / depreciation_method / effective_life_years
       // are first-class body fields since migration 0037 — never metadata. The
@@ -8698,6 +8744,21 @@ export function AddTransactionView({
                       value={balanceSheetDirection}
                       options={BALANCE_SHEET_DIRECTION_OPTIONS}
                       onChange={(value) => setBalanceSheetDirection(value as BalanceSheetDirection)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {type === "contra" && (
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Direction"
+                      required
+                      placeholder="Select direction"
+                      value={contraDirection}
+                      options={CONTRA_DIRECTION_OPTIONS}
+                      onChange={(value) => setContraDirection(value as ContraDirection)}
                     />
                   </div>
                 </div>

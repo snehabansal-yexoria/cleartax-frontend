@@ -109,7 +109,7 @@ export default function PropertiesTab({
                   </div>
                   <div>
                     <dt>Market Value</dt>
-                    <dd>{formatCurrency(property.estimatedMarketValue ?? 0, { decimals: 0 })}</dd>
+                    <dd>{formatCurrency(property.estimatedMarketValue ?? 0)}</dd>
                   </div>
                 </dl>
                 {entityReconciled || entityDisabled || propertyDisabled ? (

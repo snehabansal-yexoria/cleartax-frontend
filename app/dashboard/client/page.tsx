@@ -15,7 +15,7 @@ import {
   toneClass,
 } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
-import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { transactionSign, transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
 import {
   ReviewQueueCount,
@@ -24,12 +24,12 @@ import {
 import CashFlowChart from "@/app/components/clients/CashFlowChart";
 import RegionError from "@/app/components/ui/RegionError";
 import FinancialYearPicker from "@/app/components/ui/FinancialYearPicker";
+import UpcomingPayments from "@/app/components/upcoming-payments/UpcomingPayments";
 import { usePortfolioSummary } from "@/app/components/usePortfolioSummary";
 import { fetchCurrentUser, type CurrentUser } from "@/app/components/currentUser";
 import {
   currentFinancialYear,
   fyLongLabel,
-  fyRangeLabel,
   fyMonthKeys,
   fyShortLabel,
   monthAt,
@@ -411,8 +411,7 @@ export default function ClientPage() {
   // to sum one 50-row page of transactions in the browser (net in some places,
   // gross in others, unreviewed rows included), which undercounted as soon as
   // a client had more than 50 rows. Last year's summary supplies the months
-  // before 1 July (the 6-month chart, July's month-on-month badge) and the
-  // Last Financial Year cards.
+  // before 1 July (the 6-month chart, July's month-on-month badge).
   // ---------------------------------------------------------------------------
   const clientId = currentUser?.id || null;
   const financialYear = currentFinancialYear();
@@ -506,8 +505,6 @@ export default function ClientPage() {
     .sort((a, b) => b.amount - a.amount)
     .map((line) => ({ name: line.categoryName || "Uncategorised", amount: line.amount }));
 
-  const lastYearTotals = lastYear?.totals ?? null;
-
   // The figures are one region: if the summary (or the entity list) fails,
   // the page says so once, with Retry, and every figure shows "—".
   const figuresError =
@@ -529,6 +526,7 @@ export default function ClientPage() {
     categoryName: tx.categoryName,
     meta: tx.propertyName || tx.propertyNames?.[0] || titleCase(tx.type),
     type: tx.type,
+    moneyIn: transactionSign(tx.type, tx.contraDirection) === 'positive',
     amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
     awaitingReview: isAwaitingReview(tx.reviewStatus),
     awaitingExtraction: isAwaitingExtraction(tx.metadata),
@@ -760,6 +758,9 @@ export default function ClientPage() {
                 </div>
               </div>
 
+              {/* Upcoming payments: regular payments from Add Transaction. */}
+              <UpcomingPayments variant="phone" addTransactionHref={addTransactionHref} />
+
               {/* Quick Actions */}
               <div className="m-db-actions-grid">
                 <Link href="/dashboard/client/entities/new" className="m-db-btn-entity">
@@ -842,61 +843,6 @@ export default function ClientPage() {
                   <div className="m-db-stat-body">
                     <span className="m-db-stat-label">Loans</span>
                     <span className="m-db-stat-value">{money(displayLoansValue)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Last Financial Year Section */}
-              <div className="m-db-activity-section" style={{ marginTop: '16px' }}>
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-                    Last Financial Year
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Net Income Card */}
-                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
-                    <div className="flex justify-between items-center">
-                      <div className="w-8 h-8 rounded-[8px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                          <polyline points="17 6 23 6 23 12" />
-                        </svg>
-                      </div>
-                      <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
-                        {fyShortLabel(financialYear - 1)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Income (Last FY)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
-                        {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Net Loss Card */}
-                  <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[16px] p-3.5 shadow-sm flex flex-col justify-between gap-3">
-                    <div className="flex justify-between items-center">
-                      <div className="w-8 h-8 rounded-[8px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
-                          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-                          <polyline points="17 18 23 18 23 12" />
-                        </svg>
-                      </div>
-                      <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2 py-0.5 rounded-[4px] text-[10px] font-semibold">
-                        {fyShortLabel(financialYear - 1)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[11px] font-medium leading-tight">Net Loss (Last FY)</span>
-                      <span className="text-[#101828] dark:text-[var(--text-primary)] text-lg font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
-                      <span className="text-[#667085] dark:text-[var(--text-secondary)] text-[10px]">
-                        {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1012,8 +958,8 @@ export default function ClientPage() {
                     activityItems.map((item) => (
                       <div key={item.id} className="m-db-activity-row">
                         <div className="m-db-activity-left">
-                          <div className={`m-db-activity-icon-box ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                            {item.type === 'revenue' ? (
+                          <div className={`m-db-activity-icon-box ${item.moneyIn ? 'income' : 'expense'}`}>
+                            {item.moneyIn ? (
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
                                 <line x1="7" y1="17" x2="7" y2="7" />
                                 <polyline points="7 7 17 7 17 17" />
@@ -1036,8 +982,8 @@ export default function ClientPage() {
                             />
                           </div>
                         </div>
-                        <span className={`m-db-activity-amount ${item.type === 'revenue' ? 'income' : 'expense'}`}>
-                          {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                        <span className={`m-db-activity-amount ${item.moneyIn ? 'income' : 'expense'}`}>
+                          {formatExactCurrency(item.moneyIn ? item.amount : -item.amount, { showPlus: true })}
                         </span>
                       </div>
                     ))
@@ -1463,6 +1409,9 @@ export default function ClientPage() {
           </div>
         </div>
 
+        {/* Upcoming payments: regular payments from Add Transaction. */}
+        <UpcomingPayments addTransactionHref={addTransactionHref} />
+
         {/* Mini Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 flex flex-col gap-3.5 shadow-sm">
@@ -1510,76 +1459,6 @@ export default function ClientPage() {
                   Excludes {summary.excludedUnreviewedCount} awaiting review
                 </span>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Section: Last Financial Year */}
-        <div className="flex flex-col gap-3.5">
-          <div className="flex justify-between items-center">
-            <h3 className="text-[#101828] dark:text-[var(--text-primary)] text-base font-bold">
-              Last Financial Year
-            </h3>
-            <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">
-              {fyShortLabel(financialYear - 1)} · {fyRangeLabel(financialYear - 1)}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Net Income Card */}
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
-              <div className="flex justify-between items-center">
-                <div className="w-9 h-9 rounded-[10px] bg-[#eefdf4] text-[#12b76a] flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                    <polyline points="17 6 23 6 23 12" />
-                  </svg>
-                </div>
-                <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
-                  {fyShortLabel(financialYear - 1)}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Income (Last FY)</span>
-                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netIncomeTotal) : "—"}</span>
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
-                  {lastYearTotals ? `${lastYearTotals.profitCount} propert${lastYearTotals.profitCount === 1 ? "y" : "ies"} in profit` : " "}
-                </span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
-                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#667085] dark:text-[var(--text-secondary)] font-medium hover:underline">
-                  View report
-                </Link>
-                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
-              </div>
-            </div>
-
-            {/* Net Loss Card */}
-            <div className="bg-white dark:bg-[var(--surface-1)] border border-[#eaeef4] dark:border-[var(--border)] rounded-[18px] p-5 shadow-sm flex flex-col justify-between gap-4">
-              <div className="flex justify-between items-center">
-                <div className="w-9 h-9 rounded-[10px] bg-[#fff5f2] text-[#f04438] flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
-                    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-                    <polyline points="17 18 23 18 23 12" />
-                  </svg>
-                </div>
-                <span className="bg-[#f2f4f7] dark:bg-[var(--surface-2)] text-[#475467] dark:text-[var(--text-secondary)] px-2.5 py-1 rounded-[6px] text-xs font-semibold">
-                  {fyShortLabel(financialYear - 1)}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs font-medium">Net Loss (Last FY)</span>
-                <span className="text-[#101828] dark:text-[var(--text-primary)] text-2xl font-bold">{lastYearTotals ? formatExactCurrency(lastYearTotals.netLossTotal) : "—"}</span>
-                <span className="text-[#667085] dark:text-[var(--text-secondary)] text-xs mt-0.5">
-                  {lastYearTotals ? `${lastYearTotals.lossCount} propert${lastYearTotals.lossCount === 1 ? "y" : "ies"} at a loss` : " "}
-                </span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f7] dark:border-[var(--border)] text-xs">
-                <Link href="/dashboard/client/reports/portfolio-summary" className="text-[#667085] dark:text-[var(--text-secondary)] font-medium hover:underline">
-                  View report
-                </Link>
-                <span className="text-[#175cd3] dark:text-[#53b1fd] font-semibold">{fyRangeLabel(financialYear - 1)}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -1676,8 +1555,8 @@ export default function ClientPage() {
                 activityItems.map((item) => (
                   <div key={item.id} className="py-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === 'revenue' ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
-                        {item.type === 'revenue' ? (
+                      <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center flex-shrink-0 ${item.moneyIn ? 'bg-[#ecfdf3] text-[#12b76a]' : 'bg-[#fef3f2] text-[#f04438]'}`}>
+                        {item.moneyIn ? (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '15px', height: '15px' }}>
                             <line x1="7" y1="17" x2="7" y2="7" />
                             <polyline points="7 7 17 7 17 17" />
@@ -1700,8 +1579,8 @@ export default function ClientPage() {
                         />
                       </div>
                     </div>
-                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.type === 'revenue' ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
-                      {formatExactCurrency(item.type === 'revenue' ? item.amount : -item.amount, { showPlus: true })}
+                    <span className={`text-[13px] font-bold flex-shrink-0 ${item.moneyIn ? 'text-[#12b76a]' : 'text-[#f04438]'}`}>
+                      {formatExactCurrency(item.moneyIn ? item.amount : -item.amount, { showPlus: true })}
                     </span>
                   </div>
                 ))
