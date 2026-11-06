@@ -1640,6 +1640,10 @@ export type CorePersonalSplitFields = {
 };
 
 export type CoreTransactionDetail = {
+  /** The account a Balance Sheet row names, under its category and subcategory. */
+  chartOfAccountId?: number | null;
+  accountCode?: string | null;
+  accountName?: string | null;
   id: string;
   orgId: string;
   entityId: string;
@@ -1690,6 +1694,10 @@ export type CoreTransactionDetail = {
 } & CorePersonalSplitFields;
 
 export type CoreTransactionListItem = {
+  /** The account a Balance Sheet row names, under its category and subcategory. */
+  chartOfAccountId?: number | null;
+  accountCode?: string | null;
+  accountName?: string | null;
   id: string;
   type: CoreTransactionType;
   categoryId: number;
@@ -1940,6 +1948,9 @@ export function normalizeCoreTransactionDetail(
   const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
   const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
   return {
+    chartOfAccountId: toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? null,
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
+    accountName: toNullableString(raw.account_name ?? raw.accountName),
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
     entityId: toStringValue(raw.entity_id ?? raw.entityId),
@@ -2000,6 +2011,9 @@ export function normalizeCoreTransactionListItem(
   raw: RawRecord,
 ): CoreTransactionListItem {
   return {
+    chartOfAccountId: toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? null,
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
+    accountName: toNullableString(raw.account_name ?? raw.accountName),
     id: toStringValue(raw.id),
     type: toTxnType(raw.type),
     categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,

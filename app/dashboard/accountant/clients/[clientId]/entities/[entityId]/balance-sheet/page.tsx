@@ -230,8 +230,8 @@ export default function EntityBalanceSheetPage() {
                 {sheet.unmappedCount} Balance Sheet {sheet.unmappedCount === 1 ? "transaction is" : "transactions are"} not
                 included.
               </b>{" "}
-              Their category was typed by hand and names no account. Edit them in All Transactions and pick an account
-              from the list.
+              Their category was typed by hand and names no account. Edit them in All Transactions and choose a category
+              and account.
             </span>
           </div>
         ) : null}

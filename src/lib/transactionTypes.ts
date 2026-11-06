@@ -201,10 +201,6 @@ export function hidesCategoryPicker(type: CoreTransactionType | ""): boolean {
 }
 
 /**
- * Cost base is one free-text/typeable category only — its categories each carry
- * a single "General" subcategory that is auto-selected.
- */
-/**
  * The row to auto-select when no picker is showing. Prefers "General": Selling
  * Cost also has real subcategories, and taking the first by name would silently
  * file everything under Advertisement / Marketing.
@@ -213,24 +209,17 @@ export function autoSubcategory<T extends { name: string }>(subcategories: T[]):
   return subcategories.find((s) => s.name.toLowerCase() === "general") ?? subcategories[0];
 }
 
+/**
+ * Cost base categories carry a single "General" subcategory that is
+ * auto-selected. Selling Cost is the exception and the add form offers its
+ * subcategories itself.
+ */
 export function hidesSubcategoryPicker(type: CoreTransactionType | ""): boolean {
   return (
     type === "personal" ||
     type === "cost_base" ||
-    type === "contra" ||
-    type === "balance_sheet"
+    type === "contra"
   );
-}
-
-/**
- * Balance Sheet takes its category as typed text, not a pick from a list. The
- * form sends it as `category_name` and the API finds or creates the org's
- * category of that name, with a "General" subcategory beneath it — so the
- * subcategory picker is hidden too. Previously typed names are offered as
- * suggestions.
- */
-export function usesTypedCategory(type: CoreTransactionType | ""): boolean {
-  return type === "balance_sheet";
 }
 
 /**

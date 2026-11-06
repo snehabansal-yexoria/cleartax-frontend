@@ -5,9 +5,14 @@ falls back to sample data. Deploy order: run migration 0056, deploy Go, then the
 frontend.
 
 Account codes: migration 0056 seeds the 145 postable codes from
-`Balance_sheet_codes.xlsx`. `app/components/balance-sheet/balanceSheetAccounts.ts`
-holds the same list for the Opening Balance panel. Header rows (1000, 1500, 2000,
-2500, 3000) are group titles and are not seeded.
+`Balance_sheet_codes.xlsx` into `chart_of_account`, and takes the sheet's columns
+into the transaction taxonomy as they are named: Category (Assets, Liabilities,
+Equity) is a `transaction_category` of type `balance_sheet`, and Subcategory (Cash
+and Bank) is a `transaction_subcategory` beneath it. The account (1010 Operating
+Bank Account) is `transaction.chart_of_account_id`.
+`app/components/balance-sheet/balanceSheetAccounts.ts` holds the same list for the
+Opening Balance panel. Header rows (1000, 1500, 2000, 2500, 3000) are group titles
+and are not seeded.
 
 ## Balance Sheet (accountant and client)
 
@@ -24,8 +29,9 @@ How the figures are made (see `internal/handlers/transaction/balance_sheet.go`):
   years into 3020. Depreciation is not included.
 - 1071 Clearing is set to whatever makes the sheet balance. It is the amount still
   to be allocated by journal, because ordinary transactions record one side only.
-- A Balance Sheet transaction with a typed category that names no account is left
-  out and counted in `unmappedCount`, which the page reports.
+- New Balance Sheet transactions pick a category, subcategory and account from
+  dropdowns. An older one with a typed category that names no account is left out and counted
+  in `unmappedCount`, which the page reports.
 - There is no per-month or per-quarter column view: the report has one figure per
   account plus an optional comparison.
 
