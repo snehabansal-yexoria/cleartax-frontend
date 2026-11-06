@@ -111,7 +111,7 @@ export default function EntityStatCards({
           <strong className="client-stat-value">
             <StatValue
               region={marketValue}
-              render={(data) => formatCurrency(data.value, { decimals: 0 })}
+              render={(data) => formatCurrency(data.value)}
               errorMessage="Couldn't load market value"
             />
           </strong>

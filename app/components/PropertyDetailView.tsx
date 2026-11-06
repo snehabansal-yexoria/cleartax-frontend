@@ -311,7 +311,7 @@ function titleCase(value: string) {
 }
 
 function formatCurrency(value: number) {
-  return globalFormatCurrency(value, { decimals: 0 });
+  return globalFormatCurrency(value);
 }
 
 function formatDate(value: string) {
@@ -387,8 +387,8 @@ export default function PropertyDetailView({
   const [balanceGst, setBalanceGst] = useState("");
   const [balanceDesc, setBalanceDesc] = useState("");
   const [balanceError, setBalanceError] = useState("");
-  const [contractDate, setContractDate] = useState("2026-08-15");
-  const [settlementDate, setSettlementDate] = useState("2026-09-30");
+  const [contractDate, setContractDate] = useState("");
+  const [settlementDate, setSettlementDate] = useState("");
   const [showCostBase, setShowCostBase] = useState(true);
   // The property's cost base, backed by property_cost_base (0049). Starts
   // empty: it used to be seeded with three invented rows (Building & Pest $660,
@@ -628,17 +628,10 @@ export default function PropertyDetailView({
 
         const loadedProperty = (await propertyRes.json()) as CoreProperty;
         setProperty(loadedProperty);
-        // property.settlement_date is real (migration 0019); the Cost Base
-        // panel had it hardcoded, so every property exported the same date.
-        // Contract date has no backing column and stays a local field.
-        if (loadedProperty.settlementDate) {
-          const settled = loadedProperty.settlementDate.slice(0, 10);
-          setSettlementDate(settled);
-          // The contract date has no backing column, so it keeps a placeholder.
-          // Clear it when the real settlement date lands before it, rather than
-          // leaving the pair in a state the min/max inputs reject.
-          setContractDate((current) => (current && current > settled ? "" : current));
-        }
+        // Both dates are real columns (migrations 0019 and 0059), saved by the
+        // Cost Base panel's Save button.
+        setSettlementDate((loadedProperty.settlementDate ?? "").slice(0, 10));
+        setContractDate((loadedProperty.contractDate ?? "").slice(0, 10));
         if (transactionsRes.ok) {
           const data = (await transactionsRes.json()) as {
             items?: CorePropertyTransactionRow[];
@@ -1363,6 +1356,11 @@ export default function PropertyDetailView({
   const handleSaveCostBase = async () => {
     if (!sessionToken || isSavingCostBase) return;
 
+    if (contractDate && settlementDate && contractDate > settlementDate) {
+      setCostBaseEntryError("The contract date can't be after the settlement date.");
+      return;
+    }
+
     for (const row of manualCostBaseRows) {
       if (!row.category.trim()) {
         setCostBaseEntryError("Every cost base row needs a category.");
@@ -1395,6 +1393,34 @@ export default function PropertyDetailView({
         Authorization: `Bearer ${sessionToken}`,
       };
       const base = `/api/properties/${encodeURIComponent(propertyId)}/cost-base`;
+
+      // The dates go first: a rejected date then leaves the rows unsaved too,
+      // rather than half the panel. A settlement date can't be cleared, only changed.
+      const datePatch: Record<string, string> = {};
+      if (contractDate !== (property?.contractDate ?? "").slice(0, 10)) {
+        datePatch.contract_date = contractDate;
+      }
+      if (settlementDate && settlementDate !== (property?.settlementDate ?? "").slice(0, 10)) {
+        datePatch.settlement_date = settlementDate;
+      }
+      if (Object.keys(datePatch).length > 0) {
+        const dateRes = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+          method: "PATCH",
+          headers: authHeaders,
+          body: JSON.stringify(datePatch),
+        });
+        if (!dateRes.ok) {
+          const detail = (await dateRes.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          setCostBaseEntryError(detail?.message || detail?.error || "Failed to save the contract and settlement dates.");
+          return;
+        }
+        setProperty((prev) =>
+          prev ? { ...prev, contractDate: contractDate || null, settlementDate: settlementDate || prev.settlementDate } : prev,
+        );
+      }
 
       const remainingIds = new Set(
         manualCostBaseRows.map((row) => row.entryId).filter(Boolean),
@@ -2856,7 +2882,7 @@ export default function PropertyDetailView({
                                   {entry.category}{entry.subcategory ? ` · ${entry.subcategory}` : ""}
                                 </td>
                                 <td style={{ padding: "8px 12px" }}>{entry.description || "—"}</td>
-                                <td style={{ padding: "8px 8px" }}>{entry.date || "—"}</td>
+                                <td style={{ padding: "8px 8px" }}>{entry.date ? formatDisplayDate(entry.date.slice(0, 10)) : "—"}</td>
                                 <td style={{ textAlign: "right", padding: "8px 20px 8px 8px" }}>{formatAud(entry.grossAmount)}</td>
                                 <td style={{ textAlign: "right", padding: "8px 20px 8px 8px" }}>{formatAud(entry.gstAmount)}</td>
                                 <td style={{ textAlign: "right", padding: "8px 20px 8px 8px" }}>{formatAud(entry.netAmount)}</td>
@@ -3625,6 +3651,27 @@ export default function PropertyDetailView({
                   </p>
                 </div>
                 <div className="property-hero-actions" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* A sold property stays enabled, because bills for it keep
+                      arriving, so Sold sits beside Active rather than replacing it. */}
+                  {property.soldDate ? (
+                    <div
+                      title={`Sold on ${formatDate(property.soldDate)}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        borderRadius: '9999px',
+                        backgroundColor: '#fef3c7',
+                        color: '#92400e',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        height: '42px',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      Sold
+                    </div>
+                  ) : null}
                   {/* Active/Inactive Pill Button */}
                   {!isClientView ? (
                     <button
@@ -3818,7 +3865,7 @@ export default function PropertyDetailView({
                     View P&L Statement
                   </button>
 
-                  {/* Mark as Sold Out → Capital Gain flow (accountant only) */}
+                  {/* Mark as Sold → Capital Gain flow (accountant only) */}
                   {!isClientView ? (
                     <Link
                       href={`${pathname}/capital-gain`}
@@ -3844,7 +3891,7 @@ export default function PropertyDetailView({
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 11l9-7 9 7M5 9.5V20h14V9.5" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l2 2 4-4" />
                       </svg>
-                      {property.soldDate ? "View Capital Gain" : "Mark as Sold Out"}
+                      {property.soldDate ? "View Capital Gain" : "Mark as Sold"}
                     </Link>
                   ) : null}
 
@@ -4004,6 +4051,10 @@ export default function PropertyDetailView({
                   <dd>{formatCurrency(property.estimatedMarketValue)}</dd>
                 </div>
                 <div>
+                  <dt>Purchase Amount</dt>
+                  <dd>{formatCurrency(property.purchaseAmount)}</dd>
+                </div>
+                <div>
                   <dt>Loan Value</dt>
                   <dd>{formatCurrency(loanAmount)}</dd>
                 </div>
@@ -4011,6 +4062,18 @@ export default function PropertyDetailView({
                   <dt>Acquisition Date</dt>
                   <dd>{formatDate(property.purchaseDate)}</dd>
                 </div>
+                {property.soldDate ? (
+                  <>
+                    <div>
+                      <dt>Sold Date</dt>
+                      <dd>{formatDate(property.soldDate)}</dd>
+                    </div>
+                    <div>
+                      <dt>Selling Amount</dt>
+                      <dd>{formatCurrency(property.sellingAmount ?? 0)}</dd>
+                    </div>
+                  </>
+                ) : null}
                 <div>
                   <dt>Total Transactions</dt>
                   <dd>{transactionCount}</dd>

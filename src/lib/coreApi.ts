@@ -162,6 +162,7 @@ export type CoreProperty = {
   estimatedMarketValue: number;
   purchaseDate: string;
   settlementDate?: string;
+  contractDate: string | null;
   purchaseAmount: number;
   /** Set once the Capital Gain flow has marked the property as sold. */
   soldDate: string | null;
@@ -1195,6 +1196,7 @@ export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
     ),
     purchaseDate: toStringValue(raw.purchase_date ?? raw.purchaseDate),
     settlementDate: toStringValue(raw.settlement_date ?? raw.settlementDate),
+    contractDate: toNullableString(raw.contract_date ?? raw.contractDate),
     purchaseAmount: toFloatValue(raw.purchase_amount ?? raw.purchaseAmount),
     soldDate: toNullableString(raw.sold_date ?? raw.soldDate),
     sellingAmount:
