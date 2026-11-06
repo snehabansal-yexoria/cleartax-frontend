@@ -307,12 +307,12 @@ function ClientDetailPageContent() {
     () =>
       (personal.summary?.categories ?? []).map((c) => ({
         category: personalCategoryLabel(c),
-        // Private spending is money out; the API returns magnitudes.
-        amount: -c.grossAmount,
+        // Already signed by the API.
+        amount: c.grossAmount,
       })),
     [personal.summary],
   );
-  const personalTotal = -(personal.summary?.totalGross ?? 0);
+  const personalTotal = personal.summary?.totalGross ?? 0;
 
   const assetRows = useMemo(
     () =>

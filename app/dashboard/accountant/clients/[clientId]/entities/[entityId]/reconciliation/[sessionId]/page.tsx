@@ -33,7 +33,7 @@ import {
   allowsBusinessExtras,
   allowsPersonalPortion,
   hidesCategoryPicker,
-  usesTypedCategory,
+  autoSubcategory,
   hidesSubcategoryPicker,
   parseTransactionType,
   typeAfterPick,
@@ -46,6 +46,7 @@ import {
 } from "@/src/lib/assetCategory";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import { getSession } from "@/src/lib/session";
+import { balanceSheetAccountOptions, useBalanceSheetAccounts } from "@/app/components/balance-sheet/useBalanceSheetAccounts";
 import { AccountantReconciliationSkeleton } from "@/app/components/PortalSkeletons";
 import { StaticSelect } from "@/app/components/TransactionsFeature";
 import AssetBuilder, {
@@ -444,10 +445,8 @@ export default function AccountantReconciliationSessionPage() {
   // kept in sync on every change.
   const [categorizeType, setCategorizeType] = useState<CoreTransactionType>("expense");
   const [categorizeCategoryId, setCategorizeCategoryId] = useState<number | null>(null);
-  // Balance Sheet only: the typed category, sent as `category_name` — the API
-  // finds or creates the org's category of that name.
-  const [categorizeCategoryName, setCategorizeCategoryName] = useState("");
   const [categorizeSubcategoryId, setCategorizeSubcategoryId] = useState<number | null>(null);
+  const [categorizeAccountId, setCategorizeAccountId] = useState<number | null>(null);
   const [categorizePropertyId, setCategorizePropertyId] = useState<string>("");
   const [categorizeGst, setCategorizeGst] = useState<boolean>(false);
   const [categorizeGstAmount, setCategorizeGstAmount] = useState<string>("");
@@ -492,8 +491,8 @@ export default function AccountantReconciliationSessionPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkType, setBulkType] = useState<CoreTransactionType>("expense");
   const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
-  const [bulkCategoryName, setBulkCategoryName] = useState("");
   const [bulkSubcategoryId, setBulkSubcategoryId] = useState<number | null>(null);
+  const [bulkAccountId, setBulkAccountId] = useState<number | null>(null);
   const [bulkPropertyId, setBulkPropertyId] = useState<string>("");
   const [bulkGst, setBulkGst] = useState(false);
   // Contra only, and required there. One description applied to every selected
@@ -528,6 +527,24 @@ export default function AccountantReconciliationSessionPage() {
   const showBulkSubcategorySelect =
     !!bulkCategoryId &&
     bulkSubcategories.some((s) => s.name.toLowerCase() !== "general");
+
+  const balanceSheetAccounts = useBalanceSheetAccounts(
+    categorizeType === "balance_sheet" || bulkType === "balance_sheet",
+  );
+  const categorizeAccountOptions = categorizeType === "balance_sheet"
+    ? balanceSheetAccountOptions(
+        balanceSheetAccounts,
+        categorizeCategories.find((c) => c.id === categorizeCategoryId)?.name,
+        categorizeSubcategories.find((c) => c.id === categorizeSubcategoryId)?.name,
+      )
+    : [];
+  const bulkAccountOptions = bulkType === "balance_sheet"
+    ? balanceSheetAccountOptions(
+        balanceSheetAccounts,
+        bulkCategories.find((c) => c.id === bulkCategoryId)?.name,
+        bulkSubcategories.find((c) => c.id === bulkSubcategoryId)?.name,
+      )
+    : [];
 
   // Applied identically to every selected line, so it is validated once here
   // rather than per row.
@@ -905,7 +922,6 @@ export default function AccountantReconciliationSessionPage() {
     // judgement the accountant makes in the drawer, so default from debit vs
     // credit and let them change it.
     setCategorizeType(bankTx.debit != null ? "expense" : "revenue");
-    setCategorizeCategoryName("");
 
     // Reset new states
     setCategorizeAssetDraft(null);
@@ -1023,7 +1039,7 @@ export default function AccountantReconciliationSessionPage() {
 
   useEffect(() => {
     if (hidesSubcategoryPicker(categorizeType) && !categorizeSubcategoryId && categorizeSubcategories[0]) {
-      setCategorizeSubcategoryId(categorizeSubcategories[0].id);
+      setCategorizeSubcategoryId(autoSubcategory(categorizeSubcategories)!.id);
     }
   }, [categorizeType, categorizeSubcategories, categorizeSubcategoryId]);
 
@@ -1169,7 +1185,7 @@ export default function AccountantReconciliationSessionPage() {
   useEffect(() => {
     if (!bulkOpen) return;
     if (hidesSubcategoryPicker(bulkType) && !bulkSubcategoryId && bulkSubcategories[0]) {
-      setBulkSubcategoryId(bulkSubcategories[0].id);
+      setBulkSubcategoryId(autoSubcategory(bulkSubcategories)!.id);
     }
   }, [bulkOpen, bulkType, bulkSubcategories, bulkSubcategoryId]);
 
@@ -1414,11 +1430,8 @@ export default function AccountantReconciliationSessionPage() {
 
   async function doSaveCategorize(reconId: string, bankTxIndex: number) {
     if (categorizeSaving) return;
-    const typedCategoryName = usesTypedCategory(categorizeType)
-      ? categorizeCategoryName.trim()
-      : "";
     if (
-      (!categorizeCategoryId && !typedCategoryName) ||
+      !categorizeCategoryId ||
       (!categorizeIsSplit && !categorizePropertyId)
     ) {
       setCategorizeError("Category and Property are required.");
@@ -1436,6 +1449,10 @@ export default function AccountantReconciliationSessionPage() {
       !categorizeSubcategoryId
     ) {
       setCategorizeError("Please select sub category to continue.");
+      return;
+    }
+    if (categorizeAccountOptions.length > 0 && !categorizeAccountId) {
+      setCategorizeError("Please select an account to continue.");
       return;
     }
     // Matches the backend's validateContraDescription. The bank line's payee is
@@ -1566,14 +1583,14 @@ export default function AccountantReconciliationSessionPage() {
 
       const postBody: Record<string, unknown> = {
         type: categorizeType,
-        // Balance Sheet names its category; the API resolves the id.
-        ...(typedCategoryName
-          ? { category_name: typedCategoryName }
-          : { category_id: categorizeCategoryId }),
+        category_id: categorizeCategoryId,
         // Null when the category has no subcategory to pick, matching the bulk
         // modal below. subcategory_id is optional on the API and the backend
         // resolves the category's default rather than rejecting the save.
-        subcategory_id: typedCategoryName ? null : categorizeSubcategoryId || null,
+        subcategory_id: categorizeSubcategoryId || null,
+        ...(categorizeAccountOptions.length > 0 && categorizeAccountId
+          ? { chart_of_account_id: categorizeAccountId }
+          : {}),
         invoice_date: bankTx.date,
         gross_amount: grossAmount,
         gst_amount: gstAmount,
@@ -1682,7 +1699,6 @@ export default function AccountantReconciliationSessionPage() {
     if (selectedEligibleRows.length === 0) return;
     const first = selectedEligibleRows[0];
     setBulkType(first.row.debit != null ? "expense" : "revenue");
-    setBulkCategoryName("");
     setBulkCategoryId(null);
     setBulkSubcategoryId(null);
     setBulkSubcategories([]);
@@ -1701,8 +1717,7 @@ export default function AccountantReconciliationSessionPage() {
       ? (bulkCategoryId ?? firstCategoryOfType(bulkCategories, bulkType)?.id ?? null)
       : bulkCategoryId;
 
-    const typedBulkCategoryName = usesTypedCategory(bulkType) ? bulkCategoryName.trim() : "";
-    if (!bulkPropertyId || (!resolvedBulkCategoryId && !typedBulkCategoryName)) {
+    if (!bulkPropertyId || !resolvedBulkCategoryId) {
       setBulkError("Property and Category are required.");
       return;
     }
@@ -1710,6 +1725,10 @@ export default function AccountantReconciliationSessionPage() {
     // single-line drawer uses.
     if (!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && !bulkSubcategoryId) {
       setBulkError("Please select sub category to continue.");
+      return;
+    }
+    if (bulkAccountOptions.length > 0 && !bulkAccountId) {
+      setBulkError("Please select an account to continue.");
       return;
     }
     // Validated once, before any row is written: a bad percentage would
@@ -1751,12 +1770,11 @@ export default function AccountantReconciliationSessionPage() {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               type: bulkType,
-              ...(typedBulkCategoryName
-                ? { category_name: typedBulkCategoryName }
-                : { category_id: resolvedBulkCategoryId }),
-              subcategory_id: typedBulkCategoryName
-                ? null
-                : hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? (bulkSubcategoryId || null) : bulkSubcategoryId,
+              category_id: resolvedBulkCategoryId,
+              ...(bulkAccountOptions.length > 0 && bulkAccountId
+                ? { chart_of_account_id: bulkAccountId }
+                : {}),
+              subcategory_id: hidesSubcategoryPicker(bulkType) || !showBulkSubcategorySelect ? (bulkSubcategoryId || null) : bulkSubcategoryId,
               invoice_date: row.date,
               gross_amount: gross,
               gst_amount: gst,
@@ -3567,7 +3585,6 @@ export default function AccountantReconciliationSessionPage() {
                                 }
                                 setCategorizeCategoryId(null);
                                 setCategorizeSubcategoryId(null);
-                                setCategorizeCategoryName("");
                               }}
                             />
                           </div>
@@ -3641,31 +3658,7 @@ export default function AccountantReconciliationSessionPage() {
                             </div>
                           )}
 
-                          {/* Balance Sheet: free text, with the org's earlier
-                          Balance Sheet categories as suggestions. */}
-                          {usesTypedCategory(categorizeType) && (
-                            <div className="recon-categorize-field">
-                              <label className="recon-categorize-label">
-                                Category <span className="is-required">*</span>
-                              </label>
-                              <input
-                                type="text"
-                                className="recon-categorize-input"
-                                list={`balance-sheet-categories-${key}`}
-                                placeholder="e.g. Loan from director"
-                                maxLength={64}
-                                value={categorizeCategoryName}
-                                onChange={(e) => setCategorizeCategoryName(e.target.value)}
-                              />
-                              <datalist id={`balance-sheet-categories-${key}`}>
-                                {categorizeCategories.map((c) => (
-                                  <option key={c.id} value={c.name} />
-                                ))}
-                              </datalist>
-                            </div>
-                          )}
-
-                          {!hidesCategoryPicker(categorizeType) && !usesTypedCategory(categorizeType) && (
+                          {!hidesCategoryPicker(categorizeType) && (
                             <div className="recon-categorize-field">
                               <label className="recon-categorize-label">
                                 Category <span className="is-required">*</span>
@@ -3736,8 +3729,25 @@ export default function AccountantReconciliationSessionPage() {
                                   { label: "Select sub-category", value: "" },
                                   ...categorizeSubcategories.map((s) => ({ label: s.name, value: String(s.id) })),
                                 ]}
-                                onChange={(val) => setCategorizeSubcategoryId(val ? Number(val) : null)}
+                                onChange={(val) => {
+                                  setCategorizeSubcategoryId(val ? Number(val) : null);
+                                  setCategorizeAccountId(null);
+                                }}
                                 disabled={!categorizeCategoryId || categorizeSubcategories.length === 0}
+                              />
+                            </div>
+                          )}
+
+                          {categorizeAccountOptions.length > 0 && (
+                            <div className="recon-categorize-field">
+                              <label className="recon-categorize-label">
+                                Account <span className="is-required">*</span>
+                              </label>
+                              <StaticSelect
+                                value={String(categorizeAccountId ?? "")}
+                                placeholder="Select account"
+                                options={[{ label: "Select account", value: "" }, ...categorizeAccountOptions]}
+                                onChange={(val) => setCategorizeAccountId(val ? Number(val) : null)}
                               />
                             </div>
                           )}
@@ -4191,10 +4201,9 @@ export default function AccountantReconciliationSessionPage() {
                             className="recon-categorize-save-btn"
                             disabled={
                               categorizeSaving ||
-                              (usesTypedCategory(categorizeType)
-                                ? !categorizeCategoryName.trim()
-                                : lockAssetPurchaseCategory || hidesCategoryPicker(categorizeType) ? false : !categorizeCategoryId) ||
+                              (lockAssetPurchaseCategory || hidesCategoryPicker(categorizeType) ? false : !categorizeCategoryId) ||
                               (lockAssetPurchaseCategory || hidesSubcategoryPicker(categorizeType) ? false : (showCategorizeSubcategorySelect && !categorizeSubcategoryId)) ||
+                              (categorizeAccountOptions.length > 0 && !categorizeAccountId) ||
                               (!categorizeIsSplit && !categorizePropertyId) ||
                               (categorizeIsSplit && (Object.keys(categorizeSplitErrors).length > 0 || !categorizeSplitMatches)) ||
                               (categorizeIsRegularPayment && (!categorizeDueDate || !!categorizeDueDateError || !categorizeAlertName.trim())) ||
@@ -4467,7 +4476,6 @@ export default function AccountantReconciliationSessionPage() {
                       setBulkType(nextType);
                       setBulkCategoryId(null);
                       setBulkSubcategoryId(null);
-                      setBulkCategoryName("");
                       if (nextType === "balance_sheet") setBulkGst(false);
                     }}
                   />
@@ -4526,29 +4534,7 @@ export default function AccountantReconciliationSessionPage() {
                   </div>
                 )}
 
-                {usesTypedCategory(bulkType) && (
-                  <div className="recon-categorize-field">
-                    <label className="recon-categorize-label">
-                      Category <span className="is-required">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="recon-categorize-input"
-                      list="balance-sheet-categories-bulk"
-                      placeholder="e.g. Loan from director"
-                      maxLength={64}
-                      value={bulkCategoryName}
-                      onChange={(e) => setBulkCategoryName(e.target.value)}
-                    />
-                    <datalist id="balance-sheet-categories-bulk">
-                      {bulkCategories.map((c) => (
-                        <option key={c.id} value={c.name} />
-                      ))}
-                    </datalist>
-                  </div>
-                )}
-
-                {!hidesCategoryPicker(bulkType) && !usesTypedCategory(bulkType) && (
+                {!hidesCategoryPicker(bulkType) && (
                   <div className="recon-categorize-field">
                     <label className="recon-categorize-label">
                       Category <span className="is-required">*</span>
@@ -4602,8 +4588,25 @@ export default function AccountantReconciliationSessionPage() {
                         { label: "Select sub-category", value: "" },
                         ...bulkSubcategories.map((s) => ({ label: s.name, value: String(s.id) })),
                       ]}
-                      onChange={(val) => setBulkSubcategoryId(val ? Number(val) : null)}
+                      onChange={(val) => {
+                        setBulkSubcategoryId(val ? Number(val) : null);
+                        setBulkAccountId(null);
+                      }}
                       disabled={!bulkCategoryId || bulkSubcategories.length === 0}
+                    />
+                  </div>
+                )}
+
+                {bulkAccountOptions.length > 0 && (
+                  <div className="recon-categorize-field">
+                    <label className="recon-categorize-label">
+                      Account <span className="is-required">*</span>
+                    </label>
+                    <StaticSelect
+                      value={String(bulkAccountId ?? "")}
+                      placeholder="Select account"
+                      options={[{ label: "Select account", value: "" }, ...bulkAccountOptions]}
+                      onChange={(val) => setBulkAccountId(val ? Number(val) : null)}
                     />
                   </div>
                 )}
@@ -4728,10 +4731,9 @@ export default function AccountantReconciliationSessionPage() {
                   bulkSaving ||
                   bulkExcluding ||
                   !bulkPropertyId ||
-                  (usesTypedCategory(bulkType)
-                    ? !bulkCategoryName.trim()
-                    : !hidesCategoryPicker(bulkType) && !bulkCategoryId) ||
+                  (!hidesCategoryPicker(bulkType) && !bulkCategoryId) ||
                   (!hidesSubcategoryPicker(bulkType) && showBulkSubcategorySelect && !bulkSubcategoryId) ||
+                  (bulkAccountOptions.length > 0 && !bulkAccountId) ||
                   (bulkType === "contra" && !bulkDescription.trim()) ||
                   (allowsPersonalPortion(bulkType) && bulkIsPersonal && (!!bulkPersonalError || !bulkPersonalPercentage))
                 }

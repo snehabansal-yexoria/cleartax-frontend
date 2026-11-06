@@ -11,7 +11,6 @@ import type {
   CorePortfolioSummary,
 } from "@/src/lib/coreApi";
 import PortfolioMonthlyChart from "./PortfolioMonthlyChart";
-import PortfolioMethodology from "./PortfolioMethodology";
 import type { ReportScopeLevel, ReportScopeView } from "./reportScope";
 import {
   DASH,
@@ -21,7 +20,6 @@ import {
   longDate,
   percent,
   plural,
-  shortAmount,
   tableAmount,
 } from "./portfolioFormat";
 
@@ -173,7 +171,7 @@ function Card({
   return (
     <div className="portfolio-card flex flex-col gap-1 p-4 min-w-0">
       <span className="text-[11px] font-semibold text-[var(--text-secondary)]">{label}</span>
-      <strong className={`text-[20px] leading-tight font-bold tabular-nums ${color}`}>{value}</strong>
+      <strong className={`text-[18px] leading-tight font-bold tabular-nums [overflow-wrap:anywhere] ${color}`}>{value}</strong>
       {sub && <span className="text-[11px] text-[var(--text-muted)] leading-snug">{sub}</span>}
     </div>
   );
@@ -223,7 +221,7 @@ function HeroCards({ summary, level }: { summary: CorePortfolioSummary; level: R
         <Card
           label="Repayments (FY)"
           value={heroAmount(t.interest)}
-          sub={`Interest ${shortAmount(t.interest)} · Principal ${t.principal == null ? DASH : shortAmount(t.principal)}`}
+          sub={`Interest ${heroAmount(t.interest)} · Principal ${t.principal == null ? DASH : heroAmount(t.principal)}`}
         />
       </div>
 
@@ -652,7 +650,6 @@ export default function PortfolioSummaryReport({
               <LoanVsValue summary={summary} />
             </>
           )}
-          <PortfolioMethodology summary={summary} level={scope.level} collapsible={embedded} />
         </>
       )}
     </div>

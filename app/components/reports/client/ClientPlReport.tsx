@@ -20,7 +20,7 @@ import {
   Section,
   Signed,
 } from "./reportParts";
-import { compact, money, pct, titleWord, tone } from "./reportFormat";
+import { money, pct, titleWord, tone } from "./reportFormat";
 import type { ReportContext } from "./reportScope";
 
 /**
@@ -152,20 +152,20 @@ function PlBody({
     <>
       <Section bare>
         <Kpis>
-          <Kpi label="Income (FY)" value={compact(income)} sub={delta(income, prev?.totals.income)} toneClass="cp-pos" />
+          <Kpi label="Income (FY)" value={money(income)} sub={delta(income, prev?.totals.income)} toneClass="cp-pos" />
           <Kpi
             label="Expenses (FY)"
-            value={compact(expenses)}
+            value={money(expenses)}
             sub={delta(expenses, prev?.totals.expenses)}
             toneClass="cp-neg"
           />
           <Kpi
             label={net < 0 ? "Net loss (FY)" : "Net profit (FY)"}
-            value={compact(net)}
+            value={money(net)}
             sub="Income − Expenses, before depreciation"
             toneClass={tone(net)}
           />
-          <Kpi label="Loan interest (FY)" value={compact(totals.interest)} sub="Already counted in expenses" />
+          <Kpi label="Loan interest (FY)" value={money(totals.interest)} sub="Already counted in expenses" />
         </Kpis>
         <Explain>
           <b>In short:</b> {verdict}

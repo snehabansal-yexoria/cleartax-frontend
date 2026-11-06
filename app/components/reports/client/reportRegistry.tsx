@@ -86,10 +86,23 @@ export const CLIENT_REPORTS: ClientReportDef[] = [
       </svg>
     ),
   },
+  {
+    key: "balance-sheet",
+    title: "Balance Sheet",
+    blurb: "What each entity owns, owes and is worth on a date.",
+    bullets: ["Assets, liabilities and equity", "Optional comparison with another period", "Download as PDF or Excel"],
+    fileName: "Balance-Sheet",
+    icon: (
+      <svg {...svgProps}>
+        <path d="M12 3v18M5 7h14" />
+        <path d="M3 13l2-6 2 6a2 2 0 0 1-4 0zM17 13l2-6 2 6a2 2 0 0 1-4 0z" />
+      </svg>
+    ),
+  },
 ];
 
-/** The three reports built on the shared report page (Portfolio Summary has its own). */
-export type BuildableReportKey = Exclude<ClientReportKey, "portfolio">;
+/** The three reports built on the shared report page (Portfolio Summary and Balance Sheet have their own). */
+export type BuildableReportKey = Exclude<ClientReportKey, "portfolio" | "balance-sheet">;
 
 export function isBuildableReport(key: string): key is BuildableReportKey {
   return key === "pl" || key === "depreciation" || key === "gst";

@@ -161,6 +161,7 @@ export function parseTransactionListQuery(req: Request): CoreTransactionListQuer
           ? false
           : undefined,
     includeBalanceSheet: sp.get("include_balance_sheet")?.trim() === "true",
+    source: str("source"),
     sort: str("sort"),
     dir: dir === "asc" || dir === "desc" ? dir : undefined,
     limit: int("limit"),
@@ -293,5 +294,20 @@ export function parseGeneralLedgerQuery(req: Request): Record<string, string> {
   const format = q.get("format");
   if (format && ["csv", "xlsx", "pdf"].includes(format)) out.format = format;
 
+  return out;
+}
+
+/** Query for the Balance Sheet report and its export. Anything else is dropped. */
+export function parseBalanceSheetQuery(req: Request): Record<string, string> {
+  const q = new URL(req.url).searchParams;
+  const out: Record<string, string> = {};
+  for (const key of ["from", "to"]) {
+    const value = q.get(key);
+    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) out[key] = value;
+  }
+  const compare = q.get("compare");
+  if (compare && ["none", "py", "pp"].includes(compare)) out.compare = compare;
+  const format = q.get("format");
+  if (format && ["csv", "xlsx", "pdf"].includes(format)) out.format = format;
   return out;
 }

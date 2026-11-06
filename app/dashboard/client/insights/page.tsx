@@ -350,8 +350,8 @@ export default function ClientInsightsPage() {
       return {
         key,
         label: monthShortLabel(key),
-        income: Math.round(avgIncome),
-        expense: Math.round(avgExpense),
+        income: avgIncome,
+        expense: avgExpense,
       };
     });
   }, [monthsByKey, period, forecasting]);

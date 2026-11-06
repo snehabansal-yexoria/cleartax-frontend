@@ -15,7 +15,7 @@ import {
   ReportTable,
   Section,
 } from "./reportParts";
-import { compact, fyFromStartYear, lifeLabel, money, monthYear, titleWord } from "./reportFormat";
+import { fyFromStartYear, lifeLabel, money, monthYear, titleWord } from "./reportFormat";
 import type { ReportContext, ScopeProperty } from "./reportScope";
 
 /**
@@ -119,9 +119,9 @@ function DepreciationBody({ ctx, data }: { ctx: ReportContext; data: CoreDepreci
     <>
       <Section bare>
         <Kpis>
-          <Kpi label="Total depreciation (FY)" value={compact(total)} sub="Deduction for this year" />
-          <Kpi label="Building" value={compact(totals.capitalWorks)} sub="Capital works (Div 43)" />
-          <Kpi label="Fixtures and fittings" value={compact(totals.capitalAllowances)} sub="Plant and equipment (Div 40)" />
+          <Kpi label="Total depreciation (FY)" value={money(total)} sub="Deduction for this year" />
+          <Kpi label="Building" value={money(totals.capitalWorks)} sub="Capital works (Div 43)" />
+          <Kpi label="Fixtures and fittings" value={money(totals.capitalAllowances)} sub="Plant and equipment (Div 40)" />
           <Kpi
             label="Properties"
             value={String(properties.length)}

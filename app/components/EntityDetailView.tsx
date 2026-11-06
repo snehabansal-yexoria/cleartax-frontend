@@ -446,6 +446,7 @@ export default function EntityDetailView({
           backHref={backHref}
           backLabel={backLabel}
           editEntityHref={editEntityHref}
+          balanceSheetHref={isClientView ? undefined : editEntityHref.replace(/\/edit$/, "/balance-sheet")}
           isClientView={isClientView}
           isTogglingEnabled={isTogglingEnabled}
           enabledError={enabledError}

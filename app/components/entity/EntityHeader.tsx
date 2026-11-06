@@ -20,6 +20,8 @@ export type EntityHeaderProps = {
   enabledError: string | null;
   onToggleEnabled: (next: boolean) => void;
   onOpenGst: () => void;
+  /** Accountant only: opens the entity's Balance Sheet page. */
+  balanceSheetHref?: string;
 };
 
 const actionsStyle = { display: "flex", alignItems: "center", gap: 12 } as const;
@@ -40,6 +42,7 @@ export default function EntityHeader({
   enabledError,
   onToggleEnabled,
   onOpenGst,
+  balanceSheetHref,
 }: EntityHeaderProps) {
   const data = entity.data;
   const disabled = data?.enabled === false;
@@ -151,6 +154,39 @@ export default function EntityHeader({
                 </svg>
                 GST Summary
               </button>
+              {balanceSheetHref && !isClientView ? (
+                <Link
+                  href={balanceSheetHref}
+                  title="Open the Balance Sheet for this entity"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "10px 20px",
+                    border: "1.5px solid #233069",
+                    borderRadius: "10px",
+                    backgroundColor: "#233069",
+                    color: "#ffffff",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    height: "42px",
+                    boxSizing: "border-box",
+                    textDecoration: "none",
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    style={{ width: "16px", height: "16px", flexShrink: 0 }}
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M5 7h14M3 13l2-6 2 6a2 2 0 0 1-4 0zM17 13l2-6 2 6a2 2 0 0 1-4 0z" />
+                  </svg>
+                  Balance Sheet
+                </Link>
+              ) : null}
             </div>
           </>
         ) : (
