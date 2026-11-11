@@ -88,7 +88,7 @@ type UploadStage =
   | { type: "streaming"; stage: string; pagesDone: number; pagesTotal: number; txSoFar: number }
   | { type: "error"; message: string };
 
-// ── Taxio Agent progress (presentation only; driven by the existing upload stage) ──
+// ── Yexoria Agent progress (presentation only; driven by the existing upload stage) ──
 const STATEMENT_AGENT_STEPS: AgentStep[] = [
   { label: "Uploading statement securely", thoughts: ["Encrypting file in transit…", "Handing off to secure storage…"] },
   { label: "Reading the document", thoughts: ["Opening statement…", "Detecting bank and statement format…", "Reading account holder and statement period…"] },
@@ -2389,7 +2389,7 @@ export default function AccountantReconciliationSessionPage() {
         {isProcessing && (
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb" }}>
             <AgentProgress
-              title="Taxio Agent is reading your statement"
+              title="Yexoria Agent is reading your statement"
               subtitle={uploadStageLabel()}
               steps={STATEMENT_AGENT_STEPS}
               activeIndex={statementAgentStep(uploadStage)}

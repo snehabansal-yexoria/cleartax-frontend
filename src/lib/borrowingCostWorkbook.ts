@@ -131,7 +131,7 @@ export async function buildBorrowingCostWorkbook(
   const ExcelJS = mod.default ?? mod;
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Thetaxio";
+  workbook.creator = "Yexoria";
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet("Borrowing Cost", {

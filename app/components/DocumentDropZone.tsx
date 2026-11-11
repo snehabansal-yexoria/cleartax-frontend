@@ -533,7 +533,7 @@ export function DocumentDropZone({
         <div className="transaction-document-agent">
           <AgentProgress
             compact
-            title="Taxio Agent is reading your invoice"
+            title="Yexoria Agent is reading your invoice"
             subtitle={filename || undefined}
             steps={INVOICE_AGENT_STEPS}
             activeIndex={invoiceAgentStep(status, progress)}
@@ -554,7 +554,7 @@ export function DocumentDropZone({
   );
 }
 
-// ── Taxio Agent progress (presentation only; follows the existing upload/extract progress) ──
+// ── Yexoria Agent progress (presentation only; follows the existing upload/extract progress) ──
 const INVOICE_AGENT_STEPS: AgentStep[] = [
   { label: "Uploading document securely", thoughts: ["Encrypting file in transit…", "Saving to secure storage…"] },
   { label: "Reading the document (OCR)", thoughts: ["Running OCR on every page…", "Detecting document type: tax invoice…", "Reading header and footer text…"] },

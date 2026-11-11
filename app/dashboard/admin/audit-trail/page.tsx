@@ -350,7 +350,7 @@ export default function AuditTrailReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["Thetaxio - Audit Trail Activity Log", "Period: Full log"],
+        ["Yexoria - Audit Trail Activity Log", "Period: Full log"],
         [],
         ["AUDIT LOGS"],
         ["Timestamp", "Action", "Done By", "Client", "Record", "Changes Details"],
@@ -371,7 +371,7 @@ export default function AuditTrailReportPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "Thetaxio_AuditTrail_Report.csv");
+      link.setAttribute("download", "Yexoria_AuditTrail_Report.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

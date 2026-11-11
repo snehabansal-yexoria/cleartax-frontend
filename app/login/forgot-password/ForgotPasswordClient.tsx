@@ -194,7 +194,7 @@ export default function ForgotPasswordClient({
             <div className="login-icon">
               <Image
                 src={logoBlue}
-                alt="Thetaxio"
+                alt="Yexoria"
                 width={100}
                 height={100}
                 className="icon"
@@ -240,7 +240,7 @@ export default function ForgotPasswordClient({
                   <input
                     type="email"
                     id="reset_email"
-                    placeholder="you@thetaxio.com"
+                    placeholder="you@yexoria.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoFocus

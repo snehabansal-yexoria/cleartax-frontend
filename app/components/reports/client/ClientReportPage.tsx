@@ -168,7 +168,7 @@ export default function ClientReportPage({ reportKey }: { reportKey: BuildableRe
             <Link className="cp-back" href={clientReportsHubHref(hubScope, { mobile: false })}>
               ← All reports
             </Link>
-            <div className="cp-eyebrow">Thetaxio · Client portal · Reports</div>
+            <div className="cp-eyebrow">Yexoria · Client portal · Reports</div>
             <h1>{def.title}</h1>
           </div>
           <ReportOptionsBar

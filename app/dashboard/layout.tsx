@@ -62,7 +62,7 @@ import ReconciliationJobMonitor from "@/app/components/ReconciliationJobMonitor"
 import NotificationBell from "@/app/components/notifications/NotificationBell";
 import { fetchCurrentUser } from "@/app/components/currentUser";
 import ThemeToggle from "@/app/components/ThemeToggle";
-import TaxioBuddy from "@/app/components/TaxioBuddy";
+import YexoriaBuddy from "@/app/components/YexoriaBuddy";
 import { brandName } from "@/app/components/brandName";
 
 interface SessionWithIdToken {
@@ -1256,10 +1256,10 @@ export default function DashboardLayout({
             <div className="flex items-center justify-start w-full px-1.5 h-12 shrink-0 overflow-hidden">
               <div className="flex items-center gap-3.5 w-full">
                 <div className="w-11 h-11 min-w-11 flex items-center justify-center rounded-xl tx-mark-tile text-[#151719] shadow-lg shadow-black/30 [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8] [&>svg]:stroke-round [&>svg]:stroke-linejoin">
-                  <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 19h28M32 19v28" stroke="#151719" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
+                  <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 18L32 33M46 18L32 33M32 33v14" stroke="#151719" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
                 </div>
                 <div className={`flex flex-col text-left ${adminLook ? 'font-normal' : 'font-extrabold'} text-[1.7rem] tracking-[-0.03em] leading-none text-[#ffb11f] opacity-0 max-w-0 -translate-x-3 transition-all duration-300 group-hover/sidebar:opacity-100 group-hover/sidebar:max-w-xs group-hover/sidebar:translate-x-0 overflow-hidden whitespace-nowrap`}>
-                  <span>Thetaxio</span>
+                  <span>Yexoria</span>
                 </div>
               </div>
             </div>
@@ -1312,10 +1312,10 @@ export default function DashboardLayout({
           <div className={`accountant-mobile-brand${isClientPage ? " client-mobile-brand" : ""}`}>
             <div className="accountant-brand">
               <div className="accountant-brand-icon">
-                <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 19h28M32 19v28" stroke="#F3F0E9" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
+                <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 18L32 33M46 18L32 33M32 33v14" stroke="#F3F0E9" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
               </div>
               <div className="accountant-brand-copy">
-                <span style={{ fontWeight: adminLook ? '400' : undefined }}>Thetaxio</span>
+                <span style={{ fontWeight: adminLook ? '400' : undefined }}>Yexoria</span>
               </div>
             </div>
           </div>
@@ -1520,9 +1520,9 @@ export default function DashboardLayout({
                   <div className="client-drawer-header">
                     <div className="client-drawer-brand">
                       <div className="client-drawer-logo-box">
-                        <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 19h28M32 19v28" stroke="#F3F0E9" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
+                        <svg viewBox="0 0 64 64" aria-hidden="true" style={{ fill: "none", width: 26, height: 26 }}><path d="M18 18L32 33M46 18L32 33M32 33v14" stroke="#F3F0E9" strokeWidth="6" strokeLinecap="round" /><circle cx="46" cy="46" r="4.5" fill="#7A5CFA" stroke="none" /></svg>
                       </div>
-                      <strong>Thetaxio</strong>
+                      <strong>Yexoria</strong>
                     </div>
                     <button
                       type="button"
@@ -1606,7 +1606,7 @@ export default function DashboardLayout({
                 <>
                   <div className="accountant-mobile-nav-header">
                     <div>
-                      <strong>Thetaxio</strong>
+                      <strong>Yexoria</strong>
                       <span>
                         {role === "super_admin"
                           ? "Super Admin Portal"
@@ -1639,7 +1639,7 @@ export default function DashboardLayout({
         )}
 
         {role === "accountant" || role === "client" || role === "user" ? (
-          <TaxioBuddy role={role === "accountant" ? "accountant" : "client"} email={email} />
+          <YexoriaBuddy role={role === "accountant" ? "accountant" : "client"} email={email} />
         ) : null}
       </div>
     );

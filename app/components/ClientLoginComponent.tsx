@@ -694,13 +694,13 @@ export default function ClientLoginComponent() {
                       <div className="login-icon">
                         <Image
                           src={logo}
-                          alt="Thetaxio"
+                          alt="Yexoria"
                           width={100}
                           height={100}
                           className="icon"
                         />
                       </div>
-                      <h1>Thetaxio</h1>
+                      <h1>Yexoria</h1>
                     </div>
                     <h2>Client</h2>
                     <p className="darkBg txt-center">
@@ -736,7 +736,7 @@ export default function ClientLoginComponent() {
                   </div>
                 </div>
                 <div className="ll-copyright">
-                  <p>© 2026 Thetaxio | Internal Use Only</p>
+                  <p>© 2026 Yexoria | Internal Use Only</p>
                 </div>
               </div>
 
@@ -747,7 +747,7 @@ export default function ClientLoginComponent() {
                     <div className="login-icon">
                       <Image
                         src={logoBlue}
-                        alt="Thetaxio"
+                        alt="Yexoria"
                         width={100}
                         height={100}
                         className="icon"
@@ -775,7 +775,7 @@ export default function ClientLoginComponent() {
                           <label htmlFor="desktop-email">Email Address</label>
                           <input
                             type="email"
-                            placeholder="client@thetaxio.com"
+                            placeholder="client@yexoria.com"
                             id="desktop-email"
                             value={email}
                             onChange={(e) => {
@@ -1044,7 +1044,7 @@ export default function ClientLoginComponent() {
                       margin: 0,
                     }}
                   >
-                    Thetaxio
+                    Yexoria
                   </h1>
                   <p
                     style={{

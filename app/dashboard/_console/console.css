@@ -1,5 +1,5 @@
 /*
- * Thetaxio super admin pages.
+ * Yexoria super admin pages.
  *
  * Every rule is scoped under `.cpc` so nothing leaks into the accountant and
  * client portals, which keep using globals.css. Sizes are in `em` against a

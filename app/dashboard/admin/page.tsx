@@ -173,7 +173,7 @@ export default function AdminPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["Thetaxio Administrative Summary", `Period: ${selectedDate}`],
+        ["Yexoria Administrative Summary", `Period: ${selectedDate}`],
         ["Organization Name", organizationName || "Sunrise Accounting Co."],
         [],
         ["SUMMARY METRICS"],

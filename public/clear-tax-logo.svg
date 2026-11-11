@@ -1,6 +1,6 @@
 <svg width="160" height="32" viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect width="32" height="32" rx="7.5" fill="#151719"/>
-<path d="M9 9.5h14M16 9.5v14" stroke="#F3F0E9" stroke-width="3" stroke-linecap="round"/>
+<path d="M9 9l7 7.5M23 9l-7 7.5M16 16.5v7" stroke="#F3F0E9" stroke-width="3" stroke-linecap="round"/>
 <circle cx="23" cy="23" r="2.25" fill="#7A5CFA"/>
-<text x="42" y="22.5" font-family="'Inter Tight', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="1.4" fill="#151719">THETAXIO</text>
+<text x="42" y="22.5" font-family="'Inter Tight', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="1.4" fill="#151719">YEXORIA</text>
 </svg>

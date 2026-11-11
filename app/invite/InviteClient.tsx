@@ -76,7 +76,7 @@ export default function InviteClient({
           <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 shadow-sm">
             <Image
               src={logoBlue}
-              alt="Thetaxio Logo"
+              alt="Yexoria Logo"
               width={48}
               height={48}
               className="h-10 w-auto"
@@ -89,7 +89,7 @@ export default function InviteClient({
           Accept Invitation
         </h1>
         <p className="text-slate-500 text-sm mb-6 max-w-[280px] mx-auto leading-relaxed">
-          You have been invited to join the Thetaxio platform.
+          You have been invited to join the Yexoria platform.
         </p>
 
         {/* Invite Info Card */}

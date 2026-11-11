@@ -163,7 +163,7 @@ export default function TransactionsReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["Thetaxio - Transactions Report Summary", "Period: FY 2025-26"],
+        ["Yexoria - Transactions Report Summary", "Period: FY 2025-26"],
         ["Total Transactions", summary.totalTransactions],
         ["Classified", `${summary.classifiedCount} (${summary.classifiedPercentText})`],
         ["Unclassified", `${summary.unclassifiedCount} (${summary.unclassifiedStatusText})`],
@@ -198,7 +198,7 @@ export default function TransactionsReportPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "Thetaxio_Transactions_Report_FY25-26.csv");
+      link.setAttribute("download", "Yexoria_Transactions_Report_FY25-26.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

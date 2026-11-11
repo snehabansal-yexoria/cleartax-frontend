@@ -73,7 +73,7 @@ export default function PropertiesReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["Thetaxio - Properties Report Summary", "Period: FY 2025-26"],
+        ["Yexoria - Properties Report Summary", "Period: FY 2025-26"],
         ["Total Properties", summary.totalProperties],
         ["Total Market Value", summary.totalMarketValue],
         ["With Depreciation", `${summary.withDepreciationCount} (${summary.withDepreciationPercentText})`],
@@ -95,7 +95,7 @@ export default function PropertiesReportPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "Thetaxio_Properties_Report_FY25-26.csv");
+      link.setAttribute("download", "Yexoria_Properties_Report_FY25-26.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

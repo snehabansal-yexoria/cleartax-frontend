@@ -659,7 +659,7 @@ export default function LoginComponent({
                       className="icon"
                     />
                   </div>
-                  <h1>Thetaxio</h1>
+                  <h1>Yexoria</h1>
                 </div>
                 <h2>{roleMap[role] || "Login"}</h2>
                 {(role === "super_admin" || role === "admin") && (
@@ -705,7 +705,7 @@ export default function LoginComponent({
               </div>
             </div>
             <div className="ll-copyright">
-              <p>© 2026 Thetaxio | Internal Use Only</p>
+              <p>© 2026 Yexoria | Internal Use Only</p>
             </div>
           </div>
           <div className="login-right">
@@ -742,7 +742,7 @@ export default function LoginComponent({
                       <label htmlFor="email">Email Address</label>
                       <input
                         type="email"
-                        placeholder="admin@thetaxio.com"
+                        placeholder="admin@yexoria.com"
                         id="email"
                         value={email}
                         onChange={(e) => {

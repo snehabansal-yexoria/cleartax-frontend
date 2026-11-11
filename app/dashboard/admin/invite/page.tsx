@@ -427,7 +427,7 @@ export default function InviteUserByAdmin() {
       <div className="mb-6">
         <h1 className="text-[25px] font-semibold text-[#0f172a] tracking-tight mb-1 select-none">Invite users</h1>
         <p className="text-[12.5px] text-[#64748b] font-normal leading-normal">
-          Add clients, accountants, and relationship managers to Thetaxio
+          Add clients, accountants, and relationship managers to Yexoria
         </p>
       </div>
 
@@ -805,7 +805,7 @@ export default function InviteUserByAdmin() {
                 {/* Mock email template envelope */}
                 <div className="border border-slate-200/70 rounded-xl bg-[#f8f9fa] p-5 space-y-4">
                   <div className="border-b border-slate-200/40 pb-3">
-                    <span className="text-[15px] font-bold text-slate-900 block">Welcome to Thetaxio</span>
+                    <span className="text-[15px] font-bold text-slate-900 block">Welcome to Yexoria</span>
                   </div>
                   
                   <div className="space-y-3.5 text-[13px] text-slate-600 font-normal leading-relaxed">
@@ -813,7 +813,7 @@ export default function InviteUserByAdmin() {
                       Hello <strong className="text-slate-800 font-bold">{form.firstName.trim() || "[First name]"}</strong>,
                     </p>
                     <p>
-                      {"You've"} been invited to join Thetaxio as a{" "}
+                      {"You've"} been invited to join Yexoria as a{" "}
                       <strong className="text-[#1a73e8] font-bold">
                         {displayRoleText(form.role)}
                       </strong>.

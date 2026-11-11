@@ -111,7 +111,7 @@ export default function LoginRoleSelector({
                 letterSpacing: "-0.03em",
               }}
             >
-              Thetaxio
+              Yexoria
             </span>
           </div>
 

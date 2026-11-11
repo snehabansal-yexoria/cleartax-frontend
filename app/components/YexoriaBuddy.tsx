@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSession } from "@/src/lib/session";
-import "./taxio-buddy.css";
+import "./yexoria-buddy.css";
 
 /* ------------------------------------------------------------------ types */
 
@@ -415,7 +415,7 @@ function getRecognition(): (new () => Recognition) | null {
 
 /* ------------------------------------------------------------ component */
 
-export default function TaxioBuddy({ role, email }: { role: BuddyRole; email?: string }) {
+export default function YexoriaBuddy({ role, email }: { role: BuddyRole; email?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -588,12 +588,12 @@ export default function TaxioBuddy({ role, email }: { role: BuddyRole; email?: s
 
   return (
     <div className={`txb ${open ? "is-open" : ""}`}>
-      <section className="txb-panel" role="dialog" aria-label="Taxio Buddy" aria-hidden={!open}>
+      <section className="txb-panel" role="dialog" aria-label="Yexoria Buddy" aria-hidden={!open}>
         <header className="txb-head">
           <div className="txb-head-id">
             <Orb size={36} mood={busy ? "thinking" : "idle"} />
             <span>
-              <strong>Taxio Buddy</strong>
+              <strong>Yexoria Buddy</strong>
               <em className={busy ? "is-busy" : ""}>
                 <i aria-hidden="true" />
                 {busy ? "Working on it…" : "Online · acts in your workspace"}
@@ -789,7 +789,7 @@ export default function TaxioBuddy({ role, email }: { role: BuddyRole; email?: s
                   send(draft);
                 }
               }}
-              aria-label="Message Taxio Buddy"
+              aria-label="Message Yexoria Buddy"
             />
             <div className="txb-box-row">
               <button
@@ -802,7 +802,7 @@ export default function TaxioBuddy({ role, email }: { role: BuddyRole; email?: s
                 <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
               </button>
               <span className="txb-mode">
-                <b>Taxio Buddy</b> Actions
+                <b>Yexoria Buddy</b> Actions
               </span>
               {canListen ? (
                 <button
@@ -826,14 +826,14 @@ export default function TaxioBuddy({ role, email }: { role: BuddyRole; email?: s
               )}
             </div>
           </div>
-          <p className="txb-hint">Buddy only acts inside Thetaxio · ⌘K to open</p>
+          <p className="txb-hint">Buddy only acts inside Yexoria · ⌘K to open</p>
         </form>
       </section>
 
       <button
         type="button"
         className="txb-launcher"
-        aria-label={open ? "Close Taxio Buddy" : "Open Taxio Buddy"}
+        aria-label={open ? "Close Yexoria Buddy" : "Open Yexoria Buddy"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >

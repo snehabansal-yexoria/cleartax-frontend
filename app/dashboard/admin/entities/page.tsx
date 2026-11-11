@@ -97,7 +97,7 @@ export default function EntitiesReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["Thetaxio - Entities Report Summary", "Period: FY 2025-26"],
+        ["Yexoria - Entities Report Summary", "Period: FY 2025-26"],
         ["Total Entities", summary.totalEntities],
         ["Discretionary Trusts", summary.discretionaryTrusts],
         ["SMSFs", summary.smsfs],
@@ -123,7 +123,7 @@ export default function EntitiesReportPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "Thetaxio_Entities_Report_FY25-26.csv");
+      link.setAttribute("download", "Yexoria_Entities_Report_FY25-26.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

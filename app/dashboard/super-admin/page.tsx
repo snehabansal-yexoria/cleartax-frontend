@@ -91,7 +91,7 @@ export default function SuperAdminDashboardPage() {
     <>
       <PageHeader
         title={greeting()}
-        subtitle="Every organisation on Thetaxio at a glance. Filters apply to the whole page."
+        subtitle="Every organisation on Yexoria at a glance. Filters apply to the whole page."
         actions={
           <>
             <button type="button" className="cpc-btn" onClick={() => setInviteOpen(true)}>

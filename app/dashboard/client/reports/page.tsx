@@ -48,7 +48,7 @@ function ClientReportsHub() {
       <div className="cp-page">
         <div className="cp-phead">
           <div>
-            <div className="cp-eyebrow">Thetaxio · Client portal · Reports</div>
+            <div className="cp-eyebrow">Yexoria · Client portal · Reports</div>
             <h1>Reports</h1>
             <div className="cp-lede">
               Pick a report, then choose the entity, property and financial year. You can download any report as a PDF.

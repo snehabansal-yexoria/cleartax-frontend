@@ -158,7 +158,7 @@ export default function PortfolioReportPage() {
 
     setTimeout(() => {
       const csvRows = [
-        ["Thetaxio - Portfolio Report Summary", "Period: FY 2025-26"],
+        ["Yexoria - Portfolio Report Summary", "Period: FY 2025-26"],
         ["Total Portfolio Value", summary.totalPortfolioValue],
         ["Revenue (FY)", summary.revenueFY],
         ["Expenses (FY)", summary.expensesFY],
@@ -190,7 +190,7 @@ export default function PortfolioReportPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "Thetaxio_Report_FY25-26.csv");
+      link.setAttribute("download", "Yexoria_Report_FY25-26.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
