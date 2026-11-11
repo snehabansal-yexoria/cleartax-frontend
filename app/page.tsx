@@ -236,7 +236,7 @@ export default function Home() {
     },
     {
       question: "What can I track in Yexoria?",
-      mobileQuestion: "How does Clear Tax integration work for my tax return?",
+      mobileQuestion: "How does Yexoria integration work for my tax return?",
       answer:
         "You can track live property valuations via CoreLogic, mortgage balances, interest rates, LVR drift, rental yields, tenant lease expiry schedules, deductible maintenance expenses, and depreciation schedules.",
     },
@@ -273,7 +273,7 @@ export default function Home() {
           >
             <img
               src="/clear-tax-logo.svg"
-              alt="Clear Tax Accountants"
+              alt="Yexoria"
               className="ct-brand-logo"
             />
           </Link>
@@ -371,7 +371,7 @@ export default function Home() {
           >
             <img
               src="/clear-tax-logo.svg"
-              alt="Clear Tax Accountants"
+              alt="Yexoria"
               className="ct-brand-logo"
             />
           </Link>
@@ -647,7 +647,7 @@ export default function Home() {
             </p>
             <div className="ct-challenges-divider" />
             <p className="ct-challenges-footer-note">
-              Built by Clear Tax to solve real property accounting and tracking hurdles.
+              Built by Yexoria to solve real property accounting and tracking hurdles.
             </p>
           </div>
 
@@ -970,7 +970,7 @@ export default function Home() {
                     Yexoria brings your property records into a single, secure dashboard, so nothing is scattered across emails and folders again. Ready at tax time for instant sharing with your accountant.
                   </p>
                   <div className="ct-clarity-footer-note uppercase">
-                    BACKED BY CLEAR TAX INFRASTRUCTURE
+                    BACKED BY YEXORIA INFRASTRUCTURE
                   </div>
                 </div>
               </div>
@@ -1527,7 +1527,7 @@ export default function Home() {
 
             {/* CTA Button */}
             <div className="ct-contact-cta-wrapper">
-              <Link href="mailto:contact@yexoria.com" className="ct-btn-contact">
+              <Link href="mailto:snehabansal@yexoria.com" className="ct-btn-contact">
                 {/* Desktop Envelope Icon */}
                 <svg className="desktop-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -1546,8 +1546,8 @@ export default function Home() {
             <div className="ct-contact-email-note">
               <span className="desktop-email-prefix">Direct email: </span>
               <span className="mobile-email-prefix">Or email us directly at </span>
-              <a href="mailto:contact@yexoria.com" className="ct-contact-email-link">
-                contact@yexoria.com
+              <a href="mailto:snehabansal@yexoria.com" className="ct-contact-email-link">
+                snehabansal@yexoria.com
               </a>
             </div>
           </div>

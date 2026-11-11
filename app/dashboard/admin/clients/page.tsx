@@ -777,7 +777,7 @@ export default function ClientsPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500">Invitation Link</span>
                       <span className="text-blue-600 font-semibold cursor-pointer hover:underline" onClick={() => {
-                        navigator.clipboard.writeText(`https://clearportfolio.com/invite/client?id=${selectedClient.id}`);
+                        navigator.clipboard.writeText(`https://app.yexoria.com/invite/client?id=${selectedClient.id}`);
                         triggerToast("Invitation link copied to clipboard");
                       }}>
                         Copy invitation link

@@ -451,12 +451,12 @@ export default function ClientLoginComponent() {
         }
 
         .brand-squircle {
-          background: #f4a117;
+          background: #F3F0E9;
           border-radius: 18px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 10px 25px rgba(244, 161, 23, 0.3);
+          box-shadow: 0 10px 25px rgba(21, 23, 25, 0.18);
           flex-shrink: 0;
         }
 
@@ -1017,22 +1017,7 @@ export default function ClientLoginComponent() {
                   className="brand-squircle"
                   style={{ width: "96px", height: "96px", borderRadius: "28px" }}
                 >
-                  <svg width="46" height="46" viewBox="0 0 80 80" fill="none">
-                    <path
-                      d="M56.6668 31.6666L42.5002 45.8333L34.1668 37.5L23.3335 48.3333"
-                      stroke="#1e295d"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M46.6665 31.6666H56.6665V41.6666"
-                      stroke="#1e295d"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <img src="/yexoria-mark.png" alt="Yexoria" style={{ height: 60, width: "auto", objectFit: "contain" }} />
                 </div>
                 <div>
                   <h1
@@ -1097,22 +1082,7 @@ export default function ClientLoginComponent() {
                   className="brand-squircle"
                   style={{ width: "56px", height: "56px", borderRadius: "16px" }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 80 80" fill="none">
-                    <path
-                      d="M56.6668 31.6666L42.5002 45.8333L34.1668 37.5L23.3335 48.3333"
-                      stroke="#1e295d"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M46.6665 31.6666H56.6665V41.6666"
-                      stroke="#1e295d"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <img src="/yexoria-mark.png" alt="Yexoria" style={{ height: 36, width: "auto", objectFit: "contain" }} />
                 </div>
 
                 {/* Headline */}
@@ -1251,22 +1221,7 @@ export default function ClientLoginComponent() {
                   className="brand-squircle"
                   style={{ width: "48px", height: "48px", borderRadius: "14px", marginTop: "8px" }}
                 >
-                  <svg width="24" height="24" viewBox="0 0 80 80" fill="none">
-                    <path
-                      d="M56.6668 31.6666L42.5002 45.8333L34.1668 37.5L23.3335 48.3333"
-                      stroke="#1e295d"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M46.6665 31.6666H56.6665V41.6666"
-                      stroke="#1e295d"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <img src="/yexoria-mark.png" alt="Yexoria" style={{ height: 31, width: "auto", objectFit: "contain" }} />
                 </div>
 
                 <div style={{ marginTop: "20px", marginBottom: "24px" }}>

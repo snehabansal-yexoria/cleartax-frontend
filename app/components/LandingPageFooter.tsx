@@ -68,12 +68,12 @@ export default function LandingPageFooter() {
               >
                 <img
                   src="/clear-tax-logo.svg"
-                  alt="Clear Tax"
+                  alt="Yexoria"
                   className="ct-footer-brand-logo"
                 />
               </Link>
               <p className="ct-footer-brand-desc">
-                The property investment portfolio platform from the Clear Tax family. Built for disciplined Australian real estate investors and accountants.
+                The property investment portfolio platform from Yexoria. Built for disciplined Australian real estate investors and accountants.
               </p>
             </div>
 
@@ -153,10 +153,10 @@ export default function LandingPageFooter() {
                 </li>
                 <li>
                   <a
-                    href="mailto:contact@yexoria.com"
+                    href="mailto:snehabansal@yexoria.com"
                     className="ct-footer-nav-link"
                   >
-                    contact@yexoria.com
+                    snehabansal@yexoria.com
                   </a>
                 </li>
               </ul>
@@ -179,7 +179,7 @@ export default function LandingPageFooter() {
 
         {/* ================= MOBILE FOOTER (<= 768px) ================= */}
         <div className="ct-footer-mobile">
-          {/* Brand Row with Clear Tax Portfolio Badge */}
+          {/* Brand Row with Yexoria badge */}
           <div className="ct-mobile-footer-brand">
             <Link
               href="/"
@@ -189,7 +189,7 @@ export default function LandingPageFooter() {
               <div className="ct-mobile-brand-wrapper">
                 <img
                   src="/clear-tax-logo.svg"
-                  alt="Clear Tax"
+                  alt="Yexoria"
                   className="ct-footer-brand-logo"
                 />
                 <span className="ct-brand-separator">|</span>
@@ -197,7 +197,7 @@ export default function LandingPageFooter() {
               </div>
             </Link>
             <p className="ct-mobile-brand-desc">
-              Intelligent property tracking built specifically for Australian real estate investors and Clear Tax clients.
+              Intelligent property tracking built specifically for Australian real estate investors and Yexoria clients.
             </p>
           </div>
 

@@ -77,7 +77,7 @@ export default function LoginRoleSelector({
                 width: "54px",
                 height: "54px",
                 borderRadius: "16px",
-                background: "linear-gradient(180deg, #ffb425 0%, #f4a117 100%)",
+                background: "#F3F0E9",
                 color: "#25326f",
                 display: "inline-flex",
                 alignItems: "center",
@@ -86,22 +86,7 @@ export default function LoginRoleSelector({
                 flexShrink: 0,
               }}
             >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                width="22"
-                height="22"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="5" y="5" width="6" height="6" rx="1.2" />
-                <rect x="13" y="5" width="6" height="6" rx="1.2" />
-                <rect x="5" y="13" width="6" height="6" rx="1.2" />
-                <rect x="13" y="13" width="6" height="6" rx="1.2" />
-              </svg>
+              <img src="/yexoria-mark.png" alt="" aria-hidden="true" style={{ height: 40, width: "auto", objectFit: "contain" }} />
             </div>
             <span
               style={{

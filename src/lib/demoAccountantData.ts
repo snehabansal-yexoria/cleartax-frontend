@@ -17,7 +17,7 @@ export type DemoOrganizationRecord = {
 
 export const DEMO_ORGANIZATION: DemoOrganizationRecord = {
   id: "demo-organization",
-  name: "ClearTax Demo Organisation",
+  name: "Yexoria Demo Organisation",
 };
 
 export function getDemoClientRecord(accountant?: {
