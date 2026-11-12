@@ -25,7 +25,7 @@ import {
 export type TrendRow = { month: string; expenses: number; income: number };
 
 function formatCurrency(value: number) {
-  return globalFormatCurrency(value, { decimals: 0 });
+  return globalFormatCurrency(value);
 }
 
 const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" });

@@ -99,22 +99,38 @@ export function isRevenueType(type: CoreTransactionType | string): boolean {
   return type === "revenue";
 }
 
+/** Which way a contra's money moved. The type alone does not say. */
+export type ContraDirection = "in" | "out";
+
+export const CONTRA_DIRECTION_OPTIONS: { label: string; value: ContraDirection }[] = [
+  { label: "Money in", value: "in" },
+  { label: "Money out", value: "out" },
+];
+
+/** A bank line reads as a debit (money out) or a credit (money in). */
+export function contraDirectionOfBankLine(line: { debit?: number | null }): ContraDirection {
+  return line.debit != null ? "out" : "in";
+}
+
 /**
  * How a type's amount should read in the grid.
  *
- * "neutral" exists for contra: a transfer between the entity's own accounts is
- * a movement, not a flow, so rendering it with a minus sign beside real
- * expenses invites exactly the misreading the type was created to prevent. The
- * bank Account Ledger is unaffected — its amount comes from the statement line,
- * where the money genuinely did leave that account.
- *
- * Balance Sheet is neutral for the same reason: it is recorded, not counted.
+ * A contra signs by the direction its money moved (client request): the two legs
+ * of a transfer otherwise read identically. It still counts toward neither the
+ * P&L nor the BAS. A contra with no recorded direction stays neutral rather than
+ * being guessed, as does Balance Sheet: it is recorded, not counted.
  */
 export function transactionSign(
   type: CoreTransactionType | string,
+  contraDirection?: ContraDirection | null,
 ): "positive" | "negative" | "neutral" {
   if (type === "revenue") return "positive";
-  if (type === "contra" || type === "balance_sheet") return "neutral";
+  if (type === "contra") {
+    if (contraDirection === "in") return "positive";
+    if (contraDirection === "out") return "negative";
+    return "neutral";
+  }
+  if (type === "balance_sheet") return "neutral";
   return "negative";
 }
 
@@ -201,27 +217,25 @@ export function hidesCategoryPicker(type: CoreTransactionType | ""): boolean {
 }
 
 /**
- * Cost base is one free-text/typeable category only — its categories each carry
- * a single "General" subcategory that is auto-selected.
+ * The row to auto-select when no picker is showing. Prefers "General": Selling
+ * Cost also has real subcategories, and taking the first by name would silently
+ * file everything under Advertisement / Marketing.
+ */
+export function autoSubcategory<T extends { name: string }>(subcategories: T[]): T | undefined {
+  return subcategories.find((s) => s.name.toLowerCase() === "general") ?? subcategories[0];
+}
+
+/**
+ * Cost base categories carry a single "General" subcategory that is
+ * auto-selected. Selling Cost is the exception and the add form offers its
+ * subcategories itself.
  */
 export function hidesSubcategoryPicker(type: CoreTransactionType | ""): boolean {
   return (
     type === "personal" ||
     type === "cost_base" ||
-    type === "contra" ||
-    type === "balance_sheet"
+    type === "contra"
   );
-}
-
-/**
- * Balance Sheet takes its category as typed text, not a pick from a list. The
- * form sends it as `category_name` and the API finds or creates the org's
- * category of that name, with a "General" subcategory beneath it — so the
- * subcategory picker is hidden too. Previously typed names are offered as
- * suggestions.
- */
-export function usesTypedCategory(type: CoreTransactionType | ""): boolean {
-  return type === "balance_sheet";
 }
 
 /**

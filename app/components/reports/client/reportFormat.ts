@@ -1,20 +1,22 @@
-import { MINUS, DASH, heroAmount } from "@/app/components/reports/portfolio/portfolioFormat";
+import { MINUS, DASH } from "@/app/components/reports/portfolio/portfolioFormat";
 
 /**
  * Number and date formatting for the client reports (P&L, Depreciation, GST).
  *
- * Amounts print as the mockup does: "A$ 1,234", "A$ −1,234" with a real
- * minus sign, "+" only where a signed column asks for it. KPI cards use the
- * portal's compact form ("A$ 121.2K"), shared with the Portfolio Summary.
+ * Amounts print exactly, to the cent: "A$ 1,234.50", "A$ −1,234.50" with a real
+ * minus sign, "+" only where a signed column asks for it. KPI cards included.
  */
 
 export { MINUS, DASH };
 
-/** Whole dollars: "A$ 54,600", "A$ −3,824", "A$ +708" when `sign`. */
+/** The exact amount: "A$ 54,600.00", "A$ −3,824.50", "A$ +708.25" when `sign`. */
 export function money(value: number | null | undefined, opts: { sign?: boolean } = {}): string {
   if (value == null || Number.isNaN(value)) return DASH;
-  const rounded = Math.round(value);
-  const digits = Math.abs(rounded).toLocaleString("en-AU");
+  const rounded = Math.round(value * 100) / 100;
+  const digits = Math.abs(rounded).toLocaleString("en-AU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   const prefix = rounded < 0 ? MINUS : opts.sign && rounded > 0 ? "+" : "";
   return `A$ ${prefix}${digits}`;
 }
@@ -27,11 +29,6 @@ export function cents(value: number | null | undefined): string {
     maximumFractionDigits: 2,
   });
   return `A$ ${value < 0 ? MINUS : ""}${abs}`;
-}
-
-/** KPI-card amount: "A$ 121.2K", "A$ 1.3M". */
-export function compact(value: number | null | undefined): string {
-  return heroAmount(value);
 }
 
 /** a as a percentage of b; 0 when b is 0. */

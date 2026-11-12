@@ -79,19 +79,21 @@ function dateRangeLabel(value: DateRangeFilter): string {
 }
 
 /**
- * How a row reads. Only income and expense are signed and coloured; contra,
- * personal, cost base and balance sheet are neither, and used to be drawn as
- * expenses — so they looked "missing" from the Expense tab, which is strictly
- * type = expense.
+ * How a row reads. Income, expense and a contra with a recorded direction are
+ * signed and coloured; personal, cost base and balance sheet are neither, and
+ * used to be drawn as expenses — so they looked "missing" from the Expense tab,
+ * which is strictly type = expense.
  */
-function rowTone(type: string): 'income' | 'expense' | 'neutral' {
+function rowTone(type: string, contraDirection?: string | null): 'income' | 'expense' | 'neutral' {
   if (type === 'revenue') return 'income';
   if (type === 'expense') return 'expense';
+  if (type === 'contra' && contraDirection === 'in') return 'income';
+  if (type === 'contra' && contraDirection === 'out') return 'expense';
   return 'neutral';
 }
 
-function rowAmountText(type: string, amount: number): string {
-  const tone = rowTone(type);
+function rowAmountText(type: string, amount: number, contraDirection?: string | null): string {
+  const tone = rowTone(type, contraDirection);
   if (tone === 'income') return formatExactCurrency(amount, { showPlus: true });
   if (tone === 'expense') return formatExactCurrency(-amount, { showPlus: true });
   return formatExactCurrency(amount);
@@ -104,8 +106,8 @@ function rowTypeBadge(type: CoreTransactionListItem['type'], categoryName: strin
   return label && label.toLowerCase() !== categoryName.trim().toLowerCase() ? label : null;
 }
 
-function RowIcon({ type }: { type: string }) {
-  const tone = rowTone(type);
+function RowIcon({ type, contraDirection }: { type: string; contraDirection?: string | null }) {
+  const tone = rowTone(type, contraDirection);
   if (tone === 'income') {
     return (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
@@ -233,6 +235,7 @@ function toListRow(tx: ClientListItem) {
     categoryName: tx.categoryName || "",
     meta: tx.propertyName || tx.propertyNames?.[0] || "",
     type: tx.type,
+    contraDirection: tx.contraDirection,
     amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
     invoiceDate: tx.invoiceDate ? tx.invoiceDate.split('T')[0] : "",
     entityName: tx.entityName || "Individual",
@@ -1084,7 +1087,7 @@ function ClientTransactionsContent() {
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
                             <div 
-                              className={`m-db-activity-icon-box ${rowTone(tx.type)}`}
+                              className={`m-db-activity-icon-box ${rowTone(tx.type, tx.contraDirection)}`}
                               style={{
                                 width: '40px',
                                 height: '40px',
@@ -1095,7 +1098,7 @@ function ClientTransactionsContent() {
                                 flexShrink: 0
                               }}
                             >
-                              <RowIcon type={tx.type} />
+                              <RowIcon type={tx.type} contraDirection={tx.contraDirection} />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
                               <strong style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1116,14 +1119,14 @@ function ClientTransactionsContent() {
                               textAlign: 'right', 
                               flexShrink: 0, 
                               marginLeft: '12px',
-                              color: rowTone(tx.type) === 'income'
+                              color: rowTone(tx.type, tx.contraDirection) === 'income'
                                 ? 'var(--success)'
-                                : rowTone(tx.type) === 'expense'
+                                : rowTone(tx.type, tx.contraDirection) === 'expense'
                                   ? 'var(--danger)'
                                   : 'var(--text-secondary)'
                             }}
                           >
-                            {rowAmountText(tx.type, tx.amount)}
+                            {rowAmountText(tx.type, tx.amount, tx.contraDirection)}
                           </span>
                         </div>
                       ))}
@@ -1638,8 +1641,8 @@ function ClientTransactionsContent() {
                           style={{ cursor: 'pointer' }}
                         >
                           <div className="d-tx-left">
-                            <div className={`d-tx-icon-box ${rowTone(tx.type)}`}>
-                              <RowIcon type={tx.type} />
+                            <div className={`d-tx-icon-box ${rowTone(tx.type, tx.contraDirection)}`}>
+                              <RowIcon type={tx.type} contraDirection={tx.contraDirection} />
                             </div>
                             <div className="d-tx-info">
                               <strong className="d-tx-desc">{tx.description}</strong>
@@ -1651,8 +1654,8 @@ function ClientTransactionsContent() {
                               </span>
                             </div>
                           </div>
-                          <span className={`d-tx-amount ${rowTone(tx.type)}`}>
-                            {rowAmountText(tx.type, tx.amount)}
+                          <span className={`d-tx-amount ${rowTone(tx.type, tx.contraDirection)}`}>
+                            {rowAmountText(tx.type, tx.amount, tx.contraDirection)}
                           </span>
                         </div>
                       ))}

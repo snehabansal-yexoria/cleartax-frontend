@@ -7535,7 +7535,7 @@ html.dark .accountant-header-copy span,
 
 .transaction-filter-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 16px;
 }
 
@@ -8483,10 +8483,8 @@ html.dark .transaction-child-row:hover>td {
   font-weight: 800;
 }
 
-/* A contra entry is a movement between the entity's own accounts, not a flow in
-   or out of the business, so it is printed without a sign and in a neutral
-   colour. Rendering it red beside real expenses is what made an accountant read
-   a transfer as spending. */
+/* A row with no direction to show: a Balance Sheet row, or a contra entered
+   before its direction was recorded. */
 .amount-neutral {
   color: #334155;
   font-weight: 800;

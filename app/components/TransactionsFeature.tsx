@@ -15,11 +15,13 @@ import {
   allowsBusinessExtras,
   allowsPersonalPortion,
   hidesCategoryPicker,
+  autoSubcategory,
   hidesSubcategoryPicker,
-  usesTypedCategory,
   transactionSign,
   allowsContraFlag,
   CONTRA_BASE_TYPE,
+  CONTRA_DIRECTION_OPTIONS,
+  type ContraDirection,
   typeAfterPick,
   typeButtonActive,
   parseTransactionType,
@@ -66,6 +68,8 @@ import AssetBuilder, {
   isAssetEligibleCategory,
   type AssetDraft,
 } from "@/app/components/AssetBuilder";
+import { balanceSheetAccountOptions, useBalanceSheetAccounts } from "@/app/components/balance-sheet/useBalanceSheetAccounts";
+import { TRANSACTION_SOURCE_OPTIONS, TransactionSourceBadge } from "@/app/components/transactionSource";
 import {
   announceDropdownOpen,
   dropdownRegistryEvent,
@@ -212,6 +216,8 @@ type TransactionFilters = {
   /** Inclusive invoice-date bounds, YYYY-MM-DD. */
   from: string;
   to: string;
+  /** Where the transaction came from: bank | general | property_cost_base | borrowing_cost | manual. */
+  source: string;
 };
 
 type TransactionFilterOptions = {
@@ -228,6 +234,7 @@ const defaultTransactionFilters: TransactionFilters = {
   property: "all",
   type: "all",
   category: "all",
+  source: "all",
   search: "",
   from: "",
   to: "",
@@ -331,6 +338,7 @@ function countActiveFilters(filters: TransactionFilters) {
     filters.property,
     filters.type,
     filters.category,
+    filters.source,
   ].filter((value) => value !== "all").length;
   const text = [filters.search, filters.from, filters.to].filter(Boolean).length;
   return dropdowns + text;
@@ -407,15 +415,22 @@ const INITIAL_SORT_DIR: Record<TransactionSortKey, SortDirection> = {
 
 /**
  * Amount colouring, keyed on the three signs rather than a revenue boolean.
- *
- * A contra entry gets the neutral class: it is a transfer between the entity's
- * own accounts, so painting it red beside real expenses reads as spending that
- * never happened.
+ * A contra colours by its direction, and stays neutral when it has none.
  */
 function amountClass(sign: ReturnType<typeof transactionSign>): string {
   if (sign === "positive") return "amount-positive";
   if (sign === "neutral") return "amount-neutral";
   return "amount-negative";
+}
+
+/**
+ * What a row may be selected alongside. Contras group apart from real income and
+ * expenses even when they share a sign, because they sum to a transfer rather
+ * than to earnings or spending.
+ */
+function selectionGroupOf(row: DisplayTransactionRow): string {
+  const sign = transactionSign(row.type, row.contraDirection);
+  return row.type === "contra" ? `contra-${sign}` : sign;
 }
 
 function encodeSort(sort: TransactionSort) {
@@ -587,6 +602,18 @@ function TrashIcon() {
   );
 }
 
+
+type BalanceSheetDirection = "increase" | "decrease";
+
+const BALANCE_SHEET_DIRECTION_OPTIONS = [
+  { label: "Increases the account", value: "increase" },
+  { label: "Decreases the account", value: "decrease" },
+];
+
+// Rows from before the field existed read as increases, as the report does.
+function balanceSheetDirectionOf(metadata: Record<string, unknown>): BalanceSheetDirection {
+  return metadata.balance_sheet_direction === "decrease" ? "decrease" : "increase";
+}
 
 export function StaticSelect({
   label,
@@ -845,6 +872,11 @@ export function transactionDetailToRow(
 
   return {
     id: detail.id,
+    source: fallback?.source,
+    contraDirection: detail.contraDirection,
+    chartOfAccountId: detail.chartOfAccountId,
+    accountCode: detail.accountCode,
+    accountName: detail.accountName,
     type: detail.type,
     categoryId: detail.categoryId,
     categoryName: detail.categoryName,
@@ -881,6 +913,8 @@ export function transactionDetailToRow(
 function propertyRowToDisplayRow(row: CorePropertyTransactionRow): DisplayTransactionRow {
   return {
     id: row.transactionId,
+    source: row.source,
+    contraDirection: row.contraDirection,
     type: row.transactionType,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
@@ -985,10 +1019,14 @@ function TransactionDetailPopup({
   const [reviewStatus, setReviewStatus] = useState(row.reviewStatus);
   const [isAssetPurchase, setIsAssetPurchase] = useState(row.isAssetPurchase);
   const [type, setType] = useState<CoreTransactionType>(row.type);
-  // Balance Sheet only: the typed category, sent as `category_name`.
-  const [categoryName, setCategoryName] = useState(
-    usesTypedCategory(row.type) ? row.categoryName : "",
+  const [balanceSheetDirection, setBalanceSheetDirection] = useState(
+    balanceSheetDirectionOf(row.metadata),
   );
+  const [contraDirection, setContraDirection] = useState<ContraDirection | "">(row.contraDirection ?? "");
+  // A matched row takes its direction from the statement line, so there is
+  // nothing to ask.
+  const contraDirectionRequired = type === "contra" && row.source !== "bank";
+  const [chartOfAccountId, setChartOfAccountId] = useState<number | null>(row.chartOfAccountId ?? null);
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(row.categoryId);
@@ -1083,6 +1121,7 @@ function TransactionDetailPopup({
     if (reviewStatus !== initial.reviewStatus) return true;
     if (isAssetPurchase !== initial.isAssetPurchase) return true;
     if (type !== initial.type) return true;
+    if (contraDirection !== (initial.contraDirection ?? "")) return true;
     if (categoryId !== initial.categoryId) return true;
     if (subcategoryId !== initial.subcategoryId) return true;
     if (invoiceDate !== (initial.invoiceDate?.slice(0, 10) || "")) return true;
@@ -1120,7 +1159,7 @@ function TransactionDetailPopup({
     return false;
   }, [
     mode, detail, row, description, internalRemarks, reviewStatus, isAssetPurchase,
-    type, categoryId, subcategoryId, invoiceDate, grossAmount, gstAmount,
+    type, contraDirection, categoryId, subcategoryId, invoiceDate, grossAmount, gstAmount,
     modeOfTransaction, assetItemName, assetClass, effectiveLifeYears, isSplit, editSplitRows
   ]);
 
@@ -1143,7 +1182,9 @@ function TransactionDetailPopup({
     setReviewStatus(source.reviewStatus);
     setIsAssetPurchase(source.isAssetPurchase);
     setType(source.type);
-    setCategoryName(usesTypedCategory(source.type) ? source.categoryName : "");
+    setBalanceSheetDirection(balanceSheetDirectionOf(source.metadata));
+    setContraDirection(source.contraDirection ?? "");
+    setChartOfAccountId(source.chartOfAccountId ?? null);
     setCategoryId(source.categoryId);
     setSubcategoryId(source.subcategoryId);
     setInvoiceDate(source.invoiceDate?.slice(0, 10) || "");
@@ -1228,7 +1269,8 @@ function TransactionDetailPopup({
   }
 
   const display = detail ? transactionDetailToRow(detail, row) : row;
-  const amountSign = transactionSign(display.type);
+  const amountSign = transactionSign(display.type, display.contraDirection);
+  const amountOptions = { showPlus: display.type === "contra" };
   const splitRows =
     detail?.splits.map((split) => ({
       id: String(split.id),
@@ -1274,6 +1316,15 @@ function TransactionDetailPopup({
     (s) => s.name.toLowerCase() !== "general",
   );
   const showSubcategorySelect = !!categoryId && hasSubcategoryChoice;
+  const balanceSheetAccounts = useBalanceSheetAccounts(type === "balance_sheet");
+  const accountSelectOptions = type === "balance_sheet"
+    ? balanceSheetAccountOptions(
+        balanceSheetAccounts,
+        categories.find((c) => c.id === categoryId)?.name,
+        subcategories.find((c) => c.id === subcategoryId)?.name,
+      )
+    : [];
+  const accountRequired = type === "balance_sheet" && accountSelectOptions.length > 0;
   const propertySelectOptions: SelectOption[] = [
     { label: "Select property", value: "" },
     ...properties.map((property) => ({ label: pickerLabel(property), value: property.id })),
@@ -1423,14 +1474,13 @@ function TransactionDetailPopup({
     // The sub-category is only demanded when a picker is offering one. Switch
     // to a category that has none configured and there is nothing to select —
     // the backend resolves that category's default on save.
-    const typedCategoryName = usesTypedCategory(type) ? categoryName.trim() : "";
-    if (usesTypedCategory(type) && !typedCategoryName) {
-      setEditError("Please enter a category.");
+    if (accountRequired && !chartOfAccountId) {
+      setEditError("Please select an account.");
       return;
     }
     if (
       !type ||
-      (!categoryId && !typedCategoryName) ||
+      !categoryId ||
       (showSubcategorySelect && !subcategoryId) ||
       !invoiceDate
     ) {
@@ -1447,7 +1497,7 @@ function TransactionDetailPopup({
         // the sub-category only where a picker is offering one.
         const missing = [
           !type && "type",
-          !categoryId && !typedCategoryName && "category",
+          !categoryId && "category",
           showSubcategorySelect && !subcategoryId && "sub-category",
           !invoiceDate && "date",
         ].filter(Boolean) as string[];
@@ -1476,6 +1526,10 @@ function TransactionDetailPopup({
     if (grossAmountError) {
       setGrossAmountTouched(true);
       setEditError(grossAmountError);
+      return;
+    }
+    if (contraDirectionRequired && !contraDirection) {
+      setEditError("Please select whether this contra entry is money in or money out.");
       return;
     }
     const allBlank = isSplit && editSplitRows.every((row) => !row.amount || !row.amount.trim());
@@ -1575,14 +1629,12 @@ function TransactionDetailPopup({
 
     const body: Record<string, unknown> = {
       type,
-      // Balance Sheet names its category instead; the API resolves the id.
-      ...(typedCategoryName
-        ? { category_name: typedCategoryName }
-        : { category_id: categoryId }),
+      category_id: categoryId,
       // Omitted when the new category has no subcategory to pick — the PATCH
       // re-resolves it from the category rather than keeping the old one,
       // which would no longer belong to it.
-      ...(subcategoryId && !typedCategoryName ? { subcategory_id: subcategoryId } : {}),
+      ...(subcategoryId ? { subcategory_id: subcategoryId } : {}),
+      ...(accountRequired && chartOfAccountId ? { chart_of_account_id: chartOfAccountId } : {}),
       invoice_date: invoiceDate,
       gross_amount: Number.isNaN(grossNum) ? null : grossNum,
       description: description.trim() || null,
@@ -1591,6 +1643,8 @@ function TransactionDetailPopup({
       metadata: {
         ...display.metadata,
         mode_of_transaction: modeOfTransaction || null,
+        balance_sheet_direction: type === "balance_sheet" ? balanceSheetDirection : undefined,
+        contra_direction: type === "contra" && contraDirection ? contraDirection : undefined,
         // Saving is the moment the placeholder becomes real values, so the
         // "Awaiting extraction" marker goes. PATCH replaces metadata wholesale
         // and undefined keys drop out of JSON, which removes it.
@@ -1733,7 +1787,6 @@ function TransactionDetailPopup({
                         setType(typeAfterPick(option.value, type));
                         setCategoryId(null);
                         setSubcategoryId(null);
-                        setCategoryName("");
                         if (option.value === "balance_sheet") {
                           setShowGstBreakdown(false);
                           setGstAmount("");
@@ -1762,6 +1815,7 @@ function TransactionDetailPopup({
                         setGstAmount("");
                       } else {
                         setType(CONTRA_BASE_TYPE);
+                        setContraDirection("");
                       }
                       setCategoryId(null);
                       setSubcategoryId(null);
@@ -1940,25 +1994,7 @@ function TransactionDetailPopup({
                 AssetBuilder already captured. Both ends now agree on the same
                 two categories, so an asset can no longer be filed under
                 "Advertising for Tenants" from either direction. */}
-                {usesTypedCategory(type) && (
-                  <label className="transaction-field">
-                    <span className="transaction-field-label">Category<em>*</em></span>
-                    <input
-                      type="text"
-                      list="balance-sheet-category-suggestions-edit"
-                      placeholder="e.g. Loan from director"
-                      maxLength={64}
-                      value={categoryName}
-                      onChange={(event) => setCategoryName(event.target.value)}
-                    />
-                    <datalist id="balance-sheet-category-suggestions-edit">
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.name} />
-                      ))}
-                    </datalist>
-                  </label>
-                )}
-                {!hidesCategoryPicker(type) && !usesTypedCategory(type) && (
+                {!hidesCategoryPicker(type) && (
                   <StaticSelect
                     label="Category"
                     required
@@ -1992,11 +2028,40 @@ function TransactionDetailPopup({
                       required
                       value={subcategoryId == null ? "" : String(subcategoryId)}
                       options={subcategorySelectOptions}
-                      onChange={(value) =>
-                        setSubcategoryId(value ? Number(value) : null)
-                      }
+                      onChange={(value) => {
+                        setSubcategoryId(value ? Number(value) : null);
+                        setChartOfAccountId(null);
+                      }}
                     />
                   </div>
+                )}
+                {accountSelectOptions.length > 0 && (
+                  <StaticSelect
+                    label="Account"
+                    required
+                    value={chartOfAccountId == null ? "" : String(chartOfAccountId)}
+                    options={[{ label: "Select account", value: "" }, ...accountSelectOptions]}
+                    onChange={(value) => setChartOfAccountId(value ? Number(value) : null)}
+                  />
+                )}
+                {type === "balance_sheet" && (
+                  <StaticSelect
+                    label="Effect on the account"
+                    required
+                    value={balanceSheetDirection}
+                    options={BALANCE_SHEET_DIRECTION_OPTIONS}
+                    onChange={(value) => setBalanceSheetDirection(value as BalanceSheetDirection)}
+                  />
+                )}
+                {contraDirectionRequired && (
+                  <StaticSelect
+                    label="Direction"
+                    required
+                    placeholder="Select direction"
+                    value={contraDirection}
+                    options={CONTRA_DIRECTION_OPTIONS}
+                    onChange={(value) => setContraDirection(value as ContraDirection)}
+                  />
                 )}
                 <label className={`transaction-field${showDateError ? " has-error" : ""}`}>
                   <span className="transaction-field-label">Invoice Date<em>*</em></span>
@@ -2213,6 +2278,9 @@ function TransactionDetailPopup({
                     <DetailField label="Subcategory" value={display.subcategoryName} />
                   </div>
                 )}
+                {display.accountCode && (
+                  <DetailField label="Account" value={`${display.accountCode} ${display.accountName ?? ""}`} />
+                )}
               </div>
 
               <DetailField label="Date" value={formatInvoiceDate(display.invoiceDate)} />
@@ -2220,13 +2288,13 @@ function TransactionDetailPopup({
               <div className="transaction-detail-grid is-three">
                 <DetailField label="Gross Amount">
                   <span className={amountClass(amountSign)}>
-                    {formatTransactionCurrency(display.grossAmount, amountSign)}
+                    {formatTransactionCurrency(display.grossAmount, amountSign, amountOptions)}
                   </span>
                 </DetailField>
                 <DetailField label="GST" value={formatCurrency(display.gstAmount)} />
                 <DetailField label="Net Amount">
                   <span className={amountClass(amountSign)}>
-                    {formatTransactionCurrency(display.netAmount, amountSign)}
+                    {formatTransactionCurrency(display.netAmount, amountSign, amountOptions)}
                   </span>
                 </DetailField>
               </div>
@@ -3235,6 +3303,7 @@ function TransactionTable({
               <SortableTh label="Description" sortKey="description" handlers={sortHandlers} />
               <th>Type</th>
               <th>Category</th>
+              <th>Source</th>
               <th>Subcategory</th>
               <SortableTh label="Date" sortKey="date" handlers={sortHandlers} />
               <SortableTh label="Gross" sortKey="gross" handlers={sortHandlers} align="right" />
@@ -3249,7 +3318,8 @@ function TransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const amountSign = transactionSign(row.type);
+              const amountSign = transactionSign(row.type, row.contraDirection);
+              const amountOptions = { showPlus: row.type === "contra" };
               const amounts = gridAmounts(row, firstYearDepreciation?.get(row.id));
               const propertyLabel =
                 row.propertyNames.length === 0
@@ -3363,10 +3433,14 @@ function TransactionTable({
                       ) : null}
                     </td>
                     <td>{row.categoryName}</td>
-                    <td>{row.subcategoryName}</td>
+                    <td><TransactionSourceBadge row={row} /></td>
+                    <td>
+                      {row.subcategoryName}
+                      {row.accountCode ? <div style={{ fontSize: 12, color: "#64748b" }}>{row.accountCode} {row.accountName}</div> : null}
+                    </td>
                     <td>{formatInvoiceDate(row.invoiceDate)}</td>
                     <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {formatTransactionCurrency(amounts.gross, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -3375,7 +3449,7 @@ function TransactionTable({
                       {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
                     </td>
                     <td className={amountClass(amountSign)} style={{ textAlign: "right" }} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {formatTransactionCurrency(amounts.net, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -3475,6 +3549,7 @@ function TransactionTable({
                               </span>
                             </td>
                             <td>{child.categoryName || "—"}</td>
+                            <td></td>
                             <td></td>
                             <td></td>
                             <td className="amount-negative" style={{ textAlign: "right", color: "#e11d48", fontWeight: 800 }}>
@@ -3618,7 +3693,8 @@ function PropertyTransactionTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const amountSign = transactionSign(row.transactionType);
+              const amountSign = transactionSign(row.transactionType, row.contraDirection);
+              const amountOptions = { showPlus: row.transactionType === "contra" };
               const displayRow = propertyRowToDisplayRow(row);
               const isExpanded = expandedRowIds?.has(row.transactionId) ?? false;
               const children = rowChildren?.[row.transactionId];
@@ -3689,7 +3765,7 @@ function PropertyTransactionTable({
                     <td>{formatCurrency(row.transactionGrossAmount)}</td>
                     <td>{row.splitPercentage.toFixed(2)}%</td>
                     <td className={amountClass(amountSign)} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.gross, amountSign)}
+                      {formatTransactionCurrency(amounts.gross, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -3698,7 +3774,7 @@ function PropertyTransactionTable({
                       {amounts.gst == null ? "—" : formatCurrency(amounts.gst)}
                     </td>
                     <td className={amountClass(amountSign)} title={amounts.title}>
-                      {formatTransactionCurrency(amounts.net, amountSign)}
+                      {formatTransactionCurrency(amounts.net, amountSign, amountOptions)}
                       {amounts.deduction ? (
                         <small className="transaction-depreciation-fy transaction-amount-note">Year 1</small>
                       ) : null}
@@ -4157,6 +4233,12 @@ function Filters({
           value={filters.category}
           options={options.categories}
           onChange={(value) => onChange("category", value)}
+        />
+        <StaticSelect
+          label="Source"
+          value={filters.source}
+          options={TRANSACTION_SOURCE_OPTIONS}
+          onChange={(value) => onChange("source", value)}
         />
         <StaticSelect
           label="Sort By"
@@ -4618,6 +4700,7 @@ export function AllTransactionsView({
     put("to", filters.to);
     put("type", filters.type);
     put("category_id", filters.category);
+    put("source", filters.source);
     // On a scoped page the path already pins the scope, so only send the
     // narrowing filters the grid actually offers there.
     if (contextKind === "none") put("client_id", filters.client);
@@ -4945,25 +5028,26 @@ export function AllTransactionsView({
   const selectionEnabled = enableSelection && contextKind === "none";
 
   /**
-   * The sign lock. There are five types, not two, and they fall into three
-   * signs rather than two: only `revenue` is money in; `expense`, `personal`
-   * and `cost_base` render negative; and `contra` is neutral, because a
-   * transfer between the entity's own accounts is a movement rather than a
-   * flow. So the lock is on `transactionSign`, and once the first row is picked
-   * every row of a different sign is disabled and dimmed. Summing a mixed
-   * selection would produce a number that means nothing — and a contra mixed
-   * into a run of expenses would make the total read as spending that never
-   * happened.
+   * The sign lock. Only `revenue` is money in; `expense`, `personal` and
+   * `cost_base` render negative; and a `contra` signs by its direction but is
+   * its own group (selectionGroupOf). Once the first row is picked every row of
+   * a different group is disabled and dimmed. Summing a mixed selection would
+   * produce a number that means nothing — and a contra mixed into a run of
+   * expenses would make the total read as spending that never happened.
    */
-  const selectedSign = useMemo<ReturnType<typeof transactionSign> | null>(() => {
+  const firstSelected = useMemo(() => {
     const first = selectedRows.values().next();
-    return first.done ? null : transactionSign(first.value.type);
+    return first.done ? null : first.value;
   }, [selectedRows]);
+  const selectedSign = firstSelected
+    ? transactionSign(firstSelected.type, firstSelected.contraDirection)
+    : null;
+  const selectedGroup = firstSelected ? selectionGroupOf(firstSelected) : null;
 
   const isSelectionDisabled = useCallback(
     (row: DisplayTransactionRow) =>
-      selectedSign !== null && transactionSign(row.type) !== selectedSign,
-    [selectedSign],
+      selectedGroup !== null && selectionGroupOf(row) !== selectedGroup,
+    [selectedGroup],
   );
 
   const toggleSelectedRow = useCallback((row: DisplayTransactionRow) => {
@@ -4999,15 +5083,15 @@ export function AllTransactionsView({
 
   const toggleSelectAllOnPage = useCallback(
     (checked: boolean) => {
-      // With nothing selected yet the page can hold both signs, so the first
+      // With nothing selected yet the page can hold every group, so the first
       // eligible row sets the lock and the rest of the page follows it.
-      const sign =
-        selectedSign ??
-        (displayedRows.length > 0 ? transactionSign(displayedRows[0].type) : null);
+      const group =
+        selectedGroup ??
+        (displayedRows.length > 0 ? selectionGroupOf(displayedRows[0]) : null);
       const eligible =
-        sign === null
+        group === null
           ? displayedRows
-          : displayedRows.filter((row) => transactionSign(row.type) === sign);
+          : displayedRows.filter((row) => selectionGroupOf(row) === group);
 
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -5026,7 +5110,7 @@ export function AllTransactionsView({
         return next;
       });
     },
-    [displayedRows, selectedSign],
+    [displayedRows, selectedGroup],
   );
 
   // Paging keeps the selection — that is what the side-cache is for. Changing
@@ -6261,9 +6345,9 @@ export function AddTransactionView({
   const [categories, setCategories] = useState<CoreTransactionCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CoreTransactionSubcategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
-  // Balance Sheet only: the category as typed. Sent as `category_name`; the
-  // API finds or creates the org's category of that name.
-  const [categoryName, setCategoryName] = useState("");
+  const [balanceSheetDirection, setBalanceSheetDirection] = useState<BalanceSheetDirection>("increase");
+  const [contraDirection, setContraDirection] = useState<ContraDirection | "">("");
+  const [chartOfAccountId, setChartOfAccountId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
 
   // When a document extraction matches a rule, the rule's category/subcategory
@@ -6687,7 +6771,6 @@ export function AddTransactionView({
     setType(newType);
     setCategoryId(null);
     setSubcategoryId(null);
-    setCategoryName("");
     setAssetCategoryError("");
     setAssetInitialClass(null);
     if (!allowsAssetPurchase(newType)) {
@@ -6728,6 +6811,7 @@ export function AddTransactionView({
   /** The contra toggle, offered on Personal Transaction only. */
   function handleContraToggle(checked: boolean) {
     handleTransactionTypeChange(checked ? "contra" : CONTRA_BASE_TYPE);
+    if (!checked) setContraDirection("");
   }
 
   useEffect(() => {
@@ -6961,14 +7045,6 @@ export function AddTransactionView({
     };
   }, [token, type]);
 
-  // A Balance Sheet row opened for review arrives as an id; show its name in
-  // the free-text field once the type's categories have loaded.
-  useEffect(() => {
-    if (!usesTypedCategory(type) || !categoryId) return;
-    const match = categories.find((c) => c.id === categoryId);
-    if (match) setCategoryName((prev) => prev || match.name);
-  }, [type, categories, categoryId]);
-
   // Load subcategories whenever the category changes.
   useEffect(() => {
     setSubcategories([]);
@@ -7167,10 +7243,26 @@ export function AddTransactionView({
   }, [type, categories, categoryId]);
 
   useEffect(() => {
-    if (hidesSubcategoryPicker(type) && !subcategoryId && subcategories[0]) {
-      setSubcategoryId(subcategories[0].id);
+    // Also re-picks when the selected row is not in the list: changing a cost base
+    // category does not clear the previous category's subcategory.
+    if (
+      hidesSubcategoryPicker(type) &&
+      subcategories[0] &&
+      !subcategories.some((s) => s.id === subcategoryId)
+    ) {
+      setSubcategoryId(autoSubcategory(subcategories)!.id);
     }
   }, [type, subcategories, subcategoryId]);
+
+  // Only Selling Cost has real subcategories under Property Cost Base. The other
+  // categories carry a single "General", so no picker is offered for them.
+  const costBaseSubcategoryOptions = useMemo(
+    () =>
+      subcategories
+        .filter((s) => s.name.toLowerCase() !== "general")
+        .map((s) => ({ label: s.name, value: String(s.id) })),
+    [subcategories],
+  );
 
   useEffect(() => {
     if (!allowsBusinessExtras(type) && !propertyId && properties.length > 0) {
@@ -7262,6 +7354,15 @@ export function AddTransactionView({
   const hasSubcategoryChoice = subcategories.some(
     (s) => s.name.toLowerCase() !== "general",
   );
+  const balanceSheetAccounts = useBalanceSheetAccounts(type === "balance_sheet");
+  const accountSelectOptions = type === "balance_sheet"
+    ? balanceSheetAccountOptions(
+        balanceSheetAccounts,
+        categories.find((c) => c.id === categoryId)?.name,
+        subcategories.find((s) => s.id === subcategoryId)?.name,
+      )
+    : [];
+  const accountRequired = type === "balance_sheet" && accountSelectOptions.length > 0;
 
   // A category is required for every type; a subcategory only where one is on
   // offer. Personal and cost base have a seeded taxonomy of their own — their
@@ -7279,8 +7380,7 @@ export function AddTransactionView({
     // reports which category could not be resolved.
     (lockAssetPurchaseCategory ||
       hidesCategoryPicker(type) ||
-      !!categoryId ||
-      (usesTypedCategory(type) && !!categoryName.trim())) &&
+      !!categoryId) &&
     // Same reasoning, extended to a category that has no subcategories
     // configured at all: no picker renders, so there is nothing to select and
     // the backend resolves the category's default on save.
@@ -7288,7 +7388,9 @@ export function AddTransactionView({
       hidesSubcategoryPicker(type) ||
       !hasSubcategoryChoice ||
       !!subcategoryId) &&
+    (!accountRequired || !!chartOfAccountId) &&
     !descriptionError &&
+    (type !== "contra" || !!contraDirection) &&
     !!invoiceDate &&
     !invoiceDateError &&
     !!grossAmount &&
@@ -7891,6 +7993,10 @@ export function AddTransactionView({
       setSubmitError(invoiceDateError);
       return;
     }
+    if (type === "contra" && !contraDirection) {
+      setSubmitError("Please select whether this contra entry is money in or money out.");
+      return;
+    }
     if (grossAmountError) {
       setGrossAmountTouched(true);
       setSubmitError(grossAmountError);
@@ -7976,12 +8082,6 @@ export function AddTransactionView({
 
       let resolvedCategoryId = categoryId;
       let resolvedSubcategoryId = subcategoryId;
-      // Balance Sheet sends the typed name instead of an id; see the body below.
-      const typedCategoryName = usesTypedCategory(type) ? categoryName.trim() : "";
-      if (usesTypedCategory(type) && !typedCategoryName) {
-        setSubmitError("Please enter a category.");
-        return;
-      }
       if (lockAssetPurchaseCategory && (!resolvedCategoryId || !resolvedSubcategoryId)) {
         const selection = await resolveLockedCategorySelection();
         resolvedCategoryId = selection?.categoryId ?? null;
@@ -7991,7 +8091,7 @@ export function AddTransactionView({
       // Only the category is mandatory. A category with no subcategory
       // configured leaves resolvedSubcategoryId null, and the backend fills in
       // that category's default rather than rejecting the save.
-      if (!resolvedCategoryId && !typedCategoryName) {
+      if (!resolvedCategoryId) {
         // When the picker is hidden or locked the user has nothing to "select",
         // so the generic message is a dead end. Both cases mean the seeded
         // category for this type is missing from the server's taxonomy.
@@ -8013,12 +8113,9 @@ export function AddTransactionView({
 
       const body: Record<string, unknown> = {
         type,
-        ...(typedCategoryName
-          ? { category_name: typedCategoryName }
-          : { category_id: resolvedCategoryId }),
-        ...(resolvedSubcategoryId && !typedCategoryName
-          ? { subcategory_id: resolvedSubcategoryId }
-          : {}),
+        category_id: resolvedCategoryId,
+        ...(resolvedSubcategoryId ? { subcategory_id: resolvedSubcategoryId } : {}),
+        ...(accountRequired && chartOfAccountId ? { chart_of_account_id: chartOfAccountId } : {}),
         invoice_date: invoiceDate,
         gross_amount: Number.isNaN(grossNum) ? null : grossNum,
         description: description.trim() || null,
@@ -8074,6 +8171,8 @@ export function AddTransactionView({
         is_regular_payment: withBusinessExtras ? isRegularPayment : false,
         due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
         alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
+        ...(type === "balance_sheet" ? { balance_sheet_direction: balanceSheetDirection } : {}),
+        ...(type === "contra" && contraDirection ? { contra_direction: contraDirection } : {}),
       };
       // asset_class / asset_name / depreciation_method / effective_life_years
       // are first-class body fields since migration 0037 — never metadata. The
@@ -8535,30 +8634,7 @@ export function AddTransactionView({
               )}
 
               {/* Category / Sub-Category dropdowns */}
-              {usesTypedCategory(type) ? (
-                <div className="figma-form-row">
-                  <div className="figma-field-container" style={{ gridColumn: "span 2" }}>
-                    <span className="figma-field-label">Category<em>*</em></span>
-                    {/* Free text, with the org's earlier Balance Sheet
-                    categories offered as suggestions so "Loan" is not typed
-                    three ways. Recorded in All Transactions only. */}
-                    <input
-                      type="text"
-                      className="figma-input"
-                      list="balance-sheet-category-suggestions"
-                      placeholder="e.g. Loan from director"
-                      maxLength={64}
-                      value={categoryName}
-                      onChange={(e) => setCategoryName(e.target.value)}
-                    />
-                    <datalist id="balance-sheet-category-suggestions">
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.name} />
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
-              ) : type === "cost_base" ? (
+              {type === "cost_base" ? (
                 <div className="figma-form-row">
                   <div className="figma-field-container">
                     <StaticSelect
@@ -8569,6 +8645,16 @@ export function AddTransactionView({
                       onChange={(value) => setCategoryId(value ? Number(value) : null)}
                     />
                   </div>
+                  {costBaseSubcategoryOptions.length > 0 ? (
+                    <div className="figma-field-container">
+                      <StaticSelect
+                        label="Subcategory"
+                        value={subcategoryId == null ? "" : String(subcategoryId)}
+                        options={costBaseSubcategoryOptions}
+                        onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                      />
+                    </div>
+                  ) : (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -8584,6 +8670,7 @@ export function AddTransactionView({
                   }}>
                     No subcategory for Property Cost Base — one free-text/typeable category only.
                   </div>
+                  )}
                 </div>
               ) : !hidesCategoryPicker(type) ? (
                 <div className="figma-form-row">
@@ -8624,12 +8711,58 @@ export function AddTransactionView({
                         required
                         value={subcategoryId == null ? "" : String(subcategoryId)}
                         options={subcategorySelectOptions}
-                        onChange={(value) => setSubcategoryId(value ? Number(value) : null)}
+                        onChange={(value) => {
+                          setSubcategoryId(value ? Number(value) : null);
+                          setChartOfAccountId(null);
+                        }}
                       />
                     </div>
                   )}
                 </div>
               ) : null}
+
+              {accountSelectOptions.length > 0 && (
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Account"
+                      required
+                      value={chartOfAccountId == null ? "" : String(chartOfAccountId)}
+                      options={[{ label: "Select account", value: "" }, ...accountSelectOptions]}
+                      onChange={(value) => setChartOfAccountId(value ? Number(value) : null)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {type === "balance_sheet" && (
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Effect on the account"
+                      required
+                      value={balanceSheetDirection}
+                      options={BALANCE_SHEET_DIRECTION_OPTIONS}
+                      onChange={(value) => setBalanceSheetDirection(value as BalanceSheetDirection)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {type === "contra" && (
+                <div className="figma-form-row">
+                  <div className="figma-field-container">
+                    <StaticSelect
+                      label="Direction"
+                      required
+                      placeholder="Select direction"
+                      value={contraDirection}
+                      options={CONTRA_DIRECTION_OPTIONS}
+                      onChange={(value) => setContraDirection(value as ContraDirection)}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Description & Amount */}
               <div className="figma-form-row">

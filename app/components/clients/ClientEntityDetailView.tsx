@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Skeleton } from "boneyard-js/react";
 import { getIdToken } from "@/src/lib/authToken";
 import type { CoreEntity, CoreProperty, CoreTransactionListItem } from "@/src/lib/coreApi";
-import { transactionTypeLabel } from "@/src/lib/transactionTypes";
+import { transactionSign, transactionTypeLabel } from "@/src/lib/transactionTypes";
 import { isAwaitingExtraction, isAwaitingReview } from "@/src/lib/reviewStatus";
 import {
   ReviewQueueCount,
@@ -317,6 +317,7 @@ export default function ClientEntityDetailView({
       description: tx.description || `${transactionTypeLabel(tx.type)} - ${tx.categoryName}`,
       meta: tx.propertyNames?.[0] || "General",
       type: tx.type,
+      moneyIn: transactionSign(tx.type, tx.contraDirection) === "positive",
       amount: Math.abs(tx.netAmount || tx.grossAmount || 0),
       dateText: tx.invoiceDate ? formatDateLabel(tx.invoiceDate) : "today",
       awaitingReview: isAwaitingReview(tx.reviewStatus),
@@ -774,12 +775,12 @@ export default function ClientEntityDetailView({
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.type === "revenue"
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.moneyIn
                             ? "bg-[#ecfdf3] text-[#12b76a] dark:bg-green-500/10"
                             : "bg-[#fef3f2] text-[#f04438] dark:bg-red-500/10"
                             }`}
                         >
-                          {tx.type === "revenue" ? <UpRightIcon /> : <DownLeftIcon />}
+                          {tx.moneyIn ? <UpRightIcon /> : <DownLeftIcon />}
                         </div>
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">
@@ -795,8 +796,8 @@ export default function ClientEntityDetailView({
                         </div>
                       </div>
 
-                      <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
-                        {formatMoney(tx.type === "revenue" ? tx.amount : -tx.amount, true)}
+                      <span className={`font-bold text-sm ${tx.moneyIn ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
+                        {formatMoney(tx.moneyIn ? tx.amount : -tx.amount, true)}
                       </span>
                     </div>
                   ))
@@ -1085,12 +1086,12 @@ export default function ClientEntityDetailView({
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.type === "revenue"
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.moneyIn
                           ? "bg-[#ecfdf3] text-[#12b76a] dark:bg-green-500/10"
                           : "bg-[#fef3f2] text-[#f04438] dark:bg-red-500/10"
                           }`}
                       >
-                        {tx.type === "revenue" ? <UpRightIcon /> : <DownLeftIcon />}
+                        {tx.moneyIn ? <UpRightIcon /> : <DownLeftIcon />}
                       </div>
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">
@@ -1106,8 +1107,8 @@ export default function ClientEntityDetailView({
                       </div>
                     </div>
 
-                    <span className={`font-bold text-sm ${tx.type === "revenue" ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
-                      {formatMoney(tx.type === "revenue" ? tx.amount : -tx.amount, true)}
+                    <span className={`font-bold text-sm ${tx.moneyIn ? "text-[#12b76a]" : "text-slate-700 dark:text-slate-300"}`}>
+                      {formatMoney(tx.moneyIn ? tx.amount : -tx.amount, true)}
                     </span>
                   </div>
                 ))

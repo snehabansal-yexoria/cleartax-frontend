@@ -1,6 +1,6 @@
 import { normalizeRoleName } from "./roleNames";
 
-type CoreApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type CoreApiMethod = "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
 
 type CoreApiRequestOptions = {
   method?: CoreApiMethod;
@@ -162,7 +162,11 @@ export type CoreProperty = {
   estimatedMarketValue: number;
   purchaseDate: string;
   settlementDate?: string;
+  contractDate: string | null;
   purchaseAmount: number;
+  /** Set once the Capital Gain flow has marked the property as sold. */
+  soldDate: string | null;
+  sellingAmount: number | null;
   hasDepreciationSchedule: boolean;
   status: string;
   imageUrl: string | null;
@@ -1192,7 +1196,13 @@ export function normalizeCoreProperty(raw: RawRecord): CoreProperty {
     ),
     purchaseDate: toStringValue(raw.purchase_date ?? raw.purchaseDate),
     settlementDate: toStringValue(raw.settlement_date ?? raw.settlementDate),
+    contractDate: toNullableString(raw.contract_date ?? raw.contractDate),
     purchaseAmount: toFloatValue(raw.purchase_amount ?? raw.purchaseAmount),
+    soldDate: toNullableString(raw.sold_date ?? raw.soldDate),
+    sellingAmount:
+      raw.selling_amount == null && raw.sellingAmount == null
+        ? null
+        : toFloatValue(raw.selling_amount ?? raw.sellingAmount),
     hasDepreciationSchedule: Boolean(
       raw.has_depreciation_schedule ?? raw.hasDepreciationSchedule,
     ),
@@ -1441,6 +1451,10 @@ export type CoreCostBaseEntry = {
   /** `grossAmount - gstAmount`, derived by the database (migration 0049). */
   netAmount: number;
   position: number;
+  /** YYYY-MM-DD. Null on rows entered before the date column existed. */
+  date: string | null;
+  /** Set only on Selling Cost rows. */
+  subcategory: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1460,6 +1474,8 @@ export function normalizeCoreCostBaseEntry(raw: RawRecord): CoreCostBaseEntry {
     gstAmount,
     netAmount: rawNet == null ? grossAmount - gstAmount : toFloatValue(rawNet),
     position: toNumberValue(raw.position) ?? 0,
+    date: toNullableString(raw.date),
+    subcategory: toNullableString(raw.subcategory),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
   };
@@ -1499,6 +1515,30 @@ export async function updateCoreCostBaseEntry(
     { method: "PATCH", token, body },
   );
   return normalizeCoreCostBaseEntry(getJsonObject(payload));
+}
+
+/** Replaces the property's whole set of selling costs. */
+export async function saveCoreSellingCosts(
+  token: string,
+  propertyId: string,
+  rows: Record<string, unknown>[],
+): Promise<CoreCostBaseEntry[]> {
+  const payload = await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/selling-costs`,
+    { method: "POST", token, body: rows },
+  );
+  return getJsonArray(payload).map(normalizeCoreCostBaseEntry);
+}
+
+export async function markCorePropertySold(
+  token: string,
+  propertyId: string,
+  body: { selling_amount: number; sold_date: string },
+): Promise<void> {
+  await coreApiRequest(
+    `/properties/${encodeURIComponent(propertyId)}/mark-sold`,
+    { method: "POST", token, body },
+  );
 }
 
 export async function deleteCoreCostBaseEntry(
@@ -1602,6 +1642,12 @@ export type CorePersonalSplitFields = {
 };
 
 export type CoreTransactionDetail = {
+  /** Which way a contra's money moved; null on other types or when unrecorded. */
+  contraDirection?: "in" | "out" | null;
+  /** The account a Balance Sheet row names, under its category and subcategory. */
+  chartOfAccountId?: number | null;
+  accountCode?: string | null;
+  accountName?: string | null;
   id: string;
   orgId: string;
   entityId: string;
@@ -1652,6 +1698,10 @@ export type CoreTransactionDetail = {
 } & CorePersonalSplitFields;
 
 export type CoreTransactionListItem = {
+  /** The account a Balance Sheet row names, under its category and subcategory. */
+  chartOfAccountId?: number | null;
+  accountCode?: string | null;
+  accountName?: string | null;
   id: string;
   type: CoreTransactionType;
   categoryId: number;
@@ -1688,6 +1738,10 @@ export type CoreTransactionListItem = {
   clientShareGst: number | null;
   clientShareNet: number | null;
   metadata: Record<string, unknown>;
+  /** bank | general | property_cost_base | borrowing_cost | manual. */
+  source?: string;
+  /** Which way a contra's money moved; null on other types or when unrecorded. */
+  contraDirection?: "in" | "out" | null;
   createdAt: string;
   updatedAt: string;
 } & CorePersonalSplitFields;
@@ -1717,6 +1771,8 @@ export type CorePropertyTransactionRow = {
   createdAt: string;
   // Optional for the same reason the reviewer stamp is: sample rows and mock
   // fixtures predate the field, and the normalizer always populates it.
+  source?: string;
+  contraDirection?: "in" | "out" | null;
   hasChildren?: boolean;
   personalPercentage?: number | null;
 };
@@ -1756,6 +1812,10 @@ function toStringArray(value: unknown): string[] {
 function toNullableNumber(value: unknown): number | null {
   if (value == null) return null;
   return toFloatValue(value);
+}
+
+function toContraDirection(value: unknown): "in" | "out" | null {
+  return value === "in" || value === "out" ? value : null;
 }
 
 function toNullableString(value: unknown): string | null {
@@ -1899,6 +1959,10 @@ export function normalizeCoreTransactionDetail(
   const splitsRaw = Array.isArray(raw.splits) ? raw.splits : [];
   const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
   return {
+    contraDirection: toContraDirection(raw.contra_direction ?? raw.contraDirection),
+    chartOfAccountId: toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? null,
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
+    accountName: toNullableString(raw.account_name ?? raw.accountName),
     id: toStringValue(raw.id),
     orgId: toStringValue(raw.org_id ?? raw.orgId),
     entityId: toStringValue(raw.entity_id ?? raw.entityId),
@@ -1959,6 +2023,9 @@ export function normalizeCoreTransactionListItem(
   raw: RawRecord,
 ): CoreTransactionListItem {
   return {
+    chartOfAccountId: toNumberValue(raw.chart_of_account_id ?? raw.chartOfAccountId) ?? null,
+    accountCode: toNullableString(raw.account_code ?? raw.accountCode),
+    accountName: toNullableString(raw.account_name ?? raw.accountName),
     id: toStringValue(raw.id),
     type: toTxnType(raw.type),
     categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
@@ -2010,6 +2077,8 @@ export function normalizeCoreTransactionListItem(
       raw.client_share_net ?? raw.clientShareNet,
     ),
     metadata: toRecord(raw.metadata),
+    source: toStringValue(raw.source),
+    contraDirection: toContraDirection(raw.contra_direction ?? raw.contraDirection),
     createdAt: toStringValue(raw.created_at ?? raw.createdAt),
     updatedAt: toStringValue(raw.updated_at ?? raw.updatedAt),
     ...normalizePersonalSplitFields(raw),
@@ -2020,6 +2089,8 @@ export function normalizeCorePropertyTransactionRow(
   raw: RawRecord,
 ): CorePropertyTransactionRow {
   return {
+    source: toStringValue(raw.source),
+    contraDirection: toContraDirection(raw.contra_direction ?? raw.contraDirection),
     transactionId: toStringValue(raw.transaction_id ?? raw.transactionId),
     transactionType: toTxnType(raw.transaction_type ?? raw.transactionType),
     categoryId: toNumberValue(raw.category_id ?? raw.categoryId) ?? 0,
@@ -2236,6 +2307,7 @@ export type CoreTransactionListQuery = {
    * stays clean without each having to remember a filter.
    */
   includeBalanceSheet?: boolean;
+  source?: string;
   sort?: CoreTransactionSortKey | string;
   dir?: "asc" | "desc";
   limit?: number;
@@ -2275,6 +2347,7 @@ export function transactionListQueryString(
   // meaningful filter here (rows that are NOT asset purchases), not an absence.
   if (q.assetPurchase !== undefined) sp.set("asset_purchase", String(q.assetPurchase));
   if (q.includeBalanceSheet) sp.set("include_balance_sheet", "true");
+  put("source", q.source);
   put("sort", q.sort);
   put("dir", q.dir);
   put("limit", q.limit);
@@ -3174,8 +3247,9 @@ export async function getCorePortfolioSummaryForClient(
  * part-private bill is hidden and its container is typed 'expense'. Totalling
  * it client-side therefore both truncates and misses every partial split.
  *
- * Amounts are positive magnitudes; private spending is money out by definition,
- * so the UI applies the sign.
+ * Amounts are SIGNED: negative is money out, positive is money in (a row
+ * confirmed against a credit on the bank statement). Print them as given — a
+ * screen that applies its own sign shows a credit as money out.
  */
 export type CorePersonalCategoryTotal = {
   categoryId: number;
@@ -5467,4 +5541,132 @@ export async function fetchCoreGeneralLedgerExport(
     `${getCoreApiBaseUrl()}/entities/${encodeURIComponent(entityId)}/general-ledger/export${qs ? `?${qs}` : ""}`,
     { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
   );
+}
+
+// =============================================================================
+// Balance Sheet
+// =============================================================================
+
+export type CoreBalanceSheetLine = {
+  code: string;
+  name: string;
+  amount: number;
+  /** Present only when a comparison was asked for. */
+  compareAmount?: number;
+};
+
+export type CoreBalanceSheetSection = {
+  key: "assets" | "liabilities" | "equity";
+  title: string;
+  groups: {
+    /** Null for Equity, which has no group level. */
+    name: string | null;
+    subgroups: { name: string; lines: CoreBalanceSheetLine[] }[];
+  }[];
+};
+
+export type CoreBalanceSheet = {
+  entityName: string;
+  asAt: string;
+  compareAsAt: string | null;
+  sections: CoreBalanceSheetSection[];
+  /** Balance sheet transactions left out: their typed category names no account. */
+  unmappedCount: number;
+};
+
+export type CoreOpeningBalance = {
+  asAt: string;
+  lines: { code: string; amount: number }[];
+};
+
+function rawRecords(value: unknown): RawRecord[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    : [];
+}
+
+function normalizeCoreBalanceSheet(raw: RawRecord): CoreBalanceSheet {
+  return {
+    entityName: toStringValue(raw.entity_name),
+    asAt: toStringValue(raw.as_at),
+    compareAsAt: toNullableString(raw.compare_as_at),
+    sections: rawRecords(raw.sections).map((section) => ({
+      key: toStringValue(section.key) as CoreBalanceSheetSection["key"],
+      title: toStringValue(section.title),
+      groups: rawRecords(section.groups).map((group) => ({
+        name: toNullableString(group.name),
+        subgroups: rawRecords(group.subgroups).map((subgroup) => ({
+          name: toStringValue(subgroup.name),
+          lines: rawRecords(subgroup.lines).map((line) => ({
+            code: toStringValue(line.code),
+            name: toStringValue(line.name),
+            amount: toFloatValue(line.amount),
+            ...(line.compare_amount == null
+              ? {}
+              : { compareAmount: toFloatValue(line.compare_amount) }),
+          })),
+        })),
+      })),
+    })),
+    unmappedCount: toNumberValue(raw.unmapped_count) ?? 0,
+  };
+}
+
+export async function fetchCoreBalanceSheet(
+  token: string,
+  entityId: string,
+  query: Record<string, string>,
+): Promise<CoreBalanceSheet> {
+  const qs = new URLSearchParams(query).toString();
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/balance-sheet${qs ? `?${qs}` : ""}`,
+    { token },
+  );
+  return normalizeCoreBalanceSheet(getJsonObject(payload));
+}
+
+/** Returns the raw upstream Response so the BFF can stream the file through. */
+export async function fetchCoreBalanceSheetExport(
+  token: string,
+  entityId: string,
+  query: Record<string, string>,
+): Promise<Response> {
+  const qs = new URLSearchParams(query).toString();
+  return fetch(
+    `${getCoreApiBaseUrl()}/entities/${encodeURIComponent(entityId)}/balance-sheet/export${qs ? `?${qs}` : ""}`,
+    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+  );
+}
+
+function normalizeCoreOpeningBalance(raw: RawRecord): CoreOpeningBalance {
+  return {
+    asAt: toStringValue(raw.as_at),
+    lines: rawRecords(raw.lines).map((line) => ({
+      code: toStringValue(line.code),
+      amount: toFloatValue(line.amount),
+    })),
+  };
+}
+
+export async function fetchCoreOpeningBalance(
+  token: string,
+  entityId: string,
+): Promise<CoreOpeningBalance> {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/opening-balance`,
+    { token },
+  );
+  return normalizeCoreOpeningBalance(getJsonObject(payload));
+}
+
+export async function saveCoreOpeningBalance(
+  token: string,
+  entityId: string,
+  body: { as_at: string; lines: { code: string; amount: number }[] },
+): Promise<CoreOpeningBalance> {
+  const payload = await coreApiRequest(
+    `/entities/${encodeURIComponent(entityId)}/opening-balance`,
+    { method: "PUT", token, body },
+  );
+  return normalizeCoreOpeningBalance(getJsonObject(payload));
 }

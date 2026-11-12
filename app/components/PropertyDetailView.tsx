@@ -29,6 +29,7 @@ import {
 } from "@/app/components/usePnlSummary";
 import { getSession } from "@/src/lib/session";
 import { formatCurrency as globalFormatCurrency } from "@/src/lib/currency";
+import { isSellingCostCategory } from "@/app/components/capital-gain/capitalGainApi";
 import type {
   CoreEntity,
   CoreGstSummary,
@@ -153,6 +154,7 @@ type ManualCostBaseRow = {
   entryId: string;
   category: string;
   description: string;
+  date: string;
   gross: string;
   gst: string;
 };
@@ -277,6 +279,7 @@ function costBaseEntryToRow(entry: CoreCostBaseEntry): ManualCostBaseRow {
     entryId: entry.id,
     category: entry.category,
     description: entry.description || "",
+    date: entry.date || "",
     gross: entry.grossAmount.toFixed(2),
     gst: entry.gstAmount.toFixed(2),
   };
@@ -308,7 +311,7 @@ function titleCase(value: string) {
 }
 
 function formatCurrency(value: number) {
-  return globalFormatCurrency(value, { decimals: 0 });
+  return globalFormatCurrency(value);
 }
 
 function formatDate(value: string) {
@@ -355,6 +358,19 @@ export default function PropertyDetailView({
   const [currentTab, setCurrentTab] = useState<PropertyTab>("transactions");
   const [isLoading, setIsLoading] = useState(true);
   const [showPnLStatement, setShowPnLStatement] = useState(false);
+  // Capital Gain › Add More links here with ?view=pnl#property-cost-base.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("view") !== "pnl") return;
+    const open = window.setTimeout(() => setShowPnLStatement(true), 0);
+    const scroll = window.setTimeout(() => {
+      document.getElementById("property-cost-base")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 700);
+    return () => {
+      window.clearTimeout(open);
+      window.clearTimeout(scroll);
+    };
+  }, []);
   const [pnlFinancialYear, setPnlFinancialYear] = useState(() => auFinancialYearOf(new Date()));
   const [compareWithPrevious, setCompareWithPrevious] = useState(false);
   const [isAddBalanceOpen, setIsAddBalanceOpen] = useState(false);
@@ -371,14 +387,18 @@ export default function PropertyDetailView({
   const [balanceGst, setBalanceGst] = useState("");
   const [balanceDesc, setBalanceDesc] = useState("");
   const [balanceError, setBalanceError] = useState("");
-  const [contractDate, setContractDate] = useState("2026-08-15");
-  const [settlementDate, setSettlementDate] = useState("2026-09-30");
+  const [contractDate, setContractDate] = useState("");
+  const [settlementDate, setSettlementDate] = useState("");
   const [showCostBase, setShowCostBase] = useState(true);
   // The property's cost base, backed by property_cost_base (0049). Starts
   // empty: it used to be seeded with three invented rows (Building & Pest $660,
   // Conveyancing $1,320, Loan Establishment $600) that footed into the grand
   // total and the settlement difference as if they were real money.
   const [manualCostBaseRows, setManualCostBaseRows] = useState<ManualCostBaseRow[]>([]);
+  // Selling costs come from the Capital Gain flow. They are listed with the cost
+  // base but are not grid rows: a grid row counts towards the total and the
+  // Settlement Difference, and the save deletes any loaded id it no longer has.
+  const [sellingCostEntries, setSellingCostEntries] = useState<CoreCostBaseEntry[]>([]);
   const [isCostBaseEntriesLoading, setIsCostBaseEntriesLoading] = useState(true);
   const [isSavingCostBase, setIsSavingCostBase] = useState(false);
   const [costBaseEntryError, setCostBaseEntryError] = useState("");
@@ -386,6 +406,13 @@ export default function PropertyDetailView({
   // Ids that were on screen when the grid last loaded, so the save can tell a
   // removed row from one that was never there. Same diffing as the funding grid.
   const loadedCostBaseIdsRef = useRef<string[]>([]);
+
+  const applyCostBaseItems = (items: CoreCostBaseEntry[]) => {
+    const manual = items.filter((item) => !isSellingCostCategory(item.category));
+    setManualCostBaseRows(manual.map(costBaseEntryToRow));
+    setSellingCostEntries(items.filter((item) => isSellingCostCategory(item.category)));
+    loadedCostBaseIdsRef.current = manual.map((item) => item.id);
+  };
   // Real cost_base transactions for this property, loaded separately from the
   // page's `transactions` array: that one is a single unfiltered page capped by
   // the API, so cost base rows past the cap would silently disappear.
@@ -601,17 +628,10 @@ export default function PropertyDetailView({
 
         const loadedProperty = (await propertyRes.json()) as CoreProperty;
         setProperty(loadedProperty);
-        // property.settlement_date is real (migration 0019); the Cost Base
-        // panel had it hardcoded, so every property exported the same date.
-        // Contract date has no backing column and stays a local field.
-        if (loadedProperty.settlementDate) {
-          const settled = loadedProperty.settlementDate.slice(0, 10);
-          setSettlementDate(settled);
-          // The contract date has no backing column, so it keeps a placeholder.
-          // Clear it when the real settlement date lands before it, rather than
-          // leaving the pair in a state the min/max inputs reject.
-          setContractDate((current) => (current && current > settled ? "" : current));
-        }
+        // Both dates are real columns (migrations 0019 and 0059), saved by the
+        // Cost Base panel's Save button.
+        setSettlementDate((loadedProperty.settlementDate ?? "").slice(0, 10));
+        setContractDate((loadedProperty.contractDate ?? "").slice(0, 10));
         if (transactionsRes.ok) {
           const data = (await transactionsRes.json()) as {
             items?: CorePropertyTransactionRow[];
@@ -983,9 +1003,8 @@ export default function PropertyDetailView({
         }
         const data = (await res.json()) as { items?: CoreCostBaseEntry[] };
         if (cancelled) return;
-        const items = data.items || [];
-        setManualCostBaseRows(items.map(costBaseEntryToRow));
-        loadedCostBaseIdsRef.current = items.map((item) => item.id);
+        if (cancelled) return;
+        applyCostBaseItems(data.items || []);
         setCostBaseEntryError("");
       } catch (error) {
         if (!cancelled) {
@@ -1171,7 +1190,7 @@ export default function PropertyDetailView({
     setCostBaseSaved(false);
     setManualCostBaseRows(prev => [
       ...prev,
-      { key: nextCostBaseDraftKey(), entryId: "", category: "", description: "", gross: "", gst: "" }
+      { key: nextCostBaseDraftKey(), entryId: "", category: "", description: "", date: "", gross: "", gst: "" }
     ]);
   };
 
@@ -1182,7 +1201,7 @@ export default function PropertyDetailView({
     setManualCostBaseRows(prev => prev.filter(r => r.key !== key));
   };
 
-  const handleUpdateManualCostBaseRow = (key: string, field: "category" | "description" | "gross" | "gst", value: string) => {
+  const handleUpdateManualCostBaseRow = (key: string, field: "category" | "description" | "date" | "gross" | "gst", value: string) => {
     setCostBaseSaved(false);
     setManualCostBaseRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
   };
@@ -1337,6 +1356,11 @@ export default function PropertyDetailView({
   const handleSaveCostBase = async () => {
     if (!sessionToken || isSavingCostBase) return;
 
+    if (contractDate && settlementDate && contractDate > settlementDate) {
+      setCostBaseEntryError("The contract date can't be after the settlement date.");
+      return;
+    }
+
     for (const row of manualCostBaseRows) {
       if (!row.category.trim()) {
         setCostBaseEntryError("Every cost base row needs a category.");
@@ -1370,6 +1394,34 @@ export default function PropertyDetailView({
       };
       const base = `/api/properties/${encodeURIComponent(propertyId)}/cost-base`;
 
+      // The dates go first: a rejected date then leaves the rows unsaved too,
+      // rather than half the panel. A settlement date can't be cleared, only changed.
+      const datePatch: Record<string, string> = {};
+      if (contractDate !== (property?.contractDate ?? "").slice(0, 10)) {
+        datePatch.contract_date = contractDate;
+      }
+      if (settlementDate && settlementDate !== (property?.settlementDate ?? "").slice(0, 10)) {
+        datePatch.settlement_date = settlementDate;
+      }
+      if (Object.keys(datePatch).length > 0) {
+        const dateRes = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+          method: "PATCH",
+          headers: authHeaders,
+          body: JSON.stringify(datePatch),
+        });
+        if (!dateRes.ok) {
+          const detail = (await dateRes.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          setCostBaseEntryError(detail?.message || detail?.error || "Failed to save the contract and settlement dates.");
+          return;
+        }
+        setProperty((prev) =>
+          prev ? { ...prev, contractDate: contractDate || null, settlementDate: settlementDate || prev.settlementDate } : prev,
+        );
+      }
+
       const remainingIds = new Set(
         manualCostBaseRows.map((row) => row.entryId).filter(Boolean),
       );
@@ -1382,6 +1434,7 @@ export default function PropertyDetailView({
         return {
           category: row.category.trim(),
           description: row.description.trim() || null,
+          date: row.date,
           gross_amount: gross,
           gst_amount: gst,
           // Position is the grid order, so a reordered or newly inserted row
@@ -1429,9 +1482,7 @@ export default function PropertyDetailView({
       });
       if (reread.ok) {
         const data = (await reread.json()) as { items?: CoreCostBaseEntry[] };
-        const items = data.items || [];
-        setManualCostBaseRows(items.map(costBaseEntryToRow));
-        loadedCostBaseIdsRef.current = items.map((item) => item.id);
+        applyCostBaseItems(data.items || []);
       }
 
       setCostBaseSaved(true);
@@ -1625,13 +1676,12 @@ export default function PropertyDetailView({
   const personalBreakdown = useMemo(() => {
     const categories = personal.summary?.categories ?? [];
     return {
-      // Private spending is money out by definition, so the API returns
-      // magnitudes and the sign is applied here — there is no revenue side.
+      // Already signed by the API.
       expenses: categories.map((c) => ({
         category: personalCategoryLabel(c),
-        amount: -c.grossAmount,
+        amount: c.grossAmount,
       })),
-      totalExpense: -(personal.summary?.totalGross ?? 0),
+      totalExpense: personal.summary?.totalGross ?? 0,
     };
   }, [personal.summary]);
 
@@ -2466,7 +2516,7 @@ export default function PropertyDetailView({
             </div>
 
             {/* Property Cost Base Section */}
-            <div style={{
+            <div id="property-cost-base" style={{
               backgroundColor: "#ffffff",
               borderRadius: "16px",
               border: "1.5px solid #e2e8f0",
@@ -2661,6 +2711,7 @@ export default function PropertyDetailView({
                         <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
                           <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "24%" }}>Category</th>
                           <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "30%" }}>Description</th>
+                          <th style={{ textAlign: "left", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "13%" }}>Date</th>
                           <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Gross</th>
                           <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>GST</th>
                           <th style={{ textAlign: "right", padding: "8px 8px", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", width: "14%" }}>Net</th>
@@ -2698,6 +2749,24 @@ export default function PropertyDetailView({
                                   width: "100%",
                                   boxSizing: "border-box",
                                   padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #cbd5e1",
+                                  fontSize: "13px",
+                                  fontWeight: 500,
+                                  outline: "none"
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 8px" }}>
+                              <input
+                                type="date"
+                                value={row.date}
+                                aria-label="Date"
+                                onChange={(e) => handleUpdateManualCostBaseRow(row.key, "date", e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  boxSizing: "border-box",
+                                  padding: "8px 8px",
                                   borderRadius: "8px",
                                   border: "1px solid #cbd5e1",
                                   fontSize: "13px",
@@ -2778,7 +2847,7 @@ export default function PropertyDetailView({
                         ))}
                         {manualCostBaseRows.length === 0 && (
                           <tr>
-                            <td colSpan={6} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
+                            <td colSpan={7} style={{ padding: "24px 8px", fontSize: "13px", color: "#94a3b8", textAlign: "center" }}>
                               {isCostBaseEntriesLoading
                                 ? "Loading cost base items…"
                                 : costBaseEntryError
@@ -2788,7 +2857,7 @@ export default function PropertyDetailView({
                           </tr>
                         )}
                         <tr style={{ borderTop: "1.5px solid #cbd5e1" }}>
-                          <td colSpan={2} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Property Cost Base</td>
+                          <td colSpan={3} style={{ padding: "14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Total Property Cost Base</td>
                           <td style={{ textAlign: "right", padding: "14px 20px 14px 8px", fontSize: "13px", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                             {formatAud(costBaseTotals.manual.gross)}
                           </td>
@@ -2800,6 +2869,28 @@ export default function PropertyDetailView({
                           </td>
                           <td></td>
                         </tr>
+                        {sellingCostEntries.length > 0 && (
+                          <>
+                            <tr>
+                              <td colSpan={7} style={{ padding: "16px 8px 6px", fontSize: "12px", fontWeight: 700, color: "#475569" }}>
+                                Selling costs: not part of the total above. They are deducted from the selling amount in the Capital Gain flow.
+                              </td>
+                            </tr>
+                            {sellingCostEntries.map((entry) => (
+                              <tr key={entry.id} style={{ borderTop: "1px solid #f1f5f9", fontSize: "13px", color: "#334155" }}>
+                                <td style={{ padding: "8px 12px", fontWeight: 600 }}>
+                                  {entry.category}{entry.subcategory ? ` · ${entry.subcategory}` : ""}
+                                </td>
+                                <td style={{ padding: "8px 12px" }}>{entry.description || "—"}</td>
+                                <td style={{ padding: "8px 8px" }}>{entry.date ? formatDisplayDate(entry.date.slice(0, 10)) : "—"}</td>
+                                <td style={{ textAlign: "right", padding: "8px 20px 8px 8px" }}>{formatAud(entry.grossAmount)}</td>
+                                <td style={{ textAlign: "right", padding: "8px 20px 8px 8px" }}>{formatAud(entry.gstAmount)}</td>
+                                <td style={{ textAlign: "right", padding: "8px 20px 8px 8px" }}>{formatAud(entry.netAmount)}</td>
+                                <td></td>
+                              </tr>
+                            ))}
+                          </>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -3560,6 +3651,27 @@ export default function PropertyDetailView({
                   </p>
                 </div>
                 <div className="property-hero-actions" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* A sold property stays enabled, because bills for it keep
+                      arriving, so Sold sits beside Active rather than replacing it. */}
+                  {property.soldDate ? (
+                    <div
+                      title={`Sold on ${formatDate(property.soldDate)}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        borderRadius: '9999px',
+                        backgroundColor: '#fef3c7',
+                        color: '#92400e',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        height: '42px',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      Sold
+                    </div>
+                  ) : null}
                   {/* Active/Inactive Pill Button */}
                   {!isClientView ? (
                     <button
@@ -3753,6 +3865,36 @@ export default function PropertyDetailView({
                     View P&L Statement
                   </button>
 
+                  {/* Mark as Sold → Capital Gain flow (accountant only) */}
+                  {!isClientView ? (
+                    <Link
+                      href={`${pathname}/capital-gain`}
+                      title="Work out the capital gain or loss for selling this property"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 18px',
+                        border: '1.5px solid #f4a117',
+                        borderRadius: '10px',
+                        backgroundColor: '#f4a117',
+                        color: '#1c244b',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        height: '42px',
+                        boxSizing: 'border-box',
+                        textDecoration: 'none',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: "16px", height: "16px", flexShrink: 0 }} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 11l9-7 9 7M5 9.5V20h14V9.5" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l2 2 4-4" />
+                      </svg>
+                      {property.soldDate ? "View Capital Gain" : "Mark as Sold"}
+                    </Link>
+                  ) : null}
+
                   {/* Three Dots Actions Dropdown Button */}
                   {(!isClientView || !writesBlocked) && (
                     <>
@@ -3909,6 +4051,10 @@ export default function PropertyDetailView({
                   <dd>{formatCurrency(property.estimatedMarketValue)}</dd>
                 </div>
                 <div>
+                  <dt>Purchase Amount</dt>
+                  <dd>{formatCurrency(property.purchaseAmount)}</dd>
+                </div>
+                <div>
                   <dt>Loan Value</dt>
                   <dd>{formatCurrency(loanAmount)}</dd>
                 </div>
@@ -3916,6 +4062,18 @@ export default function PropertyDetailView({
                   <dt>Acquisition Date</dt>
                   <dd>{formatDate(property.purchaseDate)}</dd>
                 </div>
+                {property.soldDate ? (
+                  <>
+                    <div>
+                      <dt>Sold Date</dt>
+                      <dd>{formatDate(property.soldDate)}</dd>
+                    </div>
+                    <div>
+                      <dt>Selling Amount</dt>
+                      <dd>{formatCurrency(property.sellingAmount ?? 0)}</dd>
+                    </div>
+                  </>
+                ) : null}
                 <div>
                   <dt>Total Transactions</dt>
                   <dd>{transactionCount}</dd>

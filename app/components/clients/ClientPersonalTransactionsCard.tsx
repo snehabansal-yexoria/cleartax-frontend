@@ -6,7 +6,7 @@ import {
   personalCategoryLabel,
   usePersonalSummary,
 } from "@/app/components/usePersonalAndAssetTransactions";
-import { formatClientCurrency } from "@/app/components/clients/CurrencyFormatter";
+import { formatExactCurrency } from "@/app/components/clients/CurrencyFormatter";
 
 /**
  * Personal Transactions on the client's side: the accountant entity page's
@@ -30,12 +30,6 @@ export type ClientPersonalTransactionsCardProps = {
 
 const DEFAULT_CHROME =
   "bg-[var(--surface-1)] rounded-2xl border border-[var(--border)] p-5 shadow-sm";
-
-// Private spending is money out by definition; the API returns magnitudes and
-// the sign is applied here, as the accountant panel does.
-function moneyOut(value: number) {
-  return formatClientCurrency(-value, { decimals: 2 });
-}
 
 export default function ClientPersonalTransactionsCard({
   level,
@@ -77,7 +71,8 @@ export default function ClientPersonalTransactionsCard({
               {personalCategoryLabel(c)}
             </span>
             <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums shrink-0">
-              {moneyOut(c.grossAmount)}
+              {/* Already signed by the API. */}
+              {formatExactCurrency(c.grossAmount)}
             </span>
           </li>
         ))}
@@ -89,7 +84,7 @@ export default function ClientPersonalTransactionsCard({
             </span>
           </span>
           <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-            {moneyOut(personal.summary?.totalGross ?? 0)}
+            {formatExactCurrency(personal.summary?.totalGross ?? 0)}
           </span>
         </li>
       </ul>

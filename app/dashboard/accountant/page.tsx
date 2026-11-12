@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { getSession } from "@/src/lib/session";
-import { getCurrencyPrefix } from "@/src/lib/currency";
+import { formatCurrency } from "@/src/lib/currency";
 import { fetchReportTimeline } from "./reports/reportsApi";
 import type { ReportTimelineEvent } from "./reports/reportsApi";
 import { brandName } from "@/app/components/brandName";
@@ -65,27 +65,6 @@ function formatJoinedDate(value: string | null) {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function formatCurrency(value: number) {
-  const absValue = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  const prefix = getCurrencyPrefix();
-
-  if (absValue >= 1e9) {
-    const formatted = (absValue / 1e9).toFixed(2).replace(/\.?0+$/, "");
-    return `${prefix}${sign}${formatted}B`;
-  }
-  if (absValue >= 1e6) {
-    const formatted = (absValue / 1e6).toFixed(2).replace(/\.?0+$/, "");
-    return `${prefix}${sign}${formatted}M`;
-  }
-
-  const formatted = new Intl.NumberFormat("en-AU", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(absValue);
-  return `${prefix}${sign}${formatted}`;
 }
 
 // Activity category styling and icon utilities
