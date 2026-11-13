@@ -7,7 +7,7 @@ import { EntityPropertyListSkeleton } from "@/app/components/PortalSkeletons";
 import { RegionError } from "@/app/components/ui/RegionError";
 import type { AsyncRegion } from "@/app/components/useAsyncRegion";
 import { getIdToken } from "@/src/lib/authToken";
-import { formatDateAU } from "@/src/lib/dates";
+import { displayDateAU, formatDateAU } from "@/src/lib/dates";
 import type { ReconciliationSession } from "@/src/lib/coreApi";
 import { isPending } from "./types";
 
@@ -207,8 +207,8 @@ export default function ReconciliationTab({
           {list.map((s) => {
             const period =
               s.periodFrom && s.periodTo
-                ? `${s.periodFrom} → ${s.periodTo}`
-                : s.periodFrom || s.periodTo || "—";
+                ? `${formatDateAU(s.periodFrom)} → ${formatDateAU(s.periodTo)}`
+                : displayDateAU(s.periodFrom || s.periodTo || "");
             const statusColor =
               s.status === "completed" ? "var(--color-success, #16a34a)" : "var(--color-warning, #ca8a04)";
             return (

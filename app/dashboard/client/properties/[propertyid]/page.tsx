@@ -25,6 +25,7 @@ import {
   shiftMonth,
 } from "@/app/components/clients/portfolioDashboard";
 import { clientReportsHubHref } from "@/app/components/reports/client/reportLinks";
+import { formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -93,23 +94,11 @@ function formatLoanAccount(account: any) {
 
 // Date formatters
 function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
+  return formatDateAU(value);
 }
 
 function formatDocDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return formatDateAU(value);
 }
 
 // Currency formatter using the standard formatExactCurrency for exact 2-decimal display

@@ -8,6 +8,7 @@ import ClientEntitiesSkeleton from "@/app/components/clients/ClientEntitiesSkele
 import { getSession } from "@/src/lib/session";
 import { formatExactCurrency } from "@/app/components/clients/CurrencyFormatter";
 import type { CoreEntity } from "@/src/lib/coreApi";
+import { formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -25,16 +26,7 @@ function titleCase(value: string) {
 
 function formatDate(dateString: string) {
   if (!dateString) return "";
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch (e) {
-    return "";
-  }
+  return formatDateAU(dateString, "");
 }
 
 function ChevronIcon() {

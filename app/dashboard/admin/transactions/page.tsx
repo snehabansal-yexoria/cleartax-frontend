@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { displayDateAU } from "@/src/lib/dates";
 
 // ============================================================================
 // Types & Interfaces
@@ -415,7 +416,7 @@ export default function TransactionsReportPage() {
 
                     {/* Date cell */}
                     <td className="py-3.5 px-6 text-[13px] text-[#475569] whitespace-nowrap">
-                      {tx.date}
+                      {displayDateAU(tx.date)}
                     </td>
 
                     {/* Client cell */}

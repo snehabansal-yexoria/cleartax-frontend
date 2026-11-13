@@ -5,6 +5,7 @@ import { use, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getSession } from "@/src/lib/session";
 import { PortalDashboardSkeleton } from "../../../../components/PortalSkeletons";
+import { displayDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -347,7 +348,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
               email: dbAcc.email,
               role: "Accountant",
               status: status,
-              joined: dbAcc.createdAt ? new Date(dbAcc.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "Recently",
+              joined: dbAcc.createdAt ? new Date(dbAcc.createdAt).toLocaleDateString("en-AU", { month: "short", year: "numeric" }) : "Recently",
               lastActive: isPending ? "Invite sent" : "Today",
               avatar: initials,
               avatarBg: "bg-emerald-100 text-emerald-800",
@@ -878,7 +879,7 @@ export default function AccountantDetailPage({ params }: { params: Promise<{ id:
                 <tbody className="divide-y divide-slate-100">
                   {transactions.map((tx, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6 text-sm font-medium text-slate-500 whitespace-nowrap">{tx.date}</td>
+                      <td className="py-4 px-6 text-sm font-medium text-slate-500 whitespace-nowrap">{displayDateAU(tx.date)}</td>
                       <td className="py-4 px-6 text-sm font-bold text-slate-900">{tx.client}</td>
                       <td className="py-4 px-6 text-sm font-medium text-slate-500">{tx.property}</td>
                       <td className="py-4 px-6 text-sm font-bold text-slate-800">{tx.description}</td>

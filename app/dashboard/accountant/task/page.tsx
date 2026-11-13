@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { getSession } from "../../../../src/lib/session";
+import { displayDateAU, formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
     getIdToken(): {
@@ -47,8 +48,7 @@ interface ApiTask {
 
 const formatDeadline = (dateString: string) => {
     if (!dateString) return "";
-    const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
-    return new Date(dateString).toLocaleDateString("en-GB", options);
+    return formatDateAU(dateString, "");
 };
 
 const personOrUndefined = (p: ApiTaskPerson): Person | undefined =>
@@ -681,7 +681,7 @@ export default function TaskManagementPage() {
                                             </td>
 
                                             <td className="py-4 px-4 text-slate-600 font-semibold text-sm">
-                                                {task.deadline}
+                                                {displayDateAU(task.deadline)}
                                             </td>
 
                                             <td className="py-4 px-4">

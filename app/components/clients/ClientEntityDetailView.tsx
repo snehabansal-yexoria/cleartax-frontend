@@ -31,6 +31,7 @@ import ClientGstSummaryCard from "@/app/components/clients/ClientGstSummaryCard"
 import ClientPersonalTransactionsCard from "@/app/components/clients/ClientPersonalTransactionsCard";
 import ClientAssetsCard from "@/app/components/clients/ClientAssetsCard";
 import { clientReportsHubHref } from "@/app/components/reports/client/reportLinks";
+import { formatDateAU } from "@/src/lib/dates";
 
 type DocumentListItem = {
   id: string;
@@ -69,13 +70,7 @@ function titleCase(value: string) {
 }
 
 function formatDocDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return formatDateAU(value);
 }
 
 // Every amount on this page goes through the client formatter: "A$" like the
@@ -334,7 +329,7 @@ export default function ClientEntityDetailView({
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       if (diffDays <= 1) return "today";
       if (diffDays <= 2) return "yesterday";
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return formatDateAU(d);
     } catch {
       return "today";
     }

@@ -457,8 +457,19 @@ html.dark .inbox-dialog-layer,
     justify-content: flex-start;
   }
 
+  /* Phone: icon and text share the first row, the button gets its own full
+     row underneath, so the text is never squeezed into a narrow column. */
   .inbox-hint {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+
+  .inbox-hint > .inbox-button {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
   }
 }

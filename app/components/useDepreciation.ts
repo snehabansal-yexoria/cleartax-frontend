@@ -298,7 +298,7 @@ export function financialYearsIn(schedules: CoreDepreciationSchedule[]): number[
 }
 
 export function formatCurrency(value: number): string {
-  return `A$ ${value.toLocaleString(undefined, {
+  return `A$ ${value.toLocaleString("en-AU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { BalanceSheet, BalanceSheetSection } from "./balanceSheetApi";
 import "./balance-sheet.css";
+import { formatDateAU } from "@/src/lib/dates";
 
 function money(n: number | null | undefined) {
   if (n === null || n === undefined) return "";
@@ -12,12 +13,12 @@ function money(n: number | null | undefined) {
 
 function longDate(iso: string | null) {
   if (!iso) return "";
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+  return formatDateAU(iso, "");
 }
 
 function shortDate(iso: string | null) {
   if (!iso) return "";
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDateAU(iso, "");
 }
 
 type Totals = { cur: number; prev: number };

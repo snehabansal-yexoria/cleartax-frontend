@@ -7,6 +7,8 @@ import { getSession } from "@/src/lib/session";
 import { StaticSelect } from "@/app/components/TransactionsFeature";
 import { TableRowsSkeleton } from "@/app/components/PortalSkeletons";
 import type { CoreChartAccount, CoreGeneralLedger } from "@/src/lib/coreApi";
+import { displayDateAU } from "@/src/lib/dates";
+import { formatAmountAU } from "@/src/lib/currency";
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -371,7 +373,7 @@ export default function GeneralLedgerPage() {
               <strong>Account activity, not a trial balance.</strong> Only journal
               entries carry both sides, so debits and credits do not balance
               across all accounts. The difference of{" "}
-              <strong>A$ {Math.abs(ledger.unbalancedBy).toFixed(2)}</strong> is
+              <strong>A$ {formatAmountAU(Math.abs(ledger.unbalancedBy))}</strong> is
               the value of activity recorded without a matching contra entry.
               Dates are invoice dates (accruals basis).
               {ledger.unmappedRowCount > 0 && (
@@ -460,8 +462,8 @@ export default function GeneralLedgerPage() {
                     </span>
                   )}
                   <span className="gl-account-balance">
-                    Opening <strong>A$ {account.openingBalance.toFixed(2)}</strong> · Closing{" "}
-                    <strong>A$ {account.closingBalance.toFixed(2)}</strong>
+                    Opening <strong>A$ {formatAmountAU(account.openingBalance)}</strong> · Closing{" "}
+                    <strong>A$ {formatAmountAU(account.closingBalance)}</strong>
                   </span>
                 </header>
 
@@ -484,7 +486,7 @@ export default function GeneralLedgerPage() {
                       <tbody>
                         {account.rows.map((row) => (
                           <tr key={`${row.sourceKind}-${row.sourceId}`}>
-                            <td>{row.date}</td>
+                            <td>{displayDateAU(row.date)}</td>
                             <td>
                               <span className="journal-status-chip">
                                 {row.sourceKind === "journal" ? "Journal" : row.sourceKind === "opening" ? "Opening" : "Transaction"}
@@ -503,22 +505,22 @@ export default function GeneralLedgerPage() {
                             <td>{row.contraAccounts.join(", ") || "—"}</td>
                             <td>{row.gstCode || "—"}</td>
                             <td className="is-numeric">
-                              {row.debit ? row.debit.toFixed(2) : "—"}
+                              {row.debit ? formatAmountAU(row.debit) : "—"}
                             </td>
                             <td className="is-numeric">
-                              {row.credit ? row.credit.toFixed(2) : "—"}
+                              {row.credit ? formatAmountAU(row.credit) : "—"}
                             </td>
-                            <td className="is-numeric">{row.balance.toFixed(2)}</td>
+                            <td className="is-numeric">{formatAmountAU(row.balance)}</td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
                         <tr>
                           <td colSpan={6}>Closing balance</td>
-                          <td className="is-numeric">{account.debits.toFixed(2)}</td>
-                          <td className="is-numeric">{account.credits.toFixed(2)}</td>
+                          <td className="is-numeric">{formatAmountAU(account.debits)}</td>
+                          <td className="is-numeric">{formatAmountAU(account.credits)}</td>
                           <td className="is-numeric">
-                            {account.closingBalance.toFixed(2)}
+                            {formatAmountAU(account.closingBalance)}
                           </td>
                         </tr>
                       </tfoot>

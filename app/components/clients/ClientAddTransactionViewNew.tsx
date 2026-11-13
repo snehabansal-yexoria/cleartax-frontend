@@ -8,7 +8,7 @@ import { useTheme } from "next-themes";
 import { parseCsv } from "@/src/lib/csv";
 import { resolveBackTarget } from "./backTarget";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import { formatAmountAU, formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import type {
   CoreAssetClass,
   CoreTransactionCategory,
@@ -40,6 +40,9 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import { CURRENCY_PREFIX } from "./CurrencyFormatter";
+import { displayDateAU } from "@/src/lib/dates";
+import { useRegularPaymentAuto } from "@/src/lib/useRegularPaymentAuto";
+import { REGULAR_FREQUENCIES, type RegularFrequency } from "@/src/lib/regularPayments";
 
 
 interface SessionWithIdToken {
@@ -1439,6 +1442,16 @@ export default function ClientAddTransactionViewNew({
   const [dueDateTouched, setDueDateTouched] = useState(false);
   const [alertName, setAlertName] = useState("");
   const [userEditedAlertName, setUserEditedAlertName] = useState(false);
+  const selectedCategoryName = categories.find((c) => c.id === categoryId)?.name ?? "";
+  const regular = useRegularPaymentAuto({
+    type,
+    categoryName: selectedCategoryName,
+    invoiceDate,
+    isRegular: isRegularPayment,
+    setIsRegular: setIsRegularPayment,
+    dueDate,
+    setDueDate,
+  });
 
   const [isSplit, setIsSplit] = useState(false);
   const [splitRows, setSplitRows] = useState<SplitRowState[]>(() => [
@@ -1492,7 +1505,10 @@ export default function ClientAddTransactionViewNew({
   useEffect(() => {
     if (!userEditedAlertName) {
       const propName = properties.find((p) => p.id === propertyId)?.name || "";
-      const subcatName = subcategories.find((s) => s.id === subcategoryId)?.name || "";
+      const subcatOnly = subcategories.find((s) => s.id === subcategoryId)?.name || "";
+      // "General" says nothing; name the alert after the category instead.
+      const subcatName =
+        subcatOnly && subcatOnly.toLowerCase() !== "general" ? subcatOnly : selectedCategoryName || subcatOnly;
       if (subcatName && propName) {
         setAlertName(`${subcatName} - ${propName}`);
       } else if (subcatName) {
@@ -1503,7 +1519,7 @@ export default function ClientAddTransactionViewNew({
         setAlertName("");
       }
     }
-  }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
+  }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName, selectedCategoryName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2092,7 +2108,7 @@ export default function ClientAddTransactionViewNew({
       data.reference && `Ref: ${data.reference}`,
       data.due_date &&
       /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
-      `Due: ${data.due_date}`,
+      `Due: ${displayDateAU(data.due_date)}`,
     ].filter(Boolean) as string[];
     if (remarkParts.length > 0) {
       setInternalRemarks(remarkParts.join(" · "));
@@ -2435,7 +2451,7 @@ export default function ClientAddTransactionViewNew({
       );
       if (Math.abs(amountTotal - grossNum) > 0.01) {
         throw new Error(
-          `Row ${rowNumber}: split_amounts must total ${grossNum.toFixed(2)}.`,
+          `Row ${rowNumber}: split_amounts must total ${formatAmountAU(grossNum)}.`,
         );
       }
 
@@ -2714,9 +2730,7 @@ export default function ClientAddTransactionViewNew({
         }
         if (!allBlank && !splitMatches) {
           setSubmitError(
-            `Split amounts must total ${grossNum.toFixed(
-              2,
-            )} (currently ${splitTotal.toFixed(2)}).`,
+            `Split amounts must total ${formatAmountAU(grossNum)} (currently ${formatAmountAU(splitTotal)}).`,
           );
           setIsSubmitting(false);
           return;
@@ -2790,6 +2804,7 @@ export default function ClientAddTransactionViewNew({
         is_regular_payment: isRegularPayment,
         due_date: isRegularPayment ? (dueDate || null) : null,
         alert_name: isRegularPayment ? (alertName.trim() || null) : null,
+        regular_frequency: isRegularPayment ? regular.frequency : null,
       };
       if (isAssetPurchase) {
         body.asset_class = assetClass || null;
@@ -3318,7 +3333,7 @@ export default function ClientAddTransactionViewNew({
           background: isDark ? 'var(--surface-1)' : '#ffffff',
           border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
           borderRadius: '24px',
-          padding: '40px',
+          padding: 'clamp(16px, 5vw, 40px)',
           boxShadow: '0 8px 30px rgba(0,0,0,0.02)',
           display: 'flex',
           flexDirection: 'column',
@@ -3465,7 +3480,7 @@ export default function ClientAddTransactionViewNew({
           background: isDark ? 'var(--surface-1)' : '#ffffff',
           border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
           borderRadius: '24px',
-          padding: '36px',
+          padding: 'clamp(16px, 5vw, 36px)',
           boxShadow: '0 8px 30px rgba(0,0,0,0.02)',
           display: 'flex',
           flexDirection: 'column',
@@ -3498,8 +3513,11 @@ export default function ClientAddTransactionViewNew({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: '1 1 auto' }}>
+              <span
+                title={uploadedFilename || "receipt.pdf"}
+                style={{ fontSize: '15px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', overflowWrap: 'anywhere', wordBreak: 'break-word', lineHeight: 1.35 }}
+              >
                 {uploadedFilename || "receipt.pdf"}
               </span>
               <span style={{ fontSize: '13px', color: isDark ? 'var(--text-muted)' : '#667085', fontWeight: '500' }}>
@@ -3628,6 +3646,144 @@ export default function ClientAddTransactionViewNew({
   const selectedPropertyName = selectedProperty?.name || "Not selected";
   const selectedEntityName = entities.find((e) => e.id === activeEntityId)?.name || selectedProperty?.entityName || "Johnson Family Trust";
 
+
+  // "Is this a regular payment?" — shown under Sub-category (highlighted, and
+  // switched on) for the five regular-bill categories, otherwise near the end
+  // of the form as before.
+  const regularInputStyle: React.CSSProperties = {
+    background: isDark ? 'var(--surface-2)' : '#ffffff',
+    border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
+    borderRadius: '12px',
+    padding: '14px 16px',
+    fontSize: '14.5px',
+    fontWeight: '500',
+    color: isDark ? 'var(--text-primary)' : '#1d2939',
+    width: '100%',
+    boxSizing: 'border-box',
+    outline: 'none',
+    height: '50px',
+  };
+  const regularLabelStyle: React.CSSProperties = { fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' };
+  const regularPaymentSection = (
+    <div
+      className={`client-tx-regular${regular.isRegularCategory ? ' is-featured' : ''}`}
+      style={regular.isRegularCategory ? {
+        marginTop: '20px',
+        border: `1.5px solid ${isDark ? 'var(--border)' : '#c7ccf0'}`,
+        background: isDark ? 'var(--surface-2)' : '#fafbff',
+        borderRadius: '16px',
+        padding: '16px',
+      } : undefined}
+    >
+      <div className="client-tx-split-toggle-container" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        ...(regular.isRegularCategory
+          ? { padding: 0 }
+          : { padding: '24px 0 20px 0', marginTop: '24px', borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}` }),
+      }}>
+        <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a regular payment?</span>
+          <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>We'll flag it in your dashboard alerts so nothing gets missed.</span>
+        </div>
+        <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            aria-label="Is this a regular payment?"
+            checked={isRegularPayment}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              regular.onToggle(checked);
+              setIsRegularPayment(checked);
+              if (!checked) {
+                setDueDate("");
+                setDueDateTouched(false);
+              }
+            }}
+            style={{ opacity: 0, width: 0, height: 0 }}
+          />
+          <span className="client-tx-slider" style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: isRegularPayment ? '#1d2452' : '#eaeef4',
+            transition: '.2s',
+            borderRadius: '24px',
+          }} />
+        </label>
+      </div>
+
+      {regular.autoOn && (
+        <p className="client-tx-regular-note" style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', margin: '12px 0 0', background: isDark ? 'rgba(79,91,196,0.18)' : '#eef0fb', color: isDark ? 'var(--text-primary)' : '#262c66', borderRadius: '10px', padding: '8px 10px', fontSize: '12.5px', lineHeight: 1.45 }}>
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', marginTop: '2px' }}><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+          <span>Turned on because <b>{selectedCategoryName}</b> is usually a regular bill. Switch it off if this one isn&apos;t.</span>
+        </p>
+      )}
+
+      {isRegularPayment && (
+        <div className="client-tx-grid cols-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '16px', marginBottom: regular.isRegularCategory ? 0 : '16px' }}>
+          <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <label htmlFor="client-tx-regular-frequency" className="client-tx-field-label" style={regularLabelStyle}>How often?</label>
+            <select
+              id="client-tx-regular-frequency"
+              value={regular.frequency}
+              onChange={(e) => regular.setFrequency(e.target.value as RegularFrequency)}
+              style={{ ...regularInputStyle, padding: '0 12px', cursor: 'pointer' }}
+            >
+              {REGULAR_FREQUENCIES.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <label htmlFor="client-tx-regular-due" className="client-tx-field-label" style={regularLabelStyle}>Next due date</label>
+            <input
+              id="client-tx-regular-due"
+              type="date"
+              min="1900-01-01"
+              max="9999-12-31"
+              value={dueDate}
+              onChange={(e) => {
+                setDueDate(e.target.value);
+                regular.onDueDateTyped();
+              }}
+              onBlur={() => setDueDateTouched(true)}
+              style={regularInputStyle}
+            />
+            {showDueDateError ? (
+              <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
+                <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{dueDateError}</span>
+              </p>
+            ) : (
+              <span style={{ marginTop: '5px', fontSize: '12px', lineHeight: 1.4, color: isDark ? 'var(--text-secondary)' : '#667085' }}>{regular.dueHint}</span>
+            )}
+          </div>
+
+          <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <label htmlFor="client-tx-regular-alert" className="client-tx-field-label" style={regularLabelStyle}>Alert name</label>
+            <input
+              id="client-tx-regular-alert"
+              type="text"
+              value={alertName}
+              onChange={(e) => {
+                setAlertName(e.target.value);
+                setUserEditedAlertName(true);
+              }}
+              placeholder="Enter alert name"
+              style={regularInputStyle}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
   return (
     <section className={`client-tx-container${isMobile ? ' mobile-submit-invoice' : ''}`} style={{
       width: '100%',
@@ -4017,6 +4173,10 @@ export default function ClientAddTransactionViewNew({
               </div>
             )}
 
+            {/* A regular-bill category (Council rates, Water, Strata, Insurance,
+                Land tax) brings "Is this a regular payment?" up here, switched on. */}
+            {regular.isRegularCategory && regularPaymentSection}
+
             {/* Row 4: Amount (AUD) and GST (optional) */}
             <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '20px' }}>
               <div className={`client-tx-field-group ${flashClass("grossAmount")}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -4247,7 +4407,7 @@ export default function ClientAddTransactionViewNew({
                     color: grossAmount && !splitMatches ? '#da3838' : (isDark ? 'var(--text-secondary)' : '#566474'),
                   }}>
                     {grossAmount && !Number.isNaN(grossNumberValue)
-                      ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
+                      ? `Split total: ${formatAmountAU(splitTotal)} of ${formatAmountAU(grossNumberValue)}`
                       : "Enter the total amount above to validate splits."}
                   </span>
                   <button
@@ -4303,121 +4463,8 @@ export default function ClientAddTransactionViewNew({
               />
             </div>
 
-            {/* Is this a regular payment? */}
-            <div className="client-tx-split-toggle-container" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '24px 0 20px 0',
-              marginTop: '24px',
-              borderTop: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
-            }}>
-              <div className="client-tx-split-toggle-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span className="client-tx-split-toggle-title" style={{ fontSize: '14.5px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#1d2939' }}>Is this a regular payment?</span>
-                <span className="client-tx-split-toggle-desc" style={{ fontSize: '12.5px', color: isDark ? 'var(--text-secondary)' : '#667085' }}>We'll flag it in your dashboard alerts so nothing gets missed.</span>
-              </div>
-              <label className="client-tx-switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={isRegularPayment}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setIsRegularPayment(checked);
-                    if (!checked) {
-                      setDueDate("");
-                      setDueDateTouched(false);
-                    }
-                  }}
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                />
-                <span className="client-tx-slider" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: isRegularPayment ? '#1d2452' : '#eaeef4',
-                  transition: '.2s',
-                  borderRadius: '24px',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: isRegularPayment ? '24px' : '4px',
-                  bottom: '3px',
-                  backgroundColor: 'white',
-                  transition: '.2s',
-                  borderRadius: '50%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                  pointerEvents: 'none',
-                }} />
-              </label>
-            </div>
-
-            {isRegularPayment && (
-              <div className="client-tx-grid cols-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '16px', marginBottom: '16px' }}>
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Due date</label>
-                  <input
-                    type="date"
-                    min="1900-01-01"
-                    max="9999-12-31"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    onBlur={() => setDueDateTouched(true)}
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
-                  />
-                  {showDueDateError && (
-                    <p className="client-tx-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4.5px", color: '#da3838', fontSize: '11.5px', fontWeight: '600' }}>
-                      <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                      </svg>
-                      <span>{dueDateError}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="client-tx-field-group" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <label className="client-tx-field-label" style={{ fontSize: '13px', fontWeight: '500', color: isDark ? 'var(--text-secondary)' : '#344054', marginBottom: '6px', display: 'inline-block' }}>Alert name</label>
-                  <input
-                    type="text"
-                    value={alertName}
-                    onChange={(e) => {
-                      setAlertName(e.target.value);
-                      setUserEditedAlertName(true);
-                    }}
-                    placeholder="Enter alert name"
-                    style={{
-                      background: isDark ? 'var(--surface-2)' : '#ffffff',
-                      border: `1px solid ${isDark ? 'var(--border)' : '#d0d5dd'}`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      fontSize: '14.5px',
-                      fontWeight: '500',
-                      color: isDark ? 'var(--text-primary)' : '#1d2939',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      height: '50px',
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Is this a regular payment? — here unless the category moved it up (below Sub-category). */}
+            {!regular.isRegularCategory && regularPaymentSection}
 
             {submitError && !submitError.toLowerCase().includes("split") && (
               <p className="client-tx-warning-banner" role="alert" style={{ color: '#da3838', fontSize: '13px', fontWeight: '600', marginTop: "16px" }}>

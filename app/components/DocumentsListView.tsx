@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { formatDateAU } from "@/src/lib/dates";
 
 type DocumentListItem = {
   id: string;
@@ -31,13 +32,7 @@ type UploadingFile = {
 };
 
 function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDateAU(value);
 }
 
 export function formatFileSize(bytes: number) {

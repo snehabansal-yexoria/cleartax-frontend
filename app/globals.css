@@ -8939,6 +8939,10 @@ html.dark .transaction-document-drop__bottom-bar {
   font-weight: 600 !important;
   margin-top: 4px !important;
   box-shadow: none !important;
+  /* Long receipt names wrap inside the card instead of running out of it. */
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 
 .transaction-document-drop__caption {
@@ -22513,4 +22517,64 @@ html.dark .transaction-field-hint {
   .m-db-net-card .skeleton-panel {
     background: rgba(255, 255, 255, 0.12) !important;
   }
+}
+/* "Is it a regular payment?" — accountant Add transaction and reconciliation.
+   Featured (moved up under Category, switched on by a regular-bill category). */
+:root {
+  --regular-featured-bg: #fafbff;
+  --regular-featured-line: #c7ccf0;
+  --regular-note-bg: #eef0fb;
+  --regular-note-ink: #262c66;
+}
+html.dark {
+  --regular-featured-bg: var(--surface-2, #1b2033);
+  --regular-featured-line: rgba(129, 140, 248, 0.35);
+  --regular-note-bg: rgba(79, 91, 196, 0.18);
+  --regular-note-ink: var(--text-primary, #e4e7f5);
+}
+.tx-regular-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  background: var(--regular-note-bg);
+  color: var(--regular-note-ink);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.tx-regular-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+.tx-regular-hint {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary, #667085);
+}
+.recon-regular-grid {
+  margin-bottom: 4px;
+}
+.recon-regular-per-line {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  box-sizing: border-box;
+  color: var(--text-secondary, #667085);
+  background: var(--surface-2, #f6f7fc);
+  cursor: default;
+}
+/* Inside the highlighted regular-payment card the toggle row drops its own
+   box, so it isn't a box within a box. */
+.tx-regular.is-featured .figma-toggle-container {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.tx-regular.is-featured .figma-toggle-container + .tx-regular-note {
+  margin-top: 12px;
 }

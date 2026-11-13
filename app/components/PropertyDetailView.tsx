@@ -38,6 +38,7 @@ import type {
   CoreSettlementEntry,
   CoreCostBaseEntry,
 } from "@/src/lib/coreApi";
+import { displayDateAU, formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -315,13 +316,7 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
+  return formatDateAU(value, "-");
 }
 
 function getLoanAmount(property: CoreProperty | null) {
@@ -1175,16 +1170,7 @@ export default function PropertyDetailView({
     URL.revokeObjectURL(url);
   };
 
-  const formatDisplayDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return "-";
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-  };
+  const formatDisplayDate = (dateStr: string) => formatDateAU(dateStr, "-");
 
   const handleAddManualCostBaseRow = () => {
     setCostBaseSaved(false);
@@ -4180,7 +4166,7 @@ export default function PropertyDetailView({
                     </span>
                   )}
                   <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-                    A$ {gstPurchases.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    A$ {gstPurchases.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </strong>
                 </div>
                 <span className="client-stat-icon" style={{ background: '#ef4444', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -4202,7 +4188,7 @@ export default function PropertyDetailView({
                     </span>
                   )}
                   <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-                    A$ {gstSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    A$ {gstSales.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </strong>
                 </div>
                 <span className="client-stat-icon" style={{ background: '#12b76a', color: '#ffffff', borderRadius: '9px', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -4401,7 +4387,7 @@ export default function PropertyDetailView({
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                           >
                             <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700 }}>{item.description}</td>
-                            <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{item.date}</td>
+                            <td style={{ padding: '16px 8px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>{displayDateAU(item.date)}</td>
                             <td style={{ padding: '16px 8px', fontSize: '14px', color: '#28336e', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>
                               {formatAmount(item.amount)}
                             </td>

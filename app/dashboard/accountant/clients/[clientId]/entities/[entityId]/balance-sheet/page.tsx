@@ -17,6 +17,7 @@ import {
   type BalanceSheetCompare,
   type OpeningBalance,
 } from "@/app/components/balance-sheet/balanceSheetApi";
+import { formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -165,7 +166,7 @@ export default function EntityBalanceSheetPage() {
         <h1>Balance Sheet</h1>
         <p className="journal-page-sub">
           {opening
-            ? `Opening balance as at ${new Date(`${opening.asAt}T00:00:00`).toLocaleDateString("en-AU")} · built from Balance Sheet transactions and journal entries`
+            ? `Opening balance as at ${formatDateAU(opening.asAt)} · built from Balance Sheet transactions and journal entries`
             : "Built from Balance Sheet transactions and journal entries"}
         </p>
       </header>

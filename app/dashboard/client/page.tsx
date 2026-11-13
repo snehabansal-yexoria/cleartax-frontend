@@ -44,6 +44,7 @@ import {
   announceDropdownOpen,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
+import { formatDateAU } from "@/src/lib/dates";
 
 function titleCase(value: string) {
   if (!value) return "";
@@ -55,16 +56,7 @@ function titleCase(value: string) {
 
 function formatDate(dateString: string) {
   if (!dateString) return "";
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch (e) {
-    return "";
-  }
+  return formatDateAU(dateString, "");
 }
 
 /**
@@ -675,7 +667,7 @@ export default function ClientPage() {
   };
 
   const day = new Date().getDate();
-  const monthName = new Date().toLocaleDateString("en-US", { month: "long" });
+  const monthName = new Date().toLocaleDateString("en-AU", { month: "long" });
   const ordinalDate = `${getOrdinalNum(day)} of ${monthName}`;
 
 

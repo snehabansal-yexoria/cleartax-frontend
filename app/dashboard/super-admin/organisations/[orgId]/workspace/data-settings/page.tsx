@@ -136,7 +136,7 @@ export default function WorkspaceDataRulesPage() {
                   <td className="cpc-num cpc-strong">{code.code}</td>
                   <td>{code.name}</td>
                   <td className="cpc-small">{code.ato}</td>
-                  <td className="is-right cpc-num">{code.used.toLocaleString()}</td>
+                  <td className="is-right cpc-num">{code.used.toLocaleString("en-AU")}</td>
                   <td>
                     <Badge tone={code.isProtected ? "purple" : "gray"}>{code.isProtected ? "Protected" : "Editable"}</Badge>
                   </td>

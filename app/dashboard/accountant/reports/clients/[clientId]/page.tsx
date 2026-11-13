@@ -18,6 +18,7 @@ import {
   type ReportTimelineEvent,
   type ReportTransaction,
 } from "../../reportsApi";
+import { displayDateAU } from "@/src/lib/dates";
 
 interface PageProps {
   params: Promise<{ clientId: string }>;
@@ -442,7 +443,7 @@ export default function ClientProfileReport({ params }: PageProps) {
                         <span className="text-slate-500">{ent.change}</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-6 text-right text-slate-400">{ent.date}</td>
+                    <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(ent.date)}</td>
                   </tr>
                 ))
               ) : (
@@ -518,7 +519,7 @@ export default function ClientProfileReport({ params }: PageProps) {
                         <span className="text-slate-500">{prop.change}</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-6 text-right text-slate-400">{prop.date}</td>
+                    <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(prop.date)}</td>
                   </tr>
                 ))
               ) : (
@@ -591,10 +592,10 @@ export default function ClientProfileReport({ params }: PageProps) {
                       <span
                         className={`ml-3 font-bold ${tx.amount < 0 ? "text-rose-500" : "text-emerald-500"}`}
                       >
-                        {tx.amount < 0 ? "-" : "+"}${Math.abs(tx.amount).toLocaleString()}
+                        {tx.amount < 0 ? "-" : "+"}${Math.abs(tx.amount).toLocaleString("en-AU")}
                       </span>
                     </td>
-                    <td className="py-3.5 px-6 text-right text-slate-400">{tx.date}</td>
+                    <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(tx.date)}</td>
                   </tr>
                 ))
               ) : (
@@ -654,7 +655,7 @@ export default function ClientProfileReport({ params }: PageProps) {
                     </td>
                     <td className="py-3.5 px-6 font-bold text-slate-800">{doc.documentName}</td>
                     <td className="py-3.5 px-6 text-slate-500 font-semibold">{doc.size}</td>
-                    <td className="py-3.5 px-6 text-right text-slate-400">{doc.date}</td>
+                    <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(doc.date)}</td>
                   </tr>
                 ))
               ) : (

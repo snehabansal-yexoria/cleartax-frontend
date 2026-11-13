@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { fetchReportProperties, type ReportProperty } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 import { useReportPeriod } from "../useReportPeriod";
+import { displayDateAU } from "@/src/lib/dates";
 
 export default function PropertiesReport() {
   const {
@@ -144,7 +145,7 @@ export default function PropertiesReport() {
                   </td>
 
                   {/* Date */}
-                  <td className="py-3.5 px-6 text-right text-slate-400">{prop.date}</td>
+                  <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(prop.date)}</td>
                 </tr>
               ))}
               {filteredProperties.length === 0 && (

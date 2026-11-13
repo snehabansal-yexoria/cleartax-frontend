@@ -21,6 +21,7 @@ import type {
   CoreTransactionListItem,
   CoreTransactionTotals,
 } from "@/src/lib/coreApi";
+import { formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -645,7 +646,7 @@ function ClientTransactionsContent() {
     });
     if (dayStr === todayStr) return `Today, ${time}`;
     if (dayStr === yesterdayStr) return `Yesterday, ${time}`;
-    return `${d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}, ${time}`;
+    return `${formatDateAU(d)}, ${time}`;
   };
 
   // The "To Be Reviewed" tab's rows — the API already returns only
@@ -689,12 +690,7 @@ function ClientTransactionsContent() {
 
   const formatDateGroupHeader = (dateStr: string) => {
     try {
-      const date = new Date(dateStr);
-      const formattedDate = date.toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
+      const formattedDate = formatDateAU(dateStr, dateStr);
 
       if (dateStr === todayStr) {
         return `Today - ${formattedDate}`;

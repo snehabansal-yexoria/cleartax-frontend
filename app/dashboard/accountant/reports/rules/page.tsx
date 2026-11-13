@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { fetchReportRules, type ReportRule } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 import { useReportPeriod } from "../useReportPeriod";
+import { displayDateAU } from "@/src/lib/dates";
 
 export default function RulesReport() {
   const {
@@ -132,7 +133,7 @@ export default function RulesReport() {
                   </td>
 
                   {/* Date */}
-                  <td className="py-3.5 px-6 text-right text-slate-400">{rule.date}</td>
+                  <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(rule.date)}</td>
                 </tr>
               ))}
               {filteredRules.length === 0 && (

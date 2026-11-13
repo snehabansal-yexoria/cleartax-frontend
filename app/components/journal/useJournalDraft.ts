@@ -7,6 +7,7 @@ import {
   gstCodesFor,
   isPostableCategory,
 } from "@/src/lib/journalGst";
+import { formatAmountAU } from "@/src/lib/currency";
 
 export interface JournalLineDraft {
   /** Client-only React key. */
@@ -433,7 +434,7 @@ export function useJournalDraft(defaultPropertyId: string, initial?: CoreJournal
       entryErrors.push(
         totals.debit === 0 && totals.credit === 0
           ? "Enter the amounts."
-          : `Out of balance by ${Math.abs(totals.difference).toFixed(2)} — debits must equal credits.`,
+          : `Out of balance by ${formatAmountAU(Math.abs(totals.difference))} — debits must equal credits.`,
       );
     }
 

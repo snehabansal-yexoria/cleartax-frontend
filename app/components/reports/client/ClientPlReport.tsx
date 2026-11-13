@@ -12,6 +12,7 @@ import {
   Kpi,
   Kpis,
   MonthlyChart,
+  type CashFlowCategory,
   Note,
   Pill,
   ReportProblem,
@@ -115,6 +116,36 @@ function PlBody({
   const monthIncome = monthKeys.map((k) => byMonth.get(k)?.income ?? 0);
   const monthExpenses = monthKeys.map((k) => byMonth.get(k)?.expenses ?? 0);
 
+  // The Table view's category × month breakdown, from the summary's own
+  // matrix. Names and order follow the category lists below (largest first).
+  const catLines = new Map(
+    [...summary.incomeByCategory, ...summary.expensesByCategory].map((c) => [c.categoryId, c]),
+  );
+  const cashFlowCategories = (() => {
+    const byKey = new Map<string, CashFlowCategory>();
+    for (const cm of summary.categoryMonths) {
+      const i = monthKeys.indexOf(cm.month);
+      if (i < 0) continue;
+      const key = `${cm.type}:${cm.categoryId}`;
+      let row = byKey.get(key);
+      if (!row) {
+        const line = catLines.get(cm.categoryId);
+        row = {
+          key,
+          label: line ? categoryLabel(line.categoryName, line.isInterest) : cm.categoryName,
+          type: cm.type,
+          months: monthKeys.map(() => 0),
+        };
+        byKey.set(key, row);
+      }
+      row.months[i] += cm.amount;
+    }
+    const total = (r: CashFlowCategory) => r.months.reduce((a, b) => a + b, 0);
+    return [...byKey.values()]
+      .filter((r) => r.months.some((v) => Math.abs(v) >= 0.005))
+      .sort((a, b) => total(b) - total(a));
+  })();
+
   const incomeRows = summary.incomeByCategory
     .filter((c) => c.amount !== 0)
     .map((c) => ({ key: `i${c.categoryId}`, label: categoryLabel(c.categoryName, c.isInterest), value: c.amount }))
@@ -179,7 +210,12 @@ function PlBody({
         </Explain>
       </Section>
 
-      <MonthlyChart income={monthIncome} expenses={monthExpenses} periodLabel={fyLongLabel(fy)} />
+      <MonthlyChart
+        income={monthIncome}
+        expenses={monthExpenses}
+        periodLabel={fyLongLabel(fy)}
+        categories={cashFlowCategories}
+      />
 
       <Section title="Income by category" aside={money(income)}>
         {incomeRows.length ? <Bars rows={incomeRows} total={income} /> : <Note>No income recorded this year.</Note>}

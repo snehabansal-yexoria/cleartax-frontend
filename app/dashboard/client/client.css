@@ -309,6 +309,13 @@ html.dark .search-highlight {
   box-sizing: border-box;
 }
 
+/* Phone: keep the end of every page clear of the fixed bottom nav (68px +
+   the home-indicator inset), so the last button — e.g. Save transaction on
+   Add transaction — is never hidden behind it. */
+.mobile-client-dashboard .mobile-client-dashboard-content-area {
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
 html.dark .mobile-client-dashboard {
   background-color: var(--surface-0) !important;
 }
@@ -3037,10 +3044,20 @@ html.dark .client-tx-entity-tab-pill:hover:not(.is-active) {
   border-top: 1px solid #e4e8f0 !important;
 }
 
+/* "Is this a regular payment?" moved up under Sub-category: the card has its
+   own border and padding, so the row inside it loses the divider and gaps. */
+.client-tx-regular.is-featured .client-tx-split-toggle-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  border-top: 0 !important;
+}
+
 .client-tx-split-toggle-info {
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
 }
 
 .client-tx-split-toggle-title {
@@ -3059,6 +3076,16 @@ html.dark .client-tx-entity-tab-pill:hover:not(.is-active) {
   display: inline-block !important;
   width: 48px !important;
   height: 26px !important;
+  /* Never let a long label squeeze the track on a phone. */
+  flex: 0 0 48px !important;
+  margin-left: 16px !important;
+}
+
+/* The knob is the slider's ::before. The forms also draw an inline knob span
+   after the slider; it sat 2px off the ::before knob when on, so the switch
+   looked broken. Only one knob is drawn. */
+.client-tx-switch > span:not(.client-tx-slider) {
+  display: none !important;
 }
 
 .client-tx-switch input {
@@ -8181,6 +8208,78 @@ html.dark .insights-custom-apply {
     line-height: 1.3;
   }
 
+  /* Cash Flow table, in full: categories down, months across (P&L report). */
+  .cp-cf {
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cp-cf th,
+  .cp-cf td {
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+  .cp-cf thead th {
+    white-space: nowrap;
+  }
+  /* Every month the same width, filled or empty, so the columns line up
+     like a spreadsheet; the table scrolls sideways when it runs out of room. */
+  .cp-cf :is(td, th).n {
+    min-width: 84px;
+  }
+  /* The category column stays put while the months scroll. */
+  .cp-cf th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--cp-card);
+    min-width: 190px;
+    max-width: 260px;
+    white-space: normal;
+    text-align: left;
+    box-shadow: 1px 0 0 var(--cp-line2);
+  }
+  .cp-cf thead th:first-child {
+    background: var(--cp-th-bg);
+    color: var(--cp-muted);
+  }
+  .cp-cf tbody th[scope="row"] {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--cp-ink);
+    background: var(--cp-card);
+  }
+  .cp-cf tr.cp-cf-cat th[scope="row"] {
+    padding-left: 22px;
+  }
+  .cp-cf tr.cp-cf-sec th {
+    position: static;
+    background: var(--cp-lav);
+    color: var(--cp-label);
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+  .cp-cf tr.cp-cf-sub td,
+  .cp-cf tr.cp-cf-sub th[scope="row"] {
+    font-weight: 700;
+    border-top: 1px solid var(--cp-lav-line);
+  }
+  .cp-cf tr.cp-cf-net th[scope="row"] {
+    font-weight: 700;
+    background: var(--cp-th-bg);
+  }
+  .cp-cf .cp-cf-year {
+    font-weight: 700;
+    background: var(--cp-th-bg);
+    border-left: 1px solid var(--cp-line2);
+  }
+  .cp-cf .cp-cf-zero {
+    color: var(--cp-muted);
+  }
+
   /* bars */
   .cp-bars {
     display: grid;
@@ -8911,6 +9010,32 @@ html.dark .cp-report.cp-force-light :is(h1, h2, h3, h4) {
 .cp-pdf-stage .cp-v-table {
   display: block;
 }
+/* The PDF has no sideways scroll: the full statement shrinks to the page. */
+.cp-pdf-stage .cp-tw.cp-scroll {
+  overflow: visible;
+}
+/* One size for every cell — labels, headings and amounts — so rows stay one
+   line and the 13 columns fit an A4 page. Mirrors the print rules below. */
+.cp-pdf-stage .cp-cf :is(th, td),
+.cp-pdf-stage .cp-cf tbody th[scope="row"],
+.cp-pdf-stage .cp-cf tr.cp-cf-sec th {
+  font-size: 8px;
+  /* html2canvas draws text lower than the browser does; centring it and a
+     taller line keep labels clear of the row rules in the PDF. */
+  line-height: 1.6;
+  vertical-align: middle;
+  padding: 2px 3px 4px;
+  min-width: 0;
+}
+.cp-pdf-stage .cp-cf th:first-child {
+  position: static;
+  min-width: 0;
+  width: 118px;
+  max-width: 118px;
+}
+.cp-pdf-stage .cp-cf tr.cp-cf-cat th[scope="row"] {
+  padding-left: 8px;
+}
 .cp-pdf-stage .cp-seg {
   display: none;
 }
@@ -8966,6 +9091,26 @@ html.dark .cp-report.cp-force-light :is(h1, h2, h3, h4) {
   }
   .cp-report .cp-v-table {
     display: block !important;
+  }
+  .cp-report .cp-tw.cp-scroll {
+    overflow: visible !important;
+  }
+  .cp-report .cp-cf :is(th, td),
+  .cp-report .cp-cf tbody th[scope="row"],
+  .cp-report .cp-cf tr.cp-cf-sec th {
+    font-size: 8px !important;
+    line-height: 1.25 !important;
+    padding: 3px 3px !important;
+    min-width: 0 !important;
+  }
+  .cp-report .cp-cf th:first-child {
+    position: static !important;
+    min-width: 0 !important;
+    width: 118px !important;
+    max-width: 118px !important;
+  }
+  .cp-report .cp-cf tr.cp-cf-cat th[scope="row"] {
+    padding-left: 8px !important;
   }
   .cp-report .cp-seg {
     display: none !important;

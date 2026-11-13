@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useState, useRef } from "react";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import { formatAmountAU, formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import { withoutDedicatedFlowCategories } from "@/src/lib/borrowingCost";
 import type {
   CoreAssetClass,
@@ -31,6 +31,7 @@ import {
   dropdownRegistryEvent,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
+import { displayDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): { getJwtToken(): string };
@@ -870,7 +871,7 @@ export default function ClientAddTransactionView({
       data.reference && `Ref: ${data.reference}`,
       data.due_date &&
       /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
-      `Due: ${data.due_date}`,
+      `Due: ${displayDateAU(data.due_date)}`,
     ].filter(Boolean) as string[];
     if (remarkParts.length > 0) {
       setInternalRemarks(remarkParts.join(" · "));
@@ -1013,7 +1014,7 @@ export default function ClientAddTransactionView({
       );
       if (Math.abs(amountTotal - grossNum) > 0.01) {
         throw new Error(
-          `Row ${rowNumber}: split_amounts must total ${grossNum.toFixed(2)}.`,
+          `Row ${rowNumber}: split_amounts must total ${formatAmountAU(grossNum)}.`,
         );
       }
 
@@ -1755,9 +1756,7 @@ export default function ClientAddTransactionView({
                       }`}
                   >
                     {grossAmount && !Number.isNaN(grossNumberValue)
-                      ? `Split total: ${splitTotal.toFixed(
-                        2,
-                      )} of ${grossNumberValue.toFixed(2)}`
+                      ? `Split total: ${formatAmountAU(splitTotal)} of ${formatAmountAU(grossNumberValue)}`
                       : "Enter the total amount above to validate splits."}
                   </span>
                   <button

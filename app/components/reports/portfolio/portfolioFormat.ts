@@ -53,14 +53,14 @@ export function percent(value: number | null | undefined): string {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /**
- * "2025-07-01" → "1 Jul 2025". Parsed by hand rather than through Date, so no
+ * "2025-07-01" → "01/07/2025". Parsed by hand rather than through Date, so no
  * browser timezone can move 30 June to 29 June.
  */
 export function longDate(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate ?? "");
   if (!match) return isoDate ?? "";
   const [, y, m, d] = match;
-  return `${Number(d)} ${MONTHS[Number(m) - 1] ?? m} ${y}`;
+  return `${d}/${m}/${y}`;
 }
 
 /** "2025-07" → "Jul". */

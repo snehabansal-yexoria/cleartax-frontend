@@ -8,7 +8,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en-AU" suppressHydrationWarning>
       <body>
         <ClientThemeProvider>
           <BoneyardProvider>{children}</BoneyardProvider>
