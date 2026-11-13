@@ -1,19 +1,9 @@
+import { formatDateAU, formatDateTimeAU } from "@/src/lib/dates";
 const numberFormatter = new Intl.NumberFormat("en-AU");
 const moneyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
   currency: "AUD",
   maximumFractionDigits: 0,
-});
-const dateFormatter = new Intl.DateTimeFormat("en-AU", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-const dateTimeFormatter = new Intl.DateTimeFormat("en-AU", {
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
 });
 const monthFormatter = new Intl.DateTimeFormat("en-AU", { month: "short" });
 
@@ -50,12 +40,12 @@ function parseDate(value: string | null | undefined) {
 
 export function formatDate(value: string | null | undefined) {
   const date = parseDate(value);
-  return date ? dateFormatter.format(date) : EMPTY;
+  return date ? formatDateAU(date) : EMPTY;
 }
 
 export function formatDateTime(value: string | null | undefined) {
   const date = parseDate(value);
-  return date ? dateTimeFormatter.format(date) : EMPTY;
+  return date ? formatDateTimeAU(date) : EMPTY;
 }
 
 export function formatMonth(date: Date) {

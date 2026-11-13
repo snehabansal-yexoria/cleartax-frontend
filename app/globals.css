@@ -8939,6 +8939,10 @@ html.dark .transaction-document-drop__bottom-bar {
   font-weight: 600 !important;
   margin-top: 4px !important;
   box-shadow: none !important;
+  /* Long receipt names wrap inside the card instead of running out of it. */
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 
 .transaction-document-drop__caption {

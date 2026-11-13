@@ -1,3 +1,4 @@
+import { formatDateAU } from "@/src/lib/dates";
 /**
  * Capital Gain — the browser's calls to the BFF.
  *
@@ -92,8 +93,5 @@ export function todayIso(): string {
 }
 
 export function displayDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDateAU(iso);
 }

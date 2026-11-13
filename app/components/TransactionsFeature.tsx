@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 
 import { parseCsv } from "@/src/lib/csv";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import { formatAmountAU, formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import {
   TRANSACTION_TYPE_OPTIONS,
   TRANSACTION_TYPE_ENTRY_OPTIONS,
@@ -75,6 +75,8 @@ import {
   dropdownRegistryEvent,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
+import { displayDateAU, formatDateAU } from "@/src/lib/dates";
+import AccountantUpcomingPayments from "@/app/components/upcoming-payments/AccountantUpcomingPayments";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -465,13 +467,7 @@ function getLocalDateString() {
 
 function formatInvoiceDate(value: string) {
   if (!value) return "—";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-AU", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDateAU(value, value);
 }
 
 // "Date submitted" is when the transaction was created in Clear, not the date
@@ -1577,7 +1573,7 @@ function TransactionDetailPopup({
       0,
     );
     if (isSplit && !allBlank && Math.abs(splitTotal - grossNum) >= 0.01) {
-      setEditError(`Split amounts must total ${grossNum.toFixed(2)}.`);
+      setEditError(`Split amounts must total ${formatAmountAU(grossNum)}.`);
       return;
     }
     if (
@@ -4677,6 +4673,10 @@ export function AllTransactionsView({
   const [detailMode, setDetailMode] = useState<TransactionModalMode>("view");
   const [transactionToDelete, setTransactionToDelete] = useState<DisplayTransactionRow | null>(null);
   const contextKind = context.kind;
+  const [listVersion, setListVersion] = useState(0);
+  // The Upcoming payments alert (Mark as paid) belongs to the accountant's
+  // pages only; the client dashboard shows the same reminders read-only.
+  const showUpcomingPayments = pathname?.startsWith("/dashboard/accountant") ?? false;
   const contextId =
     context.kind === "client"
       ? context.clientId
@@ -4800,7 +4800,9 @@ export function AllTransactionsView({
 
     load();
     return () => controller.abort();
-  }, [contextKind, pageQuery, scopedListPath]);
+    // listVersion: bumped when a payment is added from the Upcoming payments
+    // alert, so the new row shows without a page reload.
+  }, [contextKind, pageQuery, scopedListPath, listVersion]);
 
   // Facets drive the filter dropdowns and the tab badges. They deliberately
   // exclude the tab and the page, so both badges stay correct while a tab is
@@ -5393,6 +5395,35 @@ export function AllTransactionsView({
         </div>
       </div>
 
+      {showUpcomingPayments && (
+        <AccountantUpcomingPayments
+          scope={
+            context.kind === "client"
+              ? { clientId: context.clientId }
+              : context.kind === "entity"
+                ? { entityId: context.entityId }
+                : context.kind === "property"
+                  ? { propertyId: context.propertyId }
+                  : filters.client && filters.client !== "all"
+                    ? { clientId: filters.client }
+                    : {}
+          }
+          scopeLabel={
+            context.kind === "client"
+              ? "this client"
+              : context.kind === "entity"
+                ? "this entity"
+                : context.kind === "property"
+                  ? "this property"
+                  : filters.client && filters.client !== "all"
+                    ? "this client"
+                    : undefined
+          }
+          showClient={context.kind === "none" && !(filters.client && filters.client !== "all")}
+          addTransactionHref={addTransactionTargetHref}
+          onChanged={() => setListVersion((v) => v + 1)}
+        />
+      )}
       <div className="transaction-tabs">
         <button
           type="button"
@@ -7580,7 +7611,7 @@ export function AddTransactionView({
       data.reference && `Ref: ${data.reference}`,
       data.due_date &&
       /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
-      `Due: ${data.due_date}`,
+      `Due: ${displayDateAU(data.due_date)}`,
     ].filter(Boolean) as string[];
     if (remarkParts.length > 0) {
       setInternalRemarks(remarkParts.join(" · "));
@@ -7717,7 +7748,7 @@ export function AddTransactionView({
       );
       if (Math.abs(amountTotal - grossNum) > 0.01) {
         throw new Error(
-          `Row ${rowNumber}: split_amounts must total ${grossNum.toFixed(2)}.`,
+          `Row ${rowNumber}: split_amounts must total ${formatAmountAU(grossNum)}.`,
         );
       }
 
@@ -8047,9 +8078,7 @@ export function AddTransactionView({
         }
         if (!allBlank && !splitMatches) {
           setSubmitError(
-            `Split amounts must total ${grossNum.toFixed(
-              2,
-            )} (currently ${splitTotal.toFixed(2)}).`,
+            `Split amounts must total ${formatAmountAU(grossNum)} (currently ${formatAmountAU(splitTotal)}).`,
           );
           return;
         }
@@ -9093,11 +9122,11 @@ export function AddTransactionView({
                       <div className="figma-portion-wrapper">
                         <div className="figma-portion-box">
                           <span className="figma-portion-label">Business portion (deductible)</span>
-                          <span className="figma-portion-value">A$ {businessPortion.toFixed(2)}</span>
+                          <span className="figma-portion-value">A$ {formatAmountAU(businessPortion)}</span>
                         </div>
                         <div className="figma-portion-box">
                           <span className="figma-portion-label">Personal portion</span>
-                          <span className="figma-portion-value">A$ {personalPortion.toFixed(2)}</span>
+                          <span className="figma-portion-value">A$ {formatAmountAU(personalPortion)}</span>
                         </div>
                       </div>
 
@@ -9248,7 +9277,7 @@ export function AddTransactionView({
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
                         <span style={{ fontSize: "13px", fontWeight: "600", color: grossAmount && !splitMatches ? "#da3838" : "#667085" }}>
                           {grossAmount && !Number.isNaN(grossNumberValue)
-                            ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
+                            ? `Split total: ${formatAmountAU(splitTotal)} of ${formatAmountAU(grossNumberValue)}`
                             : "Enter the total amount above to validate splits."}
                         </span>
                         <button

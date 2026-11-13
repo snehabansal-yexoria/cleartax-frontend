@@ -35,7 +35,7 @@ export function formatClientCurrency(
         formattedValue = `${kVal.toFixed(1)}K`;
       }
     } else {
-      formattedValue = absValue.toLocaleString("en-US", {
+      formattedValue = absValue.toLocaleString("en-AU", {
         minimumFractionDigits: options.decimals ?? 0,
         maximumFractionDigits: options.decimals ?? 0,
       });
@@ -44,7 +44,7 @@ export function formatClientCurrency(
     // Normal formatting: Defaults to 0 decimals unless decimals options are provided, 
     // to match "A$ 348" format requested.
     const dec = options.decimals !== undefined ? options.decimals : 0;
-    formattedValue = absValue.toLocaleString("en-US", {
+    formattedValue = absValue.toLocaleString("en-AU", {
       minimumFractionDigits: dec,
       maximumFractionDigits: dec,
     });

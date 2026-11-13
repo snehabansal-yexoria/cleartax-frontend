@@ -1,4 +1,5 @@
 import { MINUS, DASH } from "@/app/components/reports/portfolio/portfolioFormat";
+import { formatDateAU } from "@/src/lib/dates";
 
 /**
  * Number and date formatting for the client reports (P&L, Depreciation, GST).
@@ -72,13 +73,13 @@ export function quarterLabel(fy: number, q: number): string {
 export function quarterDue(fy: number, q: number): string {
   switch (q) {
     case 1:
-      return `28 Oct ${fy - 1}`;
+      return `28/10/${fy - 1}`;
     case 2:
-      return `28 Feb ${fy}`;
+      return `28/02/${fy}`;
     case 3:
-      return `28 Apr ${fy}`;
+      return `28/04/${fy}`;
     default:
-      return `28 Jul ${fy}`;
+      return `28/07/${fy}`;
   }
 }
 
@@ -91,9 +92,9 @@ export function monthYear(isoDate: string): string {
   return `${MONTH_NAMES[Number(match[2]) - 1] ?? match[2]} ${match[1]}`;
 }
 
-/** Today as "18 Oct 2026". */
+/** Today as "18/10/2026". */
 export function todayLabel(now: Date = new Date()): string {
-  return `${now.getDate()} ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+  return formatDateAU(now);
 }
 
 /** "FY 2025–26" for a depreciation `fy_start_year` (2025). */

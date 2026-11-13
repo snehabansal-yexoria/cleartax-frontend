@@ -16,6 +16,7 @@ import {
   type NotificationViewerRole,
 } from "./notificationClient";
 import "./notifications.css";
+import { formatDateAU } from "@/src/lib/dates";
 
 const PAGE_SIZE = 25;
 
@@ -263,12 +264,7 @@ function groupByDay(items: NotificationItem[]) {
         ? "Today"
         : day === yesterday
           ? "Yesterday"
-          : new Date(day).toLocaleDateString("en-AU", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: new Date(day).getFullYear() === new Date(today).getFullYear() ? undefined : "numeric",
-            });
+          : formatDateAU(new Date(day));
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.items.push(n);
     else groups.push({ label, items: [n] });

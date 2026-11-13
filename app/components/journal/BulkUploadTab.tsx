@@ -13,6 +13,7 @@ import {
   type JournalCsvRow,
   type JournalCsvValidation,
 } from "@/src/lib/journalCsv";
+import { formatAmountAU } from "@/src/lib/currency";
 
 interface Props {
   entityId: string;
@@ -274,8 +275,8 @@ export default function BulkUploadTab({
                             <span className="journal-entry-ref">{entry.reference}</span>
                           )}
                           <span className="journal-entry-totals">
-                            Dr {entry.totalDebit.toFixed(2)} / Cr{" "}
-                            {entry.totalCredit.toFixed(2)}
+                            Dr {formatAmountAU(entry.totalDebit)} / Cr{" "}
+                            {formatAmountAU(entry.totalCredit)}
                           </span>
                           <span
                             className={`journal-balance-pill ${ok ? "is-balanced" : "is-unbalanced"}`}

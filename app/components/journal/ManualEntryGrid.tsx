@@ -9,6 +9,7 @@ import type {
   JournalLineField,
   JournalTotals,
 } from "./useJournalDraft";
+import { formatAmountAU } from "@/src/lib/currency";
 
 interface Props {
   lines: JournalLineDraft[];
@@ -362,13 +363,13 @@ export default function ManualEntryGrid({
         <div className="journal-total-figure">
           <span className="journal-total-label">Total debit</span>
           <span className="journal-total-value">
-            A$ {totals.debit.toFixed(2)}
+            A$ {formatAmountAU(totals.debit)}
           </span>
         </div>
         <div className="journal-total-figure">
           <span className="journal-total-label">Total credit</span>
           <span className="journal-total-value">
-            A$ {totals.credit.toFixed(2)}
+            A$ {formatAmountAU(totals.credit)}
           </span>
         </div>
 
@@ -378,7 +379,7 @@ export default function ManualEntryGrid({
         >
           {totals.balanced
             ? "Balanced"
-            : `Out of balance by A$ ${Math.abs(totals.difference).toFixed(2)}`}
+            : `Out of balance by A$ ${formatAmountAU(Math.abs(totals.difference))}`}
         </div>
 
         {!totals.balanced && (totals.debit > 0 || totals.credit > 0) && (

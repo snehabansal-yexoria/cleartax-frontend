@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSession } from "@/src/lib/session";
 import { requestPasswordReset } from "@/src/lib/auth";
+import { formatDateAU, formatTimeAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -118,10 +119,10 @@ const dayLabel = (date: Date) => {
   const diff = Math.round((start(NOW) - start(date)) / 86_400_000);
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
-  return date.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  return formatDateAU(date);
 };
 const formatWhen = (date: Date | null) =>
-  date ? `${dayLabel(date)}, ${date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" }).toLowerCase()}` : "Never";
+  date ? `${dayLabel(date)}, ${formatTimeAU(date)}` : "Never";
 
 const daysSince = (date: Date | null) => (date ? (NOW.getTime() - date.getTime()) / 86_400_000 : Infinity);
 

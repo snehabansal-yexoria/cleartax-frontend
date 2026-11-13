@@ -1,5 +1,9 @@
+import { formatDateAU } from "@/src/lib/dates";
+import { formatAmountAU } from "@/src/lib/currency";
 /**
- * Upcoming payments (client dashboard) — the browser's calls.
+ * Upcoming payments — the browser's calls. Used read-only on the client
+ * dashboard, and with Mark as paid on the accountant's transaction pages
+ * (all clients, or one client / entity / property).
  *
  * A reminder is a transaction the client saved with "Is this a regular
  * payment?" turned on: metadata.is_regular_payment, metadata.due_date and
@@ -28,6 +32,8 @@
 export type UpcomingPayment = {
   /** The reminder's transaction id. */
   id: string;
+  clientId: string;
+  clientName: string;
   alertName: string;
   dueDate: string; // YYYY-MM-DD
   amount: number;
@@ -51,8 +57,17 @@ export type PaymentCandidate = {
   source: string;
 };
 
+/** Which reminders to load. Empty = everything the signed-in user can see. */
+export type ReminderScope = {
+  clientId?: string;
+  entityId?: string;
+  propertyId?: string;
+};
+
 type Row = {
   id: string;
+  clientId?: string;
+  clientName?: string;
   type: string;
   categoryId: number;
   categoryName: string;
@@ -89,25 +104,54 @@ function writeCleared(ids: string[]) {
   }
 }
 
-async function getRows(token: string, query: string): Promise<Row[]> {
+async function getPage(token: string, query: string): Promise<{ items: Row[]; total: number | null }> {
   const res = await fetch(`/api/transactions?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data?.message || data?.error || "Could not load your transactions.");
+    throw new Error(data?.message || data?.error || "Could not load transactions.");
   }
-  const data = (await res.json()) as { items?: Row[] };
-  return data.items ?? [];
+  const data = (await res.json()) as { items?: Row[]; total?: number };
+  return { items: data.items ?? [], total: typeof data.total === "number" ? data.total : null };
 }
+
+async function getRows(token: string, query: string): Promise<Row[]> {
+  return (await getPage(token, query)).items;
+}
+
+function scopeParams(scope: ReminderScope | undefined, q: URLSearchParams) {
+  if (scope?.clientId) q.set("client_id", scope.clientId);
+  if (scope?.entityId) q.set("entity_id", scope.entityId);
+  if (scope?.propertyId) q.set("property_id", scope.propertyId);
+}
+
+const PAGE = 200;
 
 function truthy(v: unknown): boolean {
   return v === true || v === "true" || v === 1 || v === "1";
 }
 
-/** Open reminders, closest due date first. */
-export async function loadUpcomingPayments(token: string): Promise<UpcomingPayment[]> {
-  const rows = await getRows(token, "sort=date&dir=desc&limit=200");
+/**
+ * Open reminders, closest due date first.
+ *
+ * Reads the newest `maxRows` transactions in the scope (200 a page) and keeps
+ * the ones saved as a regular payment. GET /api/reminders will replace this
+ * once the backend serves it.
+ */
+export async function loadUpcomingPayments(
+  token: string,
+  scope?: ReminderScope,
+  maxRows = PAGE,
+): Promise<UpcomingPayment[]> {
+  const rows: Row[] = [];
+  for (let offset = 0; offset < maxRows; offset += PAGE) {
+    const q = new URLSearchParams({ sort: "date", dir: "desc", limit: String(PAGE), offset: String(offset) });
+    scopeParams(scope, q);
+    const page = await getPage(token, q.toString());
+    rows.push(...page.items);
+    if (page.items.length < PAGE || (page.total !== null && offset + PAGE >= page.total)) break;
+  }
   const cleared = new Set(readCleared());
   return rows
     .filter((r) => {
@@ -122,6 +166,8 @@ export async function loadUpcomingPayments(token: string): Promise<UpcomingPayme
       const fallbackName = [r.subcategoryName || r.categoryName, r.propertyNames[0]].filter(Boolean).join(" - ");
       return {
         id: r.id,
+        clientId: r.clientId ?? "",
+        clientName: r.clientName ?? "",
         alertName: alert || fallbackName || r.description || "Payment",
         dueDate: String(m.due_date).slice(0, 10),
         amount: Math.abs(Number(r.grossAmount) || 0),
@@ -139,13 +185,17 @@ export async function loadUpcomingPayments(token: string): Promise<UpcomingPayme
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
-/** The client's newest transactions, to pick the one that paid the reminder. */
+/**
+ * The newest transactions of the reminder's client, to pick the one that paid
+ * it. Scoped to that client so an accountant never sees another client's rows.
+ */
 export async function loadPaymentCandidates(
   token: string,
   reminder: UpcomingPayment,
   search: string,
 ): Promise<PaymentCandidate[]> {
   const q = new URLSearchParams({ sort: "date", dir: "desc", limit: "50" });
+  if (reminder.clientId) q.set("client_id", reminder.clientId);
   if (search.trim()) q.set("search", search.trim());
   const rows = await getRows(token, q.toString());
   return rows
@@ -249,11 +299,9 @@ export function todayIso(): string {
 }
 
 export function displayDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return "—";
-  return new Date(y, m - 1, d).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+  return formatDateAU(iso);
 }
 
 export function aud(n: number): string {
-  return `A$ ${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `A$ ${formatAmountAU(n)}`;
 }

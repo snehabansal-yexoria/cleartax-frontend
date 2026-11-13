@@ -11,6 +11,7 @@ import {
 } from "../../../../src/lib/dropdownRegistry";
 import { SHOW_INVITE_CREDENTIALS } from "../../../../src/lib/appConfig";
 import { PhoneInput, validatePhone } from "../../../components/PhoneInput";
+import { formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -57,12 +58,7 @@ function getInitials(name: string) {
 function formatJoinedDate(value: string | null) {
   if (!value) return "Recently";
 
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return "Recently";
-  const day = date.getDate();
-  const month = date.toLocaleString("en-US", { month: "short" });
-  const year = date.getFullYear();
-  return `${day} ${month} ${year}`;
+  return formatDateAU(value, "Recently");
 }
 
 function formatStatus(raw: string) {

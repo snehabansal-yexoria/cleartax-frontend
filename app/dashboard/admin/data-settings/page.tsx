@@ -196,7 +196,7 @@ export default function DataSettingsPage() {
     updateItems(activeId, next);
     setSavedOrder((all) => ({ ...all, [activeId]: next.map((entry) => entry.id) }));
     const target = list.items.find((entry) => entry.id === moveTo);
-    toast(item.used && target ? `“${item.name}” deleted. ${item.used.toLocaleString()} moved to “${target.name}”.` : `“${item.name}” deleted.`);
+    toast(item.used && target ? `“${item.name}” deleted. ${item.used.toLocaleString("en-AU")} moved to “${target.name}”.` : `“${item.name}” deleted.`);
     setDeleting(null);
   }
 
@@ -321,7 +321,7 @@ export default function DataSettingsPage() {
                   <span className="w-6 text-right text-xs text-slate-400 tabular-nums">{index + 1}</span>
                   <span className="flex-1 font-medium text-slate-900">{item.name}</span>
                   {item.type ? <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">{item.type}</span> : null}
-                  <span className="w-36 text-right text-xs text-slate-500">{item.used.toLocaleString()} in use</span>
+                  <span className="w-36 text-right text-xs text-slate-500">{item.used.toLocaleString("en-AU")} in use</span>
                   <div className="flex gap-1.5">
                     <button type="button" className={btnSm} aria-label={`Move ${item.name} up`} disabled={index === 0} onClick={() => move(index, index - 1)}>
                       ↑
@@ -377,7 +377,7 @@ export default function DataSettingsPage() {
             </button>
           </form>
           <div className="flex justify-between flex-wrap gap-2 px-6 py-3 border-t border-slate-100 text-xs text-slate-500">
-            <span>Drag the handle, or use ↑ ↓ with the keyboard · {total.toLocaleString()} records use this list</span>
+            <span>Drag the handle, or use ↑ ↓ with the keyboard · {total.toLocaleString("en-AU")} records use this list</span>
             <span>Every change is saved to the audit trail</span>
           </div>
         </section>
@@ -415,7 +415,7 @@ export default function DataSettingsPage() {
           ) : null}
           {editing.item.used > 0 ? (
             <p className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-slate-700">
-              Used in {editing.item.used.toLocaleString()} records. Renaming relabels them; nothing is deleted.
+              Used in {editing.item.used.toLocaleString("en-AU")} records. Renaming relabels them; nothing is deleted.
             </p>
           ) : null}
         </Dialog>
@@ -432,7 +432,7 @@ export default function DataSettingsPage() {
                 Cancel
               </button>
               <button type="button" disabled={!deleteReady} onClick={confirmDelete} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold text-white transition cursor-pointer disabled:opacity-50">
-                {deleting.item.used ? `Delete and move ${deleting.item.used.toLocaleString()}` : "Delete"}
+                {deleting.item.used ? `Delete and move ${deleting.item.used.toLocaleString("en-AU")}` : "Delete"}
               </button>
             </>
           }
@@ -440,7 +440,7 @@ export default function DataSettingsPage() {
           {deleting.item.used > 0 ? (
             <>
               <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-                <p className="font-semibold text-red-800">{deleting.item.used.toLocaleString()} records use this {list.noun}</p>
+                <p className="font-semibold text-red-800">{deleting.item.used.toLocaleString("en-AU")} records use this {list.noun}</p>
                 <p className="text-red-700/80 mt-0.5">Pick where they go. Their history stays in the audit trail.</p>
               </div>
               <label className="flex flex-col gap-1.5">

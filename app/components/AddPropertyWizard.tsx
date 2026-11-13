@@ -80,7 +80,7 @@ function toMoney(value: string) {
   const clean = value ? value.replace(/[^0-9.]/g, "") : "";
   const amount = Number.parseFloat(clean);
   if (!Number.isFinite(amount)) return `${CURRENCY_SYMBOL}0.00`;
-  const formattedNumber = new Intl.NumberFormat("en-US", {
+  const formattedNumber = new Intl.NumberFormat("en-AU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);

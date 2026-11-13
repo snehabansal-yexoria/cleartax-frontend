@@ -8,7 +8,7 @@ import { useTheme } from "next-themes";
 import { parseCsv } from "@/src/lib/csv";
 import { resolveBackTarget } from "./backTarget";
 import { getSession } from "@/src/lib/session";
-import { formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
+import { formatAmountAU, formatCurrency, formatTransactionCurrency } from "@/src/lib/currency";
 import type {
   CoreAssetClass,
   CoreTransactionCategory,
@@ -40,6 +40,7 @@ import {
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
 import { CURRENCY_PREFIX } from "./CurrencyFormatter";
+import { displayDateAU } from "@/src/lib/dates";
 
 
 interface SessionWithIdToken {
@@ -2092,7 +2093,7 @@ export default function ClientAddTransactionViewNew({
       data.reference && `Ref: ${data.reference}`,
       data.due_date &&
       /^\d{4}-\d{2}-\d{2}$/.test(data.due_date) &&
-      `Due: ${data.due_date}`,
+      `Due: ${displayDateAU(data.due_date)}`,
     ].filter(Boolean) as string[];
     if (remarkParts.length > 0) {
       setInternalRemarks(remarkParts.join(" · "));
@@ -2435,7 +2436,7 @@ export default function ClientAddTransactionViewNew({
       );
       if (Math.abs(amountTotal - grossNum) > 0.01) {
         throw new Error(
-          `Row ${rowNumber}: split_amounts must total ${grossNum.toFixed(2)}.`,
+          `Row ${rowNumber}: split_amounts must total ${formatAmountAU(grossNum)}.`,
         );
       }
 
@@ -2714,9 +2715,7 @@ export default function ClientAddTransactionViewNew({
         }
         if (!allBlank && !splitMatches) {
           setSubmitError(
-            `Split amounts must total ${grossNum.toFixed(
-              2,
-            )} (currently ${splitTotal.toFixed(2)}).`,
+            `Split amounts must total ${formatAmountAU(grossNum)} (currently ${formatAmountAU(splitTotal)}).`,
           );
           setIsSubmitting(false);
           return;
@@ -3318,7 +3317,7 @@ export default function ClientAddTransactionViewNew({
           background: isDark ? 'var(--surface-1)' : '#ffffff',
           border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
           borderRadius: '24px',
-          padding: '40px',
+          padding: 'clamp(16px, 5vw, 40px)',
           boxShadow: '0 8px 30px rgba(0,0,0,0.02)',
           display: 'flex',
           flexDirection: 'column',
@@ -3465,7 +3464,7 @@ export default function ClientAddTransactionViewNew({
           background: isDark ? 'var(--surface-1)' : '#ffffff',
           border: `1px solid ${isDark ? 'var(--border)' : '#eaeef4'}`,
           borderRadius: '24px',
-          padding: '36px',
+          padding: 'clamp(16px, 5vw, 36px)',
           boxShadow: '0 8px 30px rgba(0,0,0,0.02)',
           display: 'flex',
           flexDirection: 'column',
@@ -3498,8 +3497,11 @@ export default function ClientAddTransactionViewNew({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: '1 1 auto' }}>
+              <span
+                title={uploadedFilename || "receipt.pdf"}
+                style={{ fontSize: '15px', fontWeight: '700', color: isDark ? 'var(--text-primary)' : '#0f1330', overflowWrap: 'anywhere', wordBreak: 'break-word', lineHeight: 1.35 }}
+              >
                 {uploadedFilename || "receipt.pdf"}
               </span>
               <span style={{ fontSize: '13px', color: isDark ? 'var(--text-muted)' : '#667085', fontWeight: '500' }}>
@@ -4247,7 +4249,7 @@ export default function ClientAddTransactionViewNew({
                     color: grossAmount && !splitMatches ? '#da3838' : (isDark ? 'var(--text-secondary)' : '#566474'),
                   }}>
                     {grossAmount && !Number.isNaN(grossNumberValue)
-                      ? `Split total: ${splitTotal.toFixed(2)} of ${grossNumberValue.toFixed(2)}`
+                      ? `Split total: ${formatAmountAU(splitTotal)} of ${formatAmountAU(grossNumberValue)}`
                       : "Enter the total amount above to validate splits."}
                   </span>
                   <button

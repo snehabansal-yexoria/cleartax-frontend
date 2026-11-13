@@ -56,6 +56,8 @@ import AssetBuilder, {
   isAssetEligibleCategory,
   type AssetDraft,
 } from "@/app/components/AssetBuilder";
+import { displayDateAU, formatDateAU } from "@/src/lib/dates";
+import { formatAmountAU } from "@/src/lib/currency";
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -181,7 +183,7 @@ function statementLabelFor(rec: ReconciliationDetail): string {
   if (rec.createdAt) {
     const d = new Date(rec.createdAt);
     if (!Number.isNaN(d.getTime())) {
-      return `Statement · ${d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}`;
+      return `Statement · ${formatDateAU(d)}`;
     }
   }
   return "Statement";
@@ -1504,9 +1506,7 @@ export default function AccountantReconciliationSessionPage() {
       }
       if (!categorizeSplitMatches) {
         setCategorizeError(
-          `Split amounts must total ${grossAmount.toFixed(
-            2,
-          )} (currently ${categorizeSplitTotal.toFixed(2)}).`
+          `Split amounts must total ${formatAmountAU(grossAmount)} (currently ${formatAmountAU(categorizeSplitTotal)}).`
         );
         setCategorizeSaving(false);
         return;
@@ -2059,7 +2059,7 @@ export default function AccountantReconciliationSessionPage() {
     .filter((s) => (s.summary?.skippedRows?.length ?? 0) > 0)
     .map((s) => {
       const cached = reconCache.get(s.id);
-      const date = new Date(s.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+      const date = formatDateAU(s.createdAt);
       return {
         id: s.id,
         label: cached ? statementLabelFor(cached) : `Statement · ${date}`,
@@ -2486,7 +2486,7 @@ export default function AccountantReconciliationSessionPage() {
             {statements.map((item) => {
               const selected = selectedHistoryIds.includes(item.id);
               const loading = reconLoadingIds.has(item.id);
-              const date = new Date(item.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+              const date = formatDateAU(item.createdAt);
               const txCount = item.summary?.totalTransactions ?? "—";
               const pages = item.totalPages ? `${item.totalPages} pages` : "";
               const cached = reconCache.get(item.id);
@@ -3401,7 +3401,7 @@ export default function AccountantReconciliationSessionPage() {
 
                     <div>
                       <strong>{row.payee ?? row.description}</strong>
-                      <small>{row.date}</small>
+                      <small>{displayDateAU(row.date)}</small>
                       {!isConfirmed && !isExcluded && hasCandidates && !entityTxsLoading && (
                         <span className="recon-match-badge">✓ {candidates.length} Match{candidates.length > 1 ? "es" : ""} Found</span>
                       )}
@@ -3442,7 +3442,7 @@ export default function AccountantReconciliationSessionPage() {
                               </div>
                               <div className="recon-match-card-field">
                                 <dt>Date</dt>
-                                <dd>{candidate.invoiceDate}</dd>
+                                <dd>{displayDateAU(candidate.invoiceDate)}</dd>
                               </div>
                               <div className="recon-match-card-field">
                                 <dt>Type</dt>
@@ -3947,11 +3947,11 @@ export default function AccountantReconciliationSessionPage() {
                                 <div className="figma-portion-wrapper">
                                   <div className="figma-portion-box">
                                     <span className="figma-portion-label">Business portion (deductible)</span>
-                                    <span className="figma-portion-value">A$ {categorizeBusinessPortion.toFixed(2)}</span>
+                                    <span className="figma-portion-value">A$ {formatAmountAU(categorizeBusinessPortion)}</span>
                                   </div>
                                   <div className="figma-portion-box">
                                     <span className="figma-portion-label">Personal portion</span>
-                                    <span className="figma-portion-value">A$ {categorizePersonalPortion.toFixed(2)}</span>
+                                    <span className="figma-portion-value">A$ {formatAmountAU(categorizePersonalPortion)}</span>
                                   </div>
                                 </div>
 
@@ -4119,7 +4119,7 @@ export default function AccountantReconciliationSessionPage() {
                                     className={`recon-split-total-info${!categorizeSplitMatches ? " is-mismatch" : ""}`}
                                   >
                                     {activeGrossAmount > 0
-                                      ? `Split total: ${categorizeSplitTotal.toFixed(2)} of ${activeGrossAmount.toFixed(2)}`
+                                      ? `Split total: ${formatAmountAU(categorizeSplitTotal)} of ${formatAmountAU(activeGrossAmount)}`
                                       : "Splits must equal the transaction total."}
                                   </span>
                                   <button

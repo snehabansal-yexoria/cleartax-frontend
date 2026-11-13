@@ -25,6 +25,7 @@ import {
   announceDropdownOpen,
   isDropdownRegistryEvent,
 } from "@/src/lib/dropdownRegistry";
+import { formatDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -89,34 +90,22 @@ function getInitials(name: string) {
 
 function formatJoinedDate(value: string | null) {
   if (!value) return "Recently";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Recently";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
+  return formatDateAU(value, "Recently");
 }
 
 /** Money for the Personal / Asset panels: "-A$ 1,234.56". */
 function formatPanelAmount(value: number) {
-  const abs = Math.abs(value).toLocaleString(undefined, {
+  const abs = Math.abs(value).toLocaleString("en-AU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
   return `${value < 0 ? "-" : ""}A$ ${abs}`;
 }
 
-/** "25 July 2026" for the Asset panel's date column. */
+/** "25/07/2026" for the Asset panel's date column. */
 function formatPanelDate(value: string) {
   if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return formatDateAU(value, value);
 }
 
 function statusClass(status: string) {
@@ -852,7 +841,7 @@ function ClientDetailPageContent() {
               </span>
             </span>
             <strong style={{ fontSize: '28px', fontWeight: 800, color: '#000000', marginTop: '4px' }}>
-              {isClientLoading ? "—" : `A$ ${(client?.totalMarketValue ?? 180000).toLocaleString()}`}
+              {isClientLoading ? "—" : `A$ ${(client?.totalMarketValue ?? 180000).toLocaleString("en-AU")}`}
             </strong>
             <span style={{ fontSize: '12px', color: '#667085', fontWeight: 500 }}>
               Across {totalProperties} {totalProperties === 1 ? "property" : "properties"}

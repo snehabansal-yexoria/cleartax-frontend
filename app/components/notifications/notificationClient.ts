@@ -2,6 +2,7 @@
 
 import type { CoreNotification, CoreNotificationPage } from "@/src/lib/coreApi";
 import { getIdToken } from "@/src/lib/authToken";
+import { formatDateAU, formatDateTimeAU } from "@/src/lib/dates";
 
 export type NotificationItem = CoreNotification;
 export type NotificationViewerRole = "client" | "accountant";
@@ -111,23 +112,13 @@ export function formatRelativeTime(iso: string, now = Date.now()): string {
   if (diff < HOUR) return `${Math.floor(diff / MINUTE)}m ago`;
   if (diff < DAY) return `${Math.floor(diff / HOUR)}h ago`;
   if (diff < 7 * DAY) return `${Math.floor(diff / DAY)}d ago`;
-  return new Date(t).toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: new Date(t).getFullYear() === new Date(now).getFullYear() ? undefined : "numeric",
-  });
+  return formatDateAU(new Date(t));
 }
 
 export function formatFullTime(iso: string): string {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateTimeAU(new Date(t));
 }
 
 // Read state lives on the server (notification.read_at, migration 0053), so it

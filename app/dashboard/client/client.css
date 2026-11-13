@@ -309,6 +309,13 @@ html.dark .search-highlight {
   box-sizing: border-box;
 }
 
+/* Phone: keep the end of every page clear of the fixed bottom nav (68px +
+   the home-indicator inset), so the last button — e.g. Save transaction on
+   Add transaction — is never hidden behind it. */
+.mobile-client-dashboard .mobile-client-dashboard-content-area {
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
 html.dark .mobile-client-dashboard {
   background-color: var(--surface-0) !important;
 }
@@ -3041,6 +3048,8 @@ html.dark .client-tx-entity-tab-pill:hover:not(.is-active) {
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
 }
 
 .client-tx-split-toggle-title {
@@ -3059,6 +3068,16 @@ html.dark .client-tx-entity-tab-pill:hover:not(.is-active) {
   display: inline-block !important;
   width: 48px !important;
   height: 26px !important;
+  /* Never let a long label squeeze the track on a phone. */
+  flex: 0 0 48px !important;
+  margin-left: 16px !important;
+}
+
+/* The knob is the slider's ::before. The forms also draw an inline knob span
+   after the slider; it sat 2px off the ::before knob when on, so the switch
+   looked broken. Only one knob is drawn. */
+.client-tx-switch > span:not(.client-tx-slider) {
+  display: none !important;
 }
 
 .client-tx-switch input {

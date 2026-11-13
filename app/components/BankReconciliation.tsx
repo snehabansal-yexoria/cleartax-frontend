@@ -7,6 +7,7 @@ import type {
   ReconciliationListItem,
   ReconciliationTransaction,
 } from "@/src/lib/coreApi";
+import { displayDateAU, formatDateAU } from "@/src/lib/dates";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ function TransactionTable({ transactions }: { transactions: ReconciliationTransa
           <tbody>
             {filtered.map((tx, i) => (
               <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-2 font-mono text-xs text-gray-600">{tx.date}</td>
+                <td className="px-4 py-2 font-mono text-xs text-gray-600">{displayDateAU(tx.date)}</td>
                 <td className="px-4 py-2 text-gray-800 max-w-xs truncate">{tx.description}</td>
                 <td className="px-4 py-2 text-gray-600 text-xs">{tx.payee ?? <span className="text-gray-300">—</span>}</td>
                 <td className="px-4 py-2 text-right text-red-600 font-mono text-xs">
@@ -191,7 +192,7 @@ function HistoryList({
               <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold mr-2 ${statusBadge(item.status)}`}>
                 {item.status}
               </span>
-              <span className="text-gray-500 text-xs">{new Date(item.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</span>
+              <span className="text-gray-500 text-xs">{formatDateAU(item.createdAt)}</span>
             </div>
             <div className="text-right text-xs text-gray-500">
               {item.summary ? (

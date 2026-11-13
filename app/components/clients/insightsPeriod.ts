@@ -5,6 +5,7 @@ import {
   monthShortLabel,
   shiftMonth,
 } from "@/app/components/clients/portfolioDashboard";
+import { formatDateAU } from "@/src/lib/dates";
 
 /**
  * The Insights page's period filters, as pure date arithmetic.
@@ -95,7 +96,7 @@ export function monthKeysCovering(window: DateWindow): string[] {
 }
 
 function formatDay(date: Date): string {
-  return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+  return formatDateAU(date);
 }
 
 function monthYearLabel(key: string): string {

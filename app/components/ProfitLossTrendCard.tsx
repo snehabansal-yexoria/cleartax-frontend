@@ -28,7 +28,7 @@ function formatCurrency(value: number) {
   return globalFormatCurrency(value);
 }
 
-const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" });
+const MONTH_LABEL = new Intl.DateTimeFormat("en-AU", { month: "short", year: "numeric" });
 
 function monthKey(value: string) {
   const date = new Date(value);

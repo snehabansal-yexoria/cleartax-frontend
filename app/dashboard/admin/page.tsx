@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PortalDashboardSkeleton } from "../../components/PortalSkeletons";
 import { getSession } from "@/src/lib/session";
 import "./admin.css";
+import { displayDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -970,7 +971,7 @@ export default function AdminPage() {
                     <article className="modal-list-item-row" key={tx.id}>
                       <div className="modal-item-left">
                         <span className="modal-item-name">{tx.description}</span>
-                        <span className="modal-item-sub">{tx.client} · {tx.date}</span>
+                        <span className="modal-item-sub">{tx.client} · {displayDateAU(tx.date)}</span>
                       </div>
                       <div className="modal-item-right" style={{ flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                         <span className="table-text-bold" style={{ color: "#B42318" }}>{tx.amount}</span>

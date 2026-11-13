@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { fetchReportDocuments, type ReportDocument } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 import { useReportPeriod } from "../useReportPeriod";
+import { displayDateAU } from "@/src/lib/dates";
 
 export default function DocumentsReport() {
   const {
@@ -125,7 +126,7 @@ export default function DocumentsReport() {
                   </td>
 
                   {/* Date */}
-                  <td className="py-3.5 px-6 text-right text-slate-400">{doc.date}</td>
+                  <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(doc.date)}</td>
                 </tr>
               ))}
               {filteredDocuments.length === 0 && (

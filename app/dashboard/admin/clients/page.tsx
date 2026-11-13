@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getSession } from "@/src/lib/session";
 import ExportMenu from "../_components/ExportMenu";
 import { PortalDashboardSkeleton } from "../../../components/PortalSkeletons";
+import { displayDateAU } from "@/src/lib/dates";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -848,7 +849,7 @@ export default function ClientsPage() {
                             { date: "08 Jun 2026", desc: "Council rates Q4", cat: "Rates & Taxes", amt: "-$840.00", pos: false }
                           ].map((tx, idx) => (
                             <tr key={idx} className="hover:bg-slate-50/50">
-                              <td className="py-2.5 px-4 font-medium text-slate-400 font-sans">{tx.date}</td>
+                              <td className="py-2.5 px-4 font-medium text-slate-400 font-sans">{displayDateAU(tx.date)}</td>
                               <td className="py-2.5 px-4 font-semibold text-slate-800 font-sans">{tx.desc}</td>
                               <td className="py-2.5 px-4 font-sans"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{tx.cat}</span></td>
                               <td className={`py-2.5 px-4 text-right font-bold font-sans ${tx.pos ? "text-emerald-600" : "text-slate-800"}`}>{tx.amt}</td>

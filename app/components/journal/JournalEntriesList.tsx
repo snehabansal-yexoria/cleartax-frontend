@@ -9,6 +9,7 @@ import type {
   CoreJournalEntry,
   CoreJournalEntrySummary,
 } from "@/src/lib/coreApi";
+import { formatAmountAU } from "@/src/lib/currency";
 
 interface Props {
   entityId: string;
@@ -299,8 +300,8 @@ export default function JournalEntriesList({
                             : `${entry.propertyNames.length} properties`}
                       </td>
                       <td className="is-numeric">{entry.lineCount}</td>
-                      <td className="is-numeric">{entry.totalDebit.toFixed(2)}</td>
-                      <td className="is-numeric">{entry.totalCredit.toFixed(2)}</td>
+                      <td className="is-numeric">{formatAmountAU(entry.totalDebit)}</td>
+                      <td className="is-numeric">{formatAmountAU(entry.totalCredit)}</td>
                       <td>
                         <span className="journal-status-chip">
                           {entry.source === "csv" ? "CSV import" : "Manual"}
@@ -395,14 +396,14 @@ export default function JournalEntriesList({
                                     </td>
                                     <td>{line.propertyName || "—"}</td>
                                     <td className="is-numeric">
-                                      {line.debit ? line.debit.toFixed(2) : "—"}
+                                      {line.debit ? formatAmountAU(line.debit) : "—"}
                                     </td>
                                     <td className="is-numeric">
-                                      {line.credit ? line.credit.toFixed(2) : "—"}
+                                      {line.credit ? formatAmountAU(line.credit) : "—"}
                                     </td>
                                     <td>{line.gstCode || "—"}</td>
                                     <td className="is-numeric">
-                                      {line.gstAmount ? line.gstAmount.toFixed(2) : "—"}
+                                      {line.gstAmount ? formatAmountAU(line.gstAmount) : "—"}
                                     </td>
                                     <td>{line.name || "—"}</td>
                                     <td>{line.description || "—"}</td>
@@ -575,7 +576,7 @@ export default function JournalEntriesList({
               <p>
                 {pendingDelete.entryDate} ·{" "}
                 {pendingDelete.reference || "no reference"} · A${" "}
-                {pendingDelete.totalDebit.toFixed(2)}
+                {formatAmountAU(pendingDelete.totalDebit)}
               </p>
             </div>
             <div className="transaction-modal-footer">

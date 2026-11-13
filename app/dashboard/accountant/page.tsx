@@ -60,7 +60,7 @@ function getInitials(name: string) {
 
 function formatJoinedDate(value: string | null) {
   if (!value) return "Recently";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-AU", {
     month: "short",
     year: "numeric",
   }).format(new Date(value));

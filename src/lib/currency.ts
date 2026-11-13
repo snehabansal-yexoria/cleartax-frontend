@@ -69,8 +69,18 @@ export function formatCurrencyShort(value: number): string {
       numericPart = `${kVal.toFixed(1)}K`;
     }
   } else {
-    numericPart = absValue.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    numericPart = absValue.toLocaleString("en-AU", { maximumFractionDigits: 0 });
   }
 
   return `${getCurrencyPrefix()}${sign}${numericPart}`;
+}
+
+/**
+ * A plain Australian-format amount with no currency symbol: `1,234.56`.
+ * Commas every three digits, two decimals. For screen text only — inputs and
+ * CSV exports keep the raw `toFixed(2)` number.
+ */
+export function formatAmountAU(value: number | null | undefined, decimals = 2): string {
+  const n = Number(value) || 0;
+  return n.toLocaleString("en-AU", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }

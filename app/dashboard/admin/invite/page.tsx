@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { getSession } from "@/src/lib/session";
 import { SHOW_INVITE_CREDENTIALS } from "@/src/lib/appConfig";
+import { formatDateAU } from "@/src/lib/dates";
 
 // ============================================================================
 // Types & Interfaces
@@ -1080,7 +1081,7 @@ export default function InviteUserByAdmin() {
                               {invite.invitedByEmail || "System"}
                             </td>
                             <td className="py-4 px-6 text-[13.5px] text-slate-500">
-                              {invite.createdAt ? new Date(invite.createdAt).toLocaleDateString() : "--"}
+                              {invite.createdAt ? formatDateAU(invite.createdAt) : "--"}
                             </td>
                             <td className="py-4 px-6">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#fef3c7] text-[#d97706] border border-amber-200/50 select-none">

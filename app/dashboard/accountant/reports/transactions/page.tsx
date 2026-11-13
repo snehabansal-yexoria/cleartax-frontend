@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { fetchReportTransactions, type ReportTransaction } from "../reportsApi";
 import ReportPageShell from "@/app/components/ReportPageShell";
 import { useReportPeriod } from "../useReportPeriod";
+import { displayDateAU } from "@/src/lib/dates";
 
 export default function TransactionsReport() {
   const {
@@ -129,11 +130,11 @@ export default function TransactionsReport() {
                       tx.amount < 0 ? "text-rose-500" : "text-emerald-500"
                     }`}
                   >
-                    {tx.amount < 0 ? "-" : "+"}${Math.abs(tx.amount).toLocaleString()}
+                    {tx.amount < 0 ? "-" : "+"}${Math.abs(tx.amount).toLocaleString("en-AU")}
                   </td>
 
                   {/* Date */}
-                  <td className="py-3.5 px-6 text-right text-slate-400">{tx.date}</td>
+                  <td className="py-3.5 px-6 text-right text-slate-400">{displayDateAU(tx.date)}</td>
                 </tr>
               ))}
               {filteredTransactions.length === 0 && (
