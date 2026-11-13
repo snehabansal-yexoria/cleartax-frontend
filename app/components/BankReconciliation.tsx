@@ -50,7 +50,7 @@ function AccountHeader({ account }: { account: ReconciliationAccount }) {
       <div><span className="text-gray-500">Account</span><span className="ml-2 font-medium font-mono">{account.accountNumber}</span></div>
       <div><span className="text-gray-500">Holder</span><span className="ml-2 font-medium">{account.holder}</span></div>
       <div><span className="text-gray-500">Type</span><span className="ml-2 capitalize">{account.accountType.replace("_", " ")}</span></div>
-      <div><span className="text-gray-500">Period</span><span className="ml-2">{account.statementPeriod.from} → {account.statementPeriod.to}</span></div>
+      <div><span className="text-gray-500">Period</span><span className="ml-2">{formatDateAU(account.statementPeriod.from)} → {formatDateAU(account.statementPeriod.to)}</span></div>
       <div>
         <span className="text-gray-500">Opening</span><span className="ml-2">{fmt(account.openingBalance, "$")}</span>
         <span className="text-gray-500 ml-4">Closing</span><span className="ml-2">{fmt(account.closingBalance, "$")}</span>

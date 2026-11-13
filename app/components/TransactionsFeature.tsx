@@ -77,6 +77,8 @@ import {
 } from "@/src/lib/dropdownRegistry";
 import { displayDateAU, formatDateAU } from "@/src/lib/dates";
 import AccountantUpcomingPayments from "@/app/components/upcoming-payments/AccountantUpcomingPayments";
+import { useRegularPaymentAuto } from "@/src/lib/useRegularPaymentAuto";
+import { REGULAR_FREQUENCIES, type RegularFrequency } from "@/src/lib/regularPayments";
 
 interface SessionWithIdToken {
   getIdToken(): {
@@ -7362,11 +7364,25 @@ export function AddTransactionView({
 
   const showDueDateError = !!dueDateError && (dueDateTouched || dueDateError !== "Due date is required.");
 
+  const selectedCategoryName = categories.find((c) => c.id === categoryId)?.name ?? "";
+  const regular = useRegularPaymentAuto({
+    type,
+    categoryName: selectedCategoryName,
+    invoiceDate,
+    isRegular: isRegularPayment,
+    setIsRegular: setIsRegularPayment,
+    dueDate,
+    setDueDate,
+  });
+
   // Auto-fill Alert Name based on Property and Subcategory
   useEffect(() => {
     if (!userEditedAlertName) {
       const propName = properties.find((p) => p.id === propertyId)?.name || "";
-      const subcatName = subcategories.find((s) => s.id === subcategoryId)?.name || "";
+      const subcatOnly = subcategories.find((s) => s.id === subcategoryId)?.name || "";
+      // "General" says nothing; name the alert after the category instead.
+      const subcatName =
+        subcatOnly && subcatOnly.toLowerCase() !== "general" ? subcatOnly : selectedCategoryName || subcatOnly;
       if (subcatName && propName) {
         setAlertName(`${subcatName} - ${propName}`);
       } else if (subcatName) {
@@ -7377,7 +7393,7 @@ export function AddTransactionView({
         setAlertName("");
       }
     }
-  }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName]);
+  }, [propertyId, subcategoryId, properties, subcategories, userEditedAlertName, selectedCategoryName]);
 
   // Whether this category actually offers a subcategory to choose. Mirrors
   // showSubcategorySelect further down, which cannot be referenced here — it is
@@ -8200,6 +8216,7 @@ export function AddTransactionView({
         is_regular_payment: withBusinessExtras ? isRegularPayment : false,
         due_date: withBusinessExtras && isRegularPayment ? (dueDate || null) : null,
         alert_name: withBusinessExtras && isRegularPayment ? (alertName.trim() || null) : null,
+        regular_frequency: withBusinessExtras && isRegularPayment ? regular.frequency : null,
         ...(type === "balance_sheet" ? { balance_sheet_direction: balanceSheetDirection } : {}),
         ...(type === "contra" && contraDirection ? { contra_direction: contraDirection } : {}),
       };
@@ -8380,6 +8397,109 @@ export function AddTransactionView({
   const flashClass = (key: string) =>
     prefilled.has(key) ? " is-prefilled" : "";
 
+
+  // "Is it a regular payment?" — under Category (highlighted, switched on) for
+  // Council rates, Water charges, Body Corporate / Strata, Insurance and Land
+  // tax; otherwise in its usual place further down the form.
+  const regularPaymentSection = (
+    <div
+      className={`tx-regular${regular.isRegularCategory ? " is-featured" : ""}`}
+      style={regular.isRegularCategory ? {
+        border: "1.5px solid var(--regular-featured-line, #c7ccf0)",
+        background: "var(--regular-featured-bg, #fafbff)",
+        borderRadius: 14,
+        padding: "14px 16px 4px",
+        marginBottom: 16,
+      } : undefined}
+    >
+      <label className="figma-toggle-container">
+        <div className="figma-toggle-info">
+          <span className="figma-toggle-title">Is it a regular payment?</span>
+          <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+        </div>
+        <span className="figma-switch">
+          <input
+            type="checkbox"
+            checked={isRegularPayment}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              regular.onToggle(checked);
+              setIsRegularPayment(checked);
+              if (!checked) {
+                setDueDate("");
+                setDueDateTouched(false);
+                setAlertName("");
+              }
+            }}
+          />
+          <span className="figma-switch-slider" />
+        </span>
+      </label>
+
+      {regular.autoOn && (
+        <p className="tx-regular-note">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+          <span>Turned on because <b>{selectedCategoryName}</b> is usually a regular bill. Switch it off if this one isn&apos;t.</span>
+        </p>
+      )}
+
+      {isRegularPayment && (
+        <>
+          <div className="figma-form-row">
+            <div className="figma-field-container">
+              <StaticSelect
+                label="How often?"
+                required
+                value={regular.frequency}
+                options={REGULAR_FREQUENCIES.map((f) => ({ label: f.label, value: f.value }))}
+                onChange={(value) => regular.setFrequency(value as RegularFrequency)}
+              />
+            </div>
+            <div className="figma-field-container">
+              <span className="figma-field-label">Next due date<em>*</em></span>
+              <input
+                type="date"
+                className="figma-input"
+                aria-label="Next due date"
+                value={dueDate}
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  regular.onDueDateTyped();
+                }}
+                onBlur={() => setDueDateTouched(true)}
+              />
+              {showDueDateError ? (
+                <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                  <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span>{dueDateError}</span>
+                </p>
+              ) : (
+                <span className="tx-regular-hint">{regular.dueHint}</span>
+              )}
+            </div>
+          </div>
+          <div className="figma-form-row">
+            <div className="figma-field-container" style={{ gridColumn: "1 / -1" }}>
+              <span className="figma-field-label">Alert Name<em>*</em></span>
+              <input
+                type="text"
+                className="figma-input"
+                aria-label="Alert name"
+                placeholder="e.g. Quarterly insurance reminder"
+                value={alertName}
+                onChange={(e) => {
+                  setAlertName(e.target.value);
+                  setUserEditedAlertName(true);
+                }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
   return (
     <div className="figma-add-tx-container">
       <Link href={effectiveBackHref} className="figma-add-tx-back">
@@ -8749,6 +8869,10 @@ export function AddTransactionView({
                   )}
                 </div>
               ) : null}
+
+              {/* A regular-bill category (Council rates, Water, Strata, Insurance,
+                  Land tax) brings "Is it a regular payment?" up here, switched on. */}
+              {regular.isRegularCategory && regularPaymentSection}
 
               {accountSelectOptions.length > 0 && (
                 <div className="figma-form-row">
@@ -9138,69 +9262,8 @@ export function AddTransactionView({
                     </div>
                   )}
 
-                  {/* Is it a regular payment? */}
-                  {type === "expense" && (
-                    <>
-                      <label className="figma-toggle-container">
-                        <div className="figma-toggle-info">
-                          <span className="figma-toggle-title">Is it a regular payment?</span>
-                          <span className="figma-toggle-desc">Set a due date and reminder alert</span>
-                        </div>
-                        <span className="figma-switch">
-                          <input
-                            type="checkbox"
-                            checked={isRegularPayment}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setIsRegularPayment(checked);
-                              if (!checked) {
-                                setDueDate("");
-                                setDueDateTouched(false);
-                                setAlertName("");
-                              }
-                            }}
-                          />
-                          <span className="figma-switch-slider" />
-                        </span>
-                      </label>
-
-                      {isRegularPayment && (
-                        <div className="figma-form-row">
-                          <div className="figma-field-container">
-                            <span className="figma-field-label">Due Date<em>*</em></span>
-                            <input
-                              type="date"
-                              className="figma-input"
-                              value={dueDate}
-                              onChange={(e) => setDueDate(e.target.value)}
-                              onBlur={() => setDueDateTouched(true)}
-                            />
-                            {showDueDateError && (
-                              <p className="transaction-field-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
-                                <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                </svg>
-                                <span>{dueDateError}</span>
-                              </p>
-                            )}
-                          </div>
-                          <div className="figma-field-container">
-                            <span className="figma-field-label">Alert Name<em>*</em></span>
-                            <input
-                              type="text"
-                              className="figma-input"
-                              placeholder="e.g. Quarterly insurance reminder"
-                              value={alertName}
-                              onChange={(e) => {
-                                setAlertName(e.target.value);
-                                setUserEditedAlertName(true);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  {/* Is it a regular payment? — here unless the category moved it up (below Category). */}
+                  {type === "expense" && !regular.isRegularCategory && regularPaymentSection}
 
                   {/* Is this a split transaction? */}
                   <label className="figma-toggle-container">

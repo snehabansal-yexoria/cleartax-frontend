@@ -3044,6 +3044,14 @@ html.dark .client-tx-entity-tab-pill:hover:not(.is-active) {
   border-top: 1px solid #e4e8f0 !important;
 }
 
+/* "Is this a regular payment?" moved up under Sub-category: the card has its
+   own border and padding, so the row inside it loses the divider and gaps. */
+.client-tx-regular.is-featured .client-tx-split-toggle-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  border-top: 0 !important;
+}
+
 .client-tx-split-toggle-info {
   display: flex !important;
   flex-direction: column !important;

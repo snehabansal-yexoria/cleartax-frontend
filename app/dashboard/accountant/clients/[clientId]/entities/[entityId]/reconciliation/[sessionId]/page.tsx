@@ -58,6 +58,8 @@ import AssetBuilder, {
 } from "@/app/components/AssetBuilder";
 import { displayDateAU, formatDateAU } from "@/src/lib/dates";
 import { formatAmountAU } from "@/src/lib/currency";
+import { useRegularPaymentAuto } from "@/src/lib/useRegularPaymentAuto";
+import { REGULAR_FREQUENCIES, nextDueDate, regularBillFrequency, type RegularFrequency } from "@/src/lib/regularPayments";
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -509,6 +511,13 @@ export default function AccountantReconciliationSessionPage() {
   // across a set of differently-sized bank lines is meaningless, and on any
   // line smaller than the amount it would clamp the business side to zero and
   // break the invariant that the two children sum to their parent.
+  // Regular payment for every line in the bulk categorise. One frequency and
+  // alert name; each line's due date counts from its own date.
+  const [bulkIsRegular, setBulkIsRegular] = useState(false);
+  const [bulkRegularAuto, setBulkRegularAuto] = useState(false);
+  const [bulkFrequency, setBulkFrequency] = useState<RegularFrequency>("monthly");
+  const [bulkAlertName, setBulkAlertName] = useState("");
+  const [bulkAlertEdited, setBulkAlertEdited] = useState(false);
   const [bulkIsPersonal, setBulkIsPersonal] = useState(false);
   const [bulkPersonalPercentage, setBulkPersonalPercentage] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -1052,11 +1061,63 @@ export default function AccountantReconciliationSessionPage() {
     }
   }, [categorizeType, categorizePropertyId, properties]);
 
+  // The open line's date: what a regular payment's next due date counts from.
+  const categorizeLineDate = useMemo(() => {
+    if (categorizeKey === null) return "";
+    const [reconId, idxStr] = categorizeKey.split(":");
+    return reconCache.get(reconId)?.transactions[Number(idxStr)]?.date ?? "";
+  }, [categorizeKey, reconCache]);
+  const categorizeCategoryName = categorizeCategories.find((c) => c.id === categorizeCategoryId)?.name ?? "";
+  const categorizeRegular = useRegularPaymentAuto({
+    type: categorizeType,
+    categoryName: categorizeCategoryName,
+    invoiceDate: categorizeLineDate,
+    isRegular: categorizeIsRegularPayment,
+    setIsRegular: setCategorizeIsRegularPayment,
+    dueDate: categorizeDueDate,
+    setDueDate: setCategorizeDueDate,
+  });
+
+  // Bulk categorise: a regular-bill category switches the regular payment on
+  // (and back off if the category changes and the user didn't touch it).
+  const bulkCategoryName = bulkCategories.find((c) => c.id === bulkCategoryId)?.name ?? "";
+  const bulkBillFrequency = regularBillFrequency(bulkType, bulkCategoryName);
+  useEffect(() => {
+    if (!bulkOpen) return;
+    if (bulkBillFrequency) {
+      setBulkIsRegular(true);
+      setBulkFrequency(bulkBillFrequency);
+      setBulkRegularAuto(true);
+    } else {
+      setBulkRegularAuto((wasAuto) => {
+        if (wasAuto) setBulkIsRegular(false);
+        return false;
+      });
+    }
+  }, [bulkOpen, bulkBillFrequency]);
+  useEffect(() => {
+    if (bulkAlertEdited) return;
+    const sub = bulkSubcategories.find((s) => s.id === bulkSubcategoryId)?.name ?? "";
+    const label = sub && sub.toLowerCase() !== "general" ? sub : bulkCategoryName || sub;
+    const prop = properties.find((p) => p.id === bulkPropertyId)?.name ?? "";
+    setBulkAlertName([label, prop].filter(Boolean).join(" - "));
+  }, [bulkAlertEdited, bulkSubcategories, bulkSubcategoryId, bulkCategoryName, bulkPropertyId, properties]);
+  const bulkDueExample = (() => {
+    const first = selectedEligibleRows[0]?.row.date ?? "";
+    const due = first ? nextDueDate(first, bulkFrequency) : "";
+    const every = bulkFrequency === "annually" ? "yearly" : bulkFrequency;
+    return first && due
+      ? `Each line's next ${every} date after its own date, e.g. ${formatDateAU(first)} → ${formatDateAU(due)}.`
+      : `Each line's next ${every} date after its own date.`;
+  })();
+
   // Auto-populate Alert Name based on subcategory and property
   useEffect(() => {
     if (categorizeUserEditedAlertName) return;
     const subcat = categorizeSubcategories.find((s) => s.id === categorizeSubcategoryId);
-    const subcatName = subcat ? subcat.name : "";
+    // "General" says nothing; name the alert after the category instead.
+    const subcatName =
+      subcat && subcat.name.toLowerCase() !== "general" ? subcat.name : categorizeCategoryName || (subcat?.name ?? "");
     const prop = properties.find((p) => p.id === categorizePropertyId);
     const propName = prop ? prop.name : "";
     if (subcatName && propName) {
@@ -1068,7 +1129,7 @@ export default function AccountantReconciliationSessionPage() {
     } else {
       setCategorizeAlertName("");
     }
-  }, [categorizeSubcategoryId, categorizePropertyId, categorizeSubcategories, properties, categorizeUserEditedAlertName]);
+  }, [categorizeSubcategoryId, categorizePropertyId, categorizeSubcategories, properties, categorizeUserEditedAlertName, categorizeCategoryName]);
 
   // Private-use split of a business expense. A wholly personal transaction is
   // type === "personal" and carries no split, so categorizeIsPersonal is false.
@@ -1579,6 +1640,7 @@ export default function AccountantReconciliationSessionPage() {
         is_regular_payment: withBusinessExtras ? categorizeIsRegularPayment : false,
         due_date: withBusinessExtras && categorizeIsRegularPayment ? (categorizeDueDate || null) : null,
         alert_name: withBusinessExtras && categorizeIsRegularPayment ? (categorizeAlertName.trim() || null) : null,
+        regular_frequency: withBusinessExtras && categorizeIsRegularPayment ? categorizeRegular.frequency : null,
         ...(categorizeType === "contra" ? { contra_direction: contraDirectionOfBankLine(bankTx) } : {}),
       };
 
@@ -1708,6 +1770,11 @@ export default function AccountantReconciliationSessionPage() {
     setBulkGst(false);
     setBulkIsPersonal(false);
     setBulkPersonalPercentage("");
+    setBulkIsRegular(false);
+    setBulkRegularAuto(false);
+    setBulkFrequency("monthly");
+    setBulkAlertName("");
+    setBulkAlertEdited(false);
     setBulkError(null);
     setBulkProgress(null);
     setBulkOpen(true);
@@ -1750,6 +1817,11 @@ export default function AccountantReconciliationSessionPage() {
       );
       return;
     }
+    const bulkRegularOn = allowsBusinessExtras(bulkType) && bulkIsRegular;
+    if (bulkRegularOn && !bulkAlertName.trim()) {
+      setBulkError("Alert name is required for regular payments.");
+      return;
+    }
     const bulkPersonalPercentageValue = Number(
       (Number.parseFloat(bulkPersonalPercentage) || 0).toFixed(2),
     );
@@ -1787,6 +1859,15 @@ export default function AccountantReconciliationSessionPage() {
               metadata: {
                 source: "reconciliation_categorized",
                 ...(bulkType === "contra" ? { contra_direction: contraDirectionOfBankLine(row) } : {}),
+                ...(bulkRegularOn
+                  ? {
+                      is_regular_payment: true,
+                      // Each line's next due date counts from its own date.
+                      due_date: nextDueDate(row.date, bulkFrequency) || null,
+                      alert_name: bulkAlertName.trim(),
+                      regular_frequency: bulkFrequency,
+                    }
+                  : {}),
               },
               splits: [{ property_id: bulkPropertyId, split_percentage: 100, split_gross_amount: gross }],
               // One percentage across every selected line. Each line's own
@@ -2281,9 +2362,111 @@ export default function AccountantReconciliationSessionPage() {
   }
 
   const sessionPeriod = session.periodFrom && session.periodTo
-    ? `${session.periodFrom} → ${session.periodTo}`
-    : session.periodFrom || session.periodTo || "";
+    ? `${formatDateAU(session.periodFrom)} → ${formatDateAU(session.periodTo)}`
+    : displayDateAU(session.periodFrom || session.periodTo || "", "");
 
+
+  // "Is it a regular payment?" in the categorise drawer — under Category
+  // (highlighted, switched on) for Council rates, Water charges, Body
+  // Corporate / Strata, Insurance and Land tax; otherwise further down.
+  const categorizeRegularSection = (
+    <div
+      className={`tx-regular${categorizeRegular.isRegularCategory ? " is-featured" : ""}`}
+      style={categorizeRegular.isRegularCategory ? {
+        border: "1.5px solid var(--regular-featured-line, #c7ccf0)",
+        background: "var(--regular-featured-bg, #fafbff)",
+        borderRadius: 14,
+        padding: "12px 14px",
+        marginTop: 16,
+      } : undefined}
+    >
+      <label className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
+        <div className="figma-toggle-info">
+          <span className="figma-toggle-title">Is it a regular payment?</span>
+          <span className="figma-toggle-desc">Set a due date and reminder alert</span>
+        </div>
+        <span className="figma-switch">
+          <input
+            type="checkbox"
+            checked={categorizeIsRegularPayment}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              categorizeRegular.onToggle(checked);
+              setCategorizeIsRegularPayment(checked);
+              if (!checked) {
+                setCategorizeDueDate("");
+                setCategorizeDueDateTouched(false);
+                setCategorizeAlertName("");
+                setCategorizeUserEditedAlertName(false);
+              }
+            }}
+          />
+          <span className="figma-switch-slider" />
+        </span>
+      </label>
+
+      {categorizeRegular.autoOn && (
+        <p className="tx-regular-note">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+          <span>Turned on because <b>{categorizeCategoryName}</b> is usually a regular bill. Switch it off if this one isn&apos;t.</span>
+        </p>
+      )}
+
+      {categorizeIsRegularPayment && (
+        <div className="recon-categorize-grid recon-regular-grid">
+          <div className="recon-categorize-field">
+            <label className="recon-categorize-label">How often? <span className="is-required">*</span></label>
+            <StaticSelect
+              value={categorizeRegular.frequency}
+              options={REGULAR_FREQUENCIES.map((f) => ({ label: f.label, value: f.value }))}
+              onChange={(val) => categorizeRegular.setFrequency(val as RegularFrequency)}
+            />
+          </div>
+          <div className="recon-categorize-field">
+            <label className="recon-categorize-label">Next due date <span className="is-required">*</span></label>
+            <input
+              type="date"
+              aria-label="Next due date"
+              className={`recon-categorize-input${showCategorizeDueDateError ? " has-error" : ""}`}
+              style={{ height: '48px' }}
+              value={categorizeDueDate}
+              onChange={(e) => {
+                setCategorizeDueDate(e.target.value);
+                setCategorizeDueDateTouched(true);
+                categorizeRegular.onDueDateTyped();
+              }}
+              onBlur={() => setCategorizeDueDateTouched(true)}
+            />
+            {showCategorizeDueDateError ? (
+              <p className="recon-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
+                <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>{categorizeDueDateError}</span>
+              </p>
+            ) : (
+              <span className="tx-regular-hint">{categorizeRegular.dueHint.replace("invoice date", "transaction date")}</span>
+            )}
+          </div>
+          <div className="recon-categorize-field" style={{ gridColumn: "1 / -1" }}>
+            <label className="recon-categorize-label">Alert Name <span className="is-required">*</span></label>
+            <input
+              type="text"
+              aria-label="Alert name"
+              className="recon-categorize-input"
+              style={{ height: '48px' }}
+              placeholder="e.g. Quarterly insurance reminder"
+              value={categorizeAlertName}
+              onChange={(e) => {
+                setCategorizeAlertName(e.target.value);
+                setCategorizeUserEditedAlertName(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
   return (
     <section className="accountant-reconciliation-page">
       <Link
@@ -3758,6 +3941,10 @@ export default function AccountantReconciliationSessionPage() {
                           )}
                         </div>
 
+                        {/* A regular-bill category (Council rates, Water, Strata, Insurance,
+                            Land tax) brings "Is it a regular payment?" up here, switched on. */}
+                        {allowsBusinessExtras(categorizeType) && categorizeRegular.isRegularCategory && categorizeRegularSection}
+
                         {/* Add Asset. */}
                         {allowsBusinessExtras(categorizeType) && (
                           <div style={{ marginTop: 16 }}>
@@ -3965,74 +4152,9 @@ export default function AccountantReconciliationSessionPage() {
                           </div>
                         )}
 
-                        {/* Is it a regular payment? */}
-                        {allowsBusinessExtras(categorizeType) && (
-                          <div style={{ marginTop: 16 }}>
-                            <label className="figma-toggle-container" style={{ marginBottom: categorizeIsRegularPayment ? 16 : 0 }}>
-                              <div className="figma-toggle-info">
-                                <span className="figma-toggle-title">Is it a regular payment?</span>
-                                <span className="figma-toggle-desc">Set a due date and reminder alert</span>
-                              </div>
-                              <span className="figma-switch">
-                                <input
-                                  type="checkbox"
-                                  checked={categorizeIsRegularPayment}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked;
-                                    setCategorizeIsRegularPayment(checked);
-                                    if (!checked) {
-                                      setCategorizeDueDate("");
-                                      setCategorizeDueDateTouched(false);
-                                      setCategorizeAlertName("");
-                                      setCategorizeUserEditedAlertName(false);
-                                    }
-                                  }}
-                                />
-                                <span className="figma-switch-slider" />
-                              </span>
-                            </label>
-
-                            {categorizeIsRegularPayment && (
-                              <div className="recon-categorize-grid" style={{ marginBottom: 16 }}>
-                                <div className="recon-categorize-field">
-                                  <label className="recon-categorize-label">Due Date <span className="is-required">*</span></label>
-                                  <input
-                                    type="date"
-                                    className={`recon-categorize-input${showCategorizeDueDateError ? " has-error" : ""}`}
-                                    style={{ height: '48px' }}
-                                    value={categorizeDueDate}
-                                    onChange={(e) => {
-                                      setCategorizeDueDate(e.target.value);
-                                      setCategorizeDueDateTouched(true);
-                                    }}
-                                    onBlur={() => setCategorizeDueDateTouched(true)}
-                                  />
-                                  {showCategorizeDueDateError && (
-                                    <p className="recon-split-row-error" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", color: "#da3838", fontSize: "12px", fontWeight: "600" }}>
-                                      <svg style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                      </svg>
-                                      <span>{categorizeDueDateError}</span>
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="recon-categorize-field">
-                                  <label className="recon-categorize-label">Alert Name <span className="is-required">*</span></label>
-                                  <input
-                                    type="text"
-                                    className="recon-categorize-input"
-                                    style={{ height: '48px' }}
-                                    placeholder="e.g. Quarterly insurance reminder"
-                                    value={categorizeAlertName}
-                                    onChange={(e) => {
-                                      setCategorizeAlertName(e.target.value);
-                                      setCategorizeUserEditedAlertName(true);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                        {/* Is it a regular payment? — here unless the category moved it up (below Category). */}
+                        {allowsBusinessExtras(categorizeType) && !categorizeRegular.isRegularCategory && (
+                          <div style={{ marginTop: 16 }}>{categorizeRegularSection}</div>
                         )}
 
                         {/* Split option and section placed before GST */}
@@ -4616,6 +4738,83 @@ export default function AccountantReconciliationSessionPage() {
                   </div>
                 )}
               </div>
+
+              {/* Is it a regular payment? — highlighted and switched on for
+                  Council rates, Water, Strata, Insurance and Land tax. */}
+              {allowsBusinessExtras(bulkType) && (
+                <div
+                  className={`tx-regular${bulkBillFrequency ? " is-featured" : ""}`}
+                  style={{
+                    marginTop: 16,
+                    ...(bulkBillFrequency
+                      ? {
+                          border: "1.5px solid var(--regular-featured-line, #c7ccf0)",
+                          background: "var(--regular-featured-bg, #fafbff)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
+                        }
+                      : {}),
+                  }}
+                >
+                  <label className="figma-toggle-container" style={{ marginBottom: bulkIsRegular ? 16 : 0 }}>
+                    <div className="figma-toggle-info">
+                      <span className="figma-toggle-title">Is it a regular payment?</span>
+                      <span className="figma-toggle-desc">Set a reminder alert for each line</span>
+                    </div>
+                    <span className="figma-switch">
+                      <input
+                        type="checkbox"
+                        checked={bulkIsRegular}
+                        onChange={(e) => {
+                          setBulkRegularAuto(false);
+                          setBulkIsRegular(e.target.checked);
+                        }}
+                      />
+                      <span className="figma-switch-slider" />
+                    </span>
+                  </label>
+
+                  {bulkIsRegular && bulkRegularAuto && (
+                    <p className="tx-regular-note">
+                      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+                      <span>Turned on because <b>{bulkCategoryName}</b> is usually a regular bill. Switch it off if these aren&apos;t.</span>
+                    </p>
+                  )}
+
+                  {bulkIsRegular && (
+                    <div className="recon-categorize-grid recon-regular-grid">
+                      <div className="recon-categorize-field">
+                        <label className="recon-categorize-label">How often? <span className="is-required">*</span></label>
+                        <StaticSelect
+                          value={bulkFrequency}
+                          options={REGULAR_FREQUENCIES.map((f) => ({ label: f.label, value: f.value }))}
+                          onChange={(val) => setBulkFrequency(val as RegularFrequency)}
+                        />
+                      </div>
+                      <div className="recon-categorize-field">
+                        <span className="recon-categorize-label">Next due date</span>
+                        <div className="recon-categorize-input recon-regular-per-line">Worked out for each line</div>
+                        <span className="tx-regular-hint">{bulkDueExample}</span>
+                      </div>
+                      <div className="recon-categorize-field" style={{ gridColumn: "1 / -1" }}>
+                        <label className="recon-categorize-label">Alert Name <span className="is-required">*</span></label>
+                        <input
+                          type="text"
+                          aria-label="Alert name"
+                          className="recon-categorize-input"
+                          style={{ height: "48px" }}
+                          placeholder="e.g. Quarterly insurance reminder"
+                          value={bulkAlertName}
+                          onChange={(e) => {
+                            setBulkAlertName(e.target.value);
+                            setBulkAlertEdited(true);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Same gate as the single drawer: contra carries no GST and the
               database rejects one that does. */}
