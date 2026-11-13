@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { FY_MONTHS, money, pct, tone } from "./reportFormat";
+import { FY_MONTHS, MINUS, money, pct, tone } from "./reportFormat";
 
 /**
  * Building blocks shared by the client reports. Plain `cp-*` classes from
@@ -203,19 +203,125 @@ export function Signed({ value }: { value: number }) {
   return <span className={tone(value)}>{money(value, { sign: true })}</span>;
 }
 
+/** One income or expense category, its amount for each month July first. */
+export type CashFlowCategory = {
+  key: string;
+  label: string;
+  type: "revenue" | "expense";
+  months: number[];
+};
+
+/** A statement cell: "1,234.56", a dash for zero; `signed` adds + / − and colour. */
+function StatementAmount({ value, signed = false }: { value: number; signed?: boolean }) {
+  const rounded = Math.round(value * 100) / 100;
+  if (rounded === 0) return <span className="cp-cf-zero">–</span>;
+  const digits = Math.abs(rounded).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (!signed) return <>{rounded < 0 ? `${MINUS}${digits}` : digits}</>;
+  return <span className={tone(rounded)}>{`${rounded < 0 ? MINUS : "+"}${digits}`}</span>;
+}
+
+/**
+ * The Table view in full: months across, income and expense categories down,
+ * each with its total, then Net (income − expenses) for every month. Laid out
+ * like the statement an accountant keeps in a spreadsheet.
+ */
+function CashFlowStatement({
+  categories,
+  income,
+  expenses,
+  periodLabel,
+}: {
+  categories: CashFlowCategory[];
+  income: number[];
+  expenses: number[];
+  periodLabel: string;
+}) {
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  const at = (xs: number[], i: number) => xs[i] ?? 0;
+  const section = (type: CashFlowCategory["type"], totals: number[]) => {
+    const rows = categories.filter((c) => c.type === type);
+    // Anything the month totals hold that no category row explains (rounding,
+    // an older backend) shows as "Other", so every column still adds up.
+    const other = FY_MONTHS.map((_, i) => at(totals, i) - rows.reduce((a, r) => a + at(r.months, i), 0));
+    if (other.some((v) => Math.abs(v) >= 0.005)) {
+      rows.push({ key: `${type}-other`, label: "Other", type, months: other });
+    }
+    return rows;
+  };
+  const incomeRows = section("revenue", income);
+  const expenseRows = section("expense", expenses);
+  const net = FY_MONTHS.map((_, i) => at(income, i) - at(expenses, i));
+  const cols = FY_MONTHS.length + 2;
+
+  const line = (key: string, label: ReactNode, months: number[], cls?: string, signed = false) => (
+    <tr key={key} className={cls}>
+      <th scope="row">{label}</th>
+      {FY_MONTHS.map((m, i) => (
+        <td key={m} className="n">
+          <StatementAmount value={at(months, i)} signed={signed} />
+        </td>
+      ))}
+      <td className="n cp-cf-year">
+        <StatementAmount value={sum(months)} signed={signed} />
+      </td>
+    </tr>
+  );
+
+  return (
+    <div className="cp-tw cp-scroll" role="region" tabIndex={0} aria-label={`Cash flow by category and month, ${periodLabel}`}>
+      <table className="cp-t cp-t--mini cp-cf">
+        <caption className="cp-sr">Cash flow by category and month, {periodLabel}. Amounts in Australian dollars.</caption>
+        <thead>
+          <tr>
+            <th scope="col">A$</th>
+            {FY_MONTHS.map((m) => (
+              <th key={m} scope="col" className="n">
+                {m}
+              </th>
+            ))}
+            <th scope="col" className="n cp-cf-year">
+              Year
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="cp-cf-sec">
+            <th scope="colgroup" colSpan={cols}>
+              Income
+            </th>
+          </tr>
+          {incomeRows.map((r) => line(r.key, r.label, r.months, "cp-cf-cat"))}
+          {line("income-total", "Total income", income, "cp-cf-sub")}
+          <tr className="cp-cf-sec">
+            <th scope="colgroup" colSpan={cols}>
+              Expenses
+            </th>
+          </tr>
+          {expenseRows.map((r) => line(r.key, r.label, r.months, "cp-cf-cat"))}
+          {line("expense-total", "Total expenses", expenses, "cp-cf-sub")}
+          {line("net", "Net (income − expenses)", net, "tot cp-cf-net", true)}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
  * Income vs expenses by month, July first, as bars or a table. Both views are
  * always in the DOM — the toggle only hides one — so a print or PDF shows the
- * two together.
+ * two together. With `categories`, the table breaks each month down by
+ * category (CashFlowStatement); without, it lists the month totals.
  */
 export function MonthlyChart({
   income,
   expenses,
   periodLabel,
+  categories,
 }: {
   income: number[];
   expenses: number[];
   periodLabel: string;
+  categories?: CashFlowCategory[];
 }) {
   const [view, setView] = useState<"graph" | "table">("graph");
   const raw = Math.max(...income, ...expenses, 1);
@@ -288,6 +394,9 @@ export function MonthlyChart({
         </div>
       </div>
       <div className="cp-v-table">
+        {categories && categories.length > 0 ? (
+          <CashFlowStatement categories={categories} income={income} expenses={expenses} periodLabel={periodLabel} />
+        ) : (
         <ReportTable
           stack={false}
           mini
@@ -315,6 +424,7 @@ export function MonthlyChart({
             },
           ]}
         />
+        )}
       </div>
       <Note>Excludes depreciation, which is claimed for the year rather than by month. See your Depreciation report.</Note>
     </section>
